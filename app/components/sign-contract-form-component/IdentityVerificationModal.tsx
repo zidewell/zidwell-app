@@ -336,7 +336,7 @@ export const IdentityVerificationModal = ({
                 maxLength={11}
               />
               <div className="flex items-start gap-2 text-xs text-muted-foreground mt-1">
-                <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="h-3 w-3 shrink-0 mt-0.5" />
                 <p>
                   Your NIN is used to verify your identity and prevent
                   fraudulent contracts

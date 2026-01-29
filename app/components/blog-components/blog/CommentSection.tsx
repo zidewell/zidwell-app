@@ -1,11 +1,11 @@
-"use client "
+"use client ";
 import { useState } from "react";
-import { Comment } from "./types/blog"; 
+import { Comment } from "./types/blog";
 import { format } from "date-fns";
-import { Button } from "../../ui/button"; 
-import { Textarea } from "../../ui/textarea"; 
-import { Input } from "../../ui/input"; 
-import { Badge } from "../../ui/badge"; 
+import { Button } from "../../ui/button";
+import { Textarea } from "../../ui/textarea";
+import { Input } from "../../ui/input";
+import { Badge } from "../../ui/badge";
 
 interface CommentSectionProps {
   comments: Comment[];
@@ -56,7 +56,10 @@ const CommentSection = ({ comments, postId }: CommentSectionProps) => {
           rows={4}
           required
         />
-        <Button type="submit" className="bg-accent text-accent-foreground hover:bg-accent/90">
+        <Button
+          type="submit"
+          className="bg-accent text-accent-foreground hover:bg-accent/90"
+        >
           Post Comment
         </Button>
       </form>
@@ -73,13 +76,16 @@ const CommentSection = ({ comments, postId }: CommentSectionProps) => {
               <img
                 src={comment.author.avatar}
                 alt={comment.author.name}
-                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                className="w-10 h-10 rounded-full object-cover shrink-0"
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium">{comment.author.name}</span>
                   {comment.author.isZidwellUser && (
-                    <Badge variant="secondary" className="text-xs bg-accent/10 text-accent">
+                    <Badge
+                      variant="secondary"
+                      className="text-xs bg-accent/10 text-accent"
+                    >
                       Zidwell User
                     </Badge>
                   )}

@@ -11,7 +11,7 @@ const WhyDifferent = () => {
               Why We're{" "}
               <span className="relative inline-block">
                 <span className="relative z-10">Different</span>
-                <span className="absolute bottom-2 left-0 right-0 h-4 bg-[#C29307]/40 -z-0" />
+                <span className="absolute bottom-2 left-0 right-0 h-4 bg-[#C29307]/40 z-0" />
               </span>
             </h2>
 
@@ -21,10 +21,6 @@ const WhyDifferent = () => {
                 Zidwell focuses on financial wellbeing.
               </strong>
             </p>
-
-           
-
-           
           </div>
 
           {/* Right Visual */}

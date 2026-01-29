@@ -79,7 +79,7 @@ const Footer = () => {
             <h4 className="font-bold text-lg mb-6">Contact Us</h4>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-[#C29307] flex-shrink-0 mt-0.5" />
+                <Phone className="w-5 h-5 text-[#C29307] shrink-0 mt-0.5" />
                 <div>
                   <p className="text-white/70">WhatsApp</p>
                   <a
@@ -91,7 +91,7 @@ const Footer = () => {
                 </div>
               </li>
               <li className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-[#C29307] flex-shrink-0 mt-0.5" />
+                <MapPin className="w-5 h-5 text-[#C29307] shrink-0 mt-0.5" />
                 <div>
                   <p className="text-white/70">Office</p>
                   <p>

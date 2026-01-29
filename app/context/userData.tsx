@@ -9,8 +9,10 @@ import {
   Dispatch,
   SetStateAction,
 } from "react";
-import supabase from "../supabase/supabase";
+
 import { usePathname } from "next/navigation";
+import { supabase } from "../supabase/supabase";
+
 
 export type PodcastEpisode = {
   id: string;
@@ -495,45 +497,45 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, [pathname, initialCheckDone, userData]);
 
   // Real-time subscription (only when shouldFetchData is true)
-  useEffect(() => {
-    if (!shouldFetchData || !userData?.id) return;
+  // useEffect(() => {
+  //   if (!shouldFetchData || !userData?.id) return;
 
-    const channel = supabase
-      .channel('notification-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notification_logs',
-          filter: `user_id=eq.${userData.id}`,
-        },
-        (payload) => {
-          clearNotificationCache();
-          fetchNotifications();
-          fetchUnreadCount();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notification_logs',
-          filter: `user_id=eq.${userData.id}`,
-        },
-        (payload) => {
-          clearNotificationCache();
-          fetchNotifications();
-          fetchUnreadCount();
-        }
-      )
-      .subscribe();
+  //   const channel = supabase
+  //     .channel('notification-changes')
+  //     .on(
+  //       'postgres_changes',
+  //       {
+  //         event: 'INSERT',
+  //         schema: 'public',
+  //         table: 'notification_logs',
+  //         filter: `user_id=eq.${userData.id}`,
+  //       },
+  //       (payload) => {
+  //         clearNotificationCache();
+  //         fetchNotifications();
+  //         fetchUnreadCount();
+  //       }
+  //     )
+  //     .on(
+  //       'postgres_changes',
+  //       {
+  //         event: 'UPDATE',
+  //         schema: 'public',
+  //         table: 'notification_logs',
+  //         filter: `user_id=eq.${userData.id}`,
+  //       },
+  //       (payload) => {
+  //         clearNotificationCache();
+  //         fetchNotifications();
+  //         fetchUnreadCount();
+  //       }
+  //     )
+  //     .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userData?.id, shouldFetchData]);
+  //   return () => {
+  //     supabase.removeChannel(channel);
+  //   };
+  // }, [userData?.id, shouldFetchData]);
 
   // Fetch notifications (only when shouldFetchData is true)
   useEffect(() => {

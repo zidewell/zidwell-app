@@ -27,7 +27,10 @@ function ReceiptHero() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/dashboard/services/receipt/create-receipt">
-              <Button  size="lg" className="w-full sm:w-auto bg-[#C29307] hover:bg-[#C29307]/90 text-white">
+              <Button
+                size="lg"
+                className="w-full sm:w-auto bg-[#C29307] hover:bg-[#C29307]/90 text-white"
+              >
                 <FileText className="h-5 w-5 mr-2" />
                 Create Receipt
                 <ArrowRight className="h-4 w-4 ml-2" />

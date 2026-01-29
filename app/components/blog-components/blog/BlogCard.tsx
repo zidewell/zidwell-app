@@ -1,5 +1,3 @@
-
-
 import { format } from "date-fns";
 import Link from "next/link";
 import { BlogPost } from "./types/blog";
@@ -14,7 +12,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
     return (
       <Link href={`/post/${post.slug}`} className="group block">
         <article className="grid md:grid-cols-2 gap-6 animate-fade-in">
-          <div className="aspect-[16/10] overflow-hidden rounded-lg">
+          <div className="aspect-16/10 overflow-hidden rounded-lg">
             <img
               src={post.featuredImage}
               alt={post.title}
@@ -51,7 +49,9 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
                   {format(new Date(post.createdAt), "MMM d, yyyy")}
                 </span>
                 <span className="text-muted-foreground"> · </span>
-                <span className="text-muted-foreground">{post.readTime} min read</span>
+                <span className="text-muted-foreground">
+                  {post.readTime} min read
+                </span>
               </div>
             </div>
           </div>
@@ -64,7 +64,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
     return (
       <Link href={`/post/${post.slug}`} className="group block">
         <article className="flex gap-4 animate-fade-in">
-          <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded">
+          <div className="w-24 h-24 shrink-0 overflow-hidden rounded">
             <img
               src={post.featuredImage}
               alt={post.title}
@@ -76,7 +76,8 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
               {post.title}
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {format(new Date(post.createdAt), "MMM d, yyyy")} · {post.readTime} min
+              {format(new Date(post.createdAt), "MMM d, yyyy")} ·{" "}
+              {post.readTime} min
             </p>
           </div>
         </article>
@@ -87,7 +88,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
   return (
     <Link href={`/post/${post.slug}`} className="group block">
       <article className="animate-fade-in">
-        <div className="aspect-[16/10] overflow-hidden rounded-lg mb-4">
+        <div className="aspect-16/10 overflow-hidden rounded-lg mb-4">
           <img
             src={post.featuredImage}
             alt={post.title}
@@ -117,7 +118,8 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
             className="w-6 h-6 rounded-full object-cover"
           />
           <span className="text-sm text-muted-foreground">
-            {post.author.name} · {format(new Date(post.createdAt), "MMM d")} · {post.readTime} min
+            {post.author.name} · {format(new Date(post.createdAt), "MMM d")} ·{" "}
+            {post.readTime} min
           </span>
         </div>
       </article>

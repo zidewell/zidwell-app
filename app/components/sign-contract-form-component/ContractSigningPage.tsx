@@ -381,7 +381,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                       <div className="font-bold text-sm">
                         {contract.initiatorName}
                       </div>
-                      <div className="h-[40px] w-32 border-b-2 border-dotted border-black my-3 flex items-center justify-center">
+                      <div className="h-10 w-32 border-b-2 border-dotted border-black my-3 flex items-center justify-center">
                         {contract.creatorSignature ? (
                           <img
                             src={contract.creatorSignature}
@@ -407,7 +407,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                         <div className="font-bold text-sm">
                           Barr. Adewale Johnson
                         </div>
-                        <div className="h-[40px] w-32 border-b-2 border-dotted border-black my-3 flex items-center justify-center">
+                        <div className="h-10 w-32 border-b-2 border-dotted border-black my-3 flex items-center justify-center">
                           <span className="text-gray-600 italic font-serif text-sm">
                             Barr. Adewale Johnson
                           </span>
@@ -433,7 +433,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                       <div className="font-bold text-sm">
                         {contract.signeeName || "Signee Name"}
                       </div>
-                      <div className="h-[40px] w-32 border-b-2 border-dotted border-black my-3 flex items-center justify-center">
+                      <div className="h-10 w-32 border-b-2 border-dotted border-black my-3 flex items-center justify-center">
                         {contract.signeeSignature ? (
                           <img
                             src={contract.signeeSignature}
@@ -459,7 +459,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                         <div className="font-bold text-sm md:text-base">
                           {contract.initiatorName}
                         </div>
-                        <div className="h-[40px] md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-black my-3 md:mb-4 flex items-center justify-center">
+                        <div className="h-10 md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-black my-3 md:mb-4 flex items-center justify-center">
                           {contract.creatorSignature ? (
                             <img
                               src={contract.creatorSignature}
@@ -482,7 +482,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                           <div className="font-bold text-sm md:text-base">
                             Barr. Adewale Johnson
                           </div>
-                          <div className="h-[40px] md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-black my-3 md:mb-4 flex items-center justify-center">
+                          <div className="h-10 md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-black my-3 md:mb-4 flex items-center justify-center">
                             <span className="text-gray-600 italic font-serif text-sm md:text-lg">
                               Barr. Adewale Johnson
                             </span>
@@ -505,7 +505,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                         <div className="font-bold text-sm md:text-base">
                           {contract.signeeName || "Signee Name"}
                         </div>
-                        <div className="h-[40px] md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-black my-3 md:mb-4 flex items-center justify-center">
+                        <div className="h-10 md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-black my-3 md:mb-4 flex items-center justify-center">
                           {contract.signeeSignature ? (
                             <img
                               src={contract.signeeSignature}
@@ -565,7 +565,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
 
             <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-300">
               <div className="flex items-start gap-2 md:gap-3 text-xs md:text-sm text-gray-600">
-                <XCircle className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0 mt-0.5" />
+                <XCircle className="h-4 w-4 md:h-5 md:w-5 shrink-0 mt-0.5" />
                 <p>
                   By signing this contract, you agree to be legally bound by its
                   terms. If you need changes, use the "Suggest Edits" option.

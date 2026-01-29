@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import confetti from "canvas-confetti";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
 
 import { Card } from "../ui/card";
 import { Input } from "../ui/input";
@@ -31,9 +31,9 @@ import {
 } from "lucide-react";
 
 import PinPopOver from "../PinPopOver";
-import InvoiceSummary from "../InvoiceSummary";
+import InvoiceSummary from "./InvoiceSummary";
 import { InvoicePreview } from "../previews/InvoicePreview";
-import LogoUpload from "./LogoUpload"; 
+import LogoUpload from "./LogoUpload";
 
 import DraftsModal from "./DraftModal";
 import InvoiceItemForm from "./InvoiceItemForm";
@@ -56,22 +56,26 @@ import {
 
 import { useUserContextData } from "@/app/context/userData";
 
-const showSweetAlert = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
+const showSweetAlert = (
+  type: "success" | "error" | "warning" | "info",
+  title: string,
+  message: string,
+) => {
   Swal.fire({
     icon: type,
     title: title,
     text: message,
     showConfirmButton: true,
-    confirmButtonText: 'OK',
-    confirmButtonColor: '#C29307',
-    background: '#ffffff',
-    color: '#333333',
+    confirmButtonText: "OK",
+    confirmButtonColor: "#C29307",
+    background: "#ffffff",
+    color: "#333333",
     customClass: {
-      popup: 'sweet-alert-popup',
-      title: 'sweet-alert-title',
-      htmlContainer: 'sweet-alert-content',
-      confirmButton: 'sweet-alert-confirm-btn'
-    }
+      popup: "sweet-alert-popup",
+      title: "sweet-alert-title",
+      htmlContainer: "sweet-alert-content",
+      confirmButton: "sweet-alert-confirm-btn",
+    },
   });
 };
 
@@ -156,7 +160,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       setForm((prev) => ({
         ...prev,
         invoice_items: prev.invoice_items.map((i) =>
-          i.id === editingItem.id ? itemWithId : i
+          i.id === editingItem.id ? itemWithId : i,
         ),
       }));
     } else {
@@ -179,7 +183,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       invoice_items: updatedItems,
     }));
 
-    showSweetAlert('success', "Item Removed!", "Item has been removed from the invoice.");
+    showSweetAlert(
+      "success",
+      "Item Removed!",
+      "Item has been removed from the invoice.",
+    );
   };
 
   useEffect(() => {
@@ -189,7 +197,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       const loadDraftFromParam = async () => {
         try {
           const res = await fetch(
-            `/api/get-invoice-draft-details?draftId=${draftId}&userId=${userData.id}`
+            `/api/get-invoice-draft-details?draftId=${draftId}&userId=${userData.id}`,
           );
           const result = await res.json();
 
@@ -197,11 +205,19 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
             loadDraftIntoForm(result.draft);
             setHasLoadedFromUrl(true);
           } else {
-            showSweetAlert('error', "Draft Not Found", result.error || "The requested draft could not be found.");
+            showSweetAlert(
+              "error",
+              "Draft Not Found",
+              result.error || "The requested draft could not be found.",
+            );
           }
         } catch (error) {
           console.error("Failed to load draft from URL:", error);
-          showSweetAlert('error', "Error", "Failed to load the draft. Please try again.");
+          showSweetAlert(
+            "error",
+            "Error",
+            "Failed to load the draft. Please try again.",
+          );
         }
       };
 
@@ -260,7 +276,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     };
 
     setForm(formData);
-    showSweetAlert('success', "Draft Loaded!", "Your draft has been loaded into the form.");
+    showSweetAlert(
+      "success",
+      "Draft Loaded!",
+      "Your draft has been loaded into the form.",
+    );
   };
 
   useEffect(() => {
@@ -268,7 +288,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       if (userData?.id) {
         try {
           const res = await fetch(
-            `/api/check-remaning-free-invoice?userId=${userData.id}`
+            `/api/check-remaning-free-invoice?userId=${userData.id}`,
           );
           const data = await res.json();
 
@@ -393,8 +413,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
             }</strong>
             <div class="text-sm text-gray-600 mt-1">
               ${draft.invoice_id} • ${new Date(
-          draft.created_at
-        ).toLocaleDateString()}
+                draft.created_at,
+              ).toLocaleDateString()}
             </div>
           </div>
           <button class="load-draft-btn px-3 py-1 text-sm bg-[#C29307] text-white rounded hover:bg-[#b38606] transition-colors"
@@ -403,7 +423,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
           </button>
         </div>
       </div>
-    `
+    `,
       )
       .join("");
 
@@ -463,21 +483,20 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   };
 
   useEffect(() => {
-  if (userData?.id && !hasShownDraftModal) {
-    const draftId = searchParams?.get("draftId");
+    if (userData?.id && !hasShownDraftModal) {
+      const draftId = searchParams?.get("draftId");
 
-    if (!draftId) {
-      loadUserDrafts();
-      setHasShownDraftModal(true);
+      if (!draftId) {
+        loadUserDrafts();
+        setHasShownDraftModal(true);
+      }
     }
-  }
-}, [userData?.id, searchParams, hasShownDraftModal]);
-
+  }, [userData?.id, searchParams, hasShownDraftModal]);
 
   const fetchPaymentStatus = async (invoiceId: string) => {
     try {
       const response = await fetch(
-        `/api/invoice/payment-status?invoiceId=${invoiceId}`
+        `/api/invoice/payment-status?invoiceId=${invoiceId}`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -523,7 +542,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       setDraftLoading(true);
 
       if (!userData?.id) {
-        showSweetAlert('error', "Unauthorized", "You must be logged in to save a draft.");
+        showSweetAlert(
+          "error",
+          "Unauthorized",
+          "You must be logged in to save a draft.",
+        );
         return;
       }
 
@@ -567,18 +590,26 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         throw new Error(result.error || result.message);
       }
 
-      showSweetAlert('success', "Draft Saved!", "Your invoice draft has been saved successfully.");
+      showSweetAlert(
+        "success",
+        "Draft Saved!",
+        "Your invoice draft has been saved successfully.",
+      );
 
       router.push("/dashboard/services/create-invoice");
     } catch (err) {
-      showSweetAlert('error', "Failed to Save Draft", (err as Error)?.message || "An unexpected error occurred.");
+      showSweetAlert(
+        "error",
+        "Failed to Save Draft",
+        (err as Error)?.message || "An unexpected error occurred.",
+      );
     } finally {
       setDraftLoading(false);
     }
   };
 
   const handleSaveInvoice = async (
-    isDraft: boolean = false
+    isDraft: boolean = false,
   ): Promise<{
     success: boolean;
     signingLink?: string;
@@ -586,7 +617,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   }> => {
     try {
       if (!userData?.id) {
-        showSweetAlert('warning', "Unauthorized", "You must be logged in to send an invoice.");
+        showSweetAlert(
+          "warning",
+          "Unauthorized",
+          "You must be logged in to send an invoice.",
+        );
         return { success: false };
       }
 
@@ -596,37 +631,38 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
       const { totalAmount } = totals;
 
-   const payload = {
-  userId: userData?.id,
-  initiator_email: userData?.email || "",
-  initiator_name: userData
-    ? `${userData.firstName} ${userData.lastName}`
-    : "",
-  invoice_id: form.invoice_id,
-  signee_name: form.name || "",
-  signee_email: form.email || "",
-  message: form.message || "",
-  bill_to: form.bill_to || "",
-  issue_date: form.issue_date,
-  customer_note: form.customer_note || "",
-  invoice_items: form.invoice_items.map(item => ({
-    ...item,
-    total: Number(item.quantity) * Number(item.unitPrice)
-  })),
-  total_amount: totalAmount,
-  payment_type: form.payment_type,
-  fee_option: form.fee_option,
-  status: isDraft ? "draft" : "unpaid",
-  business_logo: form.business_logo || "",
-  redirect_url: form.redirect_url || "",
-  business_name: form.business_name || "",
-  target_quantity: form.allowMultiplePayments ? form.targetQuantity : 1,
-  is_draft: isDraft,
-  clientPhone: form.clientPhone || "",
-  initiator_account_number: details?.bank_details.bank_account_number || "",
-  initiator_account_name: details?.bank_details.bank_account_name || "",
-  initiator_bank_name: details?.bank_details.bank_name || "",
-};
+      const payload = {
+        userId: userData?.id,
+        initiator_email: userData?.email || "",
+        initiator_name: userData
+          ? `${userData.firstName} ${userData.lastName}`
+          : "",
+        invoice_id: form.invoice_id,
+        signee_name: form.name || "",
+        signee_email: form.email || "",
+        message: form.message || "",
+        bill_to: form.bill_to || "",
+        issue_date: form.issue_date,
+        customer_note: form.customer_note || "",
+        invoice_items: form.invoice_items.map((item) => ({
+          ...item,
+          total: Number(item.quantity) * Number(item.unitPrice),
+        })),
+        total_amount: totalAmount,
+        payment_type: form.payment_type,
+        fee_option: form.fee_option,
+        status: isDraft ? "draft" : "unpaid",
+        business_logo: form.business_logo || "",
+        redirect_url: form.redirect_url || "",
+        business_name: form.business_name || "",
+        target_quantity: form.allowMultiplePayments ? form.targetQuantity : 1,
+        is_draft: isDraft,
+        clientPhone: form.clientPhone || "",
+        initiator_account_number:
+          details?.bank_details.bank_account_number || "",
+        initiator_account_name: details?.bank_details.bank_account_name || "",
+        initiator_bank_name: details?.bank_details.bank_name || "",
+      };
 
       const endpoint = isDraft
         ? "/api/save-invoice-draft"
@@ -644,7 +680,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       if (!res.ok) {
         console.error("API Error:", result);
         throw new Error(
-          result.error || result.message || "Failed to save invoice"
+          result.error || result.message || "Failed to save invoice",
         );
       }
 
@@ -672,103 +708,141 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       if (!isDraft) {
         await handleRefund();
       }
-      showSweetAlert('error', `Failed to ${isDraft ? "Save Draft" : "Send Invoice"}`, (err as Error)?.message || "An unexpected error occurred.");
+      showSweetAlert(
+        "error",
+        `Failed to ${isDraft ? "Save Draft" : "Send Invoice"}`,
+        (err as Error)?.message || "An unexpected error occurred.",
+      );
       return { success: false };
     }
   };
 
- const validateInvoiceForm = () => {
-  let newErrors: Record<string, string> = {};
+  const validateInvoiceForm = () => {
+    let newErrors: Record<string, string> = {};
 
-  if (!form.business_name.trim()) {
-    newErrors.business_name = "Business name is required.";
-  }
+    if (!form.business_name.trim()) {
+      newErrors.business_name = "Business name is required.";
+    }
 
-  if (!form.allowMultiplePayments) {
-    if (!form.email.trim()) {
-      newErrors.email = "Client email is required for single payment invoices.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    if (!form.allowMultiplePayments) {
+      if (!form.email.trim()) {
+        newErrors.email =
+          "Client email is required for single payment invoices.";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+        newErrors.email = "Invalid email format.";
+      }
+    } else if (
+      form.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+    ) {
       newErrors.email = "Invalid email format.";
     }
-  } else if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-    newErrors.email = "Invalid email format.";
-  }
 
-  if (form.invoice_items.length === 0) {
-    newErrors.invoice_items = "At least one invoice item is required.";
-  } else {
-    form.invoice_items.forEach((item, index) => {
-      if (!item.description?.trim()) {
-        newErrors[`item_${index}`] = `Item ${index + 1} description is required.`;
-      }
-      if (!item.quantity || Number(item.quantity) <= 0) {
-        newErrors[`quantity_${index}`] = `Item ${index + 1} quantity must be greater than 0.`;
-      }
-      if (!item.unitPrice || Number(item.unitPrice) <= 0) {
-        newErrors[`price_${index}`] = `Item ${index + 1} price must be greater than 0.`;
-      }
-    });
-  }
-
-  if (form.allowMultiplePayments) {
-    if (!form.targetQuantity || form.targetQuantity < 1) {
-      newErrors.targetQuantity = "Target quantity must be at least 1 for multiple payments.";
+    if (form.invoice_items.length === 0) {
+      newErrors.invoice_items = "At least one invoice item is required.";
+    } else {
+      form.invoice_items.forEach((item, index) => {
+        if (!item.description?.trim()) {
+          newErrors[`item_${index}`] = `Item ${
+            index + 1
+          } description is required.`;
+        }
+        if (!item.quantity || Number(item.quantity) <= 0) {
+          newErrors[`quantity_${index}`] = `Item ${
+            index + 1
+          } quantity must be greater than 0.`;
+        }
+        if (!item.unitPrice || Number(item.unitPrice) <= 0) {
+          newErrors[`price_${index}`] = `Item ${
+            index + 1
+          } price must be greater than 0.`;
+        }
+      });
     }
-  }
 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+    if (form.allowMultiplePayments) {
+      if (!form.targetQuantity || form.targetQuantity < 1) {
+        newErrors.targetQuantity =
+          "Target quantity must be at least 1 for multiple payments.";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleFormChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
- const handleSubmit = async (isDraft: boolean = false) => {
-  if (loading || isFormLocked || draftLoading || isProcessingPayment) {
-    return;
-  }
-
-  try {
-    if (isDraft) {
-      await handleSaveDraft();
+  const handleSubmit = async (isDraft: boolean = false) => {
+    if (loading || isFormLocked || draftLoading || isProcessingPayment) {
       return;
     }
 
-    if (!validateInvoiceForm()) {
-      showSweetAlert('error', "Validation Failed", "Please correct the errors before generating the invoice.");
-      return;
-    }
+    try {
+      if (isDraft) {
+        await handleSaveDraft();
+        return;
+      }
 
-    if (form.invoice_items.length === 0) {
-      showSweetAlert('error', "No Items", "Please add at least one item to the invoice.");
-      return;
-    }
+      if (!validateInvoiceForm()) {
+        showSweetAlert(
+          "error",
+          "Validation Failed",
+          "Please correct the errors before generating the invoice.",
+        );
+        return;
+      }
 
-    const invalidItems = form.invoice_items.filter(
-      item => !item.description || !item.quantity || !item.unitPrice
-    );
-    
-    if (invalidItems.length > 0) {
-      showSweetAlert('error', "Incomplete Items", "Please ensure all items have description, quantity, and price.");
-      return;
-    }
+      if (form.invoice_items.length === 0) {
+        showSweetAlert(
+          "error",
+          "No Items",
+          "Please add at least one item to the invoice.",
+        );
+        return;
+      }
 
-    if (form.allowMultiplePayments && (!form.targetQuantity || form.targetQuantity < 1)) {
-      showSweetAlert('error', "Invalid Target Quantity", "For multiple payments, target quantity must be at least 1.");
-      return;
-    }
+      const invalidItems = form.invoice_items.filter(
+        (item) => !item.description || !item.quantity || !item.unitPrice,
+      );
 
-    setShowInvoiceSummary(true);
-  } catch (error) {
-    console.error("Submit error:", error);
-    showSweetAlert('error', "Submission Error", "An error occurred while processing your request.");
-  }
-};
+      if (invalidItems.length > 0) {
+        showSweetAlert(
+          "error",
+          "Incomplete Items",
+          "Please ensure all items have description, quantity, and price.",
+        );
+        return;
+      }
+
+      if (
+        form.allowMultiplePayments &&
+        (!form.targetQuantity || form.targetQuantity < 1)
+      ) {
+        showSweetAlert(
+          "error",
+          "Invalid Target Quantity",
+          "For multiple payments, target quantity must be at least 1.",
+        );
+        return;
+      }
+
+      setShowInvoiceSummary(true);
+    } catch (error) {
+      console.error("Submit error:", error);
+      showSweetAlert(
+        "error",
+        "Submission Error",
+        "An error occurred while processing your request.",
+      );
+    }
+  };
 
   const handleDeduct = async (): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -789,7 +863,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         .then(async (res) => {
           const data = await res.json();
           if (!res.ok) {
-            showSweetAlert('error', "Payment Failed", data.error || "Something went wrong");
+            showSweetAlert(
+              "error",
+              "Payment Failed",
+              data.error || "Something went wrong",
+            );
             resolve(false);
           } else {
             setFreeInvoiceInfo({
@@ -802,7 +880,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
           }
         })
         .catch((err) => {
-          showSweetAlert('error', "Error", err.message);
+          showSweetAlert("error", "Error", err.message);
           resolve(false);
         });
     });
@@ -819,10 +897,18 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
           description: "Refund for failed invoice generation",
         }),
       });
-      showSweetAlert('info', "Refund Processed", "Amount has been refunded to your wallet due to failed invoice sending.");
+      showSweetAlert(
+        "info",
+        "Refund Processed",
+        "Amount has been refunded to your wallet due to failed invoice sending.",
+      );
     } catch (err) {
       console.error("Refund failed:", err);
-      showSweetAlert('warning', "Refund Failed", "Payment deduction was made, but refund failed. Please contact support.");
+      showSweetAlert(
+        "warning",
+        "Refund Failed",
+        "Payment deduction was made, but refund failed. Please contact support.",
+      );
     }
   };
 
@@ -874,7 +960,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       resetAllLoadingStates();
       setIsPinOpen(false);
       setPin(Array(inputCount).fill(""));
-      showSweetAlert('error', "Processing Failed", "Failed to process payment. Please try again.");
+      showSweetAlert(
+        "error",
+        "Processing Failed",
+        "Failed to process payment. Please try again.",
+      );
     }
   };
 
@@ -893,14 +983,22 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   const handleCopySigningLink = () => {
     if (generatedSigningLink) {
       navigator.clipboard.writeText(generatedSigningLink);
-      showSweetAlert('success', "Invoice Link Copied!", "Invoice link copied to clipboard");
+      showSweetAlert(
+        "success",
+        "Invoice Link Copied!",
+        "Invoice link copied to clipboard",
+      );
     }
   };
 
   const handleRefreshStatus = async () => {
     if (savedInvoiceId) {
       await fetchPaymentStatus(savedInvoiceId);
-      showSweetAlert('success', "Status Updated", "Payment status has been refreshed");
+      showSweetAlert(
+        "success",
+        "Status Updated",
+        "Payment status has been refreshed",
+      );
     }
   };
 
@@ -1093,7 +1191,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                 <h1>INVOICE</h1>
                 <p><strong>Invoice #:</strong> ${form.invoice_id}</p>
                 <p><strong>Issue Date:</strong> ${new Date(
-                  form.issue_date
+                  form.issue_date,
                 ).toLocaleDateString()}</p>
     
                 <p><strong>Status:</strong> ${
@@ -1164,7 +1262,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                       <td>₦${Number(item.unitPrice).toLocaleString()}</td>
                       <td>₦${Number(item.total).toLocaleString()}</td>
                     </tr>
-                  `
+                  `,
                     )
                     .join("")}
                 </tbody>
@@ -1180,7 +1278,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   ? `
               <div class="total-row">
                 <strong>Processing Fee (2%):</strong> ₦${Number(
-                  feeAmount
+                  feeAmount,
                 ).toLocaleString()}
               </div>
               `
@@ -1188,7 +1286,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
               }
               <div class="total-row grand-total">
                 <strong>TOTAL AMOUNT:</strong> ₦${Number(
-                  totalAmount
+                  totalAmount,
                 ).toLocaleString()}
               </div>
               ${
@@ -1199,12 +1297,12 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
               </div>
               `
                   : form.fee_option === "customer"
-                  ? `
+                    ? `
               <div class="total-row" style="font-size: 12px; color: #666;">
                 *3% processing fee applied (capped at ₦2,000)
               </div>
               `
-                  : ""
+                    : ""
               }
             </div>
 
@@ -1229,7 +1327,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                 <h3>🎫 Multiple Payments Information:</h3>
                 <p><strong>Payment Mode:</strong> Multiple Full Payments</p>
                 <p><strong>Individual Payment:</strong> ₦${Number(
-                  totalAmount
+                  totalAmount,
                 ).toLocaleString()} per person</p>
                 <p><strong>Target Quantity:</strong> ${
                   form.targetQuantity
@@ -1237,7 +1335,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                 <p><strong>How it works:</strong></p>
                 <ul>
                   <li>Each person pays the full amount: ₦${Number(
-                    totalAmount
+                    totalAmount,
                   ).toLocaleString()}</li>
                   <li>Share the invoice link with everyone</li>
                   <li>Each person provides their info and pays</li>
@@ -1289,10 +1387,18 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      showSweetAlert('success', "PDF Downloaded!", "Your invoice has been downloaded as PDF");
+      showSweetAlert(
+        "success",
+        "PDF Downloaded!",
+        "Your invoice has been downloaded as PDF",
+      );
     } catch (error) {
       console.error("PDF download error:", error);
-      showSweetAlert('error', "Download Failed", "Failed to download PDF. Please try again.");
+      showSweetAlert(
+        "error",
+        "Download Failed",
+        "Failed to download PDF. Please try again.",
+      );
     } finally {
       setPdfLoading(false);
     }
@@ -1401,8 +1507,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           {freeInvoiceInfo.isChecking
                             ? "Loading..."
                             : freeInvoiceInfo.hasFreeInvoices
-                            ? `Free (${freeInvoiceInfo.freeInvoicesLeft} left)`
-                            : "₦100"}
+                              ? `Free (${freeInvoiceInfo.freeInvoicesLeft} left)`
+                              : "₦100"}
                         </span>
                       </h1>
                       <p className="text-muted-foreground">
@@ -1647,7 +1753,13 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             (perfect for events, tickets, group purchases)
                           </p>
                         </div>
-                        <div className={form.allowMultiplePayments ? "data-[state=checked]:bg-[#C29307]" : ""}>
+                        <div
+                          className={
+                            form.allowMultiplePayments
+                              ? "data-[state=checked]:bg-[#C29307]"
+                              : ""
+                          }
+                        >
                           <Switch
                             id="multiplePayments"
                             checked={form.allowMultiplePayments}
@@ -1761,8 +1873,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           {freeInvoiceInfo.isChecking
                             ? "Loading..."
                             : freeInvoiceInfo.hasFreeInvoices
-                            ? `Free (${freeInvoiceInfo.freeInvoicesLeft} left)`
-                            : "₦100"}
+                              ? `Free (${freeInvoiceInfo.freeInvoicesLeft} left)`
+                              : "₦100"}
                         </span>
                       </h1>
                       <p className="text-muted-foreground">
@@ -1793,7 +1905,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                 <div className="space-y-6">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-start gap-3">
-                      <Eye className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <Eye className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
                       <div>
                         <h3 className="font-medium text-blue-800">
                           Live Preview Mode

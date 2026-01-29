@@ -19,7 +19,7 @@ const ConsultationModal = ({ open, onOpenChange }: ConsultationModalProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg border-2 border-foreground shadow-brutal p-0 overflow-hidden">
         {/* Header with gold gradient */}
-        <div className="bg-gradient-to-br from-[#C29307] via-[#C29307] to-[#9a7506] p-5">
+        <div className="bg-linear-to-br from-[#C29307] via-[#C29307] to-[#9a7506] p-5">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black text-foreground">
               Expert Consultation
@@ -33,7 +33,9 @@ const ConsultationModal = ({ open, onOpenChange }: ConsultationModalProps) => {
         <div className="px-5 space-y-6">
           {/* Price highlight */}
           <div className="bg-secondary border-2 border-foreground p-4 text-center">
-            <p className="text-sm text-muted-foreground mb-1">One-time consultation fee</p>
+            <p className="text-sm text-muted-foreground mb-1">
+              One-time consultation fee
+            </p>
             <p className="text-4xl font-black text-foreground">₦50,000</p>
           </div>
 
@@ -50,7 +52,7 @@ const ConsultationModal = ({ open, onOpenChange }: ConsultationModalProps) => {
                 "Clear roadmap to get started with Zidwell",
               ].map((item, index) => (
                 <li key={index} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <span className="text-sm">{item}</span>
                 </li>
               ))}
@@ -81,7 +83,9 @@ const ConsultationModal = ({ open, onOpenChange }: ConsultationModalProps) => {
                 <p className="font-semibold text-sm flex items-center gap-1">
                   WhatsApp
                 </p>
-                <p className="text-muted-foreground text-sm">+234 7069 1753 99</p>
+                <p className="text-muted-foreground text-sm">
+                  +234 7069 1753 99
+                </p>
               </div>
             </a>
           </div>

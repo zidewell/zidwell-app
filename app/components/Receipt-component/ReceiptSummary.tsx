@@ -5,7 +5,13 @@ import { Button } from "../ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Types
-type ReceiptType = "general" | "product" | "service" | "bookings" | "rental" | "funds_transfer";
+type ReceiptType =
+  | "general"
+  | "product"
+  | "service"
+  | "bookings"
+  | "rental"
+  | "funds_transfer";
 
 interface ReceiptSummaryItem {
   item: string;
@@ -84,7 +90,9 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({
                     : amount}
                 </div>
                 <div className="text-sm text-gray-600 mt-1">
-                  Professional Receipt - {receiptType.charAt(0).toUpperCase() + receiptType.slice(1)} Type
+                  Professional Receipt -{" "}
+                  {receiptType.charAt(0).toUpperCase() + receiptType.slice(1)}{" "}
+                  Type
                 </div>
               </div>
 
@@ -115,7 +123,8 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({
                   <div className="flex justify-between">
                     <span className="text-gray-500">Receipt Type</span>
                     <span className="text-gray-900 text-right">
-                      {receiptType.charAt(0).toUpperCase() + receiptType.slice(1)}
+                      {receiptType.charAt(0).toUpperCase() +
+                        receiptType.slice(1)}
                     </span>
                   </div>
                 </div>
@@ -141,7 +150,9 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({
                     </div>
                     {sellerPhone && (
                       <div>
-                        <span className="text-gray-500 block text-xs">Phone</span>
+                        <span className="text-gray-500 block text-xs">
+                          Phone
+                        </span>
                         <span className="text-gray-900">{sellerPhone}</span>
                       </div>
                     )}
@@ -164,11 +175,15 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({
                     </div>
                     <div>
                       <span className="text-gray-500 block text-xs">Email</span>
-                      <span className="text-gray-900">{receiptData.email || "Not provided"}</span>
+                      <span className="text-gray-900">
+                        {receiptData.email || "Not provided"}
+                      </span>
                     </div>
                     {receiverPhone && (
                       <div>
-                        <span className="text-gray-500 block text-xs">Phone</span>
+                        <span className="text-gray-500 block text-xs">
+                          Phone
+                        </span>
                         <span className="text-gray-900">{receiverPhone}</span>
                       </div>
                     )}
@@ -230,7 +245,7 @@ export const ReceiptSummary: React.FC<ReceiptSummaryProps> = ({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700 flex items-start gap-3">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 mt-0.5 text-blue-500 flex-shrink-0"
+                  className="h-5 w-5 mt-0.5 text-blue-500 shrink-0"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"

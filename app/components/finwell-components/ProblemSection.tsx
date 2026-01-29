@@ -76,29 +76,29 @@ const ProblemSection = () => {
         </motion.div>
 
         {/* Problem cards */}
-       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-  {problems.map((problem, index) => (
-    <motion.div
-      key={problem.title}
-      initial={{ opacity: 0, y: 30 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-      className={`p-6 rounded-2xl backdrop-blur-xl bg-linear-to-br from-[#2A2A2A]/80 to-[#1A1A1A]/80 border border-white/10 hover:border-[#E7B008] shadow-lg transition-all duration-300 ${
-        index === 4 ? "md:col-span-2 lg:col-span-1" : ""
-      }`}
-    >
-      <div className="w-12 h-12 backdrop-blur-md bg-linear-to-br from-[#E7B008]/10 to-[#473C1B]/20 rounded-xl flex items-center justify-center mb-4 border border-[#E7B008]/20">
-        <problem.icon className="w-6 h-6 text-[#E7B008]" />
-      </div>
-      <h3 className="font-display text-xl font-bold mb-3">
-        {problem.title}
-      </h3>
-      <p className="text-primary-foreground/70">
-        {problem.description}
-      </p>
-    </motion.div>
-  ))}
-</div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {problems.map((problem, index) => (
+            <motion.div
+              key={problem.title}
+              initial={{ opacity: 0, y: 30 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
+              className={`p-6 rounded-2xl backdrop-blur-xl bg-linear-to-br from-[#2A2A2A]/80 to-[#1A1A1A]/80 border border-white/10 hover:border-[#E7B008] shadow-lg transition-all duration-300 ${
+                index === 4 ? "md:col-span-2 lg:col-span-1" : ""
+              }`}
+            >
+              <div className="w-12 h-12 backdrop-blur-md bg-linear-to-br from-[#E7B008]/10 to-[#473C1B]/20 rounded-xl flex items-center justify-center mb-4 border border-[#E7B008]/20">
+                <problem.icon className="w-6 h-6 text-[#E7B008]" />
+              </div>
+              <h3 className="font-display text-xl font-bold mb-3">
+                {problem.title}
+              </h3>
+              <p className="text-primary-foreground/70">
+                {problem.description}
+              </p>
+            </motion.div>
+          ))}
+        </div>
 
         {/* Bottom statement */}
         <motion.div

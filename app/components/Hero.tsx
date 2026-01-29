@@ -25,14 +25,16 @@ const Hero = () => {
             Money should not be the{" "}
             <span className="relative inline-block">
               <span className="relative z-10">hardest part</span>
-              <span className="absolute bottom-2 left-0 right-0 h-4 bg-[#C29307]/40 -z-0" />
+              <span className="absolute bottom-2 left-0 right-0 h-4 bg-[#C29307]/40 z-0" />
             </span>{" "}
             of building a business.
           </h1>
 
           {/* Subheading */}
           <p className="animate-fade-up-delay-2 text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto mb-8 text-balance">
-            We’ve created ONE PLATFORM with all the tools to manage your business finances. Think of invoices, receipts, simple contracts, bookkeeping, tax manager - it’s all here. Signup and check it out
+            We’ve created ONE PLATFORM with all the tools to manage your
+            business finances. Think of invoices, receipts, simple contracts,
+            bookkeeping, tax manager - it’s all here. Signup and check it out
           </p>
 
           {/* CTA Buttons */}
@@ -45,7 +47,12 @@ const Hero = () => {
               Get Started Free
               <ArrowRight className="ml-2" />
             </Button2>
-            <Button2 onClick={() => router.push("https://tally.so/r/aQNyzW")} variant="heroOutline" size="xl" className="cursor-pointer">
+            <Button2
+              onClick={() => router.push("https://tally.so/r/aQNyzW")}
+              variant="heroOutline"
+              size="xl"
+              className="cursor-pointer"
+            >
               <Users className="mr-2" />
               Join our Community
             </Button2>

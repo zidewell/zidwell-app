@@ -1,9 +1,8 @@
 // components/Carousel.tsx\\
-"use client"
+"use client";
 import React, { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
-
 
 const slides = [
   "/zid-pic/image1.jpg",
@@ -24,12 +23,10 @@ const slides = [
   "/zid-pic/image17.jpg",
 ];
 
-const Carousel: React.FC = ({
-
-}) => {
+const Carousel: React.FC = ({}) => {
   const [current, setCurrent] = useState(0);
-  const autoSlide:boolean = true
-  const autoSlideInterval:number = 15000
+  const autoSlide: boolean = true;
+  const autoSlideInterval: number = 15000;
   const nextSlide = () => {
     setCurrent((prev) => (prev + 1) % slides.length);
   };
@@ -51,21 +48,20 @@ const Carousel: React.FC = ({
         style={{ transform: `translateX(-${current * 100}%)` }}
       >
         {slides.map((slide: any, index: number) => (
-          <div className="w-full flex items-start justify-start flex-shrink-0" key={index}>
+          <div
+            className="w-full flex items-start justify-start shrink-0"
+            key={index}
+          >
             <Image
               src={slide}
               alt={`slide-${index}`}
               className="w-full h-full object-cover"
-              width={500} 
+              width={500}
               height={500}
-              
             />
           </div>
         ))}
       </div>
-
-     
-    
     </div>
   );
 };

@@ -133,14 +133,17 @@ const plans = [
 const PricingSection = () => {
   const [billingPeriod, setBillingPeriod] =
     useState<keyof typeof pricingData>("monthly");
-const router = useRouter()
+  const router = useRouter();
   return (
-    <section id="pricing" className="py-20 md:py-28 lg:py-32 p-5 relative overflow-hidden">
+    <section
+      id="pricing"
+      className="py-20 md:py-28 lg:py-32 p-5 relative overflow-hidden"
+    >
       {/* Grid pattern */}
       <div className="absolute inset-0 bg-grid-pattern pointer-events-none opacity-50" />
 
       {/* Gold accents */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-br from-[#C29307]/10 to-transparent rounded-full blur-3xl" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-linear-to-br from-[#C29307]/10 to-transparent rounded-full blur-3xl" />
       <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-gradient-to-tl from-[#C29307]/15 to-transparent rounded-full blur-2xl" />
 
       <div className="container-custom relative">
@@ -198,10 +201,11 @@ const router = useRouter()
               {/* Pricing Cards */}
               <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
                 {plans.map((plan) => {
-                  const priceInfo = pricingData[period as keyof typeof pricingData].prices[
-                    plan.key as keyof typeof pricingData.monthly.prices
-                  ];
-                  
+                  const priceInfo =
+                    pricingData[period as keyof typeof pricingData].prices[
+                      plan.key as keyof typeof pricingData.monthly.prices
+                    ];
+
                   return (
                     <div
                       key={plan.key}
@@ -215,7 +219,9 @@ const router = useRouter()
                       {plan.popular && (
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#C29307] border-2 border-foreground px-4 py-1 flex items-center gap-2">
                           <Star className="w-4 h-4 fill-foreground" />
-                          <span className="text-sm font-bold">MOST POPULAR</span>
+                          <span className="text-sm font-bold">
+                            MOST POPULAR
+                          </span>
                         </div>
                       )}
 
@@ -231,7 +237,10 @@ const router = useRouter()
                               {priceInfo.currentPrice}
                             </span>
                             <span className="text-muted-foreground ml-1">
-                              {pricingData[period as keyof typeof pricingData].suffix}
+                              {
+                                pricingData[period as keyof typeof pricingData]
+                                  .suffix
+                              }
                             </span>
                           </div>
                           {priceInfo.description && (
@@ -246,7 +255,7 @@ const router = useRouter()
                       <ul className="space-y-3 py-6">
                         {plan.features.map((feature, i) => (
                           <li key={i} className="flex items-start gap-3">
-                            <span className="w-5 h-5 bg-[#C29307] flex-shrink-0 flex items-center justify-center mt-0.5">
+                            <span className="w-5 h-5 bg-[#C29307] shrink-0 flex items-center justify-center mt-0.5">
                               <Check className="w-3 h-3" />
                             </span>
                             <span className="text-sm">{feature}</span>
@@ -255,10 +264,10 @@ const router = useRouter()
                       </ul>
 
                       {/* CTA */}
-                      <Button2 
-                      onClick={() => router.push("https://tally.so/r/447JoO")}
-                        className="w-full" 
-                        size="lg" 
+                      <Button2
+                        onClick={() => router.push("https://tally.so/r/447JoO")}
+                        className="w-full"
+                        size="lg"
                         variant="heroOutline"
                       >
                         Get Started

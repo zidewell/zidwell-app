@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Use the same InvoiceItem type as main component

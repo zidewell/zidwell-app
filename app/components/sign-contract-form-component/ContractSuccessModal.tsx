@@ -67,7 +67,7 @@ export const ContractSuccessModal: React.FC<ContractSuccessModalProps> = ({
 
         {/* Success animation */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-[#F9F4E5] to-[#ffed4e] rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+          <div className="w-16 h-16 bg-linear-to-br from-[#F9F4E5] to-[#ffed4e] rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
             <svg
               className="w-8 h-8 text-[#C29307]"
               fill="none"

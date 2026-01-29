@@ -46,7 +46,7 @@ const WhyUsSection = () => {
                   key={index}
                   className="flex items-center gap-4 p-4 bg-white border-2 border-neutral-900 transition-all hover:shadow-[4px_4px_0px_#C29307]"
                 >
-                  <div className="w-12 h-12 bg-[#C29307] border-2 border-neutral-900 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-[#C29307] border-2 border-neutral-900 flex items-center justify-center shrink-0">
                     <reason.icon className="w-6 h-6" />
                   </div>
                   <p className="font-semibold">{reason.title}</p>

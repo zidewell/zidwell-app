@@ -58,9 +58,7 @@ const ImpactSection = () => {
                   <p className="font-display text-2xl md:text-3xl font-bold text-[#E7B008] mb-1">
                     {stat.number}
                   </p>
-                  <p className="text-sm text-gray-400">
-                    {stat.label}
-                  </p>
+                  <p className="text-sm text-gray-400">{stat.label}</p>
                 </motion.div>
               ))}
             </div>

@@ -9,7 +9,7 @@ import DashboardHeader from "@/app/components/dashboard-hearder";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
 import { usePathname, useRouter } from "next/navigation";
-import InvoiceGen from "@/app/components/InvoiceGen";
+import InvoiceGen from "@/app/components/Invoice-components/InvoiceGen";
 import Image from "next/image";
 
 export default function invoicePage() {

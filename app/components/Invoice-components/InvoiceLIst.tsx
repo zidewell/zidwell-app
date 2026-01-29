@@ -2,15 +2,15 @@
 
 import { Download, Edit, Eye, Loader2, Users } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { InvoicePreview } from "./previews/InvoicePreview";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { InvoicePreview } from "../previews/InvoicePreview";
 import { useRouter } from "next/navigation";
-import { useUserContextData } from "../context/userData";
+import { useUserContextData } from "../../context/userData";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import Loader from "./Loader";
+import Loader from "../Loader";
 
 const getBase64Logo = async () => {
   const response = await fetch("/logo.png");
@@ -54,7 +54,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [processingInvoiceId, setProcessingInvoiceId] = useState<string | null>(
-    null
+    null,
   );
   const { userData } = useUserContextData();
   const router = useRouter();
@@ -91,7 +91,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
         item.total_amount ||
           item.total ||
           (Number(item.quantity) || 1) *
-            (Number(item.unit_price || item.unitPrice) || 0)
+            (Number(item.unit_price || item.unitPrice) || 0),
       ),
     }));
 
@@ -180,7 +180,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
           (sum: number, item: any) =>
             sum +
             (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
-          0
+          0,
         );
 
       const feeAmount = invoice.fee_amount || 0;
@@ -378,11 +378,9 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                 <h1>INVOICE</h1>
                 <p><strong>Invoice #:</strong> ${invoice.invoice_id}</p>
                 <p><strong>Issue Date:</strong> ${new Date(
-                  invoice.issue_date
+                  invoice.issue_date,
                 ).toLocaleDateString()}</p>
-                <p><strong>Status:</strong> ${
-                  invoice.status
-                } <span class="status-badge">${invoice.status.toUpperCase()}</span></p>
+            
               </div>
                      <small class="invoice-narration">
                   Ensure this invoice number <strong>${
@@ -451,13 +449,13 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                       <td>${item.item_description || item.description}</td>
                       <td>${item.quantity}</td>
                       <td>₦${Number(
-                        item.unit_price || item.unitPrice
+                        item.unit_price || item.unitPrice,
                       ).toLocaleString()}</td>
                       <td>₦${Number(
-                        item.total_amount || item.total
+                        item.total_amount || item.total,
                       ).toLocaleString()}</td>
                     </tr>
-                  `
+                  `,
                     )
                     .join("")}
                 </tbody>
@@ -473,7 +471,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                   ? `
               <div class="total-row">
                 <strong>Processing Fee:</strong> ₦${Number(
-                  feeAmount
+                  feeAmount,
                 ).toLocaleString()}
               </div>
               `
@@ -484,12 +482,12 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                   ? `
               <div class="total-row">
                 <strong>Amount Paid:</strong> ₦${Number(
-                  paidAmount
+                  paidAmount,
                 ).toLocaleString()}
               </div>
               <div class="total-row">
                 <strong>Balance Due:</strong> ₦${Number(
-                  totalAmount - paidAmount
+                  totalAmount - paidAmount,
                 ).toLocaleString()}
               </div>
               `
@@ -497,7 +495,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
               }
               <div class="total-row grand-total">
                 <strong>TOTAL AMOUNT:</strong> ₦${Number(
-                  totalAmount
+                  totalAmount,
                 ).toLocaleString()}
               </div>
               ${
@@ -604,7 +602,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
             (sum: number, item: any) =>
               sum +
               (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
-            0
+            0,
           );
 
         const paymentProgress = getPaymentProgress(invoice);
@@ -662,7 +660,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                       onClick={() => {
                         // Navigate to create invoice page with draft ID parameter
                         router.push(
-                          `/dashboard/services/create-invoice/create?draftId=${invoice.id}`
+                          `/dashboard/services/create-invoice/create?draftId=${invoice.id}`,
                         );
                       }}
                       variant="outline"
@@ -688,7 +686,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                   <Button
                     onClick={() =>
                       router.push(
-                        `/dashboard/services/create-invoice/invoice/edit/${invoice.id}`
+                        `/dashboard/services/create-invoice/invoice/edit/${invoice.id}`,
                       )
                     }
                     variant="outline"

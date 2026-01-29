@@ -1,5 +1,5 @@
 "use client";
-import confetti from 'canvas-confetti';
+import confetti from "canvas-confetti";
 
 import { useState } from "react";
 import { CheckCircle } from "lucide-react";
@@ -52,7 +52,7 @@ const triggerConfetti = () => {
     particleCount: 150,
     spread: 70,
     origin: { y: 0.6 },
-    colors: ['#C29307', '#22c55e', '#3b82f6', '#ef4444', '#8b5cf6'],
+    colors: ["#C29307", "#22c55e", "#3b82f6", "#ef4444", "#8b5cf6"],
   });
 };
 

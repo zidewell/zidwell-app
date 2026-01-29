@@ -4,7 +4,7 @@ import GridBackground from "./Gridbackground";
 import { useRouter } from "next/navigation";
 
 const CTA = () => {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <section className="relative py-20 md:py-32 overflow-hidden">
       <GridBackground />
@@ -23,7 +23,7 @@ const CTA = () => {
             We're building toward a future where Africans have{" "}
             <span className="relative inline-block">
               <span className="relative z-10">full visibility</span>
-              <span className="absolute bottom-2 left-0 right-0 h-4 bg-[#C29307]/40 -z-0" />
+              <span className="absolute bottom-2 left-0 right-0 h-4 bg-[#C29307]/40 z-0" />
             </span>{" "}
             and control over their money
           </h2>
@@ -35,7 +35,11 @@ const CTA = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button2 onClick={() => router.push("/auth/signup")} variant="hero" size="xl">
+            <Button2
+              onClick={() => router.push("/auth/signup")}
+              variant="hero"
+              size="xl"
+            >
               Get Started Free
               <ArrowRight className="ml-2" />
             </Button2>

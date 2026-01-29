@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Search, MoreHorizontal } from "lucide-react";
-import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
-import { Input } from "./ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Input } from "../ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import InvoiceLIst from "./InvoiceLIst";
-import { useUserContextData } from "../context/userData";
-import Loader from "./Loader";
+import { useUserContextData } from "../../context/userData";
+import Loader from "../Loader";
 import { useRouter } from "next/navigation";
 
 export interface InvoiceItem {
@@ -71,7 +71,6 @@ export default function InvoiceGen() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // ✅ fetch invoices - UPDATED to use correct API endpoint
   const fetchInvoice = async (email: string) => {
     setLoading(true);
     setError(null);
@@ -130,19 +129,19 @@ export default function InvoiceGen() {
   const totalReceivedAmount = paidAmount + partiallyPaidAmount;
 
   const paidInvoice = invoices.filter(
-    (inv) => inv.status?.toLowerCase() === "paid"
+    (inv) => inv.status?.toLowerCase() === "paid",
   ).length;
 
   const unpaidInvoice = invoices.filter(
-    (inv) => inv.status?.toLowerCase() === "unpaid"
+    (inv) => inv.status?.toLowerCase() === "unpaid",
   ).length;
 
   const draftInvoice = invoices.filter(
-    (inv) => inv.status?.toLowerCase() === "draft"
+    (inv) => inv.status?.toLowerCase() === "draft",
   ).length;
 
   const partiallyPaidInvoice = invoices.filter(
-    (inv) => inv.status?.toLowerCase() === "partially_paid"
+    (inv) => inv.status?.toLowerCase() === "partially_paid",
   ).length;
 
   // UPDATED: Added partially_paid to status options
@@ -156,8 +155,8 @@ export default function InvoiceGen() {
       selectedStatus === "all"
         ? true
         : selectedStatus === "partially paid"
-        ? status === "partially_paid"
-        : status === selectedStatus.toLowerCase();
+          ? status === "partially_paid"
+          : status === selectedStatus.toLowerCase();
 
     const searchMatch =
       searchTerm === "" ||
@@ -169,7 +168,6 @@ export default function InvoiceGen() {
     return statusMatch && searchMatch;
   });
 
-  // Refresh invoices after creating a new one
   const handleInvoiceCreated = () => {
     if (userData?.email) {
       fetchInvoice(userData.email);
@@ -321,7 +319,7 @@ export default function InvoiceGen() {
                               setSelectedStatus(
                                 status === "Partially Paid"
                                   ? "partially paid"
-                                  : lowercase
+                                  : lowercase,
                               )
                             }
                           >

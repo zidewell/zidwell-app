@@ -475,11 +475,35 @@ export const SignaturePanel = ({
           {/* Progress Steps */}
           <div className="flex items-center justify-center mt-3">
             <div className="flex items-center">
-              <div className={`h-2 w-2 rounded-full ${step === "verification" ? "bg-[#C29307]" : "bg-gray-300"}`} />
-              <div className={`h-0.5 w-8 ${step !== "verification" ? "bg-[#C29307]" : "bg-gray-300"}`} />
-              <div className={`h-2 w-2 rounded-full ${step === "signature" ? "bg-[#C29307]" : step === "review" ? "bg-[#C29307]" : "bg-gray-300"}`} />
-              <div className={`h-0.5 w-8 ${step === "review" ? "bg-[#C29307]" : "bg-gray-300"}`} />
-              <div className={`h-2 w-2 rounded-full ${step === "review" ? "bg-[#C29307]" : "bg-gray-300"}`} />
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  step === "verification" ? "bg-[#C29307]" : "bg-gray-300"
+                }`}
+              />
+              <div
+                className={`h-0.5 w-8 ${
+                  step !== "verification" ? "bg-[#C29307]" : "bg-gray-300"
+                }`}
+              />
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  step === "signature"
+                    ? "bg-[#C29307]"
+                    : step === "review"
+                    ? "bg-[#C29307]"
+                    : "bg-gray-300"
+                }`}
+              />
+              <div
+                className={`h-0.5 w-8 ${
+                  step === "review" ? "bg-[#C29307]" : "bg-gray-300"
+                }`}
+              />
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  step === "review" ? "bg-[#C29307]" : "bg-gray-300"
+                }`}
+              />
             </div>
           </div>
         </div>
@@ -498,7 +522,7 @@ export const SignaturePanel = ({
             <div className="space-y-6 py-2 sm:py-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-start gap-3">
-                  <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <Shield className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
                   <div>
                     <h4 className="font-semibold text-blue-800 text-sm sm:text-base">
                       Two-Factor Authentication Required
@@ -513,7 +537,10 @@ export const SignaturePanel = ({
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="verificationCode" className="text-sm sm:text-base">
+                  <Label
+                    htmlFor="verificationCode"
+                    className="text-sm sm:text-base"
+                  >
                     Email Verification Code *
                   </Label>
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -573,7 +600,11 @@ export const SignaturePanel = ({
                     type="button"
                     className="flex-1 h-12 sm:h-10 bg-[#C29307] hover:bg-[#b38606]"
                     onClick={handleVerification}
-                    disabled={!verificationCode || verificationCode.length !== 6 || isVerifying}
+                    disabled={
+                      !verificationCode ||
+                      verificationCode.length !== 6 ||
+                      isVerifying
+                    }
                   >
                     {isVerifying ? (
                       <span className="flex items-center justify-center gap-2">
@@ -590,7 +621,9 @@ export const SignaturePanel = ({
                 <div className="block sm:hidden pt-4">
                   <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
                     <Smartphone className="h-4 w-4" />
-                    <span>Use landscape mode for better signature experience</span>
+                    <span>
+                      Use landscape mode for better signature experience
+                    </span>
                   </div>
                 </div>
               </div>
@@ -602,15 +635,15 @@ export const SignaturePanel = ({
             <div className="space-y-6 py-2 sm:py-4">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
                   <div>
                     <h4 className="font-semibold text-amber-800 text-sm sm:text-base">
                       Legal Notice
                     </h4>
                     <p className="text-xs sm:text-sm text-amber-700 mt-1">
                       Your signature is legally binding. By signing, you
-                      acknowledge that you have read, understood, and agree to all
-                      terms of this contract.
+                      acknowledge that you have read, understood, and agree to
+                      all terms of this contract.
                     </p>
                   </div>
                 </div>
@@ -638,7 +671,6 @@ export const SignaturePanel = ({
                       value={signatureData || ""}
                       onChange={handleSignatureChange}
                       label="Your Signature *"
-                     
                     />
                     {signatureData && (
                       <Button
@@ -652,12 +684,12 @@ export const SignaturePanel = ({
                       </Button>
                     )}
                   </div>
-                  
+
                   <div className="flex items-start text-xs text-gray-500">
-                    <div className="h-2 w-2 bg-gray-400 rounded-full mr-2 mt-1 flex-shrink-0"></div>
+                    <div className="h-2 w-2 bg-gray-400 rounded-full mr-2 mt-1 shrink-0"></div>
                     <p className="text-xs sm:text-sm">
-                      Draw your signature using your finger or mouse. For best results on mobile,
-                      use landscape mode.
+                      Draw your signature using your finger or mouse. For best
+                      results on mobile, use landscape mode.
                     </p>
                   </div>
                 </div>
@@ -665,11 +697,12 @@ export const SignaturePanel = ({
                 {/* Mobile Helper */}
                 <div className="block sm:hidden bg-blue-50 border border-blue-100 rounded-lg p-3">
                   <div className="flex items-center gap-2">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       <Monitor className="h-4 w-4 text-blue-600" />
                     </div>
                     <p className="text-xs text-blue-700">
-                      <strong>Tip:</strong> Rotate your phone sideways for a larger drawing area
+                      <strong>Tip:</strong> Rotate your phone sideways for a
+                      larger drawing area
                     </p>
                   </div>
                 </div>
@@ -720,12 +753,20 @@ export const SignaturePanel = ({
                         </h4>
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs sm:text-sm text-gray-500">Name:</span>
-                            <span className="font-medium text-sm sm:text-base">{typedName}</span>
+                            <span className="text-xs sm:text-sm text-gray-500">
+                              Name:
+                            </span>
+                            <span className="font-medium text-sm sm:text-base">
+                              {typedName}
+                            </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-xs sm:text-sm text-gray-500">Email:</span>
-                            <span className="font-medium text-sm sm:text-base">{signeeEmail}</span>
+                            <span className="text-xs sm:text-sm text-gray-500">
+                              Email:
+                            </span>
+                            <span className="font-medium text-sm sm:text-base">
+                              {signeeEmail}
+                            </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-xs sm:text-sm text-gray-500">
@@ -764,7 +805,7 @@ export const SignaturePanel = ({
 
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
                     <div>
                       <h4 className="font-semibold text-red-800 text-sm sm:text-base">
                         Final Warning

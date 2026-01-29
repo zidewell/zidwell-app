@@ -272,7 +272,7 @@ export default function ContractSummary({
               {/* Important Note */}
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                   <div className="text-xs">
                     <p className="font-medium text-amber-800 mb-1">
                       Important Note

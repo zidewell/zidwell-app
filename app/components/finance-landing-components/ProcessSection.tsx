@@ -46,26 +46,30 @@ const ProcessSection = () => {
 
               <ul className="space-y-3 mb-8">
                 <li className="flex items-start gap-3">
-                  <span className="w-6 h-6 bg-[#C29307] flex-shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
+                  <span className="w-6 h-6 bg-[#C29307] shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
                     ✓
                   </span>
                   <span>Sign up and fill out our business discovery form</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="w-6 h-6 bg-[#C29307] flex-shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
+                  <span className="w-6 h-6 bg-[#C29307] shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
                     ✓
                   </span>
                   <span>Choose one of our service plans</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="w-6 h-6 bg-[#C29307] flex-shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
+                  <span className="w-6 h-6 bg-[#C29307] shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
                     ✓
                   </span>
                   <span>Our team reaches out to get you started</span>
                 </li>
               </ul>
 
-              <Button2  onClick={() => router.push("https://tally.so/r/447JoO")} size="lg" className="w-full group">
+              <Button2
+                onClick={() => router.push("https://tally.so/r/447JoO")}
+                size="lg"
+                className="w-full group"
+              >
                 Start Now
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Button2>
@@ -96,19 +100,19 @@ const ProcessSection = () => {
 
               <ul className="space-y-3 mb-8">
                 <li className="flex items-start gap-3">
-                  <span className="w-6 h-6 bg-neutral-900 text-white flex-shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
+                  <span className="w-6 h-6 bg-neutral-900 text-white shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
                     ✓
                   </span>
                   <span>Personalized consultation</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="w-6 h-6 bg-neutral-900 text-white flex-shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
+                  <span className="w-6 h-6 bg-neutral-900 text-white shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
                     ✓
                   </span>
                   <span>Direct access to senior finance expert</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="w-6 h-6 bg-neutral-900 text-white flex-shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
+                  <span className="w-6 h-6 bg-neutral-900 text-white shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
                     ✓
                   </span>
                   <span>Customized recommendations</span>
@@ -116,7 +120,7 @@ const ProcessSection = () => {
               </ul>
 
               <Button2
-              variant="heroOutline"
+                variant="heroOutline"
                 size="lg"
                 className="w-full group bg-white"
                 onClick={() => setIsConsultationOpen(true)}
@@ -130,9 +134,9 @@ const ProcessSection = () => {
       </div>
 
       {/* Consultation Modal */}
-      <ConsultationModal 
-        open={isConsultationOpen} 
-        onOpenChange={setIsConsultationOpen} 
+      <ConsultationModal
+        open={isConsultationOpen}
+        onOpenChange={setIsConsultationOpen}
       />
     </section>
   );

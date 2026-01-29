@@ -16,7 +16,7 @@ export const ToggleButton = ({
       <span className="text-xs sm:text-sm font-medium text-gray-700 flex-1">
         {label}
       </span>
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <button
           type="button"
           onClick={() => onToggle(!isActive)}

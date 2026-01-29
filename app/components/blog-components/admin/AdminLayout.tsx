@@ -23,18 +23,18 @@ interface AdminLayoutProps {
 }
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
-  { icon: FileText, label: "Posts", path: "/admin/posts" },
-  { icon: FolderOpen, label: "Categories", path: "/admin/categories" },
-  { icon: MessageSquare, label: "Comments", path: "/admin/comments" },
-  { icon: Settings, label: "Settings", path: "/admin/settings" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/blog/admin" },
+  { icon: FileText, label: "Posts", path: "/blog/admin/post" },
+  { icon: FolderOpen, label: "Categories", path: "/blog/admin/categories" },
+  { icon: MessageSquare, label: "Comments", path: "/blog/admin/comments" },
+  { icon: Settings, label: "Settings", path: "/blog/admin/settings" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const router = useRouter();
-  const pathname = usePathname(); // Use usePathname to get current path
+  const pathname = usePathname(); 
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);

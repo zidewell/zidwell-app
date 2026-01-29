@@ -35,7 +35,7 @@ export const SuggestEditsModal = ({
 }: SuggestEditsModalProps) => {
   const [edits, setEdits] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-const { toast } = useToast();
+  const { toast } = useToast();
 
   const handleSubmit = async () => {
     if (!edits.trim()) {
@@ -73,15 +73,15 @@ const { toast } = useToast();
         description: "The contract creator will be notified.",
         variant: "default",
       });
-      
+
       onSuccess();
       onOpenChange(false);
       setEdits("");
-      
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit edits",
+        description:
+          error instanceof Error ? error.message : "Failed to submit edits",
         variant: "destructive",
       });
     } finally {
@@ -95,20 +95,21 @@ const { toast } = useToast();
         <DialogHeader>
           <DialogTitle>Suggest Edits to Contract</DialogTitle>
           <DialogDescription>
-            Provide your suggested changes to "{contractTitle}". The contract creator will be
-            notified and can accept the edits for ₦500.
+            Provide your suggested changes to "{contractTitle}". The contract
+            creator will be notified and can accept the edits for ₦500.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
               <div className="text-sm text-amber-800">
                 <p className="font-semibold mb-1">Edit Fee</p>
                 <p>
-                  The contract creator will be charged ₦500 to review and implement your suggested
-                  edits. Be clear and specific about the changes you'd like to see.
+                  The contract creator will be charged ₦500 to review and
+                  implement your suggested edits. Be clear and specific about
+                  the changes you'd like to see.
                 </p>
               </div>
             </div>
@@ -123,7 +124,8 @@ const { toast } = useToast();
               className="min-h-[200px]"
             />
             <p className="text-xs text-muted-foreground">
-              Provide detailed suggestions for changes, additions, or deletions to the contract terms
+              Provide detailed suggestions for changes, additions, or deletions
+              to the contract terms
             </p>
           </div>
         </div>
@@ -138,8 +140,8 @@ const { toast } = useToast();
           >
             Cancel
           </Button>
-          <Button 
-            type="button" 
+          <Button
+            type="button"
             className="flex-1 bg-[#C29307] hover:bg-[#b38606]"
             onClick={handleSubmit}
             disabled={isSubmitting}

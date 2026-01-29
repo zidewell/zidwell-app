@@ -17,25 +17,39 @@ import DashboardHeader from "../../components/dashboard-hearder";
 
 // EXACT COPY of the Markdown parser from NotificationBell component
 const parseMarkdown = (text: string) => {
-  if (!text) return '';
-  
-  return text
-    // Headers
-    .replace(/^# (.*$)/gim, '<h1 class="text-lg font-bold mt-2 mb-1">$1</h1>')
-    .replace(/^## (.*$)/gim, '<h2 class="text-base font-bold mt-1 mb-1">$1</h2>')
-    .replace(/^### (.*$)/gim, '<h3 class="text-sm font-bold mt-1 mb-0.5">$1</h3>')
-    // Bold
-    .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold">$1</strong>')
-    // Italic
-    .replace(/\*(.*?)\*/gim, '<em class="italic">$1</em>')
-    // Strikethrough
-    .replace(/~~(.*?)~~/gim, '<s class="line-through">$1</s>')
-    // Links
-    .replace(/\[([^\[]+)\]\(([^\)]+)\)/gim, '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>')
-    // Line breaks
-    .replace(/\n/gim, '<br />')
-    // Image placeholder
-    .replace(/\[Image: (.*?)\]/gim, '<div class="bg-gray-100 border rounded p-1 my-1 text-xs text-gray-600">🖼️ Image: $1</div>');
+  if (!text) return "";
+
+  return (
+    text
+      // Headers
+      .replace(/^# (.*$)/gim, '<h1 class="text-lg font-bold mt-2 mb-1">$1</h1>')
+      .replace(
+        /^## (.*$)/gim,
+        '<h2 class="text-base font-bold mt-1 mb-1">$1</h2>'
+      )
+      .replace(
+        /^### (.*$)/gim,
+        '<h3 class="text-sm font-bold mt-1 mb-0.5">$1</h3>'
+      )
+      // Bold
+      .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold">$1</strong>')
+      // Italic
+      .replace(/\*(.*?)\*/gim, '<em class="italic">$1</em>')
+      // Strikethrough
+      .replace(/~~(.*?)~~/gim, '<s class="line-through">$1</s>')
+      // Links
+      .replace(
+        /\[([^\[]+)\]\(([^\)]+)\)/gim,
+        '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>'
+      )
+      // Line breaks
+      .replace(/\n/gim, "<br />")
+      // Image placeholder
+      .replace(
+        /\[Image: (.*?)\]/gim,
+        '<div class="bg-gray-100 border rounded p-1 my-1 text-xs text-gray-600">🖼️ Image: $1</div>'
+      )
+  );
 };
 
 export default function UserNotificationsPage() {
@@ -46,7 +60,7 @@ export default function UserNotificationsPage() {
     notificationsLoading,
     markAsRead,
     markAllAsRead,
-    fetchNotifications
+    fetchNotifications,
   } = useUserContextData();
 
   const [filter, setFilter] = useState("all");
@@ -58,12 +72,20 @@ export default function UserNotificationsPage() {
   });
 
   // TEMPORARY: Show all notifications without filtering
-  const displayNotifications = filteredNotifications.map(notification => ({
+  const displayNotifications = filteredNotifications.map((notification) => ({
     ...notification,
     // Add display properties for empty notifications
-    displayTitle: notification.title === "Notification" ? "System Notification" : notification.title,
-    displayMessage: notification.message === "No message" ? "Notification received" : notification.message,
-    isPlaceholder: notification.title === "Notification" && notification.message === "No message"
+    displayTitle:
+      notification.title === "Notification"
+        ? "System Notification"
+        : notification.title,
+    displayMessage:
+      notification.message === "No message"
+        ? "Notification received"
+        : notification.message,
+    isPlaceholder:
+      notification.title === "Notification" &&
+      notification.message === "No message",
   }));
 
   const renderTypeBadge = (type: string) => {
@@ -90,7 +112,7 @@ export default function UserNotificationsPage() {
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 1) {
       return `${Math.floor(diffInHours * 60)}m ago`;
     } else if (diffInHours < 24) {
@@ -101,7 +123,7 @@ export default function UserNotificationsPage() {
   };
 
   const handleRefresh = () => {
-    console.log('🔄 Manually refreshing notifications...');
+    console.log("🔄 Manually refreshing notifications...");
     fetchNotifications();
   };
 
@@ -149,8 +171,8 @@ export default function UserNotificationsPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleRefresh}
                   disabled={notificationsLoading}
                 >
@@ -175,7 +197,9 @@ export default function UserNotificationsPage() {
                         onChange={(e) => setFilter(e.target.value)}
                         className="border rounded px-3 py-2 text-sm"
                       >
-                        <option value="all">All ({displayNotifications.length})</option>
+                        <option value="all">
+                          All ({displayNotifications.length})
+                        </option>
                         <option value="unread">Unread ({unreadCount})</option>
                         <option value="contract">Contract</option>
                         <option value="wallet">Wallet</option>
@@ -198,7 +222,7 @@ export default function UserNotificationsPage() {
                               : notification.isPlaceholder
                               ? "bg-gray-50 border-gray-200"
                               : "bg-white hover:bg-gray-50"
-                          } ${notification.isPlaceholder ? 'opacity-75' : ''}`}
+                          } ${notification.isPlaceholder ? "opacity-75" : ""}`}
                         >
                           <div className="flex justify-between items-start gap-4">
                             <div className="flex-1 min-w-0">
@@ -210,7 +234,10 @@ export default function UserNotificationsPage() {
                                   </Badge>
                                 )}
                                 {notification.isPlaceholder && (
-                                  <Badge variant="outline" className="text-gray-500">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-gray-500"
+                                  >
                                     Placeholder
                                   </Badge>
                                 )}
@@ -219,24 +246,30 @@ export default function UserNotificationsPage() {
                                 </span>
                               </div>
 
-                              <h3 className="font-semibold text-lg mb-2 break-words">
+                              <h3 className="font-semibold text-lg mb-2 wrap-break-word">
                                 {notification.displayTitle}
                               </h3>
-                              
+
                               {/* UPDATED: Use formatted Markdown instead of plain text */}
-                              <div 
-                                className="text-gray-600 mb-3 break-words prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{ 
-                                  __html: parseMarkdown(notification.displayMessage) 
+                              <div
+                                className="text-gray-600 mb-3 wrap-break-word prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{
+                                  __html: parseMarkdown(
+                                    notification.displayMessage
+                                  ),
                                 }}
                               />
 
                               <div className="flex items-center gap-4 text-sm text-gray-500">
                                 <span className="flex items-center gap-1">
-                                  {notification.channels?.includes("email") && "📧"}
-                                  {notification.channels?.includes("push") && "🔔"}
-                                  {notification.channels?.includes("sms") && "💬"}
-                                  {notification.channels?.includes("in_app") && "📱"}
+                                  {notification.channels?.includes("email") &&
+                                    "📧"}
+                                  {notification.channels?.includes("push") &&
+                                    "🔔"}
+                                  {notification.channels?.includes("sms") &&
+                                    "💬"}
+                                  {notification.channels?.includes("in_app") &&
+                                    "📱"}
                                   {notification.channels?.join(", ")}
                                 </span>
                                 <span>•</span>
@@ -250,8 +283,10 @@ export default function UserNotificationsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleMarkAsRead(notification.id)}
-                                className="flex-shrink-0"
+                                onClick={() =>
+                                  handleMarkAsRead(notification.id)
+                                }
+                                className="shrink-0"
                               >
                                 Mark Read
                               </Button>
@@ -273,10 +308,7 @@ export default function UserNotificationsPage() {
                               ? "You're all caught up!"
                               : "No notifications available for this filter"}
                           </p>
-                          <Button 
-                            variant="outline" 
-                            onClick={handleRefresh}
-                          >
+                          <Button variant="outline" onClick={handleRefresh}>
                             Check for New Notifications
                           </Button>
                         </div>
@@ -294,15 +326,21 @@ export default function UserNotificationsPage() {
                   <CardContent className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Total:</span>
-                      <span className="font-medium">{notifications.length}</span>
+                      <span className="font-medium">
+                        {notifications.length}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Unread:</span>
-                      <span className="font-medium text-blue-600">{unreadCount}</span>
+                      <span className="font-medium text-blue-600">
+                        {unreadCount}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Showing:</span>
-                      <span className="font-medium text-green-600">{displayNotifications.length}</span>
+                      <span className="font-medium text-green-600">
+                        {displayNotifications.length}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
@@ -314,14 +352,18 @@ export default function UserNotificationsPage() {
                   <CardContent className="space-y-2 text-xs">
                     <div className="flex justify-between">
                       <span>User ID:</span>
-                      <span className="font-mono">{userData?.id?.slice(0, 8)}...</span>
+                      <span className="font-mono">
+                        {userData?.id?.slice(0, 8)}...
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Last Fetch:</span>
-                      <span>{notificationsLoading ? 'Loading...' : 'Ready'}</span>
+                      <span>
+                        {notificationsLoading ? "Loading..." : "Ready"}
+                      </span>
                     </div>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       className="w-full mt-2"
                       onClick={handleRefresh}

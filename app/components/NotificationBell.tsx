@@ -204,24 +204,24 @@ export default function NotificationBell() {
                 <div className="flex flex-col space-y-1 w-full">
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex items-start space-x-2 flex-1">
-                      <span className="text-sm mt-0.5 flex-shrink-0">
+                      <span className="text-sm mt-0.5 shrink-0">
                         {getNotificationIcon(notification.type)}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <span className="font-medium text-sm line-clamp-1 break-words">
+                        <span className="font-medium text-sm line-clamp-1 wrap-break-word">
                           {notification.title}
                         </span>
                       </div>
                     </div>
                     {!notification.read_at && (
                       <div
-                        className="w-2 h-2 bg-[#C29307] rounded-full flex-shrink-0 mt-1.5"
+                        className="w-2 h-2 bg-[#C29307] rounded-full shrink-0 mt-1.5"
                         aria-label="Unread notification"
                       />
                     )}
                   </div>
                   <div
-                    className="text-xs text-gray-600 line-clamp-2 break-words ml-5 prose prose-sm max-w-none"
+                    className="text-xs text-gray-600 line-clamp-2 wrap-break-word ml-5 prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{
                       __html: parseMarkdown(notification.message),
                     }}
