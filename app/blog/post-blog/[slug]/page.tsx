@@ -1,10 +1,15 @@
-"use client"
-import { BlogPost } from "@/app/components/blog-components/blog/types/blog";
+"use client";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
-import { blogPosts } from "../../data/mockData";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { ArrowLeft, Share2, Bookmark, Heart, Eye, Clock } from "lucide-react";
+import Swal from "sweetalert2";
+
+// Components
 import BlogHeader from "@/app/components/blog-components/blog/BlogHeader";
 import { Badge } from "@/app/components/ui/badge";
+import { Button } from "@/app/components/ui/button";
 import AudioPlayer from "@/app/components/blog-components/blog/AudioPlayer";
 import ArticleContent from "@/app/components/blog-components/blog/AticleContent";
 import CommentSection from "@/app/components/blog-components/blog/CommentSection";
@@ -12,101 +17,382 @@ import BlogCard from "@/app/components/blog-components/blog/BlogCard";
 import BlogSidebar from "@/app/components/blog-components/blog/BlogSideBar";
 import InlineSubscribe from "@/app/components/blog-components/blog/InlineSubscribe";
 import AdPlaceholder from "@/app/components/blog-components/blog/Adpaceholder";
-import { format } from "date-fns"; // Import format function
+
+// Types
+interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt: string | null;
+  featured_image: string | null;
+  categories: string[];
+  tags: string[];
+  is_published: boolean;
+  author_id: string;
+  author: {
+    id: string;
+    name: string;
+    avatar: string | null;
+    bio: string | null;
+  };
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+  view_count: number;
+  likes_count: number;
+  comments_count: number;
+  author_name?: string;
+  audio_file?: string | null;
+  comment_count?: number;
+}
+
+const calculateReadTime = (content: string): number => {
+  if (!content) return 3;
+  const wordsPerMinute = 200;
+  const wordCount = content.split(/\s+/).length;
+  return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
+};
+
+const getContentParts = (content: string) => {
+  if (!content) return { firstHalf: '', secondHalf: '' };
+  const contentParts = content.split("</p>");
+  const midPoint = Math.max(1, Math.floor(contentParts.length / 2));
+  const firstHalf = contentParts.slice(0, midPoint).join("</p>") + "</p>";
+  const secondHalf = contentParts.slice(midPoint).join("</p>") || content;
+  return { firstHalf, secondHalf };
+};
 
 const PostPage = () => {
   const { slug } = useParams<{ slug: string }>();
+  const router = useRouter();
+  
   const [post, setPost] = useState<BlogPost | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
-  const [previousPosts, setPreviousPosts] = useState<BlogPost[]>([]);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingRelated, setIsLoadingRelated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [viewCount, setViewCount] = useState(0);
+  const [likeCount, setLikeCount] = useState(0);
 
+  const showAlert = Swal.mixin({
+    customClass: {
+      confirmButton: "bg-[#C29307] text-white hover:bg-[#C29307]/90 px-4 py-2 rounded",
+    },
+    buttonsStyling: false,
+  });
+
+  // Fetch post data
   useEffect(() => {
     if (!slug) return;
-    
-    const foundPost = blogPosts.find((p) => p.slug === slug);
-    setPost(foundPost || null);
 
-    if (foundPost) {
-      // Get related posts (same category, excluding current)
-      const related = blogPosts
-        .filter(
-          (p) =>
-            p.id !== foundPost.id &&
-            p.categories.some((c) =>
-              foundPost.categories.some((fc) => fc.id === c.id)
-            )
-        )
-        .slice(0, 4);
-      setRelatedPosts(related);
+    const fetchPost = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const response = await fetch(`/api/blog/posts/slug/${slug}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error("Post not found");
+          }
+          throw new Error(`Failed to fetch post: ${response.statusText}`);
+        }
+        
+        const postData = await response.json();
+        
+        if (!postData.is_published) {
+          setError("This post is not published yet. It may be in draft mode.");
+          setPost(null);
+          setIsLoading(false);
+          return;
+        }
+        
+        setPost(postData);
+        setViewCount(postData.view_count || 0);
+        setLikeCount(postData.likes_count || 0);
+        
+        const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+        setIsLiked(likedPosts.includes(postData.id));
+        
+        // Update view count
+        try {
+          await fetch(`/api/blog/posts?id=${postData.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              viewCount: (postData.view_count || 0) + 1
+            }),
+          });
+        } catch (err) {
+          // Silently fail if view count update fails
+        }
 
-      // Get previous posts for infinite scroll
-      const previous = blogPosts
-        .filter((p) => p.id !== foundPost.id)
-        .slice(0, 4);
-      setPreviousPosts(previous);
-      setHasMore(blogPosts.length > 4); // Check if there are more posts
-    }
-  }, [slug]);
-
-  const loadMorePosts = useCallback(() => {
-    if (loadingMore || !hasMore || !post) return;
-
-    setLoadingMore(true);
-    setTimeout(() => {
-      const currentLength = previousPosts.length;
-      const morePosts = blogPosts
-        .filter((p) => p.id !== post.id)
-        .slice(currentLength, currentLength + 4);
-
-      if (morePosts.length === 0) {
-        setHasMore(false);
-      } else {
-        setPreviousPosts((prev) => [...prev, ...morePosts]);
-      }
-      setLoadingMore(false);
-    }, 500);
-  }, [loadingMore, hasMore, previousPosts.length, post]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 500
-      ) {
-        loadMorePosts();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load post');
+        setPost(null);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [loadMorePosts]);
+    fetchPost();
+  }, [slug]);
 
-  // Handle image loading errors
+  // Fetch related posts
+  useEffect(() => {
+    if (!post) return;
+
+    const fetchRelatedPosts = async () => {
+      try {
+        setIsLoadingRelated(true);
+        
+        // Fetch recent posts
+        const recentResponse = await fetch('/api/blog/posts?limit=6&sort_by=created_at&sort_order=desc');
+        if (recentResponse.ok) {
+          const recentData = await recentResponse.json();
+          const recentPostsList = recentData.posts || recentData;
+          const filteredRecent = Array.isArray(recentPostsList)
+            ? recentPostsList
+                .filter((p: any) => p.id !== post.id && p.is_published)
+                .slice(0, 6)
+            : [];
+          setRecentPosts(filteredRecent);
+        }
+
+        // Fetch related posts by category
+        if (post.categories && post.categories.length > 0) {
+          const category = post.categories[0];
+          const relatedResponse = await fetch(
+            `/api/blog/posts?category=${encodeURIComponent(category)}&limit=4`
+          );
+          if (relatedResponse.ok) {
+            const relatedData = await relatedResponse.json();
+            const relatedPostsList = relatedData.posts || relatedData;
+            const filteredRelated = Array.isArray(relatedPostsList)
+              ? relatedPostsList
+                  .filter((p: any) => p.id !== post.id && p.is_published)
+                  .slice(0, 4)
+              : [];
+            setRelatedPosts(filteredRelated);
+          }
+        }
+      } catch (err) {
+        // Silently fail related posts fetch
+      } finally {
+        setIsLoadingRelated(false);
+      }
+    };
+
+    fetchRelatedPosts();
+  }, [post]);
+
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     e.currentTarget.src = "/images/placeholder.jpg";
+    e.currentTarget.onerror = null;
   };
 
-  if (!post) {
+  const handleShare = async () => {
+    if (!post) return;
+    
+    try {
+      setIsSharing(true);
+      
+      if (navigator.share) {
+        await navigator.share({
+          title: post.title,
+          text: post.excerpt || post.title,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        await showAlert.fire({
+          title: 'Link Copied!',
+          text: 'Post link has been copied to clipboard.',
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      }
+    } catch (err) {
+      // Ignore abort errors
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleBookmark = () => {
+    if (!post) return;
+    
+    setIsBookmarked(!isBookmarked);
+    
+    const bookmarks = JSON.parse(localStorage.getItem('blogBookmarks') || '[]');
+    if (!isBookmarked) {
+      bookmarks.push(post.id);
+      showAlert.fire({
+        title: 'Bookmarked!',
+        text: 'Post added to your bookmarks.',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } else {
+      const index = bookmarks.indexOf(post.id);
+      if (index > -1) {
+        bookmarks.splice(index, 1);
+      }
+      showAlert.fire({
+        title: 'Removed!',
+        text: 'Post removed from bookmarks.',
+        icon: 'info',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    }
+    localStorage.setItem('blogBookmarks', JSON.stringify(bookmarks));
+  };
+
+  const handleLike = async () => {
+    if (!post) return;
+    
+    try {
+      const newLikeCount = isLiked ? likeCount - 1 : likeCount + 1;
+      const newIsLiked = !isLiked;
+      
+      setLikeCount(newLikeCount);
+      setIsLiked(newIsLiked);
+      
+      const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+      if (newIsLiked) {
+        likedPosts.push(post.id);
+      } else {
+        const index = likedPosts.indexOf(post.id);
+        if (index > -1) {
+          likedPosts.splice(index, 1);
+        }
+      }
+      localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+      
+      await fetch(`/api/blog/posts?id=${post.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          likesCount: newLikeCount
+        }),
+      });
+
+      showAlert.fire({
+        title: newIsLiked ? 'Liked!' : 'Unliked!',
+        text: newIsLiked ? 'You liked this post' : 'You unliked this post',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+    } catch (err) {
+      showAlert.fire({
+        title: 'Error!',
+        text: 'Failed to update like. Please try again.',
+        icon: 'error',
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (post) {
+      const bookmarks = JSON.parse(localStorage.getItem('blogBookmarks') || '[]');
+      setIsBookmarked(bookmarks.includes(post.id));
+    }
+  }, [post]);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <BlogHeader />
-        <div className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-2xl font-semibold">Article not found</h1>
-          <p className="text-muted-foreground mt-2">
-            The article you&apos;re looking for doesn&apos;t exist.
-          </p>
+        <div className="container mx-auto px-4 py-16">
+          <div className="animate-pulse space-y-8 max-w-4xl mx-auto">
+            <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-24"></div>
+            <div className="flex gap-2">
+              <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-20"></div>
+              <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-16"></div>
+            </div>
+            <div className="space-y-4">
+              <div className="h-12 bg-gray-200 dark:bg-gray-800 rounded w-3/4"></div>
+              <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-32"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-24"></div>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="h-10 bg-gray-200 dark:bg-gray-800 rounded w-24"></div>
+              <div className="h-10 bg-gray-200 dark:bg-gray-800 rounded w-28"></div>
+              <div className="h-10 bg-gray-200 dark:bg-gray-800 rounded w-20"></div>
+            </div>
+            <div className="aspect-video bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
+            <div className="space-y-4">
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-2/3"></div>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Split content for inline subscribe insertion
-  const contentParts = post.content.split("</p>");
-  const midPoint = Math.max(1, Math.floor(contentParts.length / 2));
-  const firstHalf = contentParts.slice(0, midPoint).join("</p>") + "</p>";
-  const secondHalf = contentParts.slice(midPoint).join("</p>") || post.content;
+  if (error || !post) {
+    return (
+      <div className="min-h-screen bg-background">
+        <BlogHeader />
+        <div className="container mx-auto px-4 py-16 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-semibold mb-4">Article Not Found</h1>
+            <p className="text-muted-foreground mb-6">
+              {error || "The article you're looking for doesn't exist or hasn't been published yet."}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button 
+                variant="outline" 
+                onClick={() => router.push('/blog')}
+                className="gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Blog
+              </Button>
+              <Button 
+                onClick={() => window.location.reload()}
+                className="bg-[#C29307] hover:bg-[#C29307]/90 gap-2"
+              >
+                Try Again
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { firstHalf, secondHalf } = getContentParts(post.content);
+  const readTime = calculateReadTime(post.content);
+  const publishDate = post.published_at || post.created_at;
 
   return (
     <div className="min-h-screen bg-background">
@@ -114,141 +400,269 @@ const PostPage = () => {
 
       <main className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-[1fr_320px] gap-8 lg:gap-12">
-          {/* Main Content */}
           <div className="max-w-4xl mx-auto lg:mx-0">
             <article>
-              {/* Article Header */}
+              <Button
+                variant="ghost"
+                onClick={() => router.push('/blog')}
+                className="mb-6 gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Blog
+              </Button>
+
               <header className="mb-8">
                 <div className="flex flex-wrap items-center gap-2 mb-4">
-                  {post.categories.map((cat) => (
+                  {post.categories.map((category, index) => (
                     <Badge
-                      key={cat.id}
+                      key={index}
                       variant="secondary"
-                      className="text-accent uppercase text-xs tracking-wider"
+                      className="bg-[#C29307]/10 text-[#C29307] hover:bg-[#C29307]/20 uppercase text-xs tracking-wider px-3 py-1"
                     >
-                      {cat.name}
+                      {category}
                     </Badge>
                   ))}
                 </div>
 
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight mb-6">
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight mb-6 text-gray-900 dark:text-white">
                   {post.title}
                 </h1>
 
-                <div className="flex items-center gap-4 mb-6">
+                {post.excerpt && (
+                  <p className="text-xl text-gray-600 dark:text-gray-300 mb-6 italic border-l-4 border-[#C29307] pl-4 py-2">
+                    {post.excerpt}
+                  </p>
+                )}
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <img
+                        src={post.author?.avatar || "/images/avatar-placeholder.jpg"}
+                        alt={post.author?.name || "Author"}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                        onError={handleImageError}
+                        loading="lazy"
+                      />
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#C29307] rounded-full border-2 border-white dark:border-gray-800"></div>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                        {post.author?.name || "Unknown Author"}
+                      </h3>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {readTime} min read
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Eye className="w-3 h-3" />
+                          {viewCount} views
+                        </span>
+                        <span>•</span>
+                        <time dateTime={publishDate}>
+                          {format(new Date(publishDate), "MMM d, yyyy")}
+                        </time>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {post.author?.bio && (
+                    <div className="hidden lg:block flex-1 text-sm text-gray-600 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 pl-6">
+                      {post.author.bio}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 mb-6 border-t border-b border-border py-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleShare}
+                    disabled={isSharing}
+                    className="gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    {isSharing ? "Sharing..." : "Share"}
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBookmark}
+                    className={`gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 ${isBookmarked ? 'bg-[#C29307]/10 border-[#C29307]' : ''}`}
+                  >
+                    <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-[#C29307] text-[#C29307]' : ''}`} />
+                    {isBookmarked ? "Bookmarked" : "Bookmark"}
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLike}
+                    className={`gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 ${isLiked ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' : ''}`}
+                  >
+                    <Heart className={`w-4 h-4 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
+                    {likeCount} {isLiked ? 'Liked' : 'Like'}
+                  </Button>
+                </div>
+
+                {post.content && (
+                  <div className="mb-8">
+                    <AudioPlayer content={post.content} />
+                  </div>
+                )}
+              </header>
+
+              {post.featured_image && (
+                <div className="aspect-video overflow-hidden rounded-xl mb-8 border border-gray-200 dark:border-gray-700 shadow-lg">
                   <img
-                    src={post.author.avatar || "/images/avatar-placeholder.jpg"}
-                    alt={post.author.name}
-                    className="w-12 h-12 rounded-full object-cover"
+                    src={post.featured_image}
+                    alt={post.title}
+                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                     onError={handleImageError}
                     loading="lazy"
                   />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{post.author.name}</span>
-                      {post.author.isZidwellUser && (
-                        <Badge
-                          variant="secondary"
-                          className="text-xs bg-accent/10 text-accent"
-                        >
-                          Zidwell User
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(post.createdAt), "MMMM d, yyyy")} ·{" "}
-                      {post.readTime} min read
-                    </p>
-                  </div>
-                </div>
-
-                {/* Audio Player */}
-                <AudioPlayer content={post.content} />
-              </header>
-
-              {/* Featured Image */}
-              <div className="aspect-video overflow-hidden rounded-lg mb-8">
-                <img
-                  src={post.featuredImage || "/images/placeholder.jpg"}
-                  alt={post.title}
-                  className="w-full h-full object-cover"
-                  onError={handleImageError}
-                  loading="lazy"
-                />
-              </div>
-
-              {/* Article Content - First Half */}
-              <ArticleContent content={firstHalf} />
-
-              {/* Inline Subscribe */}
-              <InlineSubscribe />
-
-              {/* Ad Placement */}
-              <AdPlaceholder variant="inline" />
-
-              {/* Article Content - Second Half */}
-              <ArticleContent content={secondHalf} />
-
-              {/* Tags */}
-              {post.tags && post.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-8 pt-8 border-t border-border">
-                  {post.tags.map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-sm">
-                      #{tag}
-                    </Badge>
-                  ))}
                 </div>
               )}
+
+              <div className="mb-8">
+                <ArticleContent content={firstHalf} />
+              </div>
+
+              <div className="my-12">
+                <InlineSubscribe />
+              </div>
+
+              <div className="my-12">
+                <AdPlaceholder variant="inline" />
+              </div>
+
+              <div className="mb-8">
+                <ArticleContent content={secondHalf} />
+              </div>
+
+              {post.tags && post.tags.length > 0 && (
+                <div className="mt-12 pt-8 border-t border-border">
+                  <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Tags</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {post.tags.map((tag, index) => (
+                      <Badge 
+                        key={index} 
+                        variant="outline" 
+                        className="text-sm px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                        onClick={() => router.push(`/blog/tag/${tag.toLowerCase().replace(/\s+/g, '-')}`)}
+                      >
+                        #{tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-8 pt-8 border-t border-border">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-2xl font-bold text-[#C29307]">{viewCount}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Views</div>
+                  </div>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-2xl font-bold text-[#C29307]">{likeCount}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Likes</div>
+                  </div>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-2xl font-bold text-[#C29307]">{post.comments_count || 0}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Comments</div>
+                  </div>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-2xl font-bold text-[#C29307]">{readTime}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Min Read</div>
+                  </div>
+                </div>
+                <div className="text-center text-sm text-muted-foreground mt-4">
+                  Published on {format(new Date(publishDate), "MMMM d, yyyy 'at' h:mm a")}
+                  {post.updated_at && post.updated_at !== post.created_at && (
+                    <span> • Updated {format(new Date(post.updated_at), "MMMM d, yyyy")}</span>
+                  )}
+                </div>
+              </div>
             </article>
 
-            {/* Comments */}
-            <CommentSection comments={post.comments} postId={post.id} />
+            <div className="mt-16">
+              <CommentSection postId={post.id} />
+            </div>
 
-            {/* Related Posts */}
             {relatedPosts.length > 0 && (
               <section className="mt-16 pt-8 border-t border-border">
-                <h3 className="text-xl font-semibold mb-8">
-                  Related Articles
-                </h3>
-                <div className="grid md:grid-cols-2 gap-8">
-                  {relatedPosts.map((relatedPost) => (
-                    <BlogCard key={relatedPost.id} post={relatedPost} />
-                  ))}
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                    Related Articles
+                  </h3>
+                  {post.categories[0] && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push(`/blog/category/${post.categories[0]?.toLowerCase().replace(/\s+/g, '-')}`)}
+                      className="text-[#C29307] hover:text-[#C29307]/80 hover:bg-[#C29307]/10"
+                    >
+                      View All in {post.categories[0]}
+                    </Button>
+                  )}
                 </div>
-              </section>
-            )}
-
-            {/* Previous Posts - Infinite Scroll */}
-            {previousPosts.length > 0 && (
-              <section className="mt-16 pt-8 border-t border-border">
-                <h3 className="text-xl font-semibold mb-8">
-                  More from Zidwell Blog
-                </h3>
-
-                <div className="grid md:grid-cols-2 gap-8">
-                  {previousPosts.map((prevPost) => (
-                    <BlogCard key={prevPost.id} post={prevPost} />
-                  ))}
-                </div>
-
-                {loadingMore && (
-                  <div className="flex justify-center py-8">
-                    <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                
+                {isLoadingRelated ? (
+                  <div className="grid md:grid-cols-2 gap-8">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="aspect-video bg-gray-200 dark:bg-gray-800 rounded-lg mb-4"></div>
+                        <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
+                      </div>
+                    ))}
                   </div>
-                )}
-
-                {!hasMore && previousPosts.length > 0 && (
-                  <p className="text-center text-muted-foreground py-8">
-                    You&apos;ve reached the end
-                  </p>
+                ) : (
+                  <div className="grid md:grid-cols-2 gap-8">
+                    {relatedPosts.map((relatedPost) => (
+  <BlogCard 
+    key={relatedPost.id} 
+    post={{
+      id: relatedPost.id,
+      title: relatedPost.title,
+      slug: relatedPost.slug,
+      excerpt: relatedPost.excerpt || relatedPost.content.substring(0, 150) + '...',
+      featuredImage: relatedPost.featured_image || '/images/placeholder.jpg',
+      categories: relatedPost.categories.map(cat => ({ 
+        id: cat.toLowerCase().replace(/\s+/g, '-'), 
+        name: cat,
+        slug: cat.toLowerCase().replace(/\s+/g, '-'),
+        postCount: 0
+      })),
+      tags: relatedPost.tags,
+      author: {
+        id: relatedPost.author?.id || relatedPost.author_id,
+        name: relatedPost.author?.name || relatedPost.author_name || "Unknown Author",
+        avatar: relatedPost.author?.avatar || '',
+        bio: relatedPost.author?.bio || '',
+        isZidwellUser: false
+      },
+      createdAt: relatedPost.created_at,
+      updatedAt: relatedPost.updated_at, // Add this line
+      readTime: calculateReadTime(relatedPost.content),
+      isPublished: relatedPost.is_published,
+      content: relatedPost.content,
+      comments: []
+    }} 
+  />
+))}
+                  </div>
                 )}
               </section>
             )}
           </div>
 
-          {/* Sidebar */}
           <div className="hidden lg:block">
-            <div className="sticky top-24">
+            <div className="sticky top-24 space-y-8">
               <BlogSidebar />
             </div>
           </div>

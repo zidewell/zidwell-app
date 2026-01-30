@@ -95,20 +95,24 @@ async function syncCategoriesFromPosts() {
       // Create new categories that don't exist yet
       for (const [name, postCount] of categoryCounts.entries()) {
         const slug = generateSlug(name);
+        
+        // Use upsert to handle both insert and update in one operation
         await supabaseBlog
           .from("categories")
-          .insert({
-            name,
-            slug,
-            post_count: postCount,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .onConflict("slug")
-          .upsert({
-            post_count: postCount,
-            updated_at: new Date().toISOString(),
-          });
+          .upsert(
+            {
+              name,
+              slug,
+              post_count: postCount,
+              updated_at: new Date().toISOString(),
+              // This will be ignored on update if created_at already exists
+              created_at: new Date().toISOString(),
+            },
+            {
+              onConflict: "slug",
+              ignoreDuplicates: false,
+            }
+          );
       }
     }
   } catch (error) {

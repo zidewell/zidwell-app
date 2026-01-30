@@ -5,7 +5,7 @@ import Swal from "sweetalert2";
 
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
-import supabase from "@/app/supabase/supabase";
+import { supabase } from "@/app/supabase/supabase";
 
 const UpdatePassword = () => {
   const [password, setPassword] = useState("");

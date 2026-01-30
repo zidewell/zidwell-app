@@ -22,7 +22,7 @@ const AdminComments = () => {
 
   // Flatten all comments from all posts
   const allComments = blogPosts.flatMap((post) =>
-    post.comments.map((comment) => ({
+    post.comments?.map((comment) => ({
       ...comment,
       postTitle: post.title,
       postSlug: post.slug,
@@ -31,11 +31,11 @@ const AdminComments = () => {
 
   const filteredComments = allComments.filter((comment) => {
     const matchesSearch =
-      comment.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      comment.author.name.toLowerCase().includes(searchQuery.toLowerCase());
+      comment?.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      comment?.author.name.toLowerCase().includes(searchQuery.toLowerCase());
     
-    if (filter === "pending") return matchesSearch && !comment.isApproved;
-    if (filter === "approved") return matchesSearch && comment.isApproved;
+    if (filter === "pending") return matchesSearch && !comment?.isApproved;
+    if (filter === "approved") return matchesSearch && comment?.isApproved;
     return matchesSearch;
   });
 
@@ -107,17 +107,17 @@ const AdminComments = () => {
                 </TableRow>
               ) : (
                 filteredComments.map((comment) => (
-                  <TableRow key={comment.id}>
+                  <TableRow key={comment?.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <img
-                          src={comment.author.avatar}
-                          alt={comment.author.name}
+                          src={comment?.author.avatar || "/default-avatar.png"}
+                          alt={comment?.author.name}
                           className="w-8 h-8 rounded-full object-cover"
                         />
                         <div>
-                          <span className="font-medium">{comment.author.name}</span>
-                          {comment.author.isZidwellUser && (
+                          <span className="font-medium">{comment?.author.name}</span>
+                          {comment?.author.isZidwellUser && (
                             <Badge variant="secondary" className="ml-2 text-xs bg-accent/10 text-accent">
                               Zidwell User
                             </Badge>
@@ -126,26 +126,26 @@ const AdminComments = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <p className="line-clamp-2 max-w-[300px]">{comment.content}</p>
+                      <p className="line-clamp-2 max-w-[300px]">{comment?.content}</p>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-muted-foreground line-clamp-1 max-w-[200px]">
-                        {comment.postTitle}
+                        {comment?.postTitle}
                       </span>
                     </TableCell>
                     <TableCell>
                       <span
                         className={`px-2 py-1 text-xs rounded-full ${
-                          comment.isApproved
+                          comment?.isApproved
                             ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
                             : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
                         }`}
                       >
-                        {comment.isApproved ? "Approved" : "Pending"}
+                        {comment?.isApproved ? "Approved" : "Pending"}
                       </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {format(new Date(comment.createdAt), "MMM d, yyyy")}
+                      {/* {format(new Date(comment?.createdAt), "MMM d, yyyy")} */}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

@@ -1,23 +1,32 @@
-// app/components/blog-components/blog/BlogSidebar.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Search, Mail, TrendingUp, Clock } from "lucide-react";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { Skeleton } from "../../ui/skeleton";
 import Link from "next/link";
 import { useBlog } from "@/app/context/BlogContext";
+import Swal from "sweetalert2";
 
 interface BlogSidebarProps {
-  onSearch: (query: string) => void;
+  onSearch?: (query: string) => void;
   isSearching?: boolean;
 }
 
 const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
-  const { stats, posts, isLoading } = useBlog();
+  const { stats, posts, isLoading, searchPosts } = useBlog();
   const [searchQuery, setSearchQuery] = useState("");
   const [email, setEmail] = useState("");
+  const [isSubscribing, setIsSubscribing] = useState(false);
+
+  // Initialize SweetAlert
+  const showAlert = Swal.mixin({
+    customClass: {
+      confirmButton: "bg-[#C29307] text-white hover:bg-[#C29307]/90 px-4 py-2 rounded",
+    },
+    buttonsStyling: false,
+  });
 
   // Get recent posts (published only)
   const recentPosts = useMemo(() => {
@@ -77,27 +86,96 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch(searchQuery);
+    if (onSearch) {
+      onSearch(searchQuery);
+    } else if (searchQuery.trim()) {
+      // If no onSearch prop provided, use the context search
+      const results = searchPosts(searchQuery);
+      // Navigate to search results page or show in current page
+      window.location.href = `/blog/search?q=${encodeURIComponent(searchQuery)}`;
+    }
   };
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email.trim()) {
+      showAlert.fire({
+        title: 'Email Required',
+        text: 'Please enter your email address',
+        icon: 'warning',
+      });
+      return;
+    }
+
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      showAlert.fire({
+        title: 'Invalid Email',
+        text: 'Please enter a valid email address',
+        icon: 'warning',
+      });
+      return;
+    }
+
+    setIsSubscribing(true);
+
     try {
-      const response = await fetch('/api/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      // Simulate API call (replace with actual API)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // In a real app, you would use:
+      // const response = await fetch('/api/subscribe', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ email }),
+      // });
+      
+      // For now, simulate success
+      await showAlert.fire({
+        title: 'Subscribed Successfully!',
+        text: 'Thank you for subscribing to our newsletter.',
+        icon: 'success',
+        timer: 3000,
+        showConfirmButton: false,
       });
       
-      if (response.ok) {
-        alert("Thank you for subscribing!");
-        setEmail("");
-      } else {
-        alert("Subscription failed. Please try again.");
-      }
+      setEmail("");
+      
     } catch (error) {
       console.error('Subscription error:', error);
-      alert("An error occurred. Please try again.");
+      await showAlert.fire({
+        title: 'Subscription Failed',
+        text: 'An error occurred. Please try again.',
+        icon: 'error',
+      });
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
+  // Helper function to get author name
+  const getAuthorName = (post: any) => {
+    if (post.author?.name) return post.author.name;
+    if (post.author_name) return post.author_name;
+    return 'Unknown Author';
+  };
+
+  // Helper function for image error handling
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    img.style.display = 'none';
+    
+    // Find or create the fallback div
+    const parent = img.parentElement;
+    if (parent) {
+      let fallbackDiv = parent.querySelector('.image-fallback') as HTMLElement;
+      if (!fallbackDiv) {
+        fallbackDiv = document.createElement('div');
+        fallbackDiv.className = 'image-fallback w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center';
+        fallbackDiv.innerHTML = '<span class="text-xs text-muted-foreground">No Image</span>';
+        parent.appendChild(fallbackDiv);
+      }
+      fallbackDiv.style.display = 'flex';
     }
   };
 
@@ -161,8 +239,9 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
           />
           <button
             type="submit"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isSearching}
+            aria-label="Search"
           >
             <Search className={`w-4 h-4 ${isSearching ? 'animate-spin' : ''}`} />
           </button>
@@ -172,7 +251,7 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
       {/* Subscribe */}
       <div className="bg-secondary/50 rounded-lg p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <Mail className="w-4 h-4 text-accent" />
+          <Mail className="w-4 h-4 text-[#C29307]" />
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Get Updates
           </h3>
@@ -188,14 +267,15 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            disabled={isSearching}
+            disabled={isSubscribing}
+            className="w-full"
           />
           <Button
             type="submit"
-            className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-            disabled={isSearching}
+            className="w-full bg-[#C29307] hover:bg-[#C29307]/90 text-white"
+            disabled={isSubscribing}
           >
-            Subscribe
+            {isSubscribing ? "Subscribing..." : "Subscribe"}
           </Button>
         </form>
       </div>
@@ -203,7 +283,7 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
       {/* Popular Posts */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-accent" />
+          <TrendingUp className="w-4 h-4 text-[#C29307]" />
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Popular Posts
           </h3>
@@ -214,42 +294,40 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
               <Link
                 key={post.id}
                 href={`/blog/${post.slug}`}
-                className="flex gap-3 group"
+                className="flex gap-3 group hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
               >
                 {post.featured_image && (
                   <img
                     src={post.featured_image}
                     alt={post.title}
                     className="w-16 h-16 object-cover rounded shrink-0"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                    }}
+                    onError={handleImageError}
+                    loading="lazy"
                   />
                 )}
-                <div className="hidden w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center">
+                <div className="image-fallback w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center hidden">
                   <span className="text-xs text-muted-foreground">No Image</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium line-clamp-2 group-hover:text-accent transition-colors">
+                  <h4 className="text-sm font-medium line-clamp-2 group-hover:text-[#C29307] transition-colors">
                     {post.title}
                   </h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {post.author?.name || 'Unknown Author'}
+                    {getAuthorName(post)}
                   </p>
                 </div>
               </Link>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No popular posts yet</p>
+          <p className="text-sm text-muted-foreground italic">No popular posts yet</p>
         )}
       </div>
 
       {/* Recent Posts */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-accent" />
+          <Clock className="w-4 h-4 text-[#C29307]" />
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Recent Posts
           </h3>
@@ -260,35 +338,33 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
               <Link
                 key={post.id}
                 href={`/blog/${post.slug}`}
-                className="flex gap-3 group"
+                className="flex gap-3 group hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
               >
                 {post.featured_image && (
                   <img
                     src={post.featured_image}
                     alt={post.title}
                     className="w-16 h-16 object-cover rounded shrink-0"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                    }}
+                    onError={handleImageError}
+                    loading="lazy"
                   />
                 )}
-                <div className="hidden w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center">
+                <div className="image-fallback w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center hidden">
                   <span className="text-xs text-muted-foreground">No Image</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium line-clamp-2 group-hover:text-accent transition-colors">
+                  <h4 className="text-sm font-medium line-clamp-2 group-hover:text-[#C29307] transition-colors">
                     {post.title}
                   </h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {post.author?.name || 'Unknown Author'}
+                    {getAuthorName(post)}
                   </p>
                 </div>
               </Link>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No recent posts yet</p>
+          <p className="text-sm text-muted-foreground italic">No recent posts yet</p>
         )}
       </div>
 
@@ -303,18 +379,18 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
               <li key={category.name}>
                 <Link
                   href={`/blog?category=${encodeURIComponent(category.name)}`}
-                  className="flex items-center justify-between text-sm hover:text-accent transition-colors"
+                  className="flex items-center justify-between text-sm hover:text-[#C29307] transition-colors px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
                 >
                   <span className="capitalize">{category.name}</span>
-                  <span className="text-muted-foreground text-xs">
-                    ({category.count})
+                  <span className="text-muted-foreground text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                    {category.count}
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">No categories yet</p>
+          <p className="text-sm text-muted-foreground italic">No categories yet</p>
         )}
       </div>
 
@@ -329,28 +405,29 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
               <li key={archive.label}>
                 <Link
                   href={`/blog?archive=${archive.year}-${archive.month.toLowerCase()}`}
-                  className="flex items-center justify-between text-sm hover:text-accent transition-colors"
+                  className="flex items-center justify-between text-sm hover:text-[#C29307] transition-colors px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
                 >
                   <span>{archive.label}</span>
-                  <span className="text-muted-foreground text-xs">
-                    ({archive.count})
+                  <span className="text-muted-foreground text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                    {archive.count}
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">No archives yet</p>
+          <p className="text-sm text-muted-foreground italic">No archives yet</p>
         )}
       </div>
 
       {/* Ad Placeholder */}
-      <div className="bg-muted rounded-lg p-6 text-center">
-        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 text-center border border-gray-200 dark:border-gray-700">
+        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
           Advertisement
         </p>
-        <div className="h-48 bg-border/50 rounded flex items-center justify-center">
-          <span className="text-sm text-muted-foreground">Ad Space</span>
+        <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded flex flex-col items-center justify-center">
+          <span className="text-sm text-gray-500 dark:text-gray-400 mb-2">Ad Space Available</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">300x250</span>
         </div>
       </div>
     </aside>

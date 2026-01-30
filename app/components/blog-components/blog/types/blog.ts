@@ -1,8 +1,11 @@
+// types/blog.ts
+
 export interface Author {
   id: string;
   name: string;
-  avatar: string;
-  isZidwellUser: boolean;
+  avatar: string | null;
+  isZidwellUser?: boolean; 
+  bio?: string | null; 
 }
 
 export interface Category {
@@ -17,7 +20,8 @@ export interface Comment {
   content: string;
   author: Author;
   createdAt: string;
-  isApproved: boolean;
+  isApproved?: boolean; // Make optional
+  replies?: Comment[]; // Add replies support
 }
 
 export interface BlogPost {
@@ -35,7 +39,10 @@ export interface BlogPost {
   readTime: number;
   audioUrl?: string;
   isPublished: boolean;
-  comments: Comment[];
+  comments?: Comment[]; 
+  viewCount?: number; 
+  likeCount?: number;
+  commentCount?: number;
 }
 
 export interface Archive {
@@ -43,4 +50,25 @@ export interface Archive {
   year: number;
   count: number;
   label: string;
+}
+
+// Additional types for API responses
+export interface ApiBlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt: string | null;
+  featured_image: string | null;
+  categories: string[];
+  tags: string[];
+  is_published: boolean;
+  author_id: string;
+  author_name?: string;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+  view_count: number;
+  likes_count: number;
+  comments_count: number;
 }

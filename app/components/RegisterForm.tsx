@@ -20,7 +20,7 @@ import {
 import { Eye, EyeOff } from "lucide-react";
 import logo from "@/public/logo.png";
 
-import supabase from "@/app/supabase/supabase";
+import { supabase } from "@/app/supabase/supabase";
 
 function RegisterForm() {
   const [referralCode, setReferralCode] = useState<string | null>(null);

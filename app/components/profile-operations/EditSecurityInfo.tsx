@@ -15,7 +15,7 @@ import {
 } from "../ui/select";
 import Swal from "sweetalert2";
 import { Switch } from "../ui/switch";
-import supabase from "@/app/supabase/supabase";
+import { supabase } from "@/app/supabase/supabase";
 
 interface SecuritySettings {
   twoFactorEnabled: boolean;
@@ -44,7 +44,7 @@ function EditSecurityInfo() {
 
   const handleSecurityChange = (
     field: keyof SecuritySettings,
-    value: boolean
+    value: boolean,
   ) => {
     setSecurity((prev) => ({ ...prev, [field]: value }));
   };

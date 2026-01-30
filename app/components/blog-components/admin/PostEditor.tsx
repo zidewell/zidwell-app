@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useEffect, KeyboardEvent, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  KeyboardEvent,
+  useCallback,
+  useRef,
+  ChangeEvent,
+} from "react";
 import { useRouter } from "next/navigation";
-import AdminLayout from "./AdminLayout"; 
+import AdminLayout from "./AdminLayout";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import {
@@ -13,42 +20,50 @@ import {
   SelectValue,
 } from "@/app/components/ui/select";
 import { Switch } from "@/app/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { toast } from "sonner";
-import { 
-  Image as ImageIcon, 
-  Mic, 
-  Plus, 
-  X, 
-  Loader2, 
-  Save, 
+import {
+  Image as ImageIcon,
+  Mic,
+  Plus,
+  X,
+  Loader2,
+  Save,
   Eye,
-  Send
+  Send,
+  Upload,
+  Volume2,
 } from "lucide-react";
 import { Separator } from "@/app/components/ui/separator";
 import { useBlog } from "@/app/context/BlogContext";
-import { useDebouncedCallback } from 'use-debounce';
-import Swal from 'sweetalert2';
-import withReactContent from 'sweetalert2-react-content';
+import { useDebouncedCallback } from "use-debounce";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
 import RichTextEditor from "../../admin-components/RichTextEditor";
+import Loader from "../../Loader";
 
 const MySwal = withReactContent(Swal);
 
 // SweetAlert2 theme
 const swalTheme = {
-  background: '#ffffff',
-  color: '#374151',
-  confirmButtonColor: '#3b82f6',
-  cancelButtonColor: '#6b7280',
-  denyButtonColor: '#ef4444',
+  background: "#ffffff",
+  color: "#374151",
+  confirmButtonColor: "#3b82f6",
+  cancelButtonColor: "#6b7280",
+  denyButtonColor: "#ef4444",
   iconColor: {
-    success: '#10b981',
-    error: '#ef4444',
-    warning: '#f59e0b',
-    info: '#3b82f6',
-    question: '#6b7280'
-  }
+    success: "#10b981",
+    error: "#ef4444",
+    warning: "#f59e0b",
+    info: "#3b82f6",
+    question: "#6b7280",
+  },
 };
 
 interface PostEditorProps {
@@ -58,14 +73,14 @@ interface PostEditorProps {
 
 // Default categories
 const DEFAULT_CATEGORIES = [
-  { id: '1', name: 'Technology' },
-  { id: '2', name: 'Business' },
-  { id: '3', name: 'Health' },
-  { id: '4', name: 'Lifestyle' },
-  { id: '5', name: 'Education' },
-  { id: '6', name: 'Finance' },
-  { id: '7', name: 'Productivity' },
-  { id: '8', name: 'Self-Improvement' },
+  { id: "1", name: "Technology" },
+  { id: "2", name: "Business" },
+  { id: "3", name: "Health" },
+  { id: "4", name: "Lifestyle" },
+  { id: "5", name: "Education" },
+  { id: "6", name: "Finance" },
+  { id: "7", name: "Productivity" },
+  { id: "8", name: "Self-Improvement" },
 ];
 
 // API utility functions
@@ -78,74 +93,96 @@ const api = {
     }
     return response.json();
   },
-  
+
   post: async (url: string, data: any, apiKey: string) => {
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || `Failed to create: ${response.statusText}`);
+      throw new Error(
+        error.error || `Failed to create: ${response.statusText}`,
+      );
     }
     return response.json();
   },
-  
+
   put: async (url: string, data: any, apiKey: string) => {
     const response = await fetch(url, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || `Failed to update: ${response.statusText}`);
+      throw new Error(
+        error.error || `Failed to update: ${response.statusText}`,
+      );
     }
     return response.json();
   },
-  
+
   patch: async (url: string, data: any, apiKey: string) => {
     const response = await fetch(url, {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || `Failed to update: ${response.statusText}`);
+      throw new Error(
+        error.error || `Failed to update: ${response.statusText}`,
+      );
     }
     return response.json();
   },
-  
+
   delete: async (url: string, apiKey: string) => {
     const response = await fetch(url, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: {
-        'x-api-key': apiKey
-      }
+        "x-api-key": apiKey,
+      },
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || `Failed to delete: ${response.statusText}`);
+      throw new Error(
+        error.error || `Failed to delete: ${response.statusText}`,
+      );
     }
     return response.json();
-  }
+  },
+};
+
+// Helper function to convert file to base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
 };
 
 // Validation functions
-const validatePost = (title: string, content: string, authorName: string): { isValid: boolean; errors: string[] } => {
+const validatePost = (
+  title: string,
+  content: string,
+  authorName: string,
+): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
-  
+
   if (!title.trim()) {
     errors.push("Title is required");
   } else if (title.trim().length < 5) {
@@ -153,41 +190,49 @@ const validatePost = (title: string, content: string, authorName: string): { isV
   } else if (title.trim().length > 200) {
     errors.push("Title cannot exceed 200 characters");
   }
-  
-  if (!content.trim() || content === '<p><br></p>') {
+
+  if (!content.trim() || content === "<p><br></p>") {
     errors.push("Content is required");
-  } else if (content.replace(/<[^>]*>/g, '').trim().length < 100) {
+  } else if (content.replace(/<[^>]*>/g, "").trim().length < 100) {
     errors.push("Content must be at least 100 characters long");
   }
-  
+
   if (!authorName.trim()) {
     errors.push("Author name is required");
   } else if (authorName.trim().length < 2) {
     errors.push("Author name must be at least 2 characters long");
   }
-  
+
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 };
 
-const validateUrl = (url: string, fieldName: string): { isValid: boolean; error?: string } => {
+const validateUrl = (
+  url: string,
+  fieldName: string,
+): { isValid: boolean; error?: string } => {
   if (!url.trim()) return { isValid: true };
-  
+
+  // Allow blob URLs and data URLs (for local file previews)
+  if (url.startsWith("blob:") || url.startsWith("data:")) {
+    return { isValid: true };
+  }
+
   try {
     const urlObj = new URL(url);
-    if (!['http:', 'https:'].includes(urlObj.protocol)) {
-      return { 
-        isValid: false, 
-        error: `${fieldName} must use HTTP or HTTPS protocol` 
+    if (!["http:", "https:"].includes(urlObj.protocol)) {
+      return {
+        isValid: false,
+        error: `${fieldName} must use HTTP or HTTPS protocol`,
       };
     }
     return { isValid: true };
   } catch (error) {
-    return { 
-      isValid: false, 
-      error: `${fieldName} must be a valid URL` 
+    return {
+      isValid: false,
+      error: `${fieldName} must be a valid URL`,
     };
   }
 };
@@ -210,19 +255,33 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [authorName, setAuthorName] = useState<string>("Author");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [imageBase64, setImageBase64] = useState<string>("");
+  const [audioBase64, setAudioBase64] = useState<string>("");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   // Use blog categories if available, otherwise use default categories
-  const categories = blogCategories.length > 0 
-    ? blogCategories.map(cat => ({ id: cat.id, name: cat.name }))
-    : DEFAULT_CATEGORIES;
+  // const categories = blogCategories.length > 0
+  //   ? blogCategories.map(cat => ({ id: cat.id, name: cat.name }))
+  //   : DEFAULT_CATEGORIES;
+  const categories = DEFAULT_CATEGORIES;
 
   // Get API key from localStorage
   const getApiKey = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('admin_api_key') || process.env.NEXT_PUBLIC_ADMIN_API_KEY || '';
+    if (typeof window !== "undefined") {
+      return (
+        localStorage.getItem("admin_api_key") ||
+        process.env.NEXT_PUBLIC_ADMIN_API_KEY ||
+        ""
+      );
     }
-    return process.env.NEXT_PUBLIC_ADMIN_API_KEY || '';
+    return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
   }, []);
 
   // Load post data if editing
@@ -245,18 +304,21 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
           setValidationErrors({});
         } catch (error) {
           console.error("Error fetching post:", error);
-          showErrorAlert("Failed to load post", error instanceof Error ? error.message : "Unknown error");
+          showErrorAlert(
+            "Failed to load post",
+            error instanceof Error ? error.message : "Unknown error",
+          );
         } finally {
           setIsLoading(false);
         }
       };
-      
+
       fetchPost();
     } else {
       // For new posts, check if we should load from draft
       const loadFromLocalDraft = () => {
-        if (typeof window !== 'undefined') {
-          const draft = localStorage.getItem('post_draft');
+        if (typeof window !== "undefined") {
+          const draft = localStorage.getItem("post_draft");
           if (draft) {
             try {
               const parsed = JSON.parse(draft);
@@ -268,14 +330,17 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
               setAudioFile(parsed.audioFile || "");
               setTags(parsed.tags || "");
               setAuthorName(parsed.authorName || "Author");
-              showInfoAlert("Draft Loaded", "Loaded unsaved draft from local storage");
+              showInfoAlert(
+                "Draft Loaded",
+                "Loaded unsaved draft from local storage",
+              );
             } catch (e) {
               console.error("Error loading draft from localStorage:", e);
             }
           }
         }
       };
-      
+
       loadFromLocalDraft();
     }
   }, [postId]);
@@ -285,8 +350,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     MySwal.fire({
       title,
       text,
-      icon: 'error',
-      confirmButtonText: 'OK',
+      icon: "error",
+      confirmButtonText: "OK",
       confirmButtonColor: swalTheme.confirmButtonColor,
       background: swalTheme.background,
       color: swalTheme.color,
@@ -298,8 +363,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     MySwal.fire({
       title,
       text,
-      icon: 'success',
-      confirmButtonText: 'OK',
+      icon: "success",
+      confirmButtonText: "OK",
       confirmButtonColor: swalTheme.confirmButtonColor,
       background: swalTheme.background,
       color: swalTheme.color,
@@ -311,8 +376,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     MySwal.fire({
       title,
       text,
-      icon: 'info',
-      confirmButtonText: 'OK',
+      icon: "info",
+      confirmButtonText: "OK",
       confirmButtonColor: swalTheme.confirmButtonColor,
       background: swalTheme.background,
       color: swalTheme.color,
@@ -324,8 +389,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     MySwal.fire({
       title,
       text,
-      icon: 'warning',
-      confirmButtonText: 'OK',
+      icon: "warning",
+      confirmButtonText: "OK",
       confirmButtonColor: swalTheme.confirmButtonColor,
       background: swalTheme.background,
       color: swalTheme.color,
@@ -333,21 +398,25 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     });
   };
 
-  const showConfirmDialog = async (title: string, text: string, confirmButtonText = 'Yes, proceed'): Promise<boolean> => {
+  const showConfirmDialog = async (
+    title: string,
+    text: string,
+    confirmButtonText = "Yes, proceed",
+  ): Promise<boolean> => {
     const result = await MySwal.fire({
       title,
       text,
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
       confirmButtonText,
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#ef4444',
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#ef4444",
       cancelButtonColor: swalTheme.cancelButtonColor,
       background: swalTheme.background,
       color: swalTheme.color,
       iconColor: swalTheme.iconColor.warning,
     });
-    
+
     return result.isConfirmed;
   };
 
@@ -365,8 +434,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         authorName,
         lastSaved: new Date().toISOString(),
       };
-      
-      localStorage.setItem('post_draft', JSON.stringify(draft));
+
+      localStorage.setItem("post_draft", JSON.stringify(draft));
       setLastSaved(new Date());
     }
   }, 3000);
@@ -377,50 +446,277 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       saveToLocalDraft();
       setHasUnsavedChanges(true);
     }
-  }, [title, content, excerpt, selectedCategories, featuredImage, audioFile, tags, authorName, postId, autoSaveEnabled, saveToLocalDraft]);
+  }, [
+    title,
+    content,
+    excerpt,
+    selectedCategories,
+    featuredImage,
+    audioFile,
+    tags,
+    authorName,
+    postId,
+    autoSaveEnabled,
+    saveToLocalDraft,
+  ]);
 
   // Validate form before saving
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
-    
+
     const basicValidation = validatePost(title, content, authorName);
     if (!basicValidation.isValid) {
-      basicValidation.errors.forEach(error => {
-        if (error.includes('Title')) errors.title = error;
-        else if (error.includes('Content')) errors.content = error;
-        else if (error.includes('Author')) errors.authorName = error;
+      basicValidation.errors.forEach((error) => {
+        if (error.includes("Title")) errors.title = error;
+        else if (error.includes("Content")) errors.content = error;
+        else if (error.includes("Author")) errors.authorName = error;
       });
     }
-    
+
     if (featuredImage.trim()) {
-      const featuredImageValidation = validateUrl(featuredImage, "Featured image");
+      const featuredImageValidation = validateUrl(
+        featuredImage,
+        "Featured image",
+      );
       if (!featuredImageValidation.isValid && featuredImageValidation.error) {
         errors.featuredImage = featuredImageValidation.error;
       }
     }
-    
+
     if (audioFile.trim()) {
       const audioFileValidation = validateUrl(audioFile, "Audio file");
       if (!audioFileValidation.isValid && audioFileValidation.error) {
         errors.audioFile = audioFileValidation.error;
       }
     }
-    
+
     if (selectedCategories.length === 0) {
       errors.categories = "At least one category is required";
     }
-    
+
     setValidationErrors(errors);
-    
+
     if (Object.keys(errors).length > 0) {
       showErrorAlert(
-        "Validation Error", 
-        "Please fix the following errors:\n\n" + Object.values(errors).join('\n')
+        "Validation Error",
+        "Please fix the following errors:\n\n" +
+          Object.values(errors).join("\n"),
       );
       return false;
     }
-    
+
     return true;
+  };
+
+  // Handle featured image upload
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validImageTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/svg+xml",
+    ];
+    if (!validImageTypes.includes(file.type)) {
+      showErrorAlert(
+        "Invalid File Type",
+        "Please upload a valid image file (JPEG, PNG, GIF, WebP, or SVG)",
+      );
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showErrorAlert("File Too Large", "Image file must be less than 5MB");
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+
+      // Create a preview URL for immediate display
+      const previewUrl = URL.createObjectURL(file);
+      setFeaturedImage(previewUrl);
+
+      // Convert to base64 for saving
+      const base64 = await fileToBase64(file);
+      setImageBase64(base64);
+
+      // Clear any validation errors
+      if (validationErrors.featuredImage) {
+        setValidationErrors((prev) => ({ ...prev, featuredImage: "" }));
+      }
+
+      showInfoAlert(
+        "Image Uploaded",
+        "Image preview is ready. Note: Large images may affect performance.",
+      );
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      showErrorAlert(
+        "Upload Failed",
+        error instanceof Error ? error.message : "Failed to process image",
+      );
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Handle audio file upload
+  const handleAudioUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validAudioTypes = [
+      "audio/mpeg",
+      "audio/wav",
+      "audio/mp4",
+      "audio/x-m4a",
+      "audio/ogg",
+    ];
+    if (!validAudioTypes.includes(file.type)) {
+      showErrorAlert(
+        "Invalid File Type",
+        "Please upload a valid audio file (MP3, WAV, M4A, or OGG)",
+      );
+      return;
+    }
+
+    // Validate file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      showErrorAlert("File Too Large", "Audio file must be less than 50MB");
+      return;
+    }
+
+    try {
+      setUploadingAudio(true);
+
+      // Create a preview URL for immediate display
+      const previewUrl = URL.createObjectURL(file);
+      setAudioFile(previewUrl);
+
+      // Convert to base64 for saving
+      const base64 = await fileToBase64(file);
+      setAudioBase64(base64);
+
+      // Clear any validation errors
+      if (validationErrors.audioFile) {
+        setValidationErrors((prev) => ({ ...prev, audioFile: "" }));
+      }
+
+      showInfoAlert(
+        "Audio Uploaded",
+        "Audio file is ready. Note: Large audio files may affect performance.",
+      );
+
+      // Reset file input
+      if (audioInputRef.current) {
+        audioInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error("Error uploading audio:", error);
+      showErrorAlert(
+        "Upload Failed",
+        error instanceof Error ? error.message : "Failed to process audio file",
+      );
+    } finally {
+      setUploadingAudio(false);
+    }
+  };
+
+  // Handle drag and drop for featured image
+  const handleImageDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validImageTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/svg+xml",
+    ];
+    if (!validImageTypes.includes(file.type)) {
+      showErrorAlert(
+        "Invalid File Type",
+        "Please upload a valid image file (JPEG, PNG, GIF, WebP, or SVG)",
+      );
+      return;
+    }
+
+    // Trigger file input click
+    if (fileInputRef.current) {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      fileInputRef.current.files = dataTransfer.files;
+
+      // Create a change event to trigger the upload
+      const event = new Event("change", { bubbles: true });
+      fileInputRef.current.dispatchEvent(event);
+    }
+  };
+
+  // Handle drag and drop for audio
+  const handleAudioDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validAudioTypes = [
+      "audio/mpeg",
+      "audio/wav",
+      "audio/mp4",
+      "audio/x-m4a",
+      "audio/ogg",
+    ];
+    if (!validAudioTypes.includes(file.type)) {
+      showErrorAlert(
+        "Invalid File Type",
+        "Please upload a valid audio file (MP3, WAV, M4A, or OGG)",
+      );
+      return;
+    }
+
+    // Trigger file input click
+    if (audioInputRef.current) {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      audioInputRef.current.files = dataTransfer.files;
+
+      // Create a change event to trigger the upload
+      const event = new Event("change", { bubbles: true });
+      audioInputRef.current.dispatchEvent(event);
+    }
+  };
+
+  // Handle drag over events
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.add("border-accent", "bg-[#C29307]/10");
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove("border-accent", "bg-[#C29307]/10");
   };
 
   // Save draft to server
@@ -429,55 +725,72 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       return null;
     }
 
+    // Use base64 data if available, otherwise use the URL
+    const finalFeaturedImage = imageBase64 || featuredImage;
+    const finalAudioFile = audioBase64 || audioFile;
+
     const draftData = {
       title: title.trim() || "Untitled Draft",
       content: content.trim(),
       excerpt: excerpt.trim() || "",
       categories: selectedCategories,
-      featuredImage: featuredImage.trim() || "",
-      audioFile: audioFile.trim() || "",
-      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-      authorId: 'default-author-id',
+      featuredImage: finalFeaturedImage.trim() || "",
+      audioFile: finalAudioFile.trim() || "",
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      authorId: "default-author-id",
       authorName: authorName.trim(),
     };
 
     try {
       setIsSaving(true);
       const apiKey = getApiKey();
-      
+
       let result;
       if (postId) {
-        result = await api.put(`/api/blog/drafts?id=${postId}`, draftData, apiKey);
+        result = await api.put(
+          `/api/blog/drafts?id=${postId}`,
+          draftData,
+          apiKey,
+        );
         if (!silent) {
-          showSuccessAlert("Draft Updated", "Your draft has been successfully updated!");
+          showSuccessAlert(
+            "Draft Updated",
+            "Your draft has been successfully updated!",
+          );
         }
       } else {
-        result = await api.post('/api/blog/drafts', draftData, apiKey);
+        result = await api.post("/api/blog/drafts", draftData, apiKey);
         if (!silent) {
-          showSuccessAlert("Draft Saved", "Your draft has been successfully saved!");
+          showSuccessAlert(
+            "Draft Saved",
+            "Your draft has been successfully saved!",
+          );
         }
       }
-      
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('post_draft');
+
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("post_draft");
       }
-      
+
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
       setValidationErrors({});
-      
+
       if (!postId && result.id) {
-        router.replace(`/blog/admin/posts/editor/${result.id}?draft=true`);
+        router.replace(`/blog/admin/posts/${result.id}/edit?draft=true`);
         return result.id;
       }
-      
+
       return postId || result.id;
     } catch (error) {
       console.error("Error saving draft:", error);
       if (!silent) {
         showErrorAlert(
-          "Save Failed", 
-          error instanceof Error ? error.message : "Error saving draft"
+          "Save Failed",
+          error instanceof Error ? error.message : "Error saving draft",
         );
       }
       return null;
@@ -493,56 +806,68 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     }
 
     const confirmed = await showConfirmDialog(
-      "Publish Post", 
+      "Publish Post",
       "Are you sure you want to publish this post? It will be visible to all visitors.",
-      "Yes, publish it!"
+      "Yes, publish it!",
     );
-    
+
     if (!confirmed) return;
+
+    // Use base64 data if available, otherwise use the URL
+    const finalFeaturedImage = imageBase64 || featuredImage;
+    const finalAudioFile = audioBase64 || audioFile;
 
     const publishData = {
       isPublished: true,
       title: title.trim(),
       excerpt: excerpt.trim() || "",
       categories: selectedCategories,
-      featuredImage: featuredImage.trim() || "",
-      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      featuredImage: finalFeaturedImage.trim() || "",
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
     };
 
     try {
       setIsLoading(true);
       const apiKey = getApiKey();
-      
+
       if (postId) {
         await api.patch(`/api/blog/drafts?id=${postId}`, publishData, apiKey);
-        showSuccessAlert("Post Published", "Your post has been successfully published!");
+        showSuccessAlert(
+          "Post Published",
+          "Your post has been successfully published!",
+        );
       } else {
         const postData = {
           ...publishData,
           content: content.trim(),
-          audioFile: audioFile.trim() || "",
-          authorId: 'default-author-id',
+          audioFile: finalAudioFile.trim() || "",
+          authorId: "default-author-id",
           authorName: authorName.trim(),
         };
-        
-        await api.post('/api/blog/posts', postData, apiKey);
-        showSuccessAlert("Post Created", "Your post has been created and published!");
+
+        await api.post("/api/blog/posts", postData, apiKey);
+        showSuccessAlert(
+          "Post Created",
+          "Your post has been created and published!",
+        );
       }
-      
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('post_draft');
+
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("post_draft");
       }
-      
+
       invalidateCache();
-      
+
       router.push("/blog/admin/posts");
       router.refresh();
-      
     } catch (error) {
       console.error("Error publishing post:", error);
       showErrorAlert(
-        "Publish Failed", 
-        error instanceof Error ? error.message : "Error publishing post"
+        "Publish Failed",
+        error instanceof Error ? error.message : "Error publishing post",
       );
     } finally {
       setIsLoading(false);
@@ -559,45 +884,48 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
   const handleDelete = async () => {
     if (!postId) {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         const confirmed = await showConfirmDialog(
           "Clear Draft",
           "Are you sure you want to clear this unsaved draft? This action cannot be undone.",
-          "Yes, clear it"
+          "Yes, clear it",
         );
-        
+
         if (confirmed) {
-          localStorage.removeItem('post_draft');
+          localStorage.removeItem("post_draft");
           showInfoAlert("Draft Cleared", "Local draft has been cleared");
           router.push("/blog/admin/posts");
         }
       }
       return;
     }
-    
+
     const confirmed = await showConfirmDialog(
-      "Delete Post", 
+      "Delete Post",
       "Are you sure you want to delete this post? This action cannot be undone.",
-      "Yes, delete it!"
+      "Yes, delete it!",
     );
-    
+
     if (!confirmed) return;
 
     try {
       setIsLoading(true);
       const apiKey = getApiKey();
       await api.delete(`/api/blog/posts?id=${postId}`, apiKey);
-      
+
       invalidateCache();
-      
-      showSuccessAlert("Post Deleted", "The post has been successfully deleted!");
+
+      showSuccessAlert(
+        "Post Deleted",
+        "The post has been successfully deleted!",
+      );
       router.push("/blog/admin/posts");
       router.refresh();
     } catch (error) {
       console.error("Error deleting post:", error);
       showErrorAlert(
-        "Delete Failed", 
-        error instanceof Error ? error.message : "Error deleting post"
+        "Delete Failed",
+        error instanceof Error ? error.message : "Error deleting post",
       );
     } finally {
       setIsLoading(false);
@@ -612,7 +940,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     }
 
     if (trimmedCategory.length > 50) {
-      showErrorAlert("Invalid Category", "Category name cannot exceed 50 characters");
+      showErrorAlert(
+        "Invalid Category",
+        "Category name cannot exceed 50 characters",
+      );
       return;
     }
 
@@ -624,26 +955,26 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     setSelectedCategories([...selectedCategories, trimmedCategory]);
     setNewCategory("");
     showSuccessAlert("Category Added", `Added category: ${trimmedCategory}`);
-    setValidationErrors(prev => ({ ...prev, categories: '' }));
+    setValidationErrors((prev) => ({ ...prev, categories: "" }));
   };
 
   const removeCategory = async (category: string) => {
     const confirmed = await MySwal.fire({
-      title: 'Remove Category',
+      title: "Remove Category",
       text: `Are you sure you want to remove "${category}"?`,
-      icon: 'question',
+      icon: "question",
       showCancelButton: true,
-      confirmButtonText: 'Yes, remove it',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#ef4444',
+      confirmButtonText: "Yes, remove it",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#ef4444",
       cancelButtonColor: swalTheme.cancelButtonColor,
       background: swalTheme.background,
       color: swalTheme.color,
       iconColor: swalTheme.iconColor.question,
     });
-    
+
     if (confirmed.isConfirmed) {
-      setSelectedCategories(selectedCategories.filter(c => c !== category));
+      setSelectedCategories(selectedCategories.filter((c) => c !== category));
       showInfoAlert("Category Removed", `Removed category: ${category}`);
     }
   };
@@ -657,51 +988,64 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
   const handlePreview = () => {
     if (!postId) {
-      showInfoAlert("Preview Not Available", "Please save the post first to preview");
+      showInfoAlert(
+        "Preview Not Available",
+        "Please save the post first to preview",
+      );
       return;
     }
-    
-    window.open(`/blog/preview/${postId}`, '_blank');
+
+    window.open(`/blog/preview/${postId}`, "_blank");
   };
 
   const handleClearFeaturedImage = async () => {
     const confirmed = await MySwal.fire({
-      title: 'Remove Featured Image',
-      text: 'Are you sure you want to remove the featured image?',
-      icon: 'question',
+      title: "Remove Featured Image",
+      text: "Are you sure you want to remove the featured image?",
+      icon: "question",
       showCancelButton: true,
-      confirmButtonText: 'Yes, remove it',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#ef4444',
+      confirmButtonText: "Yes, remove it",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#ef4444",
       cancelButtonColor: swalTheme.cancelButtonColor,
       background: swalTheme.background,
       color: swalTheme.color,
       iconColor: swalTheme.iconColor.question,
     });
-    
+
     if (confirmed.isConfirmed) {
+      // Revoke object URL if it's a blob URL
+      if (featuredImage.startsWith("blob:")) {
+        URL.revokeObjectURL(featuredImage);
+      }
       setFeaturedImage("");
+      setImageBase64("");
       showInfoAlert("Image Removed", "Featured image has been removed");
     }
   };
 
   const handleClearAudioFile = async () => {
     const confirmed = await MySwal.fire({
-      title: 'Remove Audio File',
-      text: 'Are you sure you want to remove the audio file?',
-      icon: 'question',
+      title: "Remove Audio File",
+      text: "Are you sure you want to remove the audio file?",
+      icon: "question",
       showCancelButton: true,
-      confirmButtonText: 'Yes, remove it',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#ef4444',
+      confirmButtonText: "Yes, remove it",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#ef4444",
       cancelButtonColor: swalTheme.cancelButtonColor,
       background: swalTheme.background,
       color: swalTheme.color,
       iconColor: swalTheme.iconColor.question,
     });
-    
+
     if (confirmed.isConfirmed) {
+      // Revoke object URL if it's a blob URL
+      if (audioFile.startsWith("blob:")) {
+        URL.revokeObjectURL(audioFile);
+      }
       setAudioFile("");
+      setAudioBase64("");
       showInfoAlert("Audio Removed", "Audio file has been removed");
     }
   };
@@ -710,12 +1054,12 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     const confirmed = await showConfirmDialog(
       "Clear Draft",
       "Are you sure you want to clear this unsaved draft? All unsaved changes will be lost.",
-      "Yes, clear it"
+      "Yes, clear it",
     );
-    
+
     if (confirmed) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('post_draft');
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("post_draft");
         setLastSaved(null);
         setHasUnsavedChanges(false);
         showSuccessAlert("Draft Cleared", "Local draft has been cleared");
@@ -728,16 +1072,29 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges && !postId) {
         e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        e.returnValue =
+          "You have unsaved changes. Are you sure you want to leave?";
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [hasUnsavedChanges, postId]);
+
+  // Clean up blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (featuredImage.startsWith("blob:")) {
+        URL.revokeObjectURL(featuredImage);
+      }
+      if (audioFile.startsWith("blob:")) {
+        URL.revokeObjectURL(audioFile);
+      }
+    };
+  }, [featuredImage, audioFile]);
 
   if (isLoading && postId) {
     return (
@@ -745,7 +1102,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading post data...</p>
+            <Loader />
           </div>
         </div>
       </AdminLayout>
@@ -758,26 +1115,32 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">
-              {postId ? (isDraft ? "Edit Draft" : "Edit Post") : "Create New Post"}
+              {postId
+                ? isDraft
+                  ? "Edit Draft"
+                  : "Edit Post"
+                : "Create New Post"}
             </h1>
             <p className="text-muted-foreground">
-              {postId 
-                ? (isDraft ? "Edit your draft article" : "Edit your published article")
-                : "Write and publish your article"
-              }
+              {postId
+                ? isDraft
+                  ? "Edit your draft article"
+                  : "Edit your published article"
+                : "Write and publish your article"}
             </p>
-            
+
             {/* Auto-save status */}
             {!postId && autoSaveEnabled && hasUnsavedChanges && (
               <div className="flex items-center gap-2 mt-2">
                 <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
                 <span className="text-xs text-muted-foreground">
-                  Auto-saving... {lastSaved && `Last saved: ${lastSaved.toLocaleTimeString()}`}
+                  Auto-saving...{" "}
+                  {lastSaved && `Last saved: ${lastSaved.toLocaleTimeString()}`}
                 </span>
               </div>
             )}
           </div>
-          
+
           <div className="flex items-center gap-3">
             {!postId && hasUnsavedChanges && (
               <Button
@@ -789,17 +1152,25 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                 Clear Draft
               </Button>
             )}
-            
-            <Button variant="outline" onClick={() => handleSave(false)} disabled={isLoading || isSaving}>
+
+            <Button
+              variant="outline"
+              onClick={() => handleSave(false)}
+              disabled={isPublished || isLoading || isSaving}
+            >
               <Save className="w-4 h-4 mr-2" />
               Save Draft
             </Button>
-            <Button variant="outline" onClick={handlePreview} disabled={isLoading || !postId}>
+            <Button
+              variant="outline"
+              onClick={handlePreview}
+              disabled={isLoading || !postId}
+            >
               <Eye className="w-4 h-4 mr-2" />
               Preview
             </Button>
             <Button
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
+              className="bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90"
               onClick={() => handleSave(true)}
               disabled={isLoading || isSaving}
             >
@@ -819,21 +1190,26 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
               onChange={(e) => {
                 setTitle(e.target.value);
                 if (validationErrors.title) {
-                  setValidationErrors(prev => ({ ...prev, title: '' }));
+                  setValidationErrors((prev) => ({ ...prev, title: "" }));
                 }
               }}
-              className={`text-3xl font-semibold h-auto py-4 px-0 border-0 border-b rounded-none focus-visible:ring-0 focus-visible:border-accent ${
+              className={` font-semibold focus-visible:ring-0 focus-visible:border-accent ${
                 validationErrors.title ? "border-red-500" : "border-border"
               }`}
               disabled={isLoading}
             />
             {validationErrors.title && (
-              <p className="text-sm text-red-600 -mt-4">{validationErrors.title}</p>
+              <p className="text-sm text-red-600 -mt-4">
+                {validationErrors.title}
+              </p>
             )}
 
             {/* Author Name */}
             <div className="space-y-2">
-              <Label htmlFor="authorName" className={validationErrors.authorName ? "text-red-600" : ""}>
+              <Label
+                htmlFor="authorName"
+                className={validationErrors.authorName ? "text-red-600" : ""}
+              >
                 Author Name
               </Label>
               <Input
@@ -843,14 +1219,23 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                 onChange={(e) => {
                   setAuthorName(e.target.value);
                   if (validationErrors.authorName) {
-                    setValidationErrors(prev => ({ ...prev, authorName: '' }));
+                    setValidationErrors((prev) => ({
+                      ...prev,
+                      authorName: "",
+                    }));
                   }
                 }}
                 disabled={isLoading}
-                className={validationErrors.authorName ? "border-red-500 focus-visible:ring-red-500" : ""}
+                className={
+                  validationErrors.authorName
+                    ? "border-red-500 focus-visible:ring-red-500"
+                    : ""
+                }
               />
               {validationErrors.authorName && (
-                <p className="text-sm text-red-600">{validationErrors.authorName}</p>
+                <p className="text-sm text-red-600">
+                  {validationErrors.authorName}
+                </p>
               )}
             </div>
 
@@ -860,22 +1245,24 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                 Content
               </Label>
               {validationErrors.content && (
-                <p className="text-sm text-red-600 mb-2">{validationErrors.content}</p>
+                <p className="text-sm text-red-600 mb-2">
+                  {validationErrors.content}
+                </p>
               )}
               <RichTextEditor
                 value={content}
                 onChange={(value) => {
                   setContent(value);
                   if (validationErrors.content) {
-                    setValidationErrors(prev => ({ ...prev, content: '' }));
+                    setValidationErrors((prev) => ({ ...prev, content: "" }));
                   }
                 }}
                 placeholder="Start writing your story..."
-                disabled={isLoading}
-                onSaveDraft={() => saveDraft()}
-                onPreview={handlePreview}
-                onPublish={() => handleSave(true)}
-                isLoading={isLoading || isSaving}
+                // disabled={isLoading}
+                // onSaveDraft={() => saveDraft()}
+                // onPreview={handlePreview}
+                // onPublish={() => handleSave(true)}
+                // isLoading={isLoading || isSaving}
               />
             </div>
 
@@ -906,7 +1293,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="auto-save-toggle" className="cursor-pointer">
+                    <Label
+                      htmlFor="auto-save-toggle"
+                      className="cursor-pointer"
+                    >
                       Enable auto-save
                     </Label>
                     <Switch
@@ -917,10 +1307,9 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {autoSaveEnabled 
+                    {autoSaveEnabled
                       ? "Changes are automatically saved to your browser"
-                      : "Auto-save is disabled. Remember to save manually."
-                    }
+                      : "Auto-save is disabled. Remember to save manually."}
                   </p>
                   {lastSaved && (
                     <p className="text-xs text-muted-foreground">
@@ -949,14 +1338,13 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {postId 
-                    ? (isPublished 
-                        ? "This post is already published"
-                        : "This post is currently a draft")
-                    : (isPublished 
-                        ? "Post will be published immediately when saved"
-                        : "Post will be saved as a draft")
-                  }
+                  {postId
+                    ? isPublished
+                      ? "This post is already published"
+                      : "This post is currently a draft"
+                    : isPublished
+                      ? "Post will be published immediately when saved"
+                      : "Post will be saved as a draft"}
                 </p>
               </CardContent>
             </Card>
@@ -968,18 +1356,27 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-2">
-                  <Label className={validationErrors.categories ? "text-red-600" : ""}>
+                  <Label
+                    className={
+                      validationErrors.categories ? "text-red-600" : ""
+                    }
+                  >
                     Select Categories
                   </Label>
                   {validationErrors.categories && (
-                    <p className="text-sm text-red-600">{validationErrors.categories}</p>
+                    <p className="text-sm text-red-600">
+                      {validationErrors.categories}
+                    </p>
                   )}
                   <Select
                     onValueChange={(value: string) => {
                       if (!selectedCategories.includes(value)) {
                         setSelectedCategories([...selectedCategories, value]);
                         if (validationErrors.categories) {
-                          setValidationErrors(prev => ({ ...prev, categories: '' }));
+                          setValidationErrors((prev) => ({
+                            ...prev,
+                            categories: "",
+                          }));
                         }
                       }
                     }}
@@ -1012,9 +1409,9 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                     onKeyDown={handleKeyDown}
                     disabled={isLoading}
                   />
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={addCategory}
                     disabled={isLoading || !newCategory.trim()}
                   >
@@ -1074,7 +1471,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                       className="w-full aspect-video object-cover rounded"
                       onError={(e) => {
                         const target = e.currentTarget as HTMLImageElement;
-                        target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='16' text-anchor='middle' fill='%239ca3af'%3EImage not found%3C/text%3E%3C/svg%3E";
+                        target.src =
+                          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='16' text-anchor='middle' fill='%239ca3af'%3EImage not found%3C/text%3E%3C/svg%3E";
                       }}
                     />
                     <Button
@@ -1082,39 +1480,97 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                       size="sm"
                       className="absolute top-2 right-2"
                       onClick={handleClearFeaturedImage}
-                      disabled={isLoading}
+                      disabled={isLoading || uploadingImage}
                     >
-                      Remove
+                      <X className="w-4 h-4" />
                     </Button>
                   </div>
                 ) : (
-                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-accent/50 transition-colors">
-                    <ImageIcon className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Click to upload or drag and drop
-                    </p>
+                  <div
+                    className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-accent/50 transition-colors cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleImageDrop}
+                  >
+                    {uploadingImage ? (
+                      <div className="flex flex-col items-center">
+                        <Loader2 className="w-8 h-8 mx-auto text-muted-foreground mb-2 animate-spin" />
+                        <p className="text-sm text-muted-foreground">
+                          Processing...
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <ImageIcon className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          Click to upload or drag and drop
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Recommended: 1200×630px • Max: 5MB
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  disabled={uploadingImage}
+                />
+
                 <div className="space-y-2">
-                  <Label htmlFor="featured-image-url" className={validationErrors.featuredImage ? "text-red-600" : ""}>
-                    Image URL
+                  <Label
+                    htmlFor="featured-image-url"
+                    className={
+                      validationErrors.featuredImage ? "text-red-600" : ""
+                    }
+                  >
+                    Or enter image URL
                   </Label>
-                  <Input
-                    id="featured-image-url"
-                    placeholder="Or paste image URL..."
-                    value={featuredImage}
-                    onChange={(e) => {
-                      setFeaturedImage(e.target.value);
-                      if (validationErrors.featuredImage) {
-                        setValidationErrors(prev => ({ ...prev, featuredImage: '' }));
+                  <div className="flex gap-2">
+                    <Input
+                      id="featured-image-url"
+                      placeholder="Paste image URL..."
+                      value={featuredImage}
+                      onChange={(e) => {
+                        setFeaturedImage(e.target.value);
+                        if (validationErrors.featuredImage) {
+                          setValidationErrors((prev) => ({
+                            ...prev,
+                            featuredImage: "",
+                          }));
+                        }
+                      }}
+                      disabled={isLoading || uploadingImage}
+                      className={
+                        validationErrors.featuredImage
+                          ? "border-red-500 focus-visible:ring-red-500"
+                          : ""
                       }
-                    }}
-                    disabled={isLoading}
-                    className={validationErrors.featuredImage ? "border-red-500 focus-visible:ring-red-500" : ""}
-                  />
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                    >
+                      <Upload className="w-4 h-4" />
+                    </Button>
+                  </div>
                   {validationErrors.featuredImage && (
-                    <p className="text-sm text-red-600">{validationErrors.featuredImage}</p>
+                    <p className="text-sm text-red-600">
+                      {validationErrors.featuredImage}
+                    </p>
                   )}
+                  <p className="text-xs text-muted-foreground">
+                    Uploaded images will be saved as base64 data in the database
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -1122,60 +1578,131 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
             {/* Audio File */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Audio File (Optional)</CardTitle>
+                <CardTitle className="text-base">
+                  Audio File (Optional)
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
                   Upload an audio file if this is a podcast episode
                 </p>
+
                 {audioFile ? (
                   <div className="relative border rounded-lg p-4 bg-muted/50">
                     <div className="flex items-center gap-3">
-                      <Mic className="w-8 h-8 text-accent" />
+                      <Volume2 className="w-8 h-8 text-accent" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">Audio file attached</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {audioFile.length > 50 ? audioFile.substring(0, 50) + '...' : audioFile}
+                        <p className="text-sm font-medium truncate">
+                          Audio file attached
                         </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {audioFile.startsWith("blob:")
+                            ? "Local audio file"
+                            : audioFile}
+                        </p>
+                        <audio
+                          src={audioFile}
+                          controls
+                          className="w-full mt-2"
+                          onError={(e) => {
+                            console.error("Audio playback error:", e);
+                          }}
+                        />
                       </div>
                       <Button
                         variant="destructive"
                         size="sm"
                         onClick={handleClearAudioFile}
-                        disabled={isLoading}
+                        disabled={isLoading || uploadingAudio}
                       >
-                        Remove
+                        <X className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
-                    <Mic className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-xs text-muted-foreground">
-                      MP3, WAV, or M4A
-                    </p>
+                  <div
+                    className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-accent/50 transition-colors cursor-pointer"
+                    onClick={() => audioInputRef.current?.click()}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleAudioDrop}
+                  >
+                    {uploadingAudio ? (
+                      <div className="flex flex-col items-center">
+                        <Loader2 className="w-8 h-8 mx-auto text-muted-foreground mb-2 animate-spin" />
+                        <p className="text-sm text-muted-foreground">
+                          Processing...
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <Mic className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          Click to upload or drag and drop
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          MP3, WAV, or M4A • Max: 50MB
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
+
+                {/* Hidden audio file input */}
+                <input
+                  ref={audioInputRef}
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={handleAudioUpload}
+                  disabled={uploadingAudio}
+                />
+
                 <div className="space-y-2">
-                  <Label htmlFor="audio-file-url" className={validationErrors.audioFile ? "text-red-600" : ""}>
-                    Audio File URL
+                  <Label
+                    htmlFor="audio-file-url"
+                    className={validationErrors.audioFile ? "text-red-600" : ""}
+                  >
+                    Or enter audio file URL
                   </Label>
-                  <Input
-                    id="audio-file-url"
-                    placeholder="Paste audio file URL..."
-                    value={audioFile}
-                    onChange={(e) => {
-                      setAudioFile(e.target.value);
-                      if (validationErrors.audioFile) {
-                        setValidationErrors(prev => ({ ...prev, audioFile: '' }));
+                  <div className="flex gap-2">
+                    <Input
+                      id="audio-file-url"
+                      placeholder="Paste audio file URL..."
+                      value={audioFile}
+                      onChange={(e) => {
+                        setAudioFile(e.target.value);
+                        if (validationErrors.audioFile) {
+                          setValidationErrors((prev) => ({
+                            ...prev,
+                            audioFile: "",
+                          }));
+                        }
+                      }}
+                      disabled={isLoading || uploadingAudio}
+                      className={
+                        validationErrors.audioFile
+                          ? "border-red-500 focus-visible:ring-red-500"
+                          : ""
                       }
-                    }}
-                    disabled={isLoading}
-                    className={validationErrors.audioFile ? "border-red-500 focus-visible:ring-red-500" : ""}
-                  />
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => audioInputRef.current?.click()}
+                      disabled={uploadingAudio}
+                    >
+                      <Upload className="w-4 h-4" />
+                    </Button>
+                  </div>
                   {validationErrors.audioFile && (
-                    <p className="text-sm text-red-600">{validationErrors.audioFile}</p>
+                    <p className="text-sm text-red-600">
+                      {validationErrors.audioFile}
+                    </p>
                   )}
+                  <p className="text-xs text-muted-foreground">
+                    Uploaded audio will be saved as base64 data in the database
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -1188,21 +1715,27 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Current Status:</span>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    isPublished || (!postId && isPublished)
-                      ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
-                  }`}>
-                    {postId 
-                      ? (isPublished ? "Published" : "Draft")
-                      : (isPublished ? "Will be published" : "Draft")
-                    }
+                  <span
+                    className={`px-2 py-1 text-xs rounded-full ${
+                      isPublished || (!postId && isPublished)
+                        ? "bg-green-100 text-green-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {postId
+                      ? isPublished
+                        ? "Published"
+                        : "Draft"
+                      : isPublished
+                        ? "Will be published"
+                        : "Draft"}
                   </span>
                 </div>
                 {postId && (
                   <div className="mt-3 pt-3 border-t">
                     <p className="text-xs text-muted-foreground">
-                      Post ID: <span className="font-mono text-xs">{postId}</span>
+                      Post ID:{" "}
+                      <span className="font-mono text-xs">{postId}</span>
                     </p>
                   </div>
                 )}

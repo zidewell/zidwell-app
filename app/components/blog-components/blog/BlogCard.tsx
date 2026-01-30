@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import Link from "next/link";
 import { BlogPost } from "./types/blog";
+import Image from "next/image";
 
 interface BlogCardProps {
   post: BlogPost;
@@ -37,10 +38,12 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
               {post.excerpt}
             </p>
             <div className="flex items-center gap-3">
-              <img
-                src={post.author.avatar}
+              <Image
+                src={post.author.avatar || "/default-avatar.png"}
                 alt={post.author.name}
                 className="w-8 h-8 rounded-full object-cover"
+                width={32}
+                height={32}
               />
               <div className="text-sm">
                 <span className="font-medium">{post.author.name}</span>
@@ -112,10 +115,12 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
           {post.excerpt}
         </p>
         <div className="flex items-center gap-2">
-          <img
-            src={post.author.avatar}
+          <Image
+            src={post.author.avatar || "/default-avatar.png"}
             alt={post.author.name}
             className="w-6 h-6 rounded-full object-cover"
+            width={24}
+            height={24}
           />
           <span className="text-sm text-muted-foreground">
             {post.author.name} · {format(new Date(post.createdAt), "MMM d")} ·{" "}

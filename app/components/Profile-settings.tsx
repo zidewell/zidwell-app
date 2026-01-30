@@ -11,7 +11,7 @@ import { useUserContextData } from "../context/userData";
 import EditProfileInfo from "./profile-operations/EditProfileInfo";
 import EditBusinessInfo from "./profile-operations/EditBusinessInfo";
 import EditSecurityInfo from "./profile-operations/EditSecurityInfo";
-import supabase from "../supabase/supabase";
+import { supabase } from "@/app/supabase/supabase";
 import { useRef, useState } from "react";
 import UserDashboardStats from "./UserDashboardStats";
 
@@ -49,70 +49,64 @@ const activityLog = [
 ];
 
 export default function ProfileSettings() {
- const { userData, setUserData } = useUserContextData();
+  const { userData, setUserData } = useUserContextData();
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
- 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-  try {
-    if (!userData?.id) {
-      throw new Error("User is not authenticated");
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!userData?.id) {
+        throw new Error("User is not authenticated");
+      }
+
+      if (!event.target.files || event.target.files.length === 0) {
+        throw new Error("No file selected");
+      }
+
+      const file = event.target.files[0];
+      setUploading(true);
+
+      // Send to API route
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", userData.id);
+
+      const response = await fetch("/api/profile/upload-profile-picture", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to upload image");
+      }
+
+      // ✅ Update context + local storage
+      const updatedUser = { ...userData, profile_picture: data.url };
+      setUserData(updatedUser);
+      localStorage.setItem("userData", JSON.stringify(updatedUser));
+
+      Swal.fire({
+        icon: "success",
+        title: "Profile Updated!",
+        text: "Your profile picture has been uploaded.",
+      });
+    } catch (err: any) {
+      console.error("❌ Upload failed:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Upload Failed",
+        text: err.message || "Something went wrong.",
+      });
+    } finally {
+      setUploading(false);
     }
-
-    if (!event.target.files || event.target.files.length === 0) {
-      throw new Error("No file selected");
-    }
-
-    const file = event.target.files[0];
-    setUploading(true);
-
-    // Send to API route
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("userId", userData.id);
-
-    const response = await fetch("/api/profile/upload-profile-picture", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Failed to upload image");
-    }
-
-    // ✅ Update context + local storage
-    const updatedUser = { ...userData, profile_picture: data.url };
-    setUserData(updatedUser);
-    localStorage.setItem("userData", JSON.stringify(updatedUser));
-
-    Swal.fire({
-      icon: "success",
-      title: "Profile Updated!",
-      text: "Your profile picture has been uploaded.",
-    });
-
-  } catch (err: any) {
-    console.error("❌ Upload failed:", err);
-    Swal.fire({
-      icon: "error",
-      title: "Upload Failed",
-      text: err.message || "Something went wrong.",
-    });
-  } finally {
-    setUploading(false);
-  }
-};
-
-
-
-
+  };
 
   return (
     <div className="space-y-6 mb-5">
@@ -178,7 +172,7 @@ const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
               </div>
             </div>
             <div className="text-center">
-             <UserDashboardStats/>
+              <UserDashboardStats />
             </div>
           </div>
         </CardContent>

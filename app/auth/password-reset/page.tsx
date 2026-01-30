@@ -5,7 +5,7 @@ import React, { FormEvent, useState } from "react";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
 import { useRouter } from "next/navigation";
-import supabase from "@/app/supabase/supabase";
+import { supabase } from "@/app/supabase/supabase";
 
 const PasswordReset = () => {
   const [email, setEmail] = useState<string>("");
@@ -15,7 +15,7 @@ const PasswordReset = () => {
   const router = useRouter();
 
   const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>,
   ): Promise<void> => {
     event.preventDefault();
 

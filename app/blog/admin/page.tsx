@@ -63,7 +63,7 @@ const AdminDashboard = () => {
   };
 
   const handleViewAllPosts = () => {
-    router.push("/blog/admin/posts");
+    router.push("/blog/admin/post");
   };
 
   const handleRefreshData = () => {
@@ -179,7 +179,7 @@ const AdminDashboard = () => {
                       className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
                         post.is_published
                           ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
+                          : "bg-yellow-100 text-yellow-700 dark:bg-[#C29307] dark:text-[#C29307]"
                       }`}
                     >
                       {post.is_published ? "Published" : "Draft"}
