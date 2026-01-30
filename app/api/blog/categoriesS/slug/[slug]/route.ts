@@ -4,10 +4,12 @@ import { supabaseBlog } from "@/app/supabase/supabase";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } },
+ context: { params: Promise<{ id: string }> }
+
 ) {
   try {
-    const { slug } = params;
+    const params = await context.params;
+    const slug = params.id;
     const { searchParams } = new URL(request.url);
     const includePosts = searchParams.get("include_posts") === "true";
 
