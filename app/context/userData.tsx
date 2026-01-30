@@ -13,7 +13,6 @@ import {
 import { usePathname } from "next/navigation";
 import { supabase } from "../supabase/supabase";
 
-
 export type PodcastEpisode = {
   id: string;
   title: string;
@@ -87,7 +86,6 @@ interface UserContextType {
   markAllAsRead: () => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   clearNotificationCache: () => void;
-  fetchMoreTransactions: (limit?: number) => Promise<void>;
   setTransactions: Dispatch<SetStateAction<any[]>>;
 }
 
@@ -404,38 +402,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const fetchMoreTransactions = async (limit: number = 10) => {
-    if (!userData?.id || !hasMoreTransactions) return;
-
-    setTransactionsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        userId: userData.id,
-        page: (transactionPage + 1).toString(),
-        limit: limit.toString(),
-      });
-
-      if (searchTerm) {
-        params.set("search", searchTerm);
-      }
-
-      const res = await fetch(`/api/bill-transactions?${params.toString()}`);
-      const data = await res.json();
-      
-      if (data.transactions && data.transactions.length > 0) {
-        setTransactions(prev => [...prev, ...data.transactions]);
-        setTransactionPage(prev => prev + 1);
-        setHasMoreTransactions(data.hasMore || false);
-      } else {
-        setHasMoreTransactions(false);
-      }
-    } catch (error) {
-      console.error("Error fetching more transactions:", error);
-    } finally {
-      setTransactionsLoading(false);
-    }
-  };
-
   // Initialize user from localStorage and determine if we should fetch data
   useEffect(() => {
     const initializeUser = async () => {
@@ -496,47 +462,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [pathname, initialCheckDone, userData]);
 
-  // Real-time subscription (only when shouldFetchData is true)
-  // useEffect(() => {
-  //   if (!shouldFetchData || !userData?.id) return;
-
-  //   const channel = supabase
-  //     .channel('notification-changes')
-  //     .on(
-  //       'postgres_changes',
-  //       {
-  //         event: 'INSERT',
-  //         schema: 'public',
-  //         table: 'notification_logs',
-  //         filter: `user_id=eq.${userData.id}`,
-  //       },
-  //       (payload) => {
-  //         clearNotificationCache();
-  //         fetchNotifications();
-  //         fetchUnreadCount();
-  //       }
-  //     )
-  //     .on(
-  //       'postgres_changes',
-  //       {
-  //         event: 'UPDATE',
-  //         schema: 'public',
-  //         table: 'notification_logs',
-  //         filter: `user_id=eq.${userData.id}`,
-  //       },
-  //       (payload) => {
-  //         clearNotificationCache();
-  //         fetchNotifications();
-  //         fetchUnreadCount();
-  //       }
-  //     )
-  //     .subscribe();
-
-  //   return () => {
-  //     supabase.removeChannel(channel);
-  //   };
-  // }, [userData?.id, shouldFetchData]);
-
   // Fetch notifications (only when shouldFetchData is true)
   useEffect(() => {
     if (shouldFetchData && userData?.id) {
@@ -585,7 +510,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
     }
   };
-
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -651,6 +575,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       
       if (cached) {
         setTransactions(cached);
+        setTransactionPage(1);
         setHasMoreTransactions(cached.length >= 10);
         return;
       }
@@ -786,7 +711,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         markAllAsRead,
         fetchUnreadCount,
         clearNotificationCache,
-        fetchMoreTransactions,
       }}
     >
       {children}

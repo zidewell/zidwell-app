@@ -1,7 +1,8 @@
 
 import { NextResponse } from "next/server";
-import supabase from "@/app/supabase/supabase";
+
 import { cookies } from "next/headers";
+import { supabase } from "@/app/supabase/supabase";
 
 export async function POST(req: Request) {
   try {

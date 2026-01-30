@@ -20,7 +20,7 @@
 
 // import Carousel from "@/app/components/Carousel";
 // import { useRouter, useSearchParams } from "next/navigation";
-// import supabase from "@/app/supabase/supabase";
+//import { supabase } from "@/app/supabase/supabase";
 // import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
 
 // const LoginForm = () => {
@@ -244,8 +244,6 @@
 //   );
 // }
 
-
-
 "use client";
 import Swal from "sweetalert2";
 import { useState, FormEvent, useEffect, Suspense } from "react";
@@ -268,7 +266,6 @@ import { UserData, useUserContextData } from "@/app/context/userData";
 
 import Carousel from "@/app/components/Carousel";
 import { useRouter, useSearchParams } from "next/navigation";
-import supabase from "@/app/supabase/supabase";
 import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
 
 const LoginForm = () => {
@@ -281,7 +278,7 @@ const LoginForm = () => {
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
   const searchParams = useSearchParams();
-  
+
   // Get callbackUrl from search params, default to /dashboard
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const fromLogin = searchParams.get("fromLogin");
@@ -349,12 +346,14 @@ const LoginForm = () => {
       }).then(() => {
         // Decode the callback URL before redirecting
         const decodedCallbackUrl = decodeURIComponent(callbackUrl);
-        
+
         if (fromLogin === "true") {
           // User came from pricing component, redirect back with parameters
           if (scrollToPricing === "true") {
             // Redirect back to the original page with scroll parameters
-            router.push(`${decodedCallbackUrl}?fromLogin=true&scrollToPricing=true`);
+            router.push(
+              `${decodedCallbackUrl}?fromLogin=true&scrollToPricing=true`,
+            );
           } else {
             router.push(decodedCallbackUrl);
           }

@@ -34,7 +34,6 @@ const inflowTypes = [
   "referral_reward",
 ];
 
-
 const outflowTypes = [
   "transfer",
   "withdrawal",
@@ -71,16 +70,12 @@ export default function TransactionHistory() {
     new Set()
   );
   const [pageLoading, setPageLoading] = useState(true);
-  const [durationFilter, setDurationFilter] = useState("all"); // Changed to "all" by default
+  const [durationFilter, setDurationFilter] = useState("all");
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
     from: "",
     to: "",
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [visibleTransactions, setVisibleTransactions] = useState(
-    TRANSACTIONS_PER_PAGE
-  );
   const [downloadingStatement, setDownloadingStatement] = useState(false);
   const [statementDateRange, setStatementDateRange] = useState<{
     from: string;
@@ -90,20 +85,22 @@ export default function TransactionHistory() {
     to: "",
   });
   const [showStatementModal, setShowStatementModal] = useState(false);
+  
+  // Load More state
+  const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
 
   const router = useRouter();
 
   const {
     userData,
     loading,
-    transactions,
+    transactions: contextTransactions,
     searchTerm,
     setSearchTerm,
-    fetchMoreTransactions,
-    setTransactions,
   } = useUserContextData();
-
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -113,10 +110,17 @@ export default function TransactionHistory() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Initialize with context transactions
+  useEffect(() => {
+    if (contextTransactions && contextTransactions.length > 0) {
+      setAllTransactions(contextTransactions);
+      // Check if there might be more transactions
+      setHasMore(contextTransactions.length >= TRANSACTIONS_PER_PAGE);
+    }
+  }, [contextTransactions]);
+
   const applyDurationFilter = useCallback(
     (txs: any[]) => {
-      // console.log("Applying duration filter:", durationFilter, "to", txs.length, "transactions");
-
       if (durationFilter === "all") return txs;
 
       const now = new Date();
@@ -193,14 +197,13 @@ export default function TransactionHistory() {
         return txDate >= startDate && txDate <= now;
       });
 
-      // console.log("Filtered to:", filtered.length, "transactions");
       return filtered;
     },
     [durationFilter, dateRange]
   );
 
   // Apply status filter and search term
-  const filteredTransactions = transactions.filter((tx) => {
+  const filteredTransactions = allTransactions.filter((tx) => {
     const matchesFilter =
       filter === "All transactions" ||
       tx.status?.toLowerCase() === filter.toLowerCase();
@@ -216,50 +219,64 @@ export default function TransactionHistory() {
   });
 
   // Apply duration filter
-  const durationFilteredTransactions =
-    applyDurationFilter(filteredTransactions);
+  const durationFilteredTransactions = applyDurationFilter(filteredTransactions);
 
-
-  // Get currently visible transactions (for Load More)
-  const visibleTransactionsList = durationFilteredTransactions.slice(
-    0,
-    visibleTransactions
-  );
+  // Get currently visible transactions
+  const visibleTransactionsList = durationFilteredTransactions;
 
   // Function to handle Load More
   const handleLoadMore = async () => {
-    if (!hasMore) return;
+    if (!hasMore || isLoadingMore || !userData?.id) return;
 
-    setLoadingMore(true);
+    setIsLoadingMore(true);
     try {
-      await fetchMoreTransactions?.(TRANSACTIONS_PER_PAGE);
-      setVisibleTransactions((prev) => prev + TRANSACTIONS_PER_PAGE);
+      const nextPage = currentPage + 1;
+      
+      // Call the API directly to fetch more transactions
+      const params = new URLSearchParams({
+        userId: userData.id,
+        page: nextPage.toString(),
+        limit: TRANSACTIONS_PER_PAGE.toString(),
+      });
 
-      // Check if we've reached the end
-      if (
-        durationFilteredTransactions.length <=
-        visibleTransactions + TRANSACTIONS_PER_PAGE
-      ) {
+      if (searchTerm) {
+        params.set("search", searchTerm);
+      }
+
+      const response = await fetch(`/api/bill-transactions?${params.toString()}`);
+      const data = await response.json();
+      
+      if (data.transactions && data.transactions.length > 0) {
+        // Append new transactions to the existing list
+        setAllTransactions(prev => [...prev, ...data.transactions]);
+        setCurrentPage(nextPage);
+        setHasMore(data.hasMore || false);
+      } else {
         setHasMore(false);
       }
     } catch (error) {
       console.error("Error loading more transactions:", error);
     } finally {
-      setLoadingMore(false);
+      setIsLoadingMore(false);
     }
   };
 
   // Function to reset filters
   const handleResetFilters = () => {
     setFilter("All transactions");
-    setDurationFilter("all"); // Changed to "all" to show all transactions
+    setDurationFilter("all");
     setDateRange({ from: "", to: "" });
-    setVisibleTransactions(TRANSACTIONS_PER_PAGE);
+    setCurrentPage(1);
     setHasMore(true);
     setShowFilters(false);
+    
+    // Reset to initial transactions
+    if (contextTransactions) {
+      setAllTransactions(contextTransactions.slice(0, TRANSACTIONS_PER_PAGE));
+    }
   };
 
-  // Function to handle statement download
+  // Function to handle statement download - FETCHES ALL TRANSACTIONS FROM DATABASE
   const handleDownloadStatement = async () => {
     if (!statementDateRange.from || !statementDateRange.to) {
       alert("Please select a date range for the statement");
@@ -278,30 +295,48 @@ export default function TransactionHistory() {
     setDownloadingStatement(true);
 
     try {
-      // Filter transactions for the selected date range
-      const filteredForStatement = durationFilteredTransactions.filter((tx) => {
-        const txDate = new Date(tx.created_at);
-        return txDate >= fromDate && txDate <= toDate;
-      });
+      // Step 1: Fetch ALL transactions from the database for the date range
+      let allDateRangeTransactions: any[] = [];
+      let page = 1;
+      let hasMoreTransactions = true;
 
-      // Prepare statement data
+      while (hasMoreTransactions) {
+        const params = new URLSearchParams({
+          userId: userData.id,
+          page: page.toString(),
+          limit: "100", // Fetch in larger chunks for statements
+          from: statementDateRange.from,
+          to: statementDateRange.to,
+        });
+
+        const response = await fetch(`/api/bill-transactions?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.transactions && data.transactions.length > 0) {
+          allDateRangeTransactions = [...allDateRangeTransactions, ...data.transactions];
+          hasMoreTransactions = data.hasMore || false;
+          page++;
+        } else {
+          hasMoreTransactions = false;
+        }
+      }
+
+      console.log(`Fetched ${allDateRangeTransactions.length} transactions for statement from ${statementDateRange.from} to ${statementDateRange.to}`);
+
+      // Step 2: Prepare statement data with ALL fetched transactions
       const statementData = {
         userId: userData?.id,
         from: statementDateRange.from,
         to: statementDateRange.to,
-        transactions: filteredForStatement,
+        transactions: allDateRangeTransactions,
         user: {
           id: userData?.id,
-          name:
-            `${userData?.firstName} ${userData?.lastName}` || "Account Holder",
+          name: `${userData?.firstName} ${userData?.lastName}` || "Account Holder",
           email: userData?.email,
         },
       };
 
-      // console.log('Generating statement for:', statementDateRange.from, 'to', statementDateRange.to);
-      // console.log('Transactions included:', filteredForStatement.length);
-
-      // Call API to generate statement PDF
+      // Step 3: Call API to generate statement PDF
       const response = await fetch("/api/generate-statement", {
         method: "POST",
         headers: {
@@ -318,7 +353,7 @@ export default function TransactionHistory() {
         );
       }
 
-      // Download PDF
+      // Step 4: Download PDF
       const pdfBlob = await response.blob();
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement("a");
@@ -345,7 +380,7 @@ export default function TransactionHistory() {
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
           </svg>
-          <span>Statement downloaded successfully!</span>
+          <span>Statement downloaded successfully! (${allDateRangeTransactions.length} transactions)</span>
         </div>
       `;
       document.body.appendChild(notification);
@@ -383,7 +418,6 @@ export default function TransactionHistory() {
     }
     return null;
   };
-
 
   // Function to handle viewing transaction details
   const handleViewTransaction = (transaction: any) => {
@@ -871,9 +905,9 @@ export default function TransactionHistory() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h2 className="text-2xl font-bold text-gray-900">
             Transaction History
-            {transactions?.length > 0 && (
+            {allTransactions.length > 0 && (
               <span className="text-sm font-normal text-gray-500 ml-2">
-                ({transactions.length} total)
+                ({allTransactions.length} loaded)
               </span>
             )}
           </h2>
@@ -1050,13 +1084,13 @@ export default function TransactionHistory() {
         ) : durationFilteredTransactions.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <p className="mb-2">No transactions found.</p>
-            {transactions.length === 0 ? (
+            {allTransactions.length === 0 ? (
               <p className="text-sm">No transactions have been loaded yet.</p>
             ) : (
               <p className="text-sm">
                 Try changing your filters or search term.
                 <br />
-                Raw transactions count: {transactions.length}
+                Loaded transactions: {allTransactions.length}
               </p>
             )}
           </div>
@@ -1210,33 +1244,44 @@ export default function TransactionHistory() {
             })}
 
             {/* Load More Button */}
-            {visibleTransactions < durationFilteredTransactions.length &&
-              hasMore && (
-                <div className="text-center mt-6">
-                  <Button
-                    variant="outline"
-                    onClick={handleLoadMore}
-                    disabled={loadingMore}
-                    className="px-8"
-                  >
-                    {loadingMore ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        Load More
-                        <ChevronDown className="w-4 h-4 ml-2" />
-                      </>
-                    )}
-                  </Button>
-                  <p className="text-gray-500 text-sm mt-2">
-                    Showing {visibleTransactions} of{" "}
-                    {durationFilteredTransactions.length} transactions
-                  </p>
-                </div>
-              )}
+            {hasMore && durationFilteredTransactions.length > 0 && (
+              <div className="text-center mt-6">
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="px-8"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Loading More...
+                    </>
+                  ) : (
+                    <>
+                      Load More Transactions
+                      <ChevronDown className="w-4 h-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+                <p className="text-gray-500 text-sm mt-2">
+                  Showing {durationFilteredTransactions.length} transactions
+                  {hasMore && " (More available)"}
+                </p>
+              </div>
+            )}
+
+            {/* No More Transactions Message */}
+            {!hasMore && durationFilteredTransactions.length > 0 && (
+              <div className="text-center mt-6 pt-6 border-t">
+                <p className="text-gray-500">
+                  You've reached the end of your transaction history
+                </p>
+                <p className="text-gray-400 text-sm mt-1">
+                  Total loaded: {allTransactions.length} transactions
+                </p>
+              </div>
+            )}
           </>
         )}
       </CardContent>
@@ -1261,7 +1306,8 @@ export default function TransactionHistory() {
               <div className="space-y-4">
                 <p className="text-gray-600 text-sm">
                   Select a date range to download your transaction statement as
-                  PDF
+                  PDF. The statement will include ALL transactions from the
+                  database for the selected period.
                 </p>
 
                 <div className="space-y-3">
@@ -1359,6 +1405,10 @@ export default function TransactionHistory() {
                       {formatDateDisplay(statementDateRange.from)} to{" "}
                       {formatDateDisplay(statementDateRange.to)}
                     </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Statement will include ALL transactions from the database
+                      within this period.
+                    </p>
                   </div>
                 )}
 
@@ -1384,6 +1434,9 @@ export default function TransactionHistory() {
                       </>
                     )}
                   </Button>
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    This may take a moment for large date ranges
+                  </p>
                 </div>
               </div>
             </div>
