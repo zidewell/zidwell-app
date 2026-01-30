@@ -124,7 +124,7 @@ export default function AdminManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [activityFilter, setActivityFilter] = useState("all");
+  const [activityFilter, setActivityFilter] = useState("all")
   const [isClient, setIsClient] = useState(false);
   const itemsPerPage = 10;
 
