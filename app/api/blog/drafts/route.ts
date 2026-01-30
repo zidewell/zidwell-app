@@ -1,6 +1,15 @@
+import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseBlog } from "@/app/supabase/supabase";
-
+ const supabaseBlog = createClient(
+  process.env.BLOG_SUPABASE_URL!,
+  process.env.BLOG_SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 // Validate API key from request headers
 function validateApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get("x-api-key");

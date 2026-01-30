@@ -1,6 +1,15 @@
+import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseBlog } from "@/app/supabase/supabase";
-
+ const supabaseBlog = createClient(
+  process.env.BLOG_SUPABASE_URL!,
+  process.env.BLOG_SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 // Simple in-memory cache for server-side
 const postsCache = new Map();
 const STATS_CACHE_KEY = "blog_stats";
