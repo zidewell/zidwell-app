@@ -144,7 +144,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
   const router = useRouter();
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [isMounted, setIsMounted] = useState(false);
-  const INACTIVITY_LIMIT = 50 * 60 * 1000; // 15 minutes
+  const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
   
   // Use your existing context
   const { userData, setUserData, loading } = useUserContextData();
