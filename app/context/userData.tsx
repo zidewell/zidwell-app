@@ -44,6 +44,7 @@ interface UserContextType {
   user: SupabaseUser | null;
   userData: any | null;
   balance: number | null;
+  lifetimeBalance: number; // Added this
   setUserData: Dispatch<SetStateAction<any | null>>;
   loading: boolean;
   isDarkMode: boolean;
@@ -155,7 +156,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [shouldFetchData, setShouldFetchData] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
-  
+  const [lifetimeBalance, setLifetimeBalance] = useState(0); // Added this
   // Notification states
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -397,6 +398,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setBalance(null);
         setNotifications([]);
         setUnreadCount(0);
+        setLifetimeBalance(0); // Clear lifetime balance too
       }
     } else {
       setShouldFetchData(true);
@@ -444,6 +446,41 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       fetchBalance();
     }
   }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
+
+  // Fetch lifetime balance (only when shouldFetchData is true) - Added this
+  useEffect(() => {
+    const fetchLifetimeBalance = async () => {
+      if (!shouldFetchData || !userData?.id) return;
+
+      const cacheKey = `lifetime_balance_${userData.id}`;
+      const cached = notificationCache.get(cacheKey);
+      
+      if (cached !== undefined) {
+        setLifetimeBalance(cached);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/total-inflow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: userData.id }),
+        });
+
+        const data = await res.json();
+        const lifetimeBalance = data.totalInflow || 0;
+        setLifetimeBalance(lifetimeBalance);
+        notificationCache.set(cacheKey, lifetimeBalance, 5 * 60 * 1000);
+      } catch (error) {
+        console.error('❌ Error fetching lifetime balance:', error);
+        // Don't set to cached value since we want to show 0 if fetch fails
+      }
+    };
+
+    if (shouldFetchData && userData?.id) {
+      fetchLifetimeBalance();
+    }
+  }, [userData?.id, shouldFetchData]);
 
   // Fetch notifications (only when shouldFetchData is true)
   useEffect(() => {
@@ -494,6 +531,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         user,
         userData,
         balance: shouldFetchData ? balance : null,
+        lifetimeBalance: shouldFetchData ? lifetimeBalance : 0,
         setUserData,
         loading,
         isDarkMode,
