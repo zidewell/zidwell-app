@@ -49,7 +49,7 @@ const CTASection = () => {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button2
-                onClick={() => router.push("https://tally.so/r/447JoO")}
+                onClick={() => router.push("/f-onboarding")}
                 className="bg-[#C29307] text-neutral-900 border-white group"
               >
                 Get Started

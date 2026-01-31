@@ -265,7 +265,7 @@ const PricingSection = () => {
 
                       {/* CTA */}
                       <Button2
-                        onClick={() => router.push("https://tally.so/r/447JoO")}
+                        onClick={() => router.push("/f-onboarding")}
                         className="w-full"
                         size="lg"
                         variant="heroOutline"

@@ -66,7 +66,7 @@ const ProcessSection = () => {
               </ul>
 
               <Button2
-                onClick={() => router.push("https://tally.so/r/447JoO")}
+                onClick={() => router.push("/f-onboarding")}
                 size="lg"
                 className="w-full group"
               >

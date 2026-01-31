@@ -56,7 +56,7 @@ const HeroSection = () => {
             <div className="flex flex-col sm:flex-row gap-4">
               <Button2
                 onClick={() => {
-                  router.push("https://tally.so/r/447JoO");
+                  router.push("/f-onboarding");
                 }}
                 className="group"
               >

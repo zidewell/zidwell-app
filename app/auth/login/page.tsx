@@ -262,7 +262,7 @@ import {
   CardTitle,
 } from "@/app/components/ui/card";
 import { Eye, EyeOff } from "lucide-react";
-import { UserData, useUserContextData } from "@/app/context/userData";
+import { useUserContextData } from "@/app/context/userData";
 
 import Carousel from "@/app/components/Carousel";
 import { useRouter, useSearchParams } from "next/navigation";

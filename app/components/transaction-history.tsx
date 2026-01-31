@@ -13,7 +13,6 @@ import {
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Input } from "./ui/input";
-import { useUserContextData } from "../context/userData";
 import Loader from "./Loader";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -91,16 +90,26 @@ export default function TransactionHistory() {
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  
+  // Local state for search and loading
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<any>(null);
 
   const router = useRouter();
 
-  const {
-    userData,
-    loading,
-    transactions: contextTransactions,
-    searchTerm,
-    setSearchTerm,
-  } = useUserContextData();
+  // Get user data from localStorage on component mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem("userData");
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUserData(parsedUser);
+      } catch (error) {
+        console.error("Failed to parse user data from localStorage:", error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -110,14 +119,78 @@ export default function TransactionHistory() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Initialize with context transactions
+  // Fetch initial transactions when userData is available
   useEffect(() => {
-    if (contextTransactions && contextTransactions.length > 0) {
-      setAllTransactions(contextTransactions);
-      // Check if there might be more transactions
-      setHasMore(contextTransactions.length >= TRANSACTIONS_PER_PAGE);
-    }
-  }, [contextTransactions]);
+    if (!userData?.id) return;
+
+    const fetchInitialTransactions = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          userId: userData.id,
+          page: "1",
+          limit: TRANSACTIONS_PER_PAGE.toString(),
+        });
+
+        const response = await fetch(`/api/bill-transactions?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.transactions && data.transactions.length > 0) {
+          setAllTransactions(data.transactions);
+          setHasMore(data.hasMore || false);
+          setCurrentPage(1);
+        } else {
+          setAllTransactions([]);
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error("Error fetching transactions:", error);
+        setAllTransactions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInitialTransactions();
+  }, [userData]);
+
+  // Search effect - fetch transactions when search term changes
+  useEffect(() => {
+    if (!userData?.id) return;
+
+    const searchTimeout = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          userId: userData.id,
+          page: "1",
+          limit: TRANSACTIONS_PER_PAGE.toString(),
+        });
+
+        if (searchTerm) {
+          params.set("search", searchTerm);
+        }
+
+        const response = await fetch(`/api/bill-transactions?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.transactions && data.transactions.length > 0) {
+          setAllTransactions(data.transactions);
+          setHasMore(data.hasMore || false);
+          setCurrentPage(1);
+        } else {
+          setAllTransactions([]);
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error("Error searching transactions:", error);
+      } finally {
+        setLoading(false);
+      }
+    }, 500); // Debounce search
+
+    return () => clearTimeout(searchTimeout);
+  }, [searchTerm, userData]);
 
   const applyDurationFilter = useCallback(
     (txs: any[]) => {
@@ -202,12 +275,13 @@ export default function TransactionHistory() {
     [durationFilter, dateRange]
   );
 
-  // Apply status filter and search term
+  // Apply status filter and search term (client-side filtering after fetch)
   const filteredTransactions = allTransactions.filter((tx) => {
     const matchesFilter =
       filter === "All transactions" ||
       tx.status?.toLowerCase() === filter.toLowerCase();
 
+    // Note: Search is already done server-side, but we keep this for extra safety
     const matchesSearch =
       searchTerm === "" ||
       tx.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -221,9 +295,6 @@ export default function TransactionHistory() {
   // Apply duration filter
   const durationFilteredTransactions = applyDurationFilter(filteredTransactions);
 
-  // Get currently visible transactions
-  const visibleTransactionsList = durationFilteredTransactions;
-
   // Function to handle Load More
   const handleLoadMore = async () => {
     if (!hasMore || isLoadingMore || !userData?.id) return;
@@ -232,7 +303,6 @@ export default function TransactionHistory() {
     try {
       const nextPage = currentPage + 1;
       
-      // Call the API directly to fetch more transactions
       const params = new URLSearchParams({
         userId: userData.id,
         page: nextPage.toString(),
@@ -266,20 +336,33 @@ export default function TransactionHistory() {
     setFilter("All transactions");
     setDurationFilter("all");
     setDateRange({ from: "", to: "" });
+    setSearchTerm("");
     setCurrentPage(1);
-    setHasMore(true);
     setShowFilters(false);
     
-    // Reset to initial transactions
-    if (contextTransactions) {
-      setAllTransactions(contextTransactions.slice(0, TRANSACTIONS_PER_PAGE));
+    // Refetch initial transactions
+    if (userData?.id) {
+      setLoading(true);
+      fetch(`/api/bill-transactions?userId=${userData.id}&page=1&limit=${TRANSACTIONS_PER_PAGE}`)
+        .then(res => res.json())
+        .then(data => {
+          setAllTransactions(data.transactions || []);
+          setHasMore(data.hasMore || false);
+        })
+        .catch(err => console.error("Error resetting transactions:", err))
+        .finally(() => setLoading(false));
     }
   };
 
-  // Function to handle statement download - FETCHES ALL TRANSACTIONS FROM DATABASE
+  // Function to handle statement download
   const handleDownloadStatement = async () => {
     if (!statementDateRange.from || !statementDateRange.to) {
       alert("Please select a date range for the statement");
+      return;
+    }
+
+    if (!userData?.id) {
+      alert("User data not found");
       return;
     }
 
@@ -325,14 +408,14 @@ export default function TransactionHistory() {
 
       // Step 2: Prepare statement data with ALL fetched transactions
       const statementData = {
-        userId: userData?.id,
+        userId: userData.id,
         from: statementDateRange.from,
         to: statementDateRange.to,
         transactions: allDateRangeTransactions,
         user: {
-          id: userData?.id,
-          name: `${userData?.firstName} ${userData?.lastName}` || "Account Holder",
-          email: userData?.email,
+          id: userData.id,
+          name: `${userData.firstName} ${userData.lastName}` || "Account Holder",
+          email: userData.email,
         },
       };
 
@@ -1097,7 +1180,7 @@ export default function TransactionHistory() {
         ) : (
           <>
             {/* Transaction List */}
-            {visibleTransactionsList.map((tx) => {
+            {durationFilteredTransactions.map((tx) => {
               const amountInfo = formatAmount(tx);
               const isDownloading = isDownloadingReceipt(tx.id);
 

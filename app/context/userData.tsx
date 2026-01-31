@@ -11,16 +11,6 @@ import {
 } from "react";
 
 import { usePathname } from "next/navigation";
-import { supabase } from "../supabase/supabase";
-
-export type PodcastEpisode = {
-  id: string;
-  title: string;
-  creator: string;
-  pubDate: string;
-  link: string;
-  tags?: string[];
-};
 
 export interface SupabaseUser {
   id: string;
@@ -40,18 +30,6 @@ export interface SupabaseUser {
   profilePicture: string | null;
 }
 
-export interface UserData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string;
-  current_login_session: any;
-  zidcoinBalance: number;
-  bvnVerification: string;
-  referralCode: string;
-}
-
 interface Notification {
   id: string;
   title: string;
@@ -68,16 +46,11 @@ interface UserContextType {
   balance: number | null;
   setUserData: Dispatch<SetStateAction<any | null>>;
   loading: boolean;
-  episodes: PodcastEpisode[];
-  transactions: any[];
-  lifetimeBalance: number;
-  totalOutflow: number;
-  totalTransactions: number;
-  searchTerm: string;
-  setSearchTerm: Dispatch<SetStateAction<string>>;
   isDarkMode: boolean;
   setIsDarkMode: Dispatch<SetStateAction<boolean>>;
   handleDarkModeToggle: () => void;
+  searchTerm: string;
+  setSearchTerm: Dispatch<SetStateAction<string>>;
   notifications: Notification[];
   unreadCount: number;
   notificationsLoading: boolean;
@@ -86,12 +59,47 @@ interface UserContextType {
   markAllAsRead: () => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   clearNotificationCache: () => void;
-  setTransactions: Dispatch<SetStateAction<any[]>>;
 }
 
-// ADD THIS LINE - Create the context
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
+// Static public pages
+const STATIC_PUBLIC_PAGES = [
+  '/',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/about',
+  '/contact',
+  '/privacy',
+  '/terms',
+  '/auth',
+  '/auth/callback',
+  '/auth/login',
+  '/auth/register',
+];
+
+// Regex patterns for dynamic public routes
+const PUBLIC_PAGE_PATTERNS = [
+  /^\/sign-contract\/[^\/]+$/,
+  /^\/sign-receipt\/[^\/]+$/,
+  /^\/pay-invoice\/[^\/]+$/,
+  /^\/verify-email\/[^\/]+$/,
+  /^\/reset-password\/[^\/]+$/,
+  /^\/invite\/[^\/]+$/,
+  /^\/share\/[^\/]+$/,
+  /^\/preview\/[^\/]+$/,
+  /^\/public\/[^\/]+$/,
+  /^\/blog(\/.*)?$/,
+  /^\/news(\/.*)?$/,
+  /^\/article(\/.*)?$/,
+  /^\/docs(\/.*)?$/,
+  /^\/help(\/.*)?$/,
+  /^\/faq(\/.*)?$/,
+];
+
+// Notification cache class
 class NotificationCache {
   private cache = new Map();
   private readonly DEFAULT_TTL = 3 * 60 * 1000;
@@ -138,71 +146,21 @@ class NotificationCache {
 
 const notificationCache = new NotificationCache();
 
-// Static public pages
-const STATIC_PUBLIC_PAGES = [
-  '/',
-  '/login',
-  '/register',
-  '/forgot-password',
-  '/reset-password',
-  '/about',
-  '/contact',
-  '/privacy',
-  '/terms',
-  '/auth',
-  '/auth/callback',
-  '/auth/login',
-  '/auth/register',
-];
-
-// Regex patterns for dynamic public routes
-const PUBLIC_PAGE_PATTERNS = [
-  // Your specific dynamic pages
-  /^\/sign-contract\/[^\/]+$/,           // /sign-contract/[token]
-  /^\/sign-receipt\/[^\/]+$/,            // /sign-receipt/[token]
-  /^\/pay-invoice\/[^\/]+$/,             // /pay-invoice/[token]
-  
-  // Common dynamic pages you might have
-  /^\/verify-email\/[^\/]+$/,            // /verify-email/[token]
-  /^\/reset-password\/[^\/]+$/,          // /reset-password/[token]
-  /^\/invite\/[^\/]+$/,                  // /invite/[code]
-  /^\/share\/[^\/]+$/,                   // /share/[id]
-  /^\/preview\/[^\/]+$/,                 // /preview/[id]
-  /^\/public\/[^\/]+$/,                  // /public/[id]
-  
-  // Blog/content pages (if applicable)
-  /^\/blog(\/.*)?$/,                     // All blog pages
-  /^\/news(\/.*)?$/,                     // All news pages
-  /^\/article(\/.*)?$/,                  // All article pages
-  
-  // Documentation pages
-  /^\/docs(\/.*)?$/,                     // All documentation pages
-  /^\/help(\/.*)?$/,                     // All help pages
-  /^\/faq(\/.*)?$/,                      // All FAQ pages
-];
-
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [userData, setUserData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [lifetimeBalance, setLifetimeBalance] = useState(0);
-  const [totalOutflow, setTotalOutflow] = useState(0);
-  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [shouldFetchData, setShouldFetchData] = useState(false);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
+  
+  // Notification states
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
-  const [transactionPage, setTransactionPage] = useState(1);
-  const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
-  const [transactionsLoading, setTransactionsLoading] = useState(false);
-  const [shouldFetchData, setShouldFetchData] = useState(false);
-  const [initialCheckDone, setInitialCheckDone] = useState(false);
-  const [debugMode] = useState(false); // Set to true for debugging
 
   const pathname = usePathname();
 
@@ -212,7 +170,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     
     // Check static pages
     if (STATIC_PUBLIC_PAGES.some(page => pathname === page)) {
-      if (debugMode) console.log(`Public page (static): ${pathname}`);
       return true;
     }
 
@@ -220,43 +177,30 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (STATIC_PUBLIC_PAGES.some(page => 
       pathname.startsWith(page + '/')
     )) {
-      if (debugMode) console.log(`Public page (static prefix): ${pathname}`);
       return true;
     }
 
     // Check dynamic patterns
     if (PUBLIC_PAGE_PATTERNS.some(pattern => pattern.test(pathname))) {
-      if (debugMode) console.log(`Public page (pattern): ${pathname}`);
       return true;
     }
 
-    // Additional specific checks for common patterns
-    if (pathname.startsWith('/sign-contract/')) {
-      if (debugMode) console.log(`Public page (sign-contract): ${pathname}`);
-      return true;
-    }
+    if (pathname.startsWith('/sign-contract/')) return true;
+    if (pathname.startsWith('/sign-receipt/')) return true;
+    if (pathname.startsWith('/pay-invoice/')) return true;
 
-    if (pathname.startsWith('/sign-receipt/')) {
-      if (debugMode) console.log(`Public page (sign-receipt): ${pathname}`);
-      return true;
-    }
-
-    if (pathname.startsWith('/pay-invoice/')) {
-      if (debugMode) console.log(`Public page (pay-invoice): ${pathname}`);
-      return true;
-    }
-
-    if (debugMode) console.log(`Protected page: ${pathname}`);
     return false;
   };
 
+  // Clear notification cache
   const clearNotificationCache = () => {
     notificationCache.clear();
   };
 
+  // Fetch notifications
   const fetchNotifications = async (filter: string = 'all', limit: number = 50) => {
-    if (!userData?.id) {
-      console.log('❌ No userData.id available');
+    if (!shouldFetchData || !userData?.id) {
+      console.log('❌ No userData.id available or should not fetch data');
       return;
     }
 
@@ -298,6 +242,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
       } else {
         const errorText = await response.text();
+        console.error('❌ Failed to fetch notifications:', errorText);
         const cached = notificationCache.get(cacheKey);
         if (cached) {
           setNotifications(cached);
@@ -306,6 +251,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     } catch (error) {
+      console.error('❌ Error fetching notifications:', error);
       const cached = notificationCache.get(cacheKey);
       if (cached) {
         setNotifications(cached);
@@ -317,8 +263,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Fetch unread count
   const fetchUnreadCount = async () => {
-    if (!userData?.id) return;
+    if (!shouldFetchData || !userData?.id) return;
 
     const cacheKey = `unread_count_${userData.id}`;
     
@@ -337,15 +284,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         notificationCache.set(cacheKey, count, 60 * 1000);
       }
     } catch (error) {
+      console.error('❌ Error fetching unread count:', error);
       const calculatedCount = notifications.filter(n => !n.read_at).length;
       setUnreadCount(calculatedCount);
     }
   };
 
+  // Mark notification as read
   const markAsRead = async (notificationId: string) => {
-    if (!userData?.id) return;
+    if (!shouldFetchData || !userData?.id) return;
 
     try {
+      // Update local state immediately
       setNotifications(prev => 
         prev.map(n => 
           n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n
@@ -354,10 +304,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       
       setUnreadCount(prev => Math.max(0, prev - 1));
 
+      // Clear relevant cache
       notificationCache.delete(`notifications_${userData.id}_all_50`);
       notificationCache.delete(`notifications_${userData.id}_unread_50`);
       notificationCache.delete(`unread_count_${userData.id}`);
 
+      // Update on server
       const response = await fetch(`/api/notifications/${notificationId}/read?userId=${userData.id}`, {
         method: 'POST'
       });
@@ -366,27 +318,29 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Failed to mark as read');
       }
 
-      await Promise.all([
-        fetchNotifications(),
-        fetchUnreadCount()
-      ]);
     } catch (error) {
+      console.error('❌ Error marking notification as read:', error);
+      // Refresh data to sync with server
       fetchNotifications();
       fetchUnreadCount();
     }
   };
 
+  // Mark all notifications as read
   const markAllAsRead = async () => {
-    if (!userData?.id) return;
+    if (!shouldFetchData || !userData?.id) return;
 
     try {
+      // Update local state immediately
       setNotifications(prev => 
         prev.map(n => ({ ...n, read_at: new Date().toISOString() }))
       );
       setUnreadCount(0);
 
+      // Clear cache
       clearNotificationCache();
 
+      // Update on server
       const response = await fetch(`/api/notifications/read-all?userId=${userData.id}`, {
         method: 'POST'
       });
@@ -395,9 +349,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Failed to mark all as read');
       }
 
-      await fetchNotifications();
     } catch (error) {
-      fetchNotifications(); 
+      console.error('❌ Error marking all as read:', error);
+      fetchNotifications();
       fetchUnreadCount();
     }
   };
@@ -415,15 +369,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           // Check if we're on a public page
           const isPublic = isPublicPage();
           if (isPublic) {
-            if (debugMode) console.log('Public page detected, skipping data fetch');
             setShouldFetchData(false);
           } else {
-            if (debugMode) console.log('Protected page detected, will fetch data');
             setShouldFetchData(true);
           }
-        } else {
-          // No user in localStorage
-          setShouldFetchData(false);
         }
       } catch (error) {
         console.error("Failed to parse localStorage user:", error);
@@ -436,31 +385,65 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     initializeUser();
   }, []);
 
-  // Watch for pathname changes to update shouldFetchData
+  // Watch for pathname changes
   useEffect(() => {
     if (!initialCheckDone) return;
 
     const isPublic = isPublicPage();
     
     if (isPublic) {
-      if (debugMode) console.log('Switched to public page, stopping data fetches');
       setShouldFetchData(false);
-      
-      // Clear sensitive data when moving to public pages
       if (userData) {
-        setTransactions([]);
+        setBalance(null);
         setNotifications([]);
         setUnreadCount(0);
-        setBalance(null);
-        setLifetimeBalance(0);
-        setTotalOutflow(0);
-        setTotalTransactions(0);
       }
     } else {
-      if (debugMode) console.log('Switched to protected page, enabling data fetches');
       setShouldFetchData(true);
     }
   }, [pathname, initialCheckDone, userData]);
+
+  // Fetch balance (only when shouldFetchData is true)
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!shouldFetchData || !userData?.id) return;
+
+      try {
+        const res = await fetch("/api/wallet-balance", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId: userData.id }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to fetch balance');
+        }
+
+        const balance = data.wallet_balance ?? 0;
+        setBalance(balance);
+        
+      } catch (error) {
+        console.error('❌ Error fetching balance:', error);
+        if (userData?.zidcoinBalance !== undefined) {
+          setBalance(userData.zidcoinBalance);
+        } else {
+          setBalance(0);
+        }
+      }
+    };
+
+    if (shouldFetchData && userData?.id) {
+      fetchBalance();
+    }
+  }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
 
   // Fetch notifications (only when shouldFetchData is true)
   useEffect(() => {
@@ -489,185 +472,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [userData?.id, shouldFetchData]);
 
-  const fetchEpisodes = async () => {
-    const cacheKey = 'podcast_episodes';
-    const cached = notificationCache.get(cacheKey);
-    
-    if (cached) {
-      setEpisodes(cached);
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/medium-feed");
-      const data = await res.json();
-      setEpisodes(data);
-      notificationCache.set(cacheKey, data, 10 * 60 * 1000);
-    } catch (err) {
-      const cached = notificationCache.get(cacheKey);
-      if (cached) {
-        setEpisodes(cached);
-      }
-    }
-  };
-
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (!shouldFetchData || !userData?.id) return;
-
-      const cacheKey = `balance_${userData.id}`;
-      const cached = notificationCache.get(cacheKey);
-      
-      if (cached !== undefined && cached !== null) {
-        setBalance(cached);
-        return;
-      }
-
-      try {
-        const res = await fetch("/api/wallet-balance", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ userId: userData.id }),
-        });
-
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-
-        const data = await res.json();
-
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch balance');
-        }
-
-        const balance = data.wallet_balance ?? 0;
-        setBalance(balance);
-        notificationCache.set(cacheKey, balance, 2 * 60 * 1000);
-        
-      } catch (error) {
-        if (cached !== undefined && cached !== null) {
-          setBalance(cached);
-        } else if (userData?.zidcoinBalance !== undefined) {
-          setBalance(userData.zidcoinBalance);
-        } else {
-          setBalance(0);
-        }
-      }
-    };
-
-    if (shouldFetchData && userData?.id) {
-      fetchBalance();
-    }
-  }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
-
-  // Fetch transactions (only when shouldFetchData is true)
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      if (!shouldFetchData || !userData?.id) {
-        setTransactions([]);
-        return;
-      }
-
-      const cacheKey = `transactions_${userData.id}_${searchTerm}`;
-      const cached = notificationCache.get(cacheKey);
-      
-      if (cached) {
-        setTransactions(cached);
-        setTransactionPage(1);
-        setHasMoreTransactions(cached.length >= 10);
-        return;
-      }
-
-      setTransactionsLoading(true);
-      try {
-        const params = new URLSearchParams({
-          userId: userData.id,
-          page: "1",
-          limit: "10",
-        });
-
-        if (searchTerm) {
-          params.set("search", searchTerm);
-        }
-
-        const res = await fetch(`/api/bill-transactions?${params.toString()}`);
-        
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-
-        const data = await res.json();
-        
-        const transactions = data.transactions || [];
-        setTransactions(transactions);
-        setTransactionPage(1);
-        setHasMoreTransactions(data.hasMore || false);
-        notificationCache.set(cacheKey, transactions, 3 * 60 * 1000);
-      } catch (error) {
-        console.error("Error fetching transactions:", error);
-        setTransactions([]);
-        
-        const cached = notificationCache.get(cacheKey);
-        if (cached) {
-          setTransactions(cached);
-        }
-      } finally {
-        setTransactionsLoading(false);
-      }
-    };
-    
-    fetchTransactions();
-  }, [userData?.id, searchTerm, shouldFetchData]);
-
-  // Fetch transaction stats (only when shouldFetchData is true)
-  useEffect(() => {
-    const fetchTransactionStats = async () => {
-      if (!shouldFetchData || !userData?.id) return;
-
-      const cacheKey = `transaction_stats_${userData.id}`;
-      const cached = notificationCache.get(cacheKey);
-      
-      if (cached) {
-        setLifetimeBalance(cached.lifetimeBalance);
-        setTotalOutflow(cached.totalOutflow);
-        setTotalTransactions(cached.totalTransactions);
-        return;
-      }
-
-      try {
-        const res = await fetch("/api/total-inflow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: userData.id }),
-        });
-
-        const data = await res.json();
-        const stats = {
-          lifetimeBalance: data.totalInflow || 0,
-          totalOutflow: data.totalOutflow || 0,
-          totalTransactions: data.totalTransactions || 0
-        };
-        
-        setLifetimeBalance(stats.lifetimeBalance);
-        setTotalOutflow(stats.totalOutflow);
-        setTotalTransactions(stats.totalTransactions);
-        notificationCache.set(cacheKey, stats, 5 * 60 * 1000);
-      } catch (error) {
-        if (cached) {
-          setLifetimeBalance(cached.lifetimeBalance);
-          setTotalOutflow(cached.totalOutflow);
-          setTotalTransactions(cached.totalTransactions);
-        }
-      }
-    };
-    
-    if (shouldFetchData && userData?.id) {
-      fetchTransactionStats();
-    }
-  }, [userData?.id, shouldFetchData]);
-
   // Theme initialization (always runs)
   useEffect(() => {
     const theme = localStorage.getItem("theme");
@@ -691,16 +495,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         userData,
         balance: shouldFetchData ? balance : null,
         setUserData,
-        loading: loading || (shouldFetchData && transactionsLoading),
-        episodes,
+        loading,
         isDarkMode,
         setIsDarkMode,
         handleDarkModeToggle,
-        transactions: shouldFetchData ? transactions : [],
-        setTransactions,
-        lifetimeBalance: shouldFetchData ? lifetimeBalance : 0,
-        totalOutflow: shouldFetchData ? totalOutflow : 0,
-        totalTransactions: shouldFetchData ? totalTransactions : 0,
         searchTerm,
         setSearchTerm,
         notifications: shouldFetchData ? notifications : [],

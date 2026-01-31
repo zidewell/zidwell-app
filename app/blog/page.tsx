@@ -1,4 +1,3 @@
-// app/blog/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -9,43 +8,93 @@ import BlogCard from "../components/blog-components/blog/BlogCard";
 import AdPlaceholder from "../components/blog-components/blog/Adpaceholder"; 
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
+import { BlogPost } from "../components/blog-components/blog/types/blog";
 
 const POSTS_PER_PAGE = 4;
 const INITIAL_POSTS_COUNT = 4;
 
 const BlogPage = () => {
   const { posts, isLoading, searchPosts, refreshPosts } = useBlog();
-  const [displayedPosts, setDisplayedPosts] = useState<any[]>([]);
+  const [displayedPosts, setDisplayedPosts] = useState<BlogPost[]>([]);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
-  // Filter published posts only
+  // Mark when client is ready
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Transform API posts to BlogPost format
+  const transformApiPostToBlogPost = useCallback((apiPost: any): BlogPost => {
+    return {
+      id: apiPost.id,
+      title: apiPost.title,
+      slug: apiPost.slug,
+      excerpt: apiPost.excerpt || "",
+      content: apiPost.content,
+      featuredImage: apiPost.featured_image || apiPost.featuredImage || "/default-blog-image.png",
+      author: {
+        id: apiPost.author_id || apiPost.author?.id || "default-author-id",
+        name: apiPost.author_name || apiPost.author?.name || "Author",
+        avatar: apiPost.author_avatar || apiPost.author?.avatar || "/default-avatar.png",
+        bio: apiPost.author_bio || apiPost.author?.bio || null,
+      },
+      categories: Array.isArray(apiPost.categories) 
+        ? apiPost.categories.map((cat: string | any, index: number) => ({
+            id: typeof cat === 'object' ? cat.id : `cat-${index}`,
+            name: typeof cat === 'object' ? cat.name : cat,
+            slug: typeof cat === 'object' ? cat.slug : cat.toLowerCase().replace(/\s+/g, '-'),
+            postCount: 0
+          }))
+        : [],
+      tags: apiPost.tags || [],
+      createdAt: apiPost.created_at,
+      updatedAt: apiPost.updated_at,
+      readTime: apiPost.readTime || apiPost.readTime || 5,
+      isPublished: apiPost.is_published,
+      viewCount: apiPost.view_count,
+      likeCount: apiPost.likes_count,
+      commentCount: apiPost.comments_count,
+    };
+  }, []);
+
+  // Filter published posts only and transform to BlogPost format
   const publishedPosts = useMemo(() => {
-    return posts.filter(post => post.is_published);
-  }, [posts]);
+    if (!isClient) return [];
+    
+    return posts
+      .filter(post => post.is_published)
+      .map(transformApiPostToBlogPost);
+  }, [posts, isClient, transformApiPostToBlogPost]);
 
   // Filter posts based on search
   const filteredPosts = useMemo(() => {
+    if (!isClient) return [];
+    
     if (!searchQuery.trim()) return publishedPosts;
-    return searchPosts(searchQuery).filter(post => post.is_published);
-  }, [publishedPosts, searchQuery, searchPosts]);
+    
+    return searchPosts(searchQuery)
+      .filter(post => post.is_published)
+      .map(transformApiPostToBlogPost);
+  }, [publishedPosts, searchQuery, searchPosts, isClient, transformApiPostToBlogPost]);
 
-  // Initial load
+  // Initial load - only on client
   useEffect(() => {
-    if (publishedPosts.length > 0 && !isSearching) {
+    if (isClient && publishedPosts.length > 0 && !isSearching) {
       const initialPosts = filteredPosts.slice(0, INITIAL_POSTS_COUNT);
       setDisplayedPosts(initialPosts);
       setPage(2);
       setHasMore(INITIAL_POSTS_COUNT < filteredPosts.length);
     }
-  }, [filteredPosts, publishedPosts.length, isSearching]);
+  }, [filteredPosts, publishedPosts.length, isSearching, isClient]);
 
   // Load more posts
   const loadMorePosts = useCallback(() => {
-    if (loadingMore || !hasMore || isSearching) return;
+    if (!isClient || loadingMore || !hasMore || isSearching) return;
     
     setLoadingMore(true);
     
@@ -64,34 +113,43 @@ const BlogPage = () => {
       }
       setLoadingMore(false);
     }, 300);
-  }, [page, loadingMore, hasMore, filteredPosts, isSearching]);
+  }, [page, loadingMore, hasMore, filteredPosts, isSearching, isClient]);
 
   // Handle search
-  const handleSearch = (query: string) => {
+  const handleSearch = useCallback((query: string) => {
+    if (!isClient) return;
+    
     setSearchQuery(query);
     setIsSearching(true);
     
     setTimeout(() => {
-      const filtered = query ? searchPosts(query).filter(post => post.is_published) : publishedPosts;
+      const filtered = query 
+        ? searchPosts(query).filter(post => post.is_published).map(transformApiPostToBlogPost)
+        : publishedPosts;
+      
       setDisplayedPosts(filtered.slice(0, INITIAL_POSTS_COUNT));
       setPage(2);
       setHasMore(INITIAL_POSTS_COUNT < filtered.length);
       setIsSearching(false);
     }, 200);
-  };
+  }, [isClient, searchPosts, publishedPosts, transformApiPostToBlogPost]);
 
   // Handle refresh
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
+    if (!isClient) return;
+    
     refreshPosts();
     setDisplayedPosts([]);
     setPage(1);
     setSearchQuery("");
     setHasMore(true);
     setIsSearching(false);
-  };
+  }, [isClient, refreshPosts]);
 
-  // Infinite scroll
+  // Infinite scroll - only on client
   useEffect(() => {
+    if (!isClient) return;
+    
     const handleScroll = () => {
       if (
         window.innerHeight + document.documentElement.scrollTop >=
@@ -103,23 +161,31 @@ const BlogPage = () => {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [loadMorePosts]);
+  }, [loadMorePosts, isClient]);
 
   const featuredPost = displayedPosts[0];
   const regularPosts = displayedPosts.slice(1);
 
   // Calculate read time for posts (helper function)
-  const calculateReadTime = (content: string) => {
+  const calculateReadTime = useCallback((content: string) => {
     const wordsPerMinute = 200;
     const wordCount = content.split(/\s+/).length;
     return Math.ceil(wordCount / wordsPerMinute);
-  };
+  }, []);
 
-  // Loading skeleton
-  if (isLoading && displayedPosts.length === 0) {
+  // Loading skeleton - show during SSR and initial client load
+  if (isLoading || !isClient) {
     return (
       <div className="min-h-screen bg-background">
-        <BlogHeader onSearch={handleSearch} />
+        {/* Simple static header for SSR */}
+        <div className="border-b">
+          <div className="container mx-auto px-4 py-6">
+            <div className="flex justify-between items-center">
+              <div className="h-10 w-32 bg-muted rounded animate-pulse" />
+              <div className="h-10 w-64 bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
         
         <main className="container mx-auto px-4 py-8">
           <div className="grid lg:grid-cols-[1fr_320px] gap-12">
@@ -187,7 +253,7 @@ const BlogPage = () => {
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-semibold">
-                    Search Results for "{searchQuery}"
+                    Search Results for &quot;{searchQuery}&quot;
                   </h2>
                   <p className="text-muted-foreground text-sm mt-1">
                     Found {filteredPosts.length} article{filteredPosts.length !== 1 ? 's' : ''}
@@ -295,7 +361,7 @@ const BlogPage = () => {
             {/* No more posts */}
             {!hasMore && displayedPosts.length > 0 && !isSearching && (
               <p className="text-center text-muted-foreground py-8">
-                You've reached the end
+                You&apos;ve reached the end
               </p>
             )}
 
@@ -303,7 +369,7 @@ const BlogPage = () => {
             {!loadingMore && isSearching === false && searchQuery && filteredPosts.length === 0 && (
               <div className="text-center py-16">
                 <h3 className="text-xl font-semibold mb-4">
-                  No articles found for "{searchQuery}"
+                  No articles found for &quot;{searchQuery}&quot;
                 </h3>
                 <p className="text-muted-foreground mb-6">
                   Try different keywords or browse our categories.

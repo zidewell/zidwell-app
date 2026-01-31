@@ -1,4 +1,3 @@
-// components/NotificationToast.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -57,7 +56,7 @@ const parseMarkdown = (text: string) => {
 };
 
 const getNotificationIcon = (type: string) => {
-  switch (type) {
+  switch (type.toLowerCase()) {
     case "contract":
       return "📝";
     case "wallet":
@@ -80,7 +79,7 @@ const getNotificationIcon = (type: string) => {
 };
 
 const getTypeColor = (type: string) => {
-  switch (type) {
+  switch (type.toLowerCase()) {
     case "success":
       return "border-l-green-500";
     case "warning":
@@ -112,10 +111,10 @@ export default function NotificationToast() {
 
   // Show only unread notifications that haven't been shown yet
   useEffect(() => {
-    if (!userData || notifications.length === 0) return;
+    if (!userData || !notifications || notifications.length === 0) return;
 
     const newUnreadNotifications = notifications.filter(
-      (notification) =>
+      (notification: ToastNotification) =>
         !notification.read_at && !processedIds.has(notification.id)
     );
 
@@ -134,11 +133,24 @@ export default function NotificationToast() {
   }, [notifications, userData, processedIds]);
 
   const removeNotification = async (id: string) => {
-    // Mark as read in backend and context
-    await markAsRead(id);
+    try {
+      // Mark as read in backend and context
+      await markAsRead(id);
 
-    // Remove from toast
-    setToastNotifications((prev) => prev.filter((n) => n.id !== id));
+      // Remove from toast
+      setToastNotifications((prev) => prev.filter((n) => n.id !== id));
+      
+      // Remove from processed IDs
+      setProcessedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+    } catch (error) {
+      console.error("Error removing notification:", error);
+      // Still remove from UI even if backend fails
+      setToastNotifications((prev) => prev.filter((n) => n.id !== id));
+    }
   };
 
   // Auto-remove notifications after 5 seconds
@@ -156,7 +168,7 @@ export default function NotificationToast() {
     return () => clearTimeout(timer);
   }, [toastNotifications]);
 
-  if (toastNotifications.length === 0) return null;
+  if (toastNotifications.length === 0 || !userData) return null;
 
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">

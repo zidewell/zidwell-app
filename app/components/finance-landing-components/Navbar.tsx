@@ -14,7 +14,7 @@ const Navbar = () => {
   const navLinks = [
     { label: "Blog", href: "/blog", type: "link" },
     { label: "Talk to Expert", href: "#talk-to-expert", type: "modal", variant: "heroOutline" as const },
-    { label: "Get Started", href: "https://tally.so/r/447JoO", type: "external" },
+    { label: "Get Started", href: "/f-onboarding", type: "external" },
   ];
 
   const handleActionClick = (label: string, href?: string, type?: string) => {

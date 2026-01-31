@@ -17,6 +17,7 @@ import BlogCard from "@/app/components/blog-components/blog/BlogCard";
 import BlogSidebar from "@/app/components/blog-components/blog/BlogSideBar";
 import InlineSubscribe from "@/app/components/blog-components/blog/InlineSubscribe";
 import AdPlaceholder from "@/app/components/blog-components/blog/Adpaceholder";
+import Image from "next/image";
 
 // Types
 interface BlogPost {
@@ -437,12 +438,14 @@ const PostPage = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-6">
                   <div className="flex items-center gap-4">
                     <div className="relative">
-                      <img
-                        src={post.author?.avatar || "/images/avatar-placeholder.jpg"}
+                      <Image
+                        src={post.author?.avatar || "https://images.unsplash.com/photo-1463453091185-61582044d556?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHVzZXIlMjBwcm9maWxlfGVufDB8fDB8fHww"}
                         alt={post.author?.name || "Author"}
                         className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
                         onError={handleImageError}
                         loading="lazy"
+                        width={30}
+                        height={30}
                       />
                       <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#C29307] rounded-full border-2 border-white dark:border-gray-800"></div>
                     </div>
@@ -517,12 +520,14 @@ const PostPage = () => {
 
               {post.featured_image && (
                 <div className="aspect-video overflow-hidden rounded-xl mb-8 border border-gray-200 dark:border-gray-700 shadow-lg">
-                  <img
+                  <Image
                     src={post.featured_image}
                     alt={post.title}
                     className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                     onError={handleImageError}
                     loading="lazy"
+                    width={800}
+                    height={450}
                   />
                 </div>
               )}
