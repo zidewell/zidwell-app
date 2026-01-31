@@ -49,7 +49,7 @@ const AdminCategories = () => {
           </div>
           <Dialog>
             <DialogTrigger asChild>
-              <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Button className="bg-[#C29307] text-[#C29307]-foreground hover:bg-[#C29307]/90">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Category
               </Button>
@@ -68,7 +68,7 @@ const AdminCategories = () => {
                   />
                 </div>
                 <Button
-                  className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                  className="w-full bg-[#C29307] text-[#C29307]-foreground hover:bg-[#C29307]/90"
                   onClick={handleAddCategory}
                 >
                   Add Category

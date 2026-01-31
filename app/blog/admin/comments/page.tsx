@@ -118,7 +118,7 @@ const AdminComments = () => {
                         <div>
                           <span className="font-medium">{comment?.author.name}</span>
                           {comment?.author.isZidwellUser && (
-                            <Badge variant="secondary" className="ml-2 text-xs bg-accent/10 text-accent">
+                            <Badge variant="secondary" className="ml-2 text-xs bg-[#C29307]/10 text-[#C29307]">
                               Zidwell User
                             </Badge>
                           )}

@@ -73,13 +73,13 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
               {categories.slice(0, 2).map((cat) => (
                 <span
                   key={cat.id}
-                  className="text-xs font-medium text-accent uppercase tracking-wider"
+                  className="text-xs font-medium text-[#C29307] uppercase tracking-wider"
                 >
                   {cat.name}
                 </span>
               ))}
             </div>
-            <h2 className="text-2xl md:text-3xl font-semibold mb-3 group-hover:text-accent transition-colors">
+            <h2 className="text-2xl md:text-3xl font-semibold mb-3 group-hover:text-[#C29307] transition-colors">
               {title}
             </h2>
             <p className="text-muted-foreground mb-4 line-clamp-3">
@@ -129,7 +129,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium line-clamp-2 group-hover:text-accent transition-colors">
+            <h3 className="font-medium line-clamp-2 group-hover:text-[#C29307] transition-colors">
               {title}
             </h3>
             {isClient && formattedDate && (
@@ -158,13 +158,13 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
           {categories.slice(0, 1).map((cat) => (
             <span
               key={cat.id}
-              className="text-xs font-medium text-accent uppercase tracking-wider"
+              className="text-xs font-medium text-[#C29307] uppercase tracking-wider"
             >
               {cat.name}
             </span>
           ))}
         </div>
-        <h2 className="text-xl font-semibold mb-2 group-hover:text-accent transition-colors line-clamp-2">
+        <h2 className="text-xl font-semibold mb-2 group-hover:text-[#C29307] transition-colors line-clamp-2">
           {title}
         </h2>
         <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
