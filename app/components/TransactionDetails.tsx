@@ -43,17 +43,95 @@ const outflowTypes = [
 export default function TransactionDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { transactions, userData, loading } = useUserContextData();
+  const { userData } = useUserContextData();
   const [transaction, setTransaction] = useState<any>(null);
   const [downloading, setDownloading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (params.id && transactions.length > 0) {
-      const foundTransaction = transactions.find((tx) => tx.id === params.id);
-      setTransaction(foundTransaction);
-    }
-  }, [params.id, transactions]);
+    const fetchTransactionDetails = async () => {
+      if (!params.id || !userData?.id) return;
 
+      setLoading(true);
+      try {
+        const transactionId = params.id;
+        
+        // Method 1: Search through pagination to find the transaction
+        // We need to fetch transactions and find the one with matching ID
+        let foundTransaction: any = null;
+        let page = 1;
+        const limit = 50; // Fetch 50 at a time
+        let hasMore = true;
+
+        while (hasMore && !foundTransaction) {
+          const response = await fetch(
+            `/api/bill-transactions?userId=${userData.id}&page=${page}&limit=${limit}`
+          );
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch transactions: ${response.status}`);
+          }
+
+          const data = await response.json();
+          
+          // Search for the transaction in this page's results
+          if (data.transactions && Array.isArray(data.transactions)) {
+            foundTransaction = data.transactions.find(
+              (tx: any) => tx.id === transactionId
+            );
+          }
+
+          // Check if there are more pages
+          hasMore = data.hasMore || false;
+          page++;
+          
+          // Safety check: don't loop forever
+          if (page > 10) {
+            console.warn("Exceeded maximum page limit while searching for transaction");
+            break;
+          }
+        }
+
+        if (foundTransaction) {
+          setTransaction(foundTransaction);
+        } else {
+          // Method 2: Try searching by reference if ID didn't match
+          const searchResponse = await fetch(
+            `/api/bill-transactions?userId=${userData.id}&search=${transactionId}&page=1&limit=10`
+          );
+          
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            if (searchData.transactions && searchData.transactions.length > 0) {
+              // Try to find by reference
+              const foundByReference = searchData.transactions.find(
+                (tx: any) => tx.reference === transactionId
+              );
+              
+              if (foundByReference) {
+                setTransaction(foundByReference);
+              } else {
+                // No transaction found
+                setTransaction(null);
+              }
+            } else {
+              setTransaction(null);
+            }
+          } else {
+            setTransaction(null);
+          }
+        }
+        
+      } catch (error) {
+        console.error("Error fetching transaction details:", error);
+        setTransaction(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransactionDetails();
+  }, [params.id, userData?.id]);
 
   // Function to determine if transaction amount should be negative
   const isOutflow = (transactionType: string) => {
@@ -62,8 +140,10 @@ export default function TransactionDetailsPage() {
 
   // Function to format amount with proper sign
   const formatAmount = (transaction: any) => {
+    if (!transaction) return { display: "₦0.00", isOutflow: false, rawAmount: 0, signedDisplay: "₦0.00" };
+    
     const isOutflowTransaction = isOutflow(transaction.type);
-    const amount = Number(transaction.amount);
+    const amount = Number(transaction.amount) || 0;
 
     return {
       display: `₦${amount.toLocaleString("en-NG", {
@@ -81,6 +161,8 @@ export default function TransactionDetailsPage() {
 
   // Function to get narration from transaction data
   const getNarration = (transaction: any) => {
+    if (!transaction) return null;
+    
     // Check multiple possible locations for narration
     if (transaction.external_response?.data?.transaction?.narration) {
       return transaction.external_response.data.transaction.narration;
@@ -105,7 +187,6 @@ export default function TransactionDetailsPage() {
     // Extract transaction data based on transaction type
     const senderInfo = transaction.external_response?.data?.customer;
     const receiverInfo = transaction.external_response?.data?.transaction;
-    const merchantInfo = transaction.external_response?.data?.merchant;
 
     // Determine if it's a withdrawal or deposit
     const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
@@ -335,7 +416,10 @@ export default function TransactionDetailsPage() {
         <div class="section">
           <div class="section-title">Transaction Details</div>
           <div class="details-card">
-           
+            <div class="detail-row">
+              <span class="detail-label">Type</span>
+              <span class="detail-value">${transaction.type || "N/A"}</span>
+            </div>
             <div class="detail-row">
               <span class="detail-label">Description</span>
               <span class="detail-value">${
@@ -406,7 +490,6 @@ export default function TransactionDetailsPage() {
                   </div>`
                 : ""
             }
-          
           </div>
         </div>
 
@@ -526,6 +609,9 @@ export default function TransactionDetailsPage() {
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">
                   Transaction Not Found
                 </h2>
+                <p className="text-gray-600 mb-4">
+                  The transaction with ID "{params.id}" could not be found.
+                </p>
                 <Button onClick={() => router.back()}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to Transactions
@@ -780,14 +866,6 @@ export default function TransactionDetailsPage() {
                           {displayReceiverData.accountNumber || "N/A"}
                         </span>
                       </div>
-                      {/* <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                        <span className="text-gray-600 text-sm sm:text-base">
-                          {isWithdrawal ? "Account Type" : "Account Type"}
-                        </span>
-                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                          {displayReceiverData.accountType || "N/A"}
-                        </span>
-                      </div> */}
                       {displayReceiverData.bankName && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-gray-600 text-sm sm:text-base">
@@ -824,14 +902,14 @@ export default function TransactionDetailsPage() {
                     </h2>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {/* <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
+                    <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
                       <span className="text-gray-600 text-sm sm:text-base">
                         Type
                       </span>
                       <span className="font-medium text-sm sm:text-base text-right xs:text-left capitalize">
                         {transaction.type || "N/A"}
                       </span>
-                    </div> */}
+                    </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
                       <span className="text-gray-600 text-sm sm:text-base">
                         Description

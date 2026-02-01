@@ -44,7 +44,9 @@ interface UserContextType {
   user: SupabaseUser | null;
   userData: any | null;
   balance: number | null;
-  lifetimeBalance: number; // Added this
+  lifetimeBalance: number;
+  totalOutflow: number;
+  totalTransactions: number;
   setUserData: Dispatch<SetStateAction<any | null>>;
   loading: boolean;
   isDarkMode: boolean;
@@ -156,7 +158,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [shouldFetchData, setShouldFetchData] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
-  const [lifetimeBalance, setLifetimeBalance] = useState(0); // Added this
+  const [lifetimeBalance, setLifetimeBalance] = useState(0);
+  const [totalOutflow, setTotalOutflow] = useState(0);
+  const [totalTransactions, setTotalTransactions] = useState(0);
   // Notification states
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -398,7 +402,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setBalance(null);
         setNotifications([]);
         setUnreadCount(0);
-        setLifetimeBalance(0); // Clear lifetime balance too
+        setLifetimeBalance(0);
+        setTotalOutflow(0);
+        setTotalTransactions(0);
       }
     } else {
       setShouldFetchData(true);
@@ -447,16 +453,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
 
-  // Fetch lifetime balance (only when shouldFetchData is true) - Added this
+  // Fetch transaction stats (lifetime balance, total outflow, total transactions)
   useEffect(() => {
-    const fetchLifetimeBalance = async () => {
+    const fetchTransactionStats = async () => {
       if (!shouldFetchData || !userData?.id) return;
 
-      const cacheKey = `lifetime_balance_${userData.id}`;
+      const cacheKey = `transaction_stats_${userData.id}`;
       const cached = notificationCache.get(cacheKey);
       
-      if (cached !== undefined) {
-        setLifetimeBalance(cached);
+      if (cached) {
+        setLifetimeBalance(cached.lifetimeBalance);
+        setTotalOutflow(cached.totalOutflow);
+        setTotalTransactions(cached.totalTransactions);
         return;
       }
 
@@ -468,17 +476,28 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         });
 
         const data = await res.json();
-        const lifetimeBalance = data.totalInflow || 0;
-        setLifetimeBalance(lifetimeBalance);
-        notificationCache.set(cacheKey, lifetimeBalance, 5 * 60 * 1000);
+        const stats = {
+          lifetimeBalance: data.totalInflow || 0,
+          totalOutflow: data.totalOutflow || 0,
+          totalTransactions: data.totalTransactions || 0
+        };
+        
+        setLifetimeBalance(stats.lifetimeBalance);
+        setTotalOutflow(stats.totalOutflow);
+        setTotalTransactions(stats.totalTransactions);
+        notificationCache.set(cacheKey, stats, 5 * 60 * 1000);
       } catch (error) {
-        console.error('❌ Error fetching lifetime balance:', error);
-        // Don't set to cached value since we want to show 0 if fetch fails
+        console.error('❌ Error fetching transaction stats:', error);
+        if (cached) {
+          setLifetimeBalance(cached.lifetimeBalance);
+          setTotalOutflow(cached.totalOutflow);
+          setTotalTransactions(cached.totalTransactions);
+        }
       }
     };
 
     if (shouldFetchData && userData?.id) {
-      fetchLifetimeBalance();
+      fetchTransactionStats();
     }
   }, [userData?.id, shouldFetchData]);
 
@@ -532,6 +551,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         userData,
         balance: shouldFetchData ? balance : null,
         lifetimeBalance: shouldFetchData ? lifetimeBalance : 0,
+        totalOutflow: shouldFetchData ? totalOutflow : 0,
+        totalTransactions: shouldFetchData ? totalTransactions : 0,
         setUserData,
         loading,
         isDarkMode,
