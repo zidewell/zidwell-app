@@ -861,7 +861,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
       invalidateCache();
 
-      router.push("/blog/admin/posts");
+      router.push("/blog/admin/post");
       router.refresh();
     } catch (error) {
       console.error("Error publishing post:", error);
@@ -894,7 +894,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         if (confirmed) {
           localStorage.removeItem("post_draft");
           showInfoAlert("Draft Cleared", "Local draft has been cleared");
-          router.push("/blog/admin/posts");
+          router.push("/blog/admin/post");
         }
       }
       return;
@@ -919,7 +919,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         "Post Deleted",
         "The post has been successfully deleted!",
       );
-      router.push("/blog/admin/posts");
+      router.push("/blog/admin/post");
       router.refresh();
     } catch (error) {
       console.error("Error deleting post:", error);

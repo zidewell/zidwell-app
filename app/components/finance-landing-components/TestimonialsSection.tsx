@@ -5,7 +5,7 @@ import Image from "next/image";
 const testimonials: any[] = [
   {
     name: "Adaeze Okonkwo",
-    role: "CEO, Nigerian BUsiness Owner",
+    role: "Nigerian BUsiness Owner",
     location: "Port Harcourt",
     image:
       "https://images.unsplash.com/photo-1614890094520-7b8dd0ec56d2?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzJ8fGJsYWNrJTIwYnVzaW5lc3MlMjBtYW58ZW58MHx8MHx8fDA%3D",
@@ -15,7 +15,7 @@ const testimonials: any[] = [
   },
   {
     name: "Chukwuemeka Ibe",
-    role: "Managing Director, Nigerian BUsiness Owner",
+    role: "Nigerian BUsiness Owner",
     location: "Lagos",
     image:
       "https://images.unsplash.com/photo-1642804425130-0cd9cfa51118?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NDB8fGJsYWNrJTIwYnVzaW5lc3MlMjBtYW58ZW58MHx8MHx8fDA%3D",
@@ -25,7 +25,7 @@ const testimonials: any[] = [
   },
   {
     name: "Folake Adeyemi",
-    role: "Founder, Nigerian BUsiness Owner",
+    role: "Nigerian BUsiness Owner",
     location: "Lagos",
     image:
       "https://images.unsplash.com/photo-1611432579402-7037e3e2c1e4?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YmxhY2slMjBidXNpbmVzcyUyMHdvbWFufGVufDB8fDB8fHww",
@@ -35,7 +35,7 @@ const testimonials: any[] = [
   },
   {
     name: "Tunde Bakare",
-    role: "Director, Nigerian BUsiness Owner",
+    role: "Nigerian BUsiness Owner",
     location: "Abuja",
     image:
       "https://images.unsplash.com/photo-1764169689207-e23fb66e1fcf?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTI3fHxibGFjayUyMGJ1c2luZXNzJTIwbWFufGVufDB8fDB8fHww",

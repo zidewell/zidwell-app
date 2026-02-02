@@ -1,16 +1,16 @@
 "use client";
 
 const clients = [
-  { name: "Nigerian Institute for Industrial Security" },
-  { name: "Bared Consult" },
-  { name: "Chiguard Services Nigeria Limited" },
-  { name: "NIIS Integrated Ventures" },
-  { name: "Wilson Esangbo and Co" },
-  { name: "Lara's E-Mart" },
-  { name: "The Tech Corner" },
-  { name: "Digital Business School" },
-  { name: "Calabarfood Lagos" },
-  { name: "Many more happy clients" },
+  { name: "Nigerian Institute for Industrial Security", location: "Abuja" },
+  { name: "Bared Consult", location: "Lagos" },
+  { name: "Chiguard Services Nigeria Limited", location: "Port Harcourt" },
+  { name: "NIIS Integrated Ventures", location: "Abuja" },
+  { name: "Wilson Esangbo and Co", location: "Uyo" },
+  { name: "Lara's E-Mart", location: "Ibadan" },
+  { name: "The Tech Corner", location: "Lagos" },
+  { name: "Digital Business School", location: "Online" },
+  { name: "Calabarfood Lagos", location: "Lagos" },
+  { name: "Many more happy clients"},
 ];
 
 const ClienteleSection = () => {
@@ -55,23 +55,15 @@ const ClienteleSection = () => {
                 <p className="font-bold text-[13px] md:text-[15px] text-[#8B7306] leading-snug md:leading-tight">
                   {client.name}
                 </p>
+                <p className="text-xs md:text-sm text-[#18171c]/70 mt-2">
+                  {client.location}
+                </p>
               </div>
 
               {/* Bottom accent line */}
               <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-linear-to-r from-transparent via-[#C29307]/50 to-transparent group-hover:w-3/4 transition-all duration-300" />
             </div>
           ))}
-        </div>
-
-        {/* Add a decorative element to balance the grid */}
-        <div className="mt-12 md:mt-16 text-center">
-          <div className="inline-flex items-center justify-center gap-2">
-            <div className="w-8 h-px bg-linear-to-r from-transparent to-[#C29307]/30" />
-            <span className="text-xs text-[#18171c]/60 font-medium tracking-wider">
-              & MORE
-            </span>
-            <div className="w-8 h-px bg-linear-to-l from-transparent to-[#C29307]/30" />
-          </div>
         </div>
       </div>
     </section>

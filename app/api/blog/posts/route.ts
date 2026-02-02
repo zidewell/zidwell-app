@@ -3,12 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
  const supabaseBlog = createClient(
   process.env.BLOG_SUPABASE_URL!,
   process.env.BLOG_SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
+ 
 );
 // Simple in-memory cache for server-side
 const postsCache = new Map();
