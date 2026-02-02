@@ -4,20 +4,18 @@ import { NextRequest, NextResponse } from "next/server";
 
 const supabaseBlog = createClient(
   process.env.BLOG_SUPABASE_URL!,
-  process.env.BLOG_SUPABASE_SERVICE_ROLE_KEY!,
- 
+  process.env.BLOG_SUPABASE_SERVICE_ROLE_KEY!
 );
-
 
 let statsCache: {
   data: any;
   timestamp: number;
 } | null = null;
 
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
-// Clear cache function (can be called from other routes when data changes)
-export function clearStatsCache() {
+// Helper function to clear cache - can be called internally
+function clearStatsCache() {
   statsCache = null;
 }
 
@@ -99,7 +97,7 @@ export async function GET(request: NextRequest) {
     posts.forEach(post => {
       // Count categories from posts
       if (post.categories && Array.isArray(post.categories)) {
-        post.categories.forEach((category:any) => {
+        post.categories.forEach((category: any) => {
           if (category && typeof category === 'string') {
             const trimmedCategory = category.trim();
             if (trimmedCategory) {
@@ -111,7 +109,7 @@ export async function GET(request: NextRequest) {
       
       // Count tags from posts
       if (post.tags && Array.isArray(post.tags)) {
-        post.tags.forEach((tag:any)=> {
+        post.tags.forEach((tag: any) => {
           if (tag && typeof tag === 'string') {
             const trimmedTag = tag.trim();
             if (trimmedTag) {
@@ -306,31 +304,10 @@ export async function GET(request: NextRequest) {
           totalPostsByMonth: []
         },
         fetchedAt: new Date().toISOString()
-      
       },
       { status: 500 }
     );
   }
-}
-
-// Helper function to get posts by month
-function getPostsByMonth(posts: any[]) {
-  const monthlyCounts: { [key: string]: number } = {};
-  
-  posts.forEach(post => {
-    const date = new Date(post.created_at);
-    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-    
-    if (!monthlyCounts[monthYear]) {
-      monthlyCounts[monthYear] = 0;
-    }
-    monthlyCounts[monthYear]++;
-  });
-  
-  return Object.entries(monthlyCounts)
-    .map(([month, count]) => ({ month, count }))
-    .sort((a, b) => b.month.localeCompare(a.month))
-    .slice(0, 6); // Last 6 months
 }
 
 // POST endpoint to clear cache (can be called when posts/comments are updated)
@@ -361,4 +338,24 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Helper function to get posts by month
+function getPostsByMonth(posts: any[]) {
+  const monthlyCounts: { [key: string]: number } = {};
+  
+  posts.forEach(post => {
+    const date = new Date(post.created_at);
+    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+    
+    if (!monthlyCounts[monthYear]) {
+      monthlyCounts[monthYear] = 0;
+    }
+    monthlyCounts[monthYear]++;
+  });
+  
+  return Object.entries(monthlyCounts)
+    .map(([month, count]) => ({ month, count }))
+    .sort((a, b) => b.month.localeCompare(a.month))
+    .slice(0, 6); // Last 6 months
 }
