@@ -8,7 +8,7 @@ const clients = [
   { name: "Wilson Esangbo and Co", location: "Uyo" },
   { name: "Lara's E-Mart", location: "Ibadan" },
   { name: "The Tech Corner", location: "Lagos" },
-  { name: "Digital Business School", location: "Online" },
+  { name: "Digital Business School", location: "Lagos" },
   { name: "Calabarfood Lagos", location: "Lagos" },
   { name: "Many more happy clients"},
 ];
