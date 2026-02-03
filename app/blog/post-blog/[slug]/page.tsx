@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ArrowLeft, Share2, Bookmark, Heart, Eye, Clock } from "lucide-react";
+import { ArrowLeft, Share2, Bookmark, Heart, Eye, Clock, Menu, X } from "lucide-react";
 import Swal from "sweetalert2";
 
 // Components
@@ -79,6 +79,7 @@ const PostPage = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [viewCount, setViewCount] = useState(0);
   const [likeCount, setLikeCount] = useState(0);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   const showAlert = Swal.mixin({
     customClass: {
@@ -315,11 +316,23 @@ const PostPage = () => {
     }
   }, [post]);
 
+  // Close mobile sidebar on escape key
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showMobileSidebar) {
+        setShowMobileSidebar(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => document.removeEventListener('keydown', handleEscKey);
+  }, [showMobileSidebar]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <BlogHeader />
-        <div className="container mx-auto px-4 py-16">
+        <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-16">
           <div className="animate-pulse space-y-8 max-w-4xl mx-auto">
             <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-24"></div>
             <div className="flex gap-2">
@@ -358,29 +371,29 @@ const PostPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <BlogHeader />
-        <div className="container mx-auto px-4 py-16 text-center">
+        <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-16 text-center">
           <div className="max-w-md mx-auto">
-            <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+              <svg className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h1 className="text-2xl font-semibold mb-4">Article Not Found</h1>
-            <p className="text-muted-foreground mb-6">
+            <h1 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">Article Not Found</h1>
+            <p className="text-muted-foreground mb-4 sm:mb-6 px-4 sm:px-0 text-sm sm:text-base">
               {error || "The article you're looking for doesn't exist or hasn't been published yet."}
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center px-4 sm:px-0">
               <Button 
                 variant="outline" 
                 onClick={() => router.push('/blog')}
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Blog
               </Button>
               <Button 
                 onClick={() => window.location.reload()}
-                className="bg-[#C29307] hover:bg-[#C29307]/90 gap-2"
+                className="bg-[#C29307] hover:bg-[#C29307]/90 gap-2 w-full sm:w-auto"
               >
                 Try Again
               </Button>
@@ -399,72 +412,97 @@ const PostPage = () => {
     <div className="min-h-screen bg-background">
       <BlogHeader />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="mx-auto px-4 sm:px-6 py-6 sm:py-8 md:py-12 lg:py-16 max-w-7xl">
+        {/* Mobile Sidebar Toggle */}
+        <div className="lg:hidden mb-6 flex justify-between items-center">
+          <Button
+            variant="ghost"
+            onClick={() => router.push('/blog')}
+            className="gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+            size="sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden xs:inline">Back to Blog</span>
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+            className="gap-2"
+          >
+            {showMobileSidebar ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            <span className="hidden xs:inline">Sidebar</span>
+          </Button>
+        </div>
+
         <div className="grid lg:grid-cols-[1fr_320px] gap-8 lg:gap-12">
           <div className="max-w-4xl mx-auto lg:mx-0">
             <article>
-              <Button
-                variant="ghost"
-                onClick={() => router.push('/blog')}
-                className="mb-6 gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Blog
-              </Button>
+              <div className="hidden lg:block">
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push('/blog')}
+                  className="mb-6 gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Blog
+                </Button>
+              </div>
 
-              <header className="mb-8">
-                <div className="flex flex-wrap items-center gap-2 mb-4">
+              <header className="mb-6 sm:mb-8">
+                <div className="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
                   {post.categories.map((category, index) => (
                     <Badge
                       key={index}
                       variant="secondary"
-                      className="bg-[#C29307]/10 text-[#C29307] hover:bg-[#C29307]/20 uppercase text-xs tracking-wider px-3 py-1"
+                      className="bg-[#C29307]/10 text-[#C29307] hover:bg-[#C29307]/20 uppercase text-xs tracking-wider px-2 py-0.5 sm:px-3 sm:py-1"
                     >
                       {category}
                     </Badge>
                   ))}
                 </div>
 
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight mb-6 text-gray-900 dark:text-white">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight mb-4 sm:mb-6 text-gray-900 dark:text-white">
                   {post.title}
                 </h1>
 
                 {post.excerpt && (
-                  <p className="text-xl text-gray-600 dark:text-gray-300 mb-6 italic border-l-4 border-[#C29307] pl-4 py-2">
+                  <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 mb-4 sm:mb-6 italic border-l-2 sm:border-l-4 border-[#C29307] pl-3 sm:pl-4 py-1 sm:py-2">
                     {post.excerpt}
                   </p>
                 )}
 
-                <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
+                <div className="flex flex-col gap-4 sm:gap-6 mb-4 sm:mb-6">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="relative flex-shrink-0">
                       <Image
                         src={post.author?.avatar || "https://images.unsplash.com/photo-1463453091185-61582044d556?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHVzZXIlMjBwcm9maWxlfGVufDB8fDB8fHww"}
                         alt={post.author?.name || "Author"}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
                         onError={handleImageError}
                         loading="lazy"
-                        width={30}
-                        height={30}
+                        width={40}
+                        height={40}
                       />
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#C29307] rounded-full border-2 border-white dark:border-gray-800"></div>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-[#C29307] rounded-full border-2 border-white dark:border-gray-800"></div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
                         {post.author?.name || "Unknown Author"}
                       </h3>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                        <span className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1 whitespace-nowrap">
                           <Clock className="w-3 h-3" />
                           {readTime} min read
                         </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
+                        <span className="hidden xs:inline">•</span>
+                        <span className="flex items-center gap-1 whitespace-nowrap">
                           <Eye className="w-3 h-3" />
                           {viewCount} views
                         </span>
                         <span>•</span>
-                        <time dateTime={publishDate}>
+                        <time dateTime={publishDate} className="whitespace-nowrap">
                           {format(new Date(publishDate), "MMM d, yyyy")}
                         </time>
                       </div>
@@ -472,54 +510,54 @@ const PostPage = () => {
                   </div>
                   
                   {post.author?.bio && (
-                    <div className="hidden lg:block flex-1 text-sm text-gray-600 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 pl-6">
+                    <div className="hidden lg:block text-sm text-gray-600 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 pl-6">
                       {post.author.bio}
                     </div>
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 mb-6 border-t border-b border-border py-4">
+                <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6 border-t border-b border-border py-3 sm:py-4">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleShare}
                     disabled={isSharing}
-                    className="gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className="gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex-1 sm:flex-none"
                   >
                     <Share2 className="w-4 h-4" />
-                    {isSharing ? "Sharing..." : "Share"}
+                    <span className="hidden xs:inline">{isSharing ? "Sharing..." : "Share"}</span>
                   </Button>
                   
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleBookmark}
-                    className={`gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 ${isBookmarked ? 'bg-[#C29307]/10 border-[#C29307]' : ''}`}
+                    className={`gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex-1 sm:flex-none ${isBookmarked ? 'bg-[#C29307]/10 border-[#C29307]' : ''}`}
                   >
                     <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-[#C29307] text-[#C29307]' : ''}`} />
-                    {isBookmarked ? "Bookmarked" : "Bookmark"}
+                    <span className="hidden xs:inline">{isBookmarked ? "Bookmarked" : "Bookmark"}</span>
                   </Button>
                   
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleLike}
-                    className={`gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 ${isLiked ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' : ''}`}
+                    className={`gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex-1 sm:flex-none ${isLiked ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' : ''}`}
                   >
                     <Heart className={`w-4 h-4 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
-                    {likeCount} {isLiked ? 'Liked' : 'Like'}
+                    <span className="hidden xs:inline">{likeCount} {isLiked ? 'Liked' : 'Like'}</span>
                   </Button>
                 </div>
 
                 {post.content && (
-                  <div className="mb-8">
+                  <div className="mb-6 sm:mb-8">
                     <AudioPlayer content={post.content} />
                   </div>
                 )}
               </header>
 
               {post.featured_image && (
-                <div className="aspect-video overflow-hidden rounded-xl mb-8 border border-gray-200 dark:border-gray-700 shadow-lg">
+                <div className="aspect-video overflow-hidden rounded-lg sm:rounded-xl mb-6 sm:mb-8 border border-gray-200 dark:border-gray-700 shadow">
                   <Image
                     src={post.featured_image}
                     alt={post.title}
@@ -528,35 +566,36 @@ const PostPage = () => {
                     loading="lazy"
                     width={800}
                     height={450}
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 800px, 1000px"
                   />
                 </div>
               )}
 
-              <div className="mb-8">
+              <div className="mb-6 sm:mb-8">
                 <ArticleContent content={firstHalf} />
               </div>
 
-              <div className="my-12">
+              <div className="my-8 sm:my-12">
                 <InlineSubscribe />
               </div>
 
-              <div className="my-12">
+              <div className="my-8 sm:my-12">
                 <AdPlaceholder variant="inline" />
               </div>
 
-              <div className="mb-8">
+              <div className="mb-6 sm:mb-8">
                 <ArticleContent content={secondHalf} />
               </div>
 
               {post.tags && post.tags.length > 0 && (
-                <div className="mt-12 pt-8 border-t border-border">
-                  <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Tags</h4>
+                <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-border">
+                  <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">Tags</h4>
                   <div className="flex flex-wrap gap-2">
                     {post.tags.map((tag, index) => (
                       <Badge 
                         key={index} 
                         variant="outline" 
-                        className="text-sm px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                        className="text-xs sm:text-sm px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
                         onClick={() => router.push(`/blog/tag/${tag.toLowerCase().replace(/\s+/g, '-')}`)}
                       >
                         #{tag}
@@ -566,42 +605,42 @@ const PostPage = () => {
                 </div>
               )}
 
-              <div className="mt-8 pt-8 border-t border-border">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-2xl font-bold text-[#C29307]">{viewCount}</div>
-                    <div className="text-sm text-muted-foreground mt-1">Views</div>
+              <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-border">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-center">
+                  <div className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xl sm:text-2xl font-bold text-[#C29307]">{viewCount}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground mt-1">Views</div>
                   </div>
-                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-2xl font-bold text-[#C29307]">{likeCount}</div>
-                    <div className="text-sm text-muted-foreground mt-1">Likes</div>
+                  <div className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xl sm:text-2xl font-bold text-[#C29307]">{likeCount}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground mt-1">Likes</div>
                   </div>
-                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-2xl font-bold text-[#C29307]">{post.comments_count || 0}</div>
-                    <div className="text-sm text-muted-foreground mt-1">Comments</div>
+                  <div className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xl sm:text-2xl font-bold text-[#C29307]">{post.comments_count || 0}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground mt-1">Comments</div>
                   </div>
-                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-2xl font-bold text-[#C29307]">{readTime}</div>
-                    <div className="text-sm text-muted-foreground mt-1">Min Read</div>
+                  <div className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xl sm:text-2xl font-bold text-[#C29307]">{readTime}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground mt-1">Min Read</div>
                   </div>
                 </div>
-                <div className="text-center text-sm text-muted-foreground mt-4">
+                <div className="text-center text-xs sm:text-sm text-muted-foreground mt-3 sm:mt-4 px-2">
                   Published on {format(new Date(publishDate), "MMMM d, yyyy 'at' h:mm a")}
                   {post.updated_at && post.updated_at !== post.created_at && (
-                    <span> • Updated {format(new Date(post.updated_at), "MMMM d, yyyy")}</span>
+                    <span className="block sm:inline"> • Updated {format(new Date(post.updated_at), "MMMM d, yyyy")}</span>
                   )}
                 </div>
               </div>
             </article>
 
-            <div className="mt-16">
+            <div className="mt-12 sm:mt-16">
               <CommentSection postId={post.id} />
             </div>
 
             {relatedPosts.length > 0 && (
-              <section className="mt-16 pt-8 border-t border-border">
-                <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <section className="mt-12 sm:mt-16 pt-6 sm:pt-8 border-t border-border">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-3">
+                  <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
                     Related Articles
                   </h3>
                   {post.categories[0] && (
@@ -609,7 +648,7 @@ const PostPage = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => router.push(`/blog/category/${post.categories[0]?.toLowerCase().replace(/\s+/g, '-')}`)}
-                      className="text-[#C29307] hover:text-[#C29307]/80 hover:bg-[#C29307]/10"
+                      className="text-[#C29307] hover:text-[#C29307]/80 hover:bg-[#C29307]/10 w-fit self-end sm:self-auto"
                     >
                       View All in {post.categories[0]}
                     </Button>
@@ -617,60 +656,85 @@ const PostPage = () => {
                 </div>
                 
                 {isLoadingRelated ? (
-                  <div className="grid md:grid-cols-2 gap-8">
+                  <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
                     {[1, 2].map((i) => (
                       <div key={i} className="animate-pulse">
-                        <div className="aspect-video bg-gray-200 dark:bg-gray-800 rounded-lg mb-4"></div>
+                        <div className="aspect-video bg-gray-200 dark:bg-gray-800 rounded-lg mb-3 sm:mb-4"></div>
                         <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4 mb-2"></div>
                         <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="grid md:grid-cols-2 gap-8">
+                  <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
                     {relatedPosts.map((relatedPost) => (
-  <BlogCard 
-    key={relatedPost.id} 
-    post={{
-      id: relatedPost.id,
-      title: relatedPost.title,
-      slug: relatedPost.slug,
-      excerpt: relatedPost.excerpt || relatedPost.content.substring(0, 150) + '...',
-      featuredImage: relatedPost.featured_image || '/images/placeholder.jpg',
-      categories: relatedPost.categories.map(cat => ({ 
-        id: cat.toLowerCase().replace(/\s+/g, '-'), 
-        name: cat,
-        slug: cat.toLowerCase().replace(/\s+/g, '-'),
-        postCount: 0
-      })),
-      tags: relatedPost.tags,
-      author: {
-        id: relatedPost.author?.id || relatedPost.author_id,
-        name: relatedPost.author?.name || relatedPost.author_name || "Unknown Author",
-        avatar: relatedPost.author?.avatar || '',
-        bio: relatedPost.author?.bio || '',
-        isZidwellUser: false
-      },
-      createdAt: relatedPost.created_at,
-      updatedAt: relatedPost.updated_at, // Add this line
-      readTime: calculateReadTime(relatedPost.content),
-      isPublished: relatedPost.is_published,
-      content: relatedPost.content,
-      comments: []
-    }} 
-  />
-))}
+                      <BlogCard 
+                        key={relatedPost.id} 
+                        post={{
+                          id: relatedPost.id,
+                          title: relatedPost.title,
+                          slug: relatedPost.slug,
+                          excerpt: relatedPost.excerpt || relatedPost.content.substring(0, 150) + '...',
+                          featuredImage: relatedPost.featured_image || '/images/placeholder.jpg',
+                          categories: relatedPost.categories.map(cat => ({ 
+                            id: cat.toLowerCase().replace(/\s+/g, '-'), 
+                            name: cat,
+                            slug: cat.toLowerCase().replace(/\s+/g, '-'),
+                            postCount: 0
+                          })),
+                          tags: relatedPost.tags,
+                          author: {
+                            id: relatedPost.author?.id || relatedPost.author_id,
+                            name: relatedPost.author?.name || relatedPost.author_name || "Unknown Author",
+                            avatar: relatedPost.author?.avatar || '',
+                            bio: relatedPost.author?.bio || '',
+                            isZidwellUser: false
+                          },
+                          createdAt: relatedPost.created_at,
+                          updatedAt: relatedPost.updated_at,
+                          readTime: calculateReadTime(relatedPost.content),
+                          isPublished: relatedPost.is_published,
+                          content: relatedPost.content,
+                          comments: []
+                        }} 
+                      />
+                    ))}
                   </div>
                 )}
               </section>
             )}
           </div>
 
+          {/* Desktop Sidebar */}
           <div className="hidden lg:block">
             <div className="sticky top-24 space-y-8">
               <BlogSidebar />
             </div>
           </div>
+
+          {/* Mobile Sidebar Overlay */}
+          {showMobileSidebar && (
+            <>
+              <div 
+                className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                onClick={() => setShowMobileSidebar(false)}
+              />
+              <div className="fixed inset-y-0 right-0 w-[300px] max-w-[85vw] bg-background z-50 lg:hidden overflow-y-auto shadow-2xl p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-semibold">Sidebar</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowMobileSidebar(false)}
+                    className="p-2"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+                <BlogSidebar />
+              </div>
+            </>
+          )}
         </div>
       </main>
     </div>

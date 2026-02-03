@@ -55,7 +55,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
 
   if (variant === "featured") {
     return (
-      <Link href={`/post/${slug}`} className="group block">
+      <Link href={`/blog/post-blog/${slug}`} className="group block">
         <article className="grid md:grid-cols-2 gap-6 animate-fade-in">
           <div className="aspect-16/10 overflow-hidden rounded-lg">
             {/* Use regular img tag for better control */}

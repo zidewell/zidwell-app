@@ -14,7 +14,7 @@ let statsCache: {
 
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
-// Helper function to clear cache - can be called internally
+// Helper function to clear cache
 function clearStatsCache() {
   statsCache = null;
 }
@@ -25,29 +25,29 @@ export async function GET(request: NextRequest) {
     const skipCache = searchParams.get("skipCache") === "true";
     const forceRefresh = searchParams.get("forceRefresh") === "true";
 
-    // Check cache first (unless skipCache or forceRefresh is true)
+    // Check cache first
     if (!skipCache && !forceRefresh && statsCache) {
       const now = Date.now();
       const cacheAge = now - statsCache.timestamp;
       
-      // If cache is less than 10 minutes old, return cached data
       if (cacheAge < CACHE_DURATION) {
         return NextResponse.json({
           ...statsCache.data,
           cached: true,
-          cacheAge: Math.floor(cacheAge / 1000), // Age in seconds
-          cacheExpiresIn: Math.floor((CACHE_DURATION - cacheAge) / 1000) // Seconds until expiration
+          cacheAge: Math.floor(cacheAge / 1000),
+          cacheExpiresIn: Math.floor((CACHE_DURATION - cacheAge) / 1000)
         });
       }
     }
 
     console.log("Fetching fresh blog stats from database...");
 
-    // Fetch all data in parallel for better performance
+    // Fetch all data including comments
     const [
       postsResponse,
       commentsResponse,
-      categoriesResponse
+      categoriesResponse,
+      recentCommentsResponse
     ] = await Promise.allSettled([
       // Fetch all posts
       supabaseBlog
@@ -60,11 +60,19 @@ export async function GET(request: NextRequest) {
         .from('blog_comments')
         .select('*', { count: 'exact', head: true }),
       
-      // Get categories from categories table if it exists
+      // Get categories from categories table
       supabaseBlog
         .from('categories')
         .select('*')
-        .order('post_count', { ascending: false })
+        .order('post_count', { ascending: false }),
+      
+      // Get recent comments
+      supabaseBlog
+        .from('blog_comments')
+        .select('*')
+        .eq('is_approved', true)
+        .order('created_at', { ascending: false })
+        .limit(20)
     ]);
 
     // Process posts data
@@ -73,10 +81,16 @@ export async function GET(request: NextRequest) {
       posts = postsResponse.value.data;
     }
 
-    // Process comments count
+    // Process comments data
     let totalComments = 0;
+    let recentComments: any[] = [];
+    
     if (commentsResponse.status === 'fulfilled') {
       totalComments = commentsResponse.value.count || 0;
+    }
+    
+    if (recentCommentsResponse.status === 'fulfilled' && recentCommentsResponse.value.data) {
+      recentComments = recentCommentsResponse.value.data;
     }
 
     // Process categories
@@ -90,7 +104,7 @@ export async function GET(request: NextRequest) {
     const draftPosts = posts.filter(post => !post.is_published);
     const authors = new Set(posts.map(post => post.author_id));
     
-    // Calculate category counts from posts (fallback if categories table is empty)
+    // Calculate category counts from posts
     const categoryCounts = new Map<string, number>();
     const tagCounts = new Map<string, number>();
     
@@ -125,7 +139,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 10);
 
-    // Get popular posts (by view count, published only)
+    // Get popular posts (by view count)
     const popularPosts = publishedPosts
       .sort((a, b) => (b.view_count || 0) - (a.view_count || 0))
       .slice(0, 10);
@@ -133,7 +147,31 @@ export async function GET(request: NextRequest) {
     // Calculate total views
     const totalViews = posts.reduce((sum, post) => sum + (post.view_count || 0), 0);
 
-    // Calculate content growth (posts created in last 7 days vs previous 7 days)
+    // Calculate comment statistics
+    const approvedComments = recentComments.filter(comment => comment.is_approved);
+    const pendingComments = recentComments.filter(comment => !comment.is_approved);
+    
+    // Calculate most commented posts
+    const postsWithComments = await Promise.all(
+      publishedPosts.map(async (post) => {
+        const { count } = await supabaseBlog
+          .from('blog_comments')
+          .select('*', { count: 'exact', head: true })
+          .eq('post_id', post.id)
+          .eq('is_approved', true);
+        
+        return {
+          ...post,
+          comment_count: count || 0
+        };
+      })
+    );
+    
+    const mostCommentedPosts = postsWithComments
+      .sort((a, b) => b.comment_count - a.comment_count)
+      .slice(0, 5);
+
+    // Calculate content growth
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -155,12 +193,30 @@ export async function GET(request: NextRequest) {
       contentGrowth = "+100%";
     }
 
-    // Calculate engagement rate (comments per view * 100)
+    // Calculate comment growth
+    const recentWeekComments = recentComments.filter(comment => 
+      new Date(comment.created_at) >= oneWeekAgo
+    ).length;
+    
+    const previousWeekComments = recentComments.filter(comment => 
+      new Date(comment.created_at) >= twoWeeksAgo && 
+      new Date(comment.created_at) < oneWeekAgo
+    ).length;
+    
+    let commentGrowth = "0%";
+    if (previousWeekComments > 0) {
+      const growth = ((recentWeekComments - previousWeekComments) / previousWeekComments) * 100;
+      commentGrowth = `${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
+    } else if (recentWeekComments > 0) {
+      commentGrowth = "+100%";
+    }
+
+    // Calculate engagement rate
     const engagementRate = totalViews > 0 
       ? ((totalComments / totalViews) * 100).toFixed(1)
       : "0.0";
 
-    // Prepare categories array (use from table if available, otherwise generate from posts)
+    // Prepare categories array
     let categories: Array<{ name: string; count: number; slug?: string }> = [];
     
     if (categoriesFromTable.length > 0) {
@@ -180,7 +236,7 @@ export async function GET(request: NextRequest) {
     const tags = Array.from(tagCounts.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 20); // Top 20 tags
+      .slice(0, 20);
 
     // Calculate additional metrics
     const avgViewsPerPost = publishedPosts.length > 0 
@@ -191,14 +247,35 @@ export async function GET(request: NextRequest) {
       ? Math.round(totalComments / publishedPosts.length) 
       : 0;
     
+    const commentApprovalRate = recentComments.length > 0
+      ? ((approvedComments.length / recentComments.length) * 100).toFixed(1)
+      : "0.0";
+
     // Get top performing posts (by engagement)
-    const topPerformingPosts = publishedPosts
+    const topPerformingPosts = postsWithComments
       .map(post => ({
         ...post,
         engagement_score: ((post.comment_count || 0) + (post.view_count || 0))
       }))
       .sort((a, b) => b.engagement_score - a.engagement_score)
       .slice(0, 5);
+
+    // Format recent comments for display
+    const formattedRecentComments = recentComments.slice(0, 10).map(comment => ({
+      id: comment.id,
+      postId: comment.post_id,
+      authorName: comment.user_name || 'Anonymous',
+      authorEmail: comment.user_email,
+      content: comment.content.length > 100 
+        ? comment.content.substring(0, 100) + '...' 
+        : comment.content,
+      createdAt: comment.created_at,
+      isApproved: comment.is_approved,
+      postTitle: posts.find(p => p.id === comment.post_id)?.title || 'Unknown Post'
+    }));
+
+    // Calculate monthly stats
+    const monthlyStats = getMonthlyStats(posts, recentComments);
 
     // Compile all stats
     const statsData = {
@@ -212,7 +289,15 @@ export async function GET(request: NextRequest) {
         avgViewsPerPost,
         avgCommentsPerPost,
         engagementRate: `${engagementRate}%`,
-        contentGrowth
+        contentGrowth,
+        commentGrowth
+      },
+      comments: {
+        total: totalComments,
+        approved: approvedComments.length,
+        pending: pendingComments.length,
+        approvalRate: `${commentApprovalRate}%`,
+        recentComments: formattedRecentComments
       },
       recentPosts: recentPosts.map(post => ({
         id: post.id,
@@ -235,6 +320,14 @@ export async function GET(request: NextRequest) {
         comment_count: post.comment_count || 0,
         created_at: post.created_at
       })),
+      mostCommentedPosts: mostCommentedPosts.map(post => ({
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        view_count: post.view_count || 0,
+        comment_count: post.comment_count || 0,
+        created_at: post.created_at
+      })),
       topPerformingPosts: topPerformingPosts.map(post => ({
         id: post.id,
         title: post.title,
@@ -248,12 +341,14 @@ export async function GET(request: NextRequest) {
       timeline: {
         postsLast7Days: recentWeekPosts,
         postsPrevious7Days: previousWeekPosts,
-        totalPostsByMonth: getPostsByMonth(posts)
+        commentsLast7Days: recentWeekComments,
+        commentsPrevious7Days: previousWeekComments,
+        monthlyStats
       },
       fetchedAt: new Date().toISOString(),
       cacheInfo: {
         cached: false,
-        duration: CACHE_DURATION / 1000 // in seconds
+        duration: CACHE_DURATION / 1000
       }
     };
 
@@ -267,7 +362,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching blog stats:", error);
     
-    // Return cached data if available (even if expired) as fallback
+    // Return cached data if available
     if (statsCache) {
       console.log("Returning cached data due to error");
       return NextResponse.json({
@@ -291,17 +386,28 @@ export async function GET(request: NextRequest) {
           avgViewsPerPost: 0,
           avgCommentsPerPost: 0,
           engagementRate: "0%",
-          contentGrowth: "0%"
+          contentGrowth: "0%",
+          commentGrowth: "0%"
+        },
+        comments: {
+          total: 0,
+          approved: 0,
+          pending: 0,
+          approvalRate: "0%",
+          recentComments: []
         },
         recentPosts: [],
         popularPosts: [],
+        mostCommentedPosts: [],
         topPerformingPosts: [],
         categories: [],
         tags: [],
         timeline: {
           postsLast7Days: 0,
           postsPrevious7Days: 0,
-          totalPostsByMonth: []
+          commentsLast7Days: 0,
+          commentsPrevious7Days: 0,
+          monthlyStats: []
         },
         fetchedAt: new Date().toISOString()
       },
@@ -310,7 +416,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST endpoint to clear cache (can be called when posts/comments are updated)
+// POST endpoint to clear cache
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -340,22 +446,38 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper function to get posts by month
-function getPostsByMonth(posts: any[]) {
-  const monthlyCounts: { [key: string]: number } = {};
+// Helper function to get monthly stats
+function getMonthlyStats(posts: any[], comments: any[]) {
+  const monthlyData: { [key: string]: { posts: number; comments: number } } = {};
   
+  // Process posts by month
   posts.forEach(post => {
     const date = new Date(post.created_at);
     const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
     
-    if (!monthlyCounts[monthYear]) {
-      monthlyCounts[monthYear] = 0;
+    if (!monthlyData[monthYear]) {
+      monthlyData[monthYear] = { posts: 0, comments: 0 };
     }
-    monthlyCounts[monthYear]++;
+    monthlyData[monthYear].posts++;
   });
   
-  return Object.entries(monthlyCounts)
-    .map(([month, count]) => ({ month, count }))
+  // Process comments by month
+  comments.forEach(comment => {
+    const date = new Date(comment.created_at);
+    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+    
+    if (!monthlyData[monthYear]) {
+      monthlyData[monthYear] = { posts: 0, comments: 0 };
+    }
+    monthlyData[monthYear].comments++;
+  });
+  
+  return Object.entries(monthlyData)
+    .map(([month, data]) => ({ 
+      month, 
+      posts: data.posts, 
+      comments: data.comments 
+    }))
     .sort((a, b) => b.month.localeCompare(a.month))
-    .slice(0, 6); // Last 6 months
+    .slice(0, 12); // Last 12 months
 }

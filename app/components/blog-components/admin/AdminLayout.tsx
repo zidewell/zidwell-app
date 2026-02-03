@@ -102,7 +102,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                       isActive
-                        ? "bg-accent text-accent-foreground"
+                        ? "bg-[#C29307]"
                         : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                     )}
                     onClick={() => {

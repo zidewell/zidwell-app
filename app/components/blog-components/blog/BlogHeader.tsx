@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { RefreshCw, Menu } from "lucide-react";
 import { Button } from "../../ui/button";
@@ -15,16 +14,43 @@ import {
 
 interface BlogHeaderProps {
   onSearch?: (query: string) => void;
+  categories?: Array<{ name: string; count: number }>; // Optional categories prop
 }
 
-const BlogHeader = ({ onSearch }: BlogHeaderProps) => {
-  const { stats, refreshPosts, isLoading } = useBlog();
+const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
+  const { posts, refreshPosts, isLoading } = useBlog();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Get top 3 categories for navigation
-  const topCategories = stats?.categories
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 3) || [];
+  // Calculate top categories from posts if categories prop not provided
+  const topCategories = useMemo(() => {
+    // Use provided categories if available
+    if (categories && categories.length > 0) {
+      return categories
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
+    }
+    
+    // Otherwise calculate from posts
+    const categoryMap = new Map<string, number>();
+    
+    posts.forEach(post => {
+      if (post.categories && Array.isArray(post.categories)) {
+        post.categories.forEach(category => {
+          if (typeof category === 'string') {
+            const trimmed = category.trim();
+            if (trimmed) {
+              categoryMap.set(trimmed, (categoryMap.get(trimmed) || 0) + 1);
+            }
+          }
+        });
+      }
+    });
+    
+    return Array.from(categoryMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+  }, [posts, categories]);
 
   const handleRefresh = () => {
     refreshPosts();
@@ -48,13 +74,13 @@ const BlogHeader = ({ onSearch }: BlogHeaderProps) => {
             >
               All Articles
             </Link>
-            {topCategories.map((category) => (
+            {topCategories.map((category:any) => (
               <Link
                 key={category.name}
                 href={`/blog?category=${encodeURIComponent(category.name)}`}
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                {category.name} ({category.count})
+                {category.name} {category.count > 0 && `(${category.count})`}
               </Link>
             ))}
             <Link
@@ -89,13 +115,13 @@ const BlogHeader = ({ onSearch }: BlogHeaderProps) => {
                     All Articles
                   </Link>
                 </DropdownMenuItem>
-                {topCategories.map((category) => (
+                {topCategories.map((category:any) => (
                   <DropdownMenuItem key={category.name} asChild>
                     <Link
                       href={`/blog?category=${encodeURIComponent(category.name)}`}
                       className="cursor-pointer"
                     >
-                      {category.name} ({category.count})
+                      {category.name} {category.count > 0 && `(${category.count})`}
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -126,7 +152,7 @@ const BlogHeader = ({ onSearch }: BlogHeaderProps) => {
         </div>
       </div>
 
-      {/* Mobile Categories Bar (optional) */}
+      {/* Mobile Categories Bar */}
       <div className="md:hidden border-t border-border bg-background">
         <div className="container mx-auto px-4 py-2">
           <div className="flex items-center gap-4 overflow-x-auto pb-2">
@@ -136,7 +162,7 @@ const BlogHeader = ({ onSearch }: BlogHeaderProps) => {
             >
               All
             </Link>
-            {topCategories.map((category) => (
+            {topCategories.map((category:any) => (
               <Link
                 key={category.name}
                 href={`/blog?category=${encodeURIComponent(category.name)}`}

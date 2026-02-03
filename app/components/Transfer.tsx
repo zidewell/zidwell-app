@@ -59,7 +59,7 @@ interface SavedP2PBeneficiary {
   created_at: string;
 }
 
-type PaymentMethod = "checkout" | "virtual_account" | "bank_transfer";
+type PaymentMethod = "checkout" | "virtual_account" | "bank_transfer" | "p2p";
 
 export default function Transfer() {
   const inputCount = 4;
@@ -253,6 +253,7 @@ export default function Transfer() {
     return () => clearTimeout(timeout);
   }, [accountNumber, bankCode, transferType]);
 
+
   // Handle P2P lookup
   useEffect(() => {
     if (transferType !== "p2p") return;
@@ -303,6 +304,9 @@ export default function Transfer() {
 
     return () => clearTimeout(timeout);
   }, [recepientAcc, transferType]);
+
+
+
 
   // Handle saved account selection
   const handleSelectSavedAccount = (account: SavedAccount) => {
@@ -1084,33 +1088,50 @@ export default function Transfer() {
           </form>
         </CardContent>
       </Card>
-      <TransactionSummary
-        senderName={`${userData?.firstName} ${userData?.lastName}`}
-        senderAccount={`Nomba ${userData?.firstName}`}
-        recipientName={
-          accountName ||
-          p2pDetails?.name ||
-          userDetails?.payment_details?.p_account_name
-        }
-        recipientAccount={
-          accountNumber ||
-          userDetails?.payment_details?.p_account_number ||
-          recepientAcc
-        }
-        recipientBank={
-          bankName || userDetails?.payment_details?.p_bank_name || "Zidwell"
-        }
-        purpose={narration}
-        amount={amount}
-        confirmTransaction={confirmTransaction}
-        onBack={() => setConfirmTransaction(false)}
-        onConfirm={() => {
-          setConfirmTransaction(false);
-          setIsOpen(true);
-        }}
-        paymentMethod={getPaymentMethod()}
-        isP2P={transferType === "p2p"}
-      />
+     <TransactionSummary
+  senderName={`${userData?.firstName} ${userData?.lastName}`}
+  senderAccount={userDetails?.bank_details?.bank_account_number || "N/A"}
+  recipientName={
+    // For P2P: use p2pDetails.name
+    // For other-bank: use accountName (from bank lookup)
+    // For my-account: use your own payment details
+    transferType === "p2p"
+      ? p2pDetails?.name
+      : transferType === "other-bank"
+      ? accountName
+      : userDetails?.payment_details?.p_account_name
+  }
+  recipientAccount={
+    // For P2P: use recepientAcc
+    // For other-bank: use accountNumber
+    // For my-account: use your own account number
+    transferType === "p2p"
+      ? recepientAcc
+      : transferType === "other-bank"
+      ? accountNumber
+      : userDetails?.payment_details?.p_account_number
+  }
+  recipientBank={
+    // For P2P: always show "Zidwell"
+    // For other-bank: use bankName (selected bank)
+    // For my-account: use your own bank name
+    transferType === "p2p"
+      ? "Zidwell"
+      : transferType === "other-bank"
+      ? bankName
+      : userDetails?.payment_details?.p_bank_name
+  }
+  purpose={narration}
+  amount={amount}
+  confirmTransaction={confirmTransaction}
+  onBack={() => setConfirmTransaction(false)}
+  onConfirm={() => {
+    setConfirmTransaction(false);
+    setIsOpen(true);
+  }}
+  paymentMethod={getPaymentMethod()}
+  isP2P={transferType === "p2p"}
+/>
     </>
   );
 }

@@ -6,16 +6,23 @@ import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { Skeleton } from "../../ui/skeleton";
 import Link from "next/link";
-import { useBlog } from "@/app/context/BlogContext";
 import Swal from "sweetalert2";
 
 interface BlogSidebarProps {
   onSearch?: (query: string) => void;
   isSearching?: boolean;
+  recentPosts?: any[];
+  popularPosts?: any[];
+  categories?: any[];
 }
 
-const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
-  const { stats, posts, isLoading, searchPosts } = useBlog();
+const BlogSidebar = ({ 
+  onSearch, 
+  isSearching, 
+  recentPosts: propRecentPosts = [], 
+  popularPosts: propPopularPosts = [], 
+  categories: propCategories = [] 
+}: BlogSidebarProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [email, setEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
@@ -28,32 +35,14 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
     buttonsStyling: false,
   });
 
-  // Get recent posts (published only)
-  const recentPosts = useMemo(() => {
-    if (!stats) return [];
-    return stats.recentPosts.slice(0, 5).filter(post => post.is_published);
-  }, [stats]);
-
-  // Get popular posts (published only)
-  const popularPosts = useMemo(() => {
-    if (!stats) return [];
-    return stats.popularPosts.slice(0, 5).filter(post => post.is_published);
-  }, [stats]);
-
-  // Get all categories with counts
-  const categories = useMemo(() => {
-    if (!stats) return [];
-    return stats.categories;
-  }, [stats]);
-
-  // Calculate archive data from posts
+  // Calculate archive data from recent posts
   const archives = useMemo(() => {
-    if (!posts.length) return [];
+    if (!propRecentPosts.length) return [];
     
     const archiveMap = new Map<string, number>();
     
-    posts.forEach(post => {
-      if (post.is_published && post.published_at) {
+    propRecentPosts.forEach(post => {
+      if (post.published_at) {
         const date = new Date(post.published_at);
         const year = date.getFullYear();
         const month = date.toLocaleString('default', { month: 'long' });
@@ -82,16 +71,14 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
         return months.indexOf(b.month) - months.indexOf(a.month);
       })
       .slice(0, 6); // Limit to 6 archives
-  }, [posts]);
+  }, [propRecentPosts]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (onSearch) {
       onSearch(searchQuery);
     } else if (searchQuery.trim()) {
-      // If no onSearch prop provided, use the context search
-      const results = searchPosts(searchQuery);
-      // Navigate to search results page or show in current page
+      // Navigate to search results page
       window.location.href = `/blog/search?q=${encodeURIComponent(searchQuery)}`;
     }
   };
@@ -122,13 +109,6 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
     try {
       // Simulate API call (replace with actual API)
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In a real app, you would use:
-      // const response = await fetch('/api/subscribe', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email }),
-      // });
       
       // For now, simulate success
       await showAlert.fire({
@@ -179,7 +159,9 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
     }
   };
 
-  // Loading state
+  // Loading state - removed BlogContext dependency
+  const isLoading = false; // Since we're not using BlogContext anymore
+
   if (isLoading) {
     return (
       <aside className="space-y-8">
@@ -288,9 +270,9 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
             Popular Posts
           </h3>
         </div>
-        {popularPosts.length > 0 ? (
+        {propPopularPosts.length > 0 ? (
           <div className="space-y-4">
-            {popularPosts.map((post) => (
+            {propPopularPosts.map((post) => (
               <Link
                 key={post.id}
                 href={`/blog/${post.slug}`}
@@ -332,9 +314,9 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
             Recent Posts
           </h3>
         </div>
-        {recentPosts.length > 0 ? (
+        {propRecentPosts.length > 0 ? (
           <div className="space-y-4">
-            {recentPosts.map((post) => (
+            {propRecentPosts.map((post) => (
               <Link
                 key={post.id}
                 href={`/blog/${post.slug}`}
@@ -373,9 +355,9 @@ const BlogSidebar = ({ onSearch, isSearching }: BlogSidebarProps) => {
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Categories
         </h3>
-        {categories.length > 0 ? (
+        {propCategories.length > 0 ? (
           <ul className="space-y-2">
-            {categories.map((category) => (
+            {propCategories.map((category) => (
               <li key={category.name}>
                 <Link
                   href={`/blog?category=${encodeURIComponent(category.name)}`}

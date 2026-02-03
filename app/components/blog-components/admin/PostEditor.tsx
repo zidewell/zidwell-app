@@ -239,7 +239,6 @@ const validateUrl = (
 
 const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const router = useRouter();
-  const { categories: blogCategories, invalidateCache } = useBlog();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [excerpt, setExcerpt] = useState("");
@@ -859,7 +858,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         localStorage.removeItem("post_draft");
       }
 
-      invalidateCache();
 
       router.push("/blog/admin/post");
       router.refresh();
@@ -912,8 +910,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       setIsLoading(true);
       const apiKey = getApiKey();
       await api.delete(`/api/blog/posts?id=${postId}`, apiKey);
-
-      invalidateCache();
 
       showSuccessAlert(
         "Post Deleted",

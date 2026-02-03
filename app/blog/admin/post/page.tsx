@@ -14,45 +14,40 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Filter, CheckCircle, Circle, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import AdminLayout from "@/app/components/blog-components/admin/AdminLayout";
 import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import Swal from "sweetalert2";
+import { Badge } from "@/app/components/ui/badge";
+import { useBlog } from "@/app/context/BlogContext"; 
 
-// Define the Post interface
-interface Post {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  excerpt: string | null;
-  featured_image: string | null;
-  categories: string[];
-  tags: string[];
-  is_published: boolean;
-  author_id: string;
-  author: {
-    id: string;
-    name: string;
-    avatar: string | null;
-    bio: string | null;
-  };
-  published_at: string | null;
-  created_at: string;
-  updated_at: string;
-  view_count: number;
-  likes_count: number;
-  comments_count: number;
-}
+// Filter types
+type FilterType = 'all' | 'published' | 'draft';
 
 const AdminPosts = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const { posts, isLoading, error, refreshPosts } = useBlog();
+
+  // Debug logging
+  useEffect(() => {
+    console.log("AdminPosts Component:");
+    console.log("- Total posts:", posts.length);
+    console.log("- Is loading:", isLoading);
+    console.log("- Error:", error);
+    if (posts.length > 0) {
+      console.log("- Sample post:", {
+        id: posts[0].id,
+        title: posts[0].title,
+        is_published: posts[0].is_published,
+        author: posts[0].author,
+        categories: posts[0].categories
+      });
+    }
+  }, [posts, isLoading, error]);
 
   // Initialize SweetAlert
   const showAlert = Swal.mixin({
@@ -63,48 +58,30 @@ const AdminPosts = () => {
     buttonsStyling: true,
   });
 
-  // Fetch posts from API
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const response = await fetch('/api/blog/posts?limit=100');
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch posts: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
-        // Handle both response formats
-        const postsData = data.posts || data;
-        
-        if (Array.isArray(postsData)) {
-          setPosts(postsData);
-        } else {
-          console.error('Unexpected API response format:', data);
-          setPosts([]);
-        }
-      } catch (err) {
-        console.error('Error fetching posts:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch posts');
-        setPosts([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Filter posts based on search and active filter
+  const filteredPosts = posts.filter(post => {
+    // Apply status filter
+    if (activeFilter === 'published' && !post.is_published) return false;
+    if (activeFilter === 'draft' && post.is_published) return false;
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      return (
+        post.title.toLowerCase().includes(query) ||
+        (post.author?.name && post.author.name.toLowerCase().includes(query)) ||
+        (post.excerpt && post.excerpt.toLowerCase().includes(query)) ||
+        (post.categories && post.categories.some(cat => cat.toLowerCase().includes(query)))
+      );
+    }
+    
+    return true;
+  });
 
-    fetchPosts();
-  }, []);
-
-  // Filter posts based on search query
-  const filteredPosts = posts.filter(
-    (post) =>
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.author.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Count stats from context posts
+  const publishedCount = posts.filter(p => p.is_published).length;
+  const draftCount = posts.filter(p => !p.is_published).length;
+  const totalCount = posts.length;
 
   // Function to handle post deletion
   const handleDeletePost = async (postId: string, postTitle: string) => {
@@ -128,8 +105,8 @@ const AdminPosts = () => {
           throw new Error('Failed to delete post');
         }
 
-        // Remove the deleted post from state
-        setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+        // Refresh posts after deletion - this will update the context
+        await refreshPosts();
         
         await showAlert.fire({
           title: 'Deleted!',
@@ -150,7 +127,7 @@ const AdminPosts = () => {
   };
 
   // Function to toggle publish status
-  const handleTogglePublish = async (post: Post) => {
+  const handleTogglePublish = async (post: any) => {
     const newStatus = !post.is_published;
     const action = newStatus ? 'publish' : 'unpublish';
     
@@ -172,7 +149,7 @@ const AdminPosts = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            isPublished: newStatus,
+            is_published: newStatus,
           }),
         });
 
@@ -180,12 +157,8 @@ const AdminPosts = () => {
           throw new Error('Failed to update post status');
         }
 
-        const updatedPost = await response.json();
-        
-        // Update the post in state
-        setPosts(prevPosts => 
-          prevPosts.map(p => p.id === post.id ? updatedPost : p)
-        );
+        // Refresh posts after status change - updates context
+        await refreshPosts();
         
         await showAlert.fire({
           title: 'Success!',
@@ -205,31 +178,8 @@ const AdminPosts = () => {
     }
   };
 
-  // Function to show error alert
-  const showErrorAlert = (message: string) => {
-    showAlert.fire({
-      title: 'Error!',
-      text: message,
-      icon: 'error',
-    });
-  };
-
   // Loading state
-  if (isLoading) {
-    return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C29307] mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading posts...</p>
-          </div>
-        </div>
-      </AdminLayout>
-    );
-  }
-
-  // Error state
-  if (error) {
+  if (isLoading && posts.length === 0) {
     return (
       <AdminLayout>
         <div className="space-y-6">
@@ -245,15 +195,11 @@ const AdminPosts = () => {
               </Button>
             </Link>
           </div>
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-            <p className="text-destructive">Error: {error}</p>
-            <Button 
-              onClick={() => window.location.reload()} 
-              variant="outline" 
-              className="mt-2"
-            >
-              Try Again
-            </Button>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C29307] mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading posts...</p>
+            </div>
           </div>
         </div>
       </AdminLayout>
@@ -263,42 +209,127 @@ const AdminPosts = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">Posts</h1>
             <p className="text-muted-foreground">
-              {posts.length} {posts.length === 1 ? 'post' : 'posts'} total
+              {totalCount} total posts ({publishedCount} published, {draftCount} drafts)
             </p>
           </div>
-          <Link href="/blog/admin/posts/new">
-            <Button className="bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90">
-              <Plus className="w-4 h-4 mr-2" />
-              New Post
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={refreshPosts}
+              disabled={isLoading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
-          </Link>
+            <Link href="/blog/admin/posts/new">
+              <Button className="bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90">
+                <Plus className="w-4 h-4 mr-2" />
+                New Post
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search posts..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+      
+
+        {/* Error message */}
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-destructive font-medium">Error Loading Posts</p>
+                <p className="text-sm text-destructive/80 mt-1">{error}</p>
+              </div>
+              <Button 
+                onClick={refreshPosts} 
+                variant="outline" 
+                size="sm"
+                disabled={isLoading}
+              >
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Filters and Search */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search posts by title, author, or category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Filter Buttons */}
+          <div className="flex gap-2">
+            <Button
+              variant={activeFilter === 'all' ? "default" : "outline"}
+              onClick={() => setActiveFilter('all')}
+              className={`flex items-center gap-2 ${activeFilter === 'all' ? 'bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90' : ''}`}
+            >
+              <Filter className="w-4 h-4" />
+              All ({totalCount})
+            </Button>
+            <Button
+              variant={activeFilter === 'published' ? "default" : "outline"}
+              onClick={() => setActiveFilter('published')}
+              className={`flex items-center gap-2 ${activeFilter === 'published' ? 'bg-green-600 text-white hover:bg-green-700' : ''}`}
+            >
+              <CheckCircle className="w-4 h-4" />
+              Published ({publishedCount})
+            </Button>
+            <Button
+              variant={activeFilter === 'draft' ? "default" : "outline"}
+              onClick={() => setActiveFilter('draft')}
+              className={`flex items-center gap-2 ${activeFilter === 'draft' ? 'bg-yellow-600 text-white hover:bg-yellow-700' : ''}`}
+            >
+              <Circle className="w-4 h-4" />
+              Drafts ({draftCount})
+            </Button>
+          </div>
+        </div>
+
+        {/* Results Info */}
+        <div className="bg-muted/30 rounded-lg p-3">
+          <p className="text-sm text-muted-foreground">
+            Showing {filteredPosts.length} of {totalCount} posts
+            {activeFilter !== 'all' && ` (${activeFilter} only)`}
+            {searchQuery && ` matching "${searchQuery}"`}
+          </p>
         </div>
 
         {/* Posts Table */}
         {filteredPosts.length === 0 ? (
           <div className="border border-border rounded-lg p-8 text-center">
-            {searchQuery ? (
+            {searchQuery || activeFilter !== 'all' ? (
               <>
                 <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="text-lg font-semibold mb-2">No posts found</h3>
-                <p className="text-muted-foreground">
-                  No posts match your search query "{searchQuery}"
+                <p className="text-muted-foreground mb-4">
+                  {searchQuery 
+                    ? `No posts match your search query "${searchQuery}"`
+                    : `No ${activeFilter} posts found`}
                 </p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setActiveFilter('all');
+                  }}
+                >
+                  Clear filters
+                </Button>
               </>
             ) : (
               <>
@@ -323,12 +354,13 @@ const AdminPosts = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
+                  <TableHead className="w-[300px]">Title</TableHead>
                   <TableHead>Author</TableHead>
                   <TableHead>Categories</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="w-[100px]">Views</TableHead>
+                  <TableHead className="w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -341,49 +373,88 @@ const AdminPosts = () => {
                             src={post.featured_image}
                             alt={post.title}
                             className="w-10 h-10 rounded object-cover"
+                            loading="lazy"
                           />
                         ) : (
                           <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
                             <span className="text-xs text-muted-foreground">No image</span>
                           </div>
                         )}
-                        <span className="font-medium line-clamp-1 max-w-[250px]">
-                          {post.title}
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium line-clamp-1">
+                            {post.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground line-clamp-1">
+                            /{post.slug}
+                          </p>
+                          {post.excerpt && (
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                              {post.excerpt}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>{post.author.name}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        {post.categories.slice(0, 2).map((category, index) => (
-                          <span
+                      <div className="flex items-center gap-2">
+                        <span>{post.author?.name || 'Unknown Author'}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        {post.categories && post.categories.slice(0, 2).map((category, index) => (
+                          <Badge
                             key={index}
-                            className="px-2 py-0.5 text-xs bg-secondary rounded"
+                            variant="secondary"
+                            className="text-xs"
                           >
                             {category}
-                          </span>
+                          </Badge>
                         ))}
-                        {post.categories.length > 2 && (
-                          <span className="px-2 py-0.5 text-xs text-muted-foreground">
+                        {post.categories && post.categories.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
                             +{post.categories.length - 2}
-                          </span>
+                          </Badge>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <button
                         onClick={() => handleTogglePublish(post)}
-                        className={`px-2 py-1 text-xs rounded-full cursor-pointer transition-colors ${
+                        className={`px-3 py-1 text-xs rounded-full cursor-pointer transition-colors flex items-center gap-1 ${
                           post.is_published
-                            ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
-                            : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:hover:bg-yellow-800"
+                            ? "bg-green-100 text-green-700 hover:bg-green-200"
+                            : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
                         }`}
                       >
-                        {post.is_published ? "Published" : "Draft"}
+                        {post.is_published ? (
+                          <>
+                            <CheckCircle className="w-3 h-3" />
+                            Published
+                          </>
+                        ) : (
+                          <>
+                            <Circle className="w-3 h-3" />
+                            Draft
+                          </>
+                        )}
                       </button>
+                      {post.published_at && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(post.published_at), "MMM d, yyyy")}
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {format(new Date(post.created_at), "MMM d, yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {post.view_count || 0} views
+                      </Badge>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {post.comments_count || 0} comments
+                      </div>
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
