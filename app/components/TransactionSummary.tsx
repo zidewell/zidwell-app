@@ -15,7 +15,7 @@ interface TransactionSummaryProps {
   confirmTransaction: boolean;
   onBack: () => void;
   onConfirm: () => void;
-  paymentMethod?: "checkout" | "virtual_account" | "bank_transfer";
+   paymentMethod?: "checkout" | "virtual_account" | "bank_transfer" | "p2p";
   isP2P?: boolean; 
 }
 

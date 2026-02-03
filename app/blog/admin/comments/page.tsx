@@ -22,7 +22,7 @@ const AdminComments = () => {
 
   // Flatten all comments from all posts
   const allComments = blogPosts.flatMap((post) =>
-    post.comments?.map((comment) => ({
+    post.comments?.map((comment:any) => ({
       ...comment,
       postTitle: post.title,
       postSlug: post.slug,

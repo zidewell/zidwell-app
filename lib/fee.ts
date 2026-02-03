@@ -7,8 +7,8 @@ export type FeeResult = {
 
 export function calculateFees(
   amount: number,
-  type: "transfer" | "deposit" | "card",
-  paymentMethod: "checkout" | "virtual_account" | "bank_transfer" = "checkout"
+ type: "transfer" | "deposit" | "card",
+  paymentMethod: "checkout" | "virtual_account" | "bank_transfer" | "p2p" = "checkout"
 ): FeeResult {
   const am = Number(amount) || 0;
 

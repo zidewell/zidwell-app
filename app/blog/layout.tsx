@@ -1,4 +1,4 @@
-"use client";
+
 
 import { BlogProvider } from "@/app/context/BlogContext";
 

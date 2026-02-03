@@ -5,7 +5,7 @@ import { calculateFees, formatNaira } from "@/lib/fee";
 type Props = {
   type: "transfer" | "deposit" | "card";
   amount?: number;
-  paymentMethod?: "checkout" | "virtual_account" | "bank_transfer";
+  paymentMethod?: "checkout" | "virtual_account" | "bank_transfer" | "p2p";
   onFeeCalculated?: (fee: number, total: number) => void; 
 };
 

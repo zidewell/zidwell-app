@@ -653,13 +653,15 @@ export default function Transfer() {
       (!bankCode || !accountNumber || !accountName)) ||
     (transferType === "p2p" && (!recepientAcc || !p2pDetails?.id));
 
-  const getPaymentMethod = (): PaymentMethod => {
-    if (transferType === "my-account" || transferType === "other-bank") {
-      return "bank_transfer";
-    }
+const getPaymentMethod = (): PaymentMethod => {
+  if (transferType === "p2p") {
+    return "p2p";
+  }
+  if (transferType === "my-account" || transferType === "other-bank") {
     return "bank_transfer";
-  };
-
+  }
+  return "bank_transfer";
+};
   return (
     <>
       <PinPopOver
