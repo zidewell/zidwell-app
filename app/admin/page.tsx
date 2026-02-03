@@ -355,8 +355,7 @@ export default function AdminDashboard() {
   const nombaBalanceRaw = Number(summaryData?.nombaBalance ?? 0);
   const totalAppRevenue = Number(summaryData?.totalAppRevenue ?? 0);
   const transactionFees = Number(summaryData?.transactionFees ?? 0);
-  const platformFees = Number(summaryData?.platformFees ?? 0);
-  const invoiceFees = Number(summaryData?.invoiceFees ?? 0);
+  const platformFees = Number(summaryData?.platformFees ?? 0); // This is the 2% platform revenue
   const contractFees = Number(summaryData?.contractFees ?? 0);
   const totalContractAmount = Number(summaryData?.totalContractAmount ?? 0);
   const contractPaymentsCount = Number(summaryData?.contractPaymentsCount ?? 0);
@@ -391,9 +390,10 @@ export default function AdminDashboard() {
       ? ((contractFees / totalAppRevenue) * 100).toFixed(1)
       : "0";
 
-  const invoiceRevenueShare =
+  // Platform revenue share calculation (2% platform fees)
+  const platformRevenueShare =
     totalAppRevenue > 0
-      ? ((invoiceFees / totalAppRevenue) * 100).toFixed(1)
+      ? ((platformFees / totalAppRevenue) * 100).toFixed(1)
       : "0";
 
   const avgContractValue =
@@ -428,7 +428,7 @@ export default function AdminDashboard() {
   const prevPaidInvoices = Number(summaryData?.prevPaidInvoices ?? 0);
   const prevUnpaidInvoices = Number(summaryData?.prevUnpaidInvoices ?? 0);
   const prevContractFees = Number(summaryData?.prevContractFees ?? 0);
-  const prevInvoiceFees = Number(summaryData?.prevInvoiceFees ?? 0);
+  // Note: We don't have prevPlatformFees since it's a new field
 
   const calculateGrowth = (current: number, previous: number): number => {
     if (previous === 0) return current > 0 ? 100 : 0;
@@ -442,7 +442,8 @@ export default function AdminDashboard() {
     prevTotalAppRevenue
   );
   const contractRevenueGrowth = calculateGrowth(contractFees, prevContractFees);
-  const invoiceRevenueGrowth = calculateGrowth(invoiceFees, prevInvoiceFees);
+  // Platform fees growth starts from 0 since we don't have previous data
+  const platformFeesGrowth = calculateGrowth(platformFees, 0);
   const contractsGrowth = calculateGrowth(totalContracts, prevTotalContracts);
   const pendingContractsGrowth = calculateGrowth(
     pendingContracts,
@@ -486,14 +487,9 @@ export default function AdminDashboard() {
       color: CHART_COLORS.revenue_breakdown.transfers,
     },
     {
-      name: "Platform Fees",
+      name: "Platform Fees (2%)",
       value: platformFees,
       color: CHART_COLORS.revenue_breakdown.platform,
-    },
-    {
-      name: "Invoice Fees",
-      value: invoiceFees,
-      color: CHART_COLORS.revenue_breakdown.invoice,
     },
     {
       name: "Contract Fees",
@@ -728,7 +724,7 @@ export default function AdminDashboard() {
   const calculateContractRevenueGrowth = (): number => {
     const currentRevenue =
       metricsData?.revenue_breakdown?.[range]?.contract || 0;
-    const prevRevenue = prevContractFees; // From summaryData
+    const prevRevenue = prevContractFees;
 
     if (prevRevenue === 0 && currentRevenue > 0) return 100;
 
@@ -894,12 +890,12 @@ export default function AdminDashboard() {
                 })`}
               />
               <KPICard
-                title="Invoice Revenue"
-                value={formatCurrency(invoiceFees)}
-                growth={<GrowthIndicator value={invoiceRevenueGrowth} />}
-                icon={<File className="w-5 h-5 text-purple-600" />}
+                title="Platform Revenue (2%)"
+                value={formatCurrency(platformFees)}
+                growth={<GrowthIndicator value={platformFeesGrowth} />}
+                icon={<Percent className="w-5 h-5 text-purple-600" />}
                 className="border-l-4 border-l-purple-500 bg-linear-to-r from-purple-50 to-white"
-                subtitle="Revenue from invoices"
+                subtitle="2% platform fee from invoices"
               />
               <KPICard
                 title="Total Users"
@@ -1635,8 +1631,8 @@ export default function AdminDashboard() {
                       <div className="text-xs text-green-600 mt-1">
                         Contract: {formatCurrency(revenue?.contract || 0)}
                       </div>
-                      <div className="text-xs text-indigo-600 mt-1">
-                        Invoice: {formatCurrency(revenue?.invoice || 0)}
+                      <div className="text-xs text-purple-600 mt-1">
+                        Platform (2%): {formatCurrency(revenue?.platform || 0)}
                       </div>
                     </div>
                   );
@@ -1659,7 +1655,7 @@ export default function AdminDashboard() {
                           bill_payment: "Bill Payment",
                           invoice: "Invoice",
                           contract: "Contract",
-                          platform: "Platform",
+                          platform: "Platform (2%)",
                         };
                         return [
                           formatCurrency(value),
@@ -1688,7 +1684,7 @@ export default function AdminDashboard() {
                       name="Contract"
                       radius={[4, 4, 0, 0]}
                     />
-                    <Bar dataKey="platform" fill="#84cc16" name="Platform" />
+                    <Bar dataKey="platform" fill="#84cc16" name="Platform (2%)" />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -1864,21 +1860,21 @@ export default function AdminDashboard() {
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             (tx.type?.toLowerCase() || "").includes("fee")
                               ? "bg-amber-100 text-amber-800"
-                              : (tx.type?.toLowerCase() || "").includes(
-                                  "deposit"
-                                ) ||
-                                (tx.type?.toLowerCase() || "").includes(
-                                  "received"
-                                )
+                            : (tx.type?.toLowerCase() || "").includes(
+                                "deposit"
+                              ) ||
+                              (tx.type?.toLowerCase() || "").includes(
+                                "received"
+                              )
                               ? "bg-green-100 text-green-800"
-                              : (tx.type?.toLowerCase() || "").includes(
-                                  "withdrawal"
-                                ) ||
-                                (tx.type?.toLowerCase() || "").includes("sent")
+                            : (tx.type?.toLowerCase() || "").includes(
+                                "withdrawal"
+                              ) ||
+                              (tx.type?.toLowerCase() || "").includes("sent")
                               ? "bg-red-100 text-red-800"
-                              : (tx.type?.toLowerCase() || "").includes(
-                                  "contract"
-                                )
+                            : (tx.type?.toLowerCase() || "").includes(
+                                "contract"
+                              )
                               ? "bg-indigo-100 text-indigo-800"
                               : "bg-gray-100 text-gray-800"
                           }`}
@@ -1891,7 +1887,7 @@ export default function AdminDashboard() {
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             tx.status === "success"
                               ? "bg-green-100 text-green-800"
-                              : tx.status === "pending"
+                            : tx.status === "pending"
                               ? "bg-yellow-100 text-yellow-800"
                               : "bg-red-100 text-red-800"
                           }`}
@@ -1949,9 +1945,9 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Invoice Revenue</div>
+              <div className="text-sm text-gray-500">Platform Revenue (2%)</div>
               <div className="text-2xl font-bold text-gray-900">
-                {formatCurrency(invoiceFees)}
+                {formatCurrency(platformFees)}
               </div>
             </div>
           </div>

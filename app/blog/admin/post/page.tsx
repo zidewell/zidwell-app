@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -32,60 +32,40 @@ const AdminPosts = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const { posts, isLoading, error, refreshPosts } = useBlog();
 
-  // Debug logging
-  useEffect(() => {
-    console.log("AdminPosts Component:");
-    console.log("- Total posts:", posts.length);
-    console.log("- Is loading:", isLoading);
-    console.log("- Error:", error);
-    if (posts.length > 0) {
-      console.log("- Sample post:", {
-        id: posts[0].id,
-        title: posts[0].title,
-        is_published: posts[0].is_published,
-        author: posts[0].author,
-        categories: posts[0].categories
-      });
-    }
-  }, [posts, isLoading, error]);
-
-  // Initialize SweetAlert
-  const showAlert = Swal.mixin({
-    customClass: {
-      confirmButton: "bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90",
-      cancelButton: "bg-gray-200 hover:bg-gray-300",
-    },
-    buttonsStyling: true,
-  });
-
   // Filter posts based on search and active filter
-  const filteredPosts = posts.filter(post => {
-    // Apply status filter
-    if (activeFilter === 'published' && !post.is_published) return false;
-    if (activeFilter === 'draft' && post.is_published) return false;
-    
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      return (
-        post.title.toLowerCase().includes(query) ||
-        (post.author?.name && post.author.name.toLowerCase().includes(query)) ||
-        (post.excerpt && post.excerpt.toLowerCase().includes(query)) ||
-        (post.categories && post.categories.some(cat => cat.toLowerCase().includes(query)))
-      );
-    }
-    
-    return true;
-  });
+  const filteredPosts = useMemo(() => {
+    return posts.filter(post => {
+      // Apply status filter
+      if (activeFilter === 'published' && !post.is_published) return false;
+      if (activeFilter === 'draft' && post.is_published) return false;
+      
+      // Apply search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return (
+          post.title.toLowerCase().includes(query) ||
+          (post.author?.name && post.author.name.toLowerCase().includes(query)) ||
+          (post.excerpt && post.excerpt.toLowerCase().includes(query)) ||
+          (post.categories && post.categories.some(cat => cat.toLowerCase().includes(query)))
+        );
+      }
+      
+      return true;
+    });
+  }, [posts, activeFilter, searchQuery]);
 
   // Count stats from context posts
-  const publishedCount = posts.filter(p => p.is_published).length;
-  const draftCount = posts.filter(p => !p.is_published).length;
-  const totalCount = posts.length;
+  const stats = useMemo(() => {
+    const publishedCount = posts.filter(p => p.is_published).length;
+    const draftCount = posts.filter(p => !p.is_published).length;
+    const totalCount = posts.length;
+    
+    return { publishedCount, draftCount, totalCount };
+  }, [posts]);
 
   // Function to handle post deletion
   const handleDeletePost = async (postId: string, postTitle: string) => {
-    const result = await showAlert.fire({
+    const result = await Swal.fire({
       title: 'Are you sure?',
       text: `You are about to delete "${postTitle}". This action cannot be undone!`,
       icon: 'warning',
@@ -93,6 +73,7 @@ const AdminPosts = () => {
       confirmButtonText: 'Yes, delete it!',
       cancelButtonText: 'Cancel',
       reverseButtons: true,
+      confirmButtonColor: '#dc2626',
     });
 
     if (result.isConfirmed) {
@@ -105,10 +86,10 @@ const AdminPosts = () => {
           throw new Error('Failed to delete post');
         }
 
-        // Refresh posts after deletion - this will update the context
+        // Refresh posts after deletion
         await refreshPosts();
         
-        await showAlert.fire({
+        Swal.fire({
           title: 'Deleted!',
           text: 'Your post has been deleted.',
           icon: 'success',
@@ -117,7 +98,7 @@ const AdminPosts = () => {
         });
       } catch (err) {
         console.error('Error deleting post:', err);
-        await showAlert.fire({
+        Swal.fire({
           title: 'Error!',
           text: 'Failed to delete post. Please try again.',
           icon: 'error',
@@ -131,7 +112,7 @@ const AdminPosts = () => {
     const newStatus = !post.is_published;
     const action = newStatus ? 'publish' : 'unpublish';
     
-    const result = await showAlert.fire({
+    const result = await Swal.fire({
       title: `Are you sure?`,
       text: `You are about to ${action} "${post.title}"`,
       icon: 'question',
@@ -139,6 +120,7 @@ const AdminPosts = () => {
       confirmButtonText: `Yes, ${action} it!`,
       cancelButtonText: 'Cancel',
       reverseButtons: true,
+      confirmButtonColor: '#059669',
     });
 
     if (result.isConfirmed) {
@@ -157,10 +139,10 @@ const AdminPosts = () => {
           throw new Error('Failed to update post status');
         }
 
-        // Refresh posts after status change - updates context
+        // Refresh posts after status change
         await refreshPosts();
         
-        await showAlert.fire({
+        Swal.fire({
           title: 'Success!',
           text: `Post has been ${action}ed successfully.`,
           icon: 'success',
@@ -169,13 +151,18 @@ const AdminPosts = () => {
         });
       } catch (err) {
         console.error('Error updating post:', err);
-        await showAlert.fire({
+        Swal.fire({
           title: 'Error!',
           text: `Failed to ${action} post. Please try again.`,
           icon: 'error',
         });
       }
     }
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setActiveFilter('all');
   };
 
   // Loading state
@@ -214,7 +201,7 @@ const AdminPosts = () => {
           <div>
             <h1 className="text-2xl font-semibold">Posts</h1>
             <p className="text-muted-foreground">
-              {totalCount} total posts ({publishedCount} published, {draftCount} drafts)
+              {stats.totalCount} total posts ({stats.publishedCount} published, {stats.draftCount} drafts)
             </p>
           </div>
           <div className="flex gap-2">
@@ -235,8 +222,6 @@ const AdminPosts = () => {
             </Link>
           </div>
         </div>
-
-      
 
         {/* Error message */}
         {error && (
@@ -268,6 +253,7 @@ const AdminPosts = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
+              disabled={isLoading}
             />
           </div>
 
@@ -276,38 +262,43 @@ const AdminPosts = () => {
             <Button
               variant={activeFilter === 'all' ? "default" : "outline"}
               onClick={() => setActiveFilter('all')}
+              disabled={isLoading}
               className={`flex items-center gap-2 ${activeFilter === 'all' ? 'bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90' : ''}`}
             >
               <Filter className="w-4 h-4" />
-              All ({totalCount})
+              All ({stats.totalCount})
             </Button>
             <Button
               variant={activeFilter === 'published' ? "default" : "outline"}
               onClick={() => setActiveFilter('published')}
+              disabled={isLoading}
               className={`flex items-center gap-2 ${activeFilter === 'published' ? 'bg-green-600 text-white hover:bg-green-700' : ''}`}
             >
               <CheckCircle className="w-4 h-4" />
-              Published ({publishedCount})
+              Published ({stats.publishedCount})
             </Button>
             <Button
               variant={activeFilter === 'draft' ? "default" : "outline"}
               onClick={() => setActiveFilter('draft')}
+              disabled={isLoading}
               className={`flex items-center gap-2 ${activeFilter === 'draft' ? 'bg-yellow-600 text-white hover:bg-yellow-700' : ''}`}
             >
               <Circle className="w-4 h-4" />
-              Drafts ({draftCount})
+              Drafts ({stats.draftCount})
             </Button>
           </div>
         </div>
 
         {/* Results Info */}
-        <div className="bg-muted/30 rounded-lg p-3">
-          <p className="text-sm text-muted-foreground">
-            Showing {filteredPosts.length} of {totalCount} posts
-            {activeFilter !== 'all' && ` (${activeFilter} only)`}
-            {searchQuery && ` matching "${searchQuery}"`}
-          </p>
-        </div>
+        {posts.length > 0 && (
+          <div className="bg-muted/30 rounded-lg p-3">
+            <p className="text-sm text-muted-foreground">
+              Showing {filteredPosts.length} of {stats.totalCount} posts
+              {activeFilter !== 'all' && ` (${activeFilter} only)`}
+              {searchQuery && ` matching "${searchQuery}"`}
+            </p>
+          </div>
+        )}
 
         {/* Posts Table */}
         {filteredPosts.length === 0 ? (
@@ -323,10 +314,8 @@ const AdminPosts = () => {
                 </p>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setActiveFilter('all');
-                  }}
+                  onClick={clearFilters}
+                  disabled={isLoading}
                 >
                   Clear filters
                 </Button>
@@ -351,145 +340,151 @@ const AdminPosts = () => {
           </div>
         ) : (
           <div className="border border-border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[300px]">Title</TableHead>
-                  <TableHead>Author</TableHead>
-                  <TableHead>Categories</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="w-[100px]">Views</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPosts.map((post) => (
-                  <TableRow key={post.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        {post.featured_image ? (
-                          <img
-                            src={post.featured_image}
-                            alt={post.title}
-                            className="w-10 h-10 rounded object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                            <span className="text-xs text-muted-foreground">No image</span>
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium line-clamp-1">
-                            {post.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground line-clamp-1">
-                            /{post.slug}
-                          </p>
-                          {post.excerpt && (
-                            <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
-                              {post.excerpt}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[300px]">Title</TableHead>
+                    <TableHead>Author</TableHead>
+                    <TableHead>Categories</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="w-[100px]">Views</TableHead>
+                    <TableHead className="w-[80px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPosts.map((post) => (
+                    <TableRow key={post.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {post.featured_image ? (
+                            <img
+                              src={post.featured_image}
+                              alt={post.title}
+                              className="w-10 h-10 rounded object-cover"
+                              loading="lazy"
+                              width={40}
+                              height={40}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                              <span className="text-xs text-muted-foreground">No image</span>
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium line-clamp-1">
+                              {post.title}
                             </p>
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              /{post.slug}
+                            </p>
+                            {post.excerpt && (
+                              <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                                {post.excerpt}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span>{post.author?.name || 'Unknown Author'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1 max-w-[200px]">
+                          {post.categories && post.categories.slice(0, 2).map((category, index) => (
+                            <Badge
+                              key={`${post.id}-category-${index}`}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {category}
+                            </Badge>
+                          ))}
+                          {post.categories && post.categories.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{post.categories.length - 2}
+                            </Badge>
                           )}
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span>{post.author?.name || 'Unknown Author'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1 max-w-[200px]">
-                        {post.categories && post.categories.slice(0, 2).map((category, index) => (
-                          <Badge
-                            key={index}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {category}
-                          </Badge>
-                        ))}
-                        {post.categories && post.categories.length > 2 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{post.categories.length - 2}
-                          </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => handleTogglePublish(post)}
+                          disabled={isLoading}
+                          className={`px-3 py-1 text-xs rounded-full cursor-pointer transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed ${
+                            post.is_published
+                              ? "bg-green-100 text-green-700 hover:bg-green-200"
+                              : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                          }`}
+                        >
+                          {post.is_published ? (
+                            <>
+                              <CheckCircle className="w-3 h-3" />
+                              Published
+                            </>
+                          ) : (
+                            <>
+                              <Circle className="w-3 h-3" />
+                              Draft
+                            </>
+                          )}
+                        </button>
+                        {post.published_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(post.published_at), "MMM d, yyyy")}
+                          </p>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        onClick={() => handleTogglePublish(post)}
-                        className={`px-3 py-1 text-xs rounded-full cursor-pointer transition-colors flex items-center gap-1 ${
-                          post.is_published
-                            ? "bg-green-100 text-green-700 hover:bg-green-200"
-                            : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                        }`}
-                      >
-                        {post.is_published ? (
-                          <>
-                            <CheckCircle className="w-3 h-3" />
-                            Published
-                          </>
-                        ) : (
-                          <>
-                            <Circle className="w-3 h-3" />
-                            Draft
-                          </>
-                        )}
-                      </button>
-                      {post.published_at && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(post.published_at), "MMM d, yyyy")}
-                        </p>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(post.created_at), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {post.view_count || 0} views
-                      </Badge>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {post.comments_count || 0} comments
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <Link href={`/blog/post-blog/${post.slug}`} target="_blank">
-                            <DropdownMenuItem>
-                              <Eye className="w-4 h-4 mr-2" />
-                              View
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {format(new Date(post.created_at), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {post.view_count || 0} views
+                        </Badge>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {post.comments_count || 0} comments
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" disabled={isLoading}>
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <Link href={`/blog/post-blog/${post.slug}`} target="_blank">
+                              <DropdownMenuItem disabled={isLoading}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                View
+                              </DropdownMenuItem>
+                            </Link>
+                            <Link href={`/blog/admin/posts/${post.id}/edit`}>
+                              <DropdownMenuItem disabled={isLoading}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            </Link>
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => handleDeletePost(post.id, post.title)}
+                              disabled={isLoading}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
                             </DropdownMenuItem>
-                          </Link>
-                          <Link href={`/blog/admin/posts/${post.id}/edit`}>
-                            <DropdownMenuItem>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                          </Link>
-                          <DropdownMenuItem 
-                            className="text-destructive"
-                            onClick={() => handleDeletePost(post.id, post.title)}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>

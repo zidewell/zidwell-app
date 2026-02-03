@@ -1,4 +1,3 @@
-// app/context/BlogContext.tsx
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -52,7 +51,7 @@ interface BlogProviderProps {
 
 export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refreshPosts = async () => {
@@ -60,79 +59,52 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      console.log('Fetching posts from API...');
-      
-      // Skip cache to get fresh data
-      const response = await fetch('/api/blog/posts?cache=false&limit=100');
+      const response = await fetch('/api/blog/posts?limit=20');
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`Failed to load posts: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('API response structure:', Object.keys(data));
       
-      // Your API returns { posts: [...], pagination: {...} }
       let fetchedPosts: any[] = [];
       
       if (data.posts && Array.isArray(data.posts)) {
         fetchedPosts = data.posts;
-        console.log(`Found ${fetchedPosts.length} posts in 'posts' property`);
       } else if (Array.isArray(data)) {
         fetchedPosts = data;
-        console.log(`Found ${fetchedPosts.length} posts directly in array`);
       } else {
-        console.error('Unexpected API response format:', data);
         setError('Invalid response format from server');
         setPosts([]);
         return;
       }
       
-      console.log('First post sample:', fetchedPosts[0] ? {
-        id: fetchedPosts[0].id,
-        title: fetchedPosts[0].title,
-        is_published: fetchedPosts[0].is_published,
-        author: fetchedPosts[0].author
-      } : 'No posts');
+      // Simple transformation
+      const transformedPosts = fetchedPosts.map((post: any) => ({
+        id: post.id || '',
+        title: post.title || 'Untitled',
+        slug: post.slug || '',
+        excerpt: post.excerpt || null,
+        content: post.content || '',
+        categories: post.categories || [],
+        tags: post.tags || [],
+        featured_image: post.featured_image || null,
+        is_published: post.is_published || false,
+        author_id: post.author_id || '',
+        author: {
+          id: post.author?.id || post.author_id || '',
+          name: post.author?.name || post.author_name || 'Unknown Author',
+          avatar: post.author?.avatar || post.author_avatar || null,
+          bio: post.author?.bio || post.author_bio || null
+        },
+        published_at: post.published_at || null,
+        created_at: post.created_at || new Date().toISOString(),
+        updated_at: post.updated_at || post.created_at || new Date().toISOString(),
+        view_count: post.view_count || 0,
+        likes_count: post.likes_count || 0,
+        comments_count: post.comments_count || post.comment_count || 0
+      }));
       
-      // Transform posts to match the expected format
-      const transformedPosts = fetchedPosts.map((post: any) => {
-        // Handle different author formats
-        const authorName = post.author?.name || 
-                          post.author_name || 
-                          (post.author && typeof post.author === 'object' ? post.author.name : 'Unknown Author');
-        
-        const authorId = post.author?.id || 
-                        post.author_id || 
-                        (post.author && typeof post.author === 'object' ? post.author.id : '');
-        
-        return {
-          id: post.id || '',
-          title: post.title || 'Untitled',
-          slug: post.slug || '',
-          excerpt: post.excerpt || null,
-          content: post.content || '',
-          categories: post.categories || [],
-          tags: post.tags || [],
-          featured_image: post.featured_image || null,
-          is_published: post.is_published || false,
-          author_id: authorId,
-          author: {
-            id: authorId,
-            name: authorName,
-            avatar: post.author?.avatar || post.author_avatar || null,
-            bio: post.author?.bio || post.author_bio || null
-          },
-          published_at: post.published_at || null,
-          created_at: post.created_at || new Date().toISOString(),
-          updated_at: post.updated_at || post.created_at || new Date().toISOString(),
-          view_count: post.view_count || 0,
-          likes_count: post.likes_count || 0,
-          comments_count: post.comments_count || post.comment_count || 0
-        };
-      });
-      
-      console.log(`Transformed ${transformedPosts.length} posts`);
       setPosts(transformedPosts);
       
     } catch (err) {

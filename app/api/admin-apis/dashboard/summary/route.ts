@@ -320,7 +320,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   let invoicesQuery = supabaseAdmin
     .from("invoices")
     .select(
-      "id, status, created_at, paid_amount, total_amount, fee_amount, subtotal"
+      "id, status, created_at, paid_amount, total_amount, subtotal"
     )
     .eq("status", "paid");
 
@@ -347,11 +347,13 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     0
   );
 
-  const totalInvoiceFees = invoicesData.reduce(
-    (s: number, inv: any) => s + Number(inv.fee_amount ?? 0),
-    0
-  );
+  // REMOVED: Redundant totalInvoiceFees calculation
+  // const totalInvoiceFees = invoicesData.reduce(
+  //   (s: number, inv: any) => s + Number(inv.fee_amount ?? 0),
+  //   0
+  // );
 
+  // Get ACTUAL platform fees from invoice_payments table
   let invoicePaymentsQuery = supabaseAdmin
     .from("invoice_payments")
     .select("amount, platform_fee, status, created_at")
@@ -365,6 +367,8 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
 
   const { data: invoicePaymentsRaw } = await invoicePaymentsQuery;
   const invoicePayments = invoicePaymentsRaw || [];
+  
+  // This is the SINGLE SOURCE OF TRUTH for 2% platform revenue
   const totalPlatformFees = invoicePayments.reduce(
     (s: number, p: any) => s + Number(p.platform_fee ?? 0),
     0
@@ -490,7 +494,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
-  // Update combined app revenue to include contract revenue
+  // Update combined app revenue to use ONLY actual platform fees
   const combinedAppRevenue = totalFeesFromColumn + totalPlatformFees + totalContractRevenue;
 
   const monthlyInvoicesMap: Record<string, { count: number; revenue: number }> =
@@ -563,7 +567,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
-  // Add invoice platform fees
+  // Add invoice platform fees (from invoice_payments table - SINGLE SOURCE)
   invoicePayments.forEach((p: any) => {
     const platformFee = Number(p.platform_fee ?? 0);
     if (platformFee > 0) {
@@ -577,19 +581,19 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
-  // Add invoice fees
-  invoicesData.forEach((inv: any) => {
-    const invoiceFee = Number(inv.fee_amount ?? 0);
-    if (invoiceFee > 0) {
-      const d = new Date(inv.created_at);
-      if (isNaN(d.getTime())) return;
-      const key = d.toLocaleString("default", {
-        month: "short",
-        year: "numeric",
-      });
-      monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + invoiceFee;
-    }
-  });
+  // REMOVED: Redundant invoice fees from invoices table
+  // invoicesData.forEach((inv: any) => {
+  //   const invoiceFee = Number(inv.fee_amount ?? 0);
+  //   if (invoiceFee > 0) {
+  //     const d = new Date(inv.created_at);
+  //     if (isNaN(d.getTime())) return;
+  //     const key = d.toLocaleString("default", {
+  //       month: "short",
+  //       year: "numeric",
+  //     });
+  //     monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + invoiceFee;
+  //   }
+  // });
 
   // Add contract payments to monthly revenue
   contractPayments.forEach((p: any) => {
@@ -723,8 +727,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     range: rangeParam,
     totalAppRevenue: combinedAppRevenue,
     transactionFees: totalFeesFromColumn,
-    platformFees: totalPlatformFees,
-    invoiceFees: totalInvoiceFees,
+    platformFees: totalPlatformFees, // SINGLE SOURCE for 2% invoice platform revenue
     contractFees: totalContractRevenue,
     totalContractAmount,
     contractPaymentsCount,

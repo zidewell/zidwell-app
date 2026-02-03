@@ -1,4 +1,3 @@
-// app/api/blog/posts/route.ts
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,35 +6,13 @@ const supabaseBlog = createClient(
   process.env.BLOG_SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Simple in-memory cache
-const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 60 * 1000; // 1 minute
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const slug = searchParams.get("slug");
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skipCache = searchParams.get("cache") === "false";
-
-    // Generate cache key
-    const cacheKey = `posts:${id || slug || 'all'}:${page}:${limit}`;
-
-    // Return cached data if available and not skipped
-    if (!skipCache) {
-      const cached = cache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        console.log('Cache HIT for:', cacheKey);
-        return NextResponse.json({
-          ...cached.data,
-          cached: true
-        });
-      }
-    }
-
-    console.log('Cache MISS for:', cacheKey);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50);
 
     // Single post by ID
     if (id) {
@@ -49,9 +26,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Post not found" }, { status: 404 });
       }
 
-      const response = formatPost(post);
-      cache.set(cacheKey, { data: response, timestamp: Date.now() });
-      return NextResponse.json(response);
+      return NextResponse.json(formatPost(post));
     }
 
     // Single post by slug
@@ -67,37 +42,55 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Post not found" }, { status: 404 });
       }
 
-      const response = formatPost(post);
-      cache.set(cacheKey, { data: response, timestamp: Date.now() });
-      return NextResponse.json(response);
+      return NextResponse.json(formatPost(post));
     }
 
-    // Get all posts
+    // Get all posts with pagination
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    const { data: posts, error, count } = await supabaseBlog
+    let query = supabaseBlog
       .from("blog_posts")
-      .select("*", { count: "exact" })
+      .select("id, title, slug, excerpt, featured_image, categories, is_published, author_id, author_name, published_at, created_at, view_count, comment_count", { 
+        count: "exact" 
+      })
       .order("created_at", { ascending: false })
       .range(from, to);
+
+    const { data: posts, error, count } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const response = {
-      posts: posts.map(formatPost),
+    // Format posts
+    const formattedPosts = posts.map(post => ({
+      id: post.id,
+      title: post.title,
+      slug: post.slug,
+      excerpt: post.excerpt,
+      featured_image: post.featured_image,
+      categories: post.categories || [],
+      is_published: post.is_published,
+      author: {
+        id: post.author_id,
+        name: post.author_name || "Unknown Author",
+      },
+      published_at: post.published_at,
+      created_at: post.created_at,
+      view_count: post.view_count || 0,
+      comments_count: post.comment_count || 0,
+    }));
+
+    return NextResponse.json({
+      posts: formattedPosts,
       pagination: {
         page,
         limit,
         total: count || 0,
         totalPages: Math.ceil((count || 0) / limit)
       }
-    };
-
-    cache.set(cacheKey, { data: response, timestamp: Date.now() });
-    return NextResponse.json(response);
+    });
 
   } catch (error) {
     console.error("Error:", error);
@@ -153,10 +146,6 @@ export async function POST(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    // Clear cache after creating new post
-    cache.clear();
-    console.log('Cache cleared after POST');
 
     return NextResponse.json(formatPost(post), { status: 201 });
 
@@ -219,10 +208,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Clear cache after update
-    cache.clear();
-    console.log('Cache cleared after PUT');
-
     return NextResponse.json(formatPost(post));
 
   } catch (error) {
@@ -251,7 +236,6 @@ export async function PATCH(request: NextRequest) {
       updated_at: new Date().toISOString()
     };
 
-    // Update only specific fields
     if (body.view_count !== undefined) updateData.view_count = body.view_count;
     if (body.likes_count !== undefined) updateData.likes_count = body.likes_count;
     if (body.comment_count !== undefined) updateData.comment_count = body.comment_count;
@@ -272,10 +256,6 @@ export async function PATCH(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    // Clear cache after patch
-    cache.clear();
-    console.log('Cache cleared after PATCH');
 
     return NextResponse.json(formatPost(post));
 
@@ -308,10 +288,6 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    // Clear cache after delete
-    cache.clear();
-    console.log('Cache cleared after DELETE');
 
     return NextResponse.json({ 
       success: true, 

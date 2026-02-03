@@ -41,6 +41,7 @@ const FloatingWhatsApp = () => {
     "/legal",
   
     "/admin",
+    "/blog/admin",
   
   ];
 

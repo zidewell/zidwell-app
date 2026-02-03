@@ -26,10 +26,117 @@ function safeNum(v: any) {
   return Number.isFinite(n) ? n : 0;
 }
 
-      
-    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
-    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
+// Helper function to update invoice totals
+async function updateInvoiceTotals(
+  invoice: any,
+  paidAmountNaira: number
+) {
+  try {
+    const paidAmount = paidAmountNaira;
+
+    const targetQty = Number(invoice.target_quantity || 1);
+    const totalAmount = Number(invoice.total_amount || 0);
+    const currentPaidAmount = Number(invoice.paid_amount || 0);
+    const currentPaidQty = Number(invoice.paid_quantity || 0);
+
+    let newPaidAmount = currentPaidAmount + paidAmount;
+    let newPaidQuantity = currentPaidQty;
+    let newStatus = invoice.status;
+
+    console.log("📊 Invoice update calculations:", {
+      currentPaidAmount,
+      paidAmount,
+      newPaidAmount,
+      totalAmount,
+      targetQty,
+      currentPaidQty,
+      allow_multiple_payments: invoice.allow_multiple_payments,
+    });
+
+    if (invoice.allow_multiple_payments) {
+      // For multiple payments, user can pay any amount
+      // Calculate if enough has been paid to complete a quantity
+      const quantityPaidSoFar = Math.floor(newPaidAmount / totalAmount);
+      
+      console.log(`🔢 Multiple payments - quantity calculation:`, {
+        newPaidAmount,
+        totalAmount,
+        quantityPaidSoFar,
+        currentPaidQty,
+      });
+
+      // Update paid quantity if more quantities have been completed
+      if (quantityPaidSoFar > currentPaidQty) {
+        newPaidQuantity = quantityPaidSoFar;
+        console.log(
+          `✅ Quantity increased: ${currentPaidQty} → ${newPaidQuantity}`
+        );
+      }
+
+      // Determine status based on quantities paid
+      if (newPaidQuantity >= targetQty) {
+        newStatus = "paid";
+        console.log("🎯 All quantities paid - marking as fully paid");
+      } else if (newPaidQuantity > 0 || newPaidAmount > 0) {
+        newStatus = "partially_paid";
+        console.log("📦 Partially paid - some quantities completed");
+      } else {
+        newStatus = invoice.status; // Keep existing status if no payment
+      }
+    } else {
+      // Single payment mode
+      if (newPaidAmount >= totalAmount) {
+        newStatus = "paid";
+        console.log("🎯 Full amount paid - marking as paid");
+      } else if (newPaidAmount > 0) {
+        newStatus = "partially_paid";
+        console.log("💰 Partial payment received");
+      } else {
+        newStatus = invoice.status; // Keep existing status
+      }
+    }
+
+    const updateData: any = {
+      paid_amount: newPaidAmount,
+      paid_quantity: newPaidQuantity,
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (newStatus === "paid") {
+      updateData.paid_at = new Date().toISOString();
+      console.log("⏰ Setting paid_at timestamp");
+    }
+
+    console.log("🔄 Updating invoice with data:", updateData);
+
+    const { error: updateError } = await supabase
+      .from("invoices")
+      .update(updateData)
+      .eq("id", invoice.id);
+
+    if (updateError) {
+      console.error("❌ Failed to update invoice:", updateError);
+      throw updateError;
+    }
+
+    console.log("✅ Invoice totals updated successfully:", {
+      invoice_id: invoice.invoice_id,
+      newPaidAmount,
+      newPaidQuantity,
+      targetQty,
+      newStatus,
+    });
+
+    return { newPaidAmount, newPaidQuantity, newStatus };
+  } catch (error) {
+    console.error("❌ Error in updateInvoiceTotals:", error);
+    throw error;
+  }
+}
 
 async function sendVirtualAccountDepositEmailNotification(
   userId: string,
@@ -438,21 +545,27 @@ async function processInvoicePaymentForDifferentUser(
   console.log("💰 Processing cross-user invoice payment...");
 
   try {
+    // Determine payment method
+    const isP2P = payload.data?.transaction?.type?.includes("p2p") || 
+                 narration?.toLowerCase().includes("p2p");
+    const paymentMethod = isP2P ? "p2p_transfer" : "virtual_account";
+    
     // Create payment record for the invoice
     const { error: paymentError } = await supabase
       .from("invoice_payments")
       .insert([
         {
           invoice_id: invoice.id,
-          user_id: invoice.user_id, // Invoice owner
+          user_id: invoice.user_id, 
           order_reference: transactionId,
           payer_email: payload.data?.customer?.senderEmail || "N/A",
-          payer_name:
-            payload.data?.customer?.senderName || "Virtual Account User",
+          payer_name: payload.data?.customer?.senderName || 
+                     (isP2P ? "P2P User" : "Virtual Account User"),
+          payer_user_id: depositorUserId,
           amount: amount,
           paid_amount: amount,
           status: "completed",
-          payment_method: "virtual_account",
+          payment_method: paymentMethod,
           nomba_transaction_id: transactionId,
           narration: narration,
           paid_at: new Date().toISOString(),
@@ -469,23 +582,28 @@ async function processInvoicePaymentForDifferentUser(
     }
 
     // Apply 2% fee deduction and credit invoice owner
-    const platformFee =
-      invoice.fee_option === "customer" ? invoice.fee_amount : 0;
+    const platformFee = Math.round(amount * 0.02);
     const netAmount = amount - platformFee;
 
     // Credit invoice owner
-    await supabase.rpc("increment_wallet_balance", {
-      user_id: invoice.user_id,
-      amt: netAmount,
-    });
+    const { error: creditError } = await supabase.rpc(
+      "increment_wallet_balance",
+      {
+        user_id: invoice.user_id,
+        amt: netAmount,
+      }
+    );
+
+    if (creditError) {
+      console.error("❌ Failed to credit invoice owner:", creditError);
+    } else {
+      console.log(
+        `✅ Cross-user ${paymentMethod} invoice payment processed. Credited ${invoice.user_id} with ₦${netAmount} (₦${platformFee} 2% fee deducted)`
+      );
+    }
 
     // Update invoice totals
-    // Note: updateInvoiceTotals function is already defined in your code
-    // We need to call it, but we can't reference it here if it's defined inside another function
-    // Let's create a local version or reuse the existing one
-    console.log(
-      `✅ Cross-user invoice payment processed. Credited ${invoice.user_id} with ₦${netAmount} (₦${platformFee} 2% fee deducted)`
-    );
+    await updateInvoiceTotals(invoice, amount);
   } catch (error) {
     console.error("❌ Error in cross-user payment processing:", error);
   }
@@ -655,13 +773,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4) FIXED: Better logic to determine transaction flow
-    console.log("🎯 Determining transaction flow type...");
-
     const isCardPayment = Boolean(orderReference);
     const isVirtualAccountDeposit = Boolean(aliasAccountReference);
 
-    // FIX: Better detection for deposits vs withdrawals
+
     const isDepositEvent =
       eventType === "payment_success" ||
       eventType === "payment.succeeded" ||
@@ -682,6 +797,221 @@ export async function POST(req: NextRequest) {
     console.log("   - isDepositEvent:", isDepositEvent);
     console.log("   - isPayoutOrTransfer:", isPayoutOrTransfer);
     console.log("   - isServicePurchase:", isServicePurchase);
+
+    // ========== P2P CREDIT INVOICE CHECKING ==========
+    const isP2PCredit = transactionType === "p2p_credit" || 
+                       tx.type?.toLowerCase() === "p2p_credit" ||
+                       (payload.data?.transaction?.type && 
+                        payload.data.transaction.type.toLowerCase().includes("p2p"));
+
+    if (isP2PCredit && txStatus === "success") {
+      console.log("💰 Processing P2P credit for invoice checking...");
+      
+      // Extract narration from P2P transaction
+      const narration = tx.narration || "";
+      console.log("📝 P2P Credit Narration:", narration);
+      
+      // Look for invoice pattern (INV_XXXX or INV-XXXX)
+      const invoicePattern = /INV[-_][A-Z0-9]{4}/i;
+      const narrationMatch = narration.match(invoicePattern);
+      
+      if (narrationMatch) {
+        const invoiceReference = narrationMatch[0].toUpperCase();
+        console.log("🧾 Found invoice reference in P2P credit:", invoiceReference);
+        
+        try {
+          // Find the invoice
+          const { data: invoice, error: invoiceError } = await supabase
+            .from("invoices")
+            .select("*")
+            .eq("invoice_id", invoiceReference)
+            .single();
+          
+          if (invoiceError || !invoice) {
+            console.log("❌ Invoice not found for reference:", invoiceReference);
+            // Continue with normal P2P credit processing (will be handled by existing logic)
+            return NextResponse.json({ message: "No invoice found, continuing with normal P2P" }, { status: 200 });
+          } else {
+            console.log("✅ Found invoice:", {
+              invoice_id: invoice.invoice_id,
+              user_id: invoice.user_id,
+              total_amount: invoice.total_amount
+            });
+            
+            // Get the receiver's user ID from aliasAccountReference or payload
+            let receiverUserId = null;
+            
+            // Try to get receiver from aliasAccountReference
+            if (aliasAccountReference) {
+              receiverUserId = aliasAccountReference;
+            }
+            
+            // If no aliasAccountReference, try to find user by wallet ID from payload
+            if (!receiverUserId) {
+              const receiverWalletId = payload.data?.transaction?.receiverWalletId || 
+                                      payload.data?.merchant?.walletId;
+              
+              if (receiverWalletId) {
+                const { data: receiverUser } = await supabase
+                  .from("users")
+                  .select("id")
+                  .eq("wallet_id", receiverWalletId)
+                  .single();
+                
+                if (receiverUser) {
+                  receiverUserId = receiverUser.id;
+                }
+              }
+            }
+            
+            if (!receiverUserId) {
+              console.log("❌ Could not determine receiver user ID for P2P");
+              return NextResponse.json({ message: "Cannot identify receiver" }, { status: 200 });
+            }
+            
+            console.log("👤 P2P Receiver User ID:", receiverUserId);
+            
+            // Check if invoice belongs to P2P receiver
+            if (invoice.user_id === receiverUserId) {
+              console.log("✅ P2P receiver is invoice owner - processing as invoice payment");
+              
+              // PROCESS AS INVOICE PAYMENT WITH PLATFORM FEES
+              const totalAmount = transactionAmount;
+              const platformFeePercentage = 0.02; // 2% platform revenue
+              const platformFee = Math.round(totalAmount * platformFeePercentage);
+              const userAmount = totalAmount - platformFee;
+              
+              console.log(`💰 Revenue calculation for ₦${totalAmount}:`, {
+                total_received: totalAmount,
+                platform_fee: platformFee,
+                user_amount: userAmount,
+                calculation: `₦${totalAmount} - ₦${platformFee} (2% platform) = ₦${userAmount}`,
+              });
+              
+              // Check for duplicate payments
+              const { data: existingPayment, error: checkError } = await supabase
+                .from("invoice_payments")
+                .select("*")
+                .eq("nomba_transaction_id", nombaTransactionId)
+                .maybeSingle();
+              
+              if (existingPayment) {
+                console.log("⚠️ Duplicate P2P invoice payment detected");
+                return NextResponse.json({ success: true }, { status: 200 });
+              }
+              
+              // Create invoice payment record
+              const { error: paymentError } = await supabase
+                .from("invoice_payments")
+                .insert([
+                  {
+                    invoice_id: invoice.id,
+                    user_id: invoice.user_id,
+                    order_reference: nombaTransactionId || `P2P-${Date.now()}`,
+                    payer_name: payload.data?.customer?.senderName || "P2P User",
+                    payer_phone: payload.data?.customer?.senderPhone || "N/A",
+                    amount: totalAmount,
+                    paid_amount: totalAmount,
+                    fee_amount: platformFee,
+                    platform_fee: platformFee,
+                    user_received: userAmount,
+                    status: "completed",
+                    nomba_transaction_id: nombaTransactionId,
+                    payment_method: "p2p_transfer",
+                    bank_name: payload.data?.customer?.bankName || "Nombank MFB",
+                    bank_account: payload.data?.customer?.accountNumber || "N/A",
+                    narration: narration,
+                    paid_at: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                  },
+                ]);
+              
+              if (paymentError) {
+                console.error("❌ Failed to create P2P invoice payment record:", paymentError);
+                return NextResponse.json({ error: "Payment record failed" }, { status: 500 });
+              }
+              
+              // ✅ UPDATE INVOICE TOTALS
+              await updateInvoiceTotals(invoice, totalAmount);
+              
+              // The wallet was already credited with full amount in P2P flow
+              // We need to DEDUCT the platform fee from the wallet
+              const { error: deductError } = await supabase.rpc(
+                "deduct_wallet_balance",
+                {
+                  user_id: invoice.user_id,
+                  amt: platformFee,
+                  transaction_type: "debit",
+                  reference: `PLATFORM_FEE_${nombaTransactionId}`,
+                  description: `2% platform fee for invoice ${invoice.invoice_id}`,
+                }
+              );
+              
+              if (deductError) {
+                console.error("❌ Failed to deduct platform fee:", deductError);
+              } else {
+                console.log(`✅ Deducted ₦${platformFee} platform fee from user ${invoice.user_id}`);
+              }
+              
+              // Send notification to invoice creator
+              try {
+                const { data: creatorData } = await supabase
+                  .from("users")
+                  .select("email, first_name")
+                  .eq("id", invoice.user_id)
+                  .single();
+                
+                if (creatorData?.email) {
+                  await sendInvoiceCreatorNotificationWithFees(
+                    creatorData.email,
+                    invoice.invoice_id,
+                    totalAmount,
+                    userAmount,
+                    platformFee,
+                    payload.data?.customer?.senderName || "P2P User",
+                    payload.data?.customer?.senderEmail || "N/A",
+                    invoice,
+                    0 // No Nomba fee for internal P2P
+                  );
+                }
+              } catch (emailError) {
+                console.error("❌ Email notification failed:", emailError);
+              }
+              
+              console.log("✅ P2P invoice payment processed successfully");
+              return NextResponse.json(
+                {
+                  success: true,
+                  message: "P2P invoice payment processed",
+                  invoice_reference: invoiceReference,
+                  platform_fee: platformFee,
+                },
+                { status: 200 }
+              );
+            } else {
+              console.log("⚠️ P2P receiver is NOT invoice owner");
+              // Process as cross-user invoice payment
+              await processInvoicePaymentForDifferentUser(
+                invoice,
+                receiverUserId,
+                transactionAmount,
+                nombaTransactionId,
+                narration,
+                payload
+              );
+              return NextResponse.json({ success: true }, { status: 200 });
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error processing P2P invoice payment:", error);
+          // Continue with normal P2P credit processing
+        }
+      }
+      
+      // If we reach here, continue with normal P2P credit processing
+      console.log("📝 No invoice reference in P2P credit, processing as normal P2P transaction");
+    }
+    // ========== END P2P CREDIT INVOICE CHECKING ==========
 
     // ---------- DEPOSIT: CARD (orderReference) OR VA ----------
     if (isDepositEvent) {
@@ -1164,112 +1494,6 @@ export async function POST(req: NextRequest) {
       }
       // -------------------- END INVOICE PAYMENT HANDLING --------------------
 
-      // Helper function to update invoice totals
-      async function updateInvoiceTotals(
-        invoice: any,
-        paidAmountNaira: number
-      ) {
-        try {
-          const paidAmount = paidAmountNaira;
-
-          const targetQty = Number(invoice.target_quantity || 1);
-          const totalAmount = Number(invoice.total_amount || 0);
-          const currentPaidAmount = Number(invoice.paid_amount || 0);
-          const currentPaidQty = Number(invoice.paid_quantity || 0);
-
-          let newPaidAmount = currentPaidAmount + paidAmount;
-          let newPaidQuantity = currentPaidQty;
-          let newStatus = invoice.status;
-
-          console.log("📊 Invoice update calculations:", {
-            currentPaidAmount,
-            paidAmount,
-            newPaidAmount,
-            totalAmount,
-            targetQty,
-            currentPaidQty,
-            allow_multiple_payments: invoice.allow_multiple_payments,
-          });
-
-          if (invoice.allow_multiple_payments) {
-            // FIXED: Calculate how many COMPLETE quantities are paid for
-            const cumulativeQuantitiesPaid = Math.floor(
-              newPaidAmount / totalAmount
-            );
-
-            console.log(`🔢 Cumulative quantities paid calculation:`, {
-              newPaidAmount,
-              totalAmount,
-              division: newPaidAmount / totalAmount,
-              cumulativeQuantitiesPaid,
-            });
-
-            // Only update if we have more complete quantities than before
-            if (cumulativeQuantitiesPaid > currentPaidQty) {
-              newPaidQuantity = cumulativeQuantitiesPaid;
-              console.log(
-                `✅ Quantity increased: ${currentPaidQty} → ${newPaidQuantity}`
-              );
-            }
-
-            // Check if all quantities are paid
-            if (newPaidQuantity >= targetQty) {
-              newStatus = "paid";
-              console.log("🎯 All quantities paid - marking as fully paid");
-            } else if (newPaidQuantity > 0 || newPaidAmount > 0) {
-              newStatus = "partially_paid";
-              console.log("📦 Partially paid - some quantities completed");
-            }
-          } else {
-            // For single payment invoices
-            if (newPaidAmount >= totalAmount) {
-              newStatus = "paid";
-              console.log("🎯 Full amount paid - marking as paid");
-            } else if (newPaidAmount > 0) {
-              newStatus = "partially_paid";
-              console.log("💰 Partial payment received");
-            }
-          }
-
-          const updateData: any = {
-            paid_amount: newPaidAmount,
-            paid_quantity: newPaidQuantity,
-            status: newStatus,
-            updated_at: new Date().toISOString(),
-          };
-
-          if (newStatus === "paid") {
-            updateData.paid_at = new Date().toISOString();
-            console.log("⏰ Setting paid_at timestamp");
-          }
-
-          console.log("🔄 Updating invoice with data:", updateData);
-
-          const { error: updateError } = await supabase
-            .from("invoices")
-            .update(updateData)
-            .eq("id", invoice.id);
-
-          if (updateError) {
-            console.error("❌ Failed to update invoice:", updateError);
-            throw updateError;
-          }
-
-          console.log("✅ Invoice totals updated successfully:", {
-            invoice_id: invoice.invoice_id,
-            newPaidAmount,
-            newPaidQuantity,
-            targetQty,
-            newStatus,
-          });
-
-          return { newPaidAmount, newPaidQuantity, newStatus };
-        } catch (error) {
-          console.error("❌ Error in updateInvoiceTotals:", error);
-          throw error;
-        }
-      }
-
       // DETERMINE userId & reference for transaction
       let userId: string | null = null;
       let referenceToUse: string | null =
@@ -1292,7 +1516,7 @@ export async function POST(req: NextRequest) {
           "🏦 Processing Virtual Account deposit with enhanced narration logic..."
         );
 
-        // Extract ALL possible fields from your payload structure
+       
         const narration = payload.data?.transaction?.narration || "";
         const merchantTxRef = tx.merchantTxRef || tx.merchant_tx_ref || "";
         const orderReference = order?.orderReference || "";

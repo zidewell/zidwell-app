@@ -7,6 +7,7 @@ import {
   useCallback,
   useRef,
   ChangeEvent,
+  useMemo,
 } from "react";
 import { useRouter } from "next/navigation";
 import AdminLayout from "./AdminLayout";
@@ -83,7 +84,7 @@ const DEFAULT_CATEGORIES = [
   { id: "8", name: "Self-Improvement" },
 ];
 
-// API utility functions
+// API utility functions (moved outside component to prevent recreation)
 const api = {
   get: async (url: string) => {
     const response = await fetch(url);
@@ -165,7 +166,7 @@ const api = {
   },
 };
 
-// Helper function to convert file to base64
+// Helper function to convert file to base64 (moved outside component)
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -175,7 +176,7 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-// Validation functions
+// Validation functions (moved outside component)
 const validatePost = (
   title: string,
   content: string,
@@ -237,6 +238,94 @@ const validateUrl = (
   }
 };
 
+// Custom hook for alert functions (to memoize them)
+const useAlerts = () => {
+  const showErrorAlert = useCallback((title: string, text: string) => {
+    MySwal.fire({
+      title,
+      text,
+      icon: "error",
+      confirmButtonText: "OK",
+      confirmButtonColor: swalTheme.confirmButtonColor,
+      background: swalTheme.background,
+      color: swalTheme.color,
+      iconColor: swalTheme.iconColor.error,
+    });
+  }, []);
+
+  const showSuccessAlert = useCallback((title: string, text: string) => {
+    MySwal.fire({
+      title,
+      text,
+      icon: "success",
+      confirmButtonText: "OK",
+      confirmButtonColor: swalTheme.confirmButtonColor,
+      background: swalTheme.background,
+      color: swalTheme.color,
+      iconColor: swalTheme.iconColor.success,
+    });
+  }, []);
+
+  const showInfoAlert = useCallback((title: string, text: string) => {
+    MySwal.fire({
+      title,
+      text,
+      icon: "info",
+      confirmButtonText: "OK",
+      confirmButtonColor: swalTheme.confirmButtonColor,
+      background: swalTheme.background,
+      color: swalTheme.color,
+      iconColor: swalTheme.iconColor.info,
+    });
+  }, []);
+
+  const showWarningAlert = useCallback((title: string, text: string) => {
+    MySwal.fire({
+      title,
+      text,
+      icon: "warning",
+      confirmButtonText: "OK",
+      confirmButtonColor: swalTheme.confirmButtonColor,
+      background: swalTheme.background,
+      color: swalTheme.color,
+      iconColor: swalTheme.iconColor.warning,
+    });
+  }, []);
+
+  const showConfirmDialog = useCallback(
+    async (
+      title: string,
+      text: string,
+      confirmButtonText = "Yes, proceed",
+    ): Promise<boolean> => {
+      const result = await MySwal.fire({
+        title,
+        text,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText,
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#ef4444",
+        cancelButtonColor: swalTheme.cancelButtonColor,
+        background: swalTheme.background,
+        color: swalTheme.color,
+        iconColor: swalTheme.iconColor.warning,
+      });
+
+      return result.isConfirmed;
+    },
+    [],
+  );
+
+  return {
+    showErrorAlert,
+    showSuccessAlert,
+    showInfoAlert,
+    showWarningAlert,
+    showConfirmDialog,
+  };
+};
+
 const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -265,13 +354,19 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
-  // Use blog categories if available, otherwise use default categories
-  // const categories = blogCategories.length > 0
-  //   ? blogCategories.map(cat => ({ id: cat.id, name: cat.name }))
-  //   : DEFAULT_CATEGORIES;
-  const categories = DEFAULT_CATEGORIES;
+  // Use memoized alert functions
+  const {
+    showErrorAlert,
+    showSuccessAlert,
+    showInfoAlert,
+    showWarningAlert,
+    showConfirmDialog,
+  } = useAlerts();
 
-  // Get API key from localStorage
+  // Categories memoized
+  const categories = useMemo(() => DEFAULT_CATEGORIES, []);
+
+  // Get API key from localStorage - memoized
   const getApiKey = useCallback(() => {
     if (typeof window !== "undefined") {
       return (
@@ -282,6 +377,26 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     }
     return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
   }, []);
+
+  // Auto-save to localStorage for new posts - memoized
+  const saveToLocalDraft = useDebouncedCallback(() => {
+    if (!postId && autoSaveEnabled && (title || content)) {
+      const draft = {
+        title,
+        content,
+        excerpt,
+        categories: selectedCategories,
+        featuredImage,
+        audioFile,
+        tags,
+        authorName,
+        lastSaved: new Date().toISOString(),
+      };
+
+      localStorage.setItem("post_draft", JSON.stringify(draft));
+      setLastSaved(new Date());
+    }
+  }, 3000);
 
   // Load post data if editing
   useEffect(() => {
@@ -342,125 +457,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
       loadFromLocalDraft();
     }
-  }, [postId]);
+  }, [postId, showErrorAlert, showInfoAlert]);
 
-  // SweetAlert helper functions
-  const showErrorAlert = (title: string, text: string) => {
-    MySwal.fire({
-      title,
-      text,
-      icon: "error",
-      confirmButtonText: "OK",
-      confirmButtonColor: swalTheme.confirmButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.error,
-    });
-  };
-
-  const showSuccessAlert = (title: string, text: string) => {
-    MySwal.fire({
-      title,
-      text,
-      icon: "success",
-      confirmButtonText: "OK",
-      confirmButtonColor: swalTheme.confirmButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.success,
-    });
-  };
-
-  const showInfoAlert = (title: string, text: string) => {
-    MySwal.fire({
-      title,
-      text,
-      icon: "info",
-      confirmButtonText: "OK",
-      confirmButtonColor: swalTheme.confirmButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.info,
-    });
-  };
-
-  const showWarningAlert = (title: string, text: string) => {
-    MySwal.fire({
-      title,
-      text,
-      icon: "warning",
-      confirmButtonText: "OK",
-      confirmButtonColor: swalTheme.confirmButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.warning,
-    });
-  };
-
-  const showConfirmDialog = async (
-    title: string,
-    text: string,
-    confirmButtonText = "Yes, proceed",
-  ): Promise<boolean> => {
-    const result = await MySwal.fire({
-      title,
-      text,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText,
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: swalTheme.cancelButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.warning,
-    });
-
-    return result.isConfirmed;
-  };
-
-  // Auto-save to localStorage for new posts
-  const saveToLocalDraft = useDebouncedCallback(() => {
-    if (!postId && autoSaveEnabled && (title || content)) {
-      const draft = {
-        title,
-        content,
-        excerpt,
-        categories: selectedCategories,
-        featuredImage,
-        audioFile,
-        tags,
-        authorName,
-        lastSaved: new Date().toISOString(),
-      };
-
-      localStorage.setItem("post_draft", JSON.stringify(draft));
-      setLastSaved(new Date());
-    }
-  }, 3000);
-
-  // Auto-save effect
-  useEffect(() => {
-    if (!postId && autoSaveEnabled && (title || content)) {
-      saveToLocalDraft();
-      setHasUnsavedChanges(true);
-    }
-  }, [
-    title,
-    content,
-    excerpt,
-    selectedCategories,
-    featuredImage,
-    audioFile,
-    tags,
-    authorName,
-    postId,
-    autoSaveEnabled,
-    saveToLocalDraft,
-  ]);
-
-  // Validate form before saving
-  const validateForm = (): boolean => {
+  // Validate form before saving - memoized
+  const validateForm = useCallback((): boolean => {
     const errors: Record<string, string> = {};
 
     const basicValidation = validatePost(title, content, authorName);
@@ -505,301 +505,337 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     }
 
     return true;
-  };
+  }, [
+    title,
+    content,
+    authorName,
+    featuredImage,
+    audioFile,
+    selectedCategories,
+    showErrorAlert,
+  ]);
 
-  // Handle featured image upload
-  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Handle featured image upload - memoized
+  const handleImageUpload = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
 
-    // Validate file type
-    const validImageTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "image/svg+xml",
-    ];
-    if (!validImageTypes.includes(file.type)) {
-      showErrorAlert(
-        "Invalid File Type",
-        "Please upload a valid image file (JPEG, PNG, GIF, WebP, or SVG)",
-      );
-      return;
-    }
+      // Validate file type
+      const validImageTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+      ];
+      if (!validImageTypes.includes(file.type)) {
+        showErrorAlert(
+          "Invalid File Type",
+          "Please upload a valid image file (JPEG, PNG, GIF, WebP, or SVG)",
+        );
+        return;
+      }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      showErrorAlert("File Too Large", "Image file must be less than 5MB");
-      return;
-    }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showErrorAlert("File Too Large", "Image file must be less than 5MB");
+        return;
+      }
 
-    try {
-      setUploadingImage(true);
+      try {
+        setUploadingImage(true);
 
-      // Create a preview URL for immediate display
-      const previewUrl = URL.createObjectURL(file);
-      setFeaturedImage(previewUrl);
+        // Create a preview URL for immediate display
+        const previewUrl = URL.createObjectURL(file);
+        setFeaturedImage(previewUrl);
 
-      // Convert to base64 for saving
-      const base64 = await fileToBase64(file);
-      setImageBase64(base64);
+        // Convert to base64 for saving
+        const base64 = await fileToBase64(file);
+        setImageBase64(base64);
 
-      // Clear any validation errors
-      if (validationErrors.featuredImage) {
+        // Clear any validation errors
         setValidationErrors((prev) => ({ ...prev, featuredImage: "" }));
+
+        showInfoAlert(
+          "Image Uploaded",
+          "Image preview is ready. Note: Large images may affect performance.",
+        );
+
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } catch (error) {
+        console.error("Error uploading image:", error);
+        showErrorAlert(
+          "Upload Failed",
+          error instanceof Error ? error.message : "Failed to process image",
+        );
+      } finally {
+        setUploadingImage(false);
+      }
+    },
+    [showErrorAlert, showInfoAlert],
+  );
+
+  // Handle audio file upload - memoized
+  const handleAudioUpload = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      const validAudioTypes = [
+        "audio/mpeg",
+        "audio/wav",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/ogg",
+      ];
+      if (!validAudioTypes.includes(file.type)) {
+        showErrorAlert(
+          "Invalid File Type",
+          "Please upload a valid audio file (MP3, WAV, M4A, or OGG)",
+        );
+        return;
       }
 
-      showInfoAlert(
-        "Image Uploaded",
-        "Image preview is ready. Note: Large images may affect performance.",
-      );
-
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      // Validate file size (max 50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        showErrorAlert("File Too Large", "Audio file must be less than 50MB");
+        return;
       }
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      showErrorAlert(
-        "Upload Failed",
-        error instanceof Error ? error.message : "Failed to process image",
-      );
-    } finally {
-      setUploadingImage(false);
-    }
-  };
 
-  // Handle audio file upload
-  const handleAudioUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+      try {
+        setUploadingAudio(true);
 
-    // Validate file type
-    const validAudioTypes = [
-      "audio/mpeg",
-      "audio/wav",
-      "audio/mp4",
-      "audio/x-m4a",
-      "audio/ogg",
-    ];
-    if (!validAudioTypes.includes(file.type)) {
-      showErrorAlert(
-        "Invalid File Type",
-        "Please upload a valid audio file (MP3, WAV, M4A, or OGG)",
-      );
-      return;
-    }
+        // Create a preview URL for immediate display
+        const previewUrl = URL.createObjectURL(file);
+        setAudioFile(previewUrl);
 
-    // Validate file size (max 50MB)
-    if (file.size > 50 * 1024 * 1024) {
-      showErrorAlert("File Too Large", "Audio file must be less than 50MB");
-      return;
-    }
+        // Convert to base64 for saving
+        const base64 = await fileToBase64(file);
+        setAudioBase64(base64);
 
-    try {
-      setUploadingAudio(true);
-
-      // Create a preview URL for immediate display
-      const previewUrl = URL.createObjectURL(file);
-      setAudioFile(previewUrl);
-
-      // Convert to base64 for saving
-      const base64 = await fileToBase64(file);
-      setAudioBase64(base64);
-
-      // Clear any validation errors
-      if (validationErrors.audioFile) {
+        // Clear any validation errors
         setValidationErrors((prev) => ({ ...prev, audioFile: "" }));
+
+        showInfoAlert(
+          "Audio Uploaded",
+          "Audio file is ready. Note: Large audio files may affect performance.",
+        );
+
+        // Reset file input
+        if (audioInputRef.current) {
+          audioInputRef.current.value = "";
+        }
+      } catch (error) {
+        console.error("Error uploading audio:", error);
+        showErrorAlert(
+          "Upload Failed",
+          error instanceof Error ? error.message : "Failed to process audio file",
+        );
+      } finally {
+        setUploadingAudio(false);
+      }
+    },
+    [showErrorAlert, showInfoAlert],
+  );
+
+  // Handle drag and drop for featured image - memoized
+  const handleImageDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const file = e.dataTransfer.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      const validImageTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+      ];
+      if (!validImageTypes.includes(file.type)) {
+        showErrorAlert(
+          "Invalid File Type",
+          "Please upload a valid image file (JPEG, PNG, GIF, WebP, or SVG)",
+        );
+        return;
       }
 
-      showInfoAlert(
-        "Audio Uploaded",
-        "Audio file is ready. Note: Large audio files may affect performance.",
-      );
+      // Trigger file input click
+      if (fileInputRef.current) {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInputRef.current.files = dataTransfer.files;
 
-      // Reset file input
+        // Create a change event to trigger the upload
+        const event = new Event("change", { bubbles: true });
+        fileInputRef.current.dispatchEvent(event);
+      }
+    },
+    [showErrorAlert],
+  );
+
+  // Handle drag and drop for audio - memoized
+  const handleAudioDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const file = e.dataTransfer.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      const validAudioTypes = [
+        "audio/mpeg",
+        "audio/wav",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/ogg",
+      ];
+      if (!validAudioTypes.includes(file.type)) {
+        showErrorAlert(
+          "Invalid File Type",
+          "Please upload a valid audio file (MP3, WAV, M4A, or OGG)",
+        );
+        return;
+      }
+
+      // Trigger file input click
       if (audioInputRef.current) {
-        audioInputRef.current.value = "";
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        audioInputRef.current.files = dataTransfer.files;
+
+        // Create a change event to trigger the upload
+        const event = new Event("change", { bubbles: true });
+        audioInputRef.current.dispatchEvent(event);
       }
-    } catch (error) {
-      console.error("Error uploading audio:", error);
-      showErrorAlert(
-        "Upload Failed",
-        error instanceof Error ? error.message : "Failed to process audio file",
-      );
-    } finally {
-      setUploadingAudio(false);
-    }
-  };
+    },
+    [showErrorAlert],
+  );
 
-  // Handle drag and drop for featured image
-  const handleImageDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    const validImageTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "image/svg+xml",
-    ];
-    if (!validImageTypes.includes(file.type)) {
-      showErrorAlert(
-        "Invalid File Type",
-        "Please upload a valid image file (JPEG, PNG, GIF, WebP, or SVG)",
-      );
-      return;
-    }
-
-    // Trigger file input click
-    if (fileInputRef.current) {
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      fileInputRef.current.files = dataTransfer.files;
-
-      // Create a change event to trigger the upload
-      const event = new Event("change", { bubbles: true });
-      fileInputRef.current.dispatchEvent(event);
-    }
-  };
-
-  // Handle drag and drop for audio
-  const handleAudioDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    const validAudioTypes = [
-      "audio/mpeg",
-      "audio/wav",
-      "audio/mp4",
-      "audio/x-m4a",
-      "audio/ogg",
-    ];
-    if (!validAudioTypes.includes(file.type)) {
-      showErrorAlert(
-        "Invalid File Type",
-        "Please upload a valid audio file (MP3, WAV, M4A, or OGG)",
-      );
-      return;
-    }
-
-    // Trigger file input click
-    if (audioInputRef.current) {
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      audioInputRef.current.files = dataTransfer.files;
-
-      // Create a change event to trigger the upload
-      const event = new Event("change", { bubbles: true });
-      audioInputRef.current.dispatchEvent(event);
-    }
-  };
-
-  // Handle drag over events
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  // Handle drag over events - memoized
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.classList.add("border-accent", "bg-[#C29307]/10");
-  };
+  }, []);
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.classList.remove("border-accent", "bg-[#C29307]/10");
-  };
+  }, []);
 
-  // Save draft to server
-  const saveDraft = async (silent = false): Promise<string | null> => {
-    if (!validateForm()) {
-      return null;
-    }
+  // Save draft to server - memoized
+  const saveDraft = useCallback(
+    async (silent = false): Promise<string | null> => {
+      if (!validateForm()) {
+        return null;
+      }
 
-    // Use base64 data if available, otherwise use the URL
-    const finalFeaturedImage = imageBase64 || featuredImage;
-    const finalAudioFile = audioBase64 || audioFile;
+      // Use base64 data if available, otherwise use the URL
+      const finalFeaturedImage = imageBase64 || featuredImage;
+      const finalAudioFile = audioBase64 || audioFile;
 
-    const draftData = {
-      title: title.trim() || "Untitled Draft",
-      content: content.trim(),
-      excerpt: excerpt.trim() || "",
-      categories: selectedCategories,
-      featuredImage: finalFeaturedImage.trim() || "",
-      audioFile: finalAudioFile.trim() || "",
-      tags: tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
-      authorId: "default-author-id",
-      authorName: authorName.trim(),
-    };
+      const draftData = {
+        title: title.trim() || "Untitled Draft",
+        content: content.trim(),
+        excerpt: excerpt.trim() || "",
+        categories: selectedCategories,
+        featuredImage: finalFeaturedImage.trim() || "",
+        audioFile: finalAudioFile.trim() || "",
+        tags: tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+        authorId: "default-author-id",
+        authorName: authorName.trim(),
+      };
 
-    try {
-      setIsSaving(true);
-      const apiKey = getApiKey();
+      try {
+        setIsSaving(true);
+        const apiKey = getApiKey();
 
-      let result;
-      if (postId) {
-        result = await api.put(
-          `/api/blog/drafts?id=${postId}`,
-          draftData,
-          apiKey,
-        );
+        let result;
+        if (postId) {
+          result = await api.put(
+            `/api/blog/drafts?id=${postId}`,
+            draftData,
+            apiKey,
+          );
+          if (!silent) {
+            showSuccessAlert(
+              "Draft Updated",
+              "Your draft has been successfully updated!",
+            );
+          }
+        } else {
+          result = await api.post("/api/blog/drafts", draftData, apiKey);
+          if (!silent) {
+            showSuccessAlert(
+              "Draft Saved",
+              "Your draft has been successfully saved!",
+            );
+          }
+        }
+
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("post_draft");
+        }
+
+        setLastSaved(new Date());
+        setHasUnsavedChanges(false);
+        setValidationErrors({});
+
+        if (!postId && result.id) {
+          router.replace(`/blog/admin/posts/${result.id}/edit?draft=true`);
+          return result.id;
+        }
+
+        return postId || result.id;
+      } catch (error) {
+        console.error("Error saving draft:", error);
         if (!silent) {
-          showSuccessAlert(
-            "Draft Updated",
-            "Your draft has been successfully updated!",
+          showErrorAlert(
+            "Save Failed",
+            error instanceof Error ? error.message : "Error saving draft",
           );
         }
-      } else {
-        result = await api.post("/api/blog/drafts", draftData, apiKey);
-        if (!silent) {
-          showSuccessAlert(
-            "Draft Saved",
-            "Your draft has been successfully saved!",
-          );
-        }
+        return null;
+      } finally {
+        setIsSaving(false);
       }
+    },
+    [
+      validateForm,
+      imageBase64,
+      featuredImage,
+      audioBase64,
+      audioFile,
+      title,
+      content,
+      excerpt,
+      selectedCategories,
+      tags,
+      authorName,
+      getApiKey,
+      postId,
+      showSuccessAlert,
+      showErrorAlert,
+      router,
+    ],
+  );
 
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("post_draft");
-      }
-
-      setLastSaved(new Date());
-      setHasUnsavedChanges(false);
-      setValidationErrors({});
-
-      if (!postId && result.id) {
-        router.replace(`/blog/admin/posts/${result.id}/edit?draft=true`);
-        return result.id;
-      }
-
-      return postId || result.id;
-    } catch (error) {
-      console.error("Error saving draft:", error);
-      if (!silent) {
-        showErrorAlert(
-          "Save Failed",
-          error instanceof Error ? error.message : "Error saving draft",
-        );
-      }
-      return null;
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Publish draft
-  const publishDraft = async () => {
+  // Publish draft - memoized
+  const publishDraft = useCallback(async () => {
     if (!validateForm()) {
       return;
     }
@@ -858,7 +894,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         localStorage.removeItem("post_draft");
       }
 
-
       router.push("/blog/admin/post");
       router.refresh();
     } catch (error) {
@@ -870,17 +905,38 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    validateForm,
+    showConfirmDialog,
+    imageBase64,
+    featuredImage,
+    audioBase64,
+    audioFile,
+    title,
+    excerpt,
+    selectedCategories,
+    tags,
+    getApiKey,
+    postId,
+    content,
+    authorName,
+    showSuccessAlert,
+    showErrorAlert,
+    router,
+  ]);
 
-  const handleSave = async (publish: boolean) => {
-    if (publish) {
-      await publishDraft();
-    } else {
-      await saveDraft();
-    }
-  };
+  const handleSave = useCallback(
+    async (publish: boolean) => {
+      if (publish) {
+        await publishDraft();
+      } else {
+        await saveDraft();
+      }
+    },
+    [publishDraft, saveDraft],
+  );
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!postId) {
       if (typeof window !== "undefined") {
         const confirmed = await showConfirmDialog(
@@ -926,9 +982,9 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [postId, showConfirmDialog, showInfoAlert, showSuccessAlert, showErrorAlert, getApiKey, router]);
 
-  const addCategory = () => {
+  const addCategory = useCallback(() => {
     const trimmedCategory = newCategory.trim();
     if (!trimmedCategory) {
       showErrorAlert("Invalid Category", "Category name cannot be empty");
@@ -952,37 +1008,43 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     setNewCategory("");
     showSuccessAlert("Category Added", `Added category: ${trimmedCategory}`);
     setValidationErrors((prev) => ({ ...prev, categories: "" }));
-  };
+  }, [newCategory, selectedCategories, showErrorAlert, showWarningAlert, showSuccessAlert]);
 
-  const removeCategory = async (category: string) => {
-    const confirmed = await MySwal.fire({
-      title: "Remove Category",
-      text: `Are you sure you want to remove "${category}"?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Yes, remove it",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: swalTheme.cancelButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.question,
-    });
+  const removeCategory = useCallback(
+    async (category: string) => {
+      const confirmed = await MySwal.fire({
+        title: "Remove Category",
+        text: `Are you sure you want to remove "${category}"?`,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Yes, remove it",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#ef4444",
+        cancelButtonColor: swalTheme.cancelButtonColor,
+        background: swalTheme.background,
+        color: swalTheme.color,
+        iconColor: swalTheme.iconColor.question,
+      });
 
-    if (confirmed.isConfirmed) {
-      setSelectedCategories(selectedCategories.filter((c) => c !== category));
-      showInfoAlert("Category Removed", `Removed category: ${category}`);
-    }
-  };
+      if (confirmed.isConfirmed) {
+        setSelectedCategories(selectedCategories.filter((c) => c !== category));
+        showInfoAlert("Category Removed", `Removed category: ${category}`);
+      }
+    },
+    [selectedCategories, showInfoAlert],
+  );
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addCategory();
-    }
-  };
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addCategory();
+      }
+    },
+    [addCategory],
+  );
 
-  const handlePreview = () => {
+  const handlePreview = useCallback(() => {
     if (!postId) {
       showInfoAlert(
         "Preview Not Available",
@@ -992,9 +1054,9 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     }
 
     window.open(`/blog/preview/${postId}`, "_blank");
-  };
+  }, [postId, showInfoAlert]);
 
-  const handleClearFeaturedImage = async () => {
+  const handleClearFeaturedImage = useCallback(async () => {
     const confirmed = await MySwal.fire({
       title: "Remove Featured Image",
       text: "Are you sure you want to remove the featured image?",
@@ -1018,9 +1080,9 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       setImageBase64("");
       showInfoAlert("Image Removed", "Featured image has been removed");
     }
-  };
+  }, [featuredImage, showInfoAlert]);
 
-  const handleClearAudioFile = async () => {
+  const handleClearAudioFile = useCallback(async () => {
     const confirmed = await MySwal.fire({
       title: "Remove Audio File",
       text: "Are you sure you want to remove the audio file?",
@@ -1044,9 +1106,9 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       setAudioBase64("");
       showInfoAlert("Audio Removed", "Audio file has been removed");
     }
-  };
+  }, [audioFile, showInfoAlert]);
 
-  const clearLocalDraft = async () => {
+  const clearLocalDraft = useCallback(async () => {
     const confirmed = await showConfirmDialog(
       "Clear Draft",
       "Are you sure you want to clear this unsaved draft? All unsaved changes will be lost.",
@@ -1061,7 +1123,27 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         showSuccessAlert("Draft Cleared", "Local draft has been cleared");
       }
     }
-  };
+  }, [showConfirmDialog, showSuccessAlert]);
+
+  // Auto-save effect
+  useEffect(() => {
+    if (!postId && autoSaveEnabled && (title || content)) {
+      saveToLocalDraft();
+      setHasUnsavedChanges(true);
+    }
+  }, [
+    title,
+    content,
+    excerpt,
+    selectedCategories,
+    featuredImage,
+    audioFile,
+    tags,
+    authorName,
+    postId,
+    autoSaveEnabled,
+    saveToLocalDraft,
+  ]);
 
   // Handle unsaved changes before leaving
   useEffect(() => {
@@ -1189,7 +1271,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                   setValidationErrors((prev) => ({ ...prev, title: "" }));
                 }
               }}
-              className={` font-semibold focus-visible:ring-0 focus-visible:border-accent ${
+              className={`font-semibold focus-visible:ring-0 focus-visible:border-accent ${
                 validationErrors.title ? "border-red-500" : "border-border"
               }`}
               disabled={isLoading}
@@ -1254,11 +1336,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                   }
                 }}
                 placeholder="Start writing your story..."
-                // disabled={isLoading}
-                // onSaveDraft={() => saveDraft()}
-                // onPreview={handlePreview}
-                // onPublish={() => handleSave(true)}
-                // isLoading={isLoading || isSaving}
               />
             </div>
 
@@ -1339,8 +1416,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                       ? "This post is already published"
                       : "This post is currently a draft"
                     : isPublished
-                      ? "Post will be published immediately when saved"
-                      : "Post will be saved as a draft"}
+                    ? "Post will be published immediately when saved"
+                    : "Post will be saved as a draft"}
                 </p>
               </CardContent>
             </Card>
@@ -1723,8 +1800,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                         ? "Published"
                         : "Draft"
                       : isPublished
-                        ? "Will be published"
-                        : "Draft"}
+                      ? "Will be published"
+                      : "Draft"}
                   </span>
                 </div>
                 {postId && (
