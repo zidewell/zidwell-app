@@ -34,19 +34,6 @@ export default function TransactionSummary({
   isP2P = false, 
 }: TransactionSummaryProps) {
 
-  console.log("TransactionSummary rendered with:",
-     {
-     senderName,
-  senderAccount,
-  recipientName,
-  recipientAccount,
-  recipientBank,
-  purpose,
-  amount,
-  confirmTransaction,
-  isP2P,
-     }
-  );
 
   return (
     <AnimatePresence>
@@ -81,12 +68,12 @@ export default function TransactionSummary({
 
               <div className="flex flex-col items-center ">
                 <div className="text-gray-500 text-sm">You're sending</div>
-                <div className="text-3xl font-bold text-gray-900">
-                  ₦
-                  {typeof amount === "number"
-                    ? amount.toLocaleString()
-                    : amount}
-                </div>
+               <div className="text-3xl font-bold text-gray-900">
+  ₦
+  {typeof amount === "number"
+    ? amount.toLocaleString()
+    : Number(amount).toLocaleString()}
+</div>
                 {/* Only show FeeDisplay for non-P2P transfers (P2P is free) */}
                 {!isP2P && (
                   <FeeDisplay
