@@ -403,7 +403,7 @@ const BlogPage = () => {
             )}
           </div>
 
-          {/* Sidebar */}
+      
           <div className="hidden lg:block">
             <div className="sticky top-24">
               <BlogSidebar 

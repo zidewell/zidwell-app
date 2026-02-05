@@ -1830,7 +1830,7 @@ const FormBody: React.FC = () => {
                     </div>
                     <div>
                       <SignContractInput
-                        label="Phone Number (Optional)"
+                        label="Phone Number"
                         placeholder="+234 000 000 0000"
                         id={"receiver-phone"}
                         value={form.receiverPhone}

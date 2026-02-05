@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/app/components/ui/button";
 import {
   Card,
@@ -57,6 +57,71 @@ interface ContractSigningPageProps {
   contract: Contract;
 }
 
+// Function to clean Quill HTML artifacts
+const cleanQuillHTML = (html: string): string => {
+  if (!html) return "";
+  
+  // Remove Quill UI spans
+  let cleaned = html
+    .replace(/<span class="ql-ui"[^>]*><\/span>/g, '')
+    .replace(/<span[^>]*data-list="[^"]*"[^>]*>/g, '')
+    .replace(/<\/span>/g, '');
+  
+  // Remove empty list items
+  cleaned = cleaned
+    .replace(/<li>\s*<br>\s*<\/li>/g, '')
+    .replace(/<li><br><\/li>/g, '')
+    .replace(/<li>\s*<\/li>/g, '');
+  
+  // Remove data-list attributes
+  cleaned = cleaned.replace(/\s+data-list="[^"]*"/g, '');
+  
+  // Clean up empty paragraphs
+  cleaned = cleaned
+    .replace(/<p>\s*<br>\s*<\/p>/g, '')
+    .replace(/<p><br><\/p>/g, '')
+    .replace(/<p>\s*<\/p>/g, '');
+  
+  // Remove empty headers
+  cleaned = cleaned
+    .replace(/<h[1-6]>\s*<br>\s*<\/h[1-6]>/g, '')
+    .replace(/<h[1-6]><br><\/h[1-6]>/g, '');
+  
+  return cleaned.trim();
+};
+
+// Function to ensure proper list structure
+const ensureProperLists = (html: string): string => {
+  if (!html) return "";
+  
+  // Fix unordered lists that might be rendered as ordered
+  let fixed = html
+    // Ensure bullet lists start with <ul>
+    .replace(/<ol>\s*<li[^>]*>•/g, '<ul><li')
+    .replace(/<ol>\s*<li[^>]*>○/g, '<ul><li')
+    .replace(/<ol>\s*<li[^>]*>▪/g, '<ul><li');
+  
+  // Close <ul> tags properly
+  const ulMatches = fixed.match(/<ul[^>]*>/g) || [];
+  const olMatches = fixed.match(/<\/ol>/g) || [];
+  
+  // Simple fix: if we see <ul> but no closing </ul>, add it
+  if (ulMatches.length > 0) {
+    const ulCount = ulMatches.length;
+    const ulCloseCount = (fixed.match(/<\/ul>/g) || []).length;
+    
+    if (ulCount > ulCloseCount) {
+      // Find the last </ol> and replace with </ul>
+      const lastOlIndex = fixed.lastIndexOf('</ol>');
+      if (lastOlIndex !== -1) {
+        fixed = fixed.substring(0, lastOlIndex) + '</ul>' + fixed.substring(lastOlIndex + 5);
+      }
+    }
+  }
+  
+  return fixed;
+};
+
 const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
   const router = useRouter();
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -64,6 +129,14 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
   const [showEditsModal, setShowEditsModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { toast } = useToast();
+
+  // Clean and prepare the HTML content
+  const cleanContent = useMemo(() => {
+    if (!contract.content) return "";
+    
+    const cleaned = cleanQuillHTML(contract.content);
+    return ensureProperLists(cleaned);
+  }, [contract.content]);
 
   const handleSign = () => {
     setShowSignaturePanel(true);
@@ -134,12 +207,148 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
 
   const paymentTerms = getPaymentTerms();
 
+  // CSS styles for proper list rendering
+  const contractStyles = `
+    .contract-content-container {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+    }
+    
+    /* Headers */
+    .contract-content-container h1 {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin: 1.5rem 0 1rem 0;
+      color: #111827;
+    }
+    
+    .contract-content-container h2 {
+      font-size: 1.25rem;
+      font-weight: bold;
+      margin: 1.25rem 0 0.75rem 0;
+      color: #111827;
+    }
+    
+    .contract-content-container h3 {
+      font-size: 1.125rem;
+      font-weight: bold;
+      margin: 1rem 0 0.5rem 0;
+      color: #111827;
+    }
+    
+    /* Paragraphs */
+    .contract-content-container p {
+      margin-bottom: 1rem;
+    }
+    
+    /* Lists - General */
+    .contract-content-container ol,
+    .contract-content-container ul {
+      margin: 0.75rem 0;
+      padding-left: 1.5rem;
+    }
+    
+    .contract-content-container li {
+      margin-bottom: 0.5rem;
+      display: list-item;
+    }
+    
+    /* Ordered Lists */
+    .contract-content-container ol {
+      list-style-type: decimal;
+    }
+    
+    .contract-content-container ol ol {
+      list-style-type: lower-alpha;
+    }
+    
+    .contract-content-container ol ol ol {
+      list-style-type: lower-roman;
+    }
+    
+    /* Unordered Lists */
+    .contract-content-container ul {
+      list-style-type: disc;
+    }
+    
+    .contract-content-container ul ul {
+      list-style-type: circle;
+    }
+    
+    .contract-content-container ul ul ul {
+      list-style-type: square;
+    }
+    
+    /* Text formatting */
+    .contract-content-container strong,
+    .contract-content-container b {
+      font-weight: bold;
+    }
+    
+    .contract-content-container em,
+    .contract-content-container i {
+      font-style: italic;
+    }
+    
+    .contract-content-container u {
+      text-decoration: underline;
+    }
+    
+    /* Alignment */
+    .contract-content-container .ql-align-center {
+      text-align: center;
+    }
+    
+    .contract-content-container .ql-align-right {
+      text-align: right;
+    }
+    
+    .contract-content-container .ql-align-justify {
+      text-align: justify;
+    }
+    
+    /* Links */
+    .contract-content-container a {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+    
+    .contract-content-container a:hover {
+      color: #1d4ed8;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+      .contract-content-container {
+        font-size: 0.875rem;
+      }
+      
+      .contract-content-container h1 {
+        font-size: 1.25rem;
+      }
+      
+      .contract-content-container h2 {
+        font-size: 1.125rem;
+      }
+      
+      .contract-content-container h3 {
+        font-size: 1rem;
+      }
+      
+      .contract-content-container ol,
+      .contract-content-container ul {
+        padding-left: 1.25rem;
+      }
+    }
+  `;
+
   return (
     <div className="min-h-screen bg-white">
+      <style>{contractStyles}</style>
       <div className="max-w-4xl mx-auto px-3 md:px-4 py-4 md:py-8">
         {/* Header - matches image design */}
         <div className="text-center mb-6 md:mb-10">
-          <h1 className="text-lg md:text-2xl lg:text-3xl  font-bold text-[#C29307] bg-[#073b2a] uppercase mb-2 py-2 px-2 md:px-0 overflow-hidden">
+          <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-[#C29307] bg-[#073b2a] uppercase mb-2 py-2 px-2 md:px-0 overflow-hidden">
             {contract.title || "SERVICE CONTRACT"}
           </h1>
           <p className="text-sm md:text-base text-gray-700 mb-6 md:mb-8">
@@ -179,134 +388,13 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
             <div className="flex-1 h-0.5 md:h-1 bg-[#C29307] rounded-2xl" />
           </div>
 
-          {contract.content ? (
-            <div
-              className="contract-content text-xs md:text-sm leading-relaxed px-2 md:px-0"
-              style={{
-                fontFamily: "Arial, sans-serif",
-                lineHeight: "1.6",
-              }}
-              dangerouslySetInnerHTML={{
-                __html: `
-                  <style>
-                    .contract-content ol, .contract-content ul {
-                      margin-left: 20px;
-                      margin-bottom: 12px;
-                      padding-left: 0;
-                    }
-                    
-                    @media (min-width: 768px) {
-                      .contract-content ol, .contract-content ul {
-                        margin-left: 24px;
-                        margin-bottom: 16px;
-                      }
-                    }
-                    
-                    /* Ordered lists (numbered) */
-                    .contract-content ol {
-                      list-style-type: decimal;
-                      counter-reset: item;
-                    }
-                    
-                    .contract-content ol li {
-                      display: list-item;
-                      margin-bottom: 6px;
-                      padding-left: 6px;
-                      position: relative;
-                    }
-                    
-                    @media (min-width: 768px) {
-                      .contract-content ol li {
-                        margin-bottom: 8px;
-                        padding-left: 8px;
-                      }
-                    }
-                    
-                    /* Unordered lists (bulleted) */
-                    .contract-content ul {
-                      list-style-type: disc;
-                    }
-                    
-                    .contract-content ul li {
-                      display: list-item;
-                      margin-bottom: 6px;
-                      padding-left: 6px;
-                      position: relative;
-                    }
-                    
-                    @media (min-width: 768px) {
-                      .contract-content ul li {
-                        margin-bottom: 8px;
-                        padding-left: 8px;
-                      }
-                    }
-                    
-                    /* Nested lists */
-                    .contract-content ul ul,
-                    .contract-content ol ol {
-                      margin-left: 16px;
-                      margin-top: 6px;
-                      margin-bottom: 6px;
-                    }
-                    
-                    @media (min-width: 768px) {
-                      .contract-content ul ul,
-                      .contract-content ol ol {
-                        margin-left: 20px;
-                        margin-top: 8px;
-                        margin-bottom: 8px;
-                      }
-                    }
-                    
-                    .contract-content ul ul {
-                      list-style-type: circle;
-                    }
-                    
-                    .contract-content ul ul ul {
-                      list-style-type: square;
-                    }
-                    
-                    .contract-content ol ol {
-                      list-style-type: lower-alpha;
-                    }
-                    
-                    .contract-content ol ol ol {
-                      list-style-type: lower-roman;
-                    }
-                    
-                    /* Paragraph spacing */
-                    .contract-content p {
-                      margin-bottom: 12px;
-                    }
-                    
-                    @media (min-width: 768px) {
-                      .contract-content p {
-                        margin-bottom: 16px;
-                      }
-                    }
-                    
-                    /* Bold text */
-                    .contract-content strong,
-                    .contract-content b {
-                      font-weight: bold;
-                      color: #111827;
-                    }
-                    
-                    /* Italic text */
-                    .contract-content em,
-                    .contract-content i {
-                      font-style: italic;
-                    }
-                    
-                    /* Underline */
-                    .contract-content u {
-                      text-decoration: underline;
-                    }
-                  </style>
-                  ${contract.content}
-                `,
-              }}
-            />
+          {cleanContent ? (
+            <div className="px-2 md:px-0">
+              <div 
+                className="contract-content-container text-xs md:text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: cleanContent }}
+              />
+            </div>
           ) : (
             <div className="text-gray-400 italic text-sm text-center py-6 md:py-8">
               No contract content provided
@@ -326,13 +414,13 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
             </div>
 
             <div className="space-y-3 md:space-y-4 px-2 md:px-0">
-              {paymentTerms.includes("<") ? (
-                <div
-                  className="rich-text-content prose prose-sm max-w-none text-xs md:text-sm leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: paymentTerms }}
+              {typeof paymentTerms === 'string' && paymentTerms.includes("<") ? (
+                <div 
+                  className="contract-content-container text-xs md:text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: cleanQuillHTML(paymentTerms) }}
                 />
               ) : (
-                <div className="whitespace-pre-wrap text-xs md:text-sm leading-relaxed">
+                <div className="whitespace-pre-wrap text-xs md:text-sm leading-relaxed contract-content-container">
                   {paymentTerms}
                 </div>
               )}
@@ -547,20 +635,6 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                   <div className="text-xs opacity-90">I agree to all terms</div>
                 </div>
               </Button>
-
-              {/* <div className="md:hidden">
-                <Button
-                  onClick={handleReject}
-                  variant="outline"
-                  className="w-full h-auto py-3 flex items-center justify-center gap-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  <div className="text-left">
-                    <div className="font-semibold text-sm">Suggest Edits</div>
-                    <div className="text-xs opacity-90">Request changes</div>
-                  </div>
-                </Button>
-              </div> */}
             </div>
 
             <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-300">
@@ -611,16 +685,6 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
         signeeEmail={contract.signeeEmail}
         onSuccess={handleVerificationSuccess}
       />
-
-      {/* <SuggestEditsModal
-        open={showEditsModal}
-        onOpenChange={setShowEditsModal}
-        contractId={contract.id}
-        contractTitle={contract.title}
-        contractToken={contract.token}
-        signeeEmail={contract.signeeEmail}
-        onSuccess={handleEditsSubmitted}
-      /> */}
 
       {showSignaturePanel && (
         <SignaturePanel

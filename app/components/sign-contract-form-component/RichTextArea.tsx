@@ -11,7 +11,45 @@ interface ContractEditorProps {
   readOnly?: boolean;
 }
 
-const RichTextArea = ({ value, onChange, placeholder = 'Enter your contract details here...', readOnly = false }: ContractEditorProps) => {
+// Function to clean Quill HTML artifacts
+const cleanQuillHTML = (html: string): string => {
+  if (!html) return "";
+  
+  // Remove Quill UI spans
+  let cleaned = html
+    .replace(/<span class="ql-ui"[^>]*><\/span>/g, '')
+    .replace(/<span[^>]*data-list="[^"]*"[^>]*>/g, '')
+    .replace(/<\/span>/g, '');
+  
+  // Remove empty list items
+  cleaned = cleaned
+    .replace(/<li>\s*<br>\s*<\/li>/g, '')
+    .replace(/<li><br><\/li>/g, '')
+    .replace(/<li>\s*<\/li>/g, '');
+  
+  // Remove data-list attributes
+  cleaned = cleaned.replace(/\s+data-list="[^"]*"/g, '');
+  
+  // Clean up empty paragraphs
+  cleaned = cleaned
+    .replace(/<p>\s*<br>\s*<\/p>/g, '')
+    .replace(/<p><br><\/p>/g, '')
+    .replace(/<p>\s*<\/p>/g, '');
+  
+  // Remove empty headers
+  cleaned = cleaned
+    .replace(/<h[1-6]>\s*<br>\s*<\/h[1-6]>/g, '')
+    .replace(/<h[1-6]><br><\/h[1-6]>/g, '');
+  
+  return cleaned.trim();
+};
+
+const RichTextArea = ({ 
+  value, 
+  onChange, 
+  placeholder = 'Enter your contract details here...', 
+  readOnly = false 
+}: ContractEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const quillInstanceRef = useRef<Quill | null>(null);
 
@@ -53,15 +91,18 @@ const RichTextArea = ({ value, onChange, placeholder = 'Enter your contract deta
 
     quillInstanceRef.current = quill;
 
-    // Set initial value
+    // Set initial value - clean it first
     if (value) {
-      quill.clipboard.dangerouslyPasteHTML(value);
+      // Store the cleaned value in a separate variable
+      const initialValue = cleanQuillHTML(value);
+      quill.clipboard.dangerouslyPasteHTML(initialValue);
     }
 
-    // Handle text changes
+    // Handle text changes - clean HTML before sending to parent
     quill.on('text-change', () => {
       const html = quill.root.innerHTML;
-      onChange(html);
+      const cleanedHtml = cleanQuillHTML(html);
+      onChange(cleanedHtml);
     });
 
     return () => {
@@ -72,7 +113,9 @@ const RichTextArea = ({ value, onChange, placeholder = 'Enter your contract deta
   // Update value when prop changes
   useEffect(() => {
     if (quillInstanceRef.current && value !== quillInstanceRef.current.root.innerHTML) {
-      quillInstanceRef.current.clipboard.dangerouslyPasteHTML(value);
+      // Clean the incoming value before setting it in the editor
+      const cleanedValue = cleanQuillHTML(value);
+      quillInstanceRef.current.clipboard.dangerouslyPasteHTML(cleanedValue);
     }
   }, [value]);
 
@@ -87,6 +130,8 @@ const RichTextArea = ({ value, onChange, placeholder = 'Enter your contract deta
   const handleClearAll = () => {
     if (quillInstanceRef.current) {
       quillInstanceRef.current.setText('');
+      // Trigger onChange with empty string
+      onChange('');
     }
   };
 
@@ -101,6 +146,10 @@ const RichTextArea = ({ value, onChange, placeholder = 'Enter your contract deta
         // If no selection, clear formatting of entire document
         quill.removeFormat(0, quill.getLength());
       }
+      // Get the cleaned HTML after clearing formatting
+      const html = quill.root.innerHTML;
+      const cleanedHtml = cleanQuillHTML(html);
+      onChange(cleanedHtml);
     }
   };
 
@@ -197,4 +246,6 @@ const RichTextArea = ({ value, onChange, placeholder = 'Enter your contract deta
   );
 };
 
+// Export the clean function for use in other components
+export { cleanQuillHTML };
 export default RichTextArea;

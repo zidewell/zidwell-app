@@ -320,9 +320,8 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   let invoicesQuery = supabaseAdmin
     .from("invoices")
     .select(
-      "id, status, created_at, paid_amount, total_amount, subtotal"
-    )
-    .eq("status", "paid");
+      "id, status, created_at, paid_amount, total_amount, subtotal, fee_amount"
+    );
 
   if (rangeDates) {
     invoicesQuery = invoicesQuery
@@ -338,8 +337,14 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     .select("*", { count: "exact", head: true });
   const totalInvoicesIssued = Number(totalInvoicesCount ?? 0);
 
-  const paidInvoices = invoicesData.length;
-  const unpaidInvoices = totalInvoicesIssued - paidInvoices;
+  // Get paid and partially paid invoices
+  const paidInvoices = invoicesData.filter(
+    (inv: any) => inv.status === "paid"
+  ).length;
+  const partiallyPaidInvoices = invoicesData.filter(
+    (inv: any) => inv.status === "partially_paid"
+  ).length;
+  const unpaidInvoices = totalInvoicesIssued - paidInvoices - partiallyPaidInvoices;
 
   const totalInvoiceRevenue = invoicesData.reduce(
     (s: number, inv: any) =>
@@ -347,37 +352,32 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     0
   );
 
-  // REMOVED: Redundant totalInvoiceFees calculation
-  // const totalInvoiceFees = invoicesData.reduce(
-  //   (s: number, inv: any) => s + Number(inv.fee_amount ?? 0),
-  //   0
-  // );
 
-  // Get ACTUAL platform fees from invoice_payments table
-  let invoicePaymentsQuery = supabaseAdmin
-    .from("invoice_payments")
-    .select("amount, platform_fee, status, created_at")
-    .eq("status", "completed");
-
-  if (rangeDates) {
-    invoicePaymentsQuery = invoicePaymentsQuery
-      .gte("created_at", rangeDates.start)
-      .lte("created_at", rangeDates.end);
-  }
-
-  const { data: invoicePaymentsRaw } = await invoicePaymentsQuery;
-  const invoicePayments = invoicePaymentsRaw || [];
+  const paidOrPartiallyPaidInvoices = invoicesData.filter(
+    (inv: any) => inv.status === "paid" || inv.status === "partially_paid"
+  );
   
-  // This is the SINGLE SOURCE OF TRUTH for 2% platform revenue
-  const totalPlatformFees = invoicePayments.reduce(
-    (s: number, p: any) => s + Number(p.platform_fee ?? 0),
+  const invoiceFeesFromTable = paidOrPartiallyPaidInvoices.reduce(
+    (s: number, inv: any) => s + Number(inv.fee_amount ?? 0),
     0
   );
 
-  // ENHANCED CONTRACT REVENUE CALCULATION
+
+  const invoiceCreationTransactions = successfulTransactions.filter((t: any) => {
+    const typeLower = (t.type || "").toString().toLowerCase();
+    return typeLower.includes("invoice_creation");
+  });
+
+  const invoiceCreationRevenue = invoiceCreationTransactions.reduce(
+    (s: number, t: any) => s + Number(t.amount ?? 0), 0
+  );
+
+ 
+  const totalInvoiceRevenueCombined = invoiceCreationRevenue + invoiceFeesFromTable;
+
   let contractPaymentsQuery = supabaseAdmin
     .from("contract_payments")
-    .select("amount, fee_amount, platform_fee, status, created_at")
+    .select("amount, fee_amount, status, created_at")
     .eq("status", "completed");
 
   if (rangeDates) {
@@ -461,7 +461,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   } else {
     // Use contract_payments table data
     totalContractRevenue = contractPayments.reduce((s: number, p: any) => {
-      const fee = Number(p.fee_amount ?? p.platform_fee ?? 0);
+      const fee = Number(p.fee_amount ?? 0);
       return s + fee;
     }, 0);
     
@@ -494,8 +494,8 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
-  // Update combined app revenue to use ONLY actual platform fees
-  const combinedAppRevenue = totalFeesFromColumn + totalPlatformFees + totalContractRevenue;
+  // Update combined app revenue to use invoice revenue from both sources
+  const combinedAppRevenue = totalFeesFromColumn + totalInvoiceRevenueCombined + totalContractRevenue;
 
   const monthlyInvoicesMap: Record<string, { count: number; revenue: number }> =
     {};
@@ -567,37 +567,37 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
-  // Add invoice platform fees (from invoice_payments table - SINGLE SOURCE)
-  invoicePayments.forEach((p: any) => {
-    const platformFee = Number(p.platform_fee ?? 0);
-    if (platformFee > 0) {
-      const d = new Date(p.created_at);
+  // Add invoice creation revenue
+  invoiceCreationTransactions.forEach((t: any) => {
+    const creationAmount = Number(t.amount ?? 0);
+    if (creationAmount > 0) {
+      const d = new Date(t.created_at);
       if (isNaN(d.getTime())) return;
       const key = d.toLocaleString("default", {
         month: "short",
         year: "numeric",
       });
-      monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + platformFee;
+      monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + creationAmount;
     }
   });
 
-  // REMOVED: Redundant invoice fees from invoices table
-  // invoicesData.forEach((inv: any) => {
-  //   const invoiceFee = Number(inv.fee_amount ?? 0);
-  //   if (invoiceFee > 0) {
-  //     const d = new Date(inv.created_at);
-  //     if (isNaN(d.getTime())) return;
-  //     const key = d.toLocaleString("default", {
-  //       month: "short",
-  //       year: "numeric",
-  //     });
-  //     monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + invoiceFee;
-  //   }
-  // });
+  // Add invoice fees from invoices table
+  paidOrPartiallyPaidInvoices.forEach((inv: any) => {
+    const invoiceFee = Number(inv.fee_amount ?? 0);
+    if (invoiceFee > 0) {
+      const d = new Date(inv.created_at);
+      if (isNaN(d.getTime())) return;
+      const key = d.toLocaleString("default", {
+        month: "short",
+        year: "numeric",
+      });
+      monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + invoiceFee;
+    }
+  });
 
   // Add contract payments to monthly revenue
   contractPayments.forEach((p: any) => {
-    const contractFee = Number(p.fee_amount ?? p.platform_fee ?? 0);
+    const contractFee = Number(p.fee_amount ?? 0);
     if (contractFee > 0) {
       const d = new Date(p.created_at);
       if (isNaN(d.getTime())) return;
@@ -641,6 +641,9 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   let prevPendingContracts = 0;
   let prevSignedContracts = 0;
   let prevContractFees = 0;
+  let prevTotalInvoices = 0;
+  let prevPaidInvoices = 0;
+  let prevUnpaidInvoices = 0;
   
   if (rangeDates) {
     // Calculate previous period for growth comparisons
@@ -704,6 +707,19 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
       }
       return s + fee;
     }, 0);
+
+    // Get previous invoices data
+    const prevInvoicesQuery = supabaseAdmin
+      .from("invoices")
+      .select("status, created_at")
+      .gte("created_at", prevStart.toISOString())
+      .lte("created_at", prevEnd.toISOString());
+    
+    const { data: prevInvoicesData } = await prevInvoicesQuery;
+    const prevInvoices = prevInvoicesData || [];
+    prevTotalInvoices = prevInvoices.length;
+    prevPaidInvoices = prevInvoices.filter((inv: any) => inv.status === "paid").length;
+    prevUnpaidInvoices = prevTotalInvoices - prevPaidInvoices;
   }
 
   const response = {
@@ -715,8 +731,11 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     totalUsers,
     pendingInvoices: unpaidInvoices,
     paidInvoices,
+    partiallyPaidInvoices,
     totalInvoicesIssued,
-    totalInvoiceRevenue,
+    totalInvoiceRevenue: totalInvoiceRevenueCombined, // Combined invoice revenue
+    invoiceCreationRevenue, // Revenue from invoice_creation transactions
+    invoiceFeesFromTable, // Revenue from invoice fees
     pendingContracts,
     signedContracts,
     totalContractsIssued,
@@ -727,7 +746,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     range: rangeParam,
     totalAppRevenue: combinedAppRevenue,
     transactionFees: totalFeesFromColumn,
-    platformFees: totalPlatformFees, // SINGLE SOURCE for 2% invoice platform revenue
+    platformFees: 0, // Set to 0 since we're not using invoice_payments table anymore
     contractFees: totalContractRevenue,
     totalContractAmount,
     contractPaymentsCount,
@@ -746,6 +765,9 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     prevPendingContracts,
     prevSignedContracts,
     prevContractFees,
+    prevTotalInvoices,
+    prevPaidInvoices,
+    prevUnpaidInvoices,
     
     _fromCache: false,
   };

@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../ui/dropdown-menu";
+import Image from "next/image";
 
 interface BlogHeaderProps {
   onSearch?: (query: string) => void;
@@ -61,11 +62,16 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl font-semibold tracking-tight">Zidwell</span>
-            <span className="text-accent font-medium">Blog</span>
-          </Link>
-
+           <Link href="/dashboard" className="flex items-center">
+                        <Image
+                          src="/logo.png"
+                          alt="Zidwell Logo"
+                          width={32}
+                          height={32}
+                          className="mr-2 w-16 object-contain"
+                        />
+                        <h1 className="font-bold text-lg text-white">Zidwell</h1>
+                      </Link>
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
             <Link
@@ -144,7 +150,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
           {/* Subscribe Button */}
           <div className="hidden md:flex items-center gap-4">
             <Link href="/blog/subscribe">
-              <Button className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-full hover:opacity-90 transition-opacity">
+              <Button className="px-4 py-2 text-sm font-medium bg-[#C29307]  rounded-full hover:opacity-90 transition-opacity">
                 Subscribe
               </Button>
             </Link>

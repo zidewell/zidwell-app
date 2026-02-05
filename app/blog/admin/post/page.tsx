@@ -223,25 +223,7 @@ const AdminPosts = () => {
           </div>
         </div>
 
-        {/* Error message */}
-        {error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-destructive font-medium">Error Loading Posts</p>
-                <p className="text-sm text-destructive/80 mt-1">{error}</p>
-              </div>
-              <Button 
-                onClick={refreshPosts} 
-                variant="outline" 
-                size="sm"
-                disabled={isLoading}
-              >
-                Retry
-              </Button>
-            </div>
-          </div>
-        )}
+      
 
         {/* Filters and Search */}
         <div className="flex flex-col sm:flex-row gap-4">
@@ -349,7 +331,7 @@ const AdminPosts = () => {
                     <TableHead>Categories</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead className="w-[100px]">Views</TableHead>
+                    {/* <TableHead className="w-[100px]">Views</TableHead> */}
                     <TableHead className="w-[80px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -441,14 +423,14 @@ const AdminPosts = () => {
                       <TableCell className="text-muted-foreground">
                         {format(new Date(post.created_at), "MMM d, yyyy")}
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         <Badge variant="outline">
                           {post.view_count || 0} views
                         </Badge>
                         <div className="text-xs text-muted-foreground mt-1">
                           {post.comments_count || 0} comments
                         </div>
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

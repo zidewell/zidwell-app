@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const contractTitle =
       body.contract_title || body.contractTitle || "Untitled Contract";
 
-    // Get contract content as HTML (DO NOT CONVERT TO PLAIN TEXT)
+    
     const contractContent =
       body.contract_content || body.contractContent || body.contract_text || "";
 

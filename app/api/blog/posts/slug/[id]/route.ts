@@ -29,7 +29,7 @@ export async function GET(
     }
 
     const decodedSlug = decodeURIComponent(slug);
-    console.log("Decoded slug:", decodedSlug);
+   
 
     // Fetch the post
     const { data: posts, error } = await supabaseBlog
@@ -37,7 +37,7 @@ export async function GET(
       .select("*")
       .eq("slug", decodedSlug)
       .eq("is_published", true)
-      .single(); // Use single() instead of checking array length
+      .single(); 
 
     if (error) {
       console.error("Supabase error:", error);

@@ -1,114 +1,72 @@
-// app/api/categories/[id]/route.ts
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
- const supabaseBlog = createClient(
+
+const supabaseBlog = createClient(
   process.env.BLOG_SUPABASE_URL!,
-  process.env.BLOG_SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
+  process.env.BLOG_SUPABASE_SERVICE_ROLE_KEY!
 );
+
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/--+/g, "-")
+    .trim();
+}
+
+// GET - Get single category by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    
-    // Check if categories table exists
-    const { data: tableExists } = await supabaseBlog
+    const params = await context.params;
+    const { id } = params;
+
+    const { data: category, error } = await supabaseBlog
       .from("categories")
-      .select("id")
-      .limit(1);
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    const categoriesTableExists =
-      !tableExists || tableExists.length === 0 ? false : true;
+    if (error) {
+      console.error("Supabase error:", error);
 
-    if (categoriesTableExists) {
-      // Get from categories table
-      const { data: category, error } = await supabaseBlog
-        .from("categories")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) {
-        // If not found, generate from posts
-        const match = id.match(/^generated-(.+)$/);
-        if (match) {
-          const slug = match[1];
-          const categoryName = slug.replace(/-/g, " ");
-          
-          const { data: posts } = await supabaseBlog
-            .from("blog_posts")
-            .select("*")
-            .contains("categories", [categoryName])
-            .eq("is_published", true);
-
-          if (posts && posts.length > 0) {
-            const generatedCategory = {
-              id: id,
-              name: categoryName,
-              slug: slug,
-              description: null,
-              post_count: posts.length,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            };
-            return NextResponse.json(generatedCategory);
-          }
-        }
+      // Handle generated categories
+      if (id.startsWith("generated-")) {
+        const categoryName = id.replace("generated-", "").replace(/-/g, " ");
         
-        return NextResponse.json(
-          { error: "Category not found" },
-          { status: 404 }
-        );
-      }
+        // Count posts with this category
+        const { data: posts } = await supabaseBlog
+          .from("blog_posts")
+          .select("id")
+          .contains("categories", [categoryName])
+          .eq("is_published", true);
 
-      return NextResponse.json(category);
-    } else {
-      // Generate category from posts
-      const match = id.match(/^generated-(.+)$/);
-      if (!match) {
-        return NextResponse.json(
-          { error: "Invalid category ID format" },
-          { status: 400 }
-        );
-      }
+        const generatedCategory = {
+          id: id,
+          name: categoryName,
+          slug: id.replace("generated-", ""),
+          description: null,
+          post_count: posts?.length || 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
 
-      const slug = match[1];
-      const categoryName = slug.replace(/-/g, " ");
+        return NextResponse.json(generatedCategory);
+      }
       
-      const { data: posts } = await supabaseBlog
-        .from("blog_posts")
-        .select("*")
-        .contains("categories", [categoryName])
-        .eq("is_published", true);
-
-      if (!posts || posts.length === 0) {
-        return NextResponse.json(
-          { error: "Category not found" },
-          { status: 404 }
-        );
-      }
-
-      const generatedCategory = {
-        id: id,
-        name: categoryName,
-        slug: slug,
-        description: null,
-        post_count: posts.length,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      return NextResponse.json(generatedCategory);
+      return NextResponse.json(
+        { error: "Category not found" },
+        { status: 404 }
+      );
     }
+
+    return NextResponse.json(category);
+
   } catch (error) {
-    console.error("Error fetching category by ID:", error);
+    console.error("Error fetching category:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -116,14 +74,17 @@ export async function GET(
   }
 }
 
+// PUT - Update category
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const params = await context.params;
+    const { id } = params;
+
     const body = await request.json();
-    const { name, description, slug: customSlug } = body;
+    const { name, description } = body;
 
     // Check if category exists
     const { data: existingCategory, error: fetchError } = await supabaseBlog
@@ -142,7 +103,7 @@ export async function PUT(
     // Generate new slug if name changed
     let slug = existingCategory.slug;
     if (name && name !== existingCategory.name) {
-      slug = customSlug?.trim() || generateSlug(name.trim());
+      slug = generateSlug(name.trim());
 
       // Check if new slug already exists (excluding current category)
       const { data: duplicateSlug } = await supabaseBlog
@@ -150,7 +111,7 @@ export async function PUT(
         .select("id")
         .eq("slug", slug)
         .neq("id", id)
-        .single();
+        .maybeSingle();
 
       if (duplicateSlug) {
         return NextResponse.json(
@@ -162,19 +123,16 @@ export async function PUT(
 
     // Update category
     const updateData: any = {
-      updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     if (name) {
       updateData.name = name.trim();
+      updateData.slug = slug;
     }
 
     if (description !== undefined) {
       updateData.description = description?.trim() || null;
-    }
-
-    if (slug) {
-      updateData.slug = slug;
     }
 
     const { data: category, error } = await supabaseBlog
@@ -186,10 +144,14 @@ export async function PUT(
 
     if (error) {
       console.error("Supabase error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: error.message || "Failed to update category" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(category);
+
   } catch (error) {
     console.error("Error updating category:", error);
     return NextResponse.json(
@@ -199,12 +161,53 @@ export async function PUT(
   }
 }
 
-// Add generateSlug function here if needed
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/--+/g, "-")
-    .trim();
+// DELETE - Delete category
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const params = await context.params;
+    const { id } = params;
+
+    // Check if category exists
+    const { data: existingCategory, error: fetchError } = await supabaseBlog
+      .from("categories")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchError) {
+      return NextResponse.json(
+        { error: "Category not found" },
+        { status: 404 }
+      );
+    }
+
+    // Delete category
+    const { error } = await supabaseBlog
+      .from("categories")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return NextResponse.json(
+        { error: error.message || "Failed to delete category" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Category deleted successfully"
+    });
+
+  } catch (error) {
+    console.error("Error deleting category:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }

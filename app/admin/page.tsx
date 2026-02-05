@@ -355,7 +355,7 @@ export default function AdminDashboard() {
   const nombaBalanceRaw = Number(summaryData?.nombaBalance ?? 0);
   const totalAppRevenue = Number(summaryData?.totalAppRevenue ?? 0);
   const transactionFees = Number(summaryData?.transactionFees ?? 0);
-  const platformFees = Number(summaryData?.platformFees ?? 0); // This is the 2% platform revenue
+  const platformFees = Number(summaryData?.platformFees ?? 0);
   const contractFees = Number(summaryData?.contractFees ?? 0);
   const totalContractAmount = Number(summaryData?.totalContractAmount ?? 0);
   const contractPaymentsCount = Number(summaryData?.contractPaymentsCount ?? 0);
@@ -390,7 +390,7 @@ export default function AdminDashboard() {
       ? ((contractFees / totalAppRevenue) * 100).toFixed(1)
       : "0";
 
-  // Platform revenue share calculation (2% platform fees)
+  // Platform revenue share calculation
   const platformRevenueShare =
     totalAppRevenue > 0
       ? ((platformFees / totalAppRevenue) * 100).toFixed(1)
@@ -428,7 +428,6 @@ export default function AdminDashboard() {
   const prevPaidInvoices = Number(summaryData?.prevPaidInvoices ?? 0);
   const prevUnpaidInvoices = Number(summaryData?.prevUnpaidInvoices ?? 0);
   const prevContractFees = Number(summaryData?.prevContractFees ?? 0);
-  // Note: We don't have prevPlatformFees since it's a new field
 
   const calculateGrowth = (current: number, previous: number): number => {
     if (previous === 0) return current > 0 ? 100 : 0;
@@ -442,7 +441,6 @@ export default function AdminDashboard() {
     prevTotalAppRevenue
   );
   const contractRevenueGrowth = calculateGrowth(contractFees, prevContractFees);
-  // Platform fees growth starts from 0 since we don't have previous data
   const platformFeesGrowth = calculateGrowth(platformFees, 0);
   const contractsGrowth = calculateGrowth(totalContracts, prevTotalContracts);
   const pendingContractsGrowth = calculateGrowth(
@@ -626,14 +624,6 @@ export default function AdminDashboard() {
     "revenue_breakdown.monthly",
     []
   );
-
-  useEffect(() => {
-    if (
-      transactionVolumeMonthlyData &&
-      transactionVolumeMonthlyData.length > 0
-    ) {
-    }
-  }, [transactionVolumeMonthlyData]);
 
   if (isLoading) {
     return (
@@ -890,12 +880,15 @@ export default function AdminDashboard() {
                 })`}
               />
               <KPICard
-                title="Platform Revenue (2%)"
-                value={formatCurrency(platformFees)}
-                growth={<GrowthIndicator value={platformFeesGrowth} />}
-                icon={<Percent className="w-5 h-5 text-purple-600" />}
+                title="Invoice Revenue"
+                value={formatCurrency(
+                  metricsData?.revenue_breakdown?.[range]?.invoice || 0
+                )}
+                icon={<File className="w-5 h-5 text-purple-600" />}
                 className="border-l-4 border-l-purple-500 bg-linear-to-r from-purple-50 to-white"
-                subtitle="2% platform fee from invoices"
+                subtitle={`Revenue from invoices (${
+                  range === "total" ? "all time" : range
+                })`}
               />
               <KPICard
                 title="Total Users"
@@ -1078,7 +1071,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="traffic" className="space-y-8">
-            {/* Existing traffic tab content remains the same */}
+            {/* Traffic tab content */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
                 Website Traffic Analytics
@@ -1125,7 +1118,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="users" className="space-y-8">
-            {/* Existing users tab content remains the same */}
+            {/* Users tab content */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white p-6 rounded-2xl shadow-sm border">
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
@@ -1232,7 +1225,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-8">
-            {/* Existing transactions tab content remains the same */}
+            {/* Transactions tab content */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
                 Transaction Volume
@@ -1364,12 +1357,12 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="contracts" className="space-y-8">
+            {/* Contracts tab content */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
                 Contract Analytics
               </h3>
 
-              {/* Contract Stats Cards - REDUCED TO 3 CARDS */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-blue-50 p-6 rounded-xl">
                   <div className="flex items-center justify-between">
@@ -1423,7 +1416,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Contract Revenue Section - MORE PROMINENT */}
               <div className="mb-8">
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">
                   Contract Revenue Details
@@ -1486,7 +1478,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Contract Trends Chart */}
               <div className="h-[400px] mb-8">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={monthlyContracts}>
@@ -1517,7 +1508,6 @@ export default function AdminDashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Contract Status Distribution */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-xl border">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">
@@ -1632,7 +1622,7 @@ export default function AdminDashboard() {
                         Contract: {formatCurrency(revenue?.contract || 0)}
                       </div>
                       <div className="text-xs text-purple-600 mt-1">
-                        Platform (2%): {formatCurrency(revenue?.platform || 0)}
+                        Invoice: {formatCurrency(revenue?.invoice || 0)}
                       </div>
                     </div>
                   );
@@ -1653,7 +1643,7 @@ export default function AdminDashboard() {
                           total: "Total Revenue",
                           transfers: "Transfers",
                           bill_payment: "Bill Payment",
-                          invoice: "Invoice",
+                          invoice: "Invoice Revenue",
                           contract: "Contract",
                           platform: "Platform (2%)",
                         };
@@ -1677,14 +1667,13 @@ export default function AdminDashboard() {
                       fill="#10b981"
                       name="Bill Payment"
                     />
-                    <Bar dataKey="invoice" fill="#8b5cf6" name="Invoice" />
+                    <Bar dataKey="invoice" fill="#8b5cf6" name="Invoice Revenue" />
                     <Bar
                       dataKey="contract"
                       fill={CHART_COLORS.contract_revenue}
                       name="Contract"
                       radius={[4, 4, 0, 0]}
                     />
-                    <Bar dataKey="platform" fill="#84cc16" name="Platform (2%)" />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -1876,6 +1865,8 @@ export default function AdminDashboard() {
                                 "contract"
                               )
                               ? "bg-indigo-100 text-indigo-800"
+                            : (tx.type?.toLowerCase() || "").includes("invoice")
+                              ? "bg-purple-100 text-purple-800"
                               : "bg-gray-100 text-gray-800"
                           }`}
                         >
@@ -1920,7 +1911,7 @@ export default function AdminDashboard() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Platform Performance Summary
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="bg-white p-4 rounded-xl border">
               <div className="text-sm text-gray-500">Total Users</div>
               <div className="text-2xl font-bold text-gray-900">
@@ -1945,9 +1936,19 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Platform Revenue (2%)</div>
+              <div className="text-sm text-gray-500">Invoice Revenue</div>
               <div className="text-2xl font-bold text-gray-900">
-                {formatCurrency(platformFees)}
+                {formatCurrency(
+                  metricsData?.revenue_breakdown?.[range]?.invoice || 0
+                )}
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-xl border">
+              <div className="text-sm text-gray-500">Transaction Revenue</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {formatCurrency(
+                  metricsData?.revenue_breakdown?.[range]?.transfers || 0
+                )}
               </div>
             </div>
           </div>

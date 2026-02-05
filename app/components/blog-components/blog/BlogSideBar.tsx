@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Search, Mail, TrendingUp, Clock } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Search, Mail, TrendingUp, Clock, Hash } from "lucide-react";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { Skeleton } from "../../ui/skeleton";
@@ -11,21 +11,38 @@ import Swal from "sweetalert2";
 interface BlogSidebarProps {
   onSearch?: (query: string) => void;
   isSearching?: boolean;
-  recentPosts?: any[];
-  popularPosts?: any[];
-  categories?: any[];
+}
+
+interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  featured_image: string | null;
+  author_name: string;
+  published_at: string | null;
+  created_at: string;
+  view_count: number;
+  likes_count: number;
+  categories: string[];
+}
+
+interface BlogCategory {
+  name: string;
+  count: number;
 }
 
 const BlogSidebar = ({ 
   onSearch, 
-  isSearching, 
-  recentPosts: propRecentPosts = [], 
-  popularPosts: propPopularPosts = [], 
-  categories: propCategories = [] 
+  isSearching = false,
 }: BlogSidebarProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [email, setEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
+  const [popularPosts, setPopularPosts] = useState<BlogPost[]>([]);
+  const [categories, setCategories] = useState<BlogCategory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Initialize SweetAlert
   const showAlert = Swal.mixin({
@@ -35,13 +52,78 @@ const BlogSidebar = ({
     buttonsStyling: false,
   });
 
+  // Fetch sidebar data
+  useEffect(() => {
+    const fetchSidebarData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch recent posts
+        const recentResponse = await fetch('/api/blog/posts?limit=5&sort_by=created_at&sort_order=desc');
+        if (recentResponse.ok) {
+          const recentData = await recentResponse.json();
+          const posts = recentData.posts || recentData;
+          if (Array.isArray(posts)) {
+            setRecentPosts(posts.slice(0, 5));
+          }
+        }
+
+        // Fetch popular posts (by view count)
+        const popularResponse = await fetch('/api/blog/posts?limit=5&sort_by=view_count&sort_order=desc');
+        if (popularResponse.ok) {
+          const popularData = await popularResponse.json();
+          const posts = popularData.posts || popularData;
+          if (Array.isArray(posts)) {
+            setPopularPosts(posts.slice(0, 5));
+          }
+        }
+
+        // Extract categories from all posts
+        const categoriesResponse = await fetch('/api/blog/posts?limit=100');
+        if (categoriesResponse.ok) {
+          const data = await categoriesResponse.json();
+          const posts = data.posts || data;
+          
+          if (Array.isArray(posts)) {
+            const categoryMap = new Map<string, number>();
+            
+            posts.forEach((post: any) => {
+              if (post.categories && Array.isArray(post.categories)) {
+                post.categories.forEach((category: string) => {
+                  if (category && category.trim()) {
+                    const catName = category.trim();
+                    categoryMap.set(catName, (categoryMap.get(catName) || 0) + 1);
+                  }
+                });
+              }
+            });
+            
+            const categoryArray = Array.from(categoryMap.entries())
+              .map(([name, count]) => ({ name, count }))
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 10); // Limit to 10 categories
+            
+            setCategories(categoryArray);
+          }
+        }
+
+      } catch (error) {
+        console.error('Error fetching sidebar data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSidebarData();
+  }, []);
+
   // Calculate archive data from recent posts
   const archives = useMemo(() => {
-    if (!propRecentPosts.length) return [];
+    if (!recentPosts.length) return [];
     
     const archiveMap = new Map<string, number>();
     
-    propRecentPosts.forEach(post => {
+    recentPosts.forEach(post => {
       if (post.published_at) {
         const date = new Date(post.published_at);
         const year = date.getFullYear();
@@ -71,11 +153,11 @@ const BlogSidebar = ({
         return months.indexOf(b.month) - months.indexOf(a.month);
       })
       .slice(0, 6); // Limit to 6 archives
-  }, [propRecentPosts]);
+  }, [recentPosts]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (onSearch) {
+    if (onSearch && searchQuery.trim()) {
       onSearch(searchQuery);
     } else if (searchQuery.trim()) {
       // Navigate to search results page
@@ -134,8 +216,7 @@ const BlogSidebar = ({
   };
 
   // Helper function to get author name
-  const getAuthorName = (post: any) => {
-    if (post.author?.name) return post.author.name;
+  const getAuthorName = (post: BlogPost) => {
     if (post.author_name) return post.author_name;
     return 'Unknown Author';
   };
@@ -158,9 +239,6 @@ const BlogSidebar = ({
       fallbackDiv.style.display = 'flex';
     }
   };
-
-  // Loading state - removed BlogContext dependency
-  const isLoading = false; // Since we're not using BlogContext anymore
 
   if (isLoading) {
     return (
@@ -270,15 +348,15 @@ const BlogSidebar = ({
             Popular Posts
           </h3>
         </div>
-        {propPopularPosts.length > 0 ? (
+        {popularPosts.length > 0 ? (
           <div className="space-y-4">
-            {propPopularPosts.map((post) => (
+            {popularPosts.map((post) => (
               <Link
                 key={post.id}
                 href={`/blog/${post.slug}`}
                 className="flex gap-3 group hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
               >
-                {post.featured_image && (
+                {post.featured_image ? (
                   <img
                     src={post.featured_image}
                     alt={post.title}
@@ -286,17 +364,23 @@ const BlogSidebar = ({
                     onError={handleImageError}
                     loading="lazy"
                   />
+                ) : (
+                  <div className="w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center">
+                    <Hash className="w-6 h-6 text-muted-foreground" />
+                  </div>
                 )}
-                <div className="image-fallback w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center hidden">
-                  <span className="text-xs text-muted-foreground">No Image</span>
-                </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-medium line-clamp-2 group-hover:text-[#C29307] transition-colors">
                     {post.title}
                   </h4>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {getAuthorName(post)}
-                  </p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-muted-foreground">
+                      {getAuthorName(post)}
+                    </p>
+                    <span className="text-xs text-gray-500">
+                      {post.view_count || 0} views
+                    </span>
+                  </div>
                 </div>
               </Link>
             ))}
@@ -314,15 +398,15 @@ const BlogSidebar = ({
             Recent Posts
           </h3>
         </div>
-        {propRecentPosts.length > 0 ? (
+        {recentPosts.length > 0 ? (
           <div className="space-y-4">
-            {propRecentPosts.map((post) => (
+            {recentPosts.map((post) => (
               <Link
                 key={post.id}
                 href={`/blog/${post.slug}`}
                 className="flex gap-3 group hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
               >
-                {post.featured_image && (
+                {post.featured_image ? (
                   <img
                     src={post.featured_image}
                     alt={post.title}
@@ -330,17 +414,26 @@ const BlogSidebar = ({
                     onError={handleImageError}
                     loading="lazy"
                   />
+                ) : (
+                  <div className="w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center">
+                    <Hash className="w-6 h-6 text-muted-foreground" />
+                  </div>
                 )}
-                <div className="image-fallback w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center hidden">
-                  <span className="text-xs text-muted-foreground">No Image</span>
-                </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-medium line-clamp-2 group-hover:text-[#C29307] transition-colors">
                     {post.title}
                   </h4>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {getAuthorName(post)}
-                  </p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-muted-foreground">
+                      {getAuthorName(post)}
+                    </p>
+                    <span className="text-xs text-gray-500">
+                      {new Date(post.created_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
                 </div>
               </Link>
             ))}
@@ -355,9 +448,9 @@ const BlogSidebar = ({
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Categories
         </h3>
-        {propCategories.length > 0 ? (
+        {categories.length > 0 ? (
           <ul className="space-y-2">
-            {propCategories.map((category) => (
+            {categories.map((category) => (
               <li key={category.name}>
                 <Link
                   href={`/blog?category=${encodeURIComponent(category.name)}`}

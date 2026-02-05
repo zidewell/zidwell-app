@@ -236,15 +236,24 @@ export async function PATCH(request: NextRequest) {
       updated_at: new Date().toISOString()
     };
 
+    // Accept both camelCase and snake_case
     if (body.view_count !== undefined) updateData.view_count = body.view_count;
+    if (body.viewCount !== undefined) updateData.view_count = body.viewCount;
+    
     if (body.likes_count !== undefined) updateData.likes_count = body.likes_count;
+    if (body.likesCount !== undefined) updateData.likes_count = body.likesCount;
+    
     if (body.comment_count !== undefined) updateData.comment_count = body.comment_count;
+    if (body.commentCount !== undefined) updateData.comment_count = body.commentCount;
+    
     if (body.is_published !== undefined) {
       updateData.is_published = body.is_published;
       if (body.is_published) {
         updateData.published_at = new Date().toISOString();
       }
     }
+
+    console.log('Updating post with data:', updateData);
 
     const { data: post, error } = await supabaseBlog
       .from("blog_posts")
@@ -254,13 +263,14 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (error) {
+      console.error('Supabase error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json(formatPost(post));
 
   } catch (error) {
-    console.error("Error:", error);
+    console.error('Error:', error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

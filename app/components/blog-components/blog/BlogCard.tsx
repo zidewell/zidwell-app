@@ -118,7 +118,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
 
   if (variant === "compact") {
     return (
-      <Link href={`/post/${slug}`} className="group block">
+      <Link href={`/blog/post-blog/${slug}`} className="group block">
         <article className="flex gap-4 animate-fade-in">
           <div className="w-24 h-24 shrink-0 overflow-hidden rounded">
             <img
@@ -144,7 +144,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
   }
 
   return (
-    <Link href={`/post/${slug}`} className="group block">
+    <Link href={`/blog/post-blog/${slug}`} className="group block">
       <article className="animate-fade-in">
         <div className="aspect-16/10 overflow-hidden rounded-lg mb-4">
           <img

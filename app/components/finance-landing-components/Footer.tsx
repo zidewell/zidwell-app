@@ -5,6 +5,7 @@ import {
   MapPin,
   Phone,
 } from "lucide-react";
+import Link from "next/link";
 
 const Footer = () => {
   return (
@@ -27,7 +28,7 @@ const Footer = () => {
 
             {/* Social Links */}
             <div className="flex gap-4">
-              <a
+              <Link
                 href="https://wa.me/7069175399"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -35,8 +36,8 @@ const Footer = () => {
                 aria-label="WhatsApp"
               >
                 <MessageCircle className="w-5 h-5" />
-              </a>
-              <a
+              </Link>
+              <Link
                 href="https://instagram.com/zidwellfinance"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -44,8 +45,8 @@ const Footer = () => {
                 aria-label="Instagram"
               >
                 <Instagram className="w-5 h-5" />
-              </a>
-              <a
+              </Link>
+              <Link
                 href="https://linkedin.com/company/zidwell"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -53,7 +54,7 @@ const Footer = () => {
                 aria-label="LinkedIn"
               >
                 <Linkedin className="w-5 h-5" />
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -63,12 +64,12 @@ const Footer = () => {
             <ul className="space-y-3">
               {["About Us", "Services", "Pricing", "Contact"].map((link) => (
                 <li key={link}>
-                  <a
+                  <Link
                     href={`#${link.toLowerCase().replace(" ", "-")}`}
                     className="text-white/70 hover:text-[#C29307] transition-colors"
                   >
                     {link}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -82,12 +83,12 @@ const Footer = () => {
                 <Phone className="w-5 h-5 text-[#C29307] shrink-0 mt-0.5" />
                 <div>
                   <p className="text-white/70">WhatsApp</p>
-                  <a
+                  <Link
                     href="tel:+234"
                     className="hover:text-[#C29307] transition-colors"
                   >
                     +234-7069175399
-                  </a>
+                  </Link>
                 </div>
               </li>
               <li className="flex items-start gap-3">
@@ -113,18 +114,18 @@ const Footer = () => {
             © {new Date().getFullYear()} Zidwell Finance. All rights reserved.
           </p>
           <div className="flex gap-6 text-sm">
-            <a
-              href="#"
+            <Link
+              href="/privacy"
               className="text-white/50 hover:text-[#C29307] transition-colors"
             >
               Privacy Policy
-            </a>
-            <a
+            </Link>
+            <Link
               href="#"
               className="text-white/50 hover:text-[#C29307] transition-colors"
             >
               Terms of Service
-            </a>
+            </Link>
           </div>
         </div>
       </div>
