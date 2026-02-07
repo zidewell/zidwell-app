@@ -8,7 +8,7 @@ import NotificationToast from "./components/NotificationToast";
 import FloatingWhatsApp from "./components/FloatingWhatsapp";
 import Script from "next/script";
 import DashboardFooter from "./components/dashboardFooter";
-import Header from "./components/Header"; 
+
 
 export const viewport: Viewport = {
   themeColor: "#C29307",
@@ -361,7 +361,6 @@ export default function RootLayout({
         </Script>
 
         <UserProvider>
-        <Header />
 
           <SessionWatcher>
             {children}
