@@ -7,6 +7,7 @@ const supabase = createClient(
 );
 
 export async function GET(req: Request) {
+  
   try {
     const url = new URL(req.url);
     const invoiceId = url.searchParams.get("invoiceId");

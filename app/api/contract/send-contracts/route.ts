@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { NextRequest, NextResponse } from "next/server";
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
+import { isAuthenticated } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -9,6 +10,15 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
+     const user = await isAuthenticated(req);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "Please login to access transactions" },
+            { status: 401 }
+          );
+        }
+    
   try {
     const contentType = req.headers.get("content-type") || "";
     let body: any = {};
@@ -463,6 +473,15 @@ export async function POST(req: NextRequest) {
 
 // DELETE endpoint for drafts/contracts
 export async function DELETE(req: NextRequest) {
+     const user = await isAuthenticated(req);
+      
+      if (!user) {
+        return NextResponse.json(
+          { error: "Please login to access transactions" },
+          { status: 401 }
+        );
+      }
+  
   try {
     const { searchParams } = new URL(req.url);
     const contractId = searchParams.get("id");
@@ -499,6 +518,15 @@ export async function DELETE(req: NextRequest) {
 
 // GET endpoint for contracts/drafts
 export async function GET(req: NextRequest) {
+     const user = await isAuthenticated(req);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "Please login to access transactions" },
+            { status: 401 }
+          );
+        }
+    
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");

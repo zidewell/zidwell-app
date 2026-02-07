@@ -55,14 +55,15 @@ const calculateReadTime = (content: string): number => {
   return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
 };
 
-const getContentParts = (content: string) => {
-  if (!content) return { firstHalf: '', secondHalf: '' };
-  const contentParts = content.split("</p>");
-  const midPoint = Math.max(1, Math.floor(contentParts.length / 2));
-  const firstHalf = contentParts.slice(0, midPoint).join("</p>") + "</p>";
-  const secondHalf = contentParts.slice(midPoint).join("</p>") || content;
-  return { firstHalf, secondHalf };
-};
+// REMOVE THIS FUNCTION if you don't want to split content
+// const getContentParts = (content: string) => {
+//   if (!content) return { firstHalf: '', secondHalf: '' };
+//   const contentParts = content.split("</p>");
+//   const midPoint = Math.max(1, Math.floor(contentParts.length / 2));
+//   const firstHalf = contentParts.slice(0, midPoint).join("</p>") + "</p>";
+//   const secondHalf = contentParts.slice(midPoint).join("</p>") || content;
+//   return { firstHalf, secondHalf };
+// };
 
 const PostPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -134,7 +135,7 @@ const PostPage = () => {
             }),
           });
         } catch (err) {
-       
+          // Silently fail view count update
         }
 
       } catch (err) {
@@ -261,71 +262,67 @@ const PostPage = () => {
     localStorage.setItem('blogBookmarks', JSON.stringify(bookmarks));
   };
 
- const handleLike = async () => {
-  if (!post) return;
-  
-  try {
-    const newLikeCount = isLiked ? likeCount - 1 : likeCount + 1;
-    const newIsLiked = !isLiked;
+  const handleLike = async () => {
+    if (!post) return;
     
-    // Optimistic update
-    setLikeCount(newLikeCount);
-    setIsLiked(newIsLiked);
-    
-    // Update localStorage
-    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
-    if (newIsLiked) {
-      likedPosts.push(post.id);
-    } else {
-      const index = likedPosts.indexOf(post.id);
-      if (index > -1) {
-        likedPosts.splice(index, 1);
+    try {
+      const newLikeCount = isLiked ? likeCount - 1 : likeCount + 1;
+      const newIsLiked = !isLiked;
+      
+      // Optimistic update
+      setLikeCount(newLikeCount);
+      setIsLiked(newIsLiked);
+      
+      // Update localStorage
+      const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+      if (newIsLiked) {
+        likedPosts.push(post.id);
+      } else {
+        const index = likedPosts.indexOf(post.id);
+        if (index > -1) {
+          likedPosts.splice(index, 1);
+        }
       }
+      localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+      
+      // Send update to server
+      const response = await fetch(`/api/blog/posts?id=${post.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          likes_count: newLikeCount
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update likes');
+      }
+
+      showAlert.fire({
+        title: newIsLiked ? 'Liked!' : 'Unliked!',
+        text: newIsLiked ? 'You liked this post' : 'You unliked this post',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+    } catch (err) {
+      console.error('Error updating like:', err);
+      
+      // Rollback optimistic update
+      setLikeCount(isLiked ? likeCount + 1 : likeCount - 1);
+      setIsLiked(!isLiked);
+      
+      showAlert.fire({
+        title: 'Error!',
+        text: 'Failed to update like. Please try again.',
+        icon: 'error',
+      });
     }
-    localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
-    
-    // Send update to server
-    const response = await fetch(`/api/blog/posts?id=${post.id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        likes_count: newLikeCount  // Send snake_case
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to update likes');
-    }
-
-    // Verify the update was successful
-    const updatedPost = await response.json();
-    console.log('Like updated successfully:', updatedPost);
-    
-    showAlert.fire({
-      title: newIsLiked ? 'Liked!' : 'Unliked!',
-      text: newIsLiked ? 'You liked this post' : 'You unliked this post',
-      icon: 'success',
-      timer: 1500,
-      showConfirmButton: false,
-    });
-
-  } catch (err) {
-    console.error('Error updating like:', err);
-    
-    // Rollback optimistic update
-    setLikeCount(isLiked ? likeCount + 1 : likeCount - 1);
-    setIsLiked(!isLiked);
-    
-    showAlert.fire({
-      title: 'Error!',
-      text: 'Failed to update like. Please try again.',
-      icon: 'error',
-    });
-  }
-};
+  };
 
   useEffect(() => {
     if (post) {
@@ -333,8 +330,6 @@ const PostPage = () => {
       setIsBookmarked(bookmarks.includes(post.id));
     }
   }, [post]);
-
-  console.log("likeCount", likeCount)
 
   // Close mobile sidebar on escape key
   useEffect(() => {
@@ -424,7 +419,6 @@ const PostPage = () => {
     );
   }
 
-  const { firstHalf, secondHalf } = getContentParts(post.content);
   const readTime = calculateReadTime(post.content);
   const publishDate = post.published_at || post.created_at;
 
@@ -591,8 +585,9 @@ const PostPage = () => {
                 </div>
               )}
 
+              {/* RENDER FULL CONTENT HERE */}
               <div className="mb-6 sm:mb-8">
-                <ArticleContent content={firstHalf} />
+                <ArticleContent content={post.content} />
               </div>
 
               <div className="my-8 sm:my-12">
@@ -602,10 +597,6 @@ const PostPage = () => {
               <div className="my-8 sm:my-12">
                 <AdPlaceholder variant="inline" />
               </div>
-
-              {/* <div className="mb-6 sm:mb-8">
-                <ArticleContent content={secondHalf} />
-              </div> */}
 
               {post.tags && post.tags.length > 0 && (
                 <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-border">
@@ -663,16 +654,6 @@ const PostPage = () => {
                   <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
                     Related Articles
                   </h3>
-                  {/* {post.categories[0] && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => router.push(`/blog/category/${post.categories[0]?.toLowerCase().replace(/\s+/g, '-')}`)}
-                      className="text-[#C29307] hover:text-[#C29307]/80 hover:bg-[#C29307]/10 w-fit self-end sm:self-auto"
-                    >
-                      View All in {post.categories[0]}
-                    </Button>
-                  )} */}
                 </div>
                 
                 {isLoadingRelated ? (

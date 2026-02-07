@@ -9,23 +9,22 @@ export async function middleware(req: NextRequest) {
   
   const currentPath = req.nextUrl.pathname;
 
-  // ✅ Exclude blog/admin routes from admin protection
-  if (currentPath.startsWith("/blog/admin")) {
-    return NextResponse.next();
-  }
-
-  // ✅ Protect dashboard and admin routes
+  // ✅ Protect dashboard and admin routes (including blog admin)
   if (
     currentPath.startsWith("/dashboard") ||
-    currentPath.startsWith("/admin")
+    currentPath.startsWith("/admin") ||
+    currentPath.startsWith("/blog/admin")
   ) {
+  
     // No session at all → redirect to login
     if (!accessToken && !refreshToken) {
+      console.log("No tokens found, redirecting to login");
       return redirectToLogin(req);
     }
 
     // ✅ Refresh access token using refresh token
     if (!accessToken && refreshToken) {
+      console.log("No access token but refresh token exists, attempting refresh");
       const supabase = createClient(
         process.env.SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -36,53 +35,83 @@ export async function middleware(req: NextRequest) {
       });
 
       if (error || !data.session) {
+        console.log("Token refresh failed:", error?.message);
         return redirectToLogin(req);
       }
 
       // Save new tokens
+      console.log("Token refresh successful, updating cookies");
       const res = NextResponse.next();
       res.cookies.set("sb-access-token", data.session.access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
       });
       res.cookies.set("sb-refresh-token", data.session.refresh_token!, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
       });
       return res;
     }
 
-    // ✅ Block unverified users
+    // ✅ Block unverified users (except onboarding)
     if (verified !== "true" && !currentPath.startsWith("/onboarding")) {
+      console.log("User not verified, redirecting to onboarding");
       return NextResponse.redirect(new URL("/onboarding", req.url));
     }
 
-    // ✅ Admin protection
-    if (currentPath.startsWith("/admin")) {
+    // ✅ Admin protection (for both /admin and /blog/admin)
+    if (currentPath.startsWith("/admin") || currentPath.startsWith("/blog/admin")) {
+      console.log("Admin route detected, checking admin permissions");
+      
       const supabaseAdmin = createClient(
         process.env.SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
 
-      const {
-        data: { user },
-      } = await supabaseAdmin.auth.getUser(accessToken);
+      const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(accessToken!);
 
-      if (!user) return redirectToLogin(req);
+      if (userError || !user) {
+        console.log("User not found or error:", userError?.message);
+        return redirectToLogin(req);
+      }
 
-      const { data: profile } = await supabaseAdmin
+      console.log(`User found: ${user.email}, checking admin role...`);
+
+      const { data: profile, error: profileError } = await supabaseAdmin
         .from("users")
         .select("admin_role")
         .eq("id", user.id)
         .single();
 
-      if (!["super_admin", "finance_admin", "operations_admin", "support_admin", "legal_admin"].includes(profile?.admin_role)) {
+      if (profileError) {
+        console.log("Error fetching user profile:", profileError.message);
+        return redirectToLogin(req);
+      }
+
+      console.log(`User admin role: ${profile?.admin_role}`);
+
+      // Define allowed admin roles
+      const allowedAdminRoles = [
+        "super_admin", 
+        "finance_admin", 
+        "operations_admin", 
+        "support_admin", 
+        "legal_admin",
+        "blog_admin" // Add this if you have a specific blog admin role
+      ];
+
+      if (!profile?.admin_role || !allowedAdminRoles.includes(profile.admin_role)) {
+        console.log(`User role '${profile?.admin_role}' not authorized for admin access`);
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
+
+      console.log(`Admin access granted for role: ${profile.admin_role}`);
     }
   }
 
@@ -100,12 +129,20 @@ function redirectToLogin(req: NextRequest) {
   loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
   
   const res = NextResponse.redirect(loginUrl);
+  
+  // Clear all auth cookies
   res.cookies.delete("sb-access-token");
   res.cookies.delete("sb-refresh-token");
   res.cookies.delete("verified");
+  
   return res;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/onboarding"],
+  matcher: [
+    "/dashboard/:path*",
+    "/admin/:path*",
+    "/blog/admin/:path*", 
+    "/onboarding"
+  ],
 };

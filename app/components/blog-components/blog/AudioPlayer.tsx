@@ -465,7 +465,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
                 value={[progress]}
                 max={100}
                 step={0.1}
-                className="cursor-pointer [&>span]:bg-[#C29307]"
+                className="cursor-pointer [&>span]:bg-[#C29307] rounded-b-full"
                 onValueChange={(value) => {
                   const newProgress = value[0];
                   const newWordIndex = Math.floor((newProgress / 100) * totalWordsRef.current);
@@ -520,20 +520,11 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
             </span>
           </div>
 
-          {/* Help */}
-          <div className="text-xs text-[#C29307]/70 pt-2 border-t border-[#C29307]/20">
-            <p>• The <span className="bg-[#C29307] text-white px-1 rounded">current word</span> is highlighted in gold</p>
-            <p>• Next words get <span className="bg-[#C29307]/30 px-1 rounded">lighter gold</span> highlights</p>
-          </div>
+        
         </div>
       </div>
 
-      {/* Content Display with Highlighting */}
-      <div 
-        ref={contentContainerRef}
-        className="prose prose-lg dark:prose-invert max-w-none prose-headings:text-gray-900 dark:prose-headings:text-white prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-a:text-[#C29307] hover:prose-a:text-[#C29307]/80 prose-blockquote:border-l-[#C29307] prose-blockquote:bg-gray-50 dark:prose-blockquote:bg-gray-800/50 prose-strong:text-gray-900 dark:prose-strong:text-white transition-all duration-300 ease-in-out p-6 rounded-lg border border-gray-200 dark:border-gray-700"
-        dangerouslySetInnerHTML={{ __html: highlightedContent }}
-      />
+    
 
       {/* Custom Styles for Highlighting */}
       <style jsx>{`

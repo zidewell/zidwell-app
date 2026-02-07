@@ -12,7 +12,7 @@ const Navbar = () => {
   const [isConsultationOpen, setIsConsultationOpen] = useState(false);
 
   const navLinks = [
-    { label: "Blog", href: "/#", type: "link" },
+    { label: "Blog", href: "/blog", type: "link" },
     { label: "Talk to Expert", href: "#talk-to-expert", type: "modal", variant: "heroOutline" as const },
     { label: "Get Started", href: "/f-onboarding", type: "external" },
   ];

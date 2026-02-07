@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Search, Mail, TrendingUp, Clock, Hash } from "lucide-react";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { Skeleton } from "../../ui/skeleton";
 import Link from "next/link";
 import Swal from "sweetalert2";
+import { useBlog } from "@/app/context/BlogContext";
 
 interface BlogSidebarProps {
   onSearch?: (query: string) => void;
@@ -39,10 +40,14 @@ const BlogSidebar = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [email, setEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
-  const [popularPosts, setPopularPosts] = useState<BlogPost[]>([]);
-  const [categories, setCategories] = useState<BlogCategory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Get data from context
+  const { 
+    recentPosts, 
+    popularPosts, 
+    categories, 
+    isLoading 
+  } = useBlog();
 
   // Initialize SweetAlert
   const showAlert = Swal.mixin({
@@ -51,71 +56,6 @@ const BlogSidebar = ({
     },
     buttonsStyling: false,
   });
-
-  // Fetch sidebar data
-  useEffect(() => {
-    const fetchSidebarData = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Fetch recent posts
-        const recentResponse = await fetch('/api/blog/posts?limit=5&sort_by=created_at&sort_order=desc');
-        if (recentResponse.ok) {
-          const recentData = await recentResponse.json();
-          const posts = recentData.posts || recentData;
-          if (Array.isArray(posts)) {
-            setRecentPosts(posts.slice(0, 5));
-          }
-        }
-
-        // Fetch popular posts (by view count)
-        const popularResponse = await fetch('/api/blog/posts?limit=5&sort_by=view_count&sort_order=desc');
-        if (popularResponse.ok) {
-          const popularData = await popularResponse.json();
-          const posts = popularData.posts || popularData;
-          if (Array.isArray(posts)) {
-            setPopularPosts(posts.slice(0, 5));
-          }
-        }
-
-        // Extract categories from all posts
-        const categoriesResponse = await fetch('/api/blog/posts?limit=100');
-        if (categoriesResponse.ok) {
-          const data = await categoriesResponse.json();
-          const posts = data.posts || data;
-          
-          if (Array.isArray(posts)) {
-            const categoryMap = new Map<string, number>();
-            
-            posts.forEach((post: any) => {
-              if (post.categories && Array.isArray(post.categories)) {
-                post.categories.forEach((category: string) => {
-                  if (category && category.trim()) {
-                    const catName = category.trim();
-                    categoryMap.set(catName, (categoryMap.get(catName) || 0) + 1);
-                  }
-                });
-              }
-            });
-            
-            const categoryArray = Array.from(categoryMap.entries())
-              .map(([name, count]) => ({ name, count }))
-              .sort((a, b) => b.count - a.count)
-              .slice(0, 10); // Limit to 10 categories
-            
-            setCategories(categoryArray);
-          }
-        }
-
-      } catch (error) {
-        console.error('Error fetching sidebar data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSidebarData();
-  }, []);
 
   // Calculate archive data from recent posts
   const archives = useMemo(() => {
@@ -256,6 +196,20 @@ const BlogSidebar = ({
           <Skeleton className="h-10 w-full" />
         </div>
         
+        {/* Popular Posts Skeleton */}
+        <div className="space-y-4">
+          <Skeleton className="h-5 w-32" />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex gap-3">
+              <Skeleton className="w-16 h-16 rounded" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+        
         {/* Recent Posts Skeleton */}
         <div className="space-y-4">
           <Skeleton className="h-5 w-32" />
@@ -350,7 +304,7 @@ const BlogSidebar = ({
         </div>
         {popularPosts.length > 0 ? (
           <div className="space-y-4">
-            {popularPosts.map((post) => (
+            {popularPosts.slice(0, 5).map((post:any) => (
               <Link
                 key={post.id}
                 href={`/blog/${post.slug}`}
@@ -400,7 +354,7 @@ const BlogSidebar = ({
         </div>
         {recentPosts.length > 0 ? (
           <div className="space-y-4">
-            {recentPosts.map((post) => (
+            {recentPosts.slice(0, 5).map((post:any) => (
               <Link
                 key={post.id}
                 href={`/blog/${post.slug}`}

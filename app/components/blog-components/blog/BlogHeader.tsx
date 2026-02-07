@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "../../ui/dropdown-menu";
 import Image from "next/image";
+import { useUserContextData } from "@/app/context/userData";
 
 interface BlogHeaderProps {
   onSearch?: (query: string) => void;
@@ -20,24 +21,23 @@ interface BlogHeaderProps {
 
 const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
   const { posts, refreshPosts, isLoading } = useBlog();
+  const {userData} = useUserContextData()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Calculate top categories from posts if categories prop not provided
   const topCategories = useMemo(() => {
     // Use provided categories if available
     if (categories && categories.length > 0) {
-      return categories
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 3);
+      return categories.sort((a, b) => b.count - a.count).slice(0, 3);
     }
-    
+
     // Otherwise calculate from posts
     const categoryMap = new Map<string, number>();
-    
-    posts.forEach(post => {
+
+    posts.forEach((post) => {
       if (post.categories && Array.isArray(post.categories)) {
-        post.categories.forEach(category => {
-          if (typeof category === 'string') {
+        post.categories.forEach((category) => {
+          if (typeof category === "string") {
             const trimmed = category.trim();
             if (trimmed) {
               categoryMap.set(trimmed, (categoryMap.get(trimmed) || 0) + 1);
@@ -46,7 +46,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
         });
       }
     });
-    
+
     return Array.from(categoryMap.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
@@ -62,16 +62,16 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-           <Link href="/dashboard" className="flex items-center">
-                        <Image
-                          src="/logo.png"
-                          alt="Zidwell Logo"
-                          width={32}
-                          height={32}
-                          className="mr-2 w-16 object-contain"
-                        />
-                        <h1 className="font-bold text-lg text-white">Zidwell</h1>
-                      </Link>
+          <Link href="/app" className="flex items-center">
+            <Image
+              src="/logo.png"
+              alt="Zidwell Logo"
+              width={32}
+              height={32}
+              className="mr-2 w-16 object-contain"
+            />
+            <h1 className="font-bold text-lg text-white">Zidwell</h1>
+          </Link>
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
             <Link
@@ -80,7 +80,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
             >
               All Articles
             </Link>
-            {topCategories.map((category:any) => (
+            {topCategories.map((category: any) => (
               <Link
                 key={category.name}
                 href={`/blog?category=${encodeURIComponent(category.name)}`}
@@ -89,12 +89,25 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
                 {category.name} {category.count > 0 && `(${category.count})`}
               </Link>
             ))}
-            <Link
+
+             {userData &&
+                [
+                  "super_admin",
+                  "finance_admin",
+                  "operations_admin",
+                  "support_admin",
+                  "legal_admin",
+                ].includes(userData?.role) && (
+                  <Link
               href="/blog/admin"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               Write
             </Link>
+                )}
+
+           
+
             <Button
               variant="ghost"
               size="icon"
@@ -103,7 +116,9 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
               className="h-8 w-8"
               title="Refresh posts"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+              />
             </Button>
           </nav>
 
@@ -121,13 +136,14 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
                     All Articles
                   </Link>
                 </DropdownMenuItem>
-                {topCategories.map((category:any) => (
+                {topCategories.map((category: any) => (
                   <DropdownMenuItem key={category.name} asChild>
                     <Link
                       href={`/blog?category=${encodeURIComponent(category.name)}`}
                       className="cursor-pointer"
                     >
-                      {category.name} {category.count > 0 && `(${category.count})`}
+                      {category.name}{" "}
+                      {category.count > 0 && `(${category.count})`}
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -136,11 +152,10 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
                     Write Article
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={handleRefresh}
-                  disabled={isLoading}
-                >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                <DropdownMenuItem onClick={handleRefresh} disabled={isLoading}>
+                  <RefreshCw
+                    className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+                  />
                   Refresh
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -168,7 +183,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
             >
               All
             </Link>
-            {topCategories.map((category:any) => (
+            {topCategories.map((category: any) => (
               <Link
                 key={category.name}
                 href={`/blog?category=${encodeURIComponent(category.name)}`}

@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAuthenticated } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -95,7 +96,16 @@ async function getCachedWalletBalance(userId: string): Promise<number & { _fromC
   return typeof balance === 'number' ? balance : (balance as any).valueOf();
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+     const user = await isAuthenticated(req);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "Please login to access transactions" },
+            { status: 401 }
+          );
+        }
+    
   try {
     const { userId, nocache, forceBalance } = await req.json();
 

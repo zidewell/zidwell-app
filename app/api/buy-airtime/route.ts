@@ -4,6 +4,7 @@ import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { transporter } from "@/lib/node-mailer";
+import { isAuthenticated } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -290,6 +291,15 @@ await transporter.sendMail({
 }
 
 export async function POST(req: NextRequest) {
+   const user = await isAuthenticated(req);
+      
+      if (!user) {
+        return NextResponse.json(
+          { error: "Please login to access transactions" },
+          { status: 401 }
+        );
+      }
+  
   let transactionId: string | null = null;
   let userId: string | undefined;
   let amount: number | undefined;
@@ -651,6 +661,15 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+   const user = await isAuthenticated(req);
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Please login to access transactions" },
+        { status: 401 }
+      );
+    }
+
   try {
     const { searchParams } = new URL(req.url);
     const transactionId = searchParams.get("transactionId");

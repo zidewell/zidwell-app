@@ -19,7 +19,6 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
     setIsClient(true);
   }, []);
 
-
   useEffect(() => {
     if (isClient && post.createdAt) {
       try {
@@ -42,23 +41,57 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
     }
   }, [isClient, post.createdAt, variant]);
 
-  console.log("BlogCard rendering for post:", post);
+  // Helper function to get user initials
+  const getInitials = (name: string): string => {
+    if (!name || name === "Unknown Author") return "U";
+    
+    const names = name.trim().split(" ");
+    if (names.length === 1) return names[0].charAt(0).toUpperCase();
+    
+    return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
+  };
+
+  // Helper function to get a consistent color based on name
+  const getAvatarColor = (name: string): string => {
+    if (!name) return "#C29307";
+    
+    const colors = [
+      "#3B82F6", // Blue
+      "#10B981", // Green
+      "#8B5CF6", // Purple
+      "#F59E0B", // Amber
+      "#EF4444", // Red
+      "#06B6D4", // Cyan
+      "#EC4899", // Pink
+      "#8B4513", // Brown
+    ];
+    
+    const hash = name.split("").reduce((acc, char) => {
+      return char.charCodeAt(0) + ((acc << 5) - acc);
+    }, 0);
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
+
   // Fallback for featured image
   const featuredImage = post.featuredImage || "/default-blog-image.png";
-  const authorAvatar = post.author?.avatar || "/default-avatar.png";
+  const authorAvatar = post.author?.avatar;
   const authorName = post.author?.name || "Unknown Author";
   const readTime = post.readTime || "5";
   const excerpt = post.excerpt || "";
   const categories = post.categories || [];
   const title = post.title || "Untitled Post";
   const slug = post.slug || "";
+  
+  // Avatar initials and color
+  const initials = getInitials(authorName);
+  const avatarColor = getAvatarColor(authorName);
 
   if (variant === "featured") {
     return (
       <Link href={`/blog/post-blog/${slug}`} className="group block">
         <article className="grid md:grid-cols-2 gap-6 animate-fade-in">
           <div className="aspect-16/10 overflow-hidden rounded-lg">
-            {/* Use regular img tag for better control */}
             <Image
               src={featuredImage}
               alt={title}
@@ -86,13 +119,31 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
               {excerpt}
             </p>
             <div className="flex items-center gap-3">
-              <div className="relative w-8 h-8 rounded-full overflow-hidden">
-                <img
-                  src={authorAvatar}
-                  alt={authorName}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
+              <div className="relative w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border border-gray-200 dark:border-gray-700">
+                {authorAvatar ? (
+                  <Image
+                    src={authorAvatar}
+                    alt={authorName}
+                    className="w-full h-full object-cover"
+                    width={32}
+                    height={32}
+                    loading="lazy"
+                    onError={(e) => {
+                 
+                      const target = e.currentTarget as HTMLImageElement;
+                      target.style.display = 'none';
+                      target.parentElement?.querySelector('.avatar-initials')?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className={`avatar-initials ${authorAvatar ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}
+                  style={{ backgroundColor: avatarColor }}
+                >
+                  <span className="text-white text-xs font-semibold">
+                    {initials}
+                  </span>
+                </div>
               </div>
               <div className="text-sm">
                 <span className="font-medium">{authorName}</span>
@@ -121,10 +172,12 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
       <Link href={`/blog/post-blog/${slug}`} className="group block">
         <article className="flex gap-4 animate-fade-in">
           <div className="w-24 h-24 shrink-0 overflow-hidden rounded">
-            <img
+            <Image
               src={featuredImage}
               alt={title}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              width={96}
+              height={96}
               loading="lazy"
             />
           </div>
@@ -147,11 +200,13 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
     <Link href={`/blog/post-blog/${slug}`} className="group block">
       <article className="animate-fade-in">
         <div className="aspect-16/10 overflow-hidden rounded-lg mb-4">
-          <img
+          <Image
             src={featuredImage}
             alt={title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
+            width={500}
+            height={500}
           />
         </div>
         <div className="flex items-center gap-2 mb-2">
@@ -171,13 +226,31 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
           {excerpt}
         </p>
         <div className="flex items-center gap-2">
-          <div className="relative w-6 h-6 rounded-full overflow-hidden">
-            <img
-              src={authorAvatar}
-              alt={authorName}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
+          <div className="relative w-6 h-6 rounded-full overflow-hidden flex items-center justify-center border border-gray-200 dark:border-gray-700">
+            {authorAvatar ? (
+              <Image
+                src={authorAvatar}
+                alt={authorName}
+                className="w-full h-full object-cover"
+                width={24}
+                height={24}
+                loading="lazy"
+                onError={(e) => {
+                  // If image fails to load, fallback to initials
+                  const target = e.currentTarget as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.parentElement?.querySelector('.avatar-initials')?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            <div 
+              className={`avatar-initials ${authorAvatar ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}
+              style={{ backgroundColor: avatarColor }}
+            >
+              <span className="text-white text-xs font-semibold">
+                {initials}
+              </span>
+            </div>
           </div>
           {isClient && formattedDate && (
             <span className="text-sm text-muted-foreground">

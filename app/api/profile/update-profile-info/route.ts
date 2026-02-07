@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAuthenticated } from "@/lib/auth-check-api";
 // import { clearWalletBalanceCache } from "../../wallet-balance/route";
 // import { clearUserWalletCache } from "../../get-wallet-account-details/route";
 // import { clearTransactionsCache } from "../../bill-transactions/route";
@@ -9,7 +10,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+     const user = await isAuthenticated(req);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "Please login to access transactions" },
+            { status: 401 }
+          );
+        }
+    
   try {
     const body = await req.json();
 

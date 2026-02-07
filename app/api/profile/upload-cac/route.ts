@@ -1,6 +1,7 @@
 // pages/api/profile/upload-cac.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAuthenticated } from "@/lib/auth-check-api";
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -9,6 +10,15 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
+     const user = await isAuthenticated(req);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "Please login to access transactions" },
+            { status: 401 }
+          );
+        }
+    
   try {
     const formData = await req.formData();
     const userId = formData.get("userId") as string;

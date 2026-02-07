@@ -1,10 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
+import { isAuthenticated } from "@/lib/auth-check-api";
 
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+     const user = await isAuthenticated(req);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "Please login to access transactions" },
+            { status: 401 }
+          );
+        }
+    
   const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!

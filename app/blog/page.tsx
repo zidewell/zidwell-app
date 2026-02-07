@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useBlog } from "@/app/context/BlogContext";
 import BlogHeader from "../components/blog-components/blog/BlogHeader"; 
 import BlogSidebar from "../components/blog-components/blog/BlogSideBar";
@@ -8,20 +8,38 @@ import BlogCard from "../components/blog-components/blog/BlogCard";
 import AdPlaceholder from "../components/blog-components/blog/Adpaceholder"; 
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
-import { BlogPost } from "../components/blog-components/blog/types/blog";
+import { BlogPost as BlogPostType } from "../components/blog-components/blog/types/blog";
 
 const POSTS_PER_PAGE = 4;
 const INITIAL_POSTS_COUNT = 4;
 
+// Debounce utility function
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
 const BlogPage = () => {
-  const { posts, isLoading, refreshPosts } = useBlog();
-  const [displayedPosts, setDisplayedPosts] = useState<BlogPost[]>([]);
+  const { 
+    posts, 
+    isLoading, 
+    refreshPosts, 
+    isInitialized 
+  } = useBlog();
+  const [displayedPosts, setDisplayedPosts] = useState<BlogPostType[]>([]);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const hasInitializedRef = useRef(false);
 
   // Mark when client is ready
   useEffect(() => {
@@ -29,7 +47,7 @@ const BlogPage = () => {
   }, []);
 
   // Transform API posts to BlogPost format
-  const transformApiPostToBlogPost = useCallback((apiPost: any): BlogPost => {
+  const transformApiPostToBlogPost = useCallback((apiPost: any): BlogPostType => {
     return {
       id: apiPost.id,
       title: apiPost.title,
@@ -64,19 +82,19 @@ const BlogPage = () => {
 
   // Filter published posts only and transform to BlogPost format
   const publishedPosts = useMemo(() => {
-    if (!isClient) return [];
+    if (!isClient || !isInitialized) return [];
     
     return posts
       .filter(post => post.is_published)
       .map(transformApiPostToBlogPost);
-  }, [posts, isClient, transformApiPostToBlogPost]);
+  }, [posts, isClient, isInitialized, transformApiPostToBlogPost]);
 
   // Search function
   const searchPosts = useCallback((query: string) => {
-    if (!query.trim()) return posts;
+    if (!query.trim()) return publishedPosts;
     
     const lowercaseQuery = query.toLowerCase();
-    return posts.filter(post => 
+    return publishedPosts.filter(post => 
       post.title?.toLowerCase().includes(lowercaseQuery) ||
       post.excerpt?.toLowerCase().includes(lowercaseQuery) ||
       post.content?.toLowerCase().includes(lowercaseQuery) ||
@@ -87,18 +105,16 @@ const BlogPage = () => {
           : cat.name?.toLowerCase().includes(lowercaseQuery)
       )
     );
-  }, [posts]);
+  }, [publishedPosts]);
 
   // Filter posts based on search
   const filteredPosts = useMemo(() => {
-    if (!isClient) return [];
+    if (!isClient || !isInitialized) return [];
     
     if (!searchQuery.trim()) return publishedPosts;
     
-    return searchPosts(searchQuery)
-      .filter(post => post.is_published)
-      .map(transformApiPostToBlogPost);
-  }, [publishedPosts, searchQuery, searchPosts, isClient, transformApiPostToBlogPost]);
+    return searchPosts(searchQuery);
+  }, [publishedPosts, searchQuery, searchPosts, isClient, isInitialized]);
 
   // Update displayed posts when filteredPosts changes
   useEffect(() => {
@@ -115,24 +131,36 @@ const BlogPage = () => {
     }
   }, [filteredPosts, isClient, searchQuery]);
 
+  // Debounced search handler
+  const debouncedSearch = useMemo(() => 
+    debounce((query: string) => {
+      setIsSearching(false);
+      if (!query.trim()) {
+        setDisplayedPosts(publishedPosts.slice(0, INITIAL_POSTS_COUNT));
+        setPage(2);
+        setHasMore(INITIAL_POSTS_COUNT < publishedPosts.length);
+      } else {
+        const filtered = searchPosts(query);
+        setDisplayedPosts(filtered.slice(0, INITIAL_POSTS_COUNT));
+        setPage(2);
+        setHasMore(INITIAL_POSTS_COUNT < filtered.length);
+      }
+    }, 300),
+    [publishedPosts, searchPosts]
+  );
+
   // Handle search
   const handleSearch = useCallback((query: string) => {
     if (!isClient) return;
     
     setSearchQuery(query);
-    setIsSearching(true);
     
-    setTimeout(() => {
-      const filtered = query.trim() 
-        ? searchPosts(query).filter(post => post.is_published).map(transformApiPostToBlogPost)
-        : publishedPosts;
-      
-      setDisplayedPosts(filtered.slice(0, INITIAL_POSTS_COUNT));
-      setPage(2);
-      setHasMore(INITIAL_POSTS_COUNT < filtered.length);
-      setIsSearching(false);
-    }, 200);
-  }, [isClient, searchPosts, publishedPosts, transformApiPostToBlogPost]);
+    if (query.trim()) {
+      setIsSearching(true);
+    }
+    
+    debouncedSearch(query);
+  }, [isClient, debouncedSearch]);
 
   // Load more posts
   const loadMorePosts = useCallback(() => {
@@ -196,8 +224,19 @@ const BlogPage = () => {
     return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
   }, []);
 
+  // Initialize displayed posts once when data is ready
+  useEffect(() => {
+    if (isClient && isInitialized && !hasInitializedRef.current && publishedPosts.length > 0) {
+      const initialPosts = publishedPosts.slice(0, INITIAL_POSTS_COUNT);
+      setDisplayedPosts(initialPosts);
+      setPage(2);
+      setHasMore(INITIAL_POSTS_COUNT < publishedPosts.length);
+      hasInitializedRef.current = true;
+    }
+  }, [isClient, isInitialized, publishedPosts]);
+
   // Loading skeleton - show during SSR and initial client load
-  if (isLoading || !isClient) {
+  if (isLoading || !isClient || !isInitialized) {
     return (
       <div className="min-h-screen bg-background">
         {/* Simple static header for SSR */}
@@ -403,7 +442,7 @@ const BlogPage = () => {
             )}
           </div>
 
-      
+          {/* Sidebar */}
           <div className="hidden lg:block">
             <div className="sticky top-24">
               <BlogSidebar 

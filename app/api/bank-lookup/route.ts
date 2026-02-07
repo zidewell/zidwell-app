@@ -1,7 +1,18 @@
+import { isAuthenticated } from "@/lib/auth-check-api";
 import { getNombaToken } from "@/lib/nomba";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+
+ const user = await isAuthenticated(req);
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Please login to access transactions" },
+        { status: 401 }
+      );
+    }
+
   const token = await getNombaToken();
   if (!token) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

@@ -51,12 +51,14 @@ import {
 } from "lucide-react";
 import { Separator } from "@/app/components/ui/separator";
 import { useBlog } from "@/app/context/BlogContext";
+
 import { useDebouncedCallback } from "use-debounce";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import RichTextEditor from "../../admin-components/RichTextEditor";
 import Loader from "../../Loader";
 import { Badge } from "@/app/components/ui/badge";
+import BlogRichTextEditor from "../RichTextEditor";
+import { useUserContextData } from "@/app/context/userData";
 
 const MySwal = withReactContent(Swal);
 
@@ -93,7 +95,7 @@ const DEFAULT_CATEGORIES = [
   { id: "8", name: "Self-Improvement" },
 ];
 
-// API utility functions (moved outside component to prevent recreation)
+// API utility functions
 const api = {
   get: async (url: string) => {
     const response = await fetch(url);
@@ -175,7 +177,7 @@ const api = {
   },
 };
 
-// Helper function to convert file to base64 (moved outside component)
+// Helper function to convert file to base64
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -185,7 +187,7 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-// Validation functions (moved outside component)
+// Validation functions
 const validatePost = (
   title: string,
   content: string,
@@ -247,7 +249,7 @@ const validateUrl = (
   }
 };
 
-// Custom hook for alert functions (to memoize them)
+// Custom hook for alert functions
 const useAlerts = () => {
   const showErrorAlert = useCallback((title: string, text: string) => {
     MySwal.fire({
@@ -345,6 +347,8 @@ const calculateReadTime = (content: string): number => {
 
 const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const router = useRouter();
+  const { userData } = useUserContextData();
+  
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [excerpt, setExcerpt] = useState("");
@@ -358,7 +362,9 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [authorName, setAuthorName] = useState<string>("Author");
+  const [authorName, setAuthorName] = useState<string>("");
+  const [authorAvatar, setAuthorAvatar] = useState<string>("");
+  const [authorBio, setAuthorBio] = useState<string>("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
@@ -398,6 +404,25 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
   }, []);
 
+  // Set author data from user context on component mount
+  useEffect(() => {
+    if (userData) {
+      // Set author name from user data
+      const name = userData.fullName || userData.username || "Author";
+      setAuthorName(name);
+      
+      // Set author avatar from profilePicture
+      if (userData.profilePicture) {
+        setAuthorAvatar(userData.profilePicture);
+      }
+      
+      // Set author bio if available
+      if (userData.bio) {
+        setAuthorBio(userData.bio);
+      }
+    }
+  }, [userData]);
+
   // Auto-save to localStorage for new posts - memoized
   const saveToLocalDraft = useDebouncedCallback(() => {
     if (!postId && autoSaveEnabled && (title || content)) {
@@ -410,6 +435,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         audioFile,
         tags,
         authorName,
+        authorAvatar,
+        authorBio,
         lastSaved: new Date().toISOString(),
       };
 
@@ -433,7 +460,12 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
           setAudioFile(post.audio_file || "");
           setIsPublished(post.is_published);
           setTags(post.tags?.join(", ") || "");
+          
+          // Set author data from API response
           setAuthorName(post.author?.name || post.author_name || "Author");
+          setAuthorAvatar(post.author?.avatar || "");
+          setAuthorBio(post.author?.bio || "");
+          
           setHasUnsavedChanges(false);
           setValidationErrors({});
         } catch (error) {
@@ -463,7 +495,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
               setFeaturedImage(parsed.featuredImage || "");
               setAudioFile(parsed.audioFile || "");
               setTags(parsed.tags || "");
-              setAuthorName(parsed.authorName || "Author");
+              setAuthorName(parsed.authorName || 
+                (userData?.fullName || userData?.username || "Author"));
+              setAuthorAvatar(parsed.authorAvatar || userData?.profilePicture || "");
+              setAuthorBio(parsed.authorBio || userData?.bio || "");
               showInfoAlert(
                 "Draft Loaded",
                 "Loaded unsaved draft from local storage",
@@ -471,13 +506,18 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
             } catch (e) {
               console.error("Error loading draft from localStorage:", e);
             }
+          } else if (userData) {
+            // If no draft, set author data from user context
+            setAuthorName(userData.fullName || userData.username || "Author");
+            setAuthorAvatar(userData.profilePicture || "");
+            setAuthorBio(userData.bio || "");
           }
         }
       };
 
       loadFromLocalDraft();
     }
-  }, [postId, showErrorAlert, showInfoAlert]);
+  }, [postId, showErrorAlert, showInfoAlert, userData]);
 
   // Validate form before saving - memoized
   const validateForm = useCallback((): boolean => {
@@ -776,8 +816,11 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
           .split(",")
           .map((t) => t.trim())
           .filter(Boolean),
-        authorId: "default-author-id",
+        authorId: userData?.id || "default-author-id",
         authorName: authorName.trim(),
+        authorAvatar: authorAvatar.trim() || "",
+        authorBio: authorBio.trim() || "",
+        isPublished: false
       };
 
       try {
@@ -787,22 +830,22 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         let result;
         if (postId) {
           result = await api.put(
-            `/api/blog/drafts?id=${postId}`,
+            `/api/blog/posts?id=${postId}`,
             draftData,
             apiKey,
           );
           if (!silent) {
             showSuccessAlert(
-              "Draft Updated",
-              "Your draft has been successfully updated!",
+              "Post Updated",
+              "Your post has been successfully updated!",
             );
           }
         } else {
-          result = await api.post("/api/blog/drafts", draftData, apiKey);
+          result = await api.post("/api/blog/posts", draftData, apiKey);
           if (!silent) {
             showSuccessAlert(
-              "Draft Saved",
-              "Your draft has been successfully saved!",
+              "Post Saved",
+              "Your post has been successfully saved!",
             );
           }
         }
@@ -816,17 +859,17 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         setValidationErrors({});
 
         if (!postId && result.id) {
-          router.replace(`/blog/admin/posts/${result.id}/edit?draft=true`);
+          router.replace(`/blog/admin/posts/${result.id}/edit`);
           return result.id;
         }
 
         return postId || result.id;
       } catch (error) {
-        console.error("Error saving draft:", error);
+        console.error("Error saving post:", error);
         if (!silent) {
           showErrorAlert(
             "Save Failed",
-            error instanceof Error ? error.message : "Error saving draft",
+            error instanceof Error ? error.message : "Error saving post",
           );
         }
         return null;
@@ -845,7 +888,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       excerpt,
       selectedCategories,
       tags,
+      userData,
       authorName,
+      authorAvatar,
+      authorBio,
       getApiKey,
       postId,
       showSuccessAlert,
@@ -854,8 +900,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     ],
   );
 
-  // Publish draft - memoized
-  const publishDraft = useCallback(async () => {
+  // Publish post - memoized
+  const publishPost = useCallback(async () => {
     if (!validateForm()) {
       return;
     }
@@ -873,37 +919,36 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     const finalAudioFile = audioBase64 || audioFile;
 
     const publishData = {
-      isPublished: true,
       title: title.trim(),
+      content: content.trim(),
       excerpt: excerpt.trim() || "",
       categories: selectedCategories,
       featuredImage: finalFeaturedImage.trim() || "",
+      audioFile: finalAudioFile.trim() || "",
       tags: tags
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
+      authorId: userData?.id || "default-author-id",
+      authorName: authorName.trim(),
+      authorAvatar: authorAvatar.trim() || "",
+      authorBio: authorBio.trim() || "",
+      isPublished: true
     };
 
     try {
       setIsLoading(true);
       const apiKey = getApiKey();
 
+      let result;
       if (postId) {
-        await api.patch(`/api/blog/drafts?id=${postId}`, publishData, apiKey);
+        result = await api.put(`/api/blog/posts?id=${postId}`, publishData, apiKey);
         showSuccessAlert(
           "Post Published",
           "Your post has been successfully published!",
         );
       } else {
-        const postData = {
-          ...publishData,
-          content: content.trim(),
-          audioFile: finalAudioFile.trim() || "",
-          authorId: "default-author-id",
-          authorName: authorName.trim(),
-        };
-
-        await api.post("/api/blog/posts", postData, apiKey);
+        result = await api.post("/api/blog/posts", publishData, apiKey);
         showSuccessAlert(
           "Post Created",
           "Your post has been created and published!",
@@ -933,13 +978,16 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     audioBase64,
     audioFile,
     title,
+    content,
     excerpt,
     selectedCategories,
     tags,
+    userData,
+    authorName,
+    authorAvatar,
+    authorBio,
     getApiKey,
     postId,
-    content,
-    authorName,
     showSuccessAlert,
     showErrorAlert,
     router,
@@ -948,12 +996,12 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const handleSave = useCallback(
     async (publish: boolean) => {
       if (publish) {
-        await publishDraft();
+        await publishPost();
       } else {
         await saveDraft();
       }
     },
-    [publishDraft, saveDraft],
+    [publishPost, saveDraft],
   );
 
   const handleDelete = useCallback(async () => {
@@ -1198,6 +1246,8 @@ useEffect(() => {
     audioFile,
     tags,
     authorName,
+    authorAvatar,
+    authorBio,
     postId,
     autoSaveEnabled,
     saveToLocalDraft,
@@ -1254,17 +1304,11 @@ useEffect(() => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">
-              {postId
-                ? isDraft
-                  ? "Edit Draft"
-                  : "Edit Post"
-                : "Create New Post"}
+              {postId ? "Edit Post" : "Create New Post"}
             </h1>
             <p className="text-muted-foreground">
               {postId
-                ? isDraft
-                  ? "Edit your draft article"
-                  : "Edit your published article"
+                ? "Edit your published article"
                 : "Write and publish your article"}
             </p>
 
@@ -1275,6 +1319,20 @@ useEffect(() => {
                 <span className="text-xs text-muted-foreground">
                   Auto-saving...{" "}
                   {lastSaved && `Last saved: ${lastSaved.toLocaleTimeString()}`}
+                </span>
+              </div>
+            )}
+            
+            {/* Author info */}
+            {authorAvatar && (
+              <div className="flex items-center gap-2 mt-2">
+                <img 
+                  src={authorAvatar} 
+                  alt={authorName}
+                  className="w-6 h-6 rounded-full"
+                />
+                <span className="text-sm text-muted-foreground">
+                  Author: {authorName}
                 </span>
               </div>
             )}
@@ -1295,7 +1353,7 @@ useEffect(() => {
             <Button
               variant="outline"
               onClick={() => handleSave(false)}
-              disabled={isPublished || isLoading || isSaving}
+              disabled={isLoading || isSaving}
             >
               <Save className="w-4 h-4 mr-2" />
               Save Draft
@@ -1378,8 +1436,7 @@ useEffect(() => {
               )}
             </div>
 
-            {/* Rich Text Editor */}
-            <div className="space-y-2">
+            <div className="space-y-2 w-full">
               <Label className={validationErrors.content ? "text-red-600" : ""}>
                 Content
               </Label>
@@ -1388,16 +1445,18 @@ useEffect(() => {
                   {validationErrors.content}
                 </p>
               )}
-              <RichTextEditor
-                value={content}
-                onChange={(value) => {
-                  setContent(value);
-                  if (validationErrors.content) {
-                    setValidationErrors((prev) => ({ ...prev, content: "" }));
-                  }
-                }}
-                placeholder="Start writing your story..."
-              />
+              <div className="w-full min-h-[400px]">
+                <BlogRichTextEditor
+                  value={content}
+                  onChange={(value) => {
+                    setContent(value);
+                    if (validationErrors.content) {
+                      setValidationErrors((prev) => ({ ...prev, content: "" }));
+                    }
+                  }}
+                  placeholder="Start writing your story..."
+                />
+              </div>
             </div>
 
             {/* Excerpt */}
@@ -1990,9 +2049,17 @@ useEffect(() => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#C29307]/20 to-[#C29307]/40 flex items-center justify-center">
-                        <User className="w-6 h-6 text-[#C29307]" />
-                      </div>
+                      {authorAvatar ? (
+                        <img 
+                          src={authorAvatar} 
+                          alt={authorName}
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#C29307]/20 to-[#C29307]/40 flex items-center justify-center">
+                          <User className="w-6 h-6 text-[#C29307]" />
+                        </div>
+                      )}
                       <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#C29307] rounded-full border-2 border-white dark:border-gray-900"></div>
                     </div>
                     <div>

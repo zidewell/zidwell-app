@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import { getNombaToken } from "@/lib/nomba";
+import { isAuthenticated } from "@/lib/auth-check-api";
 
 // ENHANCED CABLE TV PRODUCTS CACHE
 const cableProductsCache = new Map();
@@ -78,6 +79,15 @@ async function getCachedCableProducts(service: string, retry = 0): Promise<any> 
 }
 
 export async function GET(req: NextRequest) {
+     const user = await isAuthenticated(req);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "Please login to access transactions" },
+            { status: 401 }
+          );
+        }
+    
   const service = req.nextUrl.searchParams.get("service");
   const nocache = req.nextUrl.searchParams.get("nocache");
   const forceRefresh = nocache === "true";

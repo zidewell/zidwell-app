@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
 import bcrypt from "bcryptjs";
 import { transporter } from "@/lib/node-mailer";
+import { isAuthenticated } from "@/lib/auth-check-api";
 // import { clearDataPlansCache } from "../get-data-bundles/route";
 // import {
 //   clearAllWalletBalanceCache,
@@ -292,6 +293,15 @@ Zidwell Team
 }
 
 export async function POST(req: NextRequest) {
+     const user = await isAuthenticated(req);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "Please login to access transactions" },
+            { status: 401 }
+          );
+        }
+    
   let transactionId: string | null = null;
   let userId: string | undefined;
   let amount: number | undefined;
@@ -647,8 +657,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Optional: GET endpoint to check transaction status
 export async function GET(req: NextRequest) {
+     const user = await isAuthenticated(req);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "Please login to access transactions" },
+            { status: 401 }
+          );
+        }
+    
   try {
     const { searchParams } = new URL(req.url);
     const transactionId = searchParams.get("transactionId");

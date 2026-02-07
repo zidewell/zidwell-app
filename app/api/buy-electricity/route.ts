@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
 import bcrypt from "bcryptjs";
 import { transporter } from "@/lib/node-mailer";
+import { isAuthenticated } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -259,6 +260,15 @@ Zidwell Team
 }
 
 export async function POST(req: NextRequest) {
+     const user = await isAuthenticated(req);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "Please login to access transactions" },
+            { status: 401 }
+          );
+        }
+    
   let transactionId: string | null = null;
 
   try {

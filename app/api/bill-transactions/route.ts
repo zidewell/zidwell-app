@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAuthenticated } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -89,6 +90,15 @@ if (typeof setInterval !== 'undefined') {
 
 // Add pagination support to your GET function
 export async function GET(req: NextRequest) {
+   const user = await isAuthenticated(req);
+      
+      if (!user) {
+        return NextResponse.json(
+          { error: "Please login to access transactions" },
+          { status: 401 }
+        );
+      }
+  
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
