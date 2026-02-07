@@ -367,7 +367,7 @@ export default function RootLayout({
             {children}
 
             <FloatingWhatsApp />
-            <FloatingHelpButton />
+            {/* <FloatingHelpButton /> */}
             <NotificationToast />
             <DashboardFooter />
           </SessionWatcher>
