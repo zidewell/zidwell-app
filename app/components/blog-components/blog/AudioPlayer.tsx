@@ -23,11 +23,9 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
   const wordsArrayRef = useRef<string[]>([]);
   const totalWordsRef = useRef(0);
   const wordSpansRef = useRef<HTMLSpanElement[]>([]);
-  const cleanupRefsRef = useRef<(() => void)[]>([]);
 
   // Initialize and check browser support
   useEffect(() => {
-    // Check if browser supports speech synthesis
     if (!('speechSynthesis' in window)) {
       setIsSupported(false);
       return;
@@ -35,7 +33,6 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
 
     setIsInitializing(true);
     
-    // Process content for highlighting
     const processContent = async () => {
       try {
         // Strip HTML and prepare for speech
@@ -49,8 +46,8 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
         wordsArrayRef.current = plainText.split(/\s+/).filter(word => word.length > 0);
         totalWordsRef.current = wordsArrayRef.current.length;
 
-        // Create highlighted version of content with spans
-        await createHighlightedContent();
+        // Create highlighted version
+        createHighlightedContent();
         setIsContentReady(true);
         
       } catch (error) {
@@ -63,64 +60,36 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
     processContent();
 
     return () => {
-      // Cleanup all event listeners
-      cleanupRefsRef.current.forEach(cleanup => cleanup());
-      cleanupRefsRef.current = [];
-      
-      // Cancel any ongoing speech
+      // Cleanup
       if (utteranceRef.current) {
         window.speechSynthesis.cancel();
       }
     };
   }, [content]);
 
-  // Create highlighted content with word spans
-  const createHighlightedContent = async () => {
-    // Simple HTML content with word spans
-    const createWordSpans = (html: string) => {
-      // First, extract text nodes and wrap words
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = html;
-      
-      const walker = document.createTreeWalker(
-        tempDiv,
-        NodeFilter.SHOW_TEXT,
-        null
-      );
-
-      let node;
-      let wordIndex = 0;
-      const wordSpans: string[] = [];
-
-      while (node = walker.nextNode()) {
-        if (node.textContent && node.textContent.trim()) {
-          const words = node.textContent.split(/(\s+)/);
-          
-          words.forEach((word, i) => {
-            if (word.trim()) {
-              wordSpans.push(`<span 
-                data-word-index="${wordIndex}" 
-                class="audio-word transition-all duration-300 ease-in-out inline-block"
-                style="padding: 1px 2px; margin: 0 1px; border-radius: 2px;"
-              >${word}</span>`);
-              wordIndex++;
-            } else if (word) {
-              wordSpans.push(word); // Preserve whitespace
-            }
-          });
-        }
+  // Create highlighted content
+  const createHighlightedContent = () => {
+    // Simple word wrapping for highlighting
+    const words = content.split(/(\s+)/);
+    let wordIndex = 0;
+    const highlighted = words.map(word => {
+      if (word.trim()) {
+        const span = `<span 
+          data-word-index="${wordIndex}" 
+          class="audio-word inline-block transition-all duration-300"
+          style="padding: 2px 1px; margin: 0 1px; border-radius: 3px;"
+        >${word}</span>`;
+        wordIndex++;
+        return span;
       }
+      return word;
+    }).join('');
 
-      return wordSpans.join('');
-    };
-
-    const highlighted = createWordSpans(content);
     setHighlightedContent(highlighted);
 
     // Wait for DOM to update
     setTimeout(() => {
       if (contentContainerRef.current) {
-        // Collect all word spans
         const wordElements = Array.from(
           contentContainerRef.current.querySelectorAll('[data-word-index]')
         ) as HTMLSpanElement[];
@@ -133,66 +102,34 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
   const highlightWord = (wordIndex: number) => {
     // Remove previous highlights
     wordSpansRef.current.forEach(span => {
-      span.classList.remove(
-        'word-active', 
-        'word-next-1', 
-        'word-next-2', 
-        'word-next-3'
-      );
       span.style.backgroundColor = '';
       span.style.color = '';
       span.style.fontWeight = '';
+      span.style.boxShadow = '';
     });
 
     // Highlight current word
     const currentSpan = wordSpansRef.current[wordIndex];
     if (currentSpan) {
-      currentSpan.classList.add('word-active');
       currentSpan.style.backgroundColor = '#C29307';
       currentSpan.style.color = 'white';
       currentSpan.style.fontWeight = '600';
-      currentSpan.style.padding = '2px 6px';
-      currentSpan.style.margin = '0 2px';
-      currentSpan.style.borderRadius = '4px';
       currentSpan.style.boxShadow = '0 2px 4px rgba(194, 147, 7, 0.3)';
       
-      // Scroll into view
+      // Smooth scroll
       currentSpan.scrollIntoView({
         behavior: 'smooth',
-        block: 'center',
-        inline: 'center'
+        block: 'center'
       });
-    }
-
-    // Highlight next few words with decreasing intensity
-    for (let i = 1; i <= 3; i++) {
-      const nextSpan = wordSpansRef.current[wordIndex + i];
-      if (nextSpan) {
-        nextSpan.classList.add(`word-next-${i}`);
-        const opacity = 0.5 - (i * 0.1);
-        nextSpan.style.backgroundColor = `rgba(194, 147, 7, ${opacity})`;
-        nextSpan.style.padding = '1px 4px';
-        nextSpan.style.margin = '0 1px';
-        nextSpan.style.borderRadius = '3px';
-      }
     }
   };
 
   // Reset all highlights
   const resetHighlights = () => {
     wordSpansRef.current.forEach(span => {
-      span.classList.remove(
-        'word-active', 
-        'word-next-1', 
-        'word-next-2', 
-        'word-next-3'
-      );
       span.style.backgroundColor = '';
       span.style.color = '';
       span.style.fontWeight = '';
-      span.style.padding = '';
-      span.style.margin = '';
-      span.style.borderRadius = '';
       span.style.boxShadow = '';
     });
   };
@@ -262,10 +199,8 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
 
     utterance.onstart = () => {
       setIsPlaying(true);
-      // Add gold background to content container
       if (contentContainerRef.current) {
-        contentContainerRef.current.style.backgroundColor = 'rgba(194, 147, 7, 0.05)';
-        contentContainerRef.current.style.transition = 'background-color 0.3s ease';
+        contentContainerRef.current.classList.add('bg-amber-50');
       }
     };
 
@@ -274,7 +209,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
       setCurrentWordIndex(0);
       resetHighlights();
       if (contentContainerRef.current) {
-        contentContainerRef.current.style.backgroundColor = '';
+        contentContainerRef.current.classList.remove('bg-amber-50');
       }
     };
 
@@ -283,17 +218,9 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
       setIsPlaying(false);
       resetHighlights();
       if (contentContainerRef.current) {
-        contentContainerRef.current.style.backgroundColor = '';
+        contentContainerRef.current.classList.remove('bg-amber-50');
       }
       alert("There was an error with text-to-speech. Please try again.");
-    };
-
-    utterance.onpause = () => {
-      setIsPlaying(false);
-    };
-
-    utterance.onresume = () => {
-      setIsPlaying(true);
     };
 
     utteranceRef.current = utterance;
@@ -355,7 +282,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
     setCurrentWordIndex(0);
     resetHighlights();
     if (contentContainerRef.current) {
-      contentContainerRef.current.style.backgroundColor = '';
+      contentContainerRef.current.classList.remove('bg-amber-50');
     }
   };
 
@@ -365,33 +292,32 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
     : 0;
 
   // Format time
-  const getEstimatedTime = () => {
-    const wordsPerMinute = 150 * playbackRate;
-    const remainingWords = totalWordsRef.current - currentWordIndex;
-    const minutes = remainingWords / wordsPerMinute;
-    const totalMinutes = totalWordsRef.current / wordsPerMinute;
-    
-    return {
-      current: Math.floor((currentWordIndex / wordsPerMinute) * 60),
-      total: Math.floor(totalMinutes * 60)
-    };
-  };
-
-  const time = getEstimatedTime();
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const getEstimatedTime = () => {
+    const wordsPerMinute = 150 * playbackRate;
+    const estimatedSeconds = (totalWordsRef.current / wordsPerMinute) * 60;
+    const currentSeconds = (currentWordIndex / totalWordsRef.current) * estimatedSeconds;
+    return {
+      current: Math.floor(currentSeconds),
+      total: Math.floor(estimatedSeconds)
+    };
+  };
+
+  const time = getEstimatedTime();
+
   if (!isSupported) {
     return (
-      <div className="bg-[#C29307]/10 border border-[#C29307]/20 rounded-lg p-4">
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <Volume2 className="w-4 h-4 text-[#C29307]" />
-          <span className="text-sm font-medium text-[#C29307]">Listen to this article</span>
+          <Volume2 className="w-4 h-4 text-amber-600" />
+          <span className="text-sm font-medium text-amber-600">Listen to this article</span>
         </div>
-        <div className="text-center py-4 text-sm text-muted-foreground">
+        <div className="text-center py-4 text-sm text-amber-700">
           <p>Text-to-speech is not supported in your browser.</p>
           <p className="text-xs mt-1">Please use Chrome, Edge, or Safari for this feature.</p>
         </div>
@@ -401,10 +327,10 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
 
   if (isInitializing) {
     return (
-      <div className="bg-[#C29307]/10 border border-[#C29307]/20 rounded-lg p-4">
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
         <div className="flex items-center justify-center gap-2 py-8">
-          <Loader2 className="w-6 h-6 text-[#C29307] animate-spin" />
-          <span className="text-sm font-medium text-[#C29307]">Preparing audio player...</span>
+          <Loader2 className="w-6 h-6 text-amber-600 animate-spin" />
+          <span className="text-sm font-medium text-amber-600">Preparing audio player...</span>
         </div>
       </div>
     );
@@ -413,14 +339,14 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
   return (
     <div className="space-y-6">
       {/* Audio Controls */}
-      <div className="bg-[#C29307]/10 border border-[#C29307]/20 rounded-lg p-4">
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <div className="p-2 bg-[#C29307] rounded-lg">
+          <div className="p-2 bg-amber-600 rounded-lg">
             <Volume2 className="w-5 h-5 text-white" />
           </div>
           <div>
-            <span className="text-sm font-medium text-[#C29307]">Listen to this article</span>
-            <p className="text-xs text-[#C29307]/70 mt-0.5">Words will be highlighted in gold as they're read</p>
+            <span className="text-sm font-medium text-amber-600">Listen to this article</span>
+            <p className="text-xs text-amber-500 mt-0.5">Words will be highlighted in gold as they're read</p>
           </div>
         </div>
         
@@ -430,7 +356,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-[#C29307] hover:bg-[#C29307]/10 hover:text-[#C29307]"
+              className="h-8 w-8 text-amber-600 hover:bg-amber-100 hover:text-amber-700"
               onClick={skipBackward}
               disabled={!isPlaying}
             >
@@ -440,7 +366,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
             <Button
               variant="default"
               size="icon"
-              className="h-10 w-10 rounded-full bg-[#C29307] hover:bg-[#C29307]/90 text-white"
+              className="h-10 w-10 rounded-full bg-amber-600 hover:bg-amber-700 text-white"
               onClick={togglePlay}
             >
               {isPlaying ? (
@@ -453,19 +379,19 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-[#C29307] hover:bg-[#C29307]/10 hover:text-[#C29307]"
+              className="h-8 w-8 text-amber-600 hover:bg-amber-100 hover:text-amber-700"
               onClick={skipForward}
               disabled={!isPlaying}
             >
               <RotateCw className="w-4 h-4" />
             </Button>
 
-            <div className="flex-1">
+            <div className="flex-1 px-2">
               <Slider
                 value={[progress]}
                 max={100}
                 step={0.1}
-                className="cursor-pointer [&>span]:bg-[#C29307] rounded-b-full"
+                className="cursor-pointer"
                 onValueChange={(value) => {
                   const newProgress = value[0];
                   const newWordIndex = Math.floor((newProgress / 100) * totalWordsRef.current);
@@ -475,14 +401,14 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
               />
             </div>
 
-            <span className="text-xs font-medium text-[#C29307] min-w-[60px]">
+            <span className="text-xs font-medium text-amber-600 min-w-[60px] text-right">
               {formatTime(time.current)} / {formatTime(time.total)}
             </span>
 
             <Button
               variant="outline"
               size="sm"
-              className="h-7 px-2 text-xs font-medium border-[#C29307] text-[#C29307] hover:bg-[#C29307]/10"
+              className="h-7 px-2 text-xs font-medium border-amber-600 text-amber-600 hover:bg-amber-100"
               onClick={changePlaybackRate}
             >
               {playbackRate}x
@@ -490,7 +416,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
           </div>
 
           {/* Stats */}
-          <div className="flex items-center justify-between text-xs text-[#C29307]">
+          <div className="flex items-center justify-between text-xs text-amber-600 pt-2">
             <div className="flex items-center gap-4">
               <span className="font-medium">
                 Word: {currentWordIndex} / {totalWordsRef.current}
@@ -503,7 +429,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-2 text-xs text-[#C29307] hover:bg-[#C29307]/10 hover:text-[#C29307]"
+              className="h-6 px-2 text-xs text-amber-600 hover:bg-amber-100"
               onClick={stopSpeech}
               disabled={!isPlaying}
             >
@@ -513,60 +439,15 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
           </div>
 
           {/* Status */}
-          <div className="flex items-center gap-2 text-xs">
-            <div className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-[#C29307] animate-pulse' : 'bg-gray-300'}`} />
-            <span className={isPlaying ? 'text-[#C29307] font-medium' : 'text-gray-500'}>
+          <div className="flex items-center gap-2 text-xs pt-2">
+            <div className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-amber-600 animate-pulse' : 'bg-gray-300'}`} />
+            <span className={isPlaying ? 'text-amber-600 font-medium' : 'text-gray-500'}>
               {isPlaying ? 'Playing...' : 'Ready to play'}
             </span>
           </div>
-
-        
         </div>
       </div>
 
-    
-
-      {/* Custom Styles for Highlighting */}
-      <style jsx>{`
-        .word-active {
-          position: relative;
-          z-index: 10;
-        }
-        
-        .word-active::after {
-          content: '';
-          position: absolute;
-          top: -2px;
-          left: -2px;
-          right: -2px;
-          bottom: -2px;
-          background: rgba(194, 147, 7, 0.2);
-          border-radius: 6px;
-          z-index: -1;
-          animation: ripple 1s ease-in-out infinite;
-        }
-        
-        @keyframes ripple {
-          0% {
-            transform: scale(1);
-            opacity: 0.8;
-          }
-          100% {
-            transform: scale(1.1);
-            opacity: 0;
-          }
-        }
-        
-        /* Gold gradient when playing */
-        ${isPlaying ? `
-          [ref="contentContainerRef"] {
-            background: linear-gradient(135deg, 
-              rgba(194, 147, 7, 0.03) 0%, 
-              rgba(194, 147, 7, 0.01) 100%
-            ) !important;
-          }
-        ` : ''}
-      `}</style>
     </div>
   );
 };
