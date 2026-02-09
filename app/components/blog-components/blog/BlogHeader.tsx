@@ -16,7 +16,7 @@ import { useUserContextData } from "@/app/context/userData";
 
 interface BlogHeaderProps {
   onSearch?: (query: string) => void;
-  categories?: Array<{ name: string; count: number }>; // Optional categories prop
+  categories?: Array<{ name: string; count: number }>;
 }
 
 const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
@@ -62,7 +62,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/app" className="flex items-center">
+          <Link href="/" className="flex items-center">
             <Image
               src="/logo.png"
               alt="Zidwell Logo"
