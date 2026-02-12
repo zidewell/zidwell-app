@@ -147,7 +147,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
  const INACTIVITY_LIMIT = process.env.NODE_ENV === 'development' 
   ? 60 * 60 * 1000 
   : 15 * 60 * 1000; 
-  // Use your existing context
+
   const { userData, setUserData, loading } = useUserContextData();
   
   // Check if user is logged in based on your context

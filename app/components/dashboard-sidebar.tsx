@@ -20,6 +20,8 @@ import {
   Eye,
   EyeOff,
   Send,
+  Captions,
+  ChartColumnIncreasing,
 } from "lucide-react";
 import Image from "next/image";
 import { useUserContextData } from "../context/userData";
@@ -252,6 +254,14 @@ export default function DashboardSidebar() {
               }}
               isActive={pathname === "/dashboard/services/contract"}
             />
+            <NavItem
+              item={{
+                name: "Bookkeeping",
+                href: "/dashboard/services/bookkeeping",
+                icon: ChartColumnIncreasing,
+              }}
+              isActive={pathname === "/dashboard/services/bookkeeping"}
+            />
 
             <NavItem
               item={{
@@ -285,6 +295,8 @@ export default function DashboardSidebar() {
                   "support_admin",
                   "legal_admin",
                 ].includes(userData?.role) && (
+
+                  <>
                   <Link
                     href="/admin"
                     onClick={() => setIsMobileMenuOpen(false)}
@@ -297,6 +309,20 @@ export default function DashboardSidebar() {
                     <Settings className="w-4 h-4" />
                     <span className="font-medium">Admin</span>
                   </Link>
+                  <Link
+                    href="/blog/admin"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                      pathname === "/blog/admin"
+                        ? "bg-yellow-500/20 text-[#C29307] border-r-2 border-[#C29307]"
+                        : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
+                    }`}
+                  >
+                    <Captions className="w-4 h-4"/>
+                  
+                    <span className="font-medium">Blog Admin</span>
+                  </Link>
+                  </>
                 )}
             </div>
           </div>

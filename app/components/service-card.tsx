@@ -13,6 +13,7 @@ import {
   Bot,
   Receipt,
   FileSpreadsheet,
+  ChartColumnIncreasing,
 } from "lucide-react";
 
 const services: any = [
@@ -89,6 +90,15 @@ const services: any = [
     color: "bg-red-50 text-red-600  ",
     buttonColor: "bg-[#C29307] hover:bg-[#C29307]",
     link: "/dashboard/services/create-invoice",
+  },
+  {
+    id: 9,
+    title: "Bookkeeping",
+    description: "Manage your finances",
+    icon: ChartColumnIncreasing,
+    color: "bg-blue-50 text-blue-600  ",
+    buttonColor: "bg-[#C29307] hover:bg-[#C29307]",
+    link: "/dashboard/services/bookkeeping",
   },
 ];
 
