@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ArrowLeft, Share2, Bookmark, Heart, Eye, Clock, Menu, X } from "lucide-react";
 import Swal from "sweetalert2";
-import Head from "next/head";
-
 // Components
 import BlogHeader from "@/app/components/blog-components/blog/BlogHeader";
 import { Badge } from "@/app/components/ui/badge";
@@ -388,42 +386,9 @@ export default function ClientPostPage() {
   const readTime = calculateReadTime(post.content);
   const publishDate = post.published_at || post.created_at;
   
-  // Construct absolute image URL
-  const imageUrl = post.featured_image?.startsWith('http') 
-    ? post.featured_image 
-    : `${baseUrl}${post.featured_image || '/default-blog-image.png'}`;
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Open Graph Tags */}
-      <Head>
-        <title>{post.title}</title>
-        <meta name="description" content={post.excerpt || 'Read this blog post'} />
-        
-        {/* Open Graph Tags (for WhatsApp, Facebook, LinkedIn) */}
-        <meta property="og:title" content={post.title} />
-        <meta property="og:description" content={post.excerpt || 'Read this blog post'} />
-        <meta property="og:image" content={imageUrl} />
-        <meta property="og:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
-        <meta property="og:type" content="article" />
-        <meta property="og:site_name" content="Your Website Name" />
-        <meta property="article:published_time" content={publishDate} />
-        <meta property="article:author" content={post.author?.name || 'Unknown Author'} />
-        {post.categories?.map((category, index) => (
-          <meta key={`og-category-${index}`} property="article:tag" content={category} />
-        ))}
-        
-        {/* Twitter Card Tags */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={post.title} />
-        <meta name="twitter:description" content={post.excerpt || 'Read this blog post'} />
-        <meta name="twitter:image" content={imageUrl} />
-        
-        {/* Image dimensions (recommended) */}
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-      </Head>
-
+  
       <BlogHeader />
 
       <main className="mx-auto px-4 sm:px-6 py-6 sm:py-8 md:py-12 lg:py-16 max-w-7xl">

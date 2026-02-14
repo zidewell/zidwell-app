@@ -16,6 +16,7 @@ interface BlogPost {
   tags?: string[];
   author?: {
     name?: string;
+    avatar?: string | null;
   };
 }
 
@@ -39,7 +40,6 @@ async function getPostForMetadata(slug: string): Promise<BlogPost | null> {
   }
 }
 
-
 export async function generateMetadata({
   params,
 }: {
@@ -57,23 +57,43 @@ export async function generateMetadata({
 
   if (!post || !post.is_published) {
     return {
-      title: "Post Not Found",
+      title: "Post Not Found | Zidwell Blog",
       description: "The requested blog post could not be found.",
+      openGraph: {
+        title: "Post Not Found | Zidwell Blog",
+        description: "The requested blog post could not be found.",
+        images: [
+          {
+            url: `${baseUrl}/images/og-image.png`, // ✅ Fixed path
+            width: 1200,
+            height: 630,
+            alt: "Zidwell Blog",
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: "Post Not Found | Zidwell Blog",
+        description: "The requested blog post could not be found.",
+        images: [`${baseUrl}/images/og-image.png`], // ✅ Fixed path
+      },
     };
   }
 
-  const imageUrl =
-    post.featured_image?.startsWith("http")
-      ? post.featured_image
-      : `${baseUrl}${post.featured_image || "/default-blog-image.png"}`;
+  // Construct absolute image URL
+  const imageUrl = post.featured_image?.startsWith("http")
+    ? post.featured_image
+    : post.featured_image 
+      ? `${baseUrl}${post.featured_image}`
+      : `${baseUrl}/images/og-image.png`; // ✅ Fixed path to match your layout
 
   return {
-    title: post.title,
-    description: post.excerpt || "Read this blog post",
-
+    title: `${post.title} | Zidwell Blog`,
+    description: post.excerpt || "Read this blog post on Zidwell",
+    
     openGraph: {
       title: post.title,
-      description: post.excerpt || "Read this blog post",
+      description: post.excerpt || "Read this blog post on Zidwell",
       url: `${baseUrl}/blog/${post.slug}`,
       siteName: "Zidwell",
       type: "article",
@@ -94,8 +114,9 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: post.title,
-      description: post.excerpt || "Read this blog post",
+      description: post.excerpt || "Read this blog post on Zidwell",
       images: [imageUrl],
+      // Remove the site field since you don't have a Twitter handle
     },
 
     alternates: {
@@ -103,10 +124,13 @@ export async function generateMetadata({
     },
 
     keywords: [...(post.categories || []), ...(post.tags || [])],
+    
+    authors: post.author?.name ? [{ name: post.author.name }] : undefined,
+    category: post.categories?.[0],
   };
 }
 
-
+// Server wrapper component for Next.js 15
 export default async function PostPage({
   params,
 }: {
