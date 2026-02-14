@@ -49,12 +49,6 @@ interface BlogPost {
   comment_count?: number;
 }
 
-interface ClientPostPageProps {
-  params: {
-    slug: string;
-  };
-}
-
 const calculateReadTime = (content: string): number => {
   if (!content) return 3;
   const wordsPerMinute = 200;
@@ -62,8 +56,9 @@ const calculateReadTime = (content: string): number => {
   return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
 };
 
-const ClientPostPage = ({ params }: ClientPostPageProps) => {
-  const { slug } = params;
+export default function ClientPostPage() {
+  const params = useParams<{ slug: string }>();
+  const slug = params?.slug;
   const router = useRouter();
   
   const [post, setPost] = useState<BlogPost | null>(null);
@@ -737,6 +732,4 @@ const ClientPostPage = ({ params }: ClientPostPageProps) => {
       </main>
     </div>
   );
-};
-
-export default ClientPostPage;
+}
