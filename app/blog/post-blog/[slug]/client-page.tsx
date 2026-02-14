@@ -13,7 +13,7 @@ import BlogHeader from "@/app/components/blog-components/blog/BlogHeader";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import AudioPlayer from "@/app/components/blog-components/blog/AudioPlayer";
-import ArticleContent from "@/app/components/blog-components/blog/AticleContent";
+import ArticleContent from "@/app/components/blog-components/blog/AticleContent"; 
 import CommentSection from "@/app/components/blog-components/blog/CommentSection";
 import BlogCard from "@/app/components/blog-components/blog/BlogCard";
 import BlogSidebar from "@/app/components/blog-components/blog/BlogSideBar";
