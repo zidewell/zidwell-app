@@ -65,7 +65,7 @@ const websiteSchema = {
   },
 };
 
-// UPDATED BREADCRUMB WITH ALL PAGES INCLUDED
+
 const breadcrumbSchema = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
@@ -150,7 +150,7 @@ const breadcrumbSchema = {
   ],
 };
 
-// ADDITIONAL SCHEMA FOR SIGNUP/LOGIN PAGES
+
 const signupPageSchema = {
   "@context": "https://schema.org",
   "@type": "WebPage",
@@ -233,7 +233,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/images/og-image.jpg",
+        url: "/images/og-image.png",
         width: 1200,
         height: 630,
         alt: "Zidwell - Business Finance & Management Platform",
