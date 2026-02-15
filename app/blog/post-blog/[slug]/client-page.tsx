@@ -82,7 +82,7 @@ export default function ClientPostPage() {
 
   const showAlert = Swal.mixin({
     customClass: {
-      confirmButton: "bg-[#C29307] text-white hover:bg-[#C29307]/90 px-4 py-2 rounded",
+      confirmButton: "bg-[#242424] text-white hover:bg-[#242424]/90 px-4 py-2 rounded",
     },
     buttonsStyling: false,
   });
@@ -341,6 +341,27 @@ export default function ClientPostPage() {
     return () => document.removeEventListener('keydown', handleEscKey);
   }, [showMobileSidebar]);
 
+  // Add font links to head
+  useEffect(() => {
+    // Add Be Vietnam font
+    const beVietnamLink = document.createElement('link');
+    beVietnamLink.href = 'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap';
+    beVietnamLink.rel = 'stylesheet';
+    document.head.appendChild(beVietnamLink);
+
+    // Add Neue Machina from Fontshare (free alternative)
+    const neueMachinaLink = document.createElement('link');
+    neueMachinaLink.href = 'https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap';
+    neueMachinaLink.rel = 'stylesheet';
+    document.head.appendChild(neueMachinaLink);
+
+    return () => {
+      // Clean up if needed
+      document.head.removeChild(beVietnamLink);
+      document.head.removeChild(neueMachinaLink);
+    };
+  }, []);
+
   // Show skeleton while loading
   if (isLoading) {
     return <BlogPostSkeleton />;
@@ -348,31 +369,35 @@ export default function ClientPostPage() {
 
   if (error || !post) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[#FFFFFF]">
         <BlogHeader />
         <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-16 text-center">
           <div className="max-w-md mx-auto">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 bg-muted rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 bg-[#E6E6E6] rounded-full flex items-center justify-center">
+              <svg className="w-10 h-10 sm:w-12 sm:h-12 text-[#6B6B6B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h1 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">Article Not Found</h1>
-            <p className="text-muted-foreground mb-4 sm:mb-6 px-4 sm:px-0 text-sm sm:text-base">
+            <h1 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4 text-[#242424]" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+              Article Not Found
+            </h1>
+            <p className="text-[#6B6B6B] mb-4 sm:mb-6 px-4 sm:px-0 text-sm sm:text-base" style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}>
               {error || "The article you're looking for doesn't exist or hasn't been published yet."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center px-4 sm:px-0">
               <Button 
                 variant="outline" 
                 onClick={() => router.push('/blog')}
-                className="gap-2 w-full sm:w-auto"
+                className="gap-2 w-full sm:w-auto border-[#E6E6E6] text-[#242424] hover:bg-[#E6E6E6]" 
+                style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Blog
               </Button>
               <Button 
                 onClick={() => window.location.reload()}
-                className="bg-[#C29307] hover:bg-[#C29307]/90 gap-2 w-full sm:w-auto"
+                className="bg-[#242424] hover:bg-[#242424]/90 text-white gap-2 w-full sm:w-auto"
+                style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
               >
                 Try Again
               </Button>
@@ -387,8 +412,7 @@ export default function ClientPostPage() {
   const publishDate = post.published_at || post.created_at;
   
   return (
-    <div className="min-h-screen bg-background">
-  
+    <div className="min-h-screen bg-[#FFFFFF]">
       <BlogHeader />
 
       <main className="mx-auto px-4 sm:px-6 py-6 sm:py-8 md:py-12 lg:py-16 max-w-7xl">
@@ -397,8 +421,9 @@ export default function ClientPostPage() {
           <Button
             variant="ghost"
             onClick={() => router.push('/blog')}
-            className="gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="gap-2 hover:bg-[#E6E6E6] text-[#242424]"
             size="sm"
+            style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden xs:inline">Back to Blog</span>
@@ -408,21 +433,23 @@ export default function ClientPostPage() {
             variant="outline"
             size="sm"
             onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-            className="gap-2"
+            className="gap-2 border-[#E6E6E6] text-[#242424]"
+            style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
           >
             {showMobileSidebar ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             <span className="hidden xs:inline">Sidebar</span>
           </Button>
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_320px] gap-8 lg:gap-12">
+        <div className="grid lg:grid-cols-[1fr_320px] gap-8 lg:gap-20">
           <div className="max-w-4xl mx-auto lg:mx-0">
             <article>
               <div className="hidden lg:block">
                 <Button
                   variant="ghost"
                   onClick={() => router.push('/blog')}
-                  className="mb-6 gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="mb-6 gap-2 hover:bg-[#E6E6E6] text-[#242424]"
+                  style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Back to Blog
@@ -435,19 +462,26 @@ export default function ClientPostPage() {
                     <Badge
                       key={index}
                       variant="secondary"
-                      className="bg-[#C29307]/10 text-[#C29307] hover:bg-[#C29307]/20 uppercase text-xs tracking-wider px-2 py-0.5 sm:px-3 sm:py-1"
+                      className="bg-[#E6E6E6] text-[#242424] hover:bg-[#E6E6E6]/80 uppercase text-xs tracking-wider px-2 py-0.5 sm:px-3 sm:py-1"
+                      style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
                       {category}
                     </Badge>
                   ))}
                 </div>
 
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight mb-4 sm:mb-6 text-foreground">
+                <h1 
+                  className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight mb-4 sm:mb-6 text-[#242424]"
+                  style={{ fontFamily: "'Clash Display', sans-serif" }}
+                >
                   {post.title}
                 </h1>
 
                 {post.excerpt && (
-                  <p className="text-lg sm:text-xl text-muted-foreground mb-4 sm:mb-6 italic border-l-2 sm:border-l-4 border-[#C29307] pl-3 sm:pl-4 py-1 sm:py-2">
+                  <p 
+                    className="text-lg sm:text-xl text-[#6B6B6B] mb-4 sm:mb-6 italic border-l-2 sm:border-l-4 border-[#E6E6E6] pl-3 sm:pl-4 py-1 sm:py-2"
+                    style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                  >
                     {post.excerpt}
                   </p>
                 )}
@@ -458,19 +492,25 @@ export default function ClientPostPage() {
                       <Image
                         src={post.author?.avatar || "https://images.unsplash.com/photo-1463453091185-61582044d556?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHVzZXIlMjBwcm9maWxlfGVufDB8fDB8fHww"}
                         alt={post.author?.name || "Author"}
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-border"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-[#E6E6E6]"
                         onError={handleImageError}
                         loading="lazy"
                         width={40}
                         height={40}
                       />
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-[#C29307] rounded-full border-2 border-background"></div>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-[#242424] rounded-full border-2 border-[#FFFFFF]"></div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
+                      <h3 
+                        className="font-semibold text-[#242424] text-sm sm:text-base truncate"
+                        style={{ fontFamily: "'Clash Display', sans-serif" }}
+                      >
                         {post.author?.name || "Unknown Author"}
                       </h3>
-                      <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
+                      <div 
+                        className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-[#6B6B6B] mt-1"
+                        style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                      >
                         <span className="flex items-center gap-1 whitespace-nowrap">
                           <Clock className="w-3 h-3" />
                           {readTime} min read
@@ -489,19 +529,23 @@ export default function ClientPostPage() {
                   </div>
                   
                   {post.author?.bio && (
-                    <div className="hidden lg:block text-sm text-muted-foreground border-l border-border pl-6">
+                    <div 
+                      className="hidden lg:block text-sm text-[#6B6B6B] border-l border-[#E6E6E6] pl-6"
+                      style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                    >
                       {post.author.bio}
                     </div>
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6 border-t border-b border-border py-3 sm:py-4">
+                <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6 border-t border-b border-[#E6E6E6] py-3 sm:py-4">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleShare}
                     disabled={isSharing}
-                    className="gap-2 hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none"
+                    className="gap-2 hover:bg-[#E6E6E6] text-[#242424] border-[#E6E6E6] flex-1 sm:flex-none"
+                    style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                   >
                     <Share2 className="w-4 h-4" />
                     <span className="hidden xs:inline">{isSharing ? "Sharing..." : "Share"}</span>
@@ -511,9 +555,10 @@ export default function ClientPostPage() {
                     variant="outline"
                     size="sm"
                     onClick={handleBookmark}
-                    className={`gap-2 hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none ${isBookmarked ? 'bg-[#C29307]/10 border-[#C29307]' : ''}`}
+                    className={`gap-2 hover:bg-[#E6E6E6] text-[#242424] border-[#E6E6E6] flex-1 sm:flex-none ${isBookmarked ? 'bg-[#E6E6E6]' : ''}`}
+                    style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                   >
-                    <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-[#C29307] text-[#C29307]' : ''}`} />
+                    <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-[#242424] text-[#242424]' : ''}`} />
                     <span className="hidden xs:inline">{isBookmarked ? "Bookmarked" : "Bookmark"}</span>
                   </Button>
                   
@@ -521,9 +566,10 @@ export default function ClientPostPage() {
                     variant="outline"
                     size="sm"
                     onClick={handleLike}
-                    className={`gap-2 hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none ${isLiked ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' : ''}`}
+                    className={`gap-2 hover:bg-[#E6E6E6] text-[#242424] border-[#E6E6E6] flex-1 sm:flex-none ${isLiked ? 'bg-[#E6E6E6]' : ''}`}
+                    style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                   >
-                    <Heart className={`w-4 h-4 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
+                    <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#242424] text-[#242424]' : ''}`} />
                     <span className="hidden xs:inline">{likeCount} {isLiked ? 'Liked' : 'Like'}</span>
                   </Button>
                 </div>
@@ -536,7 +582,7 @@ export default function ClientPostPage() {
               </header>
 
               {post.featured_image && (
-                <div className="aspect-video overflow-hidden rounded-lg sm:rounded-xl mb-6 sm:mb-8 border border-border shadow">
+                <div className="aspect-video overflow-hidden rounded-lg sm:rounded-xl mb-6 sm:mb-8 border border-[#E6E6E6] shadow-sm">
                   <Image
                     src={post.featured_image}
                     alt={post.title}
@@ -551,7 +597,10 @@ export default function ClientPostPage() {
               )}
 
               {/* RENDER FULL CONTENT HERE */}
-              <div className="mb-6 sm:mb-8">
+              <div 
+                className="mb-6 sm:mb-8 text-[#242424]"
+                style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+              >
                 <ArticleContent content={post.content} />
               </div>
 
@@ -564,14 +613,20 @@ export default function ClientPostPage() {
               </div>
 
               {post.tags && post.tags.length > 0 && (
-                <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-border">
-                  <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-foreground">Tags</h4>
+                <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-[#E6E6E6]">
+                  <h4 
+                    className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[#242424]"
+                    style={{ fontFamily: "'Clash Display', sans-serif" }}
+                  >
+                    Tags
+                  </h4>
                   <div className="flex flex-wrap gap-2">
                     {post.tags.map((tag, index) => (
                       <Badge 
                         key={index} 
                         variant="outline" 
-                        className="text-xs sm:text-sm px-3 py-1 hover:bg-accent cursor-pointer transition-colors"
+                        className="text-xs sm:text-sm px-3 py-1 hover:bg-[#E6E6E6] cursor-pointer transition-colors border-[#E6E6E6] text-[#242424]"
+                        style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                         onClick={() => router.push(`/blog/tag/${tag.toLowerCase().replace(/\s+/g, '-')}`)}
                       >
                         #{tag}
@@ -581,26 +636,69 @@ export default function ClientPostPage() {
                 </div>
               )}
 
-              <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-border">
+              <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-[#E6E6E6]">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-center">
-                  <div className="p-3 sm:p-4 bg-muted rounded-lg">
-                    <div className="text-xl sm:text-2xl font-bold text-[#C29307]">{viewCount}</div>
-                    <div className="text-xs sm:text-sm text-muted-foreground mt-1">Views</div>
+                  <div className="p-3 sm:p-4 bg-[#E6E6E6] rounded-lg">
+                    <div 
+                      className="text-xl sm:text-2xl font-bold text-[#242424]"
+                      style={{ fontFamily: "'Clash Display', sans-serif" }}
+                    >
+                      {viewCount}
+                    </div>
+                    <div 
+                      className="text-xs sm:text-sm text-[#6B6B6B] mt-1"
+                      style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                    >
+                      Views
+                    </div>
                   </div>
-                  <div className="p-3 sm:p-4 bg-muted rounded-lg">
-                    <div className="text-xl sm:text-2xl font-bold text-[#C29307]">{likeCount}</div>
-                    <div className="text-xs sm:text-sm text-muted-foreground mt-1">Likes</div>
+                  <div className="p-3 sm:p-4 bg-[#E6E6E6] rounded-lg">
+                    <div 
+                      className="text-xl sm:text-2xl font-bold text-[#242424]"
+                      style={{ fontFamily: "'Clash Display', sans-serif" }}
+                    >
+                      {likeCount}
+                    </div>
+                    <div 
+                      className="text-xs sm:text-sm text-[#6B6B6B] mt-1"
+                      style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                    >
+                      Likes
+                    </div>
                   </div>
-                  <div className="p-3 sm:p-4 bg-muted rounded-lg">
-                    <div className="text-xl sm:text-2xl font-bold text-[#C29307]">{post.comments_count || 0}</div>
-                    <div className="text-xs sm:text-sm text-muted-foreground mt-1">Comments</div>
+                  <div className="p-3 sm:p-4 bg-[#E6E6E6] rounded-lg">
+                    <div 
+                      className="text-xl sm:text-2xl font-bold text-[#242424]"
+                      style={{ fontFamily: "'Clash Display', sans-serif" }}
+                    >
+                      {post.comments_count || 0}
+                    </div>
+                    <div 
+                      className="text-xs sm:text-sm text-[#6B6B6B] mt-1"
+                      style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                    >
+                      Comments
+                    </div>
                   </div>
-                  <div className="p-3 sm:p-4 bg-muted rounded-lg">
-                    <div className="text-xl sm:text-2xl font-bold text-[#C29307]">{readTime}</div>
-                    <div className="text-xs sm:text-sm text-muted-foreground mt-1">Min Read</div>
+                  <div className="p-3 sm:p-4 bg-[#E6E6E6] rounded-lg">
+                    <div 
+                      className="text-xl sm:text-2xl font-bold text-[#242424]"
+                      style={{ fontFamily: "'Clash Display', sans-serif" }}
+                    >
+                      {readTime}
+                    </div>
+                    <div 
+                      className="text-xs sm:text-sm text-[#6B6B6B] mt-1"
+                      style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                    >
+                      Min Read
+                    </div>
                   </div>
                 </div>
-                <div className="text-center text-xs sm:text-sm text-muted-foreground mt-3 sm:mt-4 px-2">
+                <div 
+                  className="text-center text-xs sm:text-sm text-[#6B6B6B] mt-3 sm:mt-4 px-2"
+                  style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                >
                   Published on {format(new Date(publishDate), "MMMM d, yyyy 'at' h:mm a")}
                   {post.updated_at && post.updated_at !== post.created_at && (
                     <span className="block sm:inline"> • Updated {format(new Date(post.updated_at), "MMMM d, yyyy")}</span>
@@ -614,9 +712,12 @@ export default function ClientPostPage() {
             </div>
 
             {relatedPosts.length > 0 && (
-              <section className="mt-12 sm:mt-16 pt-6 sm:pt-8 border-t border-border">
+              <section className="mt-12 sm:mt-16 pt-6 sm:pt-8 border-t border-[#E6E6E6]">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-3">
-                  <h3 className="text-xl sm:text-2xl font-semibold text-foreground">
+                  <h3 
+                    className="text-xl sm:text-2xl font-semibold text-[#242424]"
+                    style={{ fontFamily: "'Clash Display', sans-serif" }}
+                  >
                     Related Articles
                   </h3>
                 </div>
@@ -625,9 +726,9 @@ export default function ClientPostPage() {
                   <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
                     {[1, 2].map((i) => (
                       <div key={i} className="animate-pulse">
-                        <div className="aspect-video bg-muted rounded-lg mb-3 sm:mb-4"></div>
-                        <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-muted rounded w-1/2"></div>
+                        <div className="aspect-video bg-[#E6E6E6] rounded-lg mb-3 sm:mb-4"></div>
+                        <div className="h-4 bg-[#E6E6E6] rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-[#E6E6E6] rounded w-1/2"></div>
                       </div>
                     ))}
                   </div>
@@ -685,14 +786,19 @@ export default function ClientPostPage() {
                 className="fixed inset-0 bg-black/50 z-40 lg:hidden"
                 onClick={() => setShowMobileSidebar(false)}
               />
-              <div className="fixed inset-y-0 right-0 w-[300px] max-w-[85vw] bg-background z-50 lg:hidden overflow-y-auto shadow-2xl p-6">
+              <div className="fixed inset-y-0 right-0 w-[300px] max-w-[85vw] bg-[#FFFFFF] z-50 lg:hidden overflow-y-auto shadow-2xl p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-semibold">Sidebar</h3>
+                  <h3 
+                    className="text-lg font-semibold text-[#242424]"
+                    style={{ fontFamily: "'Clash Display', sans-serif" }}
+                  >
+                    Sidebar
+                  </h3>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowMobileSidebar(false)}
-                    className="p-2"
+                    className="p-2 hover:bg-[#E6E6E6] text-[#242424]"
                   >
                     <X className="w-5 h-5" />
                   </Button>

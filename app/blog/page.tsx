@@ -41,6 +41,27 @@ const BlogPage = () => {
   const [isClient, setIsClient] = useState(false);
   const hasInitializedRef = useRef(false);
 
+  // Add font links to head
+  useEffect(() => {
+    // Add Be Vietnam font
+    const beVietnamLink = document.createElement('link');
+    beVietnamLink.href = 'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap';
+    beVietnamLink.rel = 'stylesheet';
+    document.head.appendChild(beVietnamLink);
+
+    // Add Clash Display as Neue Machina alternative
+    const clashDisplayLink = document.createElement('link');
+    clashDisplayLink.href = 'https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap';
+    clashDisplayLink.rel = 'stylesheet';
+    document.head.appendChild(clashDisplayLink);
+
+    return () => {
+      // Clean up if needed
+      document.head.removeChild(beVietnamLink);
+      document.head.removeChild(clashDisplayLink);
+    };
+  }, []);
+
   // Mark when client is ready
   useEffect(() => {
     setIsClient(true);
@@ -238,13 +259,13 @@ const BlogPage = () => {
   // Loading skeleton - show during SSR and initial client load
   if (isLoading || !isClient || !isInitialized) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[#FFFFFF]">
         {/* Simple static header for SSR */}
-        <div className="border-b">
+        <div className="border-b border-[#E6E6E6]">
           <div className="container mx-auto px-4 py-6">
             <div className="flex justify-between items-center">
-              <div className="h-10 w-32 bg-muted rounded animate-pulse" />
-              <div className="h-10 w-64 bg-muted rounded animate-pulse" />
+              <div className="h-10 w-32 bg-[#E6E6E6] rounded animate-pulse" />
+              <div className="h-10 w-64 bg-[#E6E6E6] rounded animate-pulse" />
             </div>
           </div>
         </div>
@@ -254,29 +275,29 @@ const BlogPage = () => {
             <div>
               {/* Featured Post Skeleton */}
               <div className="mb-12">
-                <div className="bg-card rounded-lg overflow-hidden shadow-lg">
-                  <Skeleton className="h-64 w-full" />
+                <div className="bg-[#FFFFFF] rounded-lg overflow-hidden shadow-sm border border-[#E6E6E6]">
+                  <Skeleton className="h-64 w-full bg-[#E6E6E6]" />
                   <div className="p-6">
-                    <Skeleton className="h-8 w-3/4 mb-4" />
-                    <Skeleton className="h-4 w-full mb-2" />
-                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-8 w-3/4 mb-4 bg-[#E6E6E6]" />
+                    <Skeleton className="h-4 w-full mb-2 bg-[#E6E6E6]" />
+                    <Skeleton className="h-4 w-2/3 bg-[#E6E6E6]" />
                   </div>
                 </div>
               </div>
               
               {/* Ad Skeleton */}
-              <Skeleton className="h-32 w-full mb-8" />
+              <Skeleton className="h-32 w-full mb-8 bg-[#E6E6E6]" />
               
               {/* Posts Grid Skeleton */}
               <div className="grid md:grid-cols-2 gap-8">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i}>
-                    <div className="bg-card rounded-lg overflow-hidden shadow">
-                      <Skeleton className="h-48 w-full" />
+                    <div className="bg-[#FFFFFF] rounded-lg overflow-hidden shadow-sm border border-[#E6E6E6]">
+                      <Skeleton className="h-48 w-full bg-[#E6E6E6]" />
                       <div className="p-4">
-                        <Skeleton className="h-6 w-3/4 mb-2" />
-                        <Skeleton className="h-4 w-full mb-2" />
-                        <Skeleton className="h-4 w-2/3" />
+                        <Skeleton className="h-6 w-3/4 mb-2 bg-[#E6E6E6]" />
+                        <Skeleton className="h-4 w-full mb-2 bg-[#E6E6E6]" />
+                        <Skeleton className="h-4 w-2/3 bg-[#E6E6E6]" />
                       </div>
                     </div>
                   </div>
@@ -288,12 +309,12 @@ const BlogPage = () => {
             <div className="hidden lg:block">
               <div className="sticky top-24 space-y-8">
                 <div className="space-y-3">
-                  <Skeleton className="h-5 w-24" />
-                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-5 w-24 bg-[#E6E6E6]" />
+                  <Skeleton className="h-10 w-full bg-[#E6E6E6]" />
                 </div>
-                <Skeleton className="h-64 w-full" />
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-64 w-full bg-[#E6E6E6]" />
+                <Skeleton className="h-48 w-full bg-[#E6E6E6]" />
+                <Skeleton className="h-48 w-full bg-[#E6E6E6]" />
               </div>
             </div>
           </div>
@@ -303,7 +324,7 @@ const BlogPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#FFFFFF]">
       <BlogHeader onSearch={handleSearch} />
       
       <main className="container mx-auto px-4 py-8">
@@ -314,16 +335,24 @@ const BlogPage = () => {
             {searchQuery && (
               <div className="mb-6 flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-semibold">
+                  <h2 
+                    className="text-xl font-semibold text-[#242424]"
+                    style={{ fontFamily: "'Clash Display', sans-serif" }}
+                  >
                     Search Results for &quot;{searchQuery}&quot;
                   </h2>
-                  <p className="text-muted-foreground text-sm mt-1">
+                  <p 
+                    className="text-[#6B6B6B] text-sm mt-1"
+                    style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                  >
                     Found {filteredPosts.length} article{filteredPosts.length !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <Button
                   variant="ghost"
                   onClick={() => handleSearch("")}
+                  className="text-[#242424] hover:bg-[#E6E6E6]"
+                  style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                 >
                   Clear Search
                 </Button>
@@ -353,12 +382,12 @@ const BlogPage = () => {
               <div className="grid md:grid-cols-2 gap-8 mt-12">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i}>
-                    <div className="bg-card rounded-lg overflow-hidden shadow animate-pulse">
-                      <div className="h-48 bg-muted" />
+                    <div className="bg-[#FFFFFF] rounded-lg overflow-hidden shadow-sm border border-[#E6E6E6] animate-pulse">
+                      <div className="h-48 bg-[#E6E6E6]" />
                       <div className="p-4">
-                        <div className="h-6 bg-muted rounded w-3/4 mb-2" />
-                        <div className="h-4 bg-muted rounded w-full mb-2" />
-                        <div className="h-4 bg-muted rounded w-2/3" />
+                        <div className="h-6 bg-[#E6E6E6] rounded w-3/4 mb-2" />
+                        <div className="h-4 bg-[#E6E6E6] rounded w-full mb-2" />
+                        <div className="h-4 bg-[#E6E6E6] rounded w-2/3" />
                       </div>
                     </div>
                   </div>
@@ -391,11 +420,23 @@ const BlogPage = () => {
               !isLoading && !isSearching && (
                 <div className="text-center py-16">
                   <div className="max-w-md mx-auto">
-                    <h3 className="text-xl font-semibold mb-4">No articles published yet</h3>
-                    <p className="text-muted-foreground mb-6">
+                    <h3 
+                      className="text-xl font-semibold mb-4 text-[#242424]"
+                      style={{ fontFamily: "'Clash Display', sans-serif" }}
+                    >
+                      No articles published yet
+                    </h3>
+                    <p 
+                      className="text-[#6B6B6B] mb-6"
+                      style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                    >
                       Check back soon for new content or contact the administrator.
                     </p>
-                    <Button onClick={handleRefresh}>
+                    <Button 
+                      onClick={handleRefresh}
+                      className="bg-[#242424] hover:bg-[#242424]/90 text-white"
+                      style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                    >
                       Refresh
                     </Button>
                   </div>
@@ -406,14 +447,19 @@ const BlogPage = () => {
             {/* Loading more indicator */}
             {loadingMore && (
               <div className="flex justify-center py-8">
-                <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-[#242424] border-t-transparent rounded-full animate-spin" />
               </div>
             )}
 
             {/* Load More Button (alternative to infinite scroll) */}
             {hasMore && !loadingMore && !isSearching && displayedPosts.length > 0 && (
               <div className="flex justify-center mt-8">
-                <Button onClick={loadMorePosts} variant="outline">
+                <Button 
+                  onClick={loadMorePosts} 
+                  variant="outline"
+                  className="border-[#E6E6E6] text-[#242424] hover:bg-[#E6E6E6]"
+                  style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                >
                   Load More Articles
                 </Button>
               </div>
@@ -421,7 +467,10 @@ const BlogPage = () => {
 
             {/* No more posts */}
             {!hasMore && displayedPosts.length > 0 && !isSearching && (
-              <p className="text-center text-muted-foreground py-8">
+              <p 
+                className="text-center text-[#6B6B6B] py-8"
+                style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+              >
                 You&apos;ve reached the end
               </p>
             )}
@@ -429,13 +478,23 @@ const BlogPage = () => {
             {/* No search results */}
             {!loadingMore && !isSearching && searchQuery && filteredPosts.length === 0 && (
               <div className="text-center py-16">
-                <h3 className="text-xl font-semibold mb-4">
+                <h3 
+                  className="text-xl font-semibold mb-4 text-[#242424]"
+                  style={{ fontFamily: "'Clash Display', sans-serif" }}
+                >
                   No articles found for &quot;{searchQuery}&quot;
                 </h3>
-                <p className="text-muted-foreground mb-6">
+                <p 
+                  className="text-[#6B6B6B] mb-6"
+                  style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                >
                   Try different keywords or browse our categories.
                 </p>
-                <Button onClick={() => handleSearch("")}>
+                <Button 
+                  onClick={() => handleSearch("")}
+                  className="bg-[#242424] hover:bg-[#242424]/90 text-white"
+                  style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                >
                   View All Articles
                 </Button>
               </div>

@@ -7,7 +7,7 @@ interface BlogPost {
   title: string;
   slug: string;
   excerpt?: string | null;
-  featured_image?: string | null;
+  featured_image?: string | null; // This contains Base64 data
   is_published: boolean;
   published_at?: string | null;
   created_at: string;
@@ -40,12 +40,16 @@ async function getPostForMetadata(slug: string): Promise<BlogPost | null> {
   }
 }
 
+// Helper function to check if string is Base64 image
+function isBase64Image(str: string): boolean {
+  return str.startsWith('data:image/');
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  // Await the params
   const { slug } = await params;
 
   const post = await getPostForMetadata(slug);
@@ -64,7 +68,7 @@ export async function generateMetadata({
         description: "The requested blog post could not be found.",
         images: [
           {
-            url: `${baseUrl}/images/og-image.png`, // ✅ Fixed path
+            url: `${baseUrl}/images/og-image.png`,
             width: 1200,
             height: 630,
             alt: "Zidwell Blog",
@@ -75,17 +79,31 @@ export async function generateMetadata({
         card: "summary_large_image",
         title: "Post Not Found | Zidwell Blog",
         description: "The requested blog post could not be found.",
-        images: [`${baseUrl}/images/og-image.png`], // ✅ Fixed path
+        images: [`${baseUrl}/images/og-image.png`],
       },
     };
   }
 
-  // Construct absolute image URL
-  const imageUrl = post.featured_image?.startsWith("http")
-    ? post.featured_image
-    : post.featured_image 
-      ? `${baseUrl}${post.featured_image}`
-      : `${baseUrl}/images/og-image.png`; // ✅ Fixed path to match your layout
+  // Check if featured_image is Base64
+  let imageUrl = `${baseUrl}/images/og-image.png`; // Default fallback
+  
+  if (post.featured_image) {
+    if (post.featured_image.startsWith('http')) {
+      // It's already a URL
+      imageUrl = post.featured_image;
+    } else if (isBase64Image(post.featured_image)) {
+      // It's Base64 - we need to serve it through an API endpoint
+      // We'll create a proxy endpoint to serve Base64 images
+      imageUrl = `${baseUrl}/api/blog/images/${post.id}`;
+      console.log("Base64 image detected, using proxy URL:", imageUrl);
+    } else {
+      // It might be a relative path
+      const imagePath = post.featured_image.startsWith('/') 
+        ? post.featured_image 
+        : `/${post.featured_image}`;
+      imageUrl = `${baseUrl}${imagePath}`;
+    }
+  }
 
   return {
     title: `${post.title} | Zidwell Blog`,
@@ -116,7 +134,6 @@ export async function generateMetadata({
       title: post.title,
       description: post.excerpt || "Read this blog post on Zidwell",
       images: [imageUrl],
-      // Remove the site field since you don't have a Twitter handle
     },
 
     alternates: {
@@ -130,13 +147,11 @@ export async function generateMetadata({
   };
 }
 
-// Server wrapper component for Next.js 15
 export default async function PostPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  // Await the params
   const { slug } = await params;
   
   if (!slug) return notFound();
