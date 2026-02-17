@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
@@ -12,6 +12,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const { user } = useUserContextData();
+  const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
@@ -65,7 +66,7 @@ const Header = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
+          <Link href={pathname === "/app" ? "/app" : "/"} className="flex items-center gap-2">
             <Image
               src="/logo.png"
               alt="Zidwell Logo"

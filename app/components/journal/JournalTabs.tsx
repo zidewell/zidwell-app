@@ -10,20 +10,7 @@ interface JournalTabsProps {
 export function JournalTabs({ activeTab, onTabChange }: JournalTabsProps) {
   return (
     <div className="flex gap-2 p-1 rounded-xl">
-      <button
-        onClick={() => onTabChange('personal')}
-        className={cn(
-          'flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200'
-        )}
-        style={{
-          backgroundColor: activeTab === 'personal' ? '#C29307' : 'transparent',
-          color: activeTab === 'personal' ? '#26121c' : '#80746e',
-          boxShadow: activeTab === 'personal' ? '0 4px 24px -8px rgba(38,33,28,0.1)' : 'none'
-        }}
-      >
-        <User className="h-4 w-4" />
-        Personal
-      </button>
+   
       <button
         onClick={() => onTabChange('business')}
         className={cn(
@@ -37,6 +24,20 @@ export function JournalTabs({ activeTab, onTabChange }: JournalTabsProps) {
       >
         <Briefcase className="h-4 w-4" />
         Business
+      </button>
+         <button
+        onClick={() => onTabChange('personal')}
+        className={cn(
+          'flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200'
+        )}
+        style={{
+          backgroundColor: activeTab === 'personal' ? '#C29307' : 'transparent',
+          color: activeTab === 'personal' ? '#26121c' : '#80746e',
+          boxShadow: activeTab === 'personal' ? '0 4px 24px -8px rgba(38,33,28,0.1)' : 'none'
+        }}
+      >
+        <User className="h-4 w-4" />
+        Personal
       </button>
     </div>
   );

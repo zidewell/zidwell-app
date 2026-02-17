@@ -12,33 +12,27 @@ interface RichTextEditorProps {
   placeholder?: string;
   readOnly?: boolean;
 }
-
-// Function to clean Quill HTML artifacts
 const cleanQuillHTML = (html: string): string => {
   if (!html) return "";
   
-  // Remove Quill UI spans
+
   let cleaned = html
     .replace(/<span class="ql-ui"[^>]*><\/span>/g, '')
     .replace(/<span[^>]*data-list="[^"]*"[^>]*>/g, '')
     .replace(/<\/span>/g, '');
   
-  // Remove empty list items
   cleaned = cleaned
     .replace(/<li>\s*<br>\s*<\/li>/g, '')
     .replace(/<li><br><\/li>/g, '')
     .replace(/<li>\s*<\/li>/g, '');
   
-  // Remove data-list attributes
+
   cleaned = cleaned.replace(/\s+data-list="[^"]*"/g, '');
   
-  // Clean up empty paragraphs
-  cleaned = cleaned
-    .replace(/<p>\s*<br>\s*<\/p>/g, '')
-    .replace(/<p><br><\/p>/g, '')
-    .replace(/<p>\s*<\/p>/g, '');
+
+  cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
   
-  // Remove empty headers
+
   cleaned = cleaned
     .replace(/<h[1-6]>\s*<br>\s*<\/h[1-6]>/g, '')
     .replace(/<h[1-6]><br><\/h[1-6]>/g, '');

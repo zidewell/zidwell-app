@@ -34,8 +34,8 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`API error (${res.status}): ${errorText}`);
+    const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `API error (${res.status})`);
   }
 
   return res.json();
@@ -45,7 +45,7 @@ export function useJournalStore() {
   const { userData } = useUserContextData();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
-  const [activeJournalType, setActiveJournalType] = useState<JournalType>('personal');
+  const [activeJournalType, setActiveJournalType] = useState<JournalType>('business');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updateTrigger, setUpdateTrigger] = useState(0);
@@ -188,24 +188,43 @@ export function useJournalStore() {
     }
   }, [userId, forceUpdate]);
 
-  const updateCategory = useCallback(async (id: string, updates: Partial<Omit<Category, 'id' | 'isCustom'>>) => {
+  const updateCategory = useCallback(async (id: string, updates: Partial<Category>) => {
     if (!userId) throw new Error('User not authenticated');
     
     try {
-      const data = await fetchWithAuth(`/categories/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ ...updates, userId }),
-      }, userId);
+      setLoading(true);
+      setError(null);
       
-      setCategories(prev => prev.map(cat => 
-        cat.id === id ? { ...cat, ...updates } : cat
-      ));
+      const response = await fetch(`/api/journal/categories/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          ...updates,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Failed to update category (${response.status})`);
+      }
+
+      const updatedCategory = await response.json();
+      
+      setCategories(prev =>
+        prev.map(cat => cat.id === id ? { ...cat, ...updatedCategory } : cat)
+      );
       
       forceUpdate();
-      return data;
-    } catch (err) {
-      console.error('Failed to update category:', err);
-      throw err;
+      return updatedCategory;
+    } catch (error) {
+      console.error('Error updating category:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update category');
+      throw error;
+    } finally {
+      setLoading(false);
     }
   }, [userId, forceUpdate]);
 
@@ -213,18 +232,26 @@ export function useJournalStore() {
     if (!userId) throw new Error('User not authenticated');
     
     try {
-      await fetchWithAuth(`/categories/${id}`, {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/journal/categories/${id}?userId=${userId}`, {
         method: 'DELETE',
-      }, userId);
-      
-      setCategories(prev => prev.filter(cat => 
-        cat.id !== id || cat.isCustom === false
-      ));
-      
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Failed to delete category (${response.status})`);
+      }
+
+      setCategories(prev => prev.filter(cat => cat.id !== id));
       forceUpdate();
-    } catch (err) {
-      console.error('Failed to delete category:', err);
-      throw err;
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete category');
+      throw error;
+    } finally {
+      setLoading(false);
     }
   }, [userId, forceUpdate]);
 
