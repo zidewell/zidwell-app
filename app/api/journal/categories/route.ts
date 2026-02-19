@@ -1,3 +1,4 @@
+// app/api/journal/categories/route.ts
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
       name: cat.name,
       icon: cat.icon,
       type: cat.type,
-      isCustom: cat.is_custom, // Transform is_custom → isCustom
+      isCustom: cat.is_custom,
       user_id: cat.user_id
     })) || [];
 
@@ -58,13 +59,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate required fields
+    if (!categoryData.name || !categoryData.icon || !categoryData.type) {
+      return NextResponse.json(
+        { error: 'Name, icon, and type are required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if category with same name already exists for this user
+    const { data: existingCategory } = await supabase
+      .from('journal_categories')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('name', categoryData.name)
+      .maybeSingle();
+
+    if (existingCategory) {
+      return NextResponse.json(
+        { error: 'A category with this name already exists' },
+        { status: 400 }
+      );
+    }
+
     const category = {
       name: categoryData.name,
       icon: categoryData.icon,
       type: categoryData.type,
       id: crypto.randomUUID(),
       user_id: userId,
-      is_custom: true, // Transform isCustom → is_custom
+      is_custom: true,
       created_at: new Date().toISOString(),
     };
 
@@ -74,7 +98,16 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // Check for unique constraint violation
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { error: 'A category with this name already exists' },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
 
     // Transform response back to frontend naming
     const transformedData = {
@@ -83,6 +116,7 @@ export async function POST(request: NextRequest) {
       icon: data.icon,
       type: data.type,
       isCustom: data.is_custom,
+      user_id: data.user_id
     };
 
     return NextResponse.json(transformedData);

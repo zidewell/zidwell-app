@@ -1,4 +1,4 @@
-"use client"
+// app/hooks/useJournalStore.ts
 import { useState, useEffect, useCallback } from 'react';
 import { JournalEntry, Category, JournalType, DEFAULT_CATEGORIES, PeriodSummary } from '../components/journal/types'; 
 import { 
@@ -20,6 +20,7 @@ const API_BASE = '/api/journal';
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId: string) {
   const url = new URL(`${API_BASE}${endpoint}`, window.location.origin);
 
+  // Add userId as query param for GET and DELETE requests
   if (!options.method || options.method === 'GET' || options.method === 'DELETE') {
     url.searchParams.set('userId', userId);
   }
