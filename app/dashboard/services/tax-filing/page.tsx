@@ -1,6 +1,7 @@
 "use client";
 import DashboardHeader from "@/app/components/dashboard-hearder";
 import DashboardSidebar from "@/app/components/dashboard-sidebar";
+import TaxCalculator from "@/app/components/tax-filling-components/TaxCalculator";
 import TaxFiling from "@/app/components/TaxFiling";
 import { Button } from "@/app/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -41,18 +42,9 @@ function page() {
             </div>
           </div>
 
-          {typeof window !== "undefined" &&
-          window.location.hostname.includes("zidwell.com") ? (
-            <Image
-              src={"/coming-soon.png"}
-              alt="coming soon"
-              className=" w-full object-contain"
-              width={500}
-              height={500}
-            />
-          ) : (
-            <TaxFiling />
-          )}
+       
+            <TaxCalculator />
+   
         </main>
       </div>
     </div>
