@@ -1,18 +1,19 @@
 "use client";
-
+import CTA from "./components/CTA";
+import Features from "./components/Features";
+import Footer from "./components/Footer";
+import Header from "./components/Header";
+import Hero from "./components/Hero";
+import Testimonials from "./components/Testimonials";
+import AOS from 'aos';
 import { useEffect, useMemo } from "react";
-import AboutSection from "./components/finance-landing-components/AboutSection";
-import ClienteleSection from "./components/finance-landing-components/ClientelSection";
-import CTASection from "./components/finance-landing-components/CTASection";
-import Footer from "./components/finance-landing-components/Footer";
-import HeroSection from "./components/finance-landing-components/HeroSection";
-import Navbar from "./components/finance-landing-components/Navbar";
-import PricingSection from "./components/finance-landing-components/PricingSection";
-import ProcessSection from "./components/finance-landing-components/ProcessSection";
-import ServicesSection from "./components/finance-landing-components/ServicesSection";
-import TestimonialsSection from "./components/finance-landing-components/TestimonialsSection";
-import WhyUsSection from "./components/finance-landing-components/WhyUseSection";
-import Aos from "aos";
+import 'aos/dist/aos.css'; 
+import Pricing from "./components/Pricing";
+import WhyDifferent from "./components/WhyDifferent";
+import HowItWorks from "./components/HowItWorks";
+import WhyChoose from "./components/WhyChoose";
+import ZidCoin from "./components/ZisCoin";
+import FAQ from "./components/Faq";
 
 const animations = [
   "fade-up",
@@ -27,56 +28,60 @@ const animations = [
 
 const page = () => {
   useEffect(() => {
-    Aos.init({
+    AOS.init({
       duration: 800,
       once: true,
     });
   }, []);
 
-  const sectionAnimations = useMemo(() => {
-    const sections = [
-      { id: "hero", name: "HeroSection" },
-      { id: "about", name: "AboutSection" },
-      { id: "clientele", name: "ClienteleSection" },
-      { id: "services", name: "ServicesSection" },
-      { id: "process", name: "ProcessSection" },
-      { id: "pricing", name: "PricingSection" },
-      { id: "testimonials", name: "TestimonialsSection" },
-      { id: "whyus", name: "WhyUsSection" },
-      { id: "cta", name: "CTASection" },
+  const componentSettings = useMemo(() => {
+    const components = [
+      { id: "hero", name: "Hero" },
+      { id: "features", name: "Features" },
+      { id: "whyDifferent", name: "WhyDifferent" },
+      { id: "howItWorks", name: "HowItWorks" },
+      { id: "whyChoose", name: "WhyChoose" },
+      { id: "testimonials", name: "Testimonials" },
+      { id: "pricing", name: "Pricing" },
+      { id: "zidCoin", name: "ZidCoin" },
+      { id: "faq", name: "FAQ" },
+      { id: "cta", name: "CTA" },
     ];
     
-    return sections.map(section => ({
-      ...section,
+    return components.map(component => ({
+      ...component,
       animation: animations[Math.floor(Math.random() * animations.length)],
-      delay: Math.floor(Math.random() * 200), // Random delay between 0-200ms
+      delay: Math.floor(Math.random() * 300), // 0-300ms delay
+      duration: 600 + Math.floor(Math.random() * 600), // 600-1200ms duration
     }));
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <main>
-        {sectionAnimations.map((section) => (
-          <div 
-            key={section.id}
-            data-aos={section.animation}
-            data-aos-delay={section.delay}
-          >
-            {section.id === "hero" && <HeroSection />}
-            {section.id === "about" && <AboutSection />}
-            {section.id === "clientele" && <ClienteleSection />}
-            {section.id === "services" && <ServicesSection />}
-            {section.id === "process" && <ProcessSection />}
-            {section.id === "pricing" && <PricingSection />}
-            {section.id === "testimonials" && <TestimonialsSection />}
-            {section.id === "whyus" && <WhyUsSection />}
-            {section.id === "cta" && <CTASection />}
-          </div>
-        ))}
-      </main>
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-50 overflow-x-hidden">
+      <Header />
+      
+      {componentSettings.map((component) => (
+        <div 
+          key={component.id}
+          data-aos={component.animation}
+          data-aos-delay={component.delay}
+          data-aos-duration={component.duration}
+        >
+          {component.id === "hero" && <Hero />}
+          {component.id === "features" && <Features />}
+          {component.id === "whyDifferent" && <WhyDifferent />}
+          {component.id === "howItWorks" && <HowItWorks />}
+          {component.id === "whyChoose" && <WhyChoose />}
+          {component.id === "testimonials" && <Testimonials />}
+          {component.id === "pricing" && <Pricing />}
+          {component.id === "zidCoin" && <ZidCoin />}
+          {component.id === "faq" && <FAQ />}
+          {component.id === "cta" && <CTA />}
+        </div>
+      ))}
+      
       <Footer />
-    </div>
+    </main>
   );
 };
 

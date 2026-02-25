@@ -1,291 +1,67 @@
+// app/admin/dashboard/page.tsx (or wherever your main dashboard is)
 "use client";
 
 import { useEffect, useState } from "react";
 import useSWR, { mutate } from "swr";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  AreaChart,
-  Area,
-  ComposedChart,
-} from "recharts";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
-import AdminLayout from "../components/admin-components/layout";
-import KPICard from "../components/admin-components/KPICard";
-import { Skeleton } from "../components/ui/skeleton";
-import {
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  DollarSign,
-  CreditCard,
-  Wallet,
-  Receipt,
-  Users,
-  FileText,
-  BarChart3,
-  RefreshCw,
-  Eye,
-  UserPlus,
-  Activity,
-  FileSignature,
-  FileCheck,
-  FileClock,
-  Percent,
-  File,
-} from "lucide-react";
-import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "../components/ui/tabs";
+} from "@/app/components/ui/tabs";
+import AdminLayout from "../components/admin-components/layout";
 
-const fetcher = (url: string) =>
-  fetch(url).then(async (r) => {
-    if (!r.ok) {
-      const text = await r.text().catch(() => "");
-      throw new Error(text || `Request failed: ${r.status}`);
-    }
-    return r.json();
-  });
+// Import refactored components
+import { DashboardHeader } from "../components/admin-components/dashboard/DashboardHeader";
+import { DashboardLoading } from "../components/admin-components/dashboard/DashboardLoading";
+import { DashboardError } from "../components/admin-components/dashboard/DashboardError";
+import { OverviewKPIRows } from "../components/admin-components/dashboard/overview/OverviewKPIRows";
+import { RevenueChart } from "../components/admin-components/dashboard/overview/RevenueChart";
+import { ContractStatusPie } from "../components/admin-components/dashboard/overview/ContractStatusPie";
+import { TrafficKPIs } from "../components/admin-components/dashboard/traffic/TrafficKPIs";
+import { TrafficTrendChart } from "../components/admin-components/dashboard/traffic/TrafficTrendChart";
+import { TopPages } from "../components/admin-components/dashboard/traffic/TopPages";
+import { TrafficSources } from "../components/admin-components/dashboard/traffic/TrafficSources";
+import { TrafficInsights } from "../components/admin-components/dashboard/traffic/TrafficInsights";
+import { TransactionsTable } from "../components/admin-components/dashboard/TransactionsTable";
+import { PlatformSummary } from "../components/admin-components/dashboard/PlatformSummary";
 
-type RangeOption =
-  | "total"
-  | "today"
-  | "week"
-  | "month"
-  | "90days"
-  | "180days"
-  | "year";
-
-const CHART_COLORS = {
-  inflow: "#10b981",
-  outflow: "#ef4444",
-  contracts: "#3b82f6",
-  invoices: "#8b5cf6",
-  revenue: "#f59e0b",
-  contract_revenue: "#8b5cf6",
-  invoice_revenue: "#8b5cf6",
-  pie: ["#10b981", "#ef4444", "#3b82f6", "#8b5cf6", "#f59e0b", "#84cc16"],
-  website: "#3b82f6",
-  signups: "#10b981",
-  active_users: "#8b5cf6",
-  transaction_volume: "#f59e0b",
-  revenue_breakdown: {
-    transfers: "#3b82f6",
-    bill_payment: "#10b981",
-    invoice: "#8b5cf6",
-    contract: "#8b5cf6",
-    platform: "#84cc16",
-  },
-};
-
-interface GrowthIndicatorProps {
-  value: number;
-  className?: string;
-}
-
-const GrowthIndicator = ({ value, className = "" }: GrowthIndicatorProps) => {
-  if (value === 0) {
-    return (
-      <div className={`flex items-center text-gray-500 ${className}`}>
-        <Minus size={14} />
-        <span className="ml-1 text-xs">0%</span>
-      </div>
-    );
-  }
-
-  const isPositive = value > 0;
-  const Icon = isPositive ? TrendingUp : TrendingDown;
-  const colorClass = isPositive ? "text-green-600" : "text-red-600";
-
-  return (
-    <div className={`flex items-center ${colorClass} ${className}`}>
-      <Icon size={14} />
-      <span className="ml-1 text-xs font-medium">
-        {Math.abs(value).toFixed(1)}%
-      </span>
-    </div>
-  );
-};
-
-interface MetricsData {
-  website: {
-    total: number;
-    today: number;
-    week: number;
-    month: number;
-    "90days": number;
-    "180days": number;
-    year: number;
-    daily: Array<{ date: string; count: number }>;
-    weekly: Array<{ week: string; count: number }>;
-    monthly: Array<{ month: string; count: number }>;
-  };
-  signups: {
-    total: number;
-    today: number;
-    week: number;
-    month: number;
-    "90days": number;
-    "180days": number;
-    year: number;
-    daily: Array<{ date: string; count: number }>;
-    weekly: Array<{ week: string; count: number }>;
-    monthly: Array<{ month: string; count: number }>;
-  };
-  active_users: {
-    total: number;
-    today: number;
-    week: number;
-    month: number;
-    "90days": number;
-    "180days": number;
-    year: number;
-    daily: Array<{ date: string; count: number }>;
-    weekly: Array<{ week: string; count: number }>;
-    monthly: Array<{ month: string; count: number }>;
-  };
-  transaction_volume: {
-    total: number;
-    today: number;
-    week: number;
-    month: number;
-    "90days": number;
-    "180days": number;
-    year: number;
-    daily: Array<{ date: string; amount: number }>;
-    weekly: Array<{ week: string; amount: number }>;
-    monthly: Array<{ month: string; amount: number }>;
-  };
-  revenue_breakdown: {
-    total: {
-      total: number;
-      transfers: number;
-      bill_payment: number;
-      invoice: number;
-      contract: number;
-      platform: number;
-    };
-    today: {
-      total: number;
-      transfers: number;
-      bill_payment: number;
-      invoice: number;
-      contract: number;
-      platform: number;
-    };
-    week: {
-      total: number;
-      transfers: number;
-      bill_payment: number;
-      invoice: number;
-      contract: number;
-      platform: number;
-    };
-    month: {
-      total: number;
-      transfers: number;
-      bill_payment: number;
-      invoice: number;
-      contract: number;
-      platform: number;
-    };
-    "90days": {
-      total: number;
-      transfers: number;
-      bill_payment: number;
-      invoice: number;
-      contract: number;
-      platform: number;
-    };
-    "180days": {
-      total: number;
-      transfers: number;
-      bill_payment: number;
-      invoice: number;
-      contract: number;
-      platform: number;
-    };
-    year: {
-      total: number;
-      transfers: number;
-      bill_payment: number;
-      invoice: number;
-      contract: number;
-      platform: number;
-    };
-    daily: Array<{
-      date: string;
-      total: number;
-      transfers: number;
-      bill_payment: number;
-      invoice: number;
-      contract: number;
-      platform: number;
-    }>;
-    weekly: Array<{
-      week: string;
-      total: number;
-      transfers: number;
-      bill_payment: number;
-      invoice: number;
-      contract: number;
-      platform: number;
-    }>;
-    monthly: Array<{
-      month: string;
-      total: number;
-      transfers: number;
-      bill_payment: number;
-      invoice: number;
-      contract: number;
-      platform: number;
-    }>;
-  };
-}
-
-const getSafeData = <T,>(
-  data: T | undefined,
-  path: string,
-  defaultValue: any = []
-): any => {
-  if (!data) return defaultValue;
-
-  try {
-    const keys = path.split(".");
-    let current: any = data;
-
-    for (const key of keys) {
-      if (current[key] === undefined || current[key] === null) {
-        return defaultValue;
-      }
-      current = current[key];
-    }
-
-    return current;
-  } catch {
-    return defaultValue;
-  }
-};
+// Import utilities and hooks
+import { fetcher } from "@/lib/fetcher";
+import { useWebsiteAnalytics } from "../hooks/useWebsiteAnalytics";
+import {
+  formatCurrency,
+  formatCurrencyShort,
+  formatNumber,
+  formatDateSafely,
+  calculateGrowth,
+  getSafeData,
+} from "@/lib/dashboard-utils";
+import { CHART_COLORS, ALL_TIME_RANGES } from "@/constants/dashboard";
+import {
+  RangeOption,
+  MetricsData,
+  SummaryData,
+  WebsiteAnalytics,
+} from "@/types/admin-dashoard";
+import {
+  Area,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { BarChart3, DollarSign, FileCheck, FileSignature, TrendingUp } from "lucide-react";
 
 export default function AdminDashboard() {
   const [page, setPage] = useState<number>(1);
@@ -297,7 +73,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     setIsClient(true);
     const savedRange = localStorage.getItem(
-      "admin_dashboard_range"
+      "admin_dashboard_range",
     ) as RangeOption;
     if (savedRange) {
       setRange(savedRange);
@@ -311,14 +87,19 @@ export default function AdminDashboard() {
     setPage(1);
   }, [range, isClient]);
 
+  // Data fetching
   const {
     data: summaryData,
     error: summaryError,
     isLoading: summaryLoading,
-  } = useSWR<any>(`/api/admin-apis/dashboard/summary?range=${range}`, fetcher, {
-    refreshInterval: 300000,
-    revalidateOnFocus: true,
-  });
+  } = useSWR<SummaryData>(
+    `/api/admin-apis/dashboard/summary?range=${range}`,
+    fetcher,
+    {
+      refreshInterval: 300000,
+      revalidateOnFocus: true,
+    },
+  );
 
   const {
     data: metricsData,
@@ -330,8 +111,14 @@ export default function AdminDashboard() {
     {
       refreshInterval: 300000,
       revalidateOnFocus: true,
-    }
+    },
   );
+
+  const {
+    data: websiteAnalytics,
+    error: websiteError,
+    isLoading: websiteLoading,
+  } = useWebsiteAnalytics(range);
 
   const {
     data: paginatedData,
@@ -339,20 +126,23 @@ export default function AdminDashboard() {
     isLoading: transactionsLoading,
   } = useSWR<any>(
     `/api/admin-apis/transactions?page=${page}&range=${range}`,
-    fetcher
+    fetcher,
   );
 
+  // Error logging
   useEffect(() => {
     if (paginatedError)
       console.error("Paginated transactions error:", paginatedError);
     if (summaryError) console.error("Summary error:", summaryError);
     if (metricsError) console.error("Metrics error:", metricsError);
-  }, [paginatedError, summaryError, metricsError]);
+    if (websiteError) console.error("Website analytics error:", websiteError);
+  }, [paginatedError, summaryError, metricsError, websiteError]);
 
+  // Derived data from summary - USING CORRECT PROPERTY NAMES
   const totalInflow = Number(summaryData?.totalInflow ?? 0);
   const totalOutflow = Number(summaryData?.totalOutflow ?? 0);
   const mainWalletBalance = Number(summaryData?.mainWalletBalance ?? 0);
-  const nombaBalanceRaw = Number(summaryData?.nombaBalance ?? 0);
+  const nombaBalance = Number(summaryData?.nombaBalance ?? 0);
   const totalAppRevenue = Number(summaryData?.totalAppRevenue ?? 0);
   const transactionFees = Number(summaryData?.transactionFees ?? 0);
   const platformFees = Number(summaryData?.platformFees ?? 0);
@@ -368,169 +158,106 @@ export default function AdminDashboard() {
   const totalInvoiceRevenue = Number(summaryData?.totalInvoiceRevenue ?? 0);
   const totalTransactions = Number(summaryData?.totalTransactions ?? 0);
   const successfulTransactions = Number(
-    summaryData?.successfulTransactions ?? 0
+    summaryData?.successfulTransactions ?? 0,
   );
   const failedTransactions = Number(summaryData?.failedTransactions ?? 0);
   const pendingTransactions = Number(summaryData?.pendingTransactions ?? 0);
   const totalUsers = Number(summaryData?.totalUsers ?? 0);
 
-  // Contract-specific calculations
+  // Calculations
   const contractSignRate =
     totalContracts > 0
       ? ((signedContracts / totalContracts) * 100).toFixed(1)
       : "0";
-
   const avgContractFee =
     contractPaymentsCount > 0
       ? (contractFees / contractPaymentsCount).toFixed(2)
       : "0";
-
   const contractRevenueShare =
     totalAppRevenue > 0
       ? ((contractFees / totalAppRevenue) * 100).toFixed(1)
       : "0";
-
-  // Platform revenue share calculation
   const platformRevenueShare =
     totalAppRevenue > 0
       ? ((platformFees / totalAppRevenue) * 100).toFixed(1)
       : "0";
-
   const avgContractValue =
     signedContracts > 0
       ? (totalContractAmount / signedContracts).toFixed(2)
       : "0";
-
-  // Invoice-specific calculations
   const invoicePaymentRate =
     totalInvoices > 0 ? ((paidInvoices / totalInvoices) * 100).toFixed(1) : "0";
 
+  // Helper function to get metric values
   const getMetricValue = (
     metric: keyof MetricsData,
-    period: RangeOption
+    period: RangeOption,
   ): number => {
     if (!metricsData) return 0;
-
     if (metric === "revenue_breakdown") {
       return metricsData[metric]?.[period]?.total || 0;
     }
-
     return metricsData[metric]?.[period] || 0;
   };
 
-  const prevTotalInflow = Number(summaryData?.prevTotalInflow ?? 0);
-  const prevTotalOutflow = Number(summaryData?.prevTotalOutflow ?? 0);
-  const prevTotalAppRevenue = Number(summaryData?.prevTotalAppRevenue ?? 0);
-  const prevTotalContracts = Number(summaryData?.prevTotalContracts ?? 0);
-  const prevPendingContracts = Number(summaryData?.prevPendingContracts ?? 0);
-  const prevSignedContracts = Number(summaryData?.prevSignedContracts ?? 0);
-  const prevTotalInvoices = Number(summaryData?.prevTotalInvoices ?? 0);
-  const prevPaidInvoices = Number(summaryData?.prevPaidInvoices ?? 0);
-  const prevUnpaidInvoices = Number(summaryData?.prevUnpaidInvoices ?? 0);
-  const prevContractFees = Number(summaryData?.prevContractFees ?? 0);
-
-  const calculateGrowth = (current: number, previous: number): number => {
-    if (previous === 0) return current > 0 ? 100 : 0;
-    return ((current - previous) / previous) * 100;
-  };
-
-  const inflowGrowth = calculateGrowth(totalInflow, prevTotalInflow);
-  const outflowGrowth = calculateGrowth(totalOutflow, prevTotalOutflow);
+  // Growth calculations
+  const inflowGrowth = calculateGrowth(
+    totalInflow,
+    Number(summaryData?.prevTotalInflow ?? 0),
+  );
+  const outflowGrowth = calculateGrowth(
+    totalOutflow,
+    Number(summaryData?.prevTotalOutflow ?? 0),
+  );
   const appRevenueGrowth = calculateGrowth(
     totalAppRevenue,
-    prevTotalAppRevenue
+    Number(summaryData?.prevTotalAppRevenue ?? 0),
   );
-  const contractRevenueGrowth = calculateGrowth(contractFees, prevContractFees);
-  const platformFeesGrowth = calculateGrowth(platformFees, 0);
-  const contractsGrowth = calculateGrowth(totalContracts, prevTotalContracts);
-  const pendingContractsGrowth = calculateGrowth(
-    pendingContracts,
-    prevPendingContracts
+  const contractsGrowth = calculateGrowth(
+    totalContracts,
+    Number(summaryData?.prevTotalContracts ?? 0),
   );
-  const signedContractsGrowth = calculateGrowth(
-    signedContracts,
-    prevSignedContracts
-  );
-  const invoicesGrowth = calculateGrowth(totalInvoices, prevTotalInvoices);
-  const paidInvoicesGrowth = calculateGrowth(paidInvoices, prevPaidInvoices);
-  const unpaidInvoicesGrowth = calculateGrowth(
-    unpaidInvoices,
-    prevUnpaidInvoices
+  const invoicesGrowth = calculateGrowth(
+    totalInvoices,
+    Number(summaryData?.prevTotalInvoices ?? 0),
   );
 
-  const monthlyTransactions = summaryData?.monthlyTransactions ?? [];
-  const monthlyInvoices = summaryData?.monthlyInvoices ?? [];
-  const monthlyContracts = summaryData?.monthlyContracts ?? [];
+  const calculateContractRevenueGrowth = (): number => {
+    const currentRevenue =
+      metricsData?.revenue_breakdown?.[range]?.contract || 0;
+    const prevRevenue = Number(summaryData?.prevContractFees ?? 0);
+    if (prevRevenue === 0 && currentRevenue > 0) return 100;
+    if (prevRevenue === 0 && currentRevenue === 0) return 0;
+    return ((currentRevenue - prevRevenue) / prevRevenue) * 100;
+  };
+
+  // Chart data
   const monthlyAppRevenue = summaryData?.monthlyAppRevenue ?? [];
+  const monthlyContracts = summaryData?.monthlyContracts ?? [];
+  const revenueBreakdownMonthlyData = getSafeData(
+    metricsData,
+    "revenue_breakdown.monthly",
+    [],
+  );
+  const signupsMonthlyData = getSafeData(metricsData, "signups.monthly", []);
+  const activeUsersMonthlyData = getSafeData(
+    metricsData,
+    "active_users.monthly",
+    [],
+  );
+  const transactionVolumeMonthlyData = getSafeData(
+    metricsData,
+    "transaction_volume.monthly",
+    [],
+  );
 
+  // Pie chart data
   const contractsPieData = [
     { name: "Signed", value: signedContracts, color: CHART_COLORS.pie[0] },
     { name: "Pending", value: pendingContracts, color: CHART_COLORS.pie[2] },
   ].filter((item) => item.value > 0);
 
-  const invoicesPieData = [
-    { name: "Paid", value: paidInvoices, color: CHART_COLORS.pie[0] },
-    { name: "Unpaid", value: unpaidInvoices, color: CHART_COLORS.pie[1] },
-  ].filter((item) => item.value > 0);
-
-  const cashflowPieData = [
-    { name: "Inflow", value: totalInflow, color: CHART_COLORS.pie[0] },
-    { name: "Outflow", value: totalOutflow, color: CHART_COLORS.pie[1] },
-  ].filter((item) => item.value > 0);
-
-  const revenueBreakdownData = [
-    {
-      name: "Transaction Fees",
-      value: transactionFees,
-      color: CHART_COLORS.revenue_breakdown.transfers,
-    },
-    {
-      name: "Platform Fees (2%)",
-      value: platformFees,
-      color: CHART_COLORS.revenue_breakdown.platform,
-    },
-    {
-      name: "Contract Fees",
-      value: contractFees,
-      color: CHART_COLORS.revenue_breakdown.contract,
-    },
-  ].filter((item) => item.value > 0);
-
-  const getRevenueBreakdownPieData = () => {
-    if (!metricsData?.revenue_breakdown) return [];
-
-    const currentRevenue = metricsData.revenue_breakdown[range];
-    if (!currentRevenue) return [];
-
-    return [
-      {
-        name: "Transfers",
-        value: currentRevenue.transfers,
-        color: CHART_COLORS.revenue_breakdown.transfers,
-      },
-      {
-        name: "Bill Payment",
-        value: currentRevenue.bill_payment,
-        color: CHART_COLORS.revenue_breakdown.bill_payment,
-      },
-      {
-        name: "Invoice",
-        value: currentRevenue.invoice,
-        color: CHART_COLORS.revenue_breakdown.invoice,
-      },
-      {
-        name: "Contract",
-        value: currentRevenue.contract || 0,
-        color: CHART_COLORS.revenue_breakdown.contract,
-      },
-      {
-        name: "Platform",
-        value: currentRevenue.platform || 0,
-        color: CHART_COLORS.revenue_breakdown.platform,
-      },
-    ].filter((item) => item.value > 0);
-  };
-
+  // Recent transactions
   const recentActivity =
     summaryData?.latestTransactions?.slice(0, 5) ??
     paginatedData?.transactions?.slice(0, 5) ??
@@ -538,6 +265,7 @@ export default function AdminDashboard() {
   const hasNextPage = paginatedData?.transactions?.length === PAGE_LIMIT;
   const hasPrevPage = page > 1;
 
+  // Pagination handlers
   const goNext = () => {
     if (!hasNextPage) return;
     setPage((p) => p + 1);
@@ -550,224 +278,38 @@ export default function AdminDashboard() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Refresh handler
   const refresh = async () => {
     await mutate(
-      `/api/admin-apis/dashboard/summary?range=${range}&nocache=true`
+      `/api/admin-apis/dashboard/summary?range=${range}&nocache=true`,
     );
     await mutate(`/api/admin-apis/dashboard/metrics?range=${range}`);
     await mutate(`/api/admin-apis/transactions?page=${page}&range=${range}`);
+    await mutate(`/api/admin-apis/analytics/website?range=${range}`);
   };
 
-  const isLoading = summaryLoading || metricsLoading || transactionsLoading;
-  const hasData = summaryData && metricsData && paginatedData;
-
-  const formatCurrency = (value: number | string) => {
-    const n = Number(value || 0);
-    if (n === 0) return "₦0";
-    return n.toLocaleString("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    });
-  };
-
-  const formatDateSafely = (dateString: string) => {
-    if (!isClient) return dateString;
-    try {
-      return new Date(dateString).toLocaleString("en-NG", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const formatCurrencyShort = (value: number) => {
-    const numValue = Number(value);
-    if (numValue === 0) return "₦0";
-
-    if (numValue >= 1000000000) {
-      return `₦${(numValue / 1000000000).toFixed(1)}B`;
-    }
-    if (numValue >= 1000000) {
-      return `₦${(numValue / 1000000).toFixed(1)}M`;
-    }
-    if (numValue >= 1000) {
-      return `₦${(numValue / 1000).toFixed(1)}K`;
-    }
-    return `₦${Math.round(numValue)}`;
-  };
-
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat("en-NG").format(value);
-  };
-
-  const websiteMonthlyData = getSafeData(metricsData, "website.monthly", []);
-  const signupsMonthlyData = getSafeData(metricsData, "signups.monthly", []);
-  const activeUsersMonthlyData = getSafeData(
-    metricsData,
-    "active_users.monthly",
-    []
-  );
-  const transactionVolumeMonthlyData = getSafeData(
-    metricsData,
-    "transaction_volume.monthly",
-    []
-  );
-  const revenueBreakdownMonthlyData = getSafeData(
-    metricsData,
-    "revenue_breakdown.monthly",
-    []
-  );
+  // Loading and error states
+  const isLoading =
+    summaryLoading || metricsLoading || transactionsLoading || websiteLoading;
+  const hasData =
+    summaryData && metricsData && paginatedData && websiteAnalytics;
 
   if (isLoading) {
-    return (
-      <AdminLayout>
-        <div className="px-4 py-6 space-y-8">
-          <div className="flex justify-between">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-8 w-32" />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Array(8)
-              .fill(null)
-              .map((_, i) => (
-                <Skeleton key={i} className="h-24 w-full" />
-              ))}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow-md">
-            <Skeleton className="h-6 w-56 mb-4" />
-            <div className="space-y-3">
-              {Array(5)
-                .fill(null)
-                .map((_, i) => (
-                  <Skeleton key={i} className="h-6 w-full" />
-                ))}
-            </div>
-          </div>
-        </div>
-      </AdminLayout>
-    );
+    return <DashboardLoading />;
   }
 
   if (!hasData) {
-    return (
-      <AdminLayout>
-        <div className="px-4 py-6">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-700">
-              Failed to load dashboard data. Please try refreshing the page.
-            </p>
-            <button
-              onClick={refresh}
-              className="mt-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      </AdminLayout>
-    );
+    return <DashboardError onRetry={refresh} />;
   }
-
-  const revenueBreakdownPieData = getRevenueBreakdownPieData();
-  const allTimeRanges: RangeOption[] = [
-    "total",
-    "today",
-    "week",
-    "month",
-    "90days",
-    "180days",
-    "year",
-  ];
-  const specificTimeRanges: Exclude<RangeOption, "total">[] = [
-    "today",
-    "week",
-    "month",
-    "90days",
-    "180days",
-    "year",
-  ];
-
-  const getDisplayValueForPeriod = (
-    metric: keyof MetricsData,
-    period: RangeOption
-  ): string => {
-    if (metric === "transaction_volume") {
-      return formatCurrency(getMetricValue(metric, period));
-    }
-    return formatNumber(getMetricValue(metric, period));
-  };
-
-  const calculateContractRevenueGrowth = (): number => {
-    const currentRevenue =
-      metricsData?.revenue_breakdown?.[range]?.contract || 0;
-    const prevRevenue = prevContractFees;
-
-    if (prevRevenue === 0 && currentRevenue > 0) return 100;
-
-    if (prevRevenue === 0 && currentRevenue === 0) return 0;
-
-    return ((currentRevenue - prevRevenue) / prevRevenue) * 100;
-  };
 
   return (
     <AdminLayout>
       <div className="px-4 py-6 space-y-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Admin Dashboard
-            </h2>
-            <div className="mt-1 text-sm text-gray-500 flex items-center gap-2">
-              <BarChart3 size={14} />
-              <span>Range: {range === "total" ? "All time" : range}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col items-end">
-              <label className="text-xs text-gray-500 mb-1">Filter Range</label>
-              <Select
-                value={range}
-                onValueChange={(val: RangeOption) => setRange(val)}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Select range" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="total">All Time</SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="week">This Week</SelectItem>
-                  <SelectItem value="month">This Month</SelectItem>
-                  <SelectItem value="90days">Last 90 Days</SelectItem>
-                  <SelectItem value="180days">Last 180 Days</SelectItem>
-                  <SelectItem value="year">This Year</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <button
-              onClick={refresh}
-              className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              <RefreshCw size={16} />
-              Refresh Data
-            </button>
-          </div>
-        </div>
+        <DashboardHeader
+          range={range}
+          onRangeChange={(val: RangeOption) => setRange(val)}
+          onRefresh={refresh}
+        />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid grid-cols-6 w-full max-w-3xl">
@@ -780,352 +322,56 @@ export default function AdminDashboard() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-8">
-            {/* Top Row: Website, Signups, Active Users, Transaction Volume */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KPICard
-                title="Website Visits"
-                value={formatNumber(getMetricValue("website", range))}
-                icon={<Eye className="w-5 h-5 text-blue-600" />}
-                className="border-l-4 border-l-blue-500"
-                subtitle={`Total visits (${
-                  range === "total" ? "all time" : range
-                })`}
-              />
-              <KPICard
-                title="New Signups"
-                value={formatNumber(getMetricValue("signups", range))}
-                icon={<UserPlus className="w-5 h-5 text-green-600" />}
-                className="border-l-4 border-l-green-500"
-                subtitle={`New users (${
-                  range === "total" ? "all time" : range
-                })`}
-              />
-              <KPICard
-                title="Active Users"
-                value={formatNumber(getMetricValue("active_users", range))}
-                icon={<Activity className="w-5 h-5 text-purple-600" />}
-                className="border-l-4 border-l-purple-500"
-                subtitle={`Active users (${
-                  range === "total" ? "all time" : range
-                })`}
-              />
-              <KPICard
-                title="Transaction Volume"
-                value={formatCurrency(
-                  getMetricValue("transaction_volume", range)
-                )}
-                icon={<DollarSign className="w-5 h-5 text-amber-600" />}
-                className="border-l-4 border-l-amber-500"
-                subtitle={`Cash processed (${
-                  range === "total" ? "all time" : range
-                })`}
-              />
-            </div>
+            <OverviewKPIRows
+              metricsData={metricsData}
+              summaryData={summaryData}
+              range={range}
+              getMetricValue={getMetricValue}
+              inflowGrowth={inflowGrowth}
+              outflowGrowth={outflowGrowth}
+              appRevenueGrowth={appRevenueGrowth}
+              contractRevenueGrowth={calculateContractRevenueGrowth()}
+              contractsGrowth={contractsGrowth}
+              invoicesGrowth={invoicesGrowth}
+              contractSignRate={contractSignRate}
+              invoicePaymentRate={invoicePaymentRate}
+              calculateContractRevenueGrowth={calculateContractRevenueGrowth}
+            />
 
-            {/* Second Row: Financial Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KPICard
-                title="Total Inflow"
-                value={formatCurrency(totalInflow)}
-                growth={<GrowthIndicator value={inflowGrowth} />}
-                icon={<TrendingUp className="w-5 h-5 text-green-600" />}
-                className="border-l-4 border-l-green-500"
-                subtitle="Money coming into the platform"
-              />
-              <KPICard
-                title="Total Outflow"
-                value={formatCurrency(totalOutflow)}
-                growth={<GrowthIndicator value={outflowGrowth} />}
-                className="border-l-4 border-l-red-500"
-                subtitle="Money leaving the platform"
-              />
-              <KPICard
-                title="Main Wallet Balance"
-                value={formatCurrency(mainWalletBalance)}
-                icon={<Wallet className="w-5 h-5 text-blue-600" />}
-                className="border-l-4 border-l-blue-500"
-                subtitle="Total user wallet balances"
-              />
-              <KPICard
-                title="Admin Wallet (Nomba)"
-                value={formatCurrency(nombaBalanceRaw)}
-                icon={<CreditCard className="w-5 h-5 text-purple-600" />}
-                className="border-l-4 border-l-purple-500"
-                subtitle="Nomba account balance"
-              />
-            </div>
-
-            {/* Third Row: Platform Revenue Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KPICard
-                title="Total App Revenue"
-                value={formatCurrency(nombaBalanceRaw - mainWalletBalance)}
-                growth={<GrowthIndicator value={appRevenueGrowth} />}
-                icon={<DollarSign className="w-5 h-5 text-amber-600" />}
-                className="border-l-4 border-l-amber-500 bg-linear-to-r from-amber-50 to-white"
-                subtitle="Net platform earnings"
-              />
-              <KPICard
-                title="Contract Revenue"
-                value={formatCurrency(
-                  metricsData?.revenue_breakdown?.[range]?.contract || 0
-                )}
-                growth={
-                  <GrowthIndicator value={calculateContractRevenueGrowth()} />
-                }
-                icon={<FileSignature className="w-5 h-5 text-indigo-600" />}
-                className="border-l-4 border-l-indigo-500 bg-linear-to-r from-indigo-50 to-white"
-                subtitle={`Revenue from contracts (${
-                  range === "total" ? "all time" : range
-                })`}
-              />
-              <KPICard
-                title="Invoice Revenue"
-                value={formatCurrency(
-                  metricsData?.revenue_breakdown?.[range]?.invoice || 0
-                )}
-                icon={<File className="w-5 h-5 text-purple-600" />}
-                className="border-l-4 border-l-purple-500 bg-linear-to-r from-purple-50 to-white"
-                subtitle={`Revenue from invoices (${
-                  range === "total" ? "all time" : range
-                })`}
-              />
-              <KPICard
-                title="Total Users"
-                value={totalUsers.toLocaleString()}
-                icon={<Users className="w-5 h-5 text-green-600" />}
-                className="border-l-4 border-l-green-500"
-                subtitle="Registered users"
-              />
-            </div>
-
-            {/* Fourth Row: Contract & Invoice Performance */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KPICard
-                title="Total Contracts"
-                value={formatNumber(totalContracts)}
-                growth={<GrowthIndicator value={contractsGrowth} />}
-                icon={<FileSignature className="w-5 h-5 text-blue-600" />}
-                className="border-l-4 border-l-blue-500"
-                subtitle="Contracts issued"
-              />
-              <KPICard
-                title="Contract Sign Rate"
-                value={`${contractSignRate}%`}
-                icon={<Percent className="w-5 h-5 text-purple-600" />}
-                className="border-l-4 border-l-purple-500"
-                subtitle="Success rate"
-              />
-              <KPICard
-                title="Total Invoices"
-                value={formatNumber(totalInvoices)}
-                growth={<GrowthIndicator value={invoicesGrowth} />}
-                icon={<File className="w-5 h-5 text-indigo-600" />}
-                className="border-l-4 border-l-indigo-500"
-                subtitle="Invoices issued"
-              />
-              <KPICard
-                title="Invoice Payment Rate"
-                value={`${invoicePaymentRate}%`}
-                icon={<Percent className="w-5 h-5 text-green-600" />}
-                className="border-l-4 border-l-green-500"
-                subtitle="Paid invoices"
-              />
-            </div>
-
-            {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-2">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Revenue Trend by Source
-                  </h3>
-                  <div className="text-sm text-gray-500">
-                    Filtered: {range === "total" ? "All time" : range}
-                  </div>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={revenueBreakdownMonthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 12 }}
-                      tickLine={false}
-                    />
-                    <YAxis tick={{ fontSize: 12 }} tickLine={false} />
-                    <Tooltip
-                      formatter={(value: number) => [
-                        formatCurrency(value),
-                        "Revenue",
-                      ]}
-                      labelFormatter={(label) => `Month: ${label}`}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="total"
-                      stroke={CHART_COLORS.revenue}
-                      fill="url(#colorRevenue)"
-                      strokeWidth={2}
-                      name="Total Revenue"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="contract"
-                      stroke={CHART_COLORS.contract_revenue}
-                      strokeWidth={2}
-                      name="Contract Revenue"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="invoice"
-                      stroke={CHART_COLORS.invoice_revenue}
-                      strokeWidth={2}
-                      name="Invoice Revenue"
-                    />
-                    <defs>
-                      <linearGradient
-                        id="colorRevenue"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={CHART_COLORS.revenue}
-                          stopOpacity={0.8}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={CHART_COLORS.revenue}
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl shadow-sm border">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Contract Status
-                  </h3>
-                  <div className="text-sm text-gray-500">Distribution</div>
-                </div>
-                <div className="h-64">
-                  {contractsPieData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={contractsPieData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }: any) =>
-                            `${name}: ${(percent * 100).toFixed(0)}%`
-                          }
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {contractsPieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          formatter={(value: number) => [
-                            formatNumber(value),
-                            "Contracts",
-                          ]}
-                        />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-gray-400">
-                      No contract data
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  <div className="bg-indigo-50 p-3 rounded-lg">
-                    <div className="text-xs text-indigo-700 mb-1">
-                      Contract Revenue
-                    </div>
-                    <div className="text-lg font-bold text-indigo-900">
-                      {formatCurrency(contractFees)}
-                    </div>
-                  </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <div className="text-xs text-green-700 mb-1">
-                      Revenue Share
-                    </div>
-                    <div className="text-lg font-bold text-green-900">
-                      {contractRevenueShare}%
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <RevenueChart data={revenueBreakdownMonthlyData} range={range} />
+              <ContractStatusPie
+                data={contractsPieData}
+                contractFees={contractFees}
+                contractRevenueShare={contractRevenueShare}
+              />
             </div>
           </TabsContent>
 
           <TabsContent value="traffic" className="space-y-8">
-            {/* Traffic tab content */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                Website Traffic Analytics
-              </h3>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
-                {allTimeRanges.map((period) => (
-                  <div key={period} className="bg-blue-50 p-4 rounded-lg">
-                    <div className="text-sm text-blue-700 mb-1 capitalize">
-                      {period === "total"
-                        ? "All Time"
-                        : period.replace("days", " Days")}
-                    </div>
-                    <div className="text-xl font-bold text-blue-900">
-                      {formatNumber(getMetricValue("website", period))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={websiteMonthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(value: number) => [
-                        formatNumber(value),
-                        "Visits",
-                      ]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="count"
-                      fill="#93c5fd"
-                      stroke="#3b82f6"
-                      name="Website Visits"
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
+            <TrafficKPIs summary={websiteAnalytics?.summary} />
+            <TrafficTrendChart data={websiteAnalytics?.daily || []} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <TopPages pages={websiteAnalytics?.topPages || []} />
+              <TrafficSources
+                sources={websiteAnalytics?.trafficSources || []}
+              />
             </div>
+            <TrafficInsights
+              topPage={websiteAnalytics?.topPages[0]?.path}
+              topSource={websiteAnalytics?.trafficSources[0]?.source}
+            />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-8">
-            {/* Users tab content */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* User Signups */}
               <div className="bg-white p-6 rounded-2xl shadow-sm border">
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
                   User Signups
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-                  {allTimeRanges.slice(0, 4).map((period) => (
+                  {ALL_TIME_RANGES.slice(0, 4).map((period) => (
                     <div key={period} className="bg-green-50 p-3 rounded-lg">
                       <div className="text-xs text-green-700 mb-1 capitalize">
                         {period === "total"
@@ -1139,7 +385,7 @@ export default function AdminDashboard() {
                   ))}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                  {allTimeRanges.slice(4).map((period) => (
+                  {ALL_TIME_RANGES.slice(4).map((period) => (
                     <div key={period} className="bg-green-50 p-3 rounded-lg">
                       <div className="text-xs text-green-700 mb-1 capitalize">
                         {period === "total"
@@ -1168,12 +414,13 @@ export default function AdminDashboard() {
                 </ResponsiveContainer>
               </div>
 
+              {/* Active Users */}
               <div className="bg-white p-6 rounded-2xl shadow-sm border">
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
                   Active Users
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-                  {allTimeRanges.slice(0, 4).map((period) => (
+                  {ALL_TIME_RANGES.slice(0, 4).map((period) => (
                     <div key={period} className="bg-purple-50 p-3 rounded-lg">
                       <div className="text-xs text-purple-700 mb-1 capitalize">
                         {period === "total"
@@ -1187,7 +434,7 @@ export default function AdminDashboard() {
                   ))}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                  {allTimeRanges.slice(4).map((period) => (
+                  {ALL_TIME_RANGES.slice(4).map((period) => (
                     <div key={period} className="bg-purple-50 p-3 rounded-lg">
                       <div className="text-xs text-purple-700 mb-1 capitalize">
                         {period === "total"
@@ -1225,17 +472,16 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-8">
-            {/* Transactions tab content */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
                 Transaction Volume
               </h3>
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
-                {allTimeRanges.map((period) => {
+                {ALL_TIME_RANGES.map((period) => {
                   const periodValue = getMetricValue(
                     "transaction_volume",
-                    period
+                    period,
                   );
                   return (
                     <div key={period} className="bg-amber-50 p-4 rounded-lg">
@@ -1261,38 +507,24 @@ export default function AdminDashboard() {
                       margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                      <XAxis
-                        dataKey="month"
-                        tick={{ fontSize: 12 }}
-                        angle={0}
-                        textAnchor="middle"
-                        height={60}
-                      />
+                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                       <YAxis
                         tickFormatter={(value: number) => {
-                          const numValue = Number(value);
-                          if (numValue >= 1000000) {
-                            return `₦${(numValue / 1000000).toFixed(1)}M`;
-                          } else if (numValue >= 1000) {
-                            return `₦${(numValue / 1000).toFixed(1)}K`;
+                          if (value >= 1000000) {
+                            return `₦${(value / 1000000).toFixed(1)}M`;
+                          } else if (value >= 1000) {
+                            return `₦${(value / 1000).toFixed(1)}K`;
                           }
-                          return `₦${numValue}`;
+                          return `₦${value}`;
                         }}
-                        tick={{ fontSize: 12 }}
                       />
                       <Tooltip
-                        formatter={(value: any) => {
-                          const numValue = Number(value);
-                          return [formatCurrency(numValue), "Volume"];
-                        }}
+                        formatter={(value: any) => [
+                          formatCurrency(value),
+                          "Volume",
+                        ]}
                         labelFormatter={(label) => `Month: ${label}`}
-                        contentStyle={{
-                          backgroundColor: "white",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: "8px",
-                        }}
                       />
-                      <Legend />
                       <Bar
                         dataKey="amount"
                         name="Transaction Volume"
@@ -1307,9 +539,6 @@ export default function AdminDashboard() {
                     <p>
                       No transaction volume data available for the selected
                       range
-                    </p>
-                    <p className="text-sm mt-2">
-                      Try selecting a different time range
                     </p>
                   </div>
                 )}
@@ -1333,10 +562,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="text-sm text-green-700 mt-1">
                     {totalTransactions > 0
-                      ? `${(
-                          (successfulTransactions / totalTransactions) *
-                          100
-                        ).toFixed(1)}% success rate`
+                      ? `${((successfulTransactions / totalTransactions) * 100).toFixed(1)}% success rate`
                       : "0% success rate"}
                   </div>
                 </div>
@@ -1347,7 +573,7 @@ export default function AdminDashboard() {
                   <div className="text-2xl font-bold text-blue-900">
                     {successfulTransactions > 0
                       ? formatCurrency(
-                          (totalInflow + totalOutflow) / successfulTransactions
+                          (totalInflow + totalOutflow) / successfulTransactions,
                         )
                       : formatCurrency(0)}
                   </div>
@@ -1355,242 +581,449 @@ export default function AdminDashboard() {
               </div>
             </div>
           </TabsContent>
-
           <TabsContent value="contracts" className="space-y-8">
-            {/* Contracts tab content */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
                 Contract Analytics
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-blue-50 p-6 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-blue-700 mb-1">
-                        Total Contracts
-                      </div>
-                      <div className="text-2xl font-bold text-blue-900">
-                        {formatNumber(totalContracts)}
-                      </div>
-                    </div>
-                    <FileSignature className="w-8 h-8 text-blue-600" />
-                  </div>
-                  <div className="mt-2 text-xs text-blue-600">
-                    Contracts issued ({range === "total" ? "all time" : range})
-                  </div>
-                </div>
+              {/* Get revenue data for current range */}
+              {(() => {
+                const revenueData = metricsData?.revenue_breakdown?.[range] || {
+                  total: 0,
+                  app_fees: 0,
+                  nomba_fees: 0,
+                  transfers: 0,
+                  invoice: 0,
+                  contract: 0,
+                };
 
-                <div className="bg-green-50 p-6 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-green-700 mb-1">
-                        Signed Contracts
-                      </div>
-                      <div className="text-2xl font-bold text-green-900">
-                        {formatNumber(signedContracts)}
-                      </div>
-                    </div>
-                    <FileCheck className="w-8 h-8 text-green-600" />
-                  </div>
-                  <div className="mt-2 text-xs text-green-600">
-                    Successfully signed
-                  </div>
-                </div>
+                const contractRevenue = revenueData.contract || 0;
+                const contractAppFees =
+                  revenueData.breakdown?.app_fees?.contracts || 0;
+                const contractNombaFees =
+                  revenueData.breakdown?.nomba_fees?.contracts || 0;
 
-                <div className="bg-purple-50 p-6 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-purple-700 mb-1">
-                        Contract Revenue
-                      </div>
-                      <div className="text-2xl font-bold text-purple-900">
-                        {formatCurrency(contractFees)}
-                      </div>
-                    </div>
-                    <DollarSign className="w-8 h-8 text-purple-600" />
-                  </div>
-                  <div className="mt-2 text-xs text-purple-600">
-                    Revenue from contracts
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-8">
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                  Contract Revenue Details
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div className="bg-indigo-50 p-6 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm text-indigo-700 mb-1">
-                          Total Contract Revenue
+                return (
+                  <>
+                    {/* Contract Revenue Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                      <div className="bg-purple-50 p-6 rounded-xl border border-purple-100">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm text-purple-700 mb-1">
+                              Total Contract Revenue
+                            </div>
+                            <div className="text-2xl font-bold text-purple-900">
+                              {formatCurrency(contractRevenue)}
+                            </div>
+                          </div>
+                          <DollarSign className="w-8 h-8 text-purple-600" />
                         </div>
-                        <div className="text-2xl font-bold text-indigo-900">
-                          {formatCurrency(contractFees)}
+                        <div className="mt-2 text-xs text-purple-700">
+                          <div className="flex justify-between">
+                            <span>App Fees:</span>
+                            <span className="font-medium">
+                              {formatCurrency(contractAppFees)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Nomba Fees:</span>
+                            <span className="font-medium">
+                              {formatCurrency(contractNombaFees)}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <FileSignature className="w-8 h-8 text-indigo-600" />
-                    </div>
-                    <div className="mt-2">
-                      <GrowthIndicator value={contractRevenueGrowth} />
-                    </div>
-                    <div className="mt-2 text-xs text-indigo-600">
-                      Revenue from contract fees
-                    </div>
-                  </div>
 
-                  <div className="bg-green-50 p-6 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm text-green-700 mb-1">
-                          Total Contract Value
-                        </div>
-                        <div className="text-2xl font-bold text-green-900">
-                          {formatCurrency(totalContractAmount)}
+                      <div className="bg-blue-50 p-6 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm text-blue-700 mb-1">
+                              Total Contracts
+                            </div>
+                            <div className="text-2xl font-bold text-blue-900">
+                              {formatNumber(
+                                summaryData?.totalContractsIssued || 0,
+                              )}
+                            </div>
+                          </div>
+                          <FileSignature className="w-8 h-8 text-blue-600" />
                         </div>
                       </div>
-                      <FileText className="w-8 h-8 text-green-600" />
-                    </div>
-                    <div className="mt-2 text-xs text-green-600">
-                      Total value of signed contracts
-                    </div>
-                  </div>
 
-                  <div className="bg-blue-50 p-6 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm text-blue-700 mb-1">
-                          Avg. Fee per Contract
-                        </div>
-                        <div className="text-2xl font-bold text-blue-900">
-                          {formatCurrency(avgContractFee)}
+                      <div className="bg-green-50 p-6 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm text-green-700 mb-1">
+                              Signed Contracts
+                            </div>
+                            <div className="text-2xl font-bold text-green-900">
+                              {formatNumber(summaryData?.signedContracts || 0)}
+                            </div>
+                          </div>
+                          <FileCheck className="w-8 h-8 text-green-600" />
                         </div>
                       </div>
-                      <BarChart3 className="w-8 h-8 text-blue-600" />
-                    </div>
-                    <div className="mt-2 text-xs text-blue-600">
-                      Average fee per contract
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              <div className="h-[400px] mb-8">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={monthlyContracts}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(value: number) => [
-                        formatNumber(value),
-                        "Contracts",
-                      ]}
-                    />
-                    <Legend />
-                    <Bar
-                      dataKey="count"
-                      name="Contracts Issued"
-                      fill="#3b82f6"
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="count"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      name="Trend"
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
+                      <div className="bg-amber-50 p-6 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm text-amber-700 mb-1">
+                              Avg. Contract Value
+                            </div>
+                            <div className="text-2xl font-bold text-amber-900">
+                              {summaryData?.signedContracts &&
+                              summaryData.signedContracts > 0
+                                ? formatCurrency(
+                                    (summaryData?.totalContractAmount || 0) /
+                                      summaryData.signedContracts,
+                                  )
+                                : formatCurrency(0)}
+                            </div>
+                          </div>
+                          <TrendingUp className="w-8 h-8 text-amber-600" />
+                        </div>
+                      </div>
+                    </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-xl border">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    Contract Status Distribution
-                  </h4>
-                  <div className="h-64">
-                    {contractsPieData.length > 0 ? (
+                    {/* Contract Performance Metrics */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                      <div className="bg-white p-6 rounded-xl border">
+                        <h4 className="text-md font-semibold text-gray-900 mb-4">
+                          Revenue Breakdown
+                        </h4>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <span className="text-sm font-medium text-gray-700">
+                              Total Contract Revenue
+                            </span>
+                            <span className="text-lg font-bold text-gray-900">
+                              {formatCurrency(contractRevenue)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+                            <span className="text-sm font-medium text-green-700">
+                              App Fees (Platform)
+                            </span>
+                            <span className="text-lg font-bold text-green-900">
+                              {formatCurrency(contractAppFees)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-4 bg-orange-50 rounded-lg">
+                            <span className="text-sm font-medium text-orange-700">
+                              Nomba Fees (Provider)
+                            </span>
+                            <span className="text-lg font-bold text-orange-900">
+                              {formatCurrency(contractNombaFees)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                            <span className="text-sm font-medium text-blue-700">
+                              Total Contract Amount
+                            </span>
+                            <span className="text-lg font-bold text-blue-900">
+                              {formatCurrency(
+                                summaryData?.totalContractAmount || 0,
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-6 rounded-xl border">
+                        <h4 className="text-md font-semibold text-gray-900 mb-4">
+                          Performance Metrics
+                        </h4>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <span className="text-sm font-medium text-gray-700">
+                              Contract Sign Rate
+                            </span>
+                            <span className="text-lg font-bold text-gray-900">
+                              {summaryData?.totalContractsIssued &&
+                              summaryData.totalContractsIssued > 0
+                                ? `${(((summaryData.signedContracts || 0) / summaryData.totalContractsIssued) * 100).toFixed(1)}%`
+                                : "0%"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
+                            <span className="text-sm font-medium text-purple-700">
+                              Revenue per Contract
+                            </span>
+                            <span className="text-lg font-bold text-purple-900">
+                              {summaryData?.signedContracts &&
+                              summaryData.signedContracts > 0
+                                ? formatCurrency(
+                                    contractRevenue /
+                                      summaryData.signedContracts,
+                                  )
+                                : formatCurrency(0)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-4 bg-indigo-50 rounded-lg">
+                            <span className="text-sm font-medium text-indigo-700">
+                              Platform Margin
+                            </span>
+                            <span className="text-lg font-bold text-indigo-900">
+                              {contractRevenue > 0
+                                ? `${((contractAppFees / contractRevenue) * 100).toFixed(1)}%`
+                                : "0%"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg">
+                            <span className="text-sm font-medium text-amber-700">
+                              Pending Contracts
+                            </span>
+                            <span className="text-lg font-bold text-amber-900">
+                              {formatNumber(summaryData?.pendingContracts || 0)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Monthly Contract Revenue Chart */}
+                    <div className="h-[400px] mb-8">
+                      <h4 className="text-md font-semibold text-gray-900 mb-4">
+                        Monthly Contract Revenue Trend
+                      </h4>
                       <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={contractsPieData}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={(entry: any) =>
-                              `${entry.name}: ${(
-                                (entry.percent || 0) * 100
-                              ).toFixed(1)}%`
-                            }
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {contractsPieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            formatter={(value: number) => [
-                              formatNumber(value),
-                              "Contracts",
-                            ]}
+                        <ComposedChart
+                          data={summaryData?.monthlyContracts || []}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="#f3f4f6"
                           />
-                        </PieChart>
+                          <XAxis dataKey="month" />
+                          <YAxis
+                            yAxisId="left"
+                            orientation="left"
+                            stroke="#3b82f6"
+                          />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            stroke="#f59e0b"
+                          />
+                          <Tooltip
+                            formatter={(value: number, name: string) => {
+                              if (name === "revenue")
+                                return [formatCurrency(value), "Revenue"];
+                              return [formatNumber(value), "Contracts"];
+                            }}
+                          />
+                          <Legend />
+                          <Bar
+                            yAxisId="left"
+                            dataKey="count"
+                            name="Contracts Issued"
+                            fill="#3b82f6"
+                            radius={[4, 4, 0, 0]}
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="revenue"
+                            name="Revenue"
+                            stroke="#f59e0b"
+                            strokeWidth={2}
+                            dot={{ r: 4 }}
+                          />
+                        </ComposedChart>
                       </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-gray-400">
-                        No contract data available
-                      </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
 
-                <div className="bg-white p-6 rounded-xl border">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    Contract Performance
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm font-medium text-gray-700">
-                        Total Contracts
+                    {/* Contract Status Distribution */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="bg-white p-6 rounded-xl border">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                          Contract Status Distribution
+                        </h4>
+                        <div className="h-64">
+                          {(() => {
+                            const signed = summaryData?.signedContracts || 0;
+                            const pending = summaryData?.pendingContracts || 0;
+                            const total = signed + pending;
+                            const pieData = [
+                              {
+                                name: "Signed",
+                                value: signed,
+                                color: CHART_COLORS.inflow,
+                              },
+                              {
+                                name: "Pending",
+                                value: pending,
+                                color: CHART_COLORS.outflow,
+                              },
+                            ].filter((item) => item.value > 0);
+
+                            return pieData.length > 0 ? (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                  <Pie
+                                    data={pieData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={(entry: any) =>
+                                      `${entry.name}: ${((entry.percent || 0) * 100).toFixed(1)}%`
+                                    }
+                                    outerRadius={80}
+                                    dataKey="value"
+                                  >
+                                    {pieData.map((entry, index) => (
+                                      <Cell
+                                        key={`cell-${index}`}
+                                        fill={entry.color}
+                                      />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip
+                                    formatter={(value: number) => [
+                                      formatNumber(value),
+                                      "Contracts",
+                                    ]}
+                                  />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            ) : (
+                              <div className="h-full flex items-center justify-center text-gray-400">
+                                No contract data available
+                              </div>
+                            );
+                          })()}
+                        </div>
                       </div>
-                      <div className="text-lg font-bold text-gray-900">
-                        {formatNumber(totalContracts)}
+
+                      <div className="bg-white p-6 rounded-xl border">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                          Revenue by Contract Status
+                        </h4>
+                        <div className="h-64">
+                          {(() => {
+                            const signed = summaryData?.signedContracts || 0;
+                            const pending = summaryData?.pendingContracts || 0;
+                            const signedRevenue =
+                              signed > 0
+                                ? contractRevenue *
+                                  (signed / (signed + pending || 1))
+                                : 0;
+                            const pendingRevenue =
+                              pending > 0
+                                ? contractRevenue *
+                                  (pending / (signed + pending || 1))
+                                : 0;
+
+                            const revenuePieData = [
+                              {
+                                name: "Signed Revenue",
+                                value: signedRevenue,
+                                color: CHART_COLORS.inflow,
+                              },
+                              {
+                                name: "Pending Revenue",
+                                value: pendingRevenue,
+                                color: CHART_COLORS.outflow,
+                              },
+                            ].filter((item) => item.value > 0);
+
+                            return revenuePieData.length > 0 ? (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                  <Pie
+                                    data={revenuePieData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={(entry: any) =>
+                                      `${entry.name}: ${((entry.percent || 0) * 100).toFixed(1)}%`
+                                    }
+                                    outerRadius={80}
+                                    dataKey="value"
+                                  >
+                                    {revenuePieData.map((entry, index) => (
+                                      <Cell
+                                        key={`cell-${index}`}
+                                        fill={entry.color}
+                                      />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip
+                                    formatter={(value: number) => [
+                                      formatCurrency(value),
+                                      "Revenue",
+                                    ]}
+                                  />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            ) : (
+                              <div className="h-full flex items-center justify-center text-gray-400">
+                                No revenue data available
+                              </div>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                      <div className="text-sm font-medium text-green-700">
-                        Signed Rate
-                      </div>
-                      <div className="text-lg font-bold text-green-900">
-                        {contractSignRate}%
+
+                    {/* Contract Revenue Table */}
+                    <div className="mt-8">
+                      <h4 className="text-md font-semibold text-gray-900 mb-4">
+                        Monthly Contract Performance
+                      </h4>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Month
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                Contracts
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                Revenue
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                Avg per Contract
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {(summaryData?.monthlyContracts || [])
+                              .slice()
+                              .reverse()
+                              .map((item: any, idx: number) => {
+                                const avgPerContract =
+                                  item.count > 0
+                                    ? item.revenue / item.count
+                                    : 0;
+                                return (
+                                  <tr key={idx} className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 text-sm text-gray-900">
+                                      {item.month}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-right font-medium">
+                                      {formatNumber(item.count)}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-right text-purple-600">
+                                      {formatCurrency(item.revenue || 0)}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-right text-amber-600">
+                                      {formatCurrency(avgPerContract)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                      <div className="text-sm font-medium text-blue-700">
-                        Contract Revenue
-                      </div>
-                      <div className="text-lg font-bold text-blue-900">
-                        {formatCurrency(contractFees)}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
-                      <div className="text-sm font-medium text-purple-700">
-                        Revenue Share
-                      </div>
-                      <div className="text-lg font-bold text-purple-900">
-                        {contractRevenueShare}%
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  </>
+                );
+              })()}
             </div>
           </TabsContent>
 
@@ -1605,368 +1038,245 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              {/* Fee Type Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                  <h4 className="text-sm font-medium text-green-800 mb-2">
+                    App Fees (Platform Revenue)
+                  </h4>
+                  <p className="text-2xl font-bold text-green-900">
+                    {formatCurrency(
+                      metricsData?.revenue_breakdown?.[range]?.app_fees || 0,
+                    )}
+                  </p>
+                  <div className="mt-2 text-xs text-green-700">
+                    <div className="flex justify-between">
+                      <span>Transactions:</span>
+                      <span className="font-medium">
+                        {formatCurrency(
+                          metricsData?.revenue_breakdown?.[range]?.breakdown
+                            ?.app_fees.transactions || 0,
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Invoice Creation:</span>
+                      <span className="font-medium">
+                        {formatCurrency(
+                          metricsData?.revenue_breakdown?.[range]?.breakdown
+                            ?.app_fees.invoice_creation || 0,
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Invoice Fees (2%):</span>
+                      <span className="font-medium">
+                        {formatCurrency(
+                          metricsData?.revenue_breakdown?.[range]?.breakdown
+                            ?.app_fees.invoices || 0,
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Contracts:</span>
+                      <span className="font-medium">
+                        {formatCurrency(
+                          metricsData?.revenue_breakdown?.[range]?.breakdown
+                            ?.app_fees.contracts || 0,
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
+                  <h4 className="text-sm font-medium text-orange-800 mb-2">
+                    Nomba Fees (Provider Cost)
+                  </h4>
+                  <p className="text-2xl font-bold text-orange-900">
+                    {formatCurrency(
+                      metricsData?.revenue_breakdown?.[range]?.nomba_fees || 0,
+                    )}
+                  </p>
+                  <div className="mt-2 text-xs text-orange-700">
+                    <div className="flex justify-between">
+                      <span>Transactions:</span>
+                      <span className="font-medium">
+                        {formatCurrency(
+                          metricsData?.revenue_breakdown?.[range]?.breakdown
+                            ?.nomba_fees.transactions || 0,
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Invoices:</span>
+                      <span className="font-medium">
+                        {formatCurrency(
+                          metricsData?.revenue_breakdown?.[range]?.breakdown
+                            ?.nomba_fees.invoices || 0,
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Contracts:</span>
+                      <span className="font-medium">
+                        {formatCurrency(
+                          metricsData?.revenue_breakdown?.[range]?.breakdown
+                            ?.nomba_fees.contracts || 0,
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <h4 className="text-sm font-medium text-blue-800 mb-2">
+                    Net Profit Margin
+                  </h4>
+                  <p className="text-2xl font-bold text-blue-900">
+                    {metricsData?.revenue_breakdown?.[range]?.total > 0
+                      ? `${((metricsData?.revenue_breakdown?.[range]?.app_fees / metricsData?.revenue_breakdown?.[range]?.total) * 100).toFixed(1)}%`
+                      : "0%"}
+                  </p>
+                  <p className="text-xs text-blue-700 mt-2">
+                    App Fees:{" "}
+                    {formatCurrency(
+                      metricsData?.revenue_breakdown?.[range]?.app_fees || 0,
+                    )}{" "}
+                    / Total:{" "}
+                    {formatCurrency(
+                      metricsData?.revenue_breakdown?.[range]?.total || 0,
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Period Cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
-                {allTimeRanges.map((period) => {
-                  const revenue = metricsData?.revenue_breakdown?.[period];
+                {[
+                  "total",
+                  "today",
+                  "week",
+                  "month",
+                  "90days",
+                  "180days",
+                  "year",
+                ].map((period) => {
+                  const revenue =
+                    metricsData?.revenue_breakdown?.[period as RangeOption];
                   return (
-                    <div key={period} className="bg-green-50 p-4 rounded-lg">
-                      <div className="text-sm text-green-700 mb-1 capitalize">
+                    <div
+                      key={period}
+                      className="bg-gray-50 p-4 rounded-lg border"
+                    >
+                      <div className="text-sm text-gray-700 mb-1 capitalize">
                         {period === "total"
                           ? "All Time"
                           : period.replace("days", " Days")}
                       </div>
-                      <div className="text-xl font-bold text-green-900">
+                      <div className="text-xl font-bold text-gray-900">
                         {formatCurrency(revenue?.total || 0)}
                       </div>
                       <div className="text-xs text-green-600 mt-1">
-                        Contract: {formatCurrency(revenue?.contract || 0)}
+                        App: {formatCurrency(revenue?.app_fees || 0)}
                       </div>
-                      <div className="text-xs text-purple-600 mt-1">
-                        Invoice: {formatCurrency(revenue?.invoice || 0)}
+                      <div className="text-xs text-orange-600">
+                        Nomba: {formatCurrency(revenue?.nomba_fees || 0)}
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="h-[400px] mb-8">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={revenueBreakdownMonthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="month" />
-                    <YAxis
-                      tickFormatter={(value: number) => `₦${value / 1000}k`}
-                    />
-                    <Tooltip
-                      formatter={(value: number, name: string) => {
-                        const featureNames: Record<string, string> = {
-                          total: "Total Revenue",
-                          transfers: "Transfers",
-                          bill_payment: "Bill Payment",
-                          invoice: "Invoice Revenue",
-                          contract: "Contract",
-                          platform: "Platform (2%)",
-                        };
-                        return [
-                          formatCurrency(value),
-                          featureNames[name] || name,
-                        ];
-                      }}
-                    />
-                    <Legend />
-                    <Area
-                      type="monotone"
-                      dataKey="total"
-                      fill="#dcfce7"
-                      stroke="#16a34a"
-                      name="Total Revenue"
-                    />
-                    <Bar dataKey="transfers" fill="#3b82f6" name="Transfers" />
-                    <Bar
-                      dataKey="bill_payment"
-                      fill="#10b981"
-                      name="Bill Payment"
-                    />
-                    <Bar dataKey="invoice" fill="#8b5cf6" name="Invoice Revenue" />
-                    <Bar
-                      dataKey="contract"
-                      fill={CHART_COLORS.contract_revenue}
-                      name="Contract"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-
-              {revenueBreakdownPieData.length > 0 && (
-                <div className="mt-8">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    Revenue Distribution by Feature
-                  </h4>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={revenueBreakdownPieData}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={(entry: any) =>
-                              `${entry.name}: ${(
-                                (entry.percent || 0) * 100
-                              ).toFixed(1)}%`
-                            }
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {revenueBreakdownPieData.map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={entry.color || "#8884d8"}
-                              />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            formatter={(value: any) =>
-                              formatCurrency(Number(value))
-                            }
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    <div className="space-y-3">
-                      {revenueBreakdownPieData.map((entry) => {
-                        const totalRevenue = getMetricValue(
-                          "revenue_breakdown",
-                          range
-                        );
-                        const percentage =
-                          totalRevenue > 0
-                            ? (entry.value / totalRevenue) * 100
-                            : 0;
-
-                        return (
-                          <div
-                            key={entry.name}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: entry.color }}
-                              />
-                              <span className="text-sm font-medium text-gray-700 capitalize">
-                                {entry.name}
-                              </span>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-bold">
-                                {formatCurrency(entry.value)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {percentage.toFixed(1)}%
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+              {/* Revenue Breakdown Table */}
+              <div className="mt-8">
+                <h4 className="text-md font-semibold text-gray-900 mb-4">
+                  Monthly Revenue Breakdown
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Month
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                          Total
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                          App Fees
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                          Nomba Fees
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                          Margin
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {metricsData?.revenue_breakdown?.monthly
+                        ?.slice()
+                        .reverse()
+                        .map((item: any, idx: number) => {
+                          const margin =
+                            item.total > 0
+                              ? ((item.app_fees / item.total) * 100).toFixed(1)
+                              : "0";
+                          return (
+                            <tr key={idx} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm text-gray-900">
+                                {item.month}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right font-medium">
+                                {formatCurrency(item.total)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-green-600">
+                                {formatCurrency(item.app_fees)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-orange-600">
+                                {formatCurrency(item.nomba_fees)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-blue-600">
+                                {margin}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </div>
             </div>
           </TabsContent>
         </Tabs>
 
-        {/* Recent Transactions Table */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border">
-          <div className="flex flex-col sm:flexRow items-start sm:items-center justify-between mb-6 gap-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Recent Transactions
-            </h3>
-            <div className="flex items-center gap-3">
-              <div className="text-sm text-gray-500">Page: {page}</div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={goPrev}
-                  disabled={!hasPrevPage}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    !hasPrevPage
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-gray-50 text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={goNext}
-                  disabled={!hasNextPage}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    !hasNextPage
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-gray-50 text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
+        <TransactionsTable
+          transactions={recentActivity}
+          page={page}
+          hasNextPage={hasNextPage}
+          hasPrevPage={hasPrevPage}
+          onNext={goNext}
+          onPrev={goPrev}
+          formatCurrency={formatCurrency}
+          formatDateSafely={(date) => formatDateSafely(date, isClient)}
+        />
 
-          <div className="overflow-hidden rounded-lg border border-gray-200">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {recentActivity.length > 0 ? (
-                  recentActivity.map((tx: any) => (
-                    <tr
-                      key={tx.id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(tx.amount)}
-                        </div>
-                        {tx.fee > 0 && (
-                          <div className="text-xs text-amber-600 mt-1">
-                            Fee: {formatCurrency(tx.fee)}
-                          </div>
-                        )}
-                        {(tx.type?.toLowerCase() || "").includes(
-                          "contract"
-                        ) && (
-                          <div className="text-xs text-indigo-600 mt-1">
-                            Contract Fee
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {tx.description || "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            (tx.type?.toLowerCase() || "").includes("fee")
-                              ? "bg-amber-100 text-amber-800"
-                            : (tx.type?.toLowerCase() || "").includes(
-                                "deposit"
-                              ) ||
-                              (tx.type?.toLowerCase() || "").includes(
-                                "received"
-                              )
-                              ? "bg-green-100 text-green-800"
-                            : (tx.type?.toLowerCase() || "").includes(
-                                "withdrawal"
-                              ) ||
-                              (tx.type?.toLowerCase() || "").includes("sent")
-                              ? "bg-red-100 text-red-800"
-                            : (tx.type?.toLowerCase() || "").includes(
-                                "contract"
-                              )
-                              ? "bg-indigo-100 text-indigo-800"
-                            : (tx.type?.toLowerCase() || "").includes("invoice")
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {tx.type || "—"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            tx.status === "success"
-                              ? "bg-green-100 text-green-800"
-                            : tx.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {tx.status || "—"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {formatDateSafely(tx.created_at)}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-8 text-center text-gray-500"
-                    >
-                      No transactions found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Platform Performance Summary */}
-        <div className="bg-linear-to-r from-gray-50 to-white p-6 rounded-2xl shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Platform Performance Summary
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Total Users</div>
-              <div className="text-2xl font-bold text-gray-900">
-                {totalUsers.toLocaleString()}
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Success Rate</div>
-              <div className="text-2xl font-bold text-gray-900">
-                {totalTransactions > 0
-                  ? `${(
-                      (successfulTransactions / totalTransactions) *
-                      100
-                    ).toFixed(1)}%`
-                  : "0%"}
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Contract Revenue</div>
-              <div className="text-2xl font-bold text-gray-900">
-                {formatCurrency(contractFees)}
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Invoice Revenue</div>
-              <div className="text-2xl font-bold text-gray-900">
-                {formatCurrency(
-                  metricsData?.revenue_breakdown?.[range]?.invoice || 0
-                )}
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Transaction Revenue</div>
-              <div className="text-2xl font-bold text-gray-900">
-                {formatCurrency(
-                  metricsData?.revenue_breakdown?.[range]?.transfers || 0
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">Total App Revenue:</span>{" "}
-              {formatCurrency(nombaBalanceRaw - mainWalletBalance)}
-            </div>
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">Contract Sign Rate:</span>{" "}
-              {contractSignRate}%
-            </div>
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">Invoice Payment Rate:</span>{" "}
-              {invoicePaymentRate}%
-            </div>
-          </div>
-        </div>
+        <PlatformSummary
+          totalUsers={totalUsers}
+          totalTransactions={totalTransactions}
+          successfulTransactions={successfulTransactions}
+          contractFees={contractFees}
+          invoiceRevenue={metricsData?.revenue_breakdown?.[range]?.invoice || 0}
+          transactionRevenue={
+            metricsData?.revenue_breakdown?.[range]?.transfers || 0
+          }
+          nombaBalance={nombaBalance}
+          mainWalletBalance={mainWalletBalance}
+          contractSignRate={contractSignRate}
+          invoicePaymentRate={invoicePaymentRate}
+          range={range}
+        />
       </div>
     </AdminLayout>
   );

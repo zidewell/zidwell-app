@@ -19,10 +19,8 @@ const parseRangeToDates = (range: RangeOption, customFrom?: Date, customTo?: Dat
   }
 
   if (range === "total") {
-    // For "total" range, return a very old start date (e.g., 5 years ago)
-    // This ensures we get all historical data
     start = new Date();
-    start.setFullYear(now.getFullYear() - 5); // 5 years ago
+    start.setFullYear(now.getFullYear() - 5);
     return { start, end };
   }
 
@@ -51,6 +49,83 @@ const parseRangeToDates = (range: RangeOption, customFrom?: Date, customTo?: Dat
   return { start, end };
 };
 
+// Helper function to extract fees from transaction external_response
+function extractTransactionFees(transaction: any): { appFee: number; nombaFee: number } {
+  const defaultFees = { appFee: 0, nombaFee: 0 };
+  
+  if (!transaction.external_response) {
+    return defaultFees;
+  }
+
+  try {
+    const externalResponse = typeof transaction.external_response === 'string'
+      ? JSON.parse(transaction.external_response)
+      : transaction.external_response;
+
+    // Check if we have fee_breakdown in external_response
+    if (externalResponse.fee_breakdown) {
+      return {
+        appFee: Number(externalResponse.fee_breakdown.app_fee) || 0,
+        nombaFee: Number(externalResponse.fee_breakdown.nomba_fee) || 0
+      };
+    }
+
+    // For airtime/data transactions, the fee in external_response.data is Nomba fee
+    if (transaction.type === 'airtime' || transaction.type === 'data') {
+      const dataFee = Number(externalResponse.data?.fee) || 0;
+      return {
+        appFee: Number(transaction.fee) || 0, // App fee is in the main fee column
+        nombaFee: dataFee
+      };
+    }
+
+    // For withdrawals - extract from fee_breakdown if available
+    if (transaction.type === 'withdrawal' && externalResponse.fee_breakdown) {
+      return {
+        appFee: Number(externalResponse.fee_breakdown.app_fee) || 0,
+        nombaFee: Number(externalResponse.fee_breakdown.nomba_fee) || 0
+      };
+    }
+
+    // For deposits - Nomba fee might be in data.transaction.fee
+    if (transaction.type === 'virtual_account_deposit') {
+      const nombaFee = Number(externalResponse.data?.transaction?.fee) || 0;
+      return {
+        appFee: Number(transaction.fee) || 0,
+        nombaFee: nombaFee
+      };
+    }
+
+  } catch (err) {
+    console.error('Error parsing external_response:', err);
+  }
+
+  return defaultFees;
+}
+
+// Helper function to extract contract fees
+function extractContractFees(transaction: any): { appFee: number; nombaFee: number } {
+  try {
+    if (transaction.external_response) {
+      const externalResponse = typeof transaction.external_response === 'string'
+        ? JSON.parse(transaction.external_response)
+        : transaction.external_response;
+
+      if (externalResponse.fee_breakdown) {
+        return {
+          appFee: Number(externalResponse.fee_breakdown.app_fee) || 
+                  Number(externalResponse.fee_breakdown.total) || 0,
+          nombaFee: Number(externalResponse.fee_breakdown.nomba_fee) || 0
+        };
+      }
+    }
+  } catch (err) {
+    // JSON parsing failed
+  }
+
+  return { appFee: Number(transaction.fee) || 0, nombaFee: 0 };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const adminUser = await requireAdmin(req);
@@ -65,7 +140,7 @@ export async function GET(req: NextRequest) {
     const customTo = to ? new Date(to) : undefined;
     const dateRange = parseRangeToDates(range, customFrom, customTo);
 
-    // Fetch total users count (always needed)
+    // Fetch total users count
     const { count: totalUsers } = await supabaseAdmin
       .from("users")
       .select("*", { count: "exact", head: true });
@@ -204,8 +279,7 @@ export async function GET(req: NextRequest) {
       monthly: processMonthlyVolumeData(dailyTransactionData),
     };
 
-    // *** UPDATED REVENUE CALCULATION FOR INVOICES ***
-    // Get revenue breakdown for all periods
+    // Get revenue breakdown for all periods with proper fee separation
     const totalRevenueBreakdown = await getRevenueBreakdownForPeriod("total");
     const todayRevenueBreakdown = await getRevenueBreakdownForPeriod("today");
     const weekRevenueBreakdown = await getRevenueBreakdownForPeriod("week");
@@ -230,7 +304,6 @@ export async function GET(req: NextRequest) {
       monthly: processMonthlyRevenueData(dailyRevenueData)
     };
 
-    // Website data (using signups as proxy for now)
     const response = {
       website: {
         ...signupsData,
@@ -385,90 +458,93 @@ async function getTransactionVolumeForPeriod(period: string): Promise<number> {
   return data?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) || 0;
 }
 
-// UPDATED: Get revenue breakdown for a period - INCLUDES INVOICE CREATION REVENUE
+// UPDATED: Get revenue breakdown with proper fee separation
 async function getRevenueBreakdownForPeriod(period: string): Promise<any> {
   if (period === "total") {
-    // Get all transaction fees (excluding contracts and invoice_creation)
+    // Get all transactions
     const { data: allTransactions } = await supabaseAdmin
       .from("transactions")
       .select("fee, amount, status, type, external_response")
       .eq("status", "success");
     
-    // Separate contract, invoice_creation, and other transactions
-    const contractTransactions = allTransactions?.filter(tx => 
-      (tx.type || "").toString().toLowerCase().includes("contract")
-    ) || [];
+    // Initialize fee accumulators
+    let totalAppFees = 0;
+    let totalNombaFees = 0;
+    let transferAppFees = 0;
+    let transferNombaFees = 0;
+    let contractAppFees = 0;
+    let contractNombaFees = 0;
+    let invoiceCreationRevenue = 0;
     
-    const invoiceCreationTransactions = allTransactions?.filter(tx => 
-      (tx.type || "").toString().toLowerCase().includes("invoice_creation")
-    ) || [];
-    
-    const otherTransactions = allTransactions?.filter(tx => 
-      !(tx.type || "").toString().toLowerCase().includes("contract") &&
-      !(tx.type || "").toString().toLowerCase().includes("invoice_creation")
-    ) || [];
-    
-    // Revenue from regular transaction fees
-    const transactionFees = otherTransactions.reduce((sum, tx) => sum + (Number(tx.fee) || 0), 0);
-    
-    // Revenue from invoice_creation transactions (use amount, not fee)
-    const invoiceCreationRevenue = invoiceCreationTransactions.reduce(
-      (sum, tx) => sum + (Number(tx.amount) || 0), 0
-    );
-    
-    // Calculate contract fees
-    const contractFees = contractTransactions.reduce((sum, tx) => {
-      const fee = Number(tx.fee) || 0;
+    // Process each transaction
+    allTransactions?.forEach(tx => {
+      const type = (tx.type || "").toString().toLowerCase();
+      const isContract = type.includes("contract");
+      const isInvoiceCreation = type.includes("invoice_creation");
       
-      // Check external_response for contract-specific fees
-      if (tx.external_response) {
-        try {
-          const externalResponse = typeof tx.external_response === 'string' 
-            ? JSON.parse(tx.external_response)
-            : tx.external_response;
-          
-          if (externalResponse && externalResponse.fee_breakdown) {
-            const feeFromJson = Number(externalResponse.fee_breakdown.total) || 0;
-            const baseFee = Number(externalResponse.fee_breakdown.base_fee) || 0;
-            const lawyerFee = Number(externalResponse.fee_breakdown.lawyer_fee) || 0;
-            
-            if (feeFromJson > 0) {
-              return sum + feeFromJson;
-            } else if (baseFee > 0 || lawyerFee > 0) {
-              return sum + baseFee + lawyerFee;
-            }
-          }
-        } catch (err) {
-          // JSON parsing failed, use regular fee
-        }
+      if (isContract) {
+        // Handle contract fees
+        const fees = extractContractFees(tx);
+        contractAppFees += fees.appFee;
+        contractNombaFees += fees.nombaFee;
+        totalAppFees += fees.appFee;
+        totalNombaFees += fees.nombaFee;
+      } else if (isInvoiceCreation) {
+        // Invoice creation fees are pure platform revenue
+        invoiceCreationRevenue += Number(tx.amount) || 0;
+        totalAppFees += Number(tx.amount) || 0;
+      } else {
+        // Regular transactions - extract both fees
+        const fees = extractTransactionFees(tx);
+        transferAppFees += fees.appFee;
+        transferNombaFees += fees.nombaFee;
+        totalAppFees += fees.appFee;
+        totalNombaFees += fees.nombaFee;
       }
-      
-      return sum + fee;
-    }, 0);
+    });
 
-    // Get all invoice fees from invoices table for 'paid' or 'partially_paid' statuses
-    const { data: allInvoices } = await supabaseAdmin
+    // Get invoice fees from invoices table
+    const { data: invoices } = await supabaseAdmin
       .from("invoices")
       .select("fee_amount, status")
       .in("status", ["paid", "partially_paid"]);
     
-    const invoiceFees = allInvoices?.reduce((sum, inv) => sum + (Number(inv.fee_amount) || 0), 0) || 0;
+    const invoiceFees = invoices?.reduce((sum, inv) => sum + (Number(inv.fee_amount) || 0), 0) || 0;
+    
+    // For invoices, we need to split the fee (2% platform + Nomba fee)
+    // Assuming the fee_amount in invoices is the total fee charged to customer
+    // Platform gets 2%, Nomba gets the rest
+    const platformPercentage = 0.02; // 2%
+    const invoiceAppFees = invoiceFees * platformPercentage;
+    const invoiceNombaFees = invoiceFees * (1 - platformPercentage);
 
-    // TOTAL INVOICE REVENUE = invoice_creation transactions + invoice fees
-    const totalInvoiceRevenue = invoiceCreationRevenue + invoiceFees;
-
-    const total = transactionFees + totalInvoiceRevenue + contractFees;
+    const totalAppRevenue = totalAppFees + invoiceAppFees;
+    const totalNombaExpense = totalNombaFees + invoiceNombaFees;
+    const totalRevenue = totalAppRevenue + totalNombaExpense;
 
     return {
-      total,
-      transfers: transactionFees,
+      total: totalRevenue,
+      app_fees: totalAppRevenue,
+      nomba_fees: totalNombaExpense,
+      transfers: transferAppFees + transferNombaFees,
       bill_payment: 0,
-      invoice: totalInvoiceRevenue, // Combined invoice revenue
-      contract: contractFees,
-      platform: 0, // No longer using invoice_payments table
+      invoice: invoiceFees,
+      contract: contractAppFees + contractNombaFees,
+      platform: 0,
       breakdown: {
-        invoice_creation: invoiceCreationRevenue,
-        invoice_fees: invoiceFees
+        app_fees: {
+          transactions: transferAppFees,
+          invoice_creation: invoiceCreationRevenue,
+          invoices: invoiceAppFees,
+          contracts: contractAppFees,
+          total: totalAppRevenue
+        },
+        nomba_fees: {
+          transactions: transferNombaFees,
+          invoices: invoiceNombaFees,
+          contracts: contractNombaFees,
+          total: totalNombaExpense
+        }
       }
     };
   }
@@ -505,59 +581,40 @@ async function getRevenueBreakdownForPeriod(period: string): Promise<any> {
     .gte("created_at", start.toISOString())
     .lte("created_at", now.toISOString());
 
-  // Separate contract, invoice_creation, and other transactions
-  const contractTransactions = transactions?.filter(tx => 
-    (tx.type || "").toString().toLowerCase().includes("contract")
-  ) || [];
+  // Initialize fee accumulators
+  let totalAppFees = 0;
+  let totalNombaFees = 0;
+  let transferAppFees = 0;
+  let transferNombaFees = 0;
+  let contractAppFees = 0;
+  let contractNombaFees = 0;
+  let invoiceCreationRevenue = 0;
   
-  const invoiceCreationTransactions = transactions?.filter(tx => 
-    (tx.type || "").toString().toLowerCase().includes("invoice_creation")
-  ) || [];
-  
-  const otherTransactions = transactions?.filter(tx => 
-    !(tx.type || "").toString().toLowerCase().includes("contract") &&
-    !(tx.type || "").toString().toLowerCase().includes("invoice_creation")
-  ) || [];
-
-  // Revenue from regular transaction fees
-  const transactionFees = otherTransactions.reduce((sum, tx) => sum + (Number(tx.fee) || 0), 0);
-  
-  // Revenue from invoice_creation transactions
-  const invoiceCreationRevenue = invoiceCreationTransactions.reduce(
-    (sum, tx) => sum + (Number(tx.amount) || 0), 0
-  );
-  
-  // Calculate contract fees
-  const contractFees = contractTransactions.reduce((sum, tx) => {
-    const fee = Number(tx.fee) || 0;
+  // Process each transaction
+  transactions?.forEach(tx => {
+    const type = (tx.type || "").toString().toLowerCase();
+    const isContract = type.includes("contract");
+    const isInvoiceCreation = type.includes("invoice_creation");
     
-    // Check external_response for contract-specific fees
-    if (tx.external_response) {
-      try {
-        const externalResponse = typeof tx.external_response === 'string' 
-          ? JSON.parse(tx.external_response)
-          : tx.external_response;
-        
-        if (externalResponse && externalResponse.fee_breakdown) {
-          const feeFromJson = Number(externalResponse.fee_breakdown.total) || 0;
-          const baseFee = Number(externalResponse.fee_breakdown.base_fee) || 0;
-          const lawyerFee = Number(externalResponse.fee_breakdown.lawyer_fee) || 0;
-          
-          if (feeFromJson > 0) {
-            return sum + feeFromJson;
-          } else if (baseFee > 0 || lawyerFee > 0) {
-            return sum + baseFee + lawyerFee;
-          }
-        }
-      } catch (err) {
-        // JSON parsing failed, use regular fee
-      }
+    if (isContract) {
+      const fees = extractContractFees(tx);
+      contractAppFees += fees.appFee;
+      contractNombaFees += fees.nombaFee;
+      totalAppFees += fees.appFee;
+      totalNombaFees += fees.nombaFee;
+    } else if (isInvoiceCreation) {
+      invoiceCreationRevenue += Number(tx.amount) || 0;
+      totalAppFees += Number(tx.amount) || 0;
+    } else {
+      const fees = extractTransactionFees(tx);
+      transferAppFees += fees.appFee;
+      transferNombaFees += fees.nombaFee;
+      totalAppFees += fees.appFee;
+      totalNombaFees += fees.nombaFee;
     }
-    
-    return sum + fee;
-  }, 0);
+  });
 
-  // Get invoice fees for 'paid' or 'partially_paid' invoices
+  // Get invoice fees for the period
   const { data: invoices } = await supabaseAdmin
     .from("invoices")
     .select("fee_amount, status, created_at")
@@ -566,27 +623,44 @@ async function getRevenueBreakdownForPeriod(period: string): Promise<any> {
     .lte("created_at", now.toISOString());
 
   const invoiceFees = invoices?.reduce((sum, inv) => sum + (Number(inv.fee_amount) || 0), 0) || 0;
+  
+  // Split invoice fees
+  const platformPercentage = 0.02;
+  const invoiceAppFees = invoiceFees * platformPercentage;
+  const invoiceNombaFees = invoiceFees * (1 - platformPercentage);
 
-  // TOTAL INVOICE REVENUE = invoice_creation transactions + invoice fees
-  const totalInvoiceRevenue = invoiceCreationRevenue + invoiceFees;
-
-  const total = transactionFees + totalInvoiceRevenue + contractFees;
+  const totalAppRevenue = totalAppFees + invoiceAppFees;
+  const totalNombaExpense = totalNombaFees + invoiceNombaFees;
+  const totalRevenue = totalAppRevenue + totalNombaExpense;
 
   return {
-    total,
-    transfers: transactionFees,
+    total: totalRevenue,
+    app_fees: totalAppRevenue,
+    nomba_fees: totalNombaExpense,
+    transfers: transferAppFees + transferNombaFees,
     bill_payment: 0,
-    invoice: totalInvoiceRevenue, // Combined invoice revenue
-    contract: contractFees,
-    platform: 0, // No longer using invoice_payments table
+    invoice: invoiceFees,
+    contract: contractAppFees + contractNombaFees,
+    platform: 0,
     breakdown: {
-      invoice_creation: invoiceCreationRevenue,
-      invoice_fees: invoiceFees
+      app_fees: {
+        transactions: transferAppFees,
+        invoice_creation: invoiceCreationRevenue,
+        invoices: invoiceAppFees,
+        contracts: contractAppFees,
+        total: totalAppRevenue
+      },
+      nomba_fees: {
+        transactions: transferNombaFees,
+        invoices: invoiceNombaFees,
+        contracts: contractNombaFees,
+        total: totalNombaExpense
+      }
     }
   };
 }
 
-// UPDATED: Get daily revenue data - INCLUDES INVOICE CREATION REVENUE
+// UPDATED: Get daily revenue data with proper fee separation
 async function getDailyRevenueData(start: Date, end: Date): Promise<any[]> {
   // Get all transactions
   const { data: transactions } = await supabaseAdmin
@@ -612,101 +686,112 @@ async function getDailyRevenueData(start: Date, end: Date): Promise<any[]> {
   );
 }
 
-// UPDATED: Process daily revenue data - INCLUDES INVOICE CREATION REVENUE
+// UPDATED: Process daily revenue data with proper fee separation
 function processDailyRevenueData(transactions: any[], invoices: any[]): any[] {
-  const dailyMap: { [key: string]: { transfers: number; invoice: number; contract: number; invoice_creation: number; invoice_fees: number; total: number } } = {};
+  const dailyMap: { 
+    [key: string]: { 
+      app_fees: number; 
+      nomba_fees: number; 
+      transfers: number; 
+      invoice: number; 
+      contract: number; 
+      total: number;
+      breakdown: {
+        app_fees: { transactions: number; invoice_creation: number; invoices: number; contracts: number };
+        nomba_fees: { transactions: number; invoices: number; contracts: number };
+      }
+    } 
+  } = {};
   
-  // Process all transactions
+  // Process transactions
   transactions.forEach(tx => {
     const date = new Date(tx.created_at).toISOString().split('T')[0];
     if (!dailyMap[date]) {
       dailyMap[date] = { 
+        app_fees: 0,
+        nomba_fees: 0,
         transfers: 0, 
         invoice: 0, 
-        contract: 0, 
-        invoice_creation: 0,
-        invoice_fees: 0,
-        total: 0 
+        contract: 0,
+        total: 0,
+        breakdown: {
+          app_fees: { transactions: 0, invoice_creation: 0, invoices: 0, contracts: 0 },
+          nomba_fees: { transactions: 0, invoices: 0, contracts: 0 }
+        }
       };
     }
     
-    const fee = Number(tx.fee) || 0;
-    const amount = Number(tx.amount) || 0;
-    const isContract = (tx.type || "").toString().toLowerCase().includes("contract");
-    const isInvoiceCreation = (tx.type || "").toString().toLowerCase().includes("invoice_creation");
+    const type = (tx.type || "").toString().toLowerCase();
+    const isContract = type.includes("contract");
+    const isInvoiceCreation = type.includes("invoice_creation");
     
     if (isContract) {
-      // This is a contract transaction
-      let contractFee = fee;
-      
-      // Check external_response for contract-specific fees
-      if (tx.external_response) {
-        try {
-          const externalResponse = typeof tx.external_response === 'string' 
-            ? JSON.parse(tx.external_response)
-            : tx.external_response;
-          
-          if (externalResponse && externalResponse.fee_breakdown) {
-            const feeFromJson = Number(externalResponse.fee_breakdown.total) || 0;
-            const baseFee = Number(externalResponse.fee_breakdown.base_fee) || 0;
-            const lawyerFee = Number(externalResponse.fee_breakdown.lawyer_fee) || 0;
-            
-            if (feeFromJson > 0) {
-              contractFee = feeFromJson;
-            } else if (baseFee > 0 || lawyerFee > 0) {
-              contractFee = baseFee + lawyerFee;
-            }
-          }
-        } catch (err) {
-          // JSON parsing failed, use regular fee
-        }
-      }
-      
-      dailyMap[date].contract += contractFee;
-      dailyMap[date].total += contractFee;
+      const fees = extractContractFees(tx);
+      dailyMap[date].app_fees += fees.appFee;
+      dailyMap[date].nomba_fees += fees.nombaFee;
+      dailyMap[date].contract += fees.appFee + fees.nombaFee;
+      dailyMap[date].total += fees.appFee + fees.nombaFee;
+      dailyMap[date].breakdown.app_fees.contracts += fees.appFee;
+      dailyMap[date].breakdown.nomba_fees.contracts += fees.nombaFee;
     } else if (isInvoiceCreation) {
-      // This is an invoice_creation transaction
-      dailyMap[date].invoice_creation += amount;
+      const amount = Number(tx.amount) || 0;
+      dailyMap[date].app_fees += amount;
       dailyMap[date].total += amount;
+      dailyMap[date].breakdown.app_fees.invoice_creation += amount;
     } else {
-      // This is a regular transaction (transfer)
-      dailyMap[date].transfers += fee;
-      dailyMap[date].total += fee;
+      const fees = extractTransactionFees(tx);
+      dailyMap[date].app_fees += fees.appFee;
+      dailyMap[date].nomba_fees += fees.nombaFee;
+      dailyMap[date].transfers += fees.appFee + fees.nombaFee;
+      dailyMap[date].total += fees.appFee + fees.nombaFee;
+      dailyMap[date].breakdown.app_fees.transactions += fees.appFee;
+      dailyMap[date].breakdown.nomba_fees.transactions += fees.nombaFee;
     }
   });
 
-  // Process invoice fees from invoices table
+  // Process invoice fees
   invoices.forEach(inv => {
     const date = new Date(inv.created_at).toISOString().split('T')[0];
     if (!dailyMap[date]) {
       dailyMap[date] = { 
+        app_fees: 0,
+        nomba_fees: 0,
         transfers: 0, 
         invoice: 0, 
-        contract: 0, 
-        invoice_creation: 0,
-        invoice_fees: 0,
-        total: 0 
+        contract: 0,
+        total: 0,
+        breakdown: {
+          app_fees: { transactions: 0, invoice_creation: 0, invoices: 0, contracts: 0 },
+          nomba_fees: { transactions: 0, invoices: 0, contracts: 0 }
+        }
       };
     }
+    
     const fee = Number(inv.fee_amount) || 0;
-    dailyMap[date].invoice_fees += fee;
+    const platformPercentage = 0.02;
+    const appFee = fee * platformPercentage;
+    const nombaFee = fee * (1 - platformPercentage);
+    
+    dailyMap[date].app_fees += appFee;
+    dailyMap[date].nomba_fees += nombaFee;
+    dailyMap[date].invoice += fee;
     dailyMap[date].total += fee;
+    dailyMap[date].breakdown.app_fees.invoices += appFee;
+    dailyMap[date].breakdown.nomba_fees.invoices += nombaFee;
   });
 
-  // Calculate total invoice revenue (invoice_creation + invoice_fees)
   return Object.entries(dailyMap).map(([date, amounts]) => ({
     date,
     total: amounts.total,
+    app_fees: amounts.app_fees,
+    nomba_fees: amounts.nomba_fees,
     transfers: amounts.transfers,
-    invoice: amounts.invoice_creation + amounts.invoice_fees, // Combined invoice revenue
+    invoice: amounts.invoice,
     bill_payment: 0,
     contract: amounts.contract,
-    platform: 0, // No longer using invoice_payments table
-    breakdown: {
-      invoice_creation: amounts.invoice_creation,
-      invoice_fees: amounts.invoice_fees
-    }
-  }));
+    platform: 0,
+    breakdown: amounts.breakdown
+  })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // Data processing functions
@@ -816,11 +901,22 @@ function processMonthlyVolumeData(dailyData: any[]): any[] {
   return processMonthlyData(dailyData.map(d => ({ ...d, count: d.amount })));
 }
 
-// Process weekly revenue data - UPDATED FOR CONTRACTS
+// Process weekly revenue data with fee separation
 function processWeeklyRevenueData(dailyData: any[]): any[] {
   const weeklyData: any[] = [];
   let currentWeek: any = null;
-  let weekTotals: any = { transfers: 0, invoice: 0, contract: 0, total: 0 };
+  let weekTotals: any = { 
+    app_fees: 0, 
+    nomba_fees: 0,
+    transfers: 0, 
+    invoice: 0, 
+    contract: 0, 
+    total: 0,
+    breakdown: {
+      app_fees: { transactions: 0, invoice_creation: 0, invoices: 0, contracts: 0 },
+      nomba_fees: { transactions: 0, invoices: 0, contracts: 0 }
+    }
+  };
   let weekStart = "";
 
   dailyData.forEach((day) => {
@@ -841,16 +937,30 @@ function processWeeklyRevenueData(dailyData: any[]): any[] {
       currentWeek = day;
       weekStart = day.date;
       weekTotals = { 
+        app_fees: day.app_fees,
+        nomba_fees: day.nomba_fees,
         transfers: day.transfers, 
         invoice: day.invoice, 
         contract: day.contract || 0,
-        total: day.total 
+        total: day.total,
+        breakdown: JSON.parse(JSON.stringify(day.breakdown))
       };
     } else {
+      weekTotals.app_fees += day.app_fees;
+      weekTotals.nomba_fees += day.nomba_fees;
       weekTotals.transfers += day.transfers;
       weekTotals.invoice += day.invoice;
       weekTotals.contract += day.contract || 0;
       weekTotals.total += day.total;
+      
+      // Accumulate breakdown
+      weekTotals.breakdown.app_fees.transactions += day.breakdown.app_fees.transactions;
+      weekTotals.breakdown.app_fees.invoice_creation += day.breakdown.app_fees.invoice_creation;
+      weekTotals.breakdown.app_fees.invoices += day.breakdown.app_fees.invoices;
+      weekTotals.breakdown.app_fees.contracts += day.breakdown.app_fees.contracts;
+      weekTotals.breakdown.nomba_fees.transactions += day.breakdown.nomba_fees.transactions;
+      weekTotals.breakdown.nomba_fees.invoices += day.breakdown.nomba_fees.invoices;
+      weekTotals.breakdown.nomba_fees.contracts += day.breakdown.nomba_fees.contracts;
     }
   });
 
@@ -867,7 +977,7 @@ function processWeeklyRevenueData(dailyData: any[]): any[] {
   return weeklyData;
 }
 
-// Process monthly revenue data - UPDATED FOR CONTRACTS
+// Process monthly revenue data with fee separation
 function processMonthlyRevenueData(dailyData: any[]): any[] {
   const monthlyMap: { [key: string]: any } = {};
   
@@ -876,13 +986,35 @@ function processMonthlyRevenueData(dailyData: any[]): any[] {
     const monthKey = date.toLocaleString('default', { month: 'short', year: 'numeric' });
     
     if (!monthlyMap[monthKey]) {
-      monthlyMap[monthKey] = { transfers: 0, invoice: 0, contract: 0, total: 0 };
+      monthlyMap[monthKey] = { 
+        app_fees: 0,
+        nomba_fees: 0,
+        transfers: 0, 
+        invoice: 0, 
+        contract: 0, 
+        total: 0,
+        breakdown: {
+          app_fees: { transactions: 0, invoice_creation: 0, invoices: 0, contracts: 0 },
+          nomba_fees: { transactions: 0, invoices: 0, contracts: 0 }
+        }
+      };
     }
     
+    monthlyMap[monthKey].app_fees += day.app_fees;
+    monthlyMap[monthKey].nomba_fees += day.nomba_fees;
     monthlyMap[monthKey].transfers += day.transfers;
     monthlyMap[monthKey].invoice += day.invoice;
     monthlyMap[monthKey].contract += day.contract || 0;
     monthlyMap[monthKey].total += day.total;
+    
+    // Accumulate breakdown
+    monthlyMap[monthKey].breakdown.app_fees.transactions += day.breakdown.app_fees.transactions;
+    monthlyMap[monthKey].breakdown.app_fees.invoice_creation += day.breakdown.app_fees.invoice_creation;
+    monthlyMap[monthKey].breakdown.app_fees.invoices += day.breakdown.app_fees.invoices;
+    monthlyMap[monthKey].breakdown.app_fees.contracts += day.breakdown.app_fees.contracts;
+    monthlyMap[monthKey].breakdown.nomba_fees.transactions += day.breakdown.nomba_fees.transactions;
+    monthlyMap[monthKey].breakdown.nomba_fees.invoices += day.breakdown.nomba_fees.invoices;
+    monthlyMap[monthKey].breakdown.nomba_fees.contracts += day.breakdown.nomba_fees.contracts;
   });
 
   return Object.entries(monthlyMap).map(([month, amounts]) => ({

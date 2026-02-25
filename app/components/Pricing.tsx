@@ -3,103 +3,82 @@ import { Button2 } from "./ui/button2";
 
 const plans = [
   {
-    name: "Pay Per Use",
-    price: "Free",
-    period: "to Join",
+    name: "Free",
+    price: "₦0",
+    period: "/month",
     description:
-      "Best for: solo hustlers and side businesses who want to pay as they grow.",
+      "For freelancers & early-stage businesses",
     features: [
-      "Free corporate account with your business name",
-      "Bill Payments: Airtime, Data, Electricity, Cable (Government stamp duty fees apply)",
-      "Invoices/payment links: 10 free monthly then ₦100/1 + 2% per paid invoice (the payee pays this not you) capped at N2000",
-      "Receipts: 10 free monthly then ₦100/1",
-      "Simple Contracts: ₦1,000 each",
-      "Simple Contracts with a lawyer's signature: ₦11,000 each (binding with or without a lawyer)",
-      "Tax Filing Support:",
-      "  • Annual returns ₦80k or Zidwell elite plan",
-      "  • Monthly Routine tax filing ₦50k or Zidwell premium plan",
-      "  • Tax advisory Session - ₦50k/hr",
-      "  • Comprehensive Tax Audit - ₦500k+",
-      "  Note: cost includes basic accounting/bookkeeping, financial statement, filing tax + tax receipt",
-      "Wallet Charges:",
-      "  • Free virtual bank account creation",
-      "  • Deposit fee: 0.50% capped at ₦100",
-      "  • Transfer fee: 1% capped at ₦150",
-      "Cashback: ₦20 back for every ₦2,500 spent on data, airtime, cable and electricity bill payment",
-      "Referral Rewards: ₦20 for signups done with your referral code",
-      "Referral Transaction Rewards: ₦20 for every ₦10,000 spent by the person you referred",
+      "Unlimited money transfers at N50 per transfer",
+      "Bookkeeping - 2 weeks free trial",
+      "5 Invoices per month",
+      "5 Receipts per month",
+      "1 Contract per month",
+      "Email support",
     ],
-    cta: "Get Started Free",
+    cta: "Start Free",
     highlight: false,
   },
   {
     name: "Growth",
-    price: "₦20,000",
+    price: "₦10,000",
     period: "/month",
-    yearlyPrice: "₦200,000/year (save ₦40k)",
+    yearlyPrice: "₦100,000/year (save ₦20,000)",
     description:
-      "Best for: growing businesses that want structure without stress. Everything you need to run your business finances properly.",
+      "For growing businesses that want structure without stress",
     features: [
-      "Includes everything in Free, plus:",
-      "Zero transaction fees",
-      "Unlimited invoices & receipts",
-      "Invoice payment reminders",
-      "Add 1 User assistant",
-      "Free Monthly Financial Wellness Clinic (included)",
-      "Active WhatsApp business community",
-      "Business tools dashboard",
-      "Priority support",
-      "",
-      "Ideal if: you want clarity, compliance, and consistency in your business finances.",
+      "Everything in Free, plus:",
+      "Unlimited Invoices",
+      "Unlimited Receipts",
+      "5 Contracts",
+      "Bookkeeping tool",
+      "Tax Calculator",
+      "Invoice Payment Reminders",
+      "Access to WhatsApp Business Community",
+      "Whatsapp support",
     ],
-    cta: "Start Growth Plan",
+    cta: "Go Growth",
     highlight: false,
   },
   {
     name: "Premium",
     price: "₦50,000",
     period: "/month",
-    yearlyPrice: "₦500,000/year (save ₦100k)",
+    yearlyPrice: "₦500,000/year (save ₦100,000)",
     description:
       "Best for: founders and CEOs who want to move the burden of financial management to someone else.",
     features: [
-      "Includes everything in Growth, plus:",
-      "Accounting & bookkeeping support (monthly)",
-      "Tax management support (filing assistance)",
-      "Business SOP templates",
-      "Unlimited contract creation",
-      "24/7 business support access",
-      "Deeper financial insights & reporting",
-      "Priority access to all Zidwell events",
-      "",
-      "Ideal if: you're scaling and need support beyond tools — real guidance.",
+      "Everything in Growth, plus:",
+      "Unlimited contracts",
+      "Financial Statement Preparation",
+      "Tax Calculation Support",
+      "Tax filing support",
+      "Priority support",
     ],
-    cta: "Start Premium",
+    cta: "Upgrade to Premium",
     highlight: true,
   },
   {
     name: "Elite",
-    price: "₦100,000",
+    price: "₦100,000+",
     period: "/month",
-    yearlyPrice: "Customized pricing available",
+    yearlyPrice: "Customized price",
     description:
-      "Best for: established businesses, founders, and teams that want hands-on support. This is not software. This is a finance and business partner.",
+      "For established businesses & founders",
     features: [
-      "Includes everything in Premium, plus:",
-      "Quarterly business/finance analyst consultation",
-      "Dedicated bookkeeping review",
-      "Advanced tax planning & advisory",
-      "Dedicated account manager",
-      "Full accounting & bookkeeping management",
-      "End-to-end tax handling",
-      "Business management support",
-      "One-on-one consulting sessions",
-      "Custom SOPs & operational frameworks",
-      "Strategic financial planning",
-      "Private consultant access",
-      "Custom team & enterprise solutions",
+      "Everything in Premium, plus:",
+      "Full Tax Filing Support",
+      "VAT Filing",
+      "PAYE Filing",
+      "WHT Filing",
+      "CIT Audit",
+      "Monthly Tax Filing",
+      "Yearly Tax Filing",
+      "CFO-Level Financial Guidance",
+      "Direct WhatsApp Support",
+      "Annual Audit Coordination",
     ],
-    cta: "Contact Sales",
+    cta: "Contact Us",
     highlight: false,
   },
 ];
@@ -118,7 +97,7 @@ const Pricing = () => {
             you
           </h2>
           <p className="text-lg text-gray-500 dark:text-gray-400">
-            Start free, upgrade when you're ready
+            We've worked hard to make our pricing as affordable as possible so you can get the best value and we'd have the resources to keep providing these services to you. Choose the plan that matches your business goals.
           </p>
         </div>
 
@@ -195,16 +174,8 @@ const Pricing = () => {
               <ul className="space-y-2 mb-8 flex-grow">
                 {plan.features.map((feature, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
-                    {feature.startsWith("  •") || feature.startsWith("Note:") || feature.startsWith("Ideal if:") ? (
+                    {feature.startsWith("Everything in") ? (
                       <span className="w-4 shrink-0"></span>
-                    ) : feature.startsWith("Tax Filing Support:") || 
-                       feature.startsWith("Wallet Charges:") || 
-                       feature.startsWith("Includes everything") ? (
-                      <Check
-                        className={`w-4 h-4 shrink-0 mt-0.5 ${
-                          plan.highlight ? "text-gray-900" : "text-[#C29307]"
-                        }`}
-                      />
                     ) : (
                       <Check
                         className={`w-4 h-4 shrink-0 mt-0.5 ${
@@ -213,11 +184,11 @@ const Pricing = () => {
                       />
                     )}
                     <span
-                      className={`${feature.startsWith("  •") || feature.startsWith("Note:") || feature.startsWith("Ideal if:") ? "pl-4 text-xs" : ""} ${
+                      className={`${
                         plan.highlight
                           ? "text-gray-900"
                           : "text-gray-900 dark:text-gray-50"
-                      } ${feature === "" ? "h-2" : ""}`}
+                      } ${feature.startsWith("Everything in") ? "font-medium" : ""}`}
                     >
                       {feature}
                     </span>
@@ -237,6 +208,55 @@ const Pricing = () => {
               </Button2>
             </div>
           ))}
+        </div>
+
+        {/* ZidCoin Economy Section */}
+        <div className="mt-20 max-w-4xl mx-auto">
+          <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[6px_6px_0px_#111827] dark:shadow-[6px_6px_0px_#fbbf24] p-8">
+            <h3 className="text-2xl md:text-3xl font-black mb-4 text-gray-900 dark:text-gray-50">
+              The ZidCoin Economy: <span className="text-[#C29307]">Our Cashback & Reward System</span>
+            </h3>
+            
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">What is ZidCoin?</h4>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Zidcoin is the currency inside Zidwell. It's what we pay you for using our app. Every time you load data, airtime, cable subscription and electricity on Zidwell, you earn Zidcoins (ZC).
+                </p>
+                <p className="text-gray-600 dark:text-gray-400 mt-2 font-semibold">
+                  Value: 1 Zidcoin = ₦1.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">How It Works</h4>
+                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#C29307]" />
+                    <span>Get 20 Zidcoins rewards anytime you spend N2500 and above on Zidwell.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#C29307]" />
+                    <span>Your Zidcoins accumulate in your wallet as cashback.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#C29307]" />
+                    <span>Once your Zidcoin balance hits 3,000 ZC, you can cash it out by using it to purchase airtime or data for yourself.</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">Why It Matters</h4>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Zidcoin turns every business transaction into an opportunity to earn. The more you use Zidwell, the more value you unlock — it's structure, savings, and growth all in one.
+                </p>
+                <p className="text-gray-600 dark:text-gray-400 mt-2 font-semibold">
+                  Zidwell. Structure your hustle. Earn as you grow.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

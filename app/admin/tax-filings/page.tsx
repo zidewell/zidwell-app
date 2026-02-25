@@ -184,6 +184,7 @@ export default function TaxFilingsPage() {
             <h3 className="text-sm font-medium text-gray-500">Total Revenue</h3>
             <p className="text-2xl font-semibold">
               ₦{totalRevenue.toLocaleString()}
+              
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">

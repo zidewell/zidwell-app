@@ -81,7 +81,7 @@ const breadcrumbSchema = {
       "@type": "ListItem",
       position: 2,
       name: "App Dashboard",
-      item: "https://zidwell.com/app",
+      item: "https://zidwell.com/accountants",
       description: "All-in-One Business Tools Dashboard"
     },
     {
@@ -319,7 +319,7 @@ export default function RootLayout({
         
         {/* Navigation links for search engines */}
         <link rel="canonical" href="https://zidwell.com" />
-        <link rel="alternate" href="https://zidwell.com/app" hrefLang="en-NG" />
+        <link rel="alternate" href="https://zidwell.com/accountants" hrefLang="en-NG" />
         <link rel="alternate" href="https://zidwell.com/features/invoice" hrefLang="en-NG" />
         <link rel="alternate" href="https://zidwell.com/features/receipt" hrefLang="en-NG" />
         <link rel="alternate" href="https://zidwell.com/features/contract" hrefLang="en-NG" />
@@ -347,18 +347,18 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cdn.zidwell.com" />
       </head>
       <body className={``}>
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-53ERCPQ8HD"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-53ERCPQ8HD');
-          `}
-        </Script>
+    <Script
+  src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
+  strategy="afterInteractive"
+/>
+<Script id="google-analytics" strategy="afterInteractive">
+  {`
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}');
+  `}
+</Script>
 
         <UserProvider>
 

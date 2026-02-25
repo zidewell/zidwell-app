@@ -67,7 +67,7 @@ const Navbar = () => {
                   className="text-sm"
                   asChild
                 >
-                  <Link href="/app">Go to App</Link>
+                  <Link href="/">Go to App</Link>
                 </Button2>
               </div>
             </div>
@@ -135,7 +135,7 @@ const Navbar = () => {
                     asChild
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <Link href="/app">Go to App</Link>
+                    <Link href="/">Go to App</Link>
                   </Button2>
                 </div>
 
