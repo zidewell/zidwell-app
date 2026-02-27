@@ -1,6 +1,63 @@
 /** @type {import('next').NextConfig} */
+
+// Add this line at the top
+const withPWA = require('next-pwa')({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+  register: true, 
+  skipWaiting: true, 
+  scope: '/',
+  sw: 'sw.js', 
+ 
+  runtimeCaching: [
+    {
+      urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'google-fonts',
+        expiration: {
+          maxEntries: 4,
+          maxAgeSeconds: 365 * 24 * 60 * 60 // 365 days
+        }
+      }
+    },
+    {
+      urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
+      handler: 'StaleWhileRevalidate',
+      options: {
+        cacheName: 'static-font-assets',
+        expiration: {
+          maxEntries: 4,
+          maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+        }
+      }
+    },
+    {
+      urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
+      handler: 'StaleWhileRevalidate',
+      options: {
+        cacheName: 'static-image-assets',
+        expiration: {
+          maxEntries: 64,
+          maxAgeSeconds: 24 * 60 * 60 // 24 hours
+        }
+      }
+    },
+    {
+      urlPattern: /\/_next\/static\/.+$/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'next-static',
+        expiration: {
+          maxEntries: 64,
+          maxAgeSeconds: 365 * 24 * 60 * 60 // 365 days
+        }
+      }
+    }
+  ]
+});
+
 const nextConfig = {
-  // output: "export", // Only enable for static export
   reactStrictMode: true,
   images: {
     unoptimized: true,
@@ -10,10 +67,10 @@ const nextConfig = {
 
   // SEO Optimizations
   trailingSlash: false,
-  poweredByHeader: false, // Remove X-Powered-By header
-  compress: true, // Enable compression
+  poweredByHeader: false,
+  compress: true,
 
-  // Headers for security and SEO
+  // Headers for security and PWA
   async headers() {
     return [
       {
@@ -78,7 +135,6 @@ const nextConfig = {
     ];
   },
 
-  // Environment variables for SEO
   env: {
     SITE_URL: process.env.SITE_URL || "zidwell.com",
     SITE_NAME: "Zidwell",
@@ -89,4 +145,5 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// Wrap the config with the PWA plugin
+module.exports = withPWA(nextConfig);

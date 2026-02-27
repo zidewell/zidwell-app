@@ -8,6 +8,7 @@ import {
   Gift,
   Shield,
   File,
+  Book,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -41,6 +42,13 @@ const features = [
       link: "/dashboard/services/tax-filing",
   },
 
+  {
+    icon: Book,
+    title: "Bookkeeping",
+    description:
+      "Record your day-to-day income and expenses to make account reconciliation and tax filing easier.",
+      link: "#",
+  },
   {
     icon: Users,
     title: "Growth Community",

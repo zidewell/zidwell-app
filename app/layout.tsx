@@ -8,12 +8,17 @@ import NotificationToast from "./components/NotificationToast";
 import FloatingWhatsApp from "./components/FloatingWhatsapp";
 import Script from "next/script";
 import DashboardFooter from "./components/dashboardFooter";
-
+import {
+  InstallPrompt
+} from "./components/PushNotificationManager";
 
 export const viewport: Viewport = {
   themeColor: "#C29307",
   width: "device-width",
   initialScale: 1,
+
+  maximumScale: 1,
+  userScalable: false,
 };
 
 const organizationSchema = {
@@ -24,7 +29,8 @@ const organizationSchema = {
   url: "https://zidwell.com",
   logo: "https://zidwell.com/logo.png",
   image: "https://zidwell.com/logo.png",
-  description: "All-in-one finance and business management platform for Nigerian SMEs. Professional accounting, invoicing, contracts, receipts, and financial tools.",
+  description:
+    "All-in-one finance and business management platform for Nigerian SMEs. Professional accounting, invoicing, contracts, receipts, and financial tools.",
   address: {
     "@type": "PostalAddress",
     addressLocality: "Lagos",
@@ -57,14 +63,14 @@ const websiteSchema = {
   "@type": "WebSite",
   name: "Zidwell",
   url: "https://zidwell.com",
-  description: "Professional finance and business tools for Nigerian SMEs. Create invoices, receipts, contracts, manage accounting, and grow your business.",
+  description:
+    "Professional finance and business tools for Nigerian SMEs. Create invoices, receipts, contracts, manage accounting, and grow your business.",
   potentialAction: {
     "@type": "SearchAction",
     target: "https://zidwell.com/search?q={search_term_string}",
     "query-input": "required name=search_term_string",
   },
 };
-
 
 const breadcrumbSchema = {
   "@context": "https://schema.org",
@@ -75,142 +81,173 @@ const breadcrumbSchema = {
       position: 1,
       name: "Home",
       item: "https://zidwell.com",
-      description: "Business Finance & Management Platform"
+      description: "Business Finance & Management Platform",
     },
     {
       "@type": "ListItem",
       position: 2,
       name: "App Dashboard",
       item: "https://zidwell.com/accountants",
-      description: "All-in-One Business Tools Dashboard"
+      description: "All-in-One Business Tools Dashboard",
     },
     {
       "@type": "ListItem",
       position: 3,
       name: "Invoice Generator",
       item: "https://zidwell.com/features/invoice",
-      description: "Professional Invoice Generator for Nigerian Businesses"
+      description: "Professional Invoice Generator for Nigerian Businesses",
     },
     {
       "@type": "ListItem",
       position: 4,
       name: "Receipt Maker",
       item: "https://zidwell.com/features/receipt",
-      description: "Digital Receipt Creation & Management"
+      description: "Digital Receipt Creation & Management",
     },
     {
       "@type": "ListItem",
       position: 5,
       name: "Contract Creator",
       item: "https://zidwell.com/features/contract",
-      description: "Legal Contract Templates for Businesses"
+      description: "Legal Contract Templates for Businesses",
     },
     {
       "@type": "ListItem",
       position: 6,
       name: "Blog",
       item: "https://zidwell.com/blog",
-      description: "Business & Finance Tips for Nigerian Entrepreneurs"
+      description: "Business & Finance Tips for Nigerian Entrepreneurs",
     },
     {
       "@type": "ListItem",
       position: 7,
       name: "FAQ",
       item: "https://zidwell.com/faq",
-      description: "Frequently Asked Questions about Zidwell"
+      description: "Frequently Asked Questions about Zidwell",
     },
     {
       "@type": "ListItem",
       position: 8,
       name: "Contact",
       item: "https://zidwell.com/contact",
-      description: "Contact Zidwell Support Team"
+      description: "Contact Zidwell Support Team",
     },
     {
       "@type": "ListItem",
       position: 9,
       name: "Sign Up",
       item: "https://zidwell.com/auth/signup",
-      description: "Create Your Free Zidwell Account"
+      description: "Create Your Free Zidwell Account",
     },
     {
       "@type": "ListItem",
       position: 10,
       name: "Login",
       item: "https://zidwell.com/auth/login",
-      description: "Login to Your Zidwell Account"
+      description: "Login to Your Zidwell Account",
     },
     {
       "@type": "ListItem",
       position: 11,
       name: "Pricing",
       item: "https://zidwell.com/pricing",
-      description: "Zidwell Pricing Plans & Packages"
-    }
+      description: "Zidwell Pricing Plans & Packages",
+    },
   ],
 };
-
 
 const signupPageSchema = {
   "@context": "https://schema.org",
   "@type": "WebPage",
-  "name": "Sign Up for Zidwell",
-  "url": "https://zidwell.com/auth/signup",
-  "description": "Create your free Zidwell account to access business finance tools, invoicing, contracts, and accounting services.",
-  "mainEntity": {
+  name: "Sign Up for Zidwell",
+  url: "https://zidwell.com/auth/signup",
+  description:
+    "Create your free Zidwell account to access business finance tools, invoicing, contracts, and accounting services.",
+  mainEntity: {
     "@type": "CreateAccountAction",
-    "name": "Create Account",
-    "target": {
+    name: "Create Account",
+    target: {
       "@type": "EntryPoint",
-      "urlTemplate": "https://zidwell.com/auth/signup",
-      "actionPlatform": [
+      urlTemplate: "https://zidwell.com/auth/signup",
+      actionPlatform: [
         "http://schema.org/DesktopWebPlatform",
         "http://schema.org/IOSPlatform",
-        "http://schema.org/AndroidPlatform"
-      ]
-    }
-  }
+        "http://schema.org/AndroidPlatform",
+      ],
+    },
+  },
 };
 
 export const metadata: Metadata = {
   title: {
-    default: "Zidwell | All-in-One Finance & Business Management Platform for Nigerian SMEs",
+    default:
+      "Zidwell | All-in-One Finance & Business Management Platform for Nigerian SMEs",
     template: "%s | Zidwell Business Tools",
   },
-  description: "Zidwell helps Nigerian businesses with invoicing, receipts, contracts, accounting, tax filing, and financial management. All-in-one platform for SMEs, freelancers, and entrepreneurs.",
+  description:
+    "Zidwell helps Nigerian businesses with invoicing, receipts, contracts, accounting, tax filing, and financial management. All-in-one platform for SMEs, freelancers, and entrepreneurs.",
   keywords: [
     // ALL YOUR PAGES KEYWORDS
-    "Zidwell sign up", "Zidwell login", "create Zidwell account",
-    
+    "Zidwell sign up",
+    "Zidwell login",
+    "create Zidwell account",
+
     // INVOICE PAGE KEYWORDS
-    "invoice generator Nigeria", "online invoice maker Nigeria", "professional invoice Nigeria",
-    "business invoice software Nigeria", "free invoice generator Nigeria",
-    
+    "invoice generator Nigeria",
+    "online invoice maker Nigeria",
+    "professional invoice Nigeria",
+    "business invoice software Nigeria",
+    "free invoice generator Nigeria",
+
     // RECEIPT PAGE KEYWORDS
-    "digital receipt Nigeria", "receipt maker online Nigeria", "business receipt generator",
-    "proof of payment Nigeria", "digital receipt creator",
-    
+    "digital receipt Nigeria",
+    "receipt maker online Nigeria",
+    "business receipt generator",
+    "proof of payment Nigeria",
+    "digital receipt creator",
+
     // CONTRACT PAGE KEYWORDS
-    "contract creator Nigeria", "business contract templates Nigeria", "legal contracts Nigeria",
-    "simple contract maker Nigeria", "freelance contract Nigeria",
-    
+    "contract creator Nigeria",
+    "business contract templates Nigeria",
+    "legal contracts Nigeria",
+    "simple contract maker Nigeria",
+    "freelance contract Nigeria",
+
     // BLOG PAGE KEYWORDS
-    "business blog Nigeria", "SME tips Nigeria", "entrepreneur blog Nigeria",
-    "finance education Nigeria", "business growth blog",
-    
+    "business blog Nigeria",
+    "SME tips Nigeria",
+    "entrepreneur blog Nigeria",
+    "finance education Nigeria",
+    "business growth blog",
+
     // ACCOUNTING KEYWORDS
     "accounting services for small businesses in Nigeria",
-    "small business accounting Nigeria", "online accounting services in Nigeria",
-    
+    "small business accounting Nigeria",
+    "online accounting services in Nigeria",
+
     // HIGH-INTENT CONVERSION
-    "sign up for Zidwell", "create free account", "try Zidwell free",
-    "Zidwell pricing", "Zidwell features", "how to use Zidwell",
-    
+    "sign up for Zidwell",
+    "create free account",
+    "try Zidwell free",
+    "Zidwell pricing",
+    "Zidwell features",
+    "how to use Zidwell",
+
     // ORIGINAL KEYWORDS
-    "business bill payment Nigeria", "SME financial management",
-    "pay electricity bills online", "business tax filing Nigeria",
-    "business banking Nigeria", "fintech platform Nigeria",
-    "business tools Nigeria", "digital finance Nigeria",
+    "business bill payment Nigeria",
+    "SME financial management",
+    "pay electricity bills online",
+    "business tax filing Nigeria",
+    "business banking Nigeria",
+    "fintech platform Nigeria",
+    "business tools Nigeria",
+    "digital finance Nigeria",
+
+    // PWA KEYWORDS
+    "Zidwell mobile app",
+    "install Zidwell",
+    "Zidwell PWA",
+    "business app Nigeria",
   ],
   authors: [{ name: "Zidwell Team", url: "https://zidwell.com" }],
   creator: "Zidwell Technologies",
@@ -226,7 +263,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Zidwell | Finance & Business Tools for Nigerian SMEs",
-    description: "Create invoices, receipts, contracts, manage finances, and grow your business with Zidwell. All-in-one platform for Nigerian entrepreneurs.",
+    description:
+      "Create invoices, receipts, contracts, manage finances, and grow your business with Zidwell. All-in-one platform for Nigerian entrepreneurs.",
     url: "https://zidwell.com",
     siteName: "Zidwell",
     locale: "en_NG",
@@ -245,7 +283,8 @@ export const metadata: Metadata = {
     site: "@zidwellapp",
     creator: "@zidwellapp",
     title: "Zidwell | Business Finance Platform Nigeria",
-    description: "Invoicing, contracts, receipts, accounting & financial tools for Nigerian businesses. Start free today.",
+    description:
+      "Invoicing, contracts, receipts, accounting & financial tools for Nigerian businesses. Start free today.",
     images: ["/images/twitter-card.jpg"],
   },
   icons: {
@@ -254,20 +293,65 @@ export const metadata: Metadata = {
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       {
-        url: "/android-chrome-192x192.png",
+        url: "/icons/icon-48x48.png",
+        sizes: "48x48",
+        type: "image/png",
+      },
+      {
+        url: "/icons/icon-72x72.png",
+        sizes: "72x72",
+        type: "image/png",
+      },
+      {
+        url: "/icons/icon-96x96.png",
+        sizes: "96x96",
+        type: "image/png",
+      },
+      {
+        url: "/icons/icon-128x128.png",
+        sizes: "128x128",
+        type: "image/png",
+      },
+      {
+        url: "/icons/icon-144x144.png",
+        sizes: "144x144",
+        type: "image/png",
+      },
+      {
+        url: "/icons/icon-152x152.png",
+        sizes: "152x152",
+        type: "image/png",
+      },
+      {
+        url: "/icons/icon-192x192.png",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        url: "/android-chrome-512x512.png",
+        url: "/icons/icon-256x256.png",
+        sizes: "256x256",
+        type: "image/png",
+      },
+      {
+        url: "/icons/icon-384x384.png",
+        sizes: "384x384",
+        type: "image/png",
+      },
+      {
+        url: "/icons/icon-512x512.png",
         sizes: "512x512",
         type: "image/png",
       },
     ],
-    apple: "/apple-touch-icon.png",
+    apple: [
+      { url: "/apple-touch-icon.png" },
+      { url: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
     shortcut: "/favicon.ico",
   },
-  manifest: "/site.webmanifest",
+  manifest: "/manifest.json",
+ 
   robots: {
     index: true,
     follow: true,
@@ -281,7 +365,14 @@ export const metadata: Metadata = {
   },
   category: "Finance & Business Management",
   other: {
-    "google-site-verification": "google-site-verification=rBgRfj247s1PVKZyJC6VRnl_xJxFOo2exemDkjUxEm4",
+    "google-site-verification":
+      "google-site-verification=rBgRfj247s1PVKZyJC6VRnl_xJxFOo2exemDkjUxEm4",
+    // Add these for iOS PWA support
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "default",
+    "apple-mobile-web-app-title": "Zidwell",
+    "format-detection": "telephone=no",
+    "mobile-web-app-capable": "yes",
   },
 };
 
@@ -316,20 +407,71 @@ export default function RootLayout({
         {/* IMPORTANT: Add sitemap.xml and navigation links */}
         <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
         <link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" />
-        
+
         {/* Navigation links for search engines */}
         <link rel="canonical" href="https://zidwell.com" />
-        <link rel="alternate" href="https://zidwell.com/accountants" hrefLang="en-NG" />
-        <link rel="alternate" href="https://zidwell.com/features/invoice" hrefLang="en-NG" />
-        <link rel="alternate" href="https://zidwell.com/features/receipt" hrefLang="en-NG" />
-        <link rel="alternate" href="https://zidwell.com/features/contract" hrefLang="en-NG" />
-        <link rel="alternate" href="https://zidwell.com/blog" hrefLang="en-NG" />
+        <link
+          rel="alternate"
+          href="https://zidwell.com/accountants"
+          hrefLang="en-NG"
+        />
+        <link
+          rel="alternate"
+          href="https://zidwell.com/features/invoice"
+          hrefLang="en-NG"
+        />
+        <link
+          rel="alternate"
+          href="https://zidwell.com/features/receipt"
+          hrefLang="en-NG"
+        />
+        <link
+          rel="alternate"
+          href="https://zidwell.com/features/contract"
+          hrefLang="en-NG"
+        />
+        <link
+          rel="alternate"
+          href="https://zidwell.com/blog"
+          hrefLang="en-NG"
+        />
         <link rel="alternate" href="https://zidwell.com/faq" hrefLang="en-NG" />
-        <link rel="alternate" href="https://zidwell.com/contact" hrefLang="en-NG" />
-        <link rel="alternate" href="https://zidwell.com/auth/signup" hrefLang="en-NG" />
-        <link rel="alternate" href="https://zidwell.com/auth/login" hrefLang="en-NG" />
-        <link rel="alternate" href="https://zidwell.com/pricing" hrefLang="en-NG" />
+        <link
+          rel="alternate"
+          href="https://zidwell.com/contact"
+          hrefLang="en-NG"
+        />
+        <link
+          rel="alternate"
+          href="https://zidwell.com/auth/signup"
+          hrefLang="en-NG"
+        />
+        <link
+          rel="alternate"
+          href="https://zidwell.com/auth/login"
+          hrefLang="en-NG"
+        />
+        <link
+          rel="alternate"
+          href="https://zidwell.com/pricing"
+          hrefLang="en-NG"
+        />
 
+        {/* PWA & iOS specific meta tags */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
+        <meta name="apple-mobile-web-app-title" content="Zidwell" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="manifest" href="/manifest.json" />
+
+        {/* iOS launch images - optional but recommended */}
+        <link rel="apple-touch-startup-image" href="/splash/launch.png" />
+
+        {/* Preconnect to fonts and CDNs */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -339,32 +481,40 @@ export default function RootLayout({
 
         {/* Preload critical resources */}
         <link rel="preload" href="/logo.png" as="image" />
-        <link rel="preload" href="/hero-image.jpg" as="image" />
-        
+        <link rel="preload" href="/images/og-image.png" as="image" />
+
         {/* Preconnect to CDNs */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
         <link rel="preconnect" href="https://cdn.zidwell.com" />
       </head>
       <body className={``}>
-    <Script
-  src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
-  strategy="afterInteractive"
-/>
-<Script id="google-analytics" strategy="afterInteractive">
-  {`
+        {/* Google Analytics Script - PRESERVED */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
     gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}');
   `}
-</Script>
+        </Script>
 
         <UserProvider>
-
           <SessionWatcher>
             {children}
-
+            {/* Move PushNotificationManager to a better position - maybe in a fixed corner */}
+            <div className="fixed bottom-4 right-4 z-50">
+              {/* <PushNotificationManager /> */}
+              <InstallPrompt />
+            </div>
             <FloatingWhatsApp />
             {/* <FloatingHelpButton /> */}
             <NotificationToast />
