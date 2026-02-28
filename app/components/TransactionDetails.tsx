@@ -57,10 +57,9 @@ export default function TransactionDetailsPage() {
         const transactionId = params.id;
         
         // Method 1: Search through pagination to find the transaction
-        // We need to fetch transactions and find the one with matching ID
         let foundTransaction: any = null;
         let page = 1;
-        const limit = 50; // Fetch 50 at a time
+        const limit = 50;
         let hasMore = true;
 
         while (hasMore && !foundTransaction) {
@@ -74,18 +73,15 @@ export default function TransactionDetailsPage() {
 
           const data = await response.json();
           
-          // Search for the transaction in this page's results
           if (data.transactions && Array.isArray(data.transactions)) {
             foundTransaction = data.transactions.find(
               (tx: any) => tx.id === transactionId
             );
           }
 
-          // Check if there are more pages
           hasMore = data.hasMore || false;
           page++;
           
-          // Safety check: don't loop forever
           if (page > 10) {
             console.warn("Exceeded maximum page limit while searching for transaction");
             break;
@@ -95,7 +91,7 @@ export default function TransactionDetailsPage() {
         if (foundTransaction) {
           setTransaction(foundTransaction);
         } else {
-          // Method 2: Try searching by reference if ID didn't match
+          // Method 2: Try searching by reference
           const searchResponse = await fetch(
             `/api/bill-transactions?userId=${userData.id}&search=${transactionId}&page=1&limit=10`
           );
@@ -103,15 +99,13 @@ export default function TransactionDetailsPage() {
           if (searchResponse.ok) {
             const searchData = await searchResponse.json();
             if (searchData.transactions && searchData.transactions.length > 0) {
-              // Try to find by reference
               const foundByReference = searchData.transactions.find(
-                (tx: any) => tx.reference === transactionId
+                (tx: any) => tx.reference === transactionId || tx.merchant_tx_ref === transactionId
               );
               
               if (foundByReference) {
                 setTransaction(foundByReference);
               } else {
-                // No transaction found
                 setTransaction(null);
               }
             } else {
@@ -163,15 +157,17 @@ export default function TransactionDetailsPage() {
   const getNarration = (transaction: any) => {
     if (!transaction) return null;
     
-    // Check multiple possible locations for narration
-    if (transaction.external_response?.data?.transaction?.narration) {
-      return transaction.external_response.data.transaction.narration;
-    }
     if (transaction.narration) {
       return transaction.narration;
     }
     if (transaction.description) {
       return transaction.description;
+    }
+    if (transaction.external_response?.narration) {
+      return transaction.external_response.narration;
+    }
+    if (transaction.external_response?.withdrawal_details?.narration) {
+      return transaction.external_response.withdrawal_details.narration;
     }
     return null;
   };
@@ -184,75 +180,10 @@ export default function TransactionDetailsPage() {
     const amountInfo = formatAmount(transaction);
     const narration = getNarration(transaction);
 
-    // Extract transaction data based on transaction type
-    const senderInfo = transaction.external_response?.data?.customer;
-    const receiverInfo = transaction.external_response?.data?.transaction;
-
-    // Determine if it's a withdrawal or deposit
-    const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
-    const isVirtualAccountDeposit =
-      transaction.type?.toLowerCase() === "virtual_account_deposit";
-
-    // For withdrawals: sender is the platform, receiver is the customer
-    // For deposits: sender is the customer, receiver is the platform
-    let senderData, receiverData;
-
-    if (isWithdrawal) {
-      // Withdrawal: Platform sends money to customer
-      senderData = {
-        name: senderInfo?.senderName || "DIGITAL/Lohloh Abbalolo",
-        accountNumber: senderInfo?.accountNumber || "N/A",
-        bankName: senderInfo?.bankName || "N/A",
-        bankCode: senderInfo?.bankCode || "N/A",
-      };
-
-      receiverData = {
-        name: senderInfo?.recipientName || "N/A",
-        accountNumber: senderInfo?.accountNumber || "N/A",
-        bankName: senderInfo?.bankName || "N/A",
-        accountType: "External Account",
-      };
-    } else if (isVirtualAccountDeposit) {
-      // Virtual Account Deposit: Customer sends money to platform
-      senderData = {
-        name: senderInfo?.senderName || "N/A",
-        accountNumber: senderInfo?.accountNumber || "N/A",
-        bankName: senderInfo?.bankName || "N/A",
-        bankCode: senderInfo?.bankCode || "N/A",
-      };
-
-      receiverData = {
-        name: receiverInfo?.aliasAccountName || "DIGITAL/Lohloh Abbalolo",
-        accountNumber: receiverInfo?.aliasAccountNumber || "N/A",
-        accountType: receiverInfo?.aliasAccountType || "VIRTUAL",
-        reference: receiverInfo?.aliasAccountReference || "N/A",
-      };
-    } else {
-      // Other transaction types (fallback)
-      senderData = {
-        name: transaction?.sender?.name || senderInfo?.senderName || "N/A",
-        accountNumber:
-          transaction?.sender?.accountNumber ||
-          senderInfo?.accountNumber ||
-          "N/A",
-        bankName:
-          transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
-        bankCode: senderInfo?.bankCode || "N/A",
-      };
-
-      receiverData = {
-        name:
-          transaction?.receiver?.name ||
-          receiverInfo?.aliasAccountName ||
-          "N/A",
-        accountNumber:
-          transaction?.receiver?.accountNumber ||
-          receiverInfo?.aliasAccountNumber ||
-          "N/A",
-        accountType: receiverInfo?.aliasAccountType || "N/A",
-        reference: receiverInfo?.aliasAccountReference || "N/A",
-      };
-    }
+    // Extract sender and receiver from transaction object directly
+    const senderData = transaction.sender || {};
+    const receiverData = transaction.receiver || {};
+    const externalData = transaction.external_response || {};
 
     // Create receipt HTML content
     const receiptHTML = `
@@ -466,16 +397,14 @@ export default function TransactionDetailsPage() {
 
         <!-- Sender Information -->
         <div class="section">
-          <div class="section-title">${
-            isWithdrawal ? "From (zidwell)" : "Sender Information"
-          }</div>
+          <div class="section-title">Sender Information</div>
           <div class="details-card">
             <div class="detail-row">
               <span class="detail-label">Name</span>
-              <span class="detail-value">${senderData.name}</span>
+              <span class="detail-value">${senderData.name || "N/A"}</span>
             </div>
             ${
-              !isWithdrawal
+              senderData.accountNumber
                 ? `<div class="detail-row">
                     <span class="detail-label">Account Number</span>
                     <span class="detail-value">${senderData.accountNumber}</span>
@@ -483,7 +412,7 @@ export default function TransactionDetailsPage() {
                 : ""
             }
             ${
-              !isWithdrawal && senderData.bankName
+              senderData.bankName
                 ? `<div class="detail-row">
                     <span class="detail-label">Bank Name</span>
                     <span class="detail-value">${senderData.bankName}</span>
@@ -495,21 +424,20 @@ export default function TransactionDetailsPage() {
 
         <!-- Receiver Information -->
         <div class="section">
-          <div class="section-title">${
-            isWithdrawal ? "To (Recipient)" : "Receiver Information"
-          }</div>
+          <div class="section-title">Receiver Information</div>
           <div class="details-card">
             <div class="detail-row">
-              <span class="detail-label">${
-                isWithdrawal ? "Recipient Name" : "Account Name"
-              }</span>
-              <span class="detail-value">${receiverData.name}</span>
+              <span class="detail-label">Name</span>
+              <span class="detail-value">${receiverData.name || "N/A"}</span>
             </div>
-            <div class="detail-row">
-              <span class="detail-label">Account Number</span>
-              <span class="detail-value">${receiverData.accountNumber}</span>
-            </div>
-           
+            ${
+              receiverData.accountNumber
+                ? `<div class="detail-row">
+                    <span class="detail-label">Account Number</span>
+                    <span class="detail-value">${receiverData.accountNumber}</span>
+                  </div>`
+                : ""
+            }
             ${
               receiverData.bankName
                 ? `<div class="detail-row">
@@ -519,10 +447,10 @@ export default function TransactionDetailsPage() {
                 : ""
             }
             ${
-              receiverData.reference
+              receiverData.bankCode
                 ? `<div class="detail-row">
-                    <span class="detail-label">Reference</span>
-                    <span class="detail-value">${receiverData.reference}</span>
+                    <span class="detail-label">Bank Code</span>
+                    <span class="detail-value">${receiverData.bankCode}</span>
                   </div>`
                 : ""
             }
@@ -540,7 +468,6 @@ export default function TransactionDetailsPage() {
 `;
 
     try {
-      // Call your PDF generation API
       const response = await fetch("/api/generate-pdf", {
         method: "POST",
         headers: {
@@ -553,10 +480,7 @@ export default function TransactionDetailsPage() {
         throw new Error("Failed to generate PDF");
       }
 
-      // Convert the response to a blob
       const pdfBlob = await response.blob();
-
-      // Create download link for PDF
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement("a");
       a.href = url;
@@ -569,7 +493,6 @@ export default function TransactionDetailsPage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error generating PDF:", error);
-      // Fallback to HTML download if PDF generation fails
       const blob = new Blob([receiptHTML], { type: "text/html" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -581,8 +504,6 @@ export default function TransactionDetailsPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      // Optional: Show error message to user
       alert("PDF generation failed. Downloading as HTML instead.");
     } finally {
       setDownloading(false);
@@ -627,69 +548,10 @@ export default function TransactionDetailsPage() {
   const amountInfo = formatAmount(transaction);
   const narration = getNarration(transaction);
 
-  // Extract transaction data based on transaction type
-  const senderInfo = transaction.external_response?.data?.customer;
-  const receiverInfo = transaction.external_response?.data?.transaction;
-
-  // Determine if it's a withdrawal or deposit
+  // Extract sender and receiver from transaction object directly
+  const senderData = transaction.sender || {};
+  const receiverData = transaction.receiver || {};
   const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
-  const isVirtualAccountDeposit =
-    transaction.type?.toLowerCase() === "virtual_account_deposit";
-
-  // Prepare display data for the UI
-  let displaySenderData, displayReceiverData;
-
-  if (isWithdrawal) {
-    // Withdrawal: Platform sends money to customer - Only show name for platform
-    displaySenderData = {
-      name: senderInfo?.senderName || "N/A",
-      // Don't include account details for platform in withdrawals
-    };
-
-    displayReceiverData = {
-      name: senderInfo?.recipientName || "N/A",
-      accountNumber: senderInfo?.accountNumber || "N/A",
-      bankName: senderInfo?.bankName || "N/A",
-      accountType: "External Account",
-    };
-  } else if (isVirtualAccountDeposit) {
-    // Virtual Account Deposit: Customer sends money to platform
-    displaySenderData = {
-      name: senderInfo?.senderName || "N/A",
-      accountNumber: senderInfo?.accountNumber || "N/A",
-      bankName: senderInfo?.bankName || "N/A",
-      bankCode: senderInfo?.bankCode || "N/A",
-    };
-
-    displayReceiverData = {
-      name: receiverInfo?.aliasAccountName || "N/A",
-      accountNumber: receiverInfo?.aliasAccountNumber || "N/A",
-      accountType: receiverInfo?.aliasAccountType || "VIRTUAL",
-      reference: receiverInfo?.aliasAccountReference || "N/A",
-    };
-  } else {
-    // Other transaction types (fallback)
-    displaySenderData = {
-      name: transaction?.sender?.name || senderInfo?.senderName || "N/A",
-      accountNumber:
-        transaction?.sender?.accountNumber ||
-        senderInfo?.accountNumber ||
-        "N/A",
-      bankName: transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
-      bankCode: senderInfo?.bankCode || "N/A",
-    };
-
-    displayReceiverData = {
-      name:
-        transaction?.receiver?.name || receiverInfo?.aliasAccountName || "N/A",
-      accountNumber:
-        transaction?.receiver?.accountNumber ||
-        receiverInfo?.aliasAccountNumber ||
-        "N/A",
-      accountType: receiverInfo?.aliasAccountType || "N/A",
-      reference: receiverInfo?.aliasAccountReference || "N/A",
-    };
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -794,14 +656,12 @@ export default function TransactionDetailsPage() {
                 )}
 
                 {/* Sender Information */}
-                {displaySenderData && (
+                {senderData && Object.keys(senderData).length > 0 && (
                   <Card>
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                       <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                        {isWithdrawal
-                          ? "From (Zidwell)"
-                          : "Sender Information"}
+                        Sender Information
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -810,79 +670,78 @@ export default function TransactionDetailsPage() {
                           Name
                         </span>
                         <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                          {displaySenderData.name || "N/A"}
+                          {senderData.name || "N/A"}
                         </span>
                       </div>
-                      {/* Only show account details for non-withdrawal transactions */}
-                      {!isWithdrawal && (
-                        <>
-                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                            <span className="text-gray-600 text-sm sm:text-base">
-                              Account Number
-                            </span>
-                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                              {displaySenderData.accountNumber || "N/A"}
-                            </span>
-                          </div>
-                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                            <span className="text-gray-600 text-sm sm:text-base">
-                              Bank Name
-                            </span>
-                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                              {displaySenderData.bankName || "N/A"}
-                            </span>
-                          </div>
-                        </>
+                      {senderData.accountNumber && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-gray-600 text-sm sm:text-base">
+                            Account Number
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                            {senderData.accountNumber}
+                          </span>
+                        </div>
+                      )}
+                      {senderData.bankName && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-gray-600 text-sm sm:text-base">
+                            Bank Name
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                            {senderData.bankName}
+                          </span>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
                 )}
 
                 {/* Receiver Information */}
-                {displayReceiverData && (
+                {receiverData && Object.keys(receiverData).length > 0 && (
                   <Card>
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <Building className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                       <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                        {isWithdrawal
-                          ? "To (Recipient)"
-                          : "Receiver Information"}
+                        Receiver Information
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex flex-row justify-between gap-1 xs:gap-2">
                         <span className="text-gray-600 text-sm sm:text-base">
-                          {isWithdrawal ? "Recipient Name" : "Account Name"}
+                          Name
                         </span>
                         <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                          {displayReceiverData.name || "N/A"}
+                          {receiverData.name || "N/A"}
                         </span>
                       </div>
-                      <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                        <span className="text-gray-600 text-sm sm:text-base">
-                          Account Number
-                        </span>
-                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                          {displayReceiverData.accountNumber || "N/A"}
-                        </span>
-                      </div>
-                      {displayReceiverData.bankName && (
+                      {receiverData.accountNumber && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-gray-600 text-sm sm:text-base">
+                            Account Number
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                            {receiverData.accountNumber}
+                          </span>
+                        </div>
+                      )}
+                      {receiverData.bankName && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-gray-600 text-sm sm:text-base">
                             Bank Name
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                            {displayReceiverData.bankName}
+                            {receiverData.bankName}
                           </span>
                         </div>
                       )}
-                      {displayReceiverData.reference && (
+                      {receiverData.bankCode && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-gray-600 text-sm sm:text-base">
-                            Reference
+                            Bank Code
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                            {displayReceiverData.reference}
+                            {receiverData.bankCode}
                           </span>
                         </div>
                       )}
@@ -923,7 +782,7 @@ export default function TransactionDetailsPage() {
                         Reference
                       </span>
                       <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                        {transaction.reference || transaction.id}
+                        {transaction.reference || transaction.merchant_tx_ref || transaction.id}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
@@ -943,7 +802,7 @@ export default function TransactionDetailsPage() {
                       </span>
                     </div>
 
-                    {transaction.fee || transaction.fee === 0 ? (
+                    {transaction.fee > 0 && (
                       <div className="flex items-center justify-between gap-1 xs:gap-2">
                         <span className="text-gray-600 text-sm sm:text-base">
                           Transaction Fee
@@ -955,7 +814,7 @@ export default function TransactionDetailsPage() {
                           })}
                         </span>
                       </div>
-                    ) : null}
+                    )}
 
                     {transaction.total_deduction > 0 &&
                     transaction.total_deduction !== transaction.amount ? (

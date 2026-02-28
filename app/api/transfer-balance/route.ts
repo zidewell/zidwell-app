@@ -188,7 +188,6 @@
 //     );
 //   }
 // }
-
 // app/api/withdraw/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
@@ -227,6 +226,22 @@ export async function POST(req: NextRequest) {
       fee,
       totalDebit,
     } = await req.json();
+
+    console.log({
+      userId,
+      senderName,
+      senderAccountNumber,
+      senderBankName,
+      amount,
+      accountNumber,
+      accountName,
+      bankName,
+      bankCode,
+      narration,
+      pin,
+      fee,
+      totalDebit,
+    })
 
     // Validate required fields
     if (
@@ -322,8 +337,7 @@ export async function POST(req: NextRequest) {
     // Generate merchant transaction reference (this will be used to match with webhook)
     const merchantTxRef = `WD_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    // ✅ Insert pending transaction FIRST (before any deductions)
-    // Using external_response JSONB field to store additional data since there's no metadata column
+
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
@@ -346,12 +360,11 @@ export async function POST(req: NextRequest) {
         status: "pending",
         narration: narration || "N/A",
         // Store multiple reference fields
-        merchant_tx_ref: merchantTxRef, // Your reference
-        reference: merchantTxRef, // Also set reference field for consistency
+        merchant_tx_ref: merchantTxRef,
+        reference: merchantTxRef,
         
         // Store all additional data in external_response JSONB
         external_response: {
-          // Withdrawal details for matching
           withdrawal_details: {
             bank_code: bankCode,
             account_number: accountNumber,
@@ -362,18 +375,15 @@ export async function POST(req: NextRequest) {
             merchant_tx_ref: merchantTxRef,
             initiated_at: new Date().toISOString()
           },
-          // Store all possible reference fields for webhook matching
           references: {
             merchant_tx_ref: merchantTxRef,
             reference: merchantTxRef,
-            // Add any other reference patterns that might be useful
             search_refs: [
               merchantTxRef,
               `WD_${Date.now()}`,
-              merchantTxRef.replace(/[^a-zA-Z0-9]/g, '') // Remove special chars
+              merchantTxRef.replace(/[^a-zA-Z0-9]/g, '')
             ]
           },
-          // Store receiver details for fallback matching
           receiver_details: {
             account_number: accountNumber,
             account_name: accountName,
@@ -383,7 +393,6 @@ export async function POST(req: NextRequest) {
           },
           status: "pending",
           created_at: new Date().toISOString(),
-          // Store any metadata needed
           metadata: {
             initiated_at: new Date().toISOString(),
             user_id: userId,
@@ -409,23 +418,21 @@ export async function POST(req: NextRequest) {
     console.log("✅ Transaction created:", {
       id: pendingTx.id,
       merchant_tx_ref: pendingTx.merchant_tx_ref,
-      reference: pendingTx.reference,
-      external_response_keys: Object.keys(pendingTx.external_response || {})
+      reference: pendingTx.reference
     });
 
-    // ✅ NOW deduct wallet balance
-    const { error: rpcError } = await supabase.rpc("deduct_wallet_balance", {
-      user_id: pendingTx.user_id,
-      amt: totalDeduction,
-      transaction_type: "withdrawal",
-      reference: merchantTxRef,
-      description: `Transfer of ₦${amount} to ${accountName}`,
-    });
+    // ✅ Deduct wallet balance WITHOUT creating a transaction
+    // Using the new RPC function that ONLY deducts balance, no transaction creation
+    const { data: newBalance, error: rpcError } = await supabase
+      .rpc("deduct_wallet_balance_only", {
+        user_id: userId,
+        amt: totalDeduction
+      });
 
     if (rpcError) {
       console.error("Wallet deduction error:", rpcError);
       
-      // Update transaction to failed since deduction failed
+      // Update transaction to failed
       await supabase
         .from("transactions")
         .update({
@@ -433,9 +440,7 @@ export async function POST(req: NextRequest) {
           external_response: {
             ...(pendingTx.external_response || {}),
             error: {
-              code: "500",
               message: rpcError.message,
-              description: "Failed to deduct wallet balance",
               stage: "wallet_deduction",
               timestamp: new Date().toISOString()
             }
@@ -447,11 +452,55 @@ export async function POST(req: NextRequest) {
         { 
           code: "500",
           error: "Failed to deduct wallet balance",
-          description: rpcError.message || "Internal server error during wallet deduction"
+          description: rpcError.message
         },
         { status: 500 }
       );
     }
+
+    // Check if insufficient funds (RPC returns -1 for insufficient funds)
+    if (newBalance === -1) {
+      await supabase
+        .from("transactions")
+        .update({
+          status: "failed",
+          external_response: {
+            ...(pendingTx.external_response || {}),
+            error: {
+              message: "Insufficient funds",
+              stage: "wallet_deduction",
+              timestamp: new Date().toISOString()
+            }
+          }
+        })
+        .eq("id", pendingTx.id);
+      
+      return NextResponse.json(
+        { 
+          code: "400",
+          error: "Insufficient funds",
+          description: "Your wallet balance is insufficient for this transaction"
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log(`✅ Wallet deducted. New balance: ₦${newBalance}`);
+
+    // Update transaction with wallet deduction info
+    await supabase
+      .from("transactions")
+      .update({
+        external_response: {
+          ...(pendingTx.external_response || {}),
+          wallet_deduction: {
+            completed_at: new Date().toISOString(),
+            new_balance: newBalance,
+            amount_deducted: totalDeduction
+          }
+        }
+      })
+      .eq("id", pendingTx.id);
 
     // ✅ Call Nomba Transfer API
     let nombaResponse;
@@ -489,7 +538,6 @@ export async function POST(req: NextRequest) {
       if (!res.ok) {
         console.error(`Nomba API error (${nombaStatus}):`, nombaResponse);
 
-        // REFUND THE USER IMMEDIATELY
         const refundRef = `REFUND_${merchantTxRef}`;
         const { error: refundError } = await supabase.rpc("increment_wallet_balance", {
           user_id: userId,

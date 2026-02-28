@@ -2389,674 +2389,473 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true }, { status: 200 });
     } // end deposit handling
 
-    // ---------- WITHDRAWAL / TRANSFER (OUTGOING) ----------
-    if (isPayoutOrTransfer) {
-      console.log("➡️ Handling payout/transfer flow");
-
-      // Collect ALL possible references from the webhook payload
-      const possibleRefs = [
-        merchantTxRef, // Your merchant_tx_ref
-        nombaTransactionId, // Nomba's transaction ID
-        tx.merchantTxRef, // Alternative location
-        tx.merchant_tx_ref, // Alternative location
-        payload.data?.meta?.merchantTxRef, // Meta field
-        payload.data?.reference, // Generic reference field
-        payload.data?.transaction?.reference, // Transaction reference
-        orderReference, // Order reference if any
-        tx.sessionId, // Session ID
-        tx.id, // Transaction ID
-        tx.reference, // Transaction reference
-        payload.data?.transaction?.sessionId, // Session ID in transaction
-        payload.data?.transaction?.id, // Transaction ID in transaction
-      ].filter(Boolean);
-
-      // Remove duplicates
-      const uniqueRefs = [...new Set(possibleRefs)];
-
-      console.log("🔍 Searching for transaction with references:", uniqueRefs);
-
-      // Build OR query for all possible reference fields
-      const conditions = [];
-
-      // Add conditions for each reference in each possible field
-      uniqueRefs.forEach((ref) => {
-        conditions.push(`merchant_tx_ref.eq.${ref}`);
-        conditions.push(`reference.eq.${ref}`);
-
-        // Search inside external_response JSONB
-        conditions.push(
-          `external_response->withdrawal_details->>merchant_tx_ref.eq.${ref}`,
-        );
-        conditions.push(
-          `external_response->references->>merchant_tx_ref.eq.${ref}`,
-        );
-        conditions.push(`external_response->references->>reference.eq.${ref}`);
-        conditions.push(
-          `external_response->receiver_details->>account_number.eq.${ref}`,
-        );
-      });
-
-      // Also search by the actual transaction ID if available
-      if (nombaTransactionId) {
-        conditions.push(
-          `external_response->>nomba_transaction_id.eq.${nombaTransactionId}`,
-        );
-        conditions.push(
-          `external_response->nomba_response->>id.eq.${nombaTransactionId}`,
-        );
-      }
-
-      const orExpr = conditions.join(",");
-
-      let { data: pendingTxList, error: pendingErr } = await supabase
-        .from("transactions")
-        .select("*")
-        .or(orExpr)
-        .in("status", ["pending", "processing"])
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (pendingErr) {
-        console.error(
-          "❌ DB error while finding pending transaction:",
-          pendingErr,
-        );
-        return NextResponse.json({ error: "DB error" }, { status: 500 });
-      }
-
-      let pendingTx = pendingTxList?.[0];
-
-      // If still not found, try a more aggressive search using external_response data
-      if (!pendingTx) {
-        console.log(
-          "⚠️ Transaction not found by references, trying fallback search by amount and receiver...",
-        );
-
-        const webhookAmount = Number(transactionAmount);
-        const webhookAccountNumber =
-          payload.data?.customer?.accountNumber ||
-          payload.data?.transaction?.accountNumber ||
-          payload.data?.beneficiary?.accountNumber;
-
-        const webhookBankCode =
-          payload.data?.customer?.bankCode ||
-          payload.data?.transaction?.bankCode ||
-          payload.data?.beneficiary?.bankCode;
-
-        console.log("📊 Fallback search criteria:", {
-          amount: webhookAmount,
-          accountNumber: webhookAccountNumber,
-          bankCode: webhookBankCode,
-        });
-
-        // Try to find by looking at all pending withdrawals from last 30 minutes
-        const thirtyMinutesAgo = new Date(
-          Date.now() - 30 * 60 * 1000,
-        ).toISOString();
-
-        const { data: recentWithdrawals, error: recentError } = await supabase
-          .from("transactions")
-          .select("*")
-          .eq("type", "withdrawal")
-          .in("status", ["pending", "processing"])
-          .gte("created_at", thirtyMinutesAgo)
-          .order("created_at", { ascending: false })
-          .limit(20);
-
-        if (!recentError && recentWithdrawals) {
-          console.log(
-            `📋 Found ${recentWithdrawals.length} recent pending withdrawals`,
-          );
-
-          // Try to match by amount and receiver details
-          for (const tx of recentWithdrawals) {
-            const receiver = tx.receiver || {};
-            const txAmount = Number(tx.amount);
-            const externalData = tx.external_response || {};
-
-            // Check if amounts match (within 1 naira tolerance)
-            if (Math.abs(txAmount - webhookAmount) <= 1) {
-              // Check from receiver object
-              if (receiver.accountNumber === webhookAccountNumber) {
-                console.log(
-                  "✅ Found matching transaction by amount and account (receiver object):",
-                  {
-                    id: tx.id,
-                    amount: txAmount,
-                    account: receiver.accountNumber,
-                  },
-                );
-                pendingTx = tx;
-                break;
-              }
-
-              // Check from external_response withdrawal_details
-              const withdrawalDetails = externalData.withdrawal_details || {};
-              if (withdrawalDetails.account_number === webhookAccountNumber) {
-                console.log(
-                  "✅ Found matching transaction by amount and account (withdrawal_details):",
-                  {
-                    id: tx.id,
-                    amount: txAmount,
-                    account: withdrawalDetails.account_number,
-                  },
-                );
-                pendingTx = tx;
-                break;
-              }
-
-              // Check from external_response receiver_details
-              const receiverDetails = externalData.receiver_details || {};
-              if (receiverDetails.account_number === webhookAccountNumber) {
-                console.log(
-                  "✅ Found matching transaction by amount and account (receiver_details):",
-                  {
-                    id: tx.id,
-                    amount: txAmount,
-                    account: receiverDetails.account_number,
-                  },
-                );
-                pendingTx = tx;
-                break;
-              }
-
-              // If bank code is available, check that too
-              if (webhookBankCode) {
-                if (
-                  receiver.bankCode === webhookBankCode ||
-                  withdrawalDetails.bank_code === webhookBankCode ||
-                  receiverDetails.bank_code === webhookBankCode
-                ) {
-                  console.log(
-                    "✅ Found matching transaction by amount and bank code:",
-                    {
-                      id: tx.id,
-                      amount: txAmount,
-                      bankCode: webhookBankCode,
-                    },
-                  );
-                  pendingTx = tx;
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        // If still not found, try searching by merchantTxRef pattern in external_response
-        if (!pendingTx && merchantTxRef) {
-          console.log(
-            "🔄 Trying pattern-based search for merchantTxRef:",
-            merchantTxRef,
-          );
-
-          // Extract the base part of the reference (without timestamp/random)
-          const basePattern = merchantTxRef.split("_")[0]; // Gets "WD" from "WD_123456_abc123"
-
-          const { data: patternMatches } = await supabase
-            .from("transactions")
-            .select("*")
-            .eq("type", "withdrawal")
-            .in("status", ["pending", "processing"])
-            .ilike("merchant_tx_ref", `${basePattern}%`)
-            .order("created_at", { ascending: false })
-            .limit(5);
-
-          if (patternMatches && patternMatches.length > 0) {
-            console.log(
-              `📊 Found ${patternMatches.length} transactions with pattern ${basePattern}`,
-            );
-
-            // Try to match by amount
-            for (const tx of patternMatches) {
-              if (Math.abs(Number(tx.amount) - webhookAmount) <= 1) {
-                console.log(
-                  "✅ Found matching transaction by pattern and amount:",
-                  tx.id,
-                );
-                pendingTx = tx;
-                break;
-              }
-            }
-          }
-        }
-      }
-
-      if (!pendingTx) {
-        console.warn(
-          "⚠️ No matching pending withdrawal found after all attempts",
-        );
-
-        // Log all possible identifiers for debugging
-        console.log("🔍 Debug - All possible identifiers:", {
-          merchantTxRef,
-          nombaTransactionId,
-          transactionAmount,
-          accountNumber: payload.data?.customer?.accountNumber,
-          bankCode: payload.data?.customer?.bankCode,
-          uniqueRefs,
-        });
-
-        return NextResponse.json(
-          { message: "No matching withdrawal transaction" },
-          { status: 200 },
-        );
-      }
-
-      console.log("✅ Found transaction:", {
-        id: pendingTx.id,
-        status: pendingTx.status,
-        merchant_tx_ref: pendingTx.merchant_tx_ref,
-        reference: pendingTx.reference,
-        amount: pendingTx.amount,
-        receiver: pendingTx.receiver,
-      });
-
-      // Store the Nomba transaction ID in external_response for future reference
-      if (nombaTransactionId) {
-        const currentExternal = pendingTx.external_response || {};
-
-        // Only update if we don't already have this ID
-        if (!currentExternal.nomba_transaction_id) {
-          const updatedExternalResponse = {
-            ...currentExternal,
-            nomba_transaction_id: nombaTransactionId,
-            nomba_received_at: new Date().toISOString(),
-            webhook_payload: {
-              event_type: eventType,
-              timestamp: new Date().toISOString(),
-              transaction_id: nombaTransactionId,
-            },
-            // Store all references for future lookups
-            webhook_references: {
-              ...(currentExternal.webhook_references || {}),
-              [nombaTransactionId]: {
-                received_at: new Date().toISOString(),
-                event_type: eventType,
-              },
-            },
-          };
-
-          await supabase
-            .from("transactions")
-            .update({
-              external_response: updatedExternalResponse,
-            })
-            .eq("id", pendingTx.id);
-
-          console.log(
-            `✅ Stored Nomba transaction ID ${nombaTransactionId} for transaction ${pendingTx.id}`,
-          );
-        }
-      }
-
-      const isP2PTransfer = pendingTx.type === "p2p_transfer";
-      const isRegularWithdrawal = pendingTx.type === "withdrawal";
-
-      console.log("   - Is P2P Transfer:", isP2PTransfer);
-      console.log("   - Is Regular Withdrawal:", isRegularWithdrawal);
-
-      // Idempotency - check if already processed
-      if (["success", "failed"].includes(pendingTx.status)) {
-        console.log(`⚠️ Transaction already ${pendingTx.status}. Skipping.`);
-        return NextResponse.json(
-          { message: "Already processed" },
-          { status: 200 },
-        );
-      }
-
-      const txAmount = Number(transactionAmount ?? 0);
-      let appFee = 0;
-      let totalFees = 0;
-      let totalDeduction = Number(pendingTx.amount);
-      let nombaFee = Number(payload.data?.transaction?.fee || 0);
-
-      if (isRegularWithdrawal) {
-        totalFees = Number(pendingTx.amount - txAmount);
-        appFee = Math.max(0, totalFees - nombaFee);
-
-        console.log("💰 Transaction calculations:", {
-          transactionAmount: txAmount,
-          pendingAmount: pendingTx.amount,
-          totalFees,
-          nombaFee,
-          appFee,
-          totalDeduction,
-        });
-      } else if (isP2PTransfer) {
-        // 🔥 P2P transfers have NO FEES
-        appFee = 0;
-        totalFees = 0;
-        totalDeduction = txAmount;
-      }
-
-      // ✅ SUCCESS CASE
-      if (eventType === "payout_success" || txStatus === "success") {
-        console.log(
-          `✅ ${isP2PTransfer ? "P2P Transfer" : "Withdrawal"} success - marking transaction as success`,
-        );
-
-        const reference =
-          nombaTransactionId || pendingTx.reference || crypto.randomUUID();
-
-        // Build updated external response with fee info and preserve existing data
-        const currentExternal = pendingTx.external_response || {};
-        const updatedExternalResponse = {
-          ...currentExternal, // Preserve existing data
-          ...payload, // Add new webhook data
-          fee_breakdown: {
-            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
-            amount: txAmount,
-            nomba_fee: nombaFee,
-            app_fee: appFee,
-            total_fee: totalFees,
-            total_deduction: totalDeduction,
-            ...(currentExternal.fee_breakdown || {}),
-          },
-          nomba_transaction_id: nombaTransactionId,
-          webhook_processed_at: new Date().toISOString(),
-          webhook_status: "success",
-          success_data: {
-            processed_at: new Date().toISOString(),
-            event_type: eventType,
-            nomba_reference: nombaTransactionId,
-          },
-        };
-
-        const { error: updateErr } = await supabase
-          .from("transactions")
-          .update({
-            status: "success",
-            reference,
-            external_response: updatedExternalResponse,
-            total_deduction: totalDeduction,
-            fee: totalFees,
-          })
-          .eq("id", pendingTx.id);
-
-        // Extract withdrawal details for email
-        const currentExternalData = pendingTx.external_response || {};
-        const withdrawalDetails = currentExternalData.withdrawal_details || {};
-        const receiver = pendingTx.receiver || {};
-
-        const recipientName =
-          payload.data?.customer?.recipientName ||
-          receiver.name ||
-          withdrawalDetails.account_name ||
-          "N/A";
-
-        const recipientAccount =
-          payload.data?.customer?.accountNumber ||
-          receiver.accountNumber ||
-          withdrawalDetails.account_number ||
-          "N/A";
-
-        const bankName =
-          payload.data?.customer?.bankName ||
-          receiver.bankName ||
-          withdrawalDetails.bank_name ||
-          "N/A";
-
-        const webhookNarration =
-          payload.data?.transaction?.narration ||
-          pendingTx.narration ||
-          "Transfer";
-
-        // Send email notification
-        await sendWithdrawalEmailNotification(
-          pendingTx.user_id,
-          "success",
-          txAmount,
-          nombaFee,
-          appFee,
-          totalDeduction,
-          recipientName,
-          recipientAccount,
-          bankName,
-          webhookNarration,
-          pendingTx.id,
-        );
-
-        if (updateErr) {
-          console.error("❌ Failed to update transaction:", updateErr);
-          return NextResponse.json({ error: "Update failed" }, { status: 500 });
-        }
-
-        console.log(`✅ Transaction ${pendingTx.id} updated to success`);
-
-        // 🔥 For P2P transfers, also credit the receiver
-        if (isP2PTransfer && pendingTx.receiver) {
-          try {
-            console.log("💰 Processing P2P receiver credit...");
-
-            const { data: receiver, error: receiverError } = await supabase
-              .from("users")
-              .select("id, first_name, last_name")
-              .eq("wallet_id", pendingTx.receiver.wallet_id)
-              .single();
-
-            if (receiverError || !receiver) {
-              console.error("❌ P2P receiver not found:", pendingTx.receiver);
-            } else {
-              const { error: creditError } = await supabase.rpc(
-                "increment_wallet_balance",
-                {
-                  user_id: receiver.id,
-                  amt: txAmount,
-                },
-              );
-
-              if (creditError) {
-                console.error(
-                  "❌ Failed to credit receiver wallet:",
-                  creditError,
-                );
-              } else {
-                await supabase.from("transactions").insert({
-                  user_id: receiver.id,
-                  type: "p2p_received",
-                  amount: txAmount,
-                  status: "success",
-                  description: `Received ₦${txAmount} from ${pendingTx.sender?.name || "User"}`,
-                  narration: pendingTx.narration || "P2P Received",
-                  reference: reference,
-                  external_response: {
-                    ...updatedExternalResponse,
-                    parent_transaction_id: pendingTx.id,
-                    p2p_transfer: true,
-                  },
-                  sender: pendingTx.sender,
-                });
-
-                console.log(
-                  `✅ P2P receiver ${receiver.id} credited with ₦${txAmount}`,
-                );
-              }
-            }
-          } catch (receiverErr) {
-            console.error(
-              "❌ Error processing P2P receiver credit:",
-              receiverErr,
-            );
-          }
-        }
-
-        return NextResponse.json(
-          {
-            success: true,
-            message: `${isP2PTransfer ? "P2P Transfer" : "Withdrawal"} processed successfully`,
-            transaction_id: pendingTx.id,
-            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
-          },
-          { status: 200 },
-        );
-      }
-
-      // ❌ FAILURE CASE — REFUND USER
-      if (eventType === "payout_failed" || txStatus === "failed") {
-        console.log(
-          `❌ ${isP2PTransfer ? "P2P Transfer" : "Withdrawal"} failed - refunding user`,
-        );
-
-        const errorDetail =
-          payload.data?.transaction?.responseMessage ||
-          payload.data?.transaction?.narration ||
-          payload.error?.message ||
-          "Transaction failed";
-
-        const narration =
-          payload.data?.transaction?.narration ||
-          pendingTx.narration ||
-          "Transfer";
-
-        // Build updated external response with error info
-        const currentExternal = pendingTx.external_response || {};
-        const updatedExternalResponse = {
-          ...currentExternal,
-          ...payload,
-          fee_breakdown: {
-            ...(currentExternal.fee_breakdown || {}),
-            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
-            nomba_fee: nombaFee,
-            app_fee: appFee,
-            total_fee: totalFees,
-            failed: true,
-            error: errorDetail,
-          },
-          nomba_transaction_id: nombaTransactionId,
-          webhook_processed_at: new Date().toISOString(),
-          webhook_status: "failed",
-          error_details: {
-            message: errorDetail,
-            code: payload.data?.transaction?.responseCode || "FAILED",
-            timestamp: new Date().toISOString(),
-          },
-        };
-
-        // Update transaction to failed
-        const { error: updateError } = await supabase
-          .from("transactions")
-          .update({
-            status: "failed",
-            external_response: updatedExternalResponse,
-            reference: nombaTransactionId || pendingTx.reference,
-          })
-          .eq("id", pendingTx.id);
-
-        // Extract withdrawal details for email
-        const currentExternalData = pendingTx.external_response || {};
-        const withdrawalDetails = currentExternalData.withdrawal_details || {};
-        const receiver = pendingTx.receiver || {};
-
-        const recipientName =
-          payload.data?.customer?.recipientName ||
-          receiver.name ||
-          withdrawalDetails.account_name ||
-          "N/A";
-
-        const recipientAccount =
-          payload.data?.customer?.accountNumber ||
-          receiver.accountNumber ||
-          withdrawalDetails.account_number ||
-          "N/A";
-
-        const bankName =
-          payload.data?.customer?.bankName ||
-          receiver.bankName ||
-          withdrawalDetails.bank_name ||
-          "N/A";
-
-        if (updateError) {
-          console.error("❌ Failed to update transaction status:", updateError);
-        }
-
-        // REFUND THE USER
-        console.log("🔄 Refunding user wallet...");
-        const refundReference = `REFUND_${nombaTransactionId || Date.now()}`;
-
-        const { error: refundErr } = await supabase.rpc(
-          "increment_wallet_balance",
-          {
-            user_id: pendingTx.user_id,
-            amt: totalDeduction, // Refund full amount
-          },
-        );
-
-        if (refundErr) {
-          console.error("❌ Refund failed:", refundErr);
-
-          // Update transaction with refund error
-          await supabase
-            .from("transactions")
-            .update({
-              external_response: {
-                ...updatedExternalResponse,
-                refund_error: {
-                  message: refundErr.message,
-                  attempted: true,
-                  failed: true,
-                  timestamp: new Date().toISOString(),
-                },
-              },
-            })
-            .eq("id", pendingTx.id);
-        } else {
-          console.log(
-            `✅ Refund of ₦${totalDeduction} completed for user ${pendingTx.user_id}`,
-          );
-
-          // Update transaction with refund info
-          await supabase
-            .from("transactions")
-            .update({
-              external_response: {
-                ...updatedExternalResponse,
-                refunded: true,
-                refund_amount: totalDeduction,
-                refund_reference: refundReference,
-                refunded_at: new Date().toISOString(),
-              },
-            })
-            .eq("id", pendingTx.id);
-        }
-
-        // Send failure email with error details
-        await sendWithdrawalEmailNotification(
-          pendingTx.user_id,
-          "failed",
-          txAmount,
-          nombaFee,
-          appFee,
-          totalDeduction,
-          recipientName,
-          recipientAccount,
-          bankName,
-          narration,
-          pendingTx.id,
-          errorDetail +
-            (refundErr
-              ? " (Refund may have failed)"
-              : " (Refunded successfully)"),
-        );
-
-        return NextResponse.json(
-          {
-            refunded: true,
-            transaction_id: pendingTx.id,
-            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
-            refund_amount: totalDeduction,
-            refund_status: refundErr ? "failed" : "success",
-          },
-          { status: 200 },
-        );
-      }
-
-      console.log("ℹ️ Unhandled transfer event/status. Ignoring.");
-      return NextResponse.json(
-        { message: "Ignored transfer event" },
-        { status: 200 },
+  // ---------- WITHDRAWAL / TRANSFER (OUTGOING) ----------
+if (isPayoutOrTransfer) {
+  console.log("➡️ Handling payout/transfer flow");
+
+  // Collect ALL possible references from the webhook payload
+  const possibleRefs = [
+    merchantTxRef, // Your merchant_tx_ref
+    nombaTransactionId, // Nomba's transaction ID
+    tx.merchantTxRef, // Alternative location
+    tx.merchant_tx_ref, // Alternative location
+    payload.data?.meta?.merchantTxRef, // Meta field
+    payload.data?.reference, // Generic reference field
+    payload.data?.transaction?.reference, // Transaction reference
+    orderReference, // Order reference if any
+    tx.sessionId, // Session ID
+    tx.id, // Transaction ID
+    tx.reference, // Transaction reference
+    payload.data?.transaction?.sessionId, // Session ID in transaction
+    payload.data?.transaction?.id, // Transaction ID in transaction
+  ].filter(Boolean);
+
+  // Remove duplicates
+  const uniqueRefs = [...new Set(possibleRefs)];
+
+  console.log("🔍 Searching for transaction with references:", uniqueRefs);
+
+  // Build OR query for all possible reference fields
+  const conditions = [];
+
+  // Add conditions for each reference in each possible field
+  uniqueRefs.forEach((ref) => {
+    conditions.push(`merchant_tx_ref.eq.${ref}`); // Primary reference from withdrawal
+    conditions.push(`reference.eq.${ref}`); // Secondary reference
+
+    // Search inside external_response JSONB (fallback)
+    conditions.push(
+      `external_response->withdrawal_details->>merchant_tx_ref.eq.${ref}`,
+    );
+    conditions.push(
+      `external_response->references->>merchant_tx_ref.eq.${ref}`,
+    );
+    conditions.push(`external_response->references->>reference.eq.${ref}`);
+  });
+
+  // Also search by the actual transaction ID if available
+  if (nombaTransactionId) {
+    conditions.push(
+      `external_response->>nomba_transaction_id.eq.${nombaTransactionId}`,
+    );
+    conditions.push(
+      `external_response->data->>id.eq.${nombaTransactionId}`,
+    );
+  }
+
+  const orExpr = conditions.join(",");
+
+  let { data: pendingTxList, error: pendingErr } = await supabase
+    .from("transactions")
+    .select("*")
+    .or(orExpr)
+    .in("status", ["pending", "processing"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (pendingErr) {
+    console.error(
+      "❌ DB error while finding pending transaction:",
+      pendingErr,
+    );
+    return NextResponse.json({ error: "DB error" }, { status: 500 });
+  }
+
+  let pendingTx = pendingTxList?.[0];
+
+  // If still not found, try a more aggressive search using receiver details
+  if (!pendingTx) {
+    console.log(
+      "⚠️ Transaction not found by references, trying fallback search by amount and receiver...",
+    );
+
+    const webhookAmount = Number(transactionAmount);
+    const webhookAccountNumber =
+      payload.data?.customer?.accountNumber ||
+      payload.data?.transaction?.accountNumber ||
+      payload.data?.beneficiary?.accountNumber;
+
+    const webhookBankCode =
+      payload.data?.customer?.bankCode ||
+      payload.data?.transaction?.bankCode ||
+      payload.data?.beneficiary?.bankCode;
+
+    console.log("📊 Fallback search criteria:", {
+      amount: webhookAmount,
+      accountNumber: webhookAccountNumber,
+      bankCode: webhookBankCode,
+    });
+
+    // Try to find by looking at all pending withdrawals from last 30 minutes
+    const thirtyMinutesAgo = new Date(
+      Date.now() - 30 * 60 * 1000,
+    ).toISOString();
+
+    const { data: recentWithdrawals, error: recentError } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("type", "withdrawal")
+      .in("status", ["pending", "processing"])
+      .gte("created_at", thirtyMinutesAgo)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (!recentError && recentWithdrawals) {
+      console.log(
+        `📋 Found ${recentWithdrawals.length} recent pending withdrawals`,
       );
+
+      // Try to match by amount and receiver details
+      for (const tx of recentWithdrawals) {
+        const receiver = tx.receiver || {};
+        const txAmount = Number(tx.amount);
+
+        // Check if amounts match (within 1 naira tolerance)
+        if (Math.abs(txAmount - webhookAmount) <= 1) {
+          // Check from receiver object (primary)
+          if (receiver.accountNumber === webhookAccountNumber) {
+            console.log(
+              "✅ Found matching transaction by amount and account (receiver object):",
+              {
+                id: tx.id,
+                amount: txAmount,
+                account: receiver.accountNumber,
+              },
+            );
+            pendingTx = tx;
+            break;
+          }
+
+          // If bank code is available, check that too
+          if (webhookBankCode && receiver.bankCode === webhookBankCode) {
+            console.log(
+              "✅ Found matching transaction by amount and bank code:",
+              {
+                id: tx.id,
+                amount: txAmount,
+                bankCode: webhookBankCode,
+              },
+            );
+            pendingTx = tx;
+            break;
+          }
+        }
+      }
     }
+  }
+
+  if (!pendingTx) {
+    console.warn(
+      "⚠️ No matching pending withdrawal found after all attempts",
+    );
+
+    // Log all possible identifiers for debugging
+    console.log("🔍 Debug - All possible identifiers:", {
+      merchantTxRef,
+      nombaTransactionId,
+      transactionAmount,
+      accountNumber: payload.data?.customer?.accountNumber,
+      bankCode: payload.data?.customer?.bankCode,
+      uniqueRefs,
+    });
+
+    return NextResponse.json(
+      { message: "No matching withdrawal transaction" },
+      { status: 200 },
+    );
+  }
+
+  console.log("✅ Found transaction:", {
+    id: pendingTx.id,
+    status: pendingTx.status,
+    merchant_tx_ref: pendingTx.merchant_tx_ref,
+    reference: pendingTx.reference,
+    amount: pendingTx.amount,
+    receiver: pendingTx.receiver,
+    sender: pendingTx.sender,
+  });
+
+  // Store the Nomba transaction ID in external_response for future reference
+  if (nombaTransactionId && !pendingTx.external_response?.nomba_transaction_id) {
+    const currentExternal = pendingTx.external_response || {};
+
+    const updatedExternalResponse = {
+      ...currentExternal,
+      nomba_transaction_id: nombaTransactionId,
+      nomba_received_at: new Date().toISOString(),
+      webhook_payload: {
+        event_type: eventType,
+        timestamp: new Date().toISOString(),
+        transaction_id: nombaTransactionId,
+      },
+    };
+
+    await supabase
+      .from("transactions")
+      .update({
+        external_response: updatedExternalResponse,
+      })
+      .eq("id", pendingTx.id);
+
+    console.log(
+      `✅ Stored Nomba transaction ID ${nombaTransactionId} for transaction ${pendingTx.id}`,
+    );
+  }
+
+  const isRegularWithdrawal = pendingTx.type === "withdrawal";
+  console.log("   - Is Regular Withdrawal:", isRegularWithdrawal);
+
+  // Idempotency - check if already processed
+  if (["success", "failed"].includes(pendingTx.status)) {
+    console.log(`⚠️ Transaction already ${pendingTx.status}. Skipping.`);
+    return NextResponse.json(
+      { message: "Already processed" },
+      { status: 200 },
+    );
+  }
+
+  const txAmount = Number(transactionAmount ?? 0);
+  
+  // Get values from the transaction (these were set during withdrawal)
+  const appFee = Number(pendingTx.fee || 0);
+  const totalDeduction = Number(pendingTx.total_deduction || pendingTx.amount);
+  const nombaFee = Number(payload.data?.transaction?.fee || 0);
+
+  console.log("💰 Transaction calculations:", {
+    transactionAmount: txAmount,
+    pendingAmount: pendingTx.amount,
+    appFee,
+    nombaFee,
+    totalDeduction,
+  });
+
+  // ✅ SUCCESS CASE
+  if (eventType === "payout_success" || txStatus === "success") {
+    console.log(`✅ Withdrawal success - marking transaction as success`);
+
+    const reference = nombaTransactionId || pendingTx.reference || crypto.randomUUID();
+
+    // Build updated external response with fee info and preserve existing data
+    const currentExternal = pendingTx.external_response || {};
+    const updatedExternalResponse = {
+      ...currentExternal, // Preserve existing data
+      ...payload, // Add new webhook data
+      fee_breakdown: {
+        amount: txAmount,
+        nomba_fee: nombaFee,
+        app_fee: appFee,
+        total_fee: appFee + nombaFee,
+        total_deduction: totalDeduction,
+        ...(currentExternal.fee_breakdown || {}),
+      },
+      nomba_transaction_id: nombaTransactionId,
+      webhook_processed_at: new Date().toISOString(),
+      webhook_status: "success",
+      success_data: {
+        processed_at: new Date().toISOString(),
+        event_type: eventType,
+        nomba_reference: nombaTransactionId,
+      },
+    };
+
+    const { error: updateErr } = await supabase
+      .from("transactions")
+      .update({
+        status: "success",
+        reference,
+        external_response: updatedExternalResponse,
+        // Keep existing total_deduction and fee values
+      })
+      .eq("id", pendingTx.id);
+
+    // Extract withdrawal details for email (from transaction receiver object)
+    const receiver = pendingTx.receiver || {};
+    const sender = pendingTx.sender || {};
+
+    const recipientName = receiver.name || "N/A";
+    const recipientAccount = receiver.accountNumber || "N/A";
+    const bankName = receiver.bankName || "N/A";
+    const webhookNarration = pendingTx.narration || "Transfer";
+
+    // Send email notification
+    await sendWithdrawalEmailNotification(
+      pendingTx.user_id,
+      "success",
+      txAmount,
+      nombaFee,
+      appFee,
+      totalDeduction,
+      recipientName,
+      recipientAccount,
+      bankName,
+      webhookNarration,
+      pendingTx.id,
+    );
+
+    if (updateErr) {
+      console.error("❌ Failed to update transaction:", updateErr);
+      return NextResponse.json({ error: "Update failed" }, { status: 500 });
+    }
+
+    console.log(`✅ Transaction ${pendingTx.id} updated to success`);
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Withdrawal processed successfully",
+        transaction_id: pendingTx.id,
+        transaction_type: "withdrawal",
+      },
+      { status: 200 },
+    );
+  }
+
+  // ❌ FAILURE CASE — REFUND USER
+  if (eventType === "payout_failed" || txStatus === "failed") {
+    console.log(`❌ Withdrawal failed - refunding user`);
+
+    const errorDetail =
+      payload.data?.transaction?.responseMessage ||
+      payload.data?.transaction?.narration ||
+      payload.error?.message ||
+      "Transaction failed";
+
+    const narration = pendingTx.narration || "Transfer";
+
+    // Build updated external response with error info
+    const currentExternal = pendingTx.external_response || {};
+    const updatedExternalResponse = {
+      ...currentExternal,
+      ...payload,
+      fee_breakdown: {
+        ...(currentExternal.fee_breakdown || {}),
+        amount: txAmount,
+        nomba_fee: nombaFee,
+        app_fee: appFee,
+        total_fee: appFee + nombaFee,
+        total_deduction: totalDeduction,
+        failed: true,
+        error: errorDetail,
+      },
+      nomba_transaction_id: nombaTransactionId,
+      webhook_processed_at: new Date().toISOString(),
+      webhook_status: "failed",
+      error_details: {
+        message: errorDetail,
+        code: payload.data?.transaction?.responseCode || "FAILED",
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    // Update transaction to failed
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({
+        status: "failed",
+        external_response: updatedExternalResponse,
+        reference: nombaTransactionId || pendingTx.reference,
+      })
+      .eq("id", pendingTx.id);
+
+    // Extract withdrawal details for email (from transaction receiver object)
+    const receiver = pendingTx.receiver || {};
+    const sender = pendingTx.sender || {};
+
+    const recipientName = receiver.name || "N/A";
+    const recipientAccount = receiver.accountNumber || "N/A";
+    const bankName = receiver.bankName || "N/A";
+
+    if (updateError) {
+      console.error("❌ Failed to update transaction status:", updateError);
+    }
+
+    // REFUND THE USER
+    console.log("🔄 Refunding user wallet...");
+    const refundReference = `REFUND_${nombaTransactionId || Date.now()}`;
+
+    const { error: refundErr } = await supabase.rpc(
+      "increment_wallet_balance",
+      {
+        user_id: pendingTx.user_id,
+        amt: totalDeduction, // Refund full amount
+      },
+    );
+
+    if (refundErr) {
+      console.error("❌ Refund failed:", refundErr);
+
+      // Update transaction with refund error
+      await supabase
+        .from("transactions")
+        .update({
+          external_response: {
+            ...updatedExternalResponse,
+            refund_error: {
+              message: refundErr.message,
+              attempted: true,
+              failed: true,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        })
+        .eq("id", pendingTx.id);
+    } else {
+      console.log(
+        `✅ Refund of ₦${totalDeduction} completed for user ${pendingTx.user_id}`,
+      );
+
+      // Update transaction with refund info
+      await supabase
+        .from("transactions")
+        .update({
+          external_response: {
+            ...updatedExternalResponse,
+            refunded: true,
+            refund_amount: totalDeduction,
+            refund_reference: refundReference,
+            refunded_at: new Date().toISOString(),
+          },
+        })
+        .eq("id", pendingTx.id);
+    }
+
+    // Send failure email with error details
+    await sendWithdrawalEmailNotification(
+      pendingTx.user_id,
+      "failed",
+      txAmount,
+      nombaFee,
+      appFee,
+      totalDeduction,
+      recipientName,
+      recipientAccount,
+      bankName,
+      narration,
+      pendingTx.id,
+      errorDetail +
+        (refundErr
+          ? " (Refund may have failed)"
+          : " (Refunded successfully)"),
+    );
+
+    return NextResponse.json(
+      {
+        refunded: true,
+        transaction_id: pendingTx.id,
+        transaction_type: "withdrawal",
+        refund_amount: totalDeduction,
+        refund_status: refundErr ? "failed" : "success",
+      },
+      { status: 200 },
+    );
+  }
+
+  console.log("ℹ️ Unhandled transfer event/status. Ignoring.");
+  return NextResponse.json(
+    { message: "Ignored transfer event" },
+    { status: 200 },
+  );
+}
 
     // If we reach here, event type not handled specifically
     console.log("ℹ️ Event type not matched. Ignoring.");
