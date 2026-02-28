@@ -467,7 +467,7 @@ export default function TransactionDetailsPage() {
         <!-- Sender Information -->
         <div class="section">
           <div class="section-title">${
-            isWithdrawal ? "From (Platform)" : "Sender Information"
+            isWithdrawal ? "From (zidwell)" : "Sender Information"
           }</div>
           <div class="details-card">
             <div class="detail-row">
@@ -800,7 +800,7 @@ export default function TransactionDetailsPage() {
                       <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                       <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                         {isWithdrawal
-                          ? "From (Platform)"
+                          ? "From (Zidwell)"
                           : "Sender Information"}
                       </h2>
                     </CardHeader>

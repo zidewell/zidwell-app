@@ -324,31 +324,38 @@ export async function POST(req: NextRequest) {
 
     const merchantTxRef = `WD_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    // ✅ Insert pending transaction FIRST (before any deductions)
-    const { data: pendingTx, error: txError } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: userId,
-        type: "withdrawal",
-        sender: {
-          name: senderName || "User",
-          accountNumber: senderAccountNumber || "N/A",
-          bankName: senderBankName || "Zidwell Wallet",
-        },
-        receiver: {
-          name: accountName,
-          accountNumber,
-          bankName,
-        },
-        amount: Number(amount),
-        fee: Number(fee || 0),
-        total_deduction: totalDeduction,
-        status: "pending",
-        narration: narration || "N/A",
-        merchant_tx_ref: merchantTxRef,
-      })
-      .select("*")
-      .single();
+  const { data: pendingTx, error: txError } = await supabase
+  .from("transactions")
+  .insert({
+    user_id: userId,
+    type: "withdrawal",
+    sender: {
+      name: senderName || "User",
+      accountNumber: senderAccountNumber || "N/A",
+      bankName: senderBankName || "Zidwell Wallet",
+    },
+    receiver: {
+      name: accountName,
+      accountNumber,
+      bankName,
+      bankCode, 
+    },
+    amount: Number(amount),
+    fee: Number(fee || 0),
+    total_deduction: totalDeduction,
+    status: "pending",
+    narration: narration || "N/A",
+    merchant_tx_ref: merchantTxRef, 
+    reference: merchantTxRef, 
+    metadata: { 
+      bankCode,
+      accountNumber,
+      accountName,
+      initiated_at: new Date().toISOString()
+    }
+  })
+  .select("*")
+  .single();
 
     if (txError || !pendingTx) {
       console.error("Transaction creation error:", txError);

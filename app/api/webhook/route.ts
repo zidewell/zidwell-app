@@ -1017,99 +1017,203 @@ export async function POST(req: NextRequest) {
     if (isDepositEvent) {
       console.log("💰 Processing DEPOSIT transaction...");
 
-      // -------------------- SUBSCRIPTION HANDLING --------------------
-      const isSubscription =
-        orderReference?.includes("SUB-") ||
-        payload?.data?.order?.metadata?.type === "subscription";
+   // -------------------- SUBSCRIPTION HANDLING --------------------
+const isSubscription =
+  orderReference?.includes("SUB-") ||
+  payload?.data?.order?.metadata?.type === "subscription" ||
+  payload?.data?.order?.metadata?.isSubscription === true ||
+  payload?.data?.metadata?.subscription === true;
 
-      if (isSubscription) {
-        console.log("💰 Processing subscription payment...");
+if (isSubscription) {
+  console.log("💰 Processing subscription payment...");
 
-        const subscriptionId =
-          payload?.data?.order?.metadata?.subscriptionId ||
-          orderReference?.split("-")[1];
+  const subscriptionId =
+    payload?.data?.order?.metadata?.subscriptionId ||
+    payload?.data?.metadata?.subscriptionId ||
+    orderReference?.split("-")[1];
 
-        if (eventType === "payment_success" || txStatus === "success") {
-          // Update subscription status to active
-          const { error: updateError } = await supabase
-            .from("user_subscriptions")
-            .update({
-              status: "active",
-            })
-            .eq("id", subscriptionId);
+  const userId = 
+    payload?.data?.order?.metadata?.userId ||
+    payload?.data?.metadata?.userId ||
+    aliasAccountReference;
 
-          if (!updateError) {
-            console.log(`✅ Subscription activated: ${subscriptionId}`);
+  const planTier = 
+    payload?.data?.order?.metadata?.planTier ||
+    payload?.data?.metadata?.planTier ||
+    'growth';
 
-            // Update user's subscription tier
-            const planName = payload?.data?.order?.metadata?.planName;
-            const userId = payload?.data?.order?.metadata?.userId;
+  const isYearly = 
+    payload?.data?.order?.metadata?.isYearly ||
+    payload?.data?.metadata?.isYearly ||
+    false;
 
-            if (planName && userId) {
-              await supabase
-                .from("users")
-                .update({
-                  subscription_tier: planName
-                    .toLowerCase()
-                    .replace(/\s+/g, "_"),
-                  subscription_expires_at: new Date(
-                    new Date().getTime() + 30 * 24 * 60 * 60 * 1000
-                  ).toISOString(),
-                })
-                .eq("id", userId);
+  if (eventType === "payment_success" || txStatus === "success") {
+    console.log(`✅ Subscription payment successful for user ${userId}, plan: ${planTier}`);
 
-              console.log(`✅ User ${userId} updated to ${planName} tier`);
-            }
+    // Calculate expiration date (30 days from now for monthly, 365 for yearly)
+    const expiresAt = new Date();
+    if (isYearly) {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    } else {
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+    }
 
-            // Send confirmation email
-            const userEmail = payload?.data?.order?.customerEmail;
-            if (userEmail) {
-              try {
-                await fetch(`${baseUrl}/api/send-email`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    to: userEmail,
-                    subject: `🎉 Welcome to Zidwell ${planName}!`,
-                    message: `
-                <h2>Welcome to Zidwell ${planName}!</h2>
-                <p>Your subscription has been successfully activated and you now have access to all premium features.</p>
-                <p><strong>Plan:</strong> ${planName}</p>
-                <p><strong>Status:</strong> Active</p>
-                <p>Thank you for choosing Zidwell. We're excited to help you grow your business!</p>
-                <br>
-                <p>Best regards,<br>The Zidwell Team</p>
-              `,
-                  }),
-                });
-                console.log(
-                  `📧 Subscription confirmation email sent to ${userEmail}`
-                );
-              } catch (emailError) {
-                console.error("Failed to send subscription email:", emailError);
-              }
-            }
-          } else {
-            console.error("Failed to update subscription:", updateError);
-          }
-        } else if (eventType === "payment_failed" || txStatus === "failed") {
-          // Update subscription status to failed
-          await supabase
-            .from("user_subscriptions")
-            .update({
-              status: "failed",
-            })
-            .eq("id", subscriptionId);
+    // First, deactivate any existing active subscriptions
+    await supabase
+      .from('subscriptions')
+      .update({ status: 'cancelled' })
+      .eq('user_id', userId)
+      .eq('status', 'active');
 
-          console.log(`❌ Subscription payment failed: ${subscriptionId}`);
-        }
+    // Create new subscription record
+    const { data: subscription, error: subError } = await supabase
+      .from('subscriptions')
+      .insert({
+        user_id: userId,
+        tier: planTier,
+        status: 'active',
+        expires_at: expiresAt.toISOString(),
+        auto_renew: true,
+        payment_method: 'card',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-        // Return early since subscription is handled
-        return NextResponse.json({ success: true }, { status: 200 });
+    if (subError) {
+      console.error('❌ Failed to create subscription:', subError);
+    } else {
+      console.log(`✅ Subscription created: ${subscription.id}`);
+
+      // Update user's subscription tier
+      const { error: userError } = await supabase
+        .from('users')
+        .update({
+          subscription_tier: planTier,
+          subscription_expires_at: expiresAt.toISOString(),
+        })
+        .eq('id', userId);
+
+      if (userError) {
+        console.error('❌ Failed to update user subscription tier:', userError);
+      } else {
+        console.log(`✅ User ${userId} updated to ${planTier} tier`);
       }
-      // -------------------- END SUBSCRIPTION HANDLING --------------------
 
-      // -------------------- INVOICE PAYMENT HANDLING (CARD ONLY) --------------------
+      // Record the payment
+      const { error: paymentError } = await supabase
+        .from('subscription_payments')
+        .insert({
+          user_id: userId,
+          subscription_id: subscription.id,
+          amount: transactionAmount,
+          payment_method: 'card',
+          status: 'completed',
+          reference: nombaTransactionId || orderReference,
+          metadata: {
+            tier: planTier,
+            isYearly,
+            orderReference,
+            ...payload.data?.order?.metadata,
+          },
+          paid_at: new Date().toISOString(),
+        });
+
+      if (paymentError) {
+        console.error('Failed to record subscription payment:', paymentError);
+      }
+    }
+
+    // Send confirmation email
+    const userEmail = payload?.data?.order?.customerEmail || 
+                     payload?.data?.customer?.email;
+
+    if (userEmail) {
+      try {
+        await fetch(`${baseUrl}/api/send-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: userEmail,
+            subject: `🎉 Welcome to Zidwell ${planTier.charAt(0).toUpperCase() + planTier.slice(1)}!`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #C29307;">Welcome to Zidwell ${planTier.charAt(0).toUpperCase() + planTier.slice(1)}!</h2>
+                <p>Your subscription has been successfully activated and you now have access to all ${planTier} features.</p>
+                
+                <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0;">Subscription Details:</h3>
+                  <p><strong>Plan:</strong> ${planTier.charAt(0).toUpperCase() + planTier.slice(1)}</p>
+                  <p><strong>Billing:</strong> ${isYearly ? 'Yearly' : 'Monthly'}</p>
+                  <p><strong>Amount:</strong> ₦${transactionAmount.toLocaleString()}</p>
+                  <p><strong>Status:</strong> <span style="color: #22c55e;">Active</span></p>
+                  <p><strong>Renewal Date:</strong> ${expiresAt.toLocaleDateString()}</p>
+                </div>
+
+                <p>Thank you for choosing Zidwell. We're excited to help you grow your business!</p>
+                
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                <p style="color: #64748b;">Best regards,<br><strong>The Zidwell Team</strong></p>
+              </div>
+            `,
+          }),
+        });
+        console.log(`📧 Subscription confirmation email sent to ${userEmail}`);
+      } catch (emailError) {
+        console.error("Failed to send subscription email:", emailError);
+      }
+    }
+
+    // Create notification for user
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        title: '🎉 Subscription Activated',
+        message: `Your ${planTier} plan has been activated! You now have access to all premium features.`,
+        type: 'success',
+        channels: ['email'],
+      });
+
+    return NextResponse.json({ 
+      success: true, 
+      message: "Subscription activated successfully" 
+    }, { status: 200 });
+  } 
+  else if (eventType === "payment_failed" || txStatus === "failed") {
+    console.log(`❌ Subscription payment failed for user ${userId}`);
+
+    // Update subscription status to failed if it exists
+    if (subscriptionId) {
+      await supabase
+        .from('subscriptions')
+        .update({ 
+          status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', subscriptionId);
+    }
+
+    // Create notification for user
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        title: '❌ Subscription Payment Failed',
+        message: `Your subscription payment failed. Please update your payment method to continue enjoying premium features.`,
+        type: 'error',
+        channels: ['in_app', 'email'],
+      });
+
+    console.log(`❌ Subscription payment failed: ${subscriptionId}`);
+    return NextResponse.json({ 
+      success: false, 
+      message: "Subscription payment failed" 
+    }, { status: 200 });
+  }
+}
+// -------------------- END SUBSCRIPTION HANDLING --------------------
       const isInvoicePayment =
         orderReference ||
         payload?.data?.order?.callbackUrl?.includes(
