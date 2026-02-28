@@ -189,15 +189,12 @@
 //   }
 // }
 
-
-
+// app/api/withdraw/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { isAuthenticated } from "@/lib/auth-check-api";
-
-
 
 export async function POST(req: NextRequest) {
   const user = await isAuthenticated(req);
@@ -322,40 +319,80 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Generate merchant transaction reference (this will be used to match with webhook)
     const merchantTxRef = `WD_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-  const { data: pendingTx, error: txError } = await supabase
-  .from("transactions")
-  .insert({
-    user_id: userId,
-    type: "withdrawal",
-    sender: {
-      name: senderName || "User",
-      accountNumber: senderAccountNumber || "N/A",
-      bankName: senderBankName || "Zidwell Wallet",
-    },
-    receiver: {
-      name: accountName,
-      accountNumber,
-      bankName,
-      bankCode, 
-    },
-    amount: Number(amount),
-    fee: Number(fee || 0),
-    total_deduction: totalDeduction,
-    status: "pending",
-    narration: narration || "N/A",
-    merchant_tx_ref: merchantTxRef, 
-    reference: merchantTxRef, 
-    metadata: { 
-      bankCode,
-      accountNumber,
-      accountName,
-      initiated_at: new Date().toISOString()
-    }
-  })
-  .select("*")
-  .single();
+    // ✅ Insert pending transaction FIRST (before any deductions)
+    // Using external_response JSONB field to store additional data since there's no metadata column
+    const { data: pendingTx, error: txError } = await supabase
+      .from("transactions")
+      .insert({
+        user_id: userId,
+        type: "withdrawal",
+        sender: {
+          name: senderName || "User",
+          accountNumber: senderAccountNumber || "N/A",
+          bankName: senderBankName || "Zidwell Wallet",
+        },
+        receiver: {
+          name: accountName,
+          accountNumber,
+          bankName,
+          bankCode, // Store bank code for reference matching
+        },
+        amount: Number(amount),
+        fee: Number(fee || 0),
+        total_deduction: totalDeduction,
+        status: "pending",
+        narration: narration || "N/A",
+        // Store multiple reference fields
+        merchant_tx_ref: merchantTxRef, // Your reference
+        reference: merchantTxRef, // Also set reference field for consistency
+        
+        // Store all additional data in external_response JSONB
+        external_response: {
+          // Withdrawal details for matching
+          withdrawal_details: {
+            bank_code: bankCode,
+            account_number: accountNumber,
+            account_name: accountName,
+            bank_name: bankName,
+            amount: Number(amount),
+            narration: narration || "N/A",
+            merchant_tx_ref: merchantTxRef,
+            initiated_at: new Date().toISOString()
+          },
+          // Store all possible reference fields for webhook matching
+          references: {
+            merchant_tx_ref: merchantTxRef,
+            reference: merchantTxRef,
+            // Add any other reference patterns that might be useful
+            search_refs: [
+              merchantTxRef,
+              `WD_${Date.now()}`,
+              merchantTxRef.replace(/[^a-zA-Z0-9]/g, '') // Remove special chars
+            ]
+          },
+          // Store receiver details for fallback matching
+          receiver_details: {
+            account_number: accountNumber,
+            account_name: accountName,
+            bank_code: bankCode,
+            bank_name: bankName,
+            amount: Number(amount)
+          },
+          status: "pending",
+          created_at: new Date().toISOString(),
+          // Store any metadata needed
+          metadata: {
+            initiated_at: new Date().toISOString(),
+            user_id: userId,
+            sender_name: senderName || "User"
+          }
+        }
+      })
+      .select("*")
+      .single();
 
     if (txError || !pendingTx) {
       console.error("Transaction creation error:", txError);
@@ -368,6 +405,13 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    console.log("✅ Transaction created:", {
+      id: pendingTx.id,
+      merchant_tx_ref: pendingTx.merchant_tx_ref,
+      reference: pendingTx.reference,
+      external_response_keys: Object.keys(pendingTx.external_response || {})
+    });
 
     // ✅ NOW deduct wallet balance
     const { error: rpcError } = await supabase.rpc("deduct_wallet_balance", {
@@ -387,10 +431,14 @@ export async function POST(req: NextRequest) {
         .update({
           status: "failed",
           external_response: {
-            code: "500",
-            error: rpcError.message,
-            description: "Failed to deduct wallet balance",
-            stage: "wallet_deduction"
+            ...(pendingTx.external_response || {}),
+            error: {
+              code: "500",
+              message: rpcError.message,
+              description: "Failed to deduct wallet balance",
+              stage: "wallet_deduction",
+              timestamp: new Date().toISOString()
+            }
           }
         })
         .eq("id", pendingTx.id);
@@ -450,7 +498,6 @@ export async function POST(req: NextRequest) {
 
         if (refundError) {
           console.error("Critical: Failed to refund user after failed transfer:", refundError);
-          // Just log the error - manual intervention may be needed but no admin alert
         }
 
         // Map status code to appropriate response
@@ -508,6 +555,7 @@ export async function POST(req: NextRequest) {
             description: `Transfer failed: ${errorResponse.description}`,
             reference: nombaResponse.data?.id || null,
             external_response: {
+              ...(pendingTx.external_response || {}),
               ...nombaResponse,
               nomba_status: nombaStatus,
               error_code: errorResponse.code,
@@ -519,13 +567,11 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", pendingTx.id);
 
-      
-
         return NextResponse.json(errorResponse, { status: nombaStatus });
       }
 
       // ✅ Handle 200 Success
-      // Update transaction with success
+      // Update transaction with processing status
       await supabase
         .from("transactions")
         .update({
@@ -533,20 +579,26 @@ export async function POST(req: NextRequest) {
           description: `Transfer of ₦${amount} to ${accountName}`,
           reference: nombaResponse.data?.id || nombaResponse.data?.meta?.sessionId || null,
           external_response: {
+            ...(pendingTx.external_response || {}),
             ...nombaResponse,
             nomba_status: nombaStatus,
+            nomba_transaction_id: nombaResponse.data?.id,
             fee_breakdown: {
               amount: Number(amount),
               nomba_fee: nombaResponse.fee || 0,
               app_fee: Number(fee || 0),
               total_fee: (nombaResponse.fee || 0) + Number(fee || 0),
               total_deduction: totalDeduction
+            },
+            webhook_data: {
+              expected: true,
+              merchant_tx_ref: merchantTxRef,
+              sent_at: new Date().toISOString()
             }
           },
         })
         .eq("id", pendingTx.id);
 
-      // Send pending notification (will send success later via webhook)
       console.log(`✅ Transfer initiated successfully for transaction ${pendingTx.id}`);
 
       return NextResponse.json({
@@ -583,15 +635,18 @@ export async function POST(req: NextRequest) {
         amt: totalDeduction,
       });
 
-      
       await supabase
         .from("transactions")
         .update({
           status: "failed",
           description: "Transfer failed due to network error",
           external_response: {
-            error: fetchError.message,
-            code: "NETWORK_ERROR",
+            ...(pendingTx.external_response || {}),
+            error: {
+              message: fetchError.message,
+              code: "NETWORK_ERROR",
+              stack: process.env.NODE_ENV === "development" ? fetchError.stack : undefined
+            },
             refunded: true,
             refund_amount: totalDeduction,
             refund_reference: refundRef,
@@ -599,8 +654,6 @@ export async function POST(req: NextRequest) {
           },
         })
         .eq("id", pendingTx.id);
-
-   
 
       return NextResponse.json(
         { 
