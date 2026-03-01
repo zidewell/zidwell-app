@@ -43,6 +43,11 @@ const statusConfig: any = {
     className: "bg-red-100 text-red-800 border-red-200",
     dotColor: "bg-red-500"
   },
+  processing: { 
+    label: "Processing", 
+    className: "bg-blue-100 text-blue-800 border-blue-200",
+    dotColor: "bg-blue-500"
+  },
 };
 
 // Define transaction types that should show as positive amounts (incoming money)
@@ -95,18 +100,30 @@ const MobileCard = ({ tx, formatAmount, isEligibleForReceipt, isDownloadingRecei
   const amountInfo = formatAmount(tx);
   const isDownloading = isDownloadingReceipt(tx.id);
   const config = statusConfig[tx.status?.toLowerCase()] || statusConfig.pending;
+  
+  // Get description - check multiple locations
+  const description = tx.description || 
+                     tx.narration || 
+                     tx.external_response?.withdrawal_details?.narration ||
+                     tx.external_response?.data?.transaction?.narration ||
+                     "Transaction";
 
   return (
     <div className="border-b border-border p-4 last:border-0">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <p className="font-medium text-foreground">{tx.description}</p>
+          <p className="font-medium text-foreground">{description}</p>
           <p className="text-xs text-muted-foreground">
             {new Date(tx.created_at).toLocaleDateString()}
           </p>
+          {tx.reference && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Ref: {tx.reference.substring(0, 8)}...
+            </p>
+          )}
         </div>
         <span className={`font-semibold ${amountInfo.isOutflow ? "text-red-600" : "text-emerald-600"}`}>
-          {amountInfo.isOutflow ? "-" : "+"}{amountInfo.display}
+          {amountInfo.signedDisplay}
         </span>
       </div>
       
@@ -376,11 +393,18 @@ export default function TransactionHistory() {
       filter === "All transactions" ||
       tx.status?.toLowerCase() === filter.toLowerCase();
 
+    // Get description from multiple locations for search
+    const description = tx.description || 
+                       tx.narration || 
+                       tx.external_response?.withdrawal_details?.narration ||
+                       tx.external_response?.data?.transaction?.narration ||
+                       "";
+
     const matchesSearch =
       searchTerm === "" ||
-      tx.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tx.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tx.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (tx.reference?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
       tx.amount?.toString().includes(searchTerm);
 
     return matchesFilter && matchesSearch;
@@ -568,17 +592,12 @@ export default function TransactionHistory() {
     return outflowTypes.includes(transactionType?.toLowerCase());
   };
 
-  const getNarration = (transaction: any) => {
-    if (transaction.external_response?.data?.transaction?.narration) {
-      return transaction.external_response.data.transaction.narration;
-    }
-    if (transaction.narration) {
-      return transaction.narration;
-    }
-    if (transaction.description) {
-      return transaction.description;
-    }
-    return null;
+  const getDescription = (transaction: any) => {
+    return transaction.description || 
+           transaction.narration || 
+           transaction.external_response?.withdrawal_details?.narration ||
+           transaction.external_response?.data?.transaction?.narration ||
+           "Transaction";
   };
 
   const handleViewTransaction = (transaction: any) => {
@@ -590,51 +609,46 @@ export default function TransactionHistory() {
     setDownloadingReceipts((prev) => new Set(prev).add(transactionId));
 
     const amountInfo = formatAmount(transaction);
-    const narration = getNarration(transaction);
+    const description = getDescription(transaction);
 
-    const senderInfo = transaction.external_response?.data?.customer;
-    const receiverInfo = transaction.external_response?.data?.transaction;
+    // Extract sender and receiver info with fallback
+    const senderData = transaction.sender || {};
+    const receiverData = transaction.receiver || {};
+    const externalData = transaction.external_response || {};
 
-    const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
-    const isVirtualAccountDeposit =
-      transaction.type?.toLowerCase() === "virtual_account_deposit";
+    const displaySender = {
+      name: senderData.name || 
+            externalData?.withdrawal_details?.account_name || 
+            externalData?.data?.customer?.senderName || 
+            externalData?.metadata?.sender_name ||
+            "N/A",
+      accountNumber: senderData.accountNumber || 
+                    externalData?.withdrawal_details?.account_number || 
+                    externalData?.data?.customer?.accountNumber || 
+                    "N/A",
+      bankName: senderData.bankName || 
+               externalData?.withdrawal_details?.bank_name || 
+               externalData?.data?.customer?.bankName || 
+               "N/A",
+    };
 
-    let senderData, receiverData;
-
-    if (isWithdrawal) {
-      senderData = {
-        name: senderInfo?.senderName || "DIGITAL/Lohloh Abbalolo",
-        accountNumber: senderInfo?.accountNumber || "N/A",
-        bankName: senderInfo?.bankName || "N/A",
-      };
-      receiverData = {
-        name: senderInfo?.recipientName || "N/A",
-        accountNumber: senderInfo?.accountNumber || "N/A",
-        bankName: senderInfo?.bankName || "N/A",
-      };
-    } else if (isVirtualAccountDeposit) {
-      senderData = {
-        name: senderInfo?.senderName || "N/A",
-        accountNumber: senderInfo?.accountNumber || "N/A",
-        bankName: senderInfo?.bankName || "N/A",
-      };
-      receiverData = {
-        name: receiverInfo?.aliasAccountName || "DIGITAL/Lohloh Abbalolo",
-        accountNumber: receiverInfo?.aliasAccountNumber || "N/A",
-        reference: receiverInfo?.aliasAccountReference || "N/A",
-      };
-    } else {
-      senderData = {
-        name: transaction?.sender?.name || senderInfo?.senderName || "N/A",
-        accountNumber: transaction?.sender?.accountNumber || senderInfo?.accountNumber || "N/A",
-        bankName: transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
-      };
-      receiverData = {
-        name: transaction?.receiver?.name || receiverInfo?.aliasAccountName || "N/A",
-        accountNumber: transaction?.receiver?.accountNumber || receiverInfo?.aliasAccountNumber || "N/A",
-        reference: receiverInfo?.aliasAccountReference || "N/A",
-      };
-    }
+    const displayReceiver = {
+      name: receiverData.name || 
+            externalData?.receiver_details?.account_name || 
+            externalData?.data?.customer?.recipientName || 
+            externalData?.data?.transaction?.aliasAccountName ||
+            externalData?.data?.meta?.recipientName ||
+            "N/A",
+      accountNumber: receiverData.accountNumber || 
+                    externalData?.receiver_details?.account_number || 
+                    externalData?.data?.customer?.accountNumber || 
+                    externalData?.data?.transaction?.aliasAccountNumber ||
+                    "N/A",
+      bankName: receiverData.bankName || 
+               externalData?.receiver_details?.bank_name || 
+               externalData?.data?.customer?.bankName || 
+               "N/A",
+    };
 
     const receiptHTML = `
 <!DOCTYPE html>
@@ -677,13 +691,37 @@ export default function TransactionHistory() {
         <div class="details-card">
           <div class="detail-row">
             <span class="detail-label">Description</span>
-            <span class="detail-value">${transaction.description || "N/A"}</span>
+            <span class="detail-value">${description}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Status</span>
             <span class="detail-value" style="color:${transaction.status?.toLowerCase() === "success" ? "#059669" : transaction.status?.toLowerCase() === "pending" ? "#2563eb" : "#dc2626"}">${transaction.status}</span>
           </div>
           ${transaction.fee > 0 ? `<div class="detail-row"><span class="detail-label">Transaction Fee</span><span class="detail-value">₦${Number(transaction.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}</span></div>` : ""}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Sender Information</div>
+        <div class="details-card">
+          <div class="detail-row">
+            <span class="detail-label">Name</span>
+            <span class="detail-value">${displaySender.name}</span>
+          </div>
+          ${displaySender.accountNumber && displaySender.accountNumber !== "N/A" ? `<div class="detail-row"><span class="detail-label">Account Number</span><span class="detail-value">${displaySender.accountNumber}</span></div>` : ""}
+          ${displaySender.bankName && displaySender.bankName !== "N/A" ? `<div class="detail-row"><span class="detail-label">Bank Name</span><span class="detail-value">${displaySender.bankName}</span></div>` : ""}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Receiver Information</div>
+        <div class="details-card">
+          <div class="detail-row">
+            <span class="detail-label">Name</span>
+            <span class="detail-value">${displayReceiver.name}</span>
+          </div>
+          ${displayReceiver.accountNumber && displayReceiver.accountNumber !== "N/A" ? `<div class="detail-row"><span class="detail-label">Account Number</span><span class="detail-value">${displayReceiver.accountNumber}</span></div>` : ""}
+          ${displayReceiver.bankName && displayReceiver.bankName !== "N/A" ? `<div class="detail-row"><span class="detail-label">Bank Name</span><span class="detail-value">${displayReceiver.bankName}</span></div>` : ""}
         </div>
       </div>
 
@@ -736,7 +774,8 @@ export default function TransactionHistory() {
 
   const formatAmount = (transaction: any) => {
     const isOutflowTransaction = isOutflow(transaction.type);
-    const amount = Number(transaction.amount);
+    // Use the exact amount from the transaction, not total_deduction
+    const amount = Number(transaction.amount) || 0;
 
     return {
       display: formatCurrency(amount),
@@ -845,6 +884,7 @@ export default function TransactionHistory() {
                   <option value="All transactions">All transactions</option>
                   <option value="success">Success</option>
                   <option value="pending">Pending</option>
+                  <option value="processing">Processing</option>
                   <option value="failed">Failed</option>
                 </select>
               </div>
@@ -968,6 +1008,7 @@ export default function TransactionHistory() {
                   const amountInfo = formatAmount(tx);
                   const config = statusConfig[tx.status?.toLowerCase()] || statusConfig.pending;
                   const isDownloading = isDownloadingReceipt(tx.id);
+                  const description = getDescription(tx);
 
                   return (
                     <TableRow key={tx.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
@@ -975,7 +1016,7 @@ export default function TransactionHistory() {
                         {new Date(tx.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {tx.description}
+                        {description}
                         {tx.reference && (
                           <div className="text-xs text-muted-foreground mt-1">
                             Ref: {tx.reference}
@@ -983,7 +1024,7 @@ export default function TransactionHistory() {
                         )}
                       </TableCell>
                       <TableCell className={`text-right font-semibold ${amountInfo.isOutflow ? "text-red-600" : "text-emerald-600"}`}>
-                        {amountInfo.isOutflow ? "-" : "+"}{amountInfo.display}
+                        {amountInfo.signedDisplay}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
                         {tx.fee > 0 ? `₦${Number(tx.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}` : "—"}

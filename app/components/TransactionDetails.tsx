@@ -132,11 +132,12 @@ export default function TransactionDetailsPage() {
     return outflowTypes.includes(transactionType?.toLowerCase());
   };
 
-  // Function to format amount with proper sign
+  // Function to format amount with proper sign - NOW USING EXACT AMOUNT (NOT INCLUDING FEE)
   const formatAmount = (transaction: any) => {
     if (!transaction) return { display: "₦0.00", isOutflow: false, rawAmount: 0, signedDisplay: "₦0.00" };
     
     const isOutflowTransaction = isOutflow(transaction.type);
+    // Use the exact amount from the transaction, not total_deduction
     const amount = Number(transaction.amount) || 0;
 
     return {
@@ -169,6 +170,9 @@ export default function TransactionDetailsPage() {
     if (transaction.external_response?.withdrawal_details?.narration) {
       return transaction.external_response.withdrawal_details.narration;
     }
+    if (transaction.external_response?.data?.transaction?.narration) {
+      return transaction.external_response.data.transaction.narration;
+    }
     return null;
   };
 
@@ -180,10 +184,54 @@ export default function TransactionDetailsPage() {
     const amountInfo = formatAmount(transaction);
     const narration = getNarration(transaction);
 
-    // Extract sender and receiver from transaction object directly
+    // Extract sender and receiver with fallback to external_response
     const senderData = transaction.sender || {};
     const receiverData = transaction.receiver || {};
     const externalData = transaction.external_response || {};
+
+    // Get sender info with fallback
+    const displaySender = {
+      name: senderData.name || 
+            externalData?.withdrawal_details?.account_name || 
+            externalData?.data?.customer?.senderName || 
+            externalData?.metadata?.sender_name ||
+            "N/A",
+      accountNumber: senderData.accountNumber || 
+                    externalData?.withdrawal_details?.account_number || 
+                    externalData?.data?.customer?.accountNumber || 
+                    "N/A",
+      bankName: senderData.bankName || 
+               externalData?.withdrawal_details?.bank_name || 
+               externalData?.data?.customer?.bankName || 
+               "N/A",
+      bankCode: senderData.bankCode || 
+               externalData?.withdrawal_details?.bank_code || 
+               externalData?.data?.customer?.bankCode || 
+               "N/A"
+    };
+
+    // Get receiver info with fallback
+    const displayReceiver = {
+      name: receiverData.name || 
+            externalData?.receiver_details?.account_name || 
+            externalData?.data?.customer?.recipientName || 
+            externalData?.data?.transaction?.aliasAccountName ||
+            externalData?.data?.meta?.recipientName ||
+            "N/A",
+      accountNumber: receiverData.accountNumber || 
+                    externalData?.receiver_details?.account_number || 
+                    externalData?.data?.customer?.accountNumber || 
+                    externalData?.data?.transaction?.aliasAccountNumber ||
+                    "N/A",
+      bankName: receiverData.bankName || 
+               externalData?.receiver_details?.bank_name || 
+               externalData?.data?.customer?.bankName || 
+               "N/A",
+      bankCode: receiverData.bankCode || 
+               externalData?.receiver_details?.bank_code || 
+               externalData?.data?.customer?.bankCode || 
+               "N/A"
+    };
 
     // Create receipt HTML content
     const receiptHTML = `
@@ -401,21 +449,21 @@ export default function TransactionDetailsPage() {
           <div class="details-card">
             <div class="detail-row">
               <span class="detail-label">Name</span>
-              <span class="detail-value">${senderData.name || "N/A"}</span>
+              <span class="detail-value">${displaySender.name}</span>
             </div>
             ${
-              senderData.accountNumber
+              displaySender.accountNumber && displaySender.accountNumber !== "N/A"
                 ? `<div class="detail-row">
                     <span class="detail-label">Account Number</span>
-                    <span class="detail-value">${senderData.accountNumber}</span>
+                    <span class="detail-value">${displaySender.accountNumber}</span>
                   </div>`
                 : ""
             }
             ${
-              senderData.bankName
+              displaySender.bankName && displaySender.bankName !== "N/A"
                 ? `<div class="detail-row">
                     <span class="detail-label">Bank Name</span>
-                    <span class="detail-value">${senderData.bankName}</span>
+                    <span class="detail-value">${displaySender.bankName}</span>
                   </div>`
                 : ""
             }
@@ -428,29 +476,29 @@ export default function TransactionDetailsPage() {
           <div class="details-card">
             <div class="detail-row">
               <span class="detail-label">Name</span>
-              <span class="detail-value">${receiverData.name || "N/A"}</span>
+              <span class="detail-value">${displayReceiver.name}</span>
             </div>
             ${
-              receiverData.accountNumber
+              displayReceiver.accountNumber && displayReceiver.accountNumber !== "N/A"
                 ? `<div class="detail-row">
                     <span class="detail-label">Account Number</span>
-                    <span class="detail-value">${receiverData.accountNumber}</span>
+                    <span class="detail-value">${displayReceiver.accountNumber}</span>
                   </div>`
                 : ""
             }
             ${
-              receiverData.bankName
+              displayReceiver.bankName && displayReceiver.bankName !== "N/A"
                 ? `<div class="detail-row">
                     <span class="detail-label">Bank Name</span>
-                    <span class="detail-value">${receiverData.bankName}</span>
+                    <span class="detail-value">${displayReceiver.bankName}</span>
                   </div>`
                 : ""
             }
             ${
-              receiverData.bankCode
+              displayReceiver.bankCode && displayReceiver.bankCode !== "N/A"
                 ? `<div class="detail-row">
                     <span class="detail-label">Bank Code</span>
-                    <span class="detail-value">${receiverData.bankCode}</span>
+                    <span class="detail-value">${displayReceiver.bankCode}</span>
                   </div>`
                 : ""
             }
@@ -548,9 +596,55 @@ export default function TransactionDetailsPage() {
   const amountInfo = formatAmount(transaction);
   const narration = getNarration(transaction);
 
-  // Extract sender and receiver from transaction object directly
+  // Extract sender and receiver with fallback to external_response
   const senderData = transaction.sender || {};
   const receiverData = transaction.receiver || {};
+  const externalData = transaction.external_response || {};
+
+  // Get sender info with fallback
+  const displaySender = {
+    name: senderData.name || 
+          externalData?.withdrawal_details?.account_name || 
+          externalData?.data?.customer?.senderName || 
+          externalData?.metadata?.sender_name ||
+          "N/A",
+    accountNumber: senderData.accountNumber || 
+                  externalData?.withdrawal_details?.account_number || 
+                  externalData?.data?.customer?.accountNumber || 
+                  "N/A",
+    bankName: senderData.bankName || 
+             externalData?.withdrawal_details?.bank_name || 
+             externalData?.data?.customer?.bankName || 
+             "N/A",
+    bankCode: senderData.bankCode || 
+             externalData?.withdrawal_details?.bank_code || 
+             externalData?.data?.customer?.bankCode || 
+             "N/A"
+  };
+
+  // Get receiver info with fallback
+  const displayReceiver = {
+    name: receiverData.name || 
+          externalData?.receiver_details?.account_name || 
+          externalData?.data?.customer?.recipientName || 
+          externalData?.data?.transaction?.aliasAccountName ||
+          externalData?.data?.meta?.recipientName ||
+          "N/A",
+    accountNumber: receiverData.accountNumber || 
+                  externalData?.receiver_details?.account_number || 
+                  externalData?.data?.customer?.accountNumber || 
+                  externalData?.data?.transaction?.aliasAccountNumber ||
+                  "N/A",
+    bankName: receiverData.bankName || 
+             externalData?.receiver_details?.bank_name || 
+             externalData?.data?.customer?.bankName || 
+             "N/A",
+    bankCode: receiverData.bankCode || 
+             externalData?.receiver_details?.bank_code || 
+             externalData?.data?.customer?.bankCode || 
+             "N/A"
+  };
+
   const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
 
   return (
@@ -656,12 +750,12 @@ export default function TransactionDetailsPage() {
                 )}
 
                 {/* Sender Information */}
-                {senderData && Object.keys(senderData).length > 0 && (
+                {(displaySender.name !== "N/A" || displaySender.accountNumber !== "N/A") && (
                   <Card>
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                       <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                        Sender Information
+                        {isWithdrawal ? "From (Zidwell)" : "Sender Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -670,26 +764,26 @@ export default function TransactionDetailsPage() {
                           Name
                         </span>
                         <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                          {senderData.name || "N/A"}
+                          {displaySender.name}
                         </span>
                       </div>
-                      {senderData.accountNumber && (
+                      {displaySender.accountNumber && displaySender.accountNumber !== "N/A" && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-gray-600 text-sm sm:text-base">
                             Account Number
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                            {senderData.accountNumber}
+                            {displaySender.accountNumber}
                           </span>
                         </div>
                       )}
-                      {senderData.bankName && (
+                      {displaySender.bankName && displaySender.bankName !== "N/A" && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-gray-600 text-sm sm:text-base">
                             Bank Name
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                            {senderData.bankName}
+                            {displaySender.bankName}
                           </span>
                         </div>
                       )}
@@ -698,50 +792,50 @@ export default function TransactionDetailsPage() {
                 )}
 
                 {/* Receiver Information */}
-                {receiverData && Object.keys(receiverData).length > 0 && (
+                {(displayReceiver.name !== "N/A" || displayReceiver.accountNumber !== "N/A") && (
                   <Card>
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <Building className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                       <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                        Receiver Information
+                        {isWithdrawal ? "To (Recipient)" : "Receiver Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex flex-row justify-between gap-1 xs:gap-2">
                         <span className="text-gray-600 text-sm sm:text-base">
-                          Name
+                          {isWithdrawal ? "Recipient Name" : "Account Name"}
                         </span>
                         <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                          {receiverData.name || "N/A"}
+                          {displayReceiver.name}
                         </span>
                       </div>
-                      {receiverData.accountNumber && (
+                      {displayReceiver.accountNumber && displayReceiver.accountNumber !== "N/A" && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-gray-600 text-sm sm:text-base">
                             Account Number
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                            {receiverData.accountNumber}
+                            {displayReceiver.accountNumber}
                           </span>
                         </div>
                       )}
-                      {receiverData.bankName && (
+                      {displayReceiver.bankName && displayReceiver.bankName !== "N/A" && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-gray-600 text-sm sm:text-base">
                             Bank Name
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                            {receiverData.bankName}
+                            {displayReceiver.bankName}
                           </span>
                         </div>
                       )}
-                      {receiverData.bankCode && (
+                      {displayReceiver.bankCode && displayReceiver.bankCode !== "N/A" && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-gray-600 text-sm sm:text-base">
                             Bank Code
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                            {receiverData.bankCode}
+                            {displayReceiver.bankCode}
                           </span>
                         </div>
                       )}
