@@ -15,19 +15,20 @@ interface BlogSidebarProps {
   isSearching?: boolean;
 }
 
-interface BlogPost {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string | null;
-  featured_image: string | null;
-  author_name: string;
-  published_at: string | null;
-  created_at: string;
-  view_count: number;
-  likes_count: number;
-  categories: string[];
-}
+// interface BlogPost {
+//   id: string;
+//   author: string;
+//   title: string;
+//   slug: string;
+//   excerpt: string | null;
+//   featured_image: string | null;
+//   author_name: string;
+//   published_at: string | null;
+//   created_at: string;
+//   view_count: number;
+//   likes_count: number;
+//   categories: string[];
+// }
 
 interface BlogCategory {
   name: string;
@@ -158,7 +159,7 @@ const BlogSidebar = ({
   };
 
 
-  const getAuthorName = (post: BlogPost) => {
+  const getAuthorName = (post: any) => {
     if (post.author.name) return post.author.name;
     return 'Unknown Author';
   };
