@@ -227,21 +227,21 @@ export async function POST(req: NextRequest) {
       totalDebit,
     } = await req.json();
 
-    console.log({
-      userId,
-      senderName,
-      senderAccountNumber,
-      senderBankName,
-      amount,
-      accountNumber,
-      accountName,
-      bankName,
-      bankCode,
-      narration,
-      pin,
-      fee,
-      totalDebit,
-    })
+    // console.log({
+    //   userId,
+    //   senderName,
+    //   senderAccountNumber,
+    //   senderBankName,
+    //   amount,
+    //   accountNumber,
+    //   accountName,
+    //   bankName,
+    //   bankCode,
+    //   narration,
+    //   pin,
+    //   fee,
+    //   totalDebit,
+    // })
 
     // Validate required fields
     if (
