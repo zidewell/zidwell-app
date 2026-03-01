@@ -8,6 +8,7 @@ import { Skeleton } from "../../ui/skeleton";
 import Link from "next/link";
 import Swal from "sweetalert2";
 import { useBlog } from "@/app/context/BlogContext";
+import Image from "next/image";
 
 interface BlogSidebarProps {
   onSearch?: (query: string) => void;
@@ -41,6 +42,7 @@ const BlogSidebar = ({
   const [email, setEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
   
+ 
   // Get data from context
   const { 
     recentPosts, 
@@ -155,9 +157,9 @@ const BlogSidebar = ({
     }
   };
 
-  // Helper function to get author name
+
   const getAuthorName = (post: BlogPost) => {
-    if (post.author_name) return post.author_name;
+    if (post.author.name) return post.author.name;
     return 'Unknown Author';
   };
 
@@ -307,11 +309,13 @@ const BlogSidebar = ({
             {popularPosts.slice(0, 5).map((post:any) => (
               <Link
                 key={post.id}
-                href={`/blog/${post.slug}`}
+                href={`/blog/post-blog/${post.slug}`}
                 className="flex gap-3 group hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
               >
                 {post.featured_image ? (
-                  <img
+                 <Image
+                    width={200}
+                    height={200}
                     src={post.featured_image}
                     alt={post.title}
                     className="w-16 h-16 object-cover rounded shrink-0"
@@ -329,6 +333,7 @@ const BlogSidebar = ({
                   </h4>
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-xs text-muted-foreground">
+                   
                       {getAuthorName(post)}
                     </p>
                     <span className="text-xs text-gray-500">
