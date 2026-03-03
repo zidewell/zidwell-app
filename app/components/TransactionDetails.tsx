@@ -161,18 +161,15 @@ export default function TransactionDetailsPage() {
     if (transaction.narration) {
       return transaction.narration;
     }
-    if (transaction.description) {
-      return transaction.description;
+
+    
+    if (transaction.external_response?.data?.transaction?.narration) {
+      return transaction.external_response.data.transaction.narration;
     }
     if (transaction.external_response?.narration) {
       return transaction.external_response.narration;
     }
-    if (transaction.external_response?.withdrawal_details?.narration) {
-      return transaction.external_response.withdrawal_details.narration;
-    }
-    if (transaction.external_response?.data?.transaction?.narration) {
-      return transaction.external_response.data.transaction.narration;
-    }
+ 
     return null;
   };
 
@@ -646,6 +643,7 @@ export default function TransactionDetailsPage() {
   };
 
   const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
+
 
   return (
     <div className="min-h-screen bg-gray-50">

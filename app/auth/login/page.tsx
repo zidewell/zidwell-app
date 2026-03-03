@@ -291,93 +291,94 @@ const LoginForm = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
 
-    if (loading) return;
+  if (loading) return;
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      const res = await fetch("/api/login", {
+  try {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || "Invalid email or password");
+
+    const profile = result.profile;
+    const isVerified = result.isVerified;
+
+    if (!profile) throw new Error("User profile not found.");
+
+    if (profile) {
+      await fetch("/api/activity/last-login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          user_id: profile.id,
+          email: profile.email,
+        }),
       });
-
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Invalid email or password");
-
-      const profile = result.profile;
-      const isVerified = result.isVerified;
-
-      if (!profile) throw new Error("User profile not found.");
-
-      if (profile) {
-        await fetch("/api/activity/last-login", {
-          method: "POST",
-          body: JSON.stringify({
-            user_id: profile.id,
-            email: profile.email,
-          }),
-        });
-      }
-
-      // 2️⃣ Save profile locally
-      setUserData(profile);
-
-      localStorage.setItem("userData", JSON.stringify(profile));
-
-      // 3️⃣ Save verification state in a cookie (optional)
-      Cookies.set("verified", isVerified ? "true" : "false", {
-        expires: 7,
-        path: "/",
-      });
-
-      await sendLoginNotificationWithDeviceInfo(profile);
-
-      // 4️⃣ Show success and redirect
-      Swal.fire({
-        icon: "success",
-        title: "Login Successful",
-        text: "Welcome back!",
-        timer: 1500,
-        showConfirmButton: false,
-      }).then(() => {
-        // Decode the callback URL before redirecting
-        const decodedCallbackUrl = decodeURIComponent(callbackUrl);
-
-        if (fromLogin === "true") {
-          // User came from pricing component, redirect back with parameters
-          if (scrollToPricing === "true") {
-            // Redirect back to the original page with scroll parameters
-            router.push(
-              `${decodedCallbackUrl}?fromLogin=true&scrollToPricing=true`,
-            );
-          } else {
-            router.push(decodedCallbackUrl);
-          }
-        } else {
-          // Check if user is verified
-          if (!isVerified) {
-            // Unverified users go to onboarding
-            router.push("/onboarding");
-          } else {
-            // Verified users go to the callback URL or dashboard
-            router.push(decodedCallbackUrl);
-          }
-        }
-      });
-    } catch (err: any) {
-      Swal.fire({
-        icon: "error",
-        title: "Login Failed",
-        text: err.message || "Invalid email or password",
-      });
-    } finally {
-      setTimeout(() => setLoading(false), 3000);
     }
-  };
+
+    // 2️⃣ Save profile locally
+    setUserData(profile);
+
+    localStorage.setItem("userData", JSON.stringify(profile));
+
+    // 3️⃣ Save verification state in a cookie (optional)
+    Cookies.set("verified", isVerified ? "true" : "false", {
+      expires: 7,
+      path: "/",
+    });
+
+    // 4️⃣ Show success and redirect
+    Swal.fire({
+      icon: "success",
+      title: "Login Successful",
+      text: "Welcome back!",
+      timer: 1500,
+      showConfirmButton: false,
+    }).then(() => {
+      // Decode the callback URL before redirecting
+      const decodedCallbackUrl = decodeURIComponent(callbackUrl);
+
+      if (fromLogin === "true") {
+        // User came from pricing component, redirect back with parameters
+        if (scrollToPricing === "true") {
+          // Redirect back to the original page with scroll parameters
+          router.push(
+            `${decodedCallbackUrl}?fromLogin=true&scrollToPricing=true`,
+          );
+        } else {
+          router.push(decodedCallbackUrl);
+        }
+      } else {
+        // Check if user is verified
+        if (!isVerified) {
+          // Unverified users go to onboarding
+          router.push("/onboarding");
+        } else {
+          // Verified users go to the callback URL or dashboard
+          router.push(decodedCallbackUrl);
+        }
+      }
+      
+      // ✅ Send login notification AFTER redirect (not before)
+      sendLoginNotificationWithDeviceInfo(profile);
+    });
+  } catch (err: any) {
+    Swal.fire({
+      icon: "error",
+      title: "Login Failed",
+      text: err.message || "Invalid email or password",
+    });
+  } finally {
+    setTimeout(() => setLoading(false), 3000);
+  }
+};
 
   return (
     <div className="lg:flex lg:justify-between bg-gray-50 min-h-screen fade-in">
