@@ -1926,12 +1926,12 @@ export async function POST(req: NextRequest) {
                         {
                           user_id: invoice.user_id,
                           type: "virtual_account_deposit",
-                          amount: userAmount, // The amount user actually receives
+                          amount: userAmount, 
                           status: "success",
                           reference: nombaTransactionId || `VA-${Date.now()}`,
                           description: transactionDescription,
                           narration: `Payment received for Invoice #${invoice.invoice_id} via virtual account`,
-                          fee: platformFeeRounded, // Only platform fee, no Nomba fee
+                          fee: platformFeeRounded,
                           total_deduction: totalAmount, // Total amount deducted from payer
                           channel: "virtual_account",
                           sender: {
@@ -2121,21 +2121,21 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // ✅ DEPOSIT FEE CALCULATIONS
-      const amount = transactionAmount;
+     // ✅ DEPOSIT FEE CALCULATIONS
+const amount = transactionAmount;
 
-      // NO APP FEES FOR ANY PAYMENT METHOD
-      let ourAppFee = 0;
-      let totalFees = 0; // No fees for normal deposits
-      let netCredit = amount; // User gets full amount
-      const total_deduction = amount;
+// DEDUCT NOMBA FEE FOR VIRTUAL ACCOUNT DEPOSITS
+let ourAppFee = 0;
+let totalFees = isVirtualAccountDeposit ? nombaFee : 0; 
+let netCredit = amount - totalFees; 
+const total_deduction = amount;
 
-      console.log("💰 Deposit calculations (NO CHARGES):");
-      console.log("   - Amount:", amount);
-      console.log("   - Nomba's fee:", nombaFee, "(absorbed by platform)");
-      console.log("   - Our app fee:", ourAppFee);
-      console.log("   - Total fees:", totalFees);
-      console.log("   - Net credit to user:", netCredit);
+console.log("💰 Deposit calculations (WITH NOMBA FEE DEDUCTION):");
+console.log("   - Amount:", amount);
+console.log("   - Nomba's fee:", nombaFee, "(deducted from user)");
+console.log("   - Our app fee:", ourAppFee);
+console.log("   - Total fees:", totalFees);
+console.log("   - Net credit to user:", netCredit);
 
       // Idempotency: check existing transaction by reference or merchant_tx_ref
       const { data: existingTx, error: existingErr } = await supabase
