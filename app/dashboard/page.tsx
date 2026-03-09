@@ -131,10 +131,10 @@ export default function DashboardPage() {
             {/* Balance Section */}
             <BalanceCard />
 
-            {/* Usage Summary for Free Tier */}
+            {/* Usage Summary for Free Tier
             {userTier === 'free' && !loading && usage && (
               <UsageSummary usage={usage} onRefresh={refreshUsage} />
-            )}
+            )} */}
 
             {/* Service Cards with refresh capability */}
             <div>
