@@ -1140,7 +1140,7 @@ const processPaymentAndSubmit = async () => {
 
   return (
     <>
-      {/* Only render PinPopOver when PIN is required AND the popup should be open */}
+  
       {requiresPinConfirmation() && (
         <PinPopOver
           setIsOpen={(newValue: boolean) => {

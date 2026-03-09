@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Simple cache for frequent user queries
+// Simple cache for frequent userm  queries
 const userCache = new Map();
 const USER_CACHE_TTL = 30 * 1000; // 30 seconds
 

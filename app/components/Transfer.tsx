@@ -90,7 +90,7 @@ export default function Transfer() {
   const [search, setSearch] = useState("");
   const [calculatedFee, setCalculatedFee] = useState(0);
   const [totalDebit, setTotalDebit] = useState(0);
-
+  const [pinError, setPinError] = useState<string | null>(null);
   // New states for saved accounts
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
   const [saveAccount, setSaveAccount] = useState(false);
@@ -149,7 +149,7 @@ export default function Transfer() {
 
   // Filter banks dynamically
   const filteredBanks = banks.filter((bank) =>
-    bank.name.toLowerCase().includes(search.toLowerCase())
+    bank.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   // Handle bank selection
@@ -253,7 +253,6 @@ export default function Transfer() {
     return () => clearTimeout(timeout);
   }, [accountNumber, bankCode, transferType]);
 
-
   // Handle P2P lookup
   useEffect(() => {
     if (transferType !== "p2p") return;
@@ -305,9 +304,6 @@ export default function Transfer() {
     return () => clearTimeout(timeout);
   }, [recepientAcc, transferType]);
 
-
-
-
   // Handle saved account selection
   const handleSelectSavedAccount = (account: SavedAccount) => {
     setSelectedSavedAccount(account);
@@ -320,7 +316,9 @@ export default function Transfer() {
   };
 
   // Handle saved P2P beneficiary selection
-  const handleSelectSavedP2PBeneficiary = (beneficiary: SavedP2PBeneficiary) => {
+  const handleSelectSavedP2PBeneficiary = (
+    beneficiary: SavedP2PBeneficiary,
+  ) => {
     setSelectedSavedP2PBeneficiary(beneficiary);
     setRecepientAcc(beneficiary.account_number);
     setP2pDetails({
@@ -333,7 +331,7 @@ export default function Transfer() {
 
   // Handle account number change
   const handleAccountNumberChange = (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const newValue = e.target.value;
     setAccountNumber(newValue);
@@ -351,7 +349,7 @@ export default function Transfer() {
 
   // Handle P2P account number change
   const handleP2PAccountNumberChange = (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const newValue = e.target.value;
     setRecepientAcc(newValue);
@@ -471,7 +469,7 @@ export default function Transfer() {
     }
   };
 
-  const performTransfer = async () => {
+  const performTransfer = async (submittedPin: string) => {
     setLoading(true);
 
     try {
@@ -482,8 +480,8 @@ export default function Transfer() {
         senderBankName: userDetails.bank_details.bank_name,
         amount: Number(amount),
         narration,
+        pin: submittedPin, // Use the submitted PIN
         type: transferType,
-        pin,
         fee: calculatedFee,
         totalDebit,
       };
@@ -519,18 +517,26 @@ export default function Transfer() {
 
       if (res.ok) {
         // Save account/beneficiary if requested
-        if (saveAccount && !selectedSavedAccount && transferType === "other-bank") {
+        if (
+          saveAccount &&
+          !selectedSavedAccount &&
+          transferType === "other-bank"
+        ) {
           await saveAccountToProfile();
         }
 
-        if (saveP2PBeneficiary && !selectedSavedP2PBeneficiary && transferType === "p2p") {
+        if (
+          saveP2PBeneficiary &&
+          !selectedSavedP2PBeneficiary &&
+          transferType === "p2p"
+        ) {
           await saveP2PBeneficiaryToProfile();
         }
 
         // Trigger confetti animation
         triggerConfetti();
 
-        Swal.fire({
+        await Swal.fire({
           icon: "success",
           title: "Transfer Successful! 🎉",
           text: "Your transaction has been processed successfully.",
@@ -549,11 +555,6 @@ export default function Transfer() {
               });
             }, 100);
           },
-        }).then((result) => {
-          if (result.isConfirmed) {
-            window.location.reload();
-          }
-          window.location.reload();
         });
 
         // Reset form
@@ -570,24 +571,62 @@ export default function Transfer() {
         setSaveP2PBeneficiary(false);
         setSelectedSavedAccount(null);
         setSelectedSavedP2PBeneficiary(null);
+
+        // Return success
+        return { success: true };
       } else {
-        Swal.fire({
+        // Check if it's a PIN error
+        const errorMessage =
+          data?.reason || data?.message || "Transfer failed.";
+
+        // If it's a PIN error, throw it to be caught by the PIN popup
+        if (
+          errorMessage.toLowerCase().includes("pin") ||
+          errorMessage.toLowerCase().includes("transaction pin")
+        ) {
+          throw new Error(errorMessage);
+        }
+
+        // For other errors, show Swal and set form errors
+        await Swal.fire({
           icon: "error",
           title: "Transfer Failed",
-          text: data?.reason || data?.message || "Transfer failed.",
+          text: errorMessage,
         });
 
         setErrors({
-          form: data?.reason || data?.message || "Transfer failed.",
+          form: errorMessage,
         });
+
+        // Return error but don't throw (so PIN popup closes)
+        return { success: false, error: errorMessage };
       }
     } catch (err: any) {
-      Swal.fire({
+      // Always set loading to false first
+      setLoading(false);
+
+      // Clear the PIN in state
+      setPin(Array(inputCount).fill(""));
+
+      // Re-throw PIN errors to be handled by PinPopOver
+      if (
+        err?.message?.toLowerCase().includes("pin") ||
+        err?.message?.toLowerCase().includes("transaction pin")
+      ) {
+        throw err; // This will be caught by the PIN popup's onConfirm
+      }
+
+      // For other errors, show Swal
+      await Swal.fire({
         icon: "error",
         title: "Something went wrong",
         text: err?.message || "Please try again later.",
       });
+
       setErrors({ form: err?.message || "Something went wrong." });
+
+      // Return error object instead of throwing
+      return { success: false, error: err?.message };
     } finally {
       setLoading(false);
     }
@@ -653,15 +692,15 @@ export default function Transfer() {
       (!bankCode || !accountNumber || !accountName)) ||
     (transferType === "p2p" && (!recepientAcc || !p2pDetails?.id));
 
-const getPaymentMethod = (): PaymentMethod => {
-  if (transferType === "p2p") {
-    return "p2p";
-  }
-  if (transferType === "my-account" || transferType === "other-bank") {
+  const getPaymentMethod = (): PaymentMethod => {
+    if (transferType === "p2p") {
+      return "p2p";
+    }
+    if (transferType === "my-account" || transferType === "other-bank") {
+      return "bank_transfer";
+    }
     return "bank_transfer";
-  }
-  return "bank_transfer";
-};
+  };
   return (
     <>
       <PinPopOver
@@ -670,18 +709,34 @@ const getPaymentMethod = (): PaymentMethod => {
         pin={pin}
         setPin={setPin}
         inputCount={inputCount}
-        onConfirm={() => {
-          if (!pin || pin.length !== 4) {
-            Swal.fire({
-              icon: "error",
-              title: "Invalid PIN",
-              text: "PIN must be 4 digits",
-            });
-            return;
-          }
+        error={pinError}
+        onClearError={() => setPinError(null)}
+        onConfirm={async (code) => {
+          try {
+            setPinError(null);
+            const result = await performTransfer(code);
 
-          setIsOpen(false);
-          performTransfer();
+            if (result?.success) {
+              // Success - close popup and reset
+              setIsOpen(false);
+              setPin(Array(inputCount).fill(""));
+            } else if (result?.error) {
+              // Handle non-PIN errors
+              if (!result.error.toLowerCase().includes("pin")) {
+                // Close popup for non-PIN errors
+                setIsOpen(false);
+                setPin(Array(inputCount).fill(""));
+              } else {
+                // Set PIN error for retry
+                setPinError(result.error);
+              }
+            }
+          } catch (error: any) {
+            // Handle PIN errors (these are thrown)
+            setPinError(error?.message || "Invalid PIN. Please try again.");
+            setPin(Array(inputCount).fill(""));
+            // Don't close popup on PIN error
+          }
         }}
       />
       <Card className="shadow-xl border rounded-2xl">
@@ -740,7 +795,7 @@ const getPaymentMethod = (): PaymentMethod => {
                   }}
                 />
               )}
-              
+
               {errors.amount && (
                 <p className="text-red-600 text-sm">{errors.amount}</p>
               )}
@@ -879,7 +934,7 @@ const getPaymentMethod = (): PaymentMethod => {
                                     "mr-2 h-4 w-4",
                                     bankCode === bank.code
                                       ? "opacity-100"
-                                      : "opacity-0"
+                                      : "opacity-0",
                                   )}
                                 />
                                 {bank.name}
@@ -967,7 +1022,11 @@ const getPaymentMethod = (): PaymentMethod => {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setShowSavedP2PBeneficiaries(!showSavedP2PBeneficiaries)}
+                        onClick={() =>
+                          setShowSavedP2PBeneficiaries(
+                            !showSavedP2PBeneficiaries,
+                          )
+                        }
                         className="flex items-center gap-1"
                       >
                         <User className="h-4 w-4" />
@@ -980,7 +1039,9 @@ const getPaymentMethod = (): PaymentMethod => {
                         {savedP2PBeneficiaries.map((beneficiary) => (
                           <div
                             key={beneficiary.id}
-                            onClick={() => handleSelectSavedP2PBeneficiary(beneficiary)}
+                            onClick={() =>
+                              handleSelectSavedP2PBeneficiary(beneficiary)
+                            }
                             className={`p-2 rounded cursor-pointer transition-colors ${
                               selectedSavedP2PBeneficiary?.id === beneficiary.id
                                 ? "bg-purple-100 border border-purple-300"
@@ -1018,7 +1079,9 @@ const getPaymentMethod = (): PaymentMethod => {
                     placeholder="0234******"
                   />
                   {errors.recepientAcc && (
-                    <p className="text-red-600 text-sm">{errors.recepientAcc}</p>
+                    <p className="text-red-600 text-sm">
+                      {errors.recepientAcc}
+                    </p>
                   )}
                   {lookupLoading && (
                     <p className="text-[#C29307] text-sm flex items-center gap-2">
@@ -1043,7 +1106,9 @@ const getPaymentMethod = (): PaymentMethod => {
                               <input
                                 type="checkbox"
                                 checked={saveP2PBeneficiary}
-                                onChange={(e) => setSaveP2PBeneficiary(e.target.checked)}
+                                onChange={(e) =>
+                                  setSaveP2PBeneficiary(e.target.checked)
+                                }
                                 className="sr-only peer"
                               />
                               <div
@@ -1090,50 +1155,50 @@ const getPaymentMethod = (): PaymentMethod => {
           </form>
         </CardContent>
       </Card>
-     <TransactionSummary
-  senderName={`${userData?.fullName}`}
-  senderAccount={userDetails?.bank_details?.bank_account_number || "N/A"}
-  recipientName={
-    // For P2P: use p2pDetails.name
-    // For other-bank: use accountName (from bank lookup)
-    // For my-account: use your own payment details
-    transferType === "p2p"
-      ? p2pDetails?.name
-      : transferType === "other-bank"
-      ? accountName
-      : userDetails?.payment_details?.p_account_name
-  }
-  recipientAccount={
-    // For P2P: use recepientAcc
-    // For other-bank: use accountNumber
-    // For my-account: use your own account number
-    transferType === "p2p"
-      ? recepientAcc
-      : transferType === "other-bank"
-      ? accountNumber
-      : userDetails?.payment_details?.p_account_number
-  }
-  recipientBank={
-    // For P2P: always show "Zidwell"
-    // For other-bank: use bankName (selected bank)
-    // For my-account: use your own bank name
-    transferType === "p2p"
-      ? "Zidwell"
-      : transferType === "other-bank"
-      ? bankName
-      : userDetails?.payment_details?.p_bank_name
-  }
-  purpose={narration}
-  amount={amount}
-  confirmTransaction={confirmTransaction}
-  onBack={() => setConfirmTransaction(false)}
-  onConfirm={() => {
-    setConfirmTransaction(false);
-    setIsOpen(true);
-  }}
-  paymentMethod={getPaymentMethod()}
-  isP2P={transferType === "p2p"}
-/>
+      <TransactionSummary
+        senderName={`${userData?.fullName}`}
+        senderAccount={userDetails?.bank_details?.bank_account_number || "N/A"}
+        recipientName={
+          // For P2P: use p2pDetails.name
+          // For other-bank: use accountName (from bank lookup)
+          // For my-account: use your own payment details
+          transferType === "p2p"
+            ? p2pDetails?.name
+            : transferType === "other-bank"
+              ? accountName
+              : userDetails?.payment_details?.p_account_name
+        }
+        recipientAccount={
+          // For P2P: use recepientAcc
+          // For other-bank: use accountNumber
+          // For my-account: use your own account number
+          transferType === "p2p"
+            ? recepientAcc
+            : transferType === "other-bank"
+              ? accountNumber
+              : userDetails?.payment_details?.p_account_number
+        }
+        recipientBank={
+          // For P2P: always show "Zidwell"
+          // For other-bank: use bankName (selected bank)
+          // For my-account: use your own bank name
+          transferType === "p2p"
+            ? "Zidwell"
+            : transferType === "other-bank"
+              ? bankName
+              : userDetails?.payment_details?.p_bank_name
+        }
+        purpose={narration}
+        amount={amount}
+        confirmTransaction={confirmTransaction}
+        onBack={() => setConfirmTransaction(false)}
+        onConfirm={() => {
+          setConfirmTransaction(false);
+          setIsOpen(true);
+        }}
+        paymentMethod={getPaymentMethod()}
+        isP2P={transferType === "p2p"}
+      />
     </>
   );
 }
