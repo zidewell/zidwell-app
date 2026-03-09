@@ -653,6 +653,7 @@ export async function GET(req: NextRequest) {
 
     const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin', 'legal_admin'];
     if (!allowedRoles.includes(adminUser?.admin_role)) {
+   
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -753,6 +754,7 @@ export async function POST(req: NextRequest) {
 
     const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin', 'legal_admin'];
     if (!allowedRoles.includes(adminUser?.admin_role)) {
+         console.log(adminUser?.admin_role)
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 

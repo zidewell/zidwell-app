@@ -123,8 +123,8 @@ export default function ProfileSettings() {
                 />
               ) : (
                 <div className="w-24 h-24 bg-linear-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                  {userData?.firstName?.charAt(0).toUpperCase()}
-                  {userData?.lastName?.charAt(0).toUpperCase()}
+                  {userData?.fullName?.charAt(0).toUpperCase()}
+                 
                 </div>
               )}
 
@@ -146,9 +146,9 @@ export default function ProfileSettings() {
               />
             </div>
             <div className="text-center md:text-left flex-1">
-              {userData && (userData?.firstName || userData?.lastName) ? (
+              {userData && (userData?.fullName) ? (
                 <h2 className="text-xl text-center md:text-start w-full font-bold text-gray-900">
-                  {`${userData.firstName} ${userData.lastName}`}
+                  {`${userData.fullName}`}
                 </h2>
               ) : null}
               {/* <p className="text-gray-600">{userData}</p> */}

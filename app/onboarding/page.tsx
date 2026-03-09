@@ -140,8 +140,7 @@ export default function Page() {
       if (user?.id && typeof window !== "undefined") {
         const userInfo = {
           id: user.id,
-          firstName: user.first_name,
-          lastName: user.last_name,
+          fullName: user.full_name,
           email: user.email,
           phone: user.phone,
           dob: user.date_of_birth,

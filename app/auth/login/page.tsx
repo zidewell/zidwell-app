@@ -242,7 +242,7 @@
 //       <LoginForm />
 //     </Suspense>
 //   );
-// }
+// }"use client";
 
 "use client";
 import Swal from "sweetalert2";
@@ -261,7 +261,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/app/components/ui/card";
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useUserContextData } from "@/app/context/userData";
 
 import Carousel from "@/app/components/Carousel";
@@ -274,6 +274,7 @@ const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
+  const [buttonDisabled, setButtonDisabled] = useState(false);
   const { setUserData } = useUserContextData();
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
@@ -291,99 +292,102 @@ const LoginForm = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
+  const disableButtonFor5Seconds = () => {
+    setButtonDisabled(true);
+    setTimeout(() => {
+      setButtonDisabled(false);
+    }, 5000); // 5 seconds
+  };
 
-  if (loading) return;
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
 
-  setLoading(true);
+    if (loading || buttonDisabled) return;
 
-  try {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    setLoading(true);
+    disableButtonFor5Seconds();
 
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error || "Invalid email or password");
-
-    const profile = result.profile;
-    const isVerified = result.isVerified;
-
-    if (!profile) throw new Error("User profile not found.");
-
-    if (profile) {
-      await fetch("/api/activity/last-login", {
+    try {
+      const res = await fetch("/api/login", {
         method: "POST",
-        body: JSON.stringify({
-          user_id: profile.id,
-          email: profile.email,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
-    }
 
-    // 2️⃣ Save profile locally
-    setUserData(profile);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Invalid email or password");
 
-    localStorage.setItem("userData", JSON.stringify(profile));
+      const profile = result.profile;
+      const isVerified = result.isVerified;
 
-    // 3️⃣ Save verification state in a cookie (optional)
-    Cookies.set("verified", isVerified ? "true" : "false", {
-      expires: 7,
-      path: "/",
-    });
+      if (!profile) throw new Error("User profile not found.");
 
-    // 4️⃣ Show success and redirect
-    Swal.fire({
-      icon: "success",
-      title: "Login Successful",
-      text: "Welcome back!",
-      timer: 1500,
-      showConfirmButton: false,
-    }).then(() => {
-      // Decode the callback URL before redirecting
-      const decodedCallbackUrl = decodeURIComponent(callbackUrl);
-
-      if (fromLogin === "true") {
-        // User came from pricing component, redirect back with parameters
-        if (scrollToPricing === "true") {
-          // Redirect back to the original page with scroll parameters
-          router.push(
-            `${decodedCallbackUrl}?fromLogin=true&scrollToPricing=true`,
-          );
-        } else {
-          router.push(decodedCallbackUrl);
-        }
-      } else {
-        // Check if user is verified
-        if (!isVerified) {
-          // Unverified users go to onboarding
-          router.push("/onboarding");
-        } else {
-          // Verified users go to the callback URL or dashboard
-          router.push(decodedCallbackUrl);
-        }
+      if (profile) {
+        await fetch("/api/activity/last-login", {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: profile.id,
+            email: profile.email,
+          }),
+        });
       }
-      
-      // ✅ Send login notification AFTER redirect (not before)
-      sendLoginNotificationWithDeviceInfo(profile);
-    });
-  } catch (err: any) {
-    Swal.fire({
-      icon: "error",
-      title: "Login Failed",
-      text: err.message || "Invalid email or password",
-    });
-  } finally {
-    setTimeout(() => setLoading(false), 3000);
-  }
-};
+
+      // 2️⃣ Save profile locally
+      setUserData(profile);
+
+      localStorage.setItem("userData", JSON.stringify(profile));
+
+      // 3️⃣ Save verification state in a cookie (optional)
+      Cookies.set("verified", isVerified ? "true" : "false", {
+        expires: 7,
+        path: "/",
+      });
+
+      // 4️⃣ Show success and redirect
+      Swal.fire({
+        icon: "success",
+        title: "Login Successful",
+        text: "Welcome back!",
+        timer: 1500,
+        showConfirmButton: false,
+      }).then(() => {
+        // Decode the callback URL before redirecting
+        const decodedCallbackUrl = decodeURIComponent(callbackUrl);
+
+        if (fromLogin === "true") {
+          // User came from pricing component, redirect back with parameters
+          if (scrollToPricing === "true") {
+            // Redirect back to the original page with scroll parameters
+            router.push(
+              `${decodedCallbackUrl}?fromLogin=true&scrollToPricing=true`,
+            );
+          } else {
+            router.push(decodedCallbackUrl);
+          }
+        } else {
+          // ✅ ALL USERS GO TO DASHBOARD - REMOVED ONBOARDING REDIRECT
+          router.push(decodedCallbackUrl);
+        }
+
+        // ✅ Send login notification AFTER redirect (not before)
+        sendLoginNotificationWithDeviceInfo(profile);
+      });
+    } catch (err: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Login Failed",
+        text: err.message || "Invalid email or password",
+      });
+    } finally {
+      setLoading(false);
+      // Note: buttonDisabled will be automatically reset after 5 seconds by the timeout
+    }
+  };
 
   return (
     <div className="lg:flex lg:justify-between bg-gray-50 min-h-screen fade-in">
       <div
-        className="lg:w-[50%] min-h-screen md:h-full flex justify-center md:items-start items-center px-6 md:py-8 fade-in bg-cover bg-center"
+        className="lg:w-[50%] min-h-screen md:h-full flex justify-center md:items-start items-center px-6 md:py-8 fade-in bg-cover bg-center relative"
         style={
           isMobile
             ? {
@@ -394,6 +398,16 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
             : {}
         }
       >
+        {/* Back Button - Outside Card */}
+        <Button
+          onClick={() => window.history.back()}
+          variant="outline"
+          className="absolute top-4 left-4 md:top-8 md:left-8 hover:bg-white/20 transition-colors z-10 cursor-pointer"
+          aria-label="Go back"
+        >
+          <ArrowLeft />
+        </Button>
+
         <Card className="w-full max-w-md h-full">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center mb-4">
@@ -419,6 +433,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={loading || buttonDisabled}
                 />
                 {errors.email && (
                   <p className="text-sm text-red-500">{errors.email}</p>
@@ -434,11 +449,13 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={loading || buttonDisabled}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    disabled={loading || buttonDisabled}
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
@@ -453,6 +470,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
                     type="checkbox"
                     id="remember"
                     className="h-4 w-4 text-primary border-gray-300 rounded"
+                    disabled={loading || buttonDisabled}
                   />
                   <Label htmlFor="remember" className="text-sm">
                     Remember me
@@ -468,9 +486,59 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
               <Button
                 type="submit"
                 className="bg-[#C29307] w-full"
-                disabled={loading}
+                disabled={loading || buttonDisabled}
               >
-                {loading ? "Signing In..." : "Sign In"}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Signing In...
+                  </span>
+                ) : buttonDisabled ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Please wait 5s...
+                  </span>
+                ) : (
+                  "Sign In"
+                )}
               </Button>
             </form>
 

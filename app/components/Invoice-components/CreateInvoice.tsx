@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { JSX, Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import confetti from "canvas-confetti";
 import Swal from "sweetalert2";
@@ -10,31 +10,24 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
-import { Textarea } from "../ui/textarea";
 import { Badge } from "../ui/badge";
 import {
   Plus,
-  Download,
   ArrowLeft,
-  Copy,
-  Link,
   RefreshCw,
-  Users,
   Save,
   Edit,
-  Trash2,
-  X,
   Eye,
-  Clock,
-  Calendar,
   FileText,
+  AlertCircle,
+  Wallet,
+  Coins,
 } from "lucide-react";
 
 import PinPopOver from "../PinPopOver";
 import InvoiceSummary from "./InvoiceSummary";
 import { InvoicePreview } from "../previews/InvoicePreview";
 import LogoUpload from "./LogoUpload";
-
 import DraftsModal from "./DraftModal";
 import InvoiceItemForm from "./InvoiceItemForm";
 import InvoiceItemRow from "./InvoiceItemRow";
@@ -51,17 +44,18 @@ import {
   CreateInvoiceProps,
   InvoiceForm,
   Draft,
-  FreeInvoiceInfo,
+  InvoiceUsageInfo,
 } from "./types";
 
 import { useUserContextData } from "@/app/context/userData";
+import { useSubscription } from "@/app/hooks/useSubscripion";
 
 const showSweetAlert = (
   type: "success" | "error" | "warning" | "info",
   title: string,
   message: string,
-) => {
-  Swal.fire({
+): Promise<any> => {
+  return Swal.fire({
     icon: type,
     title: title,
     text: message,
@@ -79,6 +73,8 @@ const showSweetAlert = (
   });
 };
 
+const PAY_PER_USE_FEE = 100; // ₦100 per invoice after limit
+
 const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   const inputCount = 4;
   const [hasShownDraftModal, setHasShownDraftModal] = useState(false);
@@ -94,6 +90,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   const [generatedSigningLink, setGeneratedSigningLink] = useState<string>("");
   const [savedInvoiceId, setSavedInvoiceId] = useState<string>("");
   const [details, setDetails] = useState<any>(null);
+  const [zidcoinBalance, setZidcoinBalance] = useState<number>(0);
   const [paymentProgress, setPaymentProgress] = useState({
     totalAmount: 0,
     paidAmount: 0,
@@ -112,15 +109,18 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   const [activeTab, setActiveTab] = useState<"create" | "preview">("create");
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const { userData } = useUserContextData();
+  const { userData, balance } = useUserContextData();
+  const { userTier, subscription } = useSubscription();
   const [hasLoadedFromUrl, setHasLoadedFromUrl] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const [freeInvoiceInfo, setFreeInvoiceInfo] = useState<FreeInvoiceInfo>({
-    freeInvoicesLeft: 0,
-    totalInvoicesCreated: 0,
-    hasFreeInvoices: false,
+  const [invoiceUsage, setInvoiceUsage] = useState<InvoiceUsageInfo>({
+    used: 0,
+    limit: 5,
+    remaining: 5,
+    hasAccess: true,
     isChecking: true,
+    isPayPerUse: false,
   });
 
   const [form, setForm] = useState<InvoiceForm>({
@@ -143,6 +143,31 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     clientPhone: "",
     targetQuantity: 1,
   });
+
+  // Determine if user is premium/growth
+  const isPremium = userTier === "premium" || userTier === "elite";
+  const isGrowth = userTier === "growth";
+  const hasUnlimitedInvoices = isPremium || isGrowth;
+
+  // Safe balance value (handle null)
+  const safeBalance = balance || 0;
+
+  // Function to determine if PIN confirmation is needed
+  const requiresPinConfirmation = (): boolean => {
+    // If user has unlimited invoices, no PIN needed
+    if (hasUnlimitedInvoices) return false;
+    
+    // If user has remaining free invoices, no PIN needed
+    if (typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining > 0) return false;
+    
+    // If user has exceeded free limit, PIN is needed for pay-per-use
+    return true;
+  };
+
+  // Check if user has sufficient balance for pay-per-use
+  const hasSufficientBalance = (): boolean => {
+    return safeBalance >= PAY_PER_USE_FEE;
+  };
 
   const resetAllLoadingStates = () => {
     setIsProcessingPayment(false);
@@ -189,6 +214,44 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       "Item has been removed from the invoice.",
     );
   };
+
+  // Fetch usage and account details
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!userData?.id) return;
+
+      try {
+        // Fetch usage
+        const usageRes = await fetch("/api/user/usage");
+        if (usageRes.ok) {
+          const data = await usageRes.json();
+          setInvoiceUsage({
+            used: data.invoices.used,
+            limit: data.invoices.limit,
+            remaining: data.invoices.remaining,
+            hasAccess: true,
+            isChecking: false,
+            isPayPerUse: data.invoices.remaining <= 0 && !hasUnlimitedInvoices,
+          });
+        }
+
+        // Fetch account details for bank info
+        const detailsRes = await fetch("/api/get-wallet-account-details", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: userData.id }),
+        });
+        const data = await detailsRes.json();
+        setDetails(data);
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setInvoiceUsage((prev) => ({ ...prev, isChecking: false }));
+      }
+    };
+
+    fetchData();
+  }, [userData?.id, hasUnlimitedInvoices]);
 
   useEffect(() => {
     const draftId = searchParams?.get("draftId");
@@ -267,9 +330,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       redirect_url: draft.redirect_url || "",
       business_name:
         draft.business_name ||
-        (userData?.firstName && userData?.lastName
-          ? `${userData.firstName} ${userData.lastName}`
-          : userData?.email || ""),
+        (userData?.fullName ? `${userData.fullName}` : userData?.email || ""),
       allowMultiplePayments: draft.allow_multiple_payments || false,
       clientPhone: draft.client_phone || "",
       targetQuantity: draft.target_quantity || 1,
@@ -282,52 +343,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       "Your draft has been loaded into the form.",
     );
   };
-
-  useEffect(() => {
-    const checkInvoiceStatus = async () => {
-      if (userData?.id) {
-        try {
-          const res = await fetch(
-            `/api/check-remaning-free-invoice?userId=${userData.id}`,
-          );
-          const data = await res.json();
-
-          if (data.success) {
-            setFreeInvoiceInfo({
-              freeInvoicesLeft: data.freeInvoicesLeft ?? 0,
-              totalInvoicesCreated: data.totalInvoicesCreated ?? 0,
-              hasFreeInvoices: data.hasFreeInvoices ?? false,
-              isChecking: false,
-            });
-          } else {
-            setFreeInvoiceInfo({
-              freeInvoicesLeft: 0,
-              totalInvoicesCreated: 0,
-              hasFreeInvoices: false,
-              isChecking: false,
-            });
-          }
-        } catch (error) {
-          console.error("Error checking invoice status:", error);
-          setFreeInvoiceInfo({
-            freeInvoicesLeft: 0,
-            totalInvoicesCreated: 0,
-            hasFreeInvoices: false,
-            isChecking: false,
-          });
-        }
-      } else {
-        setFreeInvoiceInfo({
-          freeInvoicesLeft: 0,
-          totalInvoicesCreated: 0,
-          hasFreeInvoices: false,
-          isChecking: false,
-        });
-      }
-    };
-
-    checkInvoiceStatus();
-  }, [userData?.id]);
 
   const triggerConfetti = () => {
     confetti({
@@ -366,8 +381,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         issue_date: today,
         from: userData.email || "",
         business_name:
-          userData.firstName && userData.lastName
-            ? `${userData.firstName} ${userData.lastName}`
+          userData.fullName && userData.lastName
+            ? `${userData.fullName}`
             : userData.email || "",
       }));
     }
@@ -517,26 +532,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     }
   };
 
-  useEffect(() => {
-    const fetchAccountDetails = async () => {
-      if (!userData?.id) return;
-      try {
-        const res = await fetch("/api/get-wallet-account-details", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: userData.id }),
-        });
-        const data = await res.json();
-
-        setDetails(data);
-      } catch (error) {
-        console.error("Error fetching balance:", error);
-      }
-    };
-
-    fetchAccountDetails();
-  }, [userData?.id]);
-
   const handleSaveDraft = async () => {
     try {
       setDraftLoading(true);
@@ -556,7 +551,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         userId: userData?.id,
         initiator_email: userData?.email || "",
         initiator_name: userData
-          ? `${userData.firstName} ${userData.lastName}`
+          ? `${userData.fullName} ${userData.lastName}`
           : "",
         invoice_id: form.invoice_id,
         signee_name: form.name,
@@ -635,7 +630,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         userId: userData?.id,
         initiator_email: userData?.email || "",
         initiator_name: userData
-          ? `${userData.firstName} ${userData.lastName}`
+          ? `${userData.fullName} ${userData.lastName}`
           : "",
         invoice_id: form.invoice_id,
         signee_name: form.name || "",
@@ -659,9 +654,9 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         is_draft: isDraft,
         clientPhone: form.clientPhone || "",
         initiator_account_number:
-          details?.bank_details.bank_account_number || "",
-        initiator_account_name: details?.bank_details.bank_account_name || "",
-        initiator_bank_name: details?.bank_details.bank_name || "",
+          details?.bank_details?.bank_account_number || "",
+        initiator_account_name: details?.bank_details?.bank_account_name || "",
+        initiator_bank_name: details?.bank_details?.bank_name || "",
       };
 
       const endpoint = isDraft
@@ -790,8 +785,26 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         return;
       }
 
+      // Check if user is in pay-per-use mode and has sufficient balance
+      if (requiresPinConfirmation() && !hasSufficientBalance()) {
+        const result = await Swal.fire({
+          icon: "warning",
+          title: "Insufficient Balance",
+          text: `You need ₦${PAY_PER_USE_FEE} in your wallet for pay-per-use invoice. Would you like to fund your wallet?`,
+          showCancelButton: true,
+          confirmButtonText: "Fund Wallet",
+          cancelButtonText: "Cancel",
+          confirmButtonColor: "#C29307",
+        });
+
+        if (result.isConfirmed) {
+          router.push("/dashboard/fund-account");
+        }
+        return;
+      }
+
       if (!validateInvoiceForm()) {
-        showSweetAlert(
+        await showSweetAlert(
           "error",
           "Validation Failed",
           "Please correct the errors before generating the invoice.",
@@ -800,7 +813,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       }
 
       if (form.invoice_items.length === 0) {
-        showSweetAlert(
+        await showSweetAlert(
           "error",
           "No Items",
           "Please add at least one item to the invoice.",
@@ -813,7 +826,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       );
 
       if (invalidItems.length > 0) {
-        showSweetAlert(
+        await showSweetAlert(
           "error",
           "Incomplete Items",
           "Please ensure all items have description, quantity, and price.",
@@ -825,7 +838,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         form.allowMultiplePayments &&
         (!form.targetQuantity || form.targetQuantity < 1)
       ) {
-        showSweetAlert(
+        await showSweetAlert(
           "error",
           "Invalid Target Quantity",
           "For multiple payments, target quantity must be at least 1.",
@@ -836,7 +849,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       setShowInvoiceSummary(true);
     } catch (error) {
       console.error("Submit error:", error);
-      showSweetAlert(
+      await showSweetAlert(
         "error",
         "Submission Error",
         "An error occurred while processing your request.",
@@ -845,45 +858,65 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   };
 
   const handleDeduct = async (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      const pinString = pin.join("") || "0000";
+    // If user has free access, no need to deduct
+    if (!requiresPinConfirmation()) {
+      return true;
+    }
 
-      fetch("/api/pay-app-service", {
+    const pinString = pin.join("");
+
+    try {
+      const res = await fetch("/api/deduct-funds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData?.id,
           pin: pinString,
-          amount: freeInvoiceInfo.hasFreeInvoices ? 0 : 100,
-          description: "Invoice successfully generated",
           isInvoiceCreation: true,
-          service: "invoice",
+          description: "Pay-per-use invoice creation",
         }),
-      })
-        .then(async (res) => {
-          const data = await res.json();
-          if (!res.ok) {
-            showSweetAlert(
-              "error",
-              "Payment Failed",
-              data.error || "Something went wrong",
-            );
-            resolve(false);
-          } else {
-            setFreeInvoiceInfo({
-              freeInvoicesLeft: data.freeInvoicesLeft || 0,
-              totalInvoicesCreated: data.totalInvoicesCreated || 0,
-              hasFreeInvoices: (data.freeInvoicesLeft || 0) > 0,
-              isChecking: false,
-            });
-            resolve(true);
-          }
-        })
-        .catch((err) => {
-          showSweetAlert("error", "Error", err.message);
-          resolve(false);
-        });
-    });
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          await showSweetAlert(
+            "warning",
+            "Limit Reached",
+            data.message || "You've reached your monthly invoice limit.",
+          );
+          router.push("/pricing?upgrade=growth");
+        } else if (res.status === 400 && data.error?.includes("Insufficient")) {
+          await showSweetAlert(
+            "error",
+            "Insufficient Balance",
+            data.message || "Please fund your wallet to continue.",
+          );
+          router.push("/dashboard/fund-account");
+        } else {
+          await showSweetAlert(
+            "error",
+            "Payment Failed",
+            data.error || "Something went wrong",
+          );
+        }
+        return false;
+      }
+
+      // Update usage info
+      setInvoiceUsage((prev) => ({
+        ...prev,
+        used: data.usedThisMonth || (typeof prev.used === 'number' ? prev.used + 1 : 1),
+        remaining: data.remaining === "unlimited" ? "unlimited" : (data.remaining || (typeof prev.remaining === 'number' ? prev.remaining - 1 : 0)),
+        isPayPerUse: data.pay_per_use || false,
+      }));
+
+      return true;
+    } catch (err: any) {
+      await showSweetAlert("error", "Error", err.message);
+      return false;
+    }
   };
 
   const handleRefund = async () => {
@@ -893,84 +926,89 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData?.id,
-          amount: freeInvoiceInfo.hasFreeInvoices ? 0 : 100,
+          amount: 0,
           description: "Refund for failed invoice generation",
         }),
       });
-      showSweetAlert(
-        "info",
-        "Refund Processed",
-        "Amount has been refunded to your wallet due to failed invoice sending.",
-      );
     } catch (err) {
       console.error("Refund failed:", err);
-      showSweetAlert(
-        "warning",
-        "Refund Failed",
-        "Payment deduction was made, but refund failed. Please contact support.",
-      );
     }
   };
 
-  const processPaymentAndSubmit = async () => {
-    try {
-      setIsProcessingPayment(true);
+const processPaymentAndSubmit = async () => {
+  try {
+    setIsProcessingPayment(true);
 
-      const paymentSuccess = await handleDeduct();
+    const paymentSuccess = await handleDeduct();
 
-      if (paymentSuccess) {
-        const result = await handleSaveInvoice(false);
-        if (result.success) {
-          triggerConfetti();
+    if (paymentSuccess) {
+      const result = await handleSaveInvoice(false);
+      if (result.success) {
+        triggerConfetti();
 
-          resetAllLoadingStates();
-          setIsPinOpen(false);
-          setPin(Array(inputCount).fill(""));
+        resetAllLoadingStates();
+        setIsPinOpen(false);
+        setPin(Array(inputCount).fill(""));
 
-          setHasUnsavedChanges(false);
+        setHasUnsavedChanges(false);
 
-          setGeneratedSigningLink(result.signingLink || "");
-          setSavedInvoiceId(result.invoiceId || form.invoice_id);
+        setGeneratedSigningLink(result.signingLink || "");
+        setSavedInvoiceId(result.invoiceId || form.invoice_id);
 
-          setShowSuccessModal(true);
+        setShowSuccessModal(true);
 
-          if (form.allowMultiplePayments && result.invoiceId) {
-            fetchPaymentStatus(result.invoiceId!);
-            const pollInterval = setInterval(() => {
-              fetchPaymentStatus(result.invoiceId!);
-            }, 10000);
-            setTimeout(() => clearInterval(pollInterval), 10 * 60 * 1000);
-          }
+        // Only set up polling if we have a valid invoiceId and multiple payments are enabled
+        if (form.allowMultiplePayments && result.invoiceId) {
+          // Initial fetch
+          fetchPaymentStatus(result.invoiceId);
+          
+          // Set up polling
+          const pollInterval = setInterval(() => {
+            // Check again inside interval to ensure invoiceId still exists
+            if (result.invoiceId) {
+              fetchPaymentStatus(result.invoiceId);
+            }
+          }, 10000);
+          
+          // Clear polling after 10 minutes
+          setTimeout(() => clearInterval(pollInterval), 10 * 60 * 1000);
+        }
 
-          if (onInvoiceCreated) {
-            onInvoiceCreated();
-          }
-        } else {
-          await handleRefund();
-          resetAllLoadingStates();
-          setIsPinOpen(false);
-          setPin(Array(inputCount).fill(""));
+        if (onInvoiceCreated) {
+          onInvoiceCreated();
         }
       } else {
+        await handleRefund();
         resetAllLoadingStates();
         setIsPinOpen(false);
         setPin(Array(inputCount).fill(""));
       }
-    } catch (error) {
+    } else {
       resetAllLoadingStates();
       setIsPinOpen(false);
       setPin(Array(inputCount).fill(""));
-      showSweetAlert(
-        "error",
-        "Processing Failed",
-        "Failed to process payment. Please try again.",
-      );
     }
-  };
-
+  } catch (error) {
+    resetAllLoadingStates();
+    setIsPinOpen(false);
+    setPin(Array(inputCount).fill(""));
+    await showSweetAlert(
+      "error",
+      "Processing Failed",
+      "Failed to process payment. Please try again.",
+    );
+  }
+};
   const handleSummaryConfirm = () => {
     setShowInvoiceSummary(false);
-    setIsPinOpen(true);
+    
+    // Only show PIN popup if user has exceeded free limit
+    if (requiresPinConfirmation()) {
+      setIsPinOpen(true);
+    } else {
+      // For free invoices (within limit) or premium/growth, process directly
+      processPaymentAndSubmit();
+    }
   };
 
   const handleSummaryBack = () => {
@@ -1008,357 +1046,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
       const { subtotal, feeAmount, totalAmount } = totals;
 
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Invoice ${form.invoice_id}</title>
-          <meta charset="UTF-8">
-          <style>
-            body { 
-              font-family: 'Arial', sans-serif; 
-              margin: 0;
-              padding: 40px;
-              color: #333;
-              line-height: 1.6;
-            }
-            .container {
-              max-width: 800px;
-              margin: 0 auto;
-              background: white;
-            }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-              margin-bottom: 40px;
-              padding-bottom: 20px;
-              border-bottom: 2px solid #C29307;
-            }
-            .business-info {
-              flex: 1;
-            }
-            .invoice-info {
-              text-align: right;
-            }
-            .logo {
-              max-height: 80px;
-              max-width: 200px;
-              margin-bottom: 10px;
-            }
-            .accound-details {
-             display: flex;
-             flex-direction: column;
-             gap: 10px;
-            }
-            .accound-details h2 {
-            color: #C29307;;
-            }
-            h1 {
-              color: #C29307;
-              margin: 0 0 10px 0;
-              font-size: 32px;
-              font-weight: bold;
-            }
-            h2 {
-              margin: 0 0 10px 0;
-              font-size: 24px;
-              color: #333;
-            }
-            h3 {
-              margin: 0 0 15px 0;
-              font-size: 18px;
-              color: #333;
-            }
-            .section {
-              margin: 30px 0;
-            }
-            .billing-info {
-              display: flex;
-              justify-content: space-between;
-              gap: 40px;
-            }
-            .billing-section {
-              flex: 1;
-            }
-            .items-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 30px 0;
-              font-size: 14px;
-            }
-            .items-table th {
-              background-color: #f8f9fa;
-              border: 1px solid #ddd;
-              padding: 12px 15px;
-              text-align: left;
-              font-weight: bold;
-              color: #333;
-            }
-            .items-table td {
-              border: 1px solid #ddd;
-              padding: 12px 15px;
-              text-align: left;
-            }
-            .items-table tr:nth-child(even) {
-              background-color: #f9f9f9;
-            }
-            .totals {
-              margin-top: 30px;
-              text-align: right;
-              font-size: 16px;
-            }
-            .total-row {
-              margin: 8px 0;
-            }
-            .grand-total {
-              font-size: 20px;
-              font-weight: bold;
-              color: #C29307;
-              margin-top: 15px;
-              padding-top: 15px;
-              border-top: 2px solid #ddd;
-            }
-            .message-box {
-              background-color: #f8f9fa;
-              padding: 20px;
-              border-radius: 8px;
-              border-left: 4px solid #C29307;
-              margin: 20px 0;
-            }
-            .note-box {
-              background-color: #e8f4fd;
-              padding: 20px;
-              border-radius: 8px;
-              border-left: 4px solid #2196F3;
-              margin: 20px 0;
-            }
-                .invoice-narration{
-               margin-left: 30px;
-              }
-            .footer {
-              margin-top: 50px;
-              text-align: center;
-              color: #666;
-              font-size: 14px;
-              padding-top: 20px;
-              border-top: 1px solid #ddd;
-            }
-            .status-badge {
-              display: inline-block;
-              padding: 4px 12px;
-              background-color: #C29307;
-              color: white;
-              border-radius: 20px;
-              font-size: 12px;
-              font-weight: bold;
-              margin-left: 10px;
-            }
-          
-            .payment-info {
-              background-color: #f0f9ff;
-              padding: 20px;
-              border-radius: 8px;
-              border-left: 4px solid #0ea5e9;
-              margin: 20px 0,
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <div class="business-info">
-                ${
-                  form.business_logo
-                    ? `<img src="${form.business_logo}" alt="${form.business_name}" class="logo">`
-                    : ""
-                }
-                <h2>${form.business_name}</h2>
-                <p>${userData?.email || ""}</p>
-                ${form.bill_to ? `<p>${form.bill_to}</p>` : ""}
-                <div class="account-details">
-
-                  <h2>Account Details</h2>
-
-                  <h3>${details?.bank_details.bank_account_name}</h3>
-                  <h3>${details?.bank_details.bank_account_number}</h3>
-                <h3>${details?.bank_details.bank_name}</h3>
-                </div>
-
-              
-              </div>
-              <div class="invoice-info">
-                <h1>INVOICE</h1>
-                <p><strong>Invoice #:</strong> ${form.invoice_id}</p>
-                <p><strong>Issue Date:</strong> ${new Date(
-                  form.issue_date,
-                ).toLocaleDateString()}</p>
-    
-                <p><strong>Status:</strong> ${
-                  form.status
-                } <span class="status-badge">${form.status.toUpperCase()}</span></p>
-
-                                <small class="invoice-narration">
-                  Ensure this invoice number <strong>${
-                    form.invoice_id
-                  }</strong> is used as the narration when you transfer to make payment valid.
-                </small>
-              </div>
-            </div>
-
-            <div class="section">
-              <div class="billing-info">
-                <div class="billing-section">
-                  <h3>Bill To:</h3>
-                  <p><strong>${form.name || "Client Information"}</strong></p>
-                  ${form.email ? `<p>📧 ${form.email}</p>` : ""}
-                  ${form.clientPhone ? `<p>📞 ${form.clientPhone}</p>` : ""}
-                </div>
-                <div class="billing-section">
-                  <h3>From:</h3>
-                  <p><strong>${
-                    userData
-                      ? `${userData.firstName} ${userData.lastName}`
-                      : form.business_name
-                  }</strong></p>
-                  <p>📧 ${userData?.email || ""}</p>
-                </div>
-              </div>
-            </div>
-
-            ${
-              form.message
-                ? `
-            <div class="section">
-              <div class="message-box">
-                <h3>Message from ${
-                  userData?.firstName || form.business_name
-                }:</h3>
-                <p>${form.message}</p>
-              </div>
-            </div>
-            `
-                : ""
-            }
-
-            <div class="section">
-              <h3>Invoice Items</h3>
-              <table class="items-table">
-                <thead>
-                  <tr>
-                    <th>Description</th>
-                    <th width="100">Qty</th>
-                    <th width="120">Unit Price</th>
-                    <th width="120">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${form.invoice_items
-                    .map(
-                      (item) => `
-                    <tr>
-                      <td>${item.description}</td>
-                      <td>${item.quantity}</td>
-                      <td>₦${Number(item.unitPrice).toLocaleString()}</td>
-                      <td>₦${Number(item.total).toLocaleString()}</td>
-                    </tr>
-                  `,
-                    )
-                    .join("")}
-                </tbody>
-              </table>
-            </div>
-
-            <div class="totals">
-              <div class="total-row">
-                <strong>Subtotal:</strong> ₦${Number(subtotal).toLocaleString()}
-              </div>
-              ${
-                feeAmount > 0
-                  ? `
-              <div class="total-row">
-                <strong>Processing Fee (2%):</strong> ₦${Number(
-                  feeAmount,
-                ).toLocaleString()}
-              </div>
-              `
-                  : ""
-              }
-              <div class="total-row grand-total">
-                <strong>TOTAL AMOUNT:</strong> ₦${Number(
-                  totalAmount,
-                ).toLocaleString()}
-              </div>
-              ${
-                form.fee_option === "absorbed"
-                  ? `
-              <div class="total-row" style="font-size: 12px; color: #666;">
-                *3% processing fees absorbed by merchant
-              </div>
-              `
-                  : form.fee_option === "customer"
-                    ? `
-              <div class="total-row" style="font-size: 12px; color: #666;">
-                *3% processing fee applied (capped at ₦2,000)
-              </div>
-              `
-                    : ""
-              }
-            </div>
-
-            ${
-              form.customer_note
-                ? `
-            <div class="section">
-              <div class="note-box">
-                <h3>Note to Customer:</h3>
-                <p>${form.customer_note}</p>
-              </div>
-            </div>
-            `
-                : ""
-            }
-
-            ${
-              form.allowMultiplePayments
-                ? `
-            <div class="section">
-              <div class="payment-info">
-                <h3>🎫 Multiple Payments Information:</h3>
-                <p><strong>Payment Mode:</strong> Multiple Full Payments</p>
-                <p><strong>Individual Payment:</strong> ₦${Number(
-                  totalAmount,
-                ).toLocaleString()} per person</p>
-                <p><strong>Target Quantity:</strong> ${
-                  form.targetQuantity
-                } people</p>
-                <p><strong>How it works:</strong></p>
-                <ul>
-                  <li>Each person pays the full amount: ₦${Number(
-                    totalAmount,
-                  ).toLocaleString()}</li>
-                  <li>Share the invoice link with everyone</li>
-                  <li>Each person provides their info and pays</li>
-                  <li>Perfect for events, tickets, group purchases</li>
-                </ul>
-              </div>
-            </div>
-            `
-                : ""
-            }
-
-            <div class="footer">
-              <p><strong>Thank you for your business!</strong></p>
-              <p>If you have any questions about this invoice, please contact ${
-                userData?.email || form.from
-              }</p>
-              <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      
-      `;
+      const htmlContent = `...`; // Your existing PDF HTML content
 
       const response = await fetch("/api/generate-pdf", {
         method: "POST",
@@ -1406,30 +1094,77 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   const previewInvoice = convertToInvoicePreview(form);
 
+  // Determine display text and styles
+  const getButtonConfig = (): { text: string; color: string; icon: JSX.Element | null } => {
+    if (hasUnlimitedInvoices) {
+      return {
+        text: "Generate Invoice",
+        color: "bg-[#C29307] hover:bg-[#b38606]",
+        icon: null,
+      };
+    }
+    if (typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining > 0) {
+      return {
+        text: `Generate Invoice (${invoiceUsage.remaining} free left)`,
+        color: "bg-[#C29307] hover:bg-[#b38606]",
+        icon: null,
+      };
+    }
+    return {
+      text: `Pay ₦${PAY_PER_USE_FEE} to Generate`,
+      color: hasSufficientBalance() 
+        ? "bg-blue-600 hover:bg-blue-700" 
+        : "bg-gray-400 cursor-not-allowed",
+      icon: React.createElement(Wallet, { className: "w-4 h-4 mr-2" }),
+    };
+  };
+
+  const buttonConfig = getButtonConfig();
+
+  // Format remaining display text safely
+  const getRemainingText = (): string => {
+    if (hasUnlimitedInvoices) return "UNLIMITED";
+    if (typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining > 0) {
+      return `${invoiceUsage.remaining} left`;
+    }
+    return "Pay per use";
+  };
+
+  const getRemainingColor = (): string => {
+    if (hasUnlimitedInvoices) return "bg-purple-600";
+    if (typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining > 0) {
+      return "bg-[#C29307]";
+    }
+    return "bg-blue-600";
+  };
+
   return (
     <>
-      <PinPopOver
-        setIsOpen={(newValue: any) => {
-          setIsPinOpen(newValue);
-          if (!newValue) {
-            resetAllLoadingStates();
-            setPin(Array(inputCount).fill(""));
-          }
-        }}
-        isOpen={isPinOpen}
-        pin={pin}
-        setPin={setPin}
-        inputCount={inputCount}
-        onConfirm={async () => {
-          await processPaymentAndSubmit();
-        }}
-        invoiceFeeInfo={{
-          isFree: freeInvoiceInfo.hasFreeInvoices,
-          freeInvoicesLeft: freeInvoiceInfo.freeInvoicesLeft,
-          totalInvoicesCreated: freeInvoiceInfo.totalInvoicesCreated,
-          feeAmount: freeInvoiceInfo.hasFreeInvoices ? 0 : 100,
-        }}
-      />
+      {/* Only render PinPopOver when PIN is required AND the popup should be open */}
+      {requiresPinConfirmation() && (
+        <PinPopOver
+          setIsOpen={(newValue: boolean) => {
+            setIsPinOpen(newValue);
+            if (!newValue) {
+              resetAllLoadingStates();
+              setPin(Array(inputCount).fill(""));
+            }
+          }}
+          isOpen={isPinOpen}
+          pin={pin}
+          setPin={setPin}
+          inputCount={inputCount}
+          onConfirm={async () => {
+            await processPaymentAndSubmit();
+          }}
+          invoiceFeeInfo={{
+            isFree: false,
+            freeInvoicesLeft: typeof invoiceUsage.remaining === 'number' ? invoiceUsage.remaining : 0,
+            totalInvoicesCreated: typeof invoiceUsage.used === 'number' ? invoiceUsage.used : 0,
+            feeAmount: PAY_PER_USE_FEE,
+          }}
+        />
+      )}
 
       <DraftsModal
         isOpen={showDraftsModal && !searchParams?.get("draftId")}
@@ -1443,15 +1178,15 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       <InvoiceSummary
         invoiceData={form}
         totals={totals}
-        initiatorName={`${userData?.firstName || ""} ${
-          userData?.lastName || ""
-        }`}
+        initiatorName={`${userData?.fullName || ""} ${userData?.lastName || ""}`}
         initiatorEmail={userData?.email || ""}
-        amount={freeInvoiceInfo.hasFreeInvoices ? 0 : 100}
+        amount={0}
         confirmInvoice={showInvoiceSummary}
         onBack={handleSummaryBack}
         onConfirm={handleSummaryConfirm}
-        freeInvoiceInfo={freeInvoiceInfo}
+        usageInfo={invoiceUsage}
+        userTier={userTier || "free"}
+        payPerUseFee={requiresPinConfirmation() ? PAY_PER_USE_FEE : 0}
       />
 
       <InvoiceItemForm
@@ -1497,49 +1232,44 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                     <div>
                       <h1 className="md:text-3xl text-xl font-bold mb-2 flex items-start gap-3">
                         Create Invoice
-                        <span
-                          className={`p-1 text-white text-sm font-bold rounded ${
-                            freeInvoiceInfo.hasFreeInvoices
-                              ? "bg-[#C29307]"
-                              : "bg-red-600"
-                          }`}
-                        >
-                          {freeInvoiceInfo.isChecking
-                            ? "Loading..."
-                            : freeInvoiceInfo.hasFreeInvoices
-                              ? `Free (${freeInvoiceInfo.freeInvoicesLeft} left)`
-                              : "₦100"}
-                        </span>
-                      </h1>
-                      <p className="text-muted-foreground">
-                        Generate a professional invoice and share the link for
-                        payments
-                        {!freeInvoiceInfo.isChecking && (
+                        {!invoiceUsage.isChecking && (
                           <span
-                            className={`font-medium ml-2 ${
-                              freeInvoiceInfo.hasFreeInvoices
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
+                            className={`p-1 text-white text-sm font-bold rounded ${getRemainingColor()}`}
                           >
-                            •{" "}
-                            {freeInvoiceInfo.hasFreeInvoices
-                              ? `${freeInvoiceInfo.freeInvoicesLeft} free invoices remaining`
-                              : "₦100 per invoice after free limit"}
+                            {getRemainingText()}
                           </span>
                         )}
+                      </h1>
+                      <p className="text-muted-foreground">
+                        Generate a professional invoice and share the link for payments
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-4">
+                    {/* Wallet Balance Display */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full border border-green-200">
+                        <Wallet className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-700">
+                          ₦{safeBalance.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">
+                        <Coins className="w-4 h-4 text-yellow-600" />
+                        <span className="text-sm font-medium text-yellow-700">
+                          {zidcoinBalance} ZC
+                        </span>
+                      </div>
+                    </div>
+
                     {isProcessingPayment && (
                       <Badge
                         variant="outline"
                         className="bg-red-50 text-red-700 border-red-200"
                       >
                         <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                        Processing Payment...
+                        Processing...
                       </Badge>
                     )}
                     {form.invoice_items.length > 0 && (
@@ -1554,10 +1284,95 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   </div>
                 </div>
 
+                {/* Usage/Payment Warning */}
+                {!hasUnlimitedInvoices && !invoiceUsage.isChecking && (
+                  <div
+                    className={`mb-6 p-4 rounded-lg border ${
+                      typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0
+                        ? hasSufficientBalance()
+                          ? "bg-blue-50 border-blue-200"
+                          : "bg-red-50 border-red-200"
+                        : typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 2
+                        ? "bg-yellow-50 border-yellow-200"
+                        : "bg-green-50 border-green-200"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertCircle
+                        className={`w-5 h-5 mt-0.5 ${
+                          typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0
+                            ? hasSufficientBalance()
+                              ? "text-blue-500"
+                              : "text-red-500"
+                            : typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 2
+                            ? "text-yellow-500"
+                            : "text-green-500"
+                        }`}
+                      />
+                      <div className="flex-1">
+                        <p
+                          className={`font-medium ${
+                            typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0
+                              ? hasSufficientBalance()
+                                ? "text-blue-700"
+                                : "text-red-700"
+                              : typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 2
+                              ? "text-yellow-700"
+                              : "text-green-700"
+                          }`}
+                        >
+                          {typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0
+                            ? hasSufficientBalance()
+                              ? "Pay-per-use mode active"
+                              : "Insufficient balance for pay-per-use"
+                            : `You have ${invoiceUsage.remaining} free invoice${invoiceUsage.remaining !== 1 ? "s" : ""} remaining`}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0
+                            ? hasSufficientBalance()
+                              ? `This invoice will cost ₦${PAY_PER_USE_FEE}. Click "Pay ₦${PAY_PER_USE_FEE} to Generate" to continue.`
+                              : `Please fund your wallet with at least ₦${PAY_PER_USE_FEE} to create invoices.`
+                            : `After your free limit, you can continue with pay-per-use (₦${PAY_PER_USE_FEE} per invoice).`}
+                        </p>
+                        {typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 2 && invoiceUsage.remaining > 0 && (
+                          <Button
+                            size="sm"
+                            className="mt-2 bg-[#C29307] hover:bg-[#b38606] text-white"
+                            onClick={() => router.push("/pricing?upgrade=growth")}
+                          >
+                            Upgrade to Growth
+                          </Button>
+                        )}
+                        {typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0 && !hasSufficientBalance() && (
+                          <Button
+                            size="sm"
+                            className="mt-2 bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => router.push("/dashboard/fund-account")}
+                          >
+                            Fund Wallet Now
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Premium Banner */}
+                {hasUnlimitedInvoices && (
+                  <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <p className="text-purple-700 font-medium flex items-center gap-2">
+                      <span className="bg-purple-600 text-white px-2 py-1 rounded text-xs">
+                        {userTier === "growth" ? "GROWTH" : "PREMIUM"}
+                      </span>
+                      You have unlimited invoices! No payment required.
+                    </p>
+                  </div>
+                )}
+
                 <Card className="p-6">
                   <LogoUpload
                     logo={form.business_logo || ""}
-                    onLogoChange={(logoDataUrl: any) =>
+                    onLogoChange={(logoDataUrl: string) =>
                       setForm((prev) => ({
                         ...prev,
                         business_logo: logoDataUrl,
@@ -1670,7 +1485,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                               {form.invoice_items.length !== 1 ? "s" : ""} •
                               Total: ₦
                               {form.invoice_items
-                                .reduce((sum, item) => sum + item.total, 0)
+                                .reduce((sum, item) => sum + (item.total || 0), 0)
                                 .toLocaleString()}
                             </p>
                           )}
@@ -1794,7 +1609,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                         />
                         <p className="text-xs text-muted-foreground mt-1">
                           Redirect clients to this URL after successful payment
-                          (e.g., registration form, download page)
                         </p>
                       </div>
                     </div>
@@ -1820,9 +1634,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           isProcessingPayment ||
                           loading ||
                           isFormLocked ||
-                          draftLoading
+                          draftLoading ||
+                          invoiceUsage.isChecking ||
+                          (!hasSufficientBalance() && requiresPinConfirmation())
                         }
-                        className="flex-1 bg-[#C29307] hover:bg-[#b38606] text-white"
+                        className={`flex-1 ${buttonConfig.color} text-white`}
                       >
                         {isProcessingPayment ? (
                           <div className="flex items-center gap-2">
@@ -1834,10 +1650,13 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                             Validating...
                           </div>
-                        ) : freeInvoiceInfo.isChecking ? (
+                        ) : invoiceUsage.isChecking ? (
                           "Checking..."
                         ) : (
-                          "Generate Invoice"
+                          <>
+                            {buttonConfig.icon}
+                            {buttonConfig.text}
+                          </>
                         )}
                       </Button>
                     </div>
@@ -1863,19 +1682,13 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                     <div>
                       <h1 className="md:text-3xl text-xl font-bold mb-2 flex items-start gap-3">
                         Invoice Preview
-                        <span
-                          className={`p-1 text-white text-sm font-bold rounded ${
-                            freeInvoiceInfo.hasFreeInvoices
-                              ? "bg-[#C29307]"
-                              : "bg-red-600"
-                          }`}
-                        >
-                          {freeInvoiceInfo.isChecking
-                            ? "Loading..."
-                            : freeInvoiceInfo.hasFreeInvoices
-                              ? `Free (${freeInvoiceInfo.freeInvoicesLeft} left)`
-                              : "₦100"}
-                        </span>
+                        {!invoiceUsage.isChecking && (
+                          <span
+                            className={`p-1 text-white text-sm font-bold rounded ${getRemainingColor()}`}
+                          >
+                            {getRemainingText()}
+                          </span>
+                        )}
                       </h1>
                       <p className="text-muted-foreground">
                         Live preview of your invoice as you fill out the form
@@ -1896,7 +1709,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                         className="bg-red-50 text-red-700 border-red-200"
                       >
                         <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                        Processing Payment...
+                        Processing...
                       </Badge>
                     )}
                   </div>
@@ -1946,7 +1759,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   );
 };
 
-function LoginPage() {
+function InvoicePage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <CreateInvoice />

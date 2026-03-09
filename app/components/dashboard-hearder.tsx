@@ -65,9 +65,9 @@ export default function DashboardHeader() {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
-        {userData?.firstName && (
+        {userData?.fullName && (
           <h1 className="md:text-xl text-center lg:text-start w-full font-bold text-gray-900">
-            Hello {userData.firstName}
+            Hello {userData.fullName}
           </h1>
         )}
 

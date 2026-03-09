@@ -58,7 +58,7 @@ export async function sendLoginNotificationWithDeviceInfo(
     await notificationService.sendLoginNotification(
       {
         email: userProfile.email,
-        full_name: userProfile.firstName || userProfile.lastName || "User",
+        full_name: userProfile.fullName || "User",
         account_number: userProfile.account_number,
       },
       {

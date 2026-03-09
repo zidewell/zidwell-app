@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useUserContextData } from "../context/userData";
+import { ProtectedLink } from "./ProtectedLink";
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -57,20 +58,52 @@ export default function DashboardSidebar() {
     };
   }, [isMobileMenuOpen]);
 
-  const NavItem = ({ item, isActive }: { item: any; isActive: boolean }) => (
-    <Link
-      href={item.href}
-      onClick={() => setIsMobileMenuOpen(false)}
-      className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-        isActive
-          ? "bg-yellow-500/20 text-[#C29307] border-r-2 border-[#C29307]"
-          : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
-      }`}
-    >
-      <item.icon className="w-5 h-5" />
-      <span className="font-medium">{item.name}</span>
-    </Link>
-  );
+  const NavItem = ({ item, isActive }: { item: any; isActive: boolean }) => {
+    // List of links that require BVN verification (excluding My Transaction)
+    const protectedLinks = [
+      "/dashboard/fund-account",
+      "/dashboard/fund-account/transfer-page",
+      "/dashboard/services/buy-airtime",
+      "/dashboard/services/buy-data",
+      "/dashboard/services/buy-power",
+      "/dashboard/services/buy-cable-tv",
+    ];
+
+    const isProtected = protectedLinks.includes(item.href);
+
+    if (isProtected) {
+      return (
+        <ProtectedLink
+          href={item.href}
+          onClick={() => setIsMobileMenuOpen(false)}
+          icon={item.icon}
+          className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+            isActive
+              ? "bg-yellow-500/20 text-[#C29307] border-r-2 border-[#C29307]"
+              : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
+          }`}
+        >
+          <span className="font-medium">{item.name}</span>
+        </ProtectedLink>
+      );
+    }
+
+    // Regular link for non-protected items
+    return (
+      <Link
+        href={item.href}
+        onClick={() => setIsMobileMenuOpen(false)}
+        className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+          isActive
+            ? "bg-yellow-500/20 text-[#C29307] border-r-2 border-[#C29307]"
+            : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
+        }`}
+      >
+        <item.icon className="w-5 h-5" />
+        <span className="font-medium">{item.name}</span>
+      </Link>
+    );
+  };
 
   // Function to format balance with hidden state
   const formatBalance = () => {
@@ -122,10 +155,10 @@ export default function DashboardSidebar() {
                 <h1 className="font-bold text-lg text-white">Zidwell</h1>
               </Link>
             </div>
-            {userData && userData.firstName ? (
+            {userData && userData.fullName ? (
               <div className="space-y-2">
                 <p className="text-gray-400 text-sm">
-                  Welcome Back {`${userData.firstName}`}
+                  Welcome Back {`${userData.fullName}`}
                 </p>
                 {balance != null && (
                   <div className="flex items-center justify-between">

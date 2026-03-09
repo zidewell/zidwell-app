@@ -23,8 +23,7 @@ export default function FundAccountMethods() {
     if (!userData) return null;
     const payload = {
       userId: userData.id,
-      first_name: userData.firstName,
-      last_name: userData.lastName,
+      first_name: userData.fullName,
     };
 
     setLoading(true);

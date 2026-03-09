@@ -147,7 +147,7 @@ export default function CableBills() {
       customerId: decorderNumber,
       cableTvPaymentType: selectedProvider.id,
       amount: Number(selectedPlan?.amount),
-      payerName: userData?.firstName,
+      payerName: userData?.fullName,
       merchantTxRef: `Cable-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     };
 

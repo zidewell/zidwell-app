@@ -1,102 +1,112 @@
-// app/api/verify-bvn/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import bcrypt from "bcryptjs";
+import { getNombaToken } from "@/lib/nomba";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { authId, bvn } = await req.json();
+    const { userId, bvn, transactionPin, fullName } = await req.json();
 
-    if (!bvn || !authId) {
-      return new Response(
-        JSON.stringify({ message: "Missing BVN or authId" }),
+    // Validate inputs
+    if (!userId || !bvn || !transactionPin || !fullName) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // 👉 Simulated BVN validation logic
-    const isValid = /^\d{11}$/.test(bvn);
-    if (!isValid) {
-      return new Response(
-        JSON.stringify({ message: "Invalid BVN" }),
+    if (!/^\d{11}$/.test(bvn)) {
+      return NextResponse.json(
+        { error: "BVN must be exactly 11 digits" },
         { status: 400 }
       );
     }
 
-    // ✅ Update pending_users as verified
-    const { data, error: updateError } = await supabase
-      .from("pending_users")
+    if (!/^\d{4}$/.test(transactionPin)) {
+      return NextResponse.json(
+        { error: "PIN must be exactly 4 digits" },
+        { status: 400 }
+      );
+    }
+
+    // Get Nomba token
+    const token = await getNombaToken();
+    if (!token) {
+      return NextResponse.json(
+        { error: "Failed to authenticate with banking service" },
+        { status: 401 }
+      );
+    }
+
+    // Hash the PIN
+    const hashedPin = await bcrypt.hash(transactionPin, 10);
+
+    // Call Nomba API to create virtual account
+    const nombaRes = await fetch(
+      `${process.env.NOMBA_URL}/v1/accounts/virtual`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          accountId: process.env.NOMBA_ACCOUNT_ID!,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accountName: fullName,
+          accountRef: userId,
+          bvn: bvn,
+        }),
+      }
+    );
+
+    const wallet = await nombaRes.json();
+
+    if (!nombaRes.ok || !wallet?.data) {
+      console.error("❌ Nomba wallet error:", wallet);
+      return NextResponse.json(
+        { error: wallet.message || "Failed to create wallet" },
+        { status: nombaRes.status }
+      );
+    }
+
+    // Update user in database
+    const { error: updateError } = await supabase
+      .from("users")
       .update({
+        transaction_pin: hashedPin,
+        pin_set: true,
         bvn_verification: "verified",
-        verified: true,
+        bank_name: wallet.data.bankName,
+        bank_account_name: wallet.data.bankAccountName,
+        bank_account_number: wallet.data.bankAccountNumber,
+        wallet_id: wallet.data.accountRef,
       })
-      .eq("id", authId)
-      .select("id, first_name, last_name, email");
+      .eq("id", userId);
 
-    // ❗ If update fails, revert back to pending
     if (updateError) {
-      await supabase
-        .from("pending_users")
-        .update({
-          bvn_verification: "pending",
-          verified: false,
-        })
-        .eq("id", authId);
-
-      return new Response(
-        JSON.stringify({ message: "Failed to update BVN status" }),
+      console.error("❌ Database update error:", updateError);
+      return NextResponse.json(
+        { error: "Failed to update user profile" },
         { status: 500 }
       );
     }
 
-    if (!data || data.length === 0) {
-      // Revert since user not found
-      await supabase
-        .from("pending_users")
-        .update({
-          bvn_verification: "pending",
-          verified: false,
-        })
-        .eq("id", authId);
-console.log("No matching pending user found for authId:", authId);
-      return new Response(
-        JSON.stringify({ message: "No matching pending user found" }),
-        { status: 404 }
-      );
-    }
-
-    // 🎉 Success response with user info
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "BVN successfully verified. You can now proceed.",
-        user: data[0],
-      }),
-      { status: 200 }
-    );
-  } catch (err) {
-    console.error("❌ Unexpected server error:", err);
-
-    try {
-      const { authId } = await req.json(); 
-      if (authId) {
-        await supabase
-          .from("pending_users")
-          .update({
-            bvn_verification: "pending",
-            verified: false,
-          })
-          .eq("id", authId);
-      }
-    } catch (rollbackErr) {
-      console.error("⚠️ Failed to rollback BVN status:", rollbackErr);
-    }
-
-    return new Response(JSON.stringify({ message: "Server error" }), {
-      status: 500,
+    return NextResponse.json({
+      success: true,
+      message: "BVN verified successfully",
+      wallet: wallet.data,
     });
+
+  } catch (error: any) {
+    console.error("❌ Verification error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    );
   }
 }

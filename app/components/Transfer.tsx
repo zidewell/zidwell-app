@@ -1091,7 +1091,7 @@ const getPaymentMethod = (): PaymentMethod => {
         </CardContent>
       </Card>
      <TransactionSummary
-  senderName={`${userData?.firstName} ${userData?.lastName}`}
+  senderName={`${userData?.fullName}`}
   senderAccount={userDetails?.bank_details?.bank_account_number || "N/A"}
   recipientName={
     // For P2P: use p2pDetails.name

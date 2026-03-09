@@ -33,7 +33,9 @@ const SmartContractHero: React.FC = () => {
               Create Contract Now
             </ButtonPrimary>
 
-            <Button variant="outline">View Pricing</Button>
+            <a href="#contract-pricing">
+              <Button variant="outline">View Pricing</Button>
+            </a>
           </div>
         </div>
       </div>

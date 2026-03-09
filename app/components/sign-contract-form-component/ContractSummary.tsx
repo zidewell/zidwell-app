@@ -11,6 +11,7 @@ import {
   Gavel,
   SpellCheck,
   Star,
+  Wallet,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Badge } from "../ui/badge";
@@ -26,6 +27,15 @@ interface AttachmentFile {
   previewUrl?: string;
 }
 
+interface ContractUsageInfo {
+  used: number;
+  limit: number | "unlimited";
+  remaining: number | "unlimited";
+  hasAccess: boolean;
+  isChecking: boolean;
+  isPayPerUse?: boolean;
+}
+
 interface ContractSummaryProps {
   contractTitle: string;
   contractContent: string;
@@ -38,13 +48,17 @@ interface ContractSummaryProps {
   confirmContract: boolean;
   onBack: () => void;
   onConfirm: (options?: { includeLawyerSignature: boolean }) => void;
-  onClose?: () => void; // Add this line
+  onClose?: () => void;
   contractType?: string;
   dateCreated?: string;
   status?: string;
   attachments?: AttachmentFile[];
   currentLawyerSignature?: boolean;
   contractDate?: string;
+  // New props for usage tracking
+  usageInfo?: ContractUsageInfo;
+  userTier?: 'free' | 'growth' | 'premium' | 'elite';
+  walletBalance?: number;
 }
 
 export default function ContractSummary({
@@ -60,18 +74,56 @@ export default function ContractSummary({
   contractDate,
   onBack,
   onConfirm,
-  onClose, // Add this line
+  onClose,
   contractType = "Service Agreement",
   dateCreated = new Date().toLocaleDateString(),
   status = "pending",
   attachments = [],
   currentLawyerSignature = false,
+  usageInfo,
+  userTier = 'free',
+  walletBalance = 0,
 }: ContractSummaryProps) {
   const [includeLawyerSignature, setIncludeLawyerSignature] = useState(
     currentLawyerSignature
   );
   const [totalAmount, setTotalAmount] = useState(amount);
   const LAWYER_FEE = 10000;
+  const CONTRACT_FEE = 10;
+
+  // Determine user's contract limits
+  const isPremium = userTier === 'premium' || userTier === 'elite';
+  const isGrowth = userTier === 'growth';
+  const hasUnlimitedContracts = isPremium || isGrowth;
+
+  // Safe function to get remaining contracts
+  const getRemainingContracts = (): number => {
+    if (hasUnlimitedContracts) return 999;
+    if (usageInfo && typeof usageInfo.remaining === 'number') {
+      return usageInfo.remaining;
+    }
+    return 1; // Default free tier limit
+  };
+
+  const remainingContracts = getRemainingContracts();
+  const hasFreeContract = hasUnlimitedContracts || remainingContracts > 0;
+  
+  // Calculate if this contract requires payment
+  const requiresPayment = !hasFreeContract || includeLawyerSignature;
+  
+  // Calculate the actual fee based on user's tier and selections
+  const getActualFee = (): number => {
+    if (includeLawyerSignature) {
+      return CONTRACT_FEE + LAWYER_FEE; // Always pay lawyer fee
+    }
+    if (hasFreeContract && !hasUnlimitedContracts) {
+      return 0; // Free contract within limit
+    }
+    return CONTRACT_FEE; // Pay-per-use or growth/premium (but premium already handled)
+  };
+
+  const actualFee = getActualFee();
+  const hasSufficientBalance = walletBalance >= actualFee;
 
   // Sync with parent component state
   useEffect(() => {
@@ -111,12 +163,55 @@ export default function ContractSummary({
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       handleBack();
-      // Also call onClose if provided
       if (onClose) {
         onClose();
       }
     }
   };
+
+  // Get status banner color and text
+  const getStatusBanner = () => {
+    if (hasUnlimitedContracts) {
+      return {
+        bg: "bg-purple-50",
+        border: "border-purple-200",
+        text: "text-purple-700",
+        icon: "👑",
+        title: `${userTier === 'growth' ? 'Growth' : 'Premium'} Plan`,
+        message: "Unlimited contracts included",
+      };
+    }
+    if (hasFreeContract) {
+      return {
+        bg: "bg-green-50",
+        border: "border-green-200",
+        text: "text-green-700",
+        icon: "🎉",
+        title: "Free Contract Available",
+        message: `You have ${remainingContracts} free contract${remainingContracts !== 1 ? 's' : ''} remaining this month`,
+      };
+    }
+    if (includeLawyerSignature) {
+      return {
+        bg: "bg-blue-50",
+        border: "border-blue-200",
+        text: "text-blue-700",
+        icon: "⚖️",
+        title: "Lawyer Signature Selected",
+        message: "Additional fee applies",
+      };
+    }
+    return {
+      bg: "bg-yellow-50",
+      border: "border-yellow-200",
+      text: "text-yellow-700",
+      icon: "💰",
+      title: "Pay-Per-Use",
+      message: `₦${CONTRACT_FEE} will be charged (monthly limit reached)`,
+    };
+  };
+
+  const banner = getStatusBanner();
 
   return (
     <AnimatePresence>
@@ -128,7 +223,7 @@ export default function ContractSummary({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={handleBackdropClick} // Updated to use new handler
+            onClick={handleBackdropClick}
           />
 
           {/* 📄 Modal Container */}
@@ -140,6 +235,27 @@ export default function ContractSummary({
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
             <div className="max-w-lg w-full mx-auto bg-white rounded-xl shadow-lg p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+              {/* Status Banner */}
+              <div className={`${banner.bg} ${banner.border} border rounded-lg p-4`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{banner.icon}</span>
+                  <div className="flex-1">
+                    <p className={`font-semibold ${banner.text}`}>{banner.title}</p>
+                    <p className="text-sm text-gray-600">{banner.message}</p>
+                  </div>
+                  {!hasFreeContract && !hasUnlimitedContracts && !includeLawyerSignature && (
+                    <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                      Pay ₦{CONTRACT_FEE}
+                    </Badge>
+                  )}
+                  {includeLawyerSignature && (
+                    <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                      +₦{LAWYER_FEE.toLocaleString()}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
               {/* Header with Amount */}
               <div className="text-center border-b pb-4">
                 <h2 className="text-lg font-semibold text-gray-800">
@@ -154,6 +270,19 @@ export default function ContractSummary({
                   </div>
                 </div>
               </div>
+
+              {/* Wallet Balance (if needed) */}
+              {requiresPayment && (
+                <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Wallet Balance</span>
+                  </div>
+                  <span className={`font-semibold ${hasSufficientBalance ? 'text-green-600' : 'text-red-600'}`}>
+                    ₦{walletBalance.toLocaleString()}
+                  </span>
+                </div>
+              )}
 
               {/* Contract Details */}
               <div className="space-y-4">
@@ -261,11 +390,24 @@ export default function ContractSummary({
                       ₦{totalAmount.toLocaleString()}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500 text-center pt-2">
-                    {includeLawyerSignature
-                      ? "Includes lawyer signature fee"
-                      : "Base contract fee only"}
-                  </div>
+                  
+                  {/* Payment Status */}
+                  {requiresPayment && (
+                    <div className={`text-xs ${hasSufficientBalance ? 'text-green-600' : 'text-red-600'} text-center pt-2`}>
+                      {hasSufficientBalance 
+                        ? `✓ Sufficient balance (₦${walletBalance.toLocaleString()} available)`
+                        : `✗ Insufficient balance - Please fund your wallet`}
+                    </div>
+                  )}
+                  
+                  {/* Usage Info */}
+                  {!hasUnlimitedContracts && !includeLawyerSignature && (
+                    <div className="text-xs text-gray-500 text-center pt-2">
+                      {hasFreeContract 
+                        ? `Free contract (${remainingContracts - 1} free ${remainingContracts - 1 === 1 ? 'contract' : 'contracts'} remaining this month)`
+                        : `Pay-per-use contract (₦${CONTRACT_FEE}) - Monthly limit reached`}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -299,7 +441,15 @@ export default function ContractSummary({
                           <span className="mr-2">•</span>
                           <span>
                             Lawyer signature adds legal validity and
-                            professional verification
+                            professional verification (₦{LAWYER_FEE.toLocaleString()})
+                          </span>
+                        </li>
+                      )}
+                      {!hasFreeContract && !includeLawyerSignature && (
+                        <li className="flex items-start">
+                          <span className="mr-2">•</span>
+                          <span>
+                            You've reached your monthly limit. ₦{CONTRACT_FEE} will be charged.
                           </span>
                         </li>
                       )}
@@ -314,7 +464,7 @@ export default function ContractSummary({
                   variant="outline"
                   onClick={() => {
                     handleBack();
-                    if (onClose) onClose(); // Call onClose when back button is clicked
+                    if (onClose) onClose();
                   }}
                   className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                 >
@@ -322,16 +472,24 @@ export default function ContractSummary({
                 </Button>
                 <Button
                   onClick={handleConfirm}
+                  disabled={requiresPayment && !hasSufficientBalance}
                   className={`flex-1 ${
                     includeLawyerSignature
                       ? "bg-[#C29307] hover:bg-[#b38606]"
+                      : !hasFreeContract && !hasUnlimitedContracts
+                      ? "bg-blue-600 hover:bg-blue-700"
                       : "bg-[#C29307] hover:bg-[#b38606]"
-                  } text-white`}
+                  } text-white disabled:bg-gray-400 disabled:cursor-not-allowed`}
                 >
                   {includeLawyerSignature ? (
                     <div className="flex items-center justify-center">
                       <Scale className="h-4 w-4 mr-2" />
-                      Send with Lawyer Signature
+                      Pay ₦{totalAmount.toLocaleString()} & Send
+                    </div>
+                  ) : !hasFreeContract && !hasUnlimitedContracts ? (
+                    <div className="flex items-center justify-center">
+                      <Wallet className="h-4 w-4 mr-2" />
+                      Pay ₦{CONTRACT_FEE} & Send
                     </div>
                   ) : (
                     "Send for Signature"
@@ -344,13 +502,19 @@ export default function ContractSummary({
                 <div className="flex items-center justify-center gap-2">
                   <div
                     className={`h-2 w-2 rounded-full ${
-                      includeLawyerSignature ? "bg-[#C29307]" : "bg-gray-300"
+                      includeLawyerSignature 
+                        ? "bg-[#C29307]" 
+                        : !hasFreeContract && !hasUnlimitedContracts
+                        ? "bg-blue-600"
+                        : "bg-green-600"
                     }`}
                   ></div>
                   <span>
                     {includeLawyerSignature
                       ? "Lawyer signature included"
-                      : "Standard contract (no lawyer signature)"}
+                      : !hasFreeContract && !hasUnlimitedContracts
+                      ? "Pay-per-use mode active"
+                      : "Free contract (within limit)"}
                   </span>
                 </div>
               </div>

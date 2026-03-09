@@ -2,7 +2,7 @@ import React from 'react'
 import PricingCard from './PricingCard';
 
 const Pricing: React.FC = () => (
-  <section className="py-12 bg-gray-50">
+  <section id='contract-pricing' className="py-12 bg-gray-50">
     <div className="container mx-auto px-6 md:px-12 lg:px-20">
       <h3 className="text-center text-xl lg:text-4xl font-bold mb-6 ">Simple, Transparent Pricing</h3>
       <p className="text-center text-lg text-gray-500 mb-8 ">Pay only for what you need. No hidden fees.</p>

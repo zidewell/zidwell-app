@@ -274,7 +274,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     className="flex-1 min-w-0"
                   >
                     <p className="text-sm font-medium truncate">
-                      {userData?.firstName ? `${userData.firstName} ${userData?.lastName || ""}`.trim() : "Admin User"}
+                      {userData?.fullName ? `${userData.fullName}""}`.trim() : "Admin User"}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
                       {userData?.email || "admin@example.com"}

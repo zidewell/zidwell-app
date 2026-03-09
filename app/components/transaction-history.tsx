@@ -525,7 +525,7 @@ export default function TransactionHistory() {
         transactions: allDateRangeTransactions,
         user: {
           id: userData.id,
-          name: `${userData.firstName} ${userData.lastName}` || "Account Holder",
+          name: `${userData.fullName} ${userData.lastName}` || "Account Holder",
           email: userData.email,
         },
       };

@@ -7,10 +7,16 @@ type SignContractToggleProps = {
     setAgeConsent: (value: boolean) => void;
     termsConsent: boolean;
     setTermsConsent: (value: boolean) => void;
- 
+    disabled?: boolean; // Add disabled prop
 };
 
-const SignContractToggle: React.FC<SignContractToggleProps> = ({ ageConsent, setAgeConsent, termsConsent, setTermsConsent,  }) => {
+const SignContractToggle: React.FC<SignContractToggleProps> = ({ 
+    ageConsent, 
+    setAgeConsent, 
+    termsConsent, 
+    setTermsConsent,
+    disabled = false // Default to false
+}) => {
     return (
         <>
             <div className="flex items-center justify-between p-4 border border-border rounded-lg">
@@ -27,6 +33,7 @@ const SignContractToggle: React.FC<SignContractToggleProps> = ({ ageConsent, set
                     checked={ageConsent} 
                     onCheckedChange={setAgeConsent}
                     className="data-[state=checked]:bg-[#C29307]"
+                    disabled={disabled} // Apply disabled prop
                 />
             </div>
             <div className="flex items-center justify-between p-4 border border-border rounded-lg">
@@ -43,6 +50,7 @@ const SignContractToggle: React.FC<SignContractToggleProps> = ({ ageConsent, set
                     checked={termsConsent}
                     onCheckedChange={setTermsConsent}
                     className="data-[state=checked]:bg-[#C29307]"
+                    disabled={disabled} // Apply disabled prop
                 />
             </div>
         </>

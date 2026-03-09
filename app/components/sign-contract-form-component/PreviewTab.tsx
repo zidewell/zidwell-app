@@ -38,6 +38,7 @@ interface PreviewTabProps {
   localCreatorName: string;
   setLocalCreatorName: (name: string) => void;
   creatorSignature?: string | null;
+  disabled?: boolean; // Add disabled prop
 }
 
 const PreviewTab: React.FC<PreviewTabProps> = ({
@@ -56,6 +57,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
   creatorSignature = null,
   localCreatorName,
   setLocalCreatorName,
+  disabled = false, // Default to false
 }) => {
   const [localSignature, setLocalSignature] = useState(creatorSignature);
 
@@ -347,6 +349,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                   variant="outline"
                   onClick={() => setActiveTab("create")}
                   className="flex-1"
+                  disabled={disabled} // Apply disabled prop
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Back To Edit Contract
@@ -371,6 +374,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                 variant="default"
                 onClick={() => setActiveTab("create")}
                 className="bg-[#C29307] hover:bg-[#b38606]"
+                disabled={disabled} // Apply disabled prop
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Write Contract

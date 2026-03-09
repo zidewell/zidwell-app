@@ -12,6 +12,16 @@ interface InvoiceItem {
   total: number;
 }
 
+// Updated InvoiceUsageInfo interface
+interface InvoiceUsageInfo {
+  used: number;
+  limit: number | "unlimited";
+  remaining: number | "unlimited";
+  hasAccess: boolean;
+  isChecking: boolean;
+  isPayPerUse?: boolean;
+}
+
 interface InvoiceSummaryProps {
   invoiceData: {
     name: string;
@@ -47,6 +57,9 @@ interface InvoiceSummaryProps {
     hasFreeInvoices: boolean;
     isChecking: boolean;
   };
+  usageInfo?: InvoiceUsageInfo;
+  userTier?: 'free' | 'growth' | 'premium' | 'elite';
+  payPerUseFee?: number; // Added this prop
 }
 
 export default function InvoiceSummary({
@@ -59,10 +72,47 @@ export default function InvoiceSummary({
   onBack,
   onConfirm,
   freeInvoiceInfo,
+  usageInfo,
+  userTier = 'free',
+  payPerUseFee = 100, // Default to 100
 }: InvoiceSummaryProps) {
-  // Calculate invoice fee based on free invoice status
-  const invoiceFee = freeInvoiceInfo?.hasFreeInvoices ? 0 : 100;
-  const showFreeInvoiceInfo = freeInvoiceInfo && !freeInvoiceInfo.isChecking;
+  
+  // Determine which system to use (new subscription system takes precedence)
+  const useNewSystem = usageInfo !== undefined;
+  
+  // Get usage data from either system
+  const isPremium = userTier === 'premium' || userTier === 'elite';
+  const isGrowth = userTier === 'growth';
+  const hasUnlimited = isPremium || isGrowth;
+  
+  // Safe function to get remaining value
+  const getRemaining = (): number => {
+    if (useNewSystem && usageInfo) {
+      return typeof usageInfo.remaining === 'number' ? usageInfo.remaining : 999;
+    }
+    return freeInvoiceInfo?.freeInvoicesLeft || 0;
+  };
+  
+  const remainingInvoices = getRemaining();
+  
+  const hasFreeInvoices = useNewSystem
+    ? (hasUnlimited || (typeof usageInfo?.remaining === 'number' && usageInfo.remaining > 0))
+    : (freeInvoiceInfo?.hasFreeInvoices || false);
+  
+  const totalCreated = useNewSystem
+    ? usageInfo?.used || 0
+    : freeInvoiceInfo?.totalInvoicesCreated || 0;
+  
+  const isChecking = useNewSystem
+    ? usageInfo?.isChecking || false
+    : freeInvoiceInfo?.isChecking || false;
+
+  // Calculate invoice fee
+  const invoiceFee = hasUnlimited ? 0 : (hasFreeInvoices ? 0 : payPerUseFee);
+  const showInvoiceInfo = !isChecking;
+
+  // Safe email value
+  const safeEmail = initiatorEmail || invoiceData.email || "";
 
   return (
     <AnimatePresence>
@@ -86,18 +136,34 @@ export default function InvoiceSummary({
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
             <div className="max-w-2xl w-full mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-              {/* Free Invoice Banner */}
-              {showFreeInvoiceInfo && (
+              {/* Invoice Status Banner */}
+              {showInvoiceInfo && (
                 <div
                   className={`p-4 rounded-lg border ${
-                    freeInvoiceInfo.hasFreeInvoices
+                    hasUnlimited 
+                      ? "bg-purple-50 border-purple-200"
+                      : hasFreeInvoices
                       ? "bg-green-50 border-green-200"
                       : "bg-yellow-50 border-yellow-200"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      {freeInvoiceInfo.hasFreeInvoices ? (
+                      {hasUnlimited ? (
+                        <>
+                          <span className="text-purple-600 mr-3 text-2xl">
+                            👑
+                          </span>
+                          <div>
+                            <p className="font-semibold text-purple-800">
+                              {userTier === 'growth' ? 'Growth Plan' : 'Premium Plan'}
+                            </p>
+                            <p className="text-sm text-purple-600">
+                              Unlimited invoices
+                            </p>
+                          </div>
+                        </>
+                      ) : hasFreeInvoices ? (
                         <>
                           <span className="text-green-600 mr-3 text-2xl">
                             🎉
@@ -107,8 +173,7 @@ export default function InvoiceSummary({
                               Free Invoice Available
                             </p>
                             <p className="text-sm text-green-600">
-                              You have {freeInvoiceInfo.freeInvoicesLeft} free
-                              invoices remaining
+                              You have {remainingInvoices} free {remainingInvoices === 1 ? 'invoice' : 'invoices'} remaining this month
                             </p>
                           </div>
                         </>
@@ -119,10 +184,10 @@ export default function InvoiceSummary({
                           </span>
                           <div>
                             <p className="font-semibold text-yellow-800">
-                              Invoice Creation Fee
+                              Pay-Per-Use
                             </p>
                             <p className="text-sm text-[#C29307]">
-                              You've used all 10 free invoices
+                              You've reached your monthly limit
                             </p>
                           </div>
                         </>
@@ -131,15 +196,20 @@ export default function InvoiceSummary({
                     <div className="text-right">
                       <p
                         className={`text-2xl font-bold ${
-                          freeInvoiceInfo.hasFreeInvoices
+                          hasUnlimited 
+                            ? "text-purple-600"
+                            : hasFreeInvoices
                             ? "text-green-600"
                             : "text-[#C29307]"
                         }`}
                       >
-                        {freeInvoiceInfo.hasFreeInvoices ? "FREE" : "₦100"}
+                        {hasUnlimited ? "UNLIMITED" : (hasFreeInvoices ? "FREE" : `₦${invoiceFee}`)}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {freeInvoiceInfo.totalInvoicesCreated} invoices created
+                        {useNewSystem 
+                          ? `${totalCreated} used this month`
+                          : `${totalCreated} invoices created`
+                        }
                       </p>
                     </div>
                   </div>
@@ -151,28 +221,35 @@ export default function InvoiceSummary({
                 <div className="text-gray-500 text-sm">Invoice Generation</div>
                 <div
                   className={`text-3xl font-bold ${
-                    freeInvoiceInfo?.hasFreeInvoices
+                    hasUnlimited 
+                      ? "text-purple-600"
+                      : hasFreeInvoices
                       ? "text-green-600"
                       : "text-gray-900"
                   }`}
                 >
-                  {freeInvoiceInfo?.hasFreeInvoices ? "FREE" : "₦100"}
+                  {hasUnlimited ? "FREE" : (hasFreeInvoices ? "FREE" : `₦${invoiceFee}`)}
                 </div>
                 <div className="text-sm text-gray-600 mt-1">
                   {invoiceData.payment_type === "multiple"
                     ? "Multiple Buyers Invoice"
                     : "Single Buyer Invoice"}
-                  {showFreeInvoiceInfo && (
+                  {!hasUnlimited && showInvoiceInfo && (
                     <span
                       className={`block mt-1 ${
-                        freeInvoiceInfo.hasFreeInvoices
+                        hasFreeInvoices
                           ? "text-green-600"
                           : "text-[#C29307]"
                       }`}
                     >
-                      {freeInvoiceInfo.hasFreeInvoices
-                        ? `(${freeInvoiceInfo.freeInvoicesLeft} free invoices left)`
-                        : "(After 10 free invoices)"}
+                      {hasFreeInvoices
+                        ? `(${remainingInvoices} ${remainingInvoices === 1 ? 'invoice' : 'invoices'} left this month)`
+                        : "(Monthly limit reached - Pay-per-use active)"}
+                    </span>
+                  )}
+                  {hasUnlimited && (
+                    <span className="block mt-1 text-purple-600">
+                      (Unlimited invoices)
                     </span>
                   )}
                 </div>
@@ -226,19 +303,19 @@ export default function InvoiceSummary({
                     <div>
                       <span className="text-gray-500 block text-xs">Name</span>
                       <span className="text-gray-900 font-medium">
-                        {invoiceData.business_name || invoiceData.from}
+                        {initiatorName || invoiceData.business_name || invoiceData.from}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500 block text-xs">Email</span>
-                      <span className="text-gray-900">{initiatorEmail}</span>
+                      <span className="text-gray-900">{safeEmail}</span>
                     </div>
                     <div>
                       <span className="text-gray-500 block text-xs">
                         Bill To
                       </span>
                       <span className="text-gray-900">
-                        {invoiceData.bill_to}
+                        {invoiceData.bill_to || "Not specified"}
                       </span>
                     </div>
                   </div>
@@ -255,12 +332,12 @@ export default function InvoiceSummary({
                         Client Name
                       </span>
                       <span className="text-gray-900 font-medium">
-                        {invoiceData.name}
+                        {invoiceData.name || "Not specified"}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500 block text-xs">Email</span>
-                      <span className="text-gray-900">{invoiceData.email}</span>
+                      <span className="text-gray-900">{invoiceData.email || "Not specified"}</span>
                     </div>
                   </div>
                 </div>
@@ -346,7 +423,9 @@ export default function InvoiceSummary({
               {/* Important Notes */}
               <div
                 className={`rounded-lg p-4 text-sm flex items-start gap-3 ${
-                  freeInvoiceInfo?.hasFreeInvoices
+                  hasUnlimited
+                    ? "bg-purple-50 border border-purple-200 text-purple-700"
+                    : hasFreeInvoices
                     ? "bg-green-50 border border-green-200 text-green-700"
                     : "bg-blue-50 border border-blue-200 text-blue-700"
                 }`}
@@ -354,7 +433,9 @@ export default function InvoiceSummary({
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className={`h-5 w-5 mt-0.5 shrink-0 ${
-                    freeInvoiceInfo?.hasFreeInvoices
+                    hasUnlimited
+                      ? "text-purple-500"
+                      : hasFreeInvoices
                       ? "text-green-500"
                       : "text-blue-500"
                   }`}
@@ -374,24 +455,36 @@ export default function InvoiceSummary({
                   <ul className="list-disc list-inside space-y-1 text-xs">
                     <li>This invoice will be sent to the client's email</li>
                     <li>Client can pay via multiple payment methods</li>
-                    {freeInvoiceInfo?.hasFreeInvoices ? (
+                    
+                    {hasUnlimited ? (
                       <>
                         <li>
-                          This invoice is <strong>FREE</strong> (using free
-                          credit)
+                          <strong className="text-purple-700">{userTier === 'growth' ? 'Growth Plan:' : 'Premium Plan:'}</strong> Unlimited invoices
+                        </li>
+                        <li>No monthly limits on invoice creation</li>
+                      </>
+                    ) : hasFreeInvoices ? (
+                      <>
+                        <li>
+                          This invoice is <strong>FREE</strong> (within monthly limit)
                         </li>
                         <li>
-                          You have {freeInvoiceInfo.freeInvoicesLeft - 1} free
-                          invoices remaining after this
+                          You have {remainingInvoices - 1} free {remainingInvoices - 1 === 1 ? 'invoice' : 'invoices'} remaining this month
                         </li>
-                        <li>After free invoices, each invoice costs ₦100</li>
+                        <li>After reaching limit, you can continue with pay-per-use (₦{payPerUseFee} per invoice) or upgrade to Growth for unlimited</li>
                       </>
                     ) : (
-                      <li>
-                        The ₦100 fee covers invoice generation and payment
-                        processing
-                      </li>
+                      <>
+                        <li>
+                          This invoice will cost <strong>₦{payPerUseFee}</strong> (pay-per-use)
+                        </li>
+                        <li>
+                          You've reached your monthly limit of 5 free invoices
+                        </li>
+                        <li>Upgrade to Growth for unlimited free invoices</li>
+                      </>
                     )}
+                    
                     <li>You will receive notifications when payment is made</li>
                     {invoiceData.fee_option === "customer" && (
                       <li>
@@ -414,16 +507,18 @@ export default function InvoiceSummary({
                 <Button
                   onClick={onConfirm}
                   className={`px-8 ${
-                    freeInvoiceInfo?.hasFreeInvoices
+                    hasUnlimited
+                      ? "bg-purple-600 hover:bg-purple-700 text-white"
+                      : hasFreeInvoices
                       ? "bg-green-600 hover:bg-green-700 text-white"
                       : "bg-[#C29307] hover:bg-[#b38606] text-white"
                   }`}
                 >
-                  {freeInvoiceInfo?.hasFreeInvoices
-                    ? `Create Free Invoice (${
-                        freeInvoiceInfo.freeInvoicesLeft - 1
-                      } left)`
-                    : "Pay ₦100 & Create Invoice"}
+                  {hasUnlimited 
+                    ? "Create Invoice"
+                    : hasFreeInvoices 
+                    ? `Create Free Invoice (${remainingInvoices - 1} left)` 
+                    : `Pay ₦${payPerUseFee} & Create Invoice`}
                 </Button>
               </div>
             </div>

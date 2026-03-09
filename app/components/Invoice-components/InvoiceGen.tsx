@@ -193,9 +193,27 @@ export default function InvoiceGen() {
     return <Loader />;
   }
 
+  // ✅ Conditionally show empty state if invoices length is 0
+  if (invoices.length === 0 && !loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <div className="text-center">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Invoices Yet</h3>
+          <p className="text-gray-600 mb-4">Get started by creating your first invoice</p>
+          <Button
+            className="hover:bg-black bg-[#C29307] hover:shadow-xl transition-all duration-300"
+            onClick={() => router.push("/dashboard/services/create-invoice/create")}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Your First Invoice
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Summary Cards - UPDATED with partially paid */}
       {activeTab === "invoices" && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <Card>

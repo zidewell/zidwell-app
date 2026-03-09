@@ -14,8 +14,7 @@ import { usePathname } from "next/navigation";
 
 export interface SupabaseUser {
   id: string;
-  firstName: string;
-  lastName: string;
+  fullName: string;
   email: string;
   phone: string;
   currentLoginSession: string | null;
@@ -28,6 +27,17 @@ export interface SupabaseUser {
   address: string | null;
   dateOfBirth: string;
   profilePicture: string | null;
+  // Add subscription fields
+  subscription_tier?: 'free' | 'growth' | 'premium' | 'elite' | null;
+  subscription_expires_at?: string | null;
+}
+
+// Add subscription interface
+export interface SubscriptionInfo {
+  tier: 'free' | 'growth' | 'premium' | 'elite';
+  status: 'active' | 'expired' | 'cancelled' | 'pending';
+  expiresAt: Date | null;
+  features: Record<string, any>;
 }
 
 interface Notification {
@@ -62,6 +72,20 @@ interface UserContextType {
   markAllAsRead: () => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   clearNotificationCache: () => void;
+  // Add subscription-related methods
+  subscription: SubscriptionInfo | null;
+  subscriptionLoading: boolean;
+  refreshSubscription: () => Promise<void>;
+  checkFeatureAccess: (featureKey: string, currentCount?: number) => Promise<{
+    hasAccess: boolean;
+    limit?: number;
+    message?: string;
+    requiredTier?: string;
+  }>;
+  subscribe: (tier: 'growth' | 'premium' | 'elite', paymentMethod: string, amount: number, paymentReference: string, isYearly?: boolean) => Promise<any>;
+  cancelSubscription: () => Promise<any>;
+  getUpgradeBenefits: (targetTier: string) => string[];
+  canAccessFeature: (featureKey: string, currentCount?: number) => boolean;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -81,6 +105,7 @@ const STATIC_PUBLIC_PAGES = [
   '/auth/callback',
   '/auth/login',
   '/auth/register',
+  '/pricing',
 ];
 
 // Regex patterns for dynamic public routes
@@ -149,6 +174,68 @@ class NotificationCache {
 
 const notificationCache = new NotificationCache();
 
+// Subscription cache
+class SubscriptionCache {
+  private cache = new Map();
+  private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
+
+  set(key: string, data: any) {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl: this.DEFAULT_TTL
+    });
+  }
+
+  get(key: string) {
+    const item = this.cache.get(key);
+    if (!item) return null;
+
+    const isExpired = Date.now() - item.timestamp > item.ttl;
+    if (isExpired) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return item.data;
+  }
+
+  delete(key: string) {
+    this.cache.delete(key);
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
+
+const subscriptionCache = new SubscriptionCache();
+
+// Feature access mapping
+const FEATURE_TIER_MAP: Record<string, string> = {
+  'invoices_per_month': 'free',
+  'receipts_per_month': 'free',
+  'contracts_per_month': 'free',
+  'bookkeeping_access': 'growth',
+  'tax_calculator': 'growth',
+  'payment_reminders': 'growth',
+  'whatsapp_community': 'growth',
+  'financial_statements': 'premium',
+  'tax_support': 'premium',
+  'priority_support': 'premium',
+  'full_tax_filing': 'elite',
+  'vat_filing': 'elite',
+  'paye_filing': 'elite',
+  'wht_filing': 'elite',
+  'cit_audit': 'elite',
+  'cfo_guidance': 'elite',
+  'direct_whatsapp_support': 'elite',
+  'audit_coordination': 'elite',
+};
+
+// Tier hierarchy for upgrade benefits
+const TIER_HIERARCHY = ['free', 'growth', 'premium', 'elite'];
+
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
@@ -161,11 +248,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [lifetimeBalance, setLifetimeBalance] = useState(0);
   const [totalOutflow, setTotalOutflow] = useState(0);
   const [totalTransactions, setTotalTransactions] = useState(0);
+  
   // Notification states
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  
+  // Subscription states
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   const pathname = usePathname();
 
@@ -190,10 +281,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       return true;
     }
 
-    if (pathname.startsWith('/sign-contract/')) return true;
-    if (pathname.startsWith('/sign-receipt/')) return true;
-    if (pathname.startsWith('/pay-invoice/')) return true;
-
     return false;
   };
 
@@ -205,7 +292,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   // Fetch notifications
   const fetchNotifications = async (filter: string = 'all', limit: number = 50) => {
     if (!shouldFetchData || !userData?.id) {
-      console.log('❌ No userData.id available or should not fetch data');
       return;
     }
 
@@ -233,7 +319,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
         if (data && Array.isArray(data)) {
           setNotifications(data);
-          setLastFetchTime(Date.now());
           
           const newUnreadCount = data.filter((n: Notification) => !n.read_at).length;
           setUnreadCount(newUnreadCount);
@@ -242,12 +327,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             notificationCache.set(cacheKey, data);
           }
         } else {
-          console.error('❌ Invalid data format:', data);
           setNotifications([]);
         }
       } else {
-        const errorText = await response.text();
-        console.error('❌ Failed to fetch notifications:', errorText);
         const cached = notificationCache.get(cacheKey);
         if (cached) {
           setNotifications(cached);
@@ -290,8 +372,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('❌ Error fetching unread count:', error);
-      const calculatedCount = notifications.filter(n => !n.read_at).length;
-      setUnreadCount(calculatedCount);
     }
   };
 
@@ -300,7 +380,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (!shouldFetchData || !userData?.id) return;
 
     try {
-      // Update local state immediately
       setNotifications(prev => 
         prev.map(n => 
           n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n
@@ -309,23 +388,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       
       setUnreadCount(prev => Math.max(0, prev - 1));
 
-      // Clear relevant cache
       notificationCache.delete(`notifications_${userData.id}_all_50`);
       notificationCache.delete(`notifications_${userData.id}_unread_50`);
       notificationCache.delete(`unread_count_${userData.id}`);
 
-      // Update on server
-      const response = await fetch(`/api/notifications/${notificationId}/read?userId=${userData.id}`, {
+      await fetch(`/api/notifications/${notificationId}/read?userId=${userData.id}`, {
         method: 'POST'
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to mark as read');
-      }
-
     } catch (error) {
       console.error('❌ Error marking notification as read:', error);
-      // Refresh data to sync with server
       fetchNotifications();
       fetchUnreadCount();
     }
@@ -336,23 +408,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (!shouldFetchData || !userData?.id) return;
 
     try {
-      // Update local state immediately
       setNotifications(prev => 
         prev.map(n => ({ ...n, read_at: new Date().toISOString() }))
       );
       setUnreadCount(0);
 
-      // Clear cache
       clearNotificationCache();
 
-      // Update on server
-      const response = await fetch(`/api/notifications/read-all?userId=${userData.id}`, {
+      await fetch(`/api/notifications/read-all?userId=${userData.id}`, {
         method: 'POST'
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to mark all as read');
-      }
 
     } catch (error) {
       console.error('❌ Error marking all as read:', error);
@@ -361,7 +426,325 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Initialize user from localStorage and determine if we should fetch data
+  // ============ SUBSCRIPTION METHODS ============
+
+  // Fetch subscription data
+  const fetchSubscription = async () => {
+    if (!shouldFetchData || !userData?.id) {
+      setSubscription(null);
+      return;
+    }
+
+    const cacheKey = `subscription_${userData.id}`;
+    const cached = subscriptionCache.get(cacheKey);
+    
+    if (cached) {
+      setSubscription(cached);
+      return;
+    }
+
+    setSubscriptionLoading(true);
+    try {
+      const response = await fetch(`/api/subscription`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.subscription) {
+          // Convert expiresAt string to Date if needed
+          const subscriptionData = {
+            ...data.subscription,
+            expiresAt: data.subscription.expiresAt ? new Date(data.subscription.expiresAt) : null
+          };
+          setSubscription(subscriptionData);
+          subscriptionCache.set(cacheKey, subscriptionData);
+          
+          setUserData((prev: any) => ({
+            ...prev,
+            subscription_tier: subscriptionData.tier,
+            subscription_expires_at: subscriptionData.expiresAt?.toISOString(),
+          }));
+        }
+      } else {
+        // If no subscription found, set default free tier
+        const defaultSubscription: SubscriptionInfo = {
+          tier: 'free',
+          status: 'active',
+          expiresAt: null,
+          features: {},
+        };
+        setSubscription(defaultSubscription);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching subscription:', error);
+      setSubscription({
+        tier: 'free',
+        status: 'active',
+        expiresAt: null,
+        features: {},
+      });
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  // Refresh subscription (clear cache and fetch)
+  const refreshSubscription = async () => {
+    if (userData?.id) {
+      subscriptionCache.delete(`subscription_${userData.id}`);
+      await fetchSubscription();
+    }
+  };
+
+  // Check if user can access a specific feature
+  const checkFeatureAccess = async (
+    featureKey: string, 
+    currentCount?: number
+  ): Promise<{ hasAccess: boolean; limit?: number; message?: string; requiredTier?: string }> => {
+    if (!subscription) {
+      return { 
+        hasAccess: false, 
+        message: "Unable to verify subscription",
+        requiredTier: FEATURE_TIER_MAP[featureKey] || 'premium'
+      };
+    }
+
+    const feature = subscription.features[featureKey];
+    const requiredTier = FEATURE_TIER_MAP[featureKey] || 'premium';
+    const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
+    const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier as any);
+
+    // Check if user's tier meets the requirement
+    if (userTierIndex < requiredTierIndex) {
+      return {
+        hasAccess: false,
+        message: `This feature requires the ${requiredTier} plan or higher`,
+        requiredTier,
+      };
+    }
+
+    // Check if feature exists in user's tier
+    if (!feature) {
+      return {
+        hasAccess: false,
+        message: `This feature is not available in your ${subscription.tier} plan`,
+        requiredTier,
+      };
+    }
+
+    // Check if feature value is "true" (boolean feature)
+    if (feature.value === 'true') {
+      return { hasAccess: true };
+    }
+
+    // Check if feature is unlimited
+    if (feature.value === 'unlimited') {
+      return { hasAccess: true };
+    }
+
+    // Check numeric limits
+    if (feature.limit && currentCount !== undefined) {
+      const limit = feature.limit;
+      if (currentCount >= limit) {
+        return {
+          hasAccess: false,
+          limit,
+          message: `You've reached your ${featureKey.replace(/_/g, ' ')} limit of ${limit} for the ${subscription.tier} plan`,
+          requiredTier,
+        };
+      }
+      return { hasAccess: true, limit };
+    }
+
+    return { hasAccess: true };
+  };
+
+  // Synchronous version of checkFeatureAccess for UI
+  const canAccessFeature = (featureKey: string, currentCount?: number): boolean => {
+    if (!subscription) return false;
+
+    const feature = subscription.features[featureKey];
+    const requiredTier = FEATURE_TIER_MAP[featureKey] || 'premium';
+    const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
+    const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier as any);
+
+    // Check tier requirement
+    if (userTierIndex < requiredTierIndex) {
+      return false;
+    }
+
+    // Check if feature exists
+    if (!feature) {
+      return false;
+    }
+
+    // Check value
+    if (feature.value === 'true' || feature.value === 'unlimited') {
+      return true;
+    }
+
+    // Check limits
+    if (feature.limit && currentCount !== undefined) {
+      return currentCount < feature.limit;
+    }
+
+    return true;
+  };
+
+  // Subscribe to a paid tier
+  const subscribe = async (
+    tier: 'growth' | 'premium' | 'elite',
+    paymentMethod: string,
+    amount: number,
+    paymentReference: string,
+    isYearly: boolean = false
+  ) => {
+    if (!userData?.id) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    try {
+      const response = await fetch('/api/subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'subscribe',
+          tier,
+          paymentMethod,
+          amount,
+          paymentReference,
+          isYearly,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        subscriptionCache.delete(`subscription_${userData.id}`);
+        await fetchSubscription();
+        
+        setUserData((prev: any) => ({
+          ...prev,
+          subscription_tier: tier,
+          subscription_expires_at: data.subscription?.expires_at,
+        }));
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('❌ Error subscribing:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Cancel subscription
+  const cancelSubscription = async () => {
+    if (!userData?.id) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    try {
+      const response = await fetch('/api/subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'cancel',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        subscriptionCache.delete(`subscription_${userData.id}`);
+        await fetchSubscription();
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('❌ Error cancelling subscription:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Get upgrade benefits from current tier to target tier
+  const getUpgradeBenefits = (targetTier: string): string[] => {
+    const benefitsMap: Record<string, Record<string, string[]>> = {
+      free: {
+        growth: [
+          "Unlimited invoices",
+          "Unlimited receipts",
+          "5 contracts per month",
+          "Bookkeeping tool access",
+          "Tax calculator",
+          "Invoice payment reminders",
+          "WhatsApp community access",
+          "WhatsApp support",
+        ],
+        premium: [
+          "Everything in Growth, plus:",
+          "Unlimited contracts",
+          "Financial statement preparation",
+          "Tax calculation support",
+          "Tax filing support",
+          "Priority support",
+        ],
+        elite: [
+          "Everything in Premium, plus:",
+          "Full tax filing support",
+          "VAT, PAYE, WHT filing",
+          "CIT audit",
+          "Monthly & yearly tax filing",
+          "CFO-level guidance",
+          "Direct WhatsApp support",
+          "Annual audit coordination",
+        ],
+      },
+      growth: {
+        premium: [
+          "Unlimited contracts",
+          "Financial statement preparation",
+          "Tax calculation support",
+          "Tax filing support",
+          "Priority support",
+        ],
+        elite: [
+          "Everything in Premium, plus:",
+          "Full tax filing support",
+          "VAT, PAYE, WHT filing",
+          "CIT audit",
+          "Monthly & yearly tax filing",
+          "CFO-level guidance",
+          "Direct WhatsApp support",
+          "Annual audit coordination",
+        ],
+      },
+      premium: {
+        elite: [
+          "Full tax filing support",
+          "VAT, PAYE, WHT filing",
+          "CIT audit",
+          "Monthly & yearly tax filing",
+          "CFO-level guidance",
+          "Direct WhatsApp support",
+          "Annual audit coordination",
+        ],
+      },
+    };
+
+    const currentTier = subscription?.tier || 'free';
+    return benefitsMap[currentTier]?.[targetTier] || [];
+  };
+
+  // ============ END SUBSCRIPTION METHODS ============
+
+  // Initialize user from localStorage
   useEffect(() => {
     const initializeUser = async () => {
       try {
@@ -371,13 +754,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           setUser(parsedUser);
           setUserData(parsedUser);
           
-          // Check if we're on a public page
           const isPublic = isPublicPage();
-          if (isPublic) {
-            setShouldFetchData(false);
-          } else {
-            setShouldFetchData(true);
-          }
+          setShouldFetchData(!isPublic);
         }
       } catch (error) {
         console.error("Failed to parse localStorage user:", error);
@@ -395,23 +773,27 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (!initialCheckDone) return;
 
     const isPublic = isPublicPage();
+    setShouldFetchData(!isPublic);
     
     if (isPublic) {
-      setShouldFetchData(false);
-      if (userData) {
-        setBalance(null);
-        setNotifications([]);
-        setUnreadCount(0);
-        setLifetimeBalance(0);
-        setTotalOutflow(0);
-        setTotalTransactions(0);
-      }
-    } else {
-      setShouldFetchData(true);
+      setBalance(null);
+      setNotifications([]);
+      setUnreadCount(0);
+      setLifetimeBalance(0);
+      setTotalOutflow(0);
+      setTotalTransactions(0);
+      setSubscription(null);
     }
-  }, [pathname, initialCheckDone, userData]);
+  }, [pathname, initialCheckDone]);
 
-  // Fetch balance (only when shouldFetchData is true)
+  // Fetch subscription when user is authenticated
+  useEffect(() => {
+    if (shouldFetchData && userData?.id) {
+      fetchSubscription();
+    }
+  }, [userData?.id, shouldFetchData]);
+
+  // Fetch balance
   useEffect(() => {
     const fetchBalance = async () => {
       if (!shouldFetchData || !userData?.id) return;
@@ -425,9 +807,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           body: JSON.stringify({ userId: userData.id }),
         });
 
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
         const data = await res.json();
 
@@ -435,16 +815,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           throw new Error(data.error || 'Failed to fetch balance');
         }
 
-        const balance = data.wallet_balance ?? 0;
-        setBalance(balance);
+        setBalance(data.wallet_balance ?? 0);
         
       } catch (error) {
         console.error('❌ Error fetching balance:', error);
-        if (userData?.zidcoinBalance !== undefined) {
-          setBalance(userData.zidcoinBalance);
-        } else {
-          setBalance(0);
-        }
+        setBalance(userData?.zidcoinBalance ?? 0);
       }
     };
 
@@ -453,7 +828,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
 
-  // Fetch transaction stats (lifetime balance, total outflow, total transactions)
+  // Fetch transaction stats
   useEffect(() => {
     const fetchTransactionStats = async () => {
       if (!shouldFetchData || !userData?.id) return;
@@ -488,11 +863,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         notificationCache.set(cacheKey, stats, 5 * 60 * 1000);
       } catch (error) {
         console.error('❌ Error fetching transaction stats:', error);
-        if (cached) {
-          setLifetimeBalance(cached.lifetimeBalance);
-          setTotalOutflow(cached.totalOutflow);
-          setTotalTransactions(cached.totalTransactions);
-        }
       }
     };
 
@@ -501,7 +871,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, shouldFetchData]);
 
-  // Fetch notifications (only when shouldFetchData is true)
+  // Fetch notifications
   useEffect(() => {
     if (shouldFetchData && userData?.id) {
       fetchNotifications();
@@ -509,7 +879,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, shouldFetchData]);
 
-  // Cache cleanup and refresh intervals (only when shouldFetchData is true)
+  // Cache cleanup and refresh intervals
   useEffect(() => {
     if (!shouldFetchData || !userData?.id) return;
 
@@ -520,6 +890,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     const refreshInterval = setInterval(() => {
       fetchNotifications();
       fetchUnreadCount();
+      fetchSubscription();
     }, 5 * 60 * 1000);
 
     return () => {
@@ -528,7 +899,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [userData?.id, shouldFetchData]);
 
-  // Theme initialization (always runs)
+  // Theme initialization
   useEffect(() => {
     const theme = localStorage.getItem("theme");
     if (theme === "dark") {
@@ -568,6 +939,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         markAllAsRead,
         fetchUnreadCount,
         clearNotificationCache,
+        // Subscription values
+        subscription: shouldFetchData ? subscription : null,
+        subscriptionLoading: shouldFetchData ? subscriptionLoading : false,
+        refreshSubscription,
+        checkFeatureAccess,
+        subscribe,
+        cancelSubscription,
+        getUpgradeBenefits,
+        canAccessFeature,
       }}
     >
       {children}

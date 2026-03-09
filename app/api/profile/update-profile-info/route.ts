@@ -25,8 +25,7 @@ export async function POST(req: NextRequest) {
 
     const {
       userId,
-      firstName,
-      lastName,
+      fullName,
       phone,
       dob,
       address,
@@ -46,8 +45,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase
       .from("users")
       .update({
-        first_name: firstName,
-        last_name: lastName,
+        first_name: fullName,
         phone,
         date_of_birth: dob,
         address,

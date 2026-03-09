@@ -23,8 +23,7 @@ export default function EditProfileInfo() {
   const { userData, setUserData } = useUserContextData();
 
   const initialProfile = {
-    firstName: userData?.firstName || "",
-    lastName: userData?.lastName || "",
+    fullName: userData?.fullName || "",
     email: userData?.email || "",
     phone: userData?.phone || "",
     dob: userData?.dateOfBirth || "",
@@ -125,7 +124,7 @@ export default function EditProfileInfo() {
     if (userData) {
       setProfile((prev: any) => ({
         ...prev,
-        firstName: userData.firstName || prev.firstName,
+        fullName: userData.fullName || prev.fullName,
         lastName: userData.lastName || prev.lastName,
         email: userData.email || prev.email,
         phone: userData.phone || prev.phone,
@@ -172,7 +171,7 @@ export default function EditProfileInfo() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData?.id,
-          firstName: profile.firstName,
+          fullName: profile.fullName,
           lastName: profile.lastName,
           phone: profile.phone,
           dob: profile.dob,
@@ -220,7 +219,7 @@ export default function EditProfileInfo() {
       // ✅ 3. Save local state
       const updatedUserData = {
         ...userData,
-        firstName: profile.firstName,
+        fullName: profile.fullName,
         lastName: profile.lastName,
         phone: profile.phone,
         dateOfBirth: profile.dob,
@@ -273,12 +272,12 @@ export default function EditProfileInfo() {
         {/* First + Last Name */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="firstName">First Name</Label>
+            <Label htmlFor="fullName">First Name</Label>
             <Input
-              id="firstName"
-              value={profile.firstName}
+              id="fullName"
+              value={profile.fullName}
               disabled
-              onChange={(e) => handleProfileChange("firstName", e.target.value)}
+              onChange={(e) => handleProfileChange("fullName", e.target.value)}
             />
           </div>
           <div>

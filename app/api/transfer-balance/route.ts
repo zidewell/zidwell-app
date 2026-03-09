@@ -4,17 +4,16 @@
 // import bcrypt from "bcryptjs";
 // import { isAuthenticated } from "@/lib/auth-check-api";
 
-
 // export async function POST(req: NextRequest) {
 //      const user = await isAuthenticated(req);
-        
+
 //         if (!user) {
 //           return NextResponse.json(
 //             { error: "Please login to access transactions" },
 //             { status: 401 }
 //           );
 //         }
-    
+
 //   const supabase = createClient(
 //     process.env.SUPABASE_URL!,
 //     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -37,7 +36,6 @@
 //       totalDebit,
 //     } = await req.json();
 
-   
 //     if (
 //       !userId ||
 //       !pin ||
@@ -163,7 +161,6 @@
 //     const data = await res.json();
 //     // console.log("transfer data", data);
 
-
 //     await supabase
 //       .from("transactions")
 //       .update({
@@ -189,12 +186,23 @@
 //   }
 // }
 
-// app/api/withdraw/route.ts
+/// app/api/deduct-funds/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import {
+  isAuthenticated,
+  hasRequiredTier,
+  checkFeatureAccess,
+} from "@/lib/auth-check-api";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
+
+// Services that are always free (utilities)
+const UTILITY_SERVICES = ["airtime", "data", "electricity", "cable-tv"];
 
 export async function POST(req: NextRequest) {
   const user = await isAuthenticated(req);
@@ -202,530 +210,523 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json(
       { error: "Please login to access transactions" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
   try {
-    const {
+    const body = await req.json();
+    let {
       userId,
-      senderName,
-      senderAccountNumber,
-      senderBankName,
       amount,
-      accountNumber,
-      accountName,
-      bankName,
-      bankCode,
-      narration,
+      description,
       pin,
-      fee,
-      totalDebit,
-    } = await req.json();
+      isInvoiceCreation = false,
+      isReceiptCreation = false,
+      isContractCreation = false,
+      service,
+      include_lawyer_signature = false,
+    } = body;
 
-    // console.log({
-    //   userId,
-    //   senderName,
-    //   senderAccountNumber,
-    //   senderBankName,
-    //   amount,
-    //   accountNumber,
-    //   accountName,
-    //   bankName,
-    //   bankCode,
-    //   narration,
-    //   pin,
-    //   fee,
-    //   totalDebit,
-    // })
-
-    // Validate required fields
-    if (
-      !userId ||
-      !pin ||
-      !amount ||
-      amount < 100 ||
-      !accountNumber ||
-      !accountName ||
-      !bankCode ||
-      !bankName
-    ) {
+    if (!userId || !pin) {
       return NextResponse.json(
-        { 
-          code: "400",
-          message: "Missing or invalid required fields",
-          description: "Request failed due to missing or invalid parameters"
-        },
-        { status: 400 }
+        { error: "Invalid request data" },
+        { status: 400 },
       );
     }
 
-    // ✅ Verify user + PIN
-    const { data: user, error: userError } = await supabase
+    if (user.id !== userId) {
+      return NextResponse.json(
+        { error: "Unauthorized access" },
+        { status: 403 },
+      );
+    }
+
+    // Fetch user data with usage counts
+    const { data: userData, error: fetchError } = await supabase
       .from("users")
-      .select("id, transaction_pin, wallet_balance")
+      .select(
+        `
+        transaction_pin, 
+        wallet_balance, 
+        subscription_tier, 
+        subscription_expires_at,
+        invoices_used_this_month,
+        receipts_used_this_month,
+        contracts_used_this_month,
+        last_usage_reset
+      `,
+      )
       .eq("id", userId)
       .single();
 
-    if (userError || !user) {
+    if (fetchError || !userData) {
       return NextResponse.json(
-        { 
-          code: "404",
-          message: "User not found",
-          description: "The specified user does not exist in our records"
-        },
-        { status: 404 }
+        { error: fetchError?.message || "User not found" },
+        { status: 404 },
       );
     }
 
+    if (!userData.transaction_pin) {
+      return NextResponse.json(
+        { error: "Transaction PIN not set" },
+        { status: 400 },
+      );
+    }
+
+    // Verify PIN
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
-    const isValid = await bcrypt.compare(plainPin, user.transaction_pin);
+    const isValid = await bcrypt.compare(plainPin, userData.transaction_pin);
+
     if (!isValid) {
       return NextResponse.json(
-        { 
-          code: "401",
-          message: "Invalid transaction PIN",
-          description: "The provided transaction PIN is incorrect"
-        },
-        { status: 401 }
+        { error: "Invalid transaction PIN" },
+        { status: 401 },
       );
     }
 
-    const totalDeduction = totalDebit || (Number(amount) + Number(fee || 0));
-    if (user.wallet_balance < totalDeduction) {
-      return NextResponse.json(
-        { 
-          code: "400",
-          message: "Insufficient wallet balance (including fees)",
-          description: `Your wallet balance (₦${user.wallet_balance}) is insufficient for this transaction (₦${totalDeduction} needed)`
-        },
-        { status: 400 }
-      );
-    }
-
-    // ✅ Get Nomba token
-    let token;
-    try {
-      token = await getNombaToken();
-    } catch (tokenError) {
-      console.error("Failed to get Nomba token:", tokenError);
-      return NextResponse.json(
-        { 
-          code: "401",
-          message: "Authentication failed",
-          description: "Unable to authenticate with payment provider"
-        },
-        { status: 401 }
-      );
-    }
-
-    if (!token) {
-      return NextResponse.json(
-        { 
-          code: "401",
-          message: "Unauthorized: Nomba token missing",
-          description: "Could not obtain authentication token from payment provider"
-        },
-        { status: 401 }
-      );
-    }
-
-    // Generate merchant transaction reference (this will be used to match with webhook)
-    const merchantTxRef = `WD_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-
-    const { data: pendingTx, error: txError } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: userId,
-        type: "withdrawal",
-        sender: {
-          name: senderName || "User",
-          accountNumber: senderAccountNumber || "N/A",
-          bankName: senderBankName || "Zidwell Wallet",
-        },
-        receiver: {
-          name: accountName,
-          accountNumber,
-          bankName,
-          bankCode, // Store bank code for reference matching
-        },
-        amount: Number(amount),
-        fee: Number(fee || 0),
-        total_deduction: totalDeduction,
-        status: "pending",
-        narration: narration || "N/A",
-        // Store multiple reference fields
-        merchant_tx_ref: merchantTxRef,
-        reference: merchantTxRef,
-        
-        // Store all additional data in external_response JSONB
-        external_response: {
-          withdrawal_details: {
-            bank_code: bankCode,
-            account_number: accountNumber,
-            account_name: accountName,
-            bank_name: bankName,
-            amount: Number(amount),
-            narration: narration || "N/A",
-            merchant_tx_ref: merchantTxRef,
-            initiated_at: new Date().toISOString()
-          },
-          references: {
-            merchant_tx_ref: merchantTxRef,
-            reference: merchantTxRef,
-            search_refs: [
-              merchantTxRef,
-              `WD_${Date.now()}`,
-              merchantTxRef.replace(/[^a-zA-Z0-9]/g, '')
-            ]
-          },
-          receiver_details: {
-            account_number: accountNumber,
-            account_name: accountName,
-            bank_code: bankCode,
-            bank_name: bankName,
-            amount: Number(amount)
-          },
-          status: "pending",
-          created_at: new Date().toISOString(),
-          metadata: {
-            initiated_at: new Date().toISOString(),
-            user_id: userId,
-            sender_name: senderName || "User"
-          }
-        }
-      })
-      .select("*")
-      .single();
-
-    if (txError || !pendingTx) {
-      console.error("Transaction creation error:", txError);
-      return NextResponse.json(
-        { 
-          code: "500",
-          error: "Could not create transaction record",
-          description: "Database error while creating transaction"
-        },
-        { status: 500 }
-      );
-    }
-
-    console.log("✅ Transaction created:", {
-      id: pendingTx.id,
-      merchant_tx_ref: pendingTx.merchant_tx_ref,
-      reference: pendingTx.reference
-    });
-
-    // ✅ Deduct wallet balance WITHOUT creating a transaction
-    // Using the new RPC function that ONLY deducts balance, no transaction creation
-    const { data: newBalance, error: rpcError } = await supabase
-      .rpc("deduct_wallet_balance_only", {
-        user_id: userId,
-        amt: totalDeduction
-      });
-
-    if (rpcError) {
-      console.error("Wallet deduction error:", rpcError);
-      
-      // Update transaction to failed
+    // Check if usage needs to be reset (new month)
+    const lastReset = userData.last_usage_reset
+      ? new Date(userData.last_usage_reset)
+      : new Date();
+    const now = new Date();
+    if (
+      lastReset.getMonth() !== now.getMonth() ||
+      lastReset.getFullYear() !== now.getFullYear()
+    ) {
+      // Reset monthly usage
       await supabase
-        .from("transactions")
+        .from("users")
         .update({
-          status: "failed",
-          external_response: {
-            ...(pendingTx.external_response || {}),
-            error: {
-              message: rpcError.message,
-              stage: "wallet_deduction",
-              timestamp: new Date().toISOString()
-            }
-          }
+          invoices_used_this_month: 0,
+          receipts_used_this_month: 0,
+          contracts_used_this_month: 0,
+          last_usage_reset: now.toISOString(),
         })
-        .eq("id", pendingTx.id);
-      
-      return NextResponse.json(
-        { 
-          code: "500",
-          error: "Failed to deduct wallet balance",
-          description: rpcError.message
-        },
-        { status: 500 }
+        .eq("id", userId);
+
+      userData.invoices_used_this_month = 0;
+      userData.receipts_used_this_month = 0;
+      userData.contracts_used_this_month = 0;
+    }
+
+    // ============ SUBSCRIPTION & USAGE CHECKS ============
+
+    // ✅ UTILITY SERVICES - Always accessible
+    if (service && UTILITY_SERVICES.includes(service)) {
+      if (userData.wallet_balance < amount) {
+        return NextResponse.json(
+          { error: "Insufficient balance for utility purchase" },
+          { status: 400 },
+        );
+      }
+      return await processPayment(
+        userId,
+        amount,
+        service,
+        description,
+        userData,
+        user,
       );
     }
 
-    // Check if insufficient funds (RPC returns -1 for insufficient funds)
-    if (newBalance === -1) {
-      await supabase
-        .from("transactions")
-        .update({
-          status: "failed",
-          external_response: {
-            ...(pendingTx.external_response || {}),
-            error: {
-              message: "Insufficient funds",
-              stage: "wallet_deduction",
-              timestamp: new Date().toISOString()
-            }
-          }
-        })
-        .eq("id", pendingTx.id);
-      
-      return NextResponse.json(
-        { 
-          code: "400",
-          error: "Insufficient funds",
-          description: "Your wallet balance is insufficient for this transaction"
-        },
-        { status: 400 }
+    // ✅ Handle Invoice Creation
+    if (isInvoiceCreation) {
+      // Check feature access with current usage
+      const featureAccess = await checkFeatureAccess(
+        req,
+        "invoices_per_month",
+        userData.invoices_used_this_month,
       );
-    }
 
-    console.log(`✅ Wallet deducted. New balance: ₦${newBalance}`);
-
-    // Update transaction with wallet deduction info
-    await supabase
-      .from("transactions")
-      .update({
-        external_response: {
-          ...(pendingTx.external_response || {}),
-          wallet_deduction: {
-            completed_at: new Date().toISOString(),
-            new_balance: newBalance,
-            amount_deducted: totalDeduction
-          }
-        }
-      })
-      .eq("id", pendingTx.id);
-
-    // ✅ Call Nomba Transfer API
-    let nombaResponse;
-    let nombaStatus;
-    
-    try {
-      const res = await fetch(`${process.env.NOMBA_URL}/v1/transfers/bank`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          accountId: process.env.NOMBA_ACCOUNT_ID!,
-        },
-        body: JSON.stringify({
-          amount: Number(amount),
-          accountNumber,
-          accountName,
-          bankCode,
-          senderName: senderName || "Zidwell User",
-          merchantTxRef,
-          narration: narration || "Withdrawal from Zidwell",
-        }),
-      });
-
-      nombaStatus = res.status;
-      const responseText = await res.text();
-      
-      try {
-        nombaResponse = JSON.parse(responseText);
-      } catch {
-        nombaResponse = { raw: responseText };
+      if (!featureAccess.hasAccess) {
+        return NextResponse.json(
+          {
+            error: featureAccess.error || "Monthly invoice limit reached",
+            limit: featureAccess.limit || 5,
+            currentCount: userData.invoices_used_this_month,
+            requiredTier: "growth",
+            upgradeRequired: true,
+            message: "Upgrade to Growth plan for unlimited invoices",
+          },
+          { status: 403 },
+        );
       }
 
-      // Handle non-200 status codes
-      if (!res.ok) {
-        console.error(`Nomba API error (${nombaStatus}):`, nombaResponse);
+      // Get the limit (with fallback)
+      const limit = featureAccess.limit || 5;
 
-        const refundRef = `REFUND_${merchantTxRef}`;
-        const { error: refundError } = await supabase.rpc("increment_wallet_balance", {
-          user_id: userId,
-          amt: totalDeduction,
-        });
+      // Increment usage
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          invoices_used_this_month: userData.invoices_used_this_month + 1,
+        })
+        .eq("id", userId);
 
-        if (refundError) {
-          console.error("Critical: Failed to refund user after failed transfer:", refundError);
-        }
-
-        // Map status code to appropriate response
-        const errorResponses = {
-          400: {
-            code: "400",
-            message: "Transfer failed",
-            description: nombaResponse.description || "Invalid transfer parameters",
-            details: nombaResponse
-          },
-          401: {
-            code: "401",
-            message: "Authentication failed",
-            description: nombaResponse.description || "Unauthorized - invalid or expired token",
-            details: nombaResponse
-          },
-          403: {
-            code: "403",
-            message: "Access forbidden",
-            description: nombaResponse.description || "You don't have permission to perform this transfer",
-            details: nombaResponse
-          },
-          404: {
-            code: "404",
-            message: "Resource not found",
-            description: nombaResponse.description || "The requested resource was not found",
-            details: nombaResponse
-          },
-          429: {
-            code: "429",
-            message: "Too many requests",
-            description: nombaResponse.description || "Rate limit exceeded. Please try again later",
-            details: nombaResponse
-          },
-          500: {
-            code: "500",
-            message: "Server error",
-            description: nombaResponse.description || "Payment provider server error",
-            details: nombaResponse
-          }
-        };
-
-        const errorResponse = errorResponses[nombaStatus as keyof typeof errorResponses] || {
-          code: String(nombaStatus),
-          message: "Transfer failed",
-          description: nombaResponse.description || "Unknown error occurred",
-          details: nombaResponse
-        };
-
-        // Update transaction with failure details
-        await supabase
-          .from("transactions")
-          .update({
-            status: "failed",
-            description: `Transfer failed: ${errorResponse.description}`,
-            reference: nombaResponse.data?.id || null,
-            external_response: {
-              ...(pendingTx.external_response || {}),
-              ...nombaResponse,
-              nomba_status: nombaStatus,
-              error_code: errorResponse.code,
-              refunded: true,
-              refund_amount: totalDeduction,
-              refund_reference: refundRef,
-              timestamp: new Date().toISOString()
-            },
-          })
-          .eq("id", pendingTx.id);
-
-        return NextResponse.json(errorResponse, { status: nombaStatus });
+      if (updateError) {
+        console.error("Failed to update invoice count:", updateError);
+        return NextResponse.json(
+          { error: "Failed to process invoice creation" },
+          { status: 500 },
+        );
       }
 
-      // ✅ Handle 200 Success
-      // Update transaction with processing status
-      await supabase
-        .from("transactions")
-        .update({
-          status: "processing", // Will be updated to success via webhook
-          description: `Transfer of ₦${amount} to ${accountName}`,
-          reference: nombaResponse.data?.id || nombaResponse.data?.meta?.sessionId || null,
-          external_response: {
-            ...(pendingTx.external_response || {}),
-            ...nombaResponse,
-            nomba_status: nombaStatus,
-            nomba_transaction_id: nombaResponse.data?.id,
-            fee_breakdown: {
-              amount: Number(amount),
-              nomba_fee: nombaResponse.fee || 0,
-              app_fee: Number(fee || 0),
-              total_fee: (nombaResponse.fee || 0) + Number(fee || 0),
-              total_deduction: totalDeduction
-            },
-            webhook_data: {
-              expected: true,
-              merchant_tx_ref: merchantTxRef,
-              sent_at: new Date().toISOString()
-            }
-          },
-        })
-        .eq("id", pendingTx.id);
-
-      console.log(`✅ Transfer initiated successfully for transaction ${pendingTx.id}`);
+      // Record the transaction
+      const reference = `INV-${crypto.randomUUID().slice(0, 8)}`;
+      await supabase.from("transactions").insert({
+        user_id: userId,
+        amount: 0,
+        type: "invoice_creation",
+        status: "success",
+        description:
+          description ||
+          `Invoice created (${userData.invoices_used_this_month + 1}/${limit} used)`,
+        reference: reference,
+        external_response: {
+          used_this_month: userData.invoices_used_this_month + 1,
+          limit: limit,
+          remaining: limit - (userData.invoices_used_this_month + 1),
+          included_in_plan: true,
+        },
+      });
 
       return NextResponse.json({
-        code: "200",
-        message: "Transfer initiated successfully",
-        description: "Your transfer has been submitted and is being processed",
-        data: {
-          transactionId: pendingTx.id,
-          merchantTxRef,
-          amount: Number(amount),
-          recipient: accountName,
-          accountNumber,
-          bankName,
-          status: "processing",
-          nombaReference: nombaResponse.data?.id,
-          nombaResponse: nombaResponse,
-          fee_breakdown: {
-            nomba_fee: nombaResponse.fee || 0,
-            app_fee: Number(fee || 0),
-            total_fee: (nombaResponse.fee || 0) + Number(fee || 0),
-            total_deduction: totalDeduction
-          }
-        }
+        success: true,
+        message: "Invoice created successfully",
+        usedThisMonth: userData.invoices_used_this_month + 1,
+        limit: limit,
+        remaining: limit - (userData.invoices_used_this_month + 1),
+        charged: false,
+        amount: 0,
+        subscription_tier: user.subscription_tier,
       });
+    }
 
-    } catch (fetchError: any) {
-      // Network error or fetch itself failed
-      console.error("Network error calling Nomba API:", fetchError);
+    // ✅ Handle Receipt Creation
+    if (isReceiptCreation) {
+      const featureAccess = await checkFeatureAccess(
+        req,
+        "receipts_per_month",
+        userData.receipts_used_this_month,
+      );
 
-      // REFUND THE USER
-      const refundRef = `REFUND_${merchantTxRef}`;
-      await supabase.rpc("increment_wallet_balance", {
-        user_id: userId,
-        amt: totalDeduction,
-      });
-
-      await supabase
-        .from("transactions")
-        .update({
-          status: "failed",
-          description: "Transfer failed due to network error",
-          external_response: {
-            ...(pendingTx.external_response || {}),
-            error: {
-              message: fetchError.message,
-              code: "NETWORK_ERROR",
-              stack: process.env.NODE_ENV === "development" ? fetchError.stack : undefined
-            },
-            refunded: true,
-            refund_amount: totalDeduction,
-            refund_reference: refundRef,
-            timestamp: new Date().toISOString()
+      if (!featureAccess.hasAccess) {
+        return NextResponse.json(
+          {
+            error: featureAccess.error || "Monthly receipt limit reached",
+            limit: featureAccess.limit || 5,
+            currentCount: userData.receipts_used_this_month,
+            requiredTier: "growth",
+            upgradeRequired: true,
+            message: "Upgrade to Growth plan for unlimited receipts",
           },
-        })
-        .eq("id", pendingTx.id);
+          { status: 403 },
+        );
+      }
 
-      return NextResponse.json(
-        { 
-          code: "500",
-          error: "Network error",
-          description: "Unable to connect to payment provider. Your funds have been refunded.",
-          details: fetchError.message
+      const limit = featureAccess.limit || 5;
+
+      // Increment usage
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          receipts_used_this_month: userData.receipts_used_this_month + 1,
+        })
+        .eq("id", userId);
+
+      if (updateError) {
+        return NextResponse.json(
+          { error: "Failed to process receipt creation" },
+          { status: 500 },
+        );
+      }
+
+      const reference = `REC-${crypto.randomUUID().slice(0, 8)}`;
+      await supabase.from("transactions").insert({
+        user_id: userId,
+        amount: 0,
+        type: "receipt_creation",
+        status: "success",
+        description:
+          description ||
+          `Receipt created (${userData.receipts_used_this_month + 1}/${limit} used)`,
+        reference: reference,
+        external_response: {
+          used_this_month: userData.receipts_used_this_month + 1,
+          limit: limit,
+          remaining: limit - (userData.receipts_used_this_month + 1),
         },
-        { status: 503 } 
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "Receipt created successfully",
+        usedThisMonth: userData.receipts_used_this_month + 1,
+        limit: limit,
+        remaining: limit - (userData.receipts_used_this_month + 1),
+        charged: false,
+      });
+    }
+
+    // ✅ Handle Contract Creation
+    if (isContractCreation) {
+      // First check lawyer signature requirement
+      if (include_lawyer_signature) {
+        const { hasAccess } = await hasRequiredTier(req, "premium");
+        if (!hasAccess) {
+          return NextResponse.json(
+            {
+              error: "Lawyer signature requires Premium plan or higher",
+              requiredTier: "premium",
+              upgradeRequired: true,
+            },
+            { status: 403 },
+          );
+        }
+        // Lawyer signature has a fee even for premium users
+        amount = 10000; // ₦10,000 for lawyer signature
+      } else {
+        // Regular contract - check free limits
+        const featureAccess = await checkFeatureAccess(
+          req,
+          "contracts_per_month",
+          userData.contracts_used_this_month,
+        );
+
+        if (!featureAccess.hasAccess) {
+          return NextResponse.json(
+            {
+              error: featureAccess.error || "Monthly contract limit reached",
+              limit: featureAccess.limit || 1,
+              currentCount: userData.contracts_used_this_month,
+              requiredTier: "growth",
+              upgradeRequired: true,
+              message:
+                "Upgrade to Growth plan for 5 contracts/month or Premium for unlimited",
+            },
+            { status: 403 },
+          );
+        }
+
+        const limit = featureAccess.limit || 1;
+
+        // Increment usage
+        const { error: updateError } = await supabase
+          .from("users")
+          .update({
+            contracts_used_this_month: userData.contracts_used_this_month + 1,
+          })
+          .eq("id", userId);
+
+        if (updateError) {
+          return NextResponse.json(
+            { error: "Failed to process contract creation" },
+            { status: 500 },
+          );
+        }
+
+        const reference = `CON-${crypto.randomUUID().slice(0, 8)}`;
+        await supabase.from("transactions").insert({
+          user_id: userId,
+          amount: 0,
+          type: "contract_creation",
+          status: "success",
+          description:
+            description ||
+            `Contract created (${userData.contracts_used_this_month + 1}/${limit} used)`,
+          reference: reference,
+          external_response: {
+            used_this_month: userData.contracts_used_this_month + 1,
+            limit: limit,
+            remaining: limit - (userData.contracts_used_this_month + 1),
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: "Contract created successfully",
+          usedThisMonth: userData.contracts_used_this_month + 1,
+          limit: limit,
+          remaining: limit - (userData.contracts_used_this_month + 1),
+          charged: false,
+        });
+      }
+    }
+
+    // ✅ Handle Bookkeeping Access
+    if (service === "bookkeeping") {
+      // Check trial first
+      const { data: activeTrial } = await supabase
+        .from("user_trials")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("feature_key", "bookkeeping_access")
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (activeTrial) {
+        const trialEndsAt = new Date(activeTrial.ends_at);
+        if (trialEndsAt > new Date()) {
+          return NextResponse.json({
+            success: true,
+            message: "Bookkeeping access granted (trial)",
+            isTrial: true,
+            trialEndsAt: trialEndsAt,
+            daysRemaining: Math.ceil(
+              (trialEndsAt.getTime() - new Date().getTime()) /
+                (1000 * 60 * 60 * 24),
+            ),
+          });
+        }
+      }
+
+      // If no trial, check subscription
+      const { hasAccess } = await checkFeatureAccess(req, "bookkeeping_access");
+
+      if (!hasAccess) {
+        return NextResponse.json(
+          {
+            error: "Bookkeeping requires Growth plan or higher",
+            requiredTier: "growth",
+            upgradeRequired: true,
+          },
+          { status: 403 },
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Bookkeeping access granted",
+        subscription_tier: user.subscription_tier,
+        includedInPlan: true,
+      });
+    }
+
+    // ✅ Handle Tax Filing
+    if (service === "tax_filing") {
+      const { hasAccess } = await checkFeatureAccess(req, "tax_support");
+
+      if (!hasAccess) {
+        return NextResponse.json(
+          {
+            error: "Tax filing requires Premium plan or higher",
+            requiredTier: "premium",
+            upgradeRequired: true,
+          },
+          { status: 403 },
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Tax filing access granted",
+        subscription_tier: user.subscription_tier,
+        includedInPlan: true,
+      });
+    }
+
+    // ✅ If we get here and amount > 0, process regular payment
+    if (amount && amount > 0) {
+      return await processPayment(
+        userId,
+        amount,
+        service || "payment",
+        description,
+        userData,
+        user,
       );
     }
 
-  } catch (error: any) {
-    console.error("Withdraw API unexpected error:", error);
-    
+    return NextResponse.json({
+      success: true,
+      message: "Operation completed successfully",
+    });
+  } catch (err: any) {
+    console.error("❌ Deduct Funds Error:", err.message);
     return NextResponse.json(
-      { 
-        code: "500",
-        error: "Server error",
-        description: error.message || "An unexpected error occurred",
-        details: process.env.NODE_ENV === "development" ? error.stack : undefined
-      },
-      { status: 500 }
+      { error: err.message || "Unexpected server error" },
+      { status: 500 },
     );
   }
+}
+
+// Helper function to process payments
+async function processPayment(
+  userId: string,
+  amount: number,
+  service: string,
+  description: string | undefined,
+  userData: any,
+  user: any,
+) {
+  const supabase = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  if (userData.wallet_balance < amount) {
+    return NextResponse.json(
+      { error: "Insufficient balance" },
+      { status: 400 },
+    );
+  }
+
+  const reference = crypto.randomUUID();
+  const transactionDescription = description || `${service} payment`;
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    "deduct_wallet_balance",
+    {
+      user_id: userId,
+      amt: amount,
+      transaction_type: service,
+      reference,
+      description: transactionDescription,
+    },
+  );
+
+  if (rpcError) {
+    console.error("❌ RPC deduct_wallet_balance failed:", rpcError.message);
+    return NextResponse.json(
+      { error: "Failed to process payment" },
+      { status: 500 },
+    );
+  }
+
+  const result =
+    Array.isArray(rpcData) && rpcData.length > 0 ? rpcData[0] : rpcData;
+
+  if (!result || result.status !== "OK") {
+    return NextResponse.json(
+      { error: result?.status || "Payment failed" },
+      { status: 400 },
+    );
+  }
+
+  // Update user wallet balance
+  const { error: balanceUpdateError } = await supabase
+    .from("users")
+    .update({
+      wallet_balance: result.new_balance,
+    })
+    .eq("id", userId);
+
+  if (balanceUpdateError) {
+    console.error(
+      "❌ Failed to update user wallet balance:",
+      balanceUpdateError.message,
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: `${service} payment successful`,
+    reference,
+    transactionId: result.tx_id,
+    newWalletBalance: result.new_balance,
+    amount: amount,
+    status: "success",
+    subscription_tier: user.subscription_tier,
+  });
 }

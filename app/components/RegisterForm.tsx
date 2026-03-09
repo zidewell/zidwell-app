@@ -1,532 +1,520 @@
 "use client";
-import React from "react";
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import Swal from "sweetalert2";
 
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
+import { useState } from "react";
+import { z } from "zod";
+import confetti from "canvas-confetti";
+import { Eye, EyeOff, Info, ArrowLeft, ArrowRight, CheckCircle } from "lucide-react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Switch } from "./ui/switch";
+import { Progress } from "./ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
+import Swal from "sweetalert2";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import { Eye, EyeOff } from "lucide-react";
-import logo from "@/public/logo.png";
+// Validation schemas per step
+const step1Schema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(100),
+  phone: z.string().trim().regex(/^\d{11}$/, "Phone number must be 11 digits"),
+  email: z.string().trim().email("Invalid email address").max(255),
+});
 
-import { supabase } from "@/app/supabase/supabase";
+const step2Schema = z.object({
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string(),
+}).refine((d) => d.password === d.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
 
-function RegisterForm() {
-  const [referralCode, setReferralCode] = useState<string | null>(null);
-  const searchParams = useSearchParams();
+const step3Schema = z.object({
+  bvn: z.string().regex(/^\d{11}$/, "BVN must be exactly 11 digits"),
+  pin: z.string().regex(/^\d{4}$/, "PIN must be exactly 4 digits"),
+  confirmPin: z.string(),
+}).refine((d) => d.pin === d.confirmPin, {
+  message: "PINs do not match",
+  path: ["confirmPin"],
+});
 
-  useEffect(() => {
-    const ref = searchParams.get("ref");
-    if (ref) setReferralCode(ref);
-  }, [searchParams]);
+const TOTAL_STEPS = 3;
 
-  const router = useRouter();
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    phone: "",
-    referralSource: "",
-  });
-  const [showModal, setShowModal] = useState(false);
+const RegisterForm = () => {
+  const [step, setStep] = useState(1);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+const router = useRouter()
+  // Step 1
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+
+  // Step 2
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Step 3
+  const [wantsBankAccount, setWantsBankAccount] = useState(false);
+  const [bvn, setBvn] = useState("");
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
   const [showPin, setShowPin] = useState(false);
-  const [showBvn, setShowBvn] = useState(false);
-  const [acceptTerms, setAcceptTerms] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
+  const [showConfirmPin, setShowConfirmPin] = useState(false);
 
-  const [isMobile, setIsMobile] = useState(false);
+  const progress = (step / TOTAL_STEPS) * 100;
 
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkScreenSize();
-    window.addEventListener("resize", checkScreenSize);
-    return () => window.removeEventListener("resize", checkScreenSize);
-  }, []);
-
-  // Navigation handlers
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5));
-  const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
-
-  const handleNextStep = () => {
-    const errors = validateCurrentStep();
-    if (Object.keys(errors).length > 0) {
-      setErrors(errors);
-      return;
-    }
+  const validateStep = (): boolean => {
     setErrors({});
-    nextStep();
-  };
-
-  const validateCurrentStep = (): Record<string, string> => {
-    const newErrors: Record<string, string> = {};
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      password,
-      confirmPassword,
-      referralSource,
-    } = formData;
-
-    if (currentStep === 1) {
-      if (!firstName) newErrors.firstName = "Please enter your first name.";
-      if (!lastName) newErrors.lastName = "Please enter your last name.";
-      if (!email || !/^[\w-.]+@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(email))
-        newErrors.email = "Invalid email.";
-    }
-
-    if (currentStep === 2) {
-      if (!phone || phone.length !== 11)
-        newErrors.phone = "Phone number must be 11 digits.";
-    }
-
-    if (currentStep === 3) {
-      if (!password) newErrors.password = "Please enter a password.";
-      if (password !== confirmPassword)
-        newErrors.confirmPassword = "Passwords do not match.";
-    }
-
-    if (currentStep === 4) {
-      if (!referralSource)
-        newErrors.referralSource = "Please select how you heard about us.";
-    }
-
-    if (currentStep === 5) {
-      if (!acceptTerms) newErrors.terms = "You must accept the terms.";
-    }
-
-    return newErrors;
-  };
-
-  const stepHeaders: any = {
-    1: {
-      title: "Let's get to know you!",
-      subtitle:
-        "Nigerians everywhere are using Zidwell to run their business… Welcome onboard",
-    },
-    2: {
-      title: "A few more details",
-      subtitle: "We need your phone number",
-    },
-    3: {
-      title: "Secure your account",
-      subtitle: "Set up your password for a safe experience.",
-    },
-    4: {
-      title: "How did you find us?",
-      subtitle: "Help us understand how you discovered Zidwell",
-    },
-    5: {
-      title: "Final step!",
-      subtitle: "Accept our terms and you're good to go 🚀",
-    },
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSelectChange = (value: string) => {
-    setFormData({ ...formData, referralSource: value });
-  };
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      password,
-      confirmPassword,
-      referralSource,
-    } = formData;
-
-    if (!firstName) newErrors.firstName = "Please enter your first name.";
-    if (!lastName) newErrors.lastName = "Please enter your last name.";
-    if (!email || !/^[\w-.]+@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(email))
-      newErrors.email = "Invalid email.";
-    if (!phone || phone.length !== 11)
-      newErrors.phone = "Phone number must be 11 digits.";
-    if (!password) newErrors.password = "Please enter a password.";
-    if (password !== confirmPassword)
-      newErrors.confirmPassword = "Passwords do not match.";
-    if (!referralSource)
-      newErrors.referralSource = "Please select how you heard about us.";
-    if (!acceptTerms) newErrors.terms = "You must accept the terms.";
-
-    return newErrors;
-  };
-
-  const saveToDatabase = async (userData: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    phone: string;
-    referral_source: string;
-    referred_by?: string;
-  }) => {
     try {
-      const res = await fetch("/api/save-pending-user", {
+      if (step === 1) {
+        step1Schema.parse({ name, phone, email });
+      } else if (step === 2) {
+        step2Schema.parse({ password, confirmPassword });
+      } else if (step === 3 && wantsBankAccount) {
+        step3Schema.parse({ bvn, pin, confirmPin });
+      }
+      return true;
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        e.errors.forEach((err) => {
+          const field = err.path[0] as string;
+          newErrors[field] = err.message;
+        });
+        setErrors(newErrors);
+      }
+      return false;
+    }
+  };
+
+  const handleNext = () => {
+    if (!validateStep()) return;
+    if (step < TOTAL_STEPS) {
+      setStep(step + 1);
+      setErrors({});
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+      setErrors({});
+    }
+  };
+
+  const triggerConfetti = () => {
+    const end = Date.now() + 2000;
+    const colors = ["#C29307", "#22c55e", "#3b82f6", "#ef4444", "#8b5cf6"];
+    const frame = () => {
+      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors });
+      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    };
+    frame();
+  };
+
+  const handleSubmit = async () => {
+    if (!validateStep()) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Something went wrong");
-      }
-
-      return data;
-    } catch (err: any) {
-      console.error("saveToDatabase error:", err.message);
-      throw err;
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
-
-    setLoading(true);
-    const { firstName, lastName, phone, email, password, referralSource } =
-      formData;
-
-    try {
-      // 1. Sign up user with Supabase Auth
-      const { data: signUpData, error: signUpError } =
-        await supabase.auth.signUp({
-          email: email.trim(),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
           password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/confirm-email`,
-          },
-        });
-
-      if (signUpError) {
-        Swal.fire({
-          icon: "error",
-          title: "Auth Error",
-          text:
-            signUpError.message === "Failed to fetch"
-              ? "Network error, please try again later."
-              : signUpError.message,
-        });
-        return;
-      }
-
-      const supabaseUserId = signUpData.user?.id;
-      if (!supabaseUserId)
-        throw new Error("User ID not returned from Supabase signup");
-
-      // 2. Save user to your DB
-      const userData = {
-        id: supabaseUserId,
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        referral_source: referralSource,
-        referred_by: referralCode || undefined,
-      };
-
-      await saveToDatabase(userData);
-
-      Swal.fire({
-        title: "Account Created!",
-        text: "Please check your email and verify your account.",
-        icon: "success",
+          bvn: wantsBankAccount ? bvn : undefined,
+          transactionPin: wantsBankAccount ? pin : undefined,
+        }),
       });
 
-      router.push("/auth/login");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
+
+      triggerConfetti();
+      setShowSuccess(true);
+      
+      // Reset form
+      setName("");
+      setPhone("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setBvn("");
+      setPin("");
+      setConfirmPin("");
+      setWantsBankAccount(false);
+      setStep(1);
+      
     } catch (error: any) {
-      console.error(error);
+      console.error("Registration error:", error);
       Swal.fire({
         icon: "error",
-        title: "Something went wrong",
-        text: error.message || "Please try again later.",
+        title: "Registration Failed",
+        text: error.message || "Something went wrong. Please try again.",
+        confirmButtonColor: "#C29307",
       });
+      setErrors({ form: error.message });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
+  const stepLabels = ["Basic Info", "Security", "Wallet"];
+
   return (
-    <div
-      className="lg:w-[50%] min-h-screen md:h-full flex justify-center items-center px-6 md:py-8 fade-in bg-cover bg-center"
-      style={
-        isMobile
-          ? {
-              backgroundImage: `url("/zidwell-bg-mobile.jpg")`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }
-          : {}
-      }
-    >
-      <form
-        data-aos="fade-down"
-        onSubmit={handleSubmit}
-        className="space-y-2 flex flex-col justify-center w-full p-6 md:border rounded-lg md:shadow-md bg-gray-50"
-      >
-        <div className="mb-8 text-center">
-          {/* Logo and Brand */}
-          <div className="flex items-center justify-center mb-2">
-            <Image
-              src={logo}
-              alt="Zidwell Logo"
-              width={32}
-              height={32}
-              className="w-20 object-contain"
+    <div className="w-full max-w-md mx-auto py-8 px-4">
+      {/* Mobile logo - visible only on mobile */}
+      <div className="lg:hidden text-center mb-8">
+        <h1 className="text-3xl font-bold text-[hsl(43,91%,39%)]">Zidwell</h1>
+        <p className="text-xs text-[hsl(30,8%,50%)] tracking-widest uppercase font-sans mt-1">
+          Financial Wellness
+        </p>
+      </div>
+
+      {/* Progress */}
+      <div className="mb-8">
+        <div className="flex justify-between mb-3">
+          {stepLabels.map((label, i) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <div
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold font-sans transition-colors ${
+                  i + 1 <= step
+                    ? "bg-[hsl(43,91%,39%)] text-white"
+                    : "bg-[hsl(40,20%,95%)] text-[hsl(30,8%,50%)]"
+                }`}
+              >
+                {i + 1 < step ? <CheckCircle className="h-4 w-4" /> : i + 1}
+              </div>
+              <span className="text-xs font-sans text-[hsl(30,8%,50%)] hidden sm:inline">
+                {label}
+              </span>
+            </div>
+          ))}
+        </div>
+          <Progress 
+    value={progress} 
+    className="h-1.5 [&>div]:bg-[hsl(43,91%,39%)]" 
+  />
+      </div>
+
+      {/* Form Error */}
+      {errors.form && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600">{errors.form}</p>
+        </div>
+      )}
+
+      {/* Step 1: Basic Info */}
+      {step === 1 && (
+        <div className="space-y-5 animate-fade-in">
+          <div>
+            <h2 className="text-2xl font-bold">Let's get started!</h2>
+            <p className="text-[hsl(30,8%,50%)] font-sans text-sm mt-1">
+              Join thousands of Nigerian businesses managing their finances smarter.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name" className="font-sans">Full Name</Label>
+              <Input
+                id="name"
+                placeholder="e.g. Adebayo Olaoluwa"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={errors.name ? "border-[hsl(0,84%,60%)]" : ""}
+                disabled={isLoading}
+              />
+              {errors.name && <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">{errors.name}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="phone" className="font-sans">Phone Number</Label>
+              <Input
+                id="phone"
+                placeholder="08012345678"
+                inputMode="numeric"
+                maxLength={11}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                className={errors.phone ? "border-[hsl(0,84%,60%)]" : ""}
+                disabled={isLoading}
+              />
+              {errors.phone && <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">{errors.phone}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="email" className="font-sans">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={errors.email ? "border-[hsl(0,84%,60%)]" : ""}
+                disabled={isLoading}
+              />
+              {errors.email && <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">{errors.email}</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Security */}
+      {step === 2 && (
+        <div className="space-y-5 animate-fade-in">
+          <div>
+            <h2 className="text-2xl font-bold">Secure your account</h2>
+            <p className="text-[hsl(30,8%,50%)] font-sans text-sm mt-1">
+              Create a strong password to protect your business data.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="password" className="font-sans">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Min. 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={errors.password ? "border-[hsl(0,84%,60%)] pr-10" : "pr-10"}
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(30,8%,50%)] hover:text-[hsl(30,10%,12%)]"
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.password && <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">{errors.password}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="confirmPassword" className="font-sans">Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={errors.confirmPassword ? "border-[hsl(0,84%,60%)] pr-10" : "pr-10"}
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(30,8%,50%)] hover:text-[hsl(30,10%,12%)]"
+                  disabled={isLoading}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.confirmPassword && <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">{errors.confirmPassword}</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Bank Account */}
+      {step === 3 && (
+        <div className="space-y-5 animate-fade-in">
+          <div>
+            <h2 className="text-2xl font-bold">Business Bank Account</h2>
+            <p className="text-[hsl(30,8%,50%)] font-sans text-sm mt-1">
+              Optional: Set up a dedicated account for your business finances.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border bg-white p-4">
+            <div>
+              <p className="font-sans font-medium text-sm">Do you want a business bank account?</p>
+              <p className="text-xs text-[hsl(30,8%,50%)] font-sans mt-0.5">You can always set this up later</p>
+            </div>
+            <Switch 
+              checked={wantsBankAccount} 
+              onCheckedChange={setWantsBankAccount}
+              disabled={isLoading}
             />
           </div>
 
-          {/* Step Header */}
-          <h2 className="md:text-2xl text-xl font font-semibold">
-            {stepHeaders[currentStep].title}
-          </h2>
-          <p className="text-gray-500 mt-1">
-            {stepHeaders[currentStep].subtitle}
-          </p>
-        </div>
-
-        {currentStep === 1 && (
-          <>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  placeholder="First name"
-                  autoComplete="off"
-                />
-                {errors.firstName && (
-                  <p className="text-sm text-red-500">{errors.firstName}</p>
-                )}
+          {wantsBankAccount && (
+            <div className="space-y-4 animate-fade-in">
+              {/* BVN info banner */}
+              <div className="rounded-lg border border-[hsl(43,91%,39%)]/30 bg-[hsl(43,91%,39%)]/5 p-3 flex gap-2 items-start">
+                <Info className="h-4 w-4 text-[hsl(43,91%,39%)] mt-0.5 shrink-0" />
+                <p className="text-xs text-[hsl(30,10%,12%)]/80 font-sans">
+                  <strong>CBN Regulation:</strong> Your Bank Verification Number (BVN) is required to open a business account. It is securely encrypted and never shared.
+                </p>
               </div>
+
               <div>
-                <Label htmlFor="lastName">Last Name</Label>
+                <div className="flex items-center gap-1">
+                  <Label htmlFor="bvn" className="font-sans">BVN</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 text-[hsl(30,8%,50%)] cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs font-sans text-xs">
+                      The Central Bank of Nigeria (CBN) requires BVN verification before issuing a virtual account number for financial transactions.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <Input
-                  id="lastName"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  placeholder="Last name"
-                  autoComplete="off"
+                  id="bvn"
+                  placeholder="Enter 11-digit BVN"
+                  inputMode="numeric"
+                  maxLength={11}
+                  value={bvn}
+                  onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))}
+                  className={errors.bvn ? "border-[hsl(0,84%,60%)]" : ""}
+                  disabled={isLoading}
                 />
-                {errors.lastName && (
-                  <p className="text-sm text-red-500">{errors.lastName}</p>
-                )}
+                {errors.bvn && <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">{errors.bvn}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="pin" className="font-sans">Transaction PIN</Label>
+                <div className="relative">
+                  <Input
+                    id="pin"
+                    type={showPin ? "text" : "password"}
+                    placeholder="4-digit PIN"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                    className={errors.pin ? "border-[hsl(0,84%,60%)] pr-10" : "pr-10"}
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPin(!showPin)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(30,8%,50%)] hover:text-[hsl(30,10%,12%)]"
+                    disabled={isLoading}
+                  >
+                    {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.pin && <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">{errors.pin}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="confirmPin" className="font-sans">Confirm Transaction PIN</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPin"
+                    type={showConfirmPin ? "text" : "password"}
+                    placeholder="Re-enter PIN"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                    className={errors.confirmPin ? "border-[hsl(0,84%,60%)] pr-10" : "pr-10"}
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPin(!showConfirmPin)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(30,8%,50%)] hover:text-[hsl(30,10%,12%)]"
+                    disabled={isLoading}
+                  >
+                    {showConfirmPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.confirmPin && <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">{errors.confirmPin}</p>}
               </div>
             </div>
-
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="Email address"
-              value={formData.email}
-              onChange={handleChange}
-              autoComplete="off"
-            />
-            {errors.email && (
-              <p className="text-sm text-red-500">{errors.email}</p>
-            )}
-          </>
-        )}
-
-        {currentStep === 2 && (
-          <>
-            <Label htmlFor="phone">Phone Number</Label>
-            <Input
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="08*********"
-              maxLength={11}
-              autoComplete="off"
-            />
-            {errors.phone && (
-              <p className="text-sm text-red-500">{errors.phone}</p>
-            )}
-          </>
-        )}
-
-        {currentStep === 3 && (
-          <>
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="*******"
-                autoComplete="off"
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-            {errors.password && (
-              <p className="text-sm text-red-500">{errors.password}</p>
-            )}
-
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <div className="relative">
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="*******"
-                autoComplete="off"
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-            {errors.confirmPassword && (
-              <p className="text-sm text-red-500">{errors.confirmPassword}</p>
-            )}
-          </>
-        )}
-
-        {currentStep === 4 && (
-          <>
-            <Label htmlFor="referralSource">
-              How did you hear about Zidwell?
-            </Label>
-            <Select
-              onValueChange={handleSelectChange}
-              value={formData.referralSource}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select an option" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="A friend">A friend</SelectItem>
-                <SelectItem value="Random google search">
-                  Random google search
-                </SelectItem>
-                <SelectItem value="WhatsApp Group">WhatsApp Group</SelectItem>
-                <SelectItem value="An event">An event</SelectItem>
-                <SelectItem value="Instagram">Instagram</SelectItem>
-                <SelectItem value="Facebook">Facebook</SelectItem>
-                <SelectItem value="Linkedin">Linkedin</SelectItem>
-                <SelectItem value="Tiktok">Tiktok</SelectItem>
-                <SelectItem value="Youtube">Youtube</SelectItem>
-                <SelectItem value="Podcast">Podcast</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.referralSource && (
-              <p className="text-sm text-red-500">{errors.referralSource}</p>
-            )}
-          </>
-        )}
-
-        {currentStep === 5 && (
-          <>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="terms"
-                checked={acceptTerms}
-                onChange={(e) => setAcceptTerms(e.target.checked)}
-              />
-              <Label htmlFor="terms" className="text-sm">
-                I agree to the{" "}
-                <Link href="/privacy" className="text-primary underline">
-                  Terms
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-primary underline">
-                  Privacy Policy
-                </Link>
-              </Label>
-            </div>
-            {errors.terms && (
-              <p className="text-sm text-red-500">{errors.terms}</p>
-            )}
-          </>
-        )}
-
-        <div className="flex justify-between pt-4">
-          {currentStep > 1 && (
-            <Button type="button" variant="outline" onClick={prevStep}>
-              Back
-            </Button>
-          )}
-          {currentStep < 5 ? ( // Changed to 5
-            <Button
-              type="button"
-              className="bg-[#C29307]"
-              onClick={handleNextStep}
-            >
-              Next
-            </Button>
-          ) : (
-            <Button type="submit" className="bg-[#C29307]" disabled={loading}>
-              {loading ? "Creating Account..." : "Create Account"}
-            </Button>
           )}
         </div>
+      )}
 
-        <div className="w-full md:text-end text-center">
-          <Link
-            href="/auth/login"
-            className="text-sm hover:text-blue-500 hover:underline"
+      {/* Navigation */}
+      <div className="flex justify-between mt-8">
+        {step > 1 ? (
+          <Button 
+            variant="outline" 
+            onClick={handleBack} 
+            className="font-sans gap-2"
+            disabled={isLoading}
           >
-            Login instead
-          </Link>
-        </div>
-      </form>
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+        ) : (
+          <div />
+        )}
+        <Button 
+          onClick={handleNext} 
+          className="font-sans gap-2 bg-[hsl(43,91%,39%)] hover:bg-[hsl(43,91%,34%)]"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            "Processing..."
+          ) : step < TOTAL_STEPS ? (
+            <>Next <ArrowRight className="h-4 w-4" /></>
+          ) : (
+            "Create Account"
+          )}
+        </Button>
+      </div>
+
+      {/* Login link */}
+      <p className="text-center text-sm text-[hsl(30,8%,50%)] font-sans mt-6">
+        Already have an account?{" "}
+        <Link href="/auth/login" className="text-[hsl(43,91%,39%)] font-medium hover:underline">
+          Login instead
+        </Link>
+      </p>
+
+
+      <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
+        <DialogContent className="text-center sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-4 text-6xl">🎉</div>
+            <DialogTitle className="text-2xl text-center">Congratulations!</DialogTitle>
+            <DialogDescription className="font-sans text-base mt-2 leading-relaxed text-center">
+              You've successfully created your Zidwell account! Kindly check your email to verify your account.
+            </DialogDescription>
+          </DialogHeader>
+          <Button 
+            onClick={() => {
+              setShowSuccess(false)
+        router.push("/auth/login")
+            }} 
+            className="mt-4 font-sans w-full bg-[hsl(43,91%,39%)] hover:bg-[hsl(43,91%,34%)]"
+          >
+            Got it!
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+};
 
 export default RegisterForm;

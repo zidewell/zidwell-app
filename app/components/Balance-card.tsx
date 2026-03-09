@@ -5,11 +5,13 @@ import { Eye, EyeOff, Plus, Receipt, Copy } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { useUserContextData } from "../context/userData";
+import { useVerificationModal } from "../context/verificationModalContext";
 import { useRouter } from "next/navigation";
 
 export default function BalanceCard() {
   const [showBalance, setShowBalance] = useState(false);
   const { userData, balance } = useUserContextData();
+  const { openVerificationModal } = useVerificationModal();
   const [copyText, setCopyText] = useState(false);
   const router = useRouter();
 
@@ -50,12 +52,36 @@ export default function BalanceCard() {
     localStorage.setItem("showBalance", JSON.stringify(newShowBalance));
   };
 
+  // Protected navigation handlers
+  const handleAddMoney = () => {
+    const isVerified = userData?.bvnVerification === "verified";
+    
+    if (!isVerified) {
+      openVerificationModal();
+    } else {
+      router.push("/dashboard/fund-account");
+    }
+  };
+
+  const handleTransferCash = () => {
+    const isVerified = userData?.bvnVerification === "verified";
+    
+    if (!isVerified) {
+      openVerificationModal();
+    } else {
+      router.push("/dashboard/fund-account/transfer-page");
+    }
+  };
+
   useEffect(() => {
     const storedShowBalance = localStorage.getItem("showBalance");
     if (storedShowBalance !== null) {
       setShowBalance(JSON.parse(storedShowBalance));
     }
   }, []);
+
+  // Check if user is verified
+  const isVerified = userData?.bvnVerification === "verified";
 
   return (
     <Card
@@ -107,35 +133,30 @@ export default function BalanceCard() {
           {/* Action Buttons */}
           <div className="flex items-center justify-center md:space-x-4 space-x-2 pt-4">
             <Button
-              onClick={() => router.push("/dashboard/fund-account")}
-              className="bg-[#C29307] hover:bg-[#C29307] text-white md:px-8 md:py-3"
+              onClick={handleAddMoney}
+              className={`bg-[#C29307] hover:bg-[#C29307] text-white md:px-8 md:py-3 ${
+                !isVerified ? "relative overflow-hidden" : ""
+              }`}
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Money
             </Button>
-            {/* <Button
-              variant="outline"
-              onClick={() => router.push("/dashboard/transactions")}
-              className="md:px-8 md:py-3 bg-transparent"
-            >
-              <Receipt className="w-4 h-4 mr-2" />
-              Transaction
-            </Button> */}
+            
             <Button
               variant="outline"
-              onClick={() =>
-                router.push("dashboard/fund-account/transfer-page")
-              }
-              className="md:px-8 md:py-3 bg-transparent"
+              onClick={handleTransferCash}
+              className={`md:px-8 md:py-3 bg-transparent ${
+                !isVerified ? "relative overflow-hidden" : ""
+              }`}
             >
               <Receipt className="w-4 h-4 mr-2" />
               Transfer Cash
             </Button>
           </div>
 
-          {userData?.referralCode && (
-            // pointer-events-none opacity-50
+     
 
+          {userData?.referralCode && (
             <div className="bg-gray-100 p-4 rounded-lg text-center ">
               <p className="text-gray-700 text-sm mb-2 font-semibold">
                 Invite friends & earn rewards 🎉
@@ -149,7 +170,6 @@ export default function BalanceCard() {
                 />
                 <Button
                   variant="outline"
-                  // size="icon"
                   onClick={handleCopyReferral}
                 >
                   {copyText ? "copied" : <Copy className="w-4 h-4" />}

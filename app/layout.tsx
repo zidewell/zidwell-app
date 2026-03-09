@@ -8,9 +8,9 @@ import NotificationToast from "./components/NotificationToast";
 import FloatingWhatsApp from "./components/FloatingWhatsapp";
 import Script from "next/script";
 import DashboardFooter from "./components/dashboardFooter";
-import {
-  InstallPrompt
-} from "./components/PushNotificationManager";
+import { InstallPrompt } from "./components/PushNotificationManager";
+import GlobalVerificationModal from "./components/GlobalVerificationModal";
+import { VerificationModalProvider } from "./context/verificationModalContext";
 
 export const viewport: Viewport = {
   themeColor: "#C29307",
@@ -351,7 +351,7 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   manifest: "/manifest.json",
- 
+
   robots: {
     index: true,
     follow: true,
@@ -509,16 +509,18 @@ export default function RootLayout({
 
         <UserProvider>
           <SessionWatcher>
-            {children}
-            {/* Move PushNotificationManager to a better position - maybe in a fixed corner */}
-            <div className="fixed bottom-4 right-4 z-50">
-              {/* <PushNotificationManager /> */}
-              <InstallPrompt />
-            </div>
-            <FloatingWhatsApp />
-            {/* <FloatingHelpButton /> */}
-            <NotificationToast />
-            <DashboardFooter />
+            <VerificationModalProvider>
+              {children}
+              <GlobalVerificationModal />
+              <div className="fixed bottom-4 right-4 z-50">
+                {/* <PushNotificationManager /> */}
+                <InstallPrompt />
+              </div>
+              <FloatingWhatsApp />
+              {/* <FloatingHelpButton /> */}
+              <NotificationToast />
+              <DashboardFooter />
+            </VerificationModalProvider>
           </SessionWatcher>
         </UserProvider>
       </body>

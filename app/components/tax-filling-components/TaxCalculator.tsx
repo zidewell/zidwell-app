@@ -1,19 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { TaxCard } from "./TaxCard";
 import { CurrencyInput } from "./CurrencyInput";
 import { InfoTooltip } from "./InfoTooltip";
 import { PremiumModal } from "./premiumModal"; 
-import { calculateCIT, calculateVAT, calculateWHT, calculatePIT, formatNaira } from "@/app/utils/tax-calculation"; 
-import { Sparkles } from "lucide-react";
+import { calculateCIT, calculateVAT, calculateWHT, calculatePIT, formatNaira } from "@/app/utils/tax-calculation";
+import { Sparkles, Crown, Zap, AlertCircle } from "lucide-react";
+import { useSubscription } from "@/app/hooks/useSubscripion"; 
+import Link from "next/link";
 
 const DISCLAIMER = "This is only an estimate. For accurate calculation and tax filing assistance, contact our finance managers.";
 
-const TaxCalculator = () => {
-  const [isPremium, setIsPremium] = useState(false);
+interface TaxCalculatorProps {
+  userTier?: 'free' | 'growth' | 'premium' | 'elite';
+}
+
+const TaxCalculator = ({ userTier = 'free' }: TaxCalculatorProps) => {
   const [showModal, setShowModal] = useState(false);
+  
+  // Check if user has access to tax calculator
+  const hasAccess = userTier === 'growth' || userTier === 'premium' || userTier === 'elite';
+  const isPremium = userTier === 'premium' || userTier === 'elite';
+  const isGrowth = userTier === 'growth';
 
   // CIT state
   const [citRevenue, setCitRevenue] = useState("");
@@ -37,15 +47,104 @@ const TaxCalculator = () => {
 
   const openModal = () => setShowModal(true);
 
+  // Get tier display info
+  const getTierInfo = () => {
+    if (userTier === 'free') {
+      return {
+        icon: Sparkles,
+        text: "Tax Calculator requires Growth plan",
+        bgColor: "bg-gray-100",
+        textColor: "text-gray-700",
+        borderColor: "border-gray-200",
+        action: "Upgrade to Growth"
+      };
+    }
+    if (userTier === 'growth') {
+      return {
+        icon: Zap,
+        text: "Growth Plan - Basic Tax Calculator",
+        bgColor: "bg-blue-100",
+        textColor: "text-blue-700",
+        borderColor: "border-blue-200",
+        action: "Upgrade to Premium"
+      };
+    }
+    if (userTier === 'premium') {
+      return {
+        icon: Crown,
+        text: "Premium Plan - Full Tax Tools",
+        bgColor: "bg-[#C29307]/10",
+        textColor: "text-[#C29307]",
+        borderColor: "border-[#C29307]",
+        action: "Upgrade to Elite"
+      };
+    }
+    if (userTier === 'elite') {
+      return {
+        icon: Crown,
+        text: "Elite Plan - Full Tax Filing Support",
+        bgColor: "bg-purple-100",
+        textColor: "text-purple-700",
+        borderColor: "border-purple-200",
+        action: "Contact Support"
+      };
+    }
+    return null;
+  };
+
+  const tierInfo = getTierInfo();
+
   return (
     <div className="space-y-12">
-      {/* Premium Badge */}
-      {!isPremium && (
+      {/* Tier Status Banner */}
+      <div className={`p-4 rounded-lg border-2 ${tierInfo?.borderColor} ${tierInfo?.bgColor} flex items-center justify-between flex-wrap gap-4`}>
+        <div className="flex items-center gap-3">
+          {tierInfo && <tierInfo.icon className={`w-5 h-5 ${tierInfo.textColor}`} />}
+          <div>
+            <p className={`font-medium ${tierInfo?.textColor}`}>
+              {tierInfo?.text}
+            </p>
+            {userTier === 'growth' && (
+              <p className="text-sm text-blue-600 mt-1">
+                You have access to basic tax calculations. Upgrade to Premium for tax filing support.
+              </p>
+            )}
+            {userTier === 'free' && (
+              <p className="text-sm text-gray-600 mt-1">
+                Get accurate tax estimates and filing support with our paid plans.
+              </p>
+            )}
+            {userTier === 'premium' && (
+              <p className="text-sm text-[#C29307] mt-1">
+                You have access to all tax calculations and filing support.
+              </p>
+            )}
+            {userTier === 'elite' && (
+              <p className="text-sm text-purple-600 mt-1">
+                Full tax filing including VAT, PAYE, and WHT. Contact our team for assistance.
+              </p>
+            )}
+          </div>
+        </div>
+        {userTier !== 'elite' && (
+          <Link href={`/pricing?upgrade=${userTier === 'free' ? 'growth' : userTier === 'growth' ? 'premium' : 'elite'}`}>
+            <button className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors
+              ${userTier === 'free' ? 'bg-[#C29307] text-white hover:bg-[#b38606]' : 
+                userTier === 'growth' ? 'bg-blue-600 text-white hover:bg-blue-700' :
+                'bg-purple-600 text-white hover:bg-purple-700'}`}>
+              {tierInfo?.action}
+            </button>
+          </Link>
+        )}
+      </div>
+
+      {/* Premium Badge for non-premium users */}
+      {!hasAccess && (
         <button
           onClick={openModal}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#000000]/10 dark:bg-[#ffffff]/10 text-[#000000] dark:text-[#ffffff] text-xs font-semibold hover:bg-[#000000]/20 dark:hover:bg-[#ffffff]/20 transition-colors"
         >
-          <Sparkles className="w-3.5 h-3.5" /> Premium Feature
+          <Sparkles className="w-3.5 h-3.5" /> Premium Feature - Upgrade to Access
         </button>
       )}
 
@@ -58,24 +157,26 @@ const TaxCalculator = () => {
         </p>
       </div>
 
-      {/* DEV toggle for testing */}
-      <label className="flex items-center gap-2 text-xs text-[#6b6b6b] dark:text-[#b3b3b3] cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={isPremium}
-          onChange={(e) => setIsPremium(e.target.checked)}
-          className="accent-[#000000] dark:accent-[#ffffff]"
-        />
-        Simulate premium access
-      </label>
+      {/* DEV toggle for testing - only show in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <label className="flex items-center gap-2 text-xs text-[#6b6b6b] dark:text-[#b3b3b3] cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={hasAccess}
+            onChange={() => {}} // Read-only in dev
+            className="accent-[#000000] dark:accent-[#ffffff]"
+          />
+          Current tier: {userTier} {hasAccess ? '(has access)' : '(no access)'}
+        </label>
+      )}
 
       {/* 1. CIT */}
       <TaxCard
         title="Company Income Tax (CIT)"
         description="Tax on company profit after allowable expenses."
-        isPremium={isPremium}
+        isPremium={hasAccess}
         onPremiumClick={openModal}
-        onCalculate={() => setCitResult(calculateCIT(Number(citRevenue) || 0, Number(citExpenses) || 0, citCompanyType))}
+        onCalculate={() => hasAccess && setCitResult(calculateCIT(Number(citRevenue) || 0, Number(citExpenses) || 0, citCompanyType))}
         onReset={() => { setCitRevenue(""); setCitExpenses(""); setCitCompanyType("small"); setCitResult(null); }}
         documents={["Financial Statement", "Profit & Loss Statement", "Balance Sheet", "Audited Accounts (if applicable)", "Tax Identification Number (TIN)"]}
         disclaimer={DISCLAIMER}
@@ -87,19 +188,20 @@ const TaxCalculator = () => {
             </p>
           ) : null
         }
+        userTier={userTier}
       >
         <CurrencyInput
           label="Annual Revenue"
           value={citRevenue}
           onChange={setCitRevenue}
-          disabled={!isPremium}
+          disabled={!hasAccess}
           tooltip={<InfoTooltip content="Total income your company generated from business operations in the financial year." />}
         />
         <CurrencyInput
           label="Allowable Business Expenses"
           value={citExpenses}
           onChange={setCitExpenses}
-          disabled={!isPremium}
+          disabled={!hasAccess}
           tooltip={<InfoTooltip content="Costs directly related to running your business — salaries, rent, utilities, etc." />}
         />
         <div className="space-y-1.5">
@@ -110,7 +212,7 @@ const TaxCalculator = () => {
           <select
             value={citCompanyType}
             onChange={(e) => setCitCompanyType(e.target.value)}
-            disabled={!isPremium}
+            disabled={!hasAccess}
             className="w-full px-4 py-3 rounded-lg border border-[#e6e6e6] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#0e0e0e] text-[#242424] dark:text-[#ffffff] text-sm disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#29a36c] dark:focus:ring-[#2eb87a]"
           >
             <option value="small">Small Company (≤ ₦100m turnover)</option>
@@ -123,9 +225,9 @@ const TaxCalculator = () => {
       <TaxCard
         title="Value Added Tax (VAT)"
         description="7.5% consumption tax charged on goods and services."
-        isPremium={isPremium}
+        isPremium={hasAccess}
         onPremiumClick={openModal}
-        onCalculate={() => setVatResult(calculateVAT(Number(vatSales) || 0, Number(vatInput) || 0))}
+        onCalculate={() => hasAccess && setVatResult(calculateVAT(Number(vatSales) || 0, Number(vatInput) || 0))}
         onReset={() => { setVatSales(""); setVatInput(""); setVatResult(null); }}
         documents={["VAT Sales Invoices", "Purchase Invoices", "VAT Ledger", "Monthly Sales Report"]}
         disclaimer={DISCLAIMER}
@@ -143,19 +245,20 @@ const TaxCalculator = () => {
             </div>
           ) : null
         }
+        userTier={userTier}
       >
         <CurrencyInput
           label="Total Taxable Sales"
           value={vatSales}
           onChange={setVatSales}
-          disabled={!isPremium}
+          disabled={!hasAccess}
           tooltip={<InfoTooltip content="The total value of goods and services sold that are subject to VAT." />}
         />
         <CurrencyInput
           label="Total Input VAT Paid"
           value={vatInput}
           onChange={setVatInput}
-          disabled={!isPremium}
+          disabled={!hasAccess}
           tooltip={<InfoTooltip content="VAT you already paid on business purchases and expenses." />}
         />
       </TaxCard>
@@ -164,9 +267,9 @@ const TaxCalculator = () => {
       <TaxCard
         title="Withholding Tax (WHT)"
         description="Advance tax deducted at source."
-        isPremium={isPremium}
+        isPremium={hasAccess}
         onPremiumClick={openModal}
-        onCalculate={() => setWhtResult(calculateWHT(Number(whtValue) || 0, whtType))}
+        onCalculate={() => hasAccess && setWhtResult(calculateWHT(Number(whtValue) || 0, whtType))}
         onReset={() => { setWhtValue(""); setWhtType("consultancy"); setWhtResult(null); }}
         documents={["Contract Agreement", "Invoice", "WHT Credit Note"]}
         disclaimer={DISCLAIMER}
@@ -183,19 +286,20 @@ const TaxCalculator = () => {
             </div>
           ) : null
         }
+        userTier={userTier}
       >
         <CurrencyInput
           label="Contract Value"
           value={whtValue}
           onChange={setWhtValue}
-          disabled={!isPremium}
+          disabled={!hasAccess}
         />
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-[#242424] dark:text-[#ffffff]">Transaction Type</label>
           <select
             value={whtType}
             onChange={(e) => setWhtType(e.target.value)}
-            disabled={!isPremium}
+            disabled={!hasAccess}
             className="w-full px-4 py-3 rounded-lg border border-[#e6e6e6] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#0e0e0e] text-[#242424] dark:text-[#ffffff] text-sm disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#29a36c] dark:focus:ring-[#2eb87a]"
           >
             <option value="consultancy">Consultancy (10%)</option>
@@ -210,9 +314,9 @@ const TaxCalculator = () => {
       <TaxCard
         title="Personal Income Tax (Sole Proprietors)"
         description="Tax on personal business income using progressive bands."
-        isPremium={isPremium}
+        isPremium={hasAccess}
         onPremiumClick={openModal}
-        onCalculate={() => setPitResult(calculatePIT(Number(pitIncome) || 0))}
+        onCalculate={() => hasAccess && setPitResult(calculatePIT(Number(pitIncome) || 0))}
         onReset={() => { setPitIncome(""); setPitResult(null); }}
         documents={["Income Statement", "Expense Breakdown", "Bank Statements", "Tax Identification Number (TIN)"]}
         disclaimer={DISCLAIMER}
@@ -224,25 +328,56 @@ const TaxCalculator = () => {
             </p>
           ) : null
         }
+        userTier={userTier}
       >
         <CurrencyInput
           label="Annual Taxable Income"
           value={pitIncome}
           onChange={setPitIncome}
-          disabled={!isPremium}
+          disabled={!hasAccess}
           tooltip={<InfoTooltip content="Your total personal business income after allowable deductions for the year." />}
         />
       </TaxCard>
 
       {/* Filing Integration Notice */}
       <div className="rounded-2xl border border-[#e6e6e6] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#161616] p-6 space-y-3">
-        <h4 className="font-subheading text-[#242424] dark:text-[#ffffff]">🔗 Tax Filing Integration</h4>
+        <h4 className="font-subheading text-[#242424] dark:text-[#ffffff] flex items-center gap-2">
+          🔗 Tax Filing Integration
+          {isPremium && (
+            <span className="text-xs bg-[#C29307] text-white px-2 py-1 rounded-full">Available in Premium</span>
+          )}
+          {userTier === 'elite' && (
+            <span className="text-xs bg-purple-600 text-white px-2 py-1 rounded-full">Full Filing Included</span>
+          )}
+        </h4>
         <p className="text-sm text-[#6b6b6b] dark:text-[#b3b3b3] leading-relaxed">
-          Zidwell Finance provides tax estimates based on user inputs. These calculations are not legally binding. Always consult our certified tax professionals before filing.
+          Zidwell Finance provides tax estimates based on user inputs. These calculations are not legally binding. 
+          {isPremium 
+            ? " As a Premium user, you can proceed to file your taxes with our assistance."
+            : " Upgrade to Premium for tax filing support and professional assistance."}
         </p>
+        {isPremium && (
+          <div className="mt-4 flex gap-3">
+            <Link href="/dashboard/services/tax-filing/file">
+              <button className="px-4 py-2 bg-[#C29307] text-white rounded-lg text-sm font-semibold hover:bg-[#b38606] transition-colors">
+                File Your Taxes
+              </button>
+            </Link>
+            <Link href="/dashboard/services/tax-filing/consultation">
+              <button className="px-4 py-2 border border-[#C29307] text-[#C29307] rounded-lg text-sm font-semibold hover:bg-[#C29307]/10 transition-colors">
+                Book Consultation
+              </button>
+            </Link>
+          </div>
+        )}
       </div>
 
-      <PremiumModal open={showModal} onClose={() => setShowModal(false)} />
+      {/* Premium Modal */}
+      <PremiumModal 
+        open={showModal} 
+        onClose={() => setShowModal(false)} 
+        currentTier={userTier}
+      />
     </div>
   );
 };

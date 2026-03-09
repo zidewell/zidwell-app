@@ -28,21 +28,3 @@ BEGIN
 
     RETURN QUERY SELECT tx_id, current_balance - amt, 'OK';
 END;
-
-
-
-  const txAmount = Number(pendingTx.amount ?? transactionAmount ?? 0);
-  const nombaFee = Number(payload.data?.transaction?.fee || 0);
-
-  // Use fee directly from transaction record
-  const totalFees = Number(pendingTx.fee || 0);
-  const appFee = Math.max(0, totalFees - nombaFee); // Ensure non-negative
-  const totalDeduction = Number(pendingTx.total_deduction || txAmount + totalFees);
-
-  console.log("💰 Transaction calculations:");
-  console.log("   - Transaction amount:", txAmount);
-  console.log("   - Total fee (from DB):", totalFees);
-  console.log("   - Nomba fee (from webhook):", nombaFee);
-  console.log("   - App fee (calculated):", appFee);
-  console.log("   - Total deduction (from DB):", totalDeduction);
-  console.log("   - Is P2P Transfer:", isP2PTransfer);

@@ -3,7 +3,7 @@ import React from 'react'
 
 function ReceiptHowItsWork() {
   return (
-   <section className="py-16 sm:py-20 bg-secondary/50">
+   <section className="py-16 sm:py-20 ">
           <div className="container">
             <h2 className="text-2xl sm:text-3xl font-bold text-center text-foreground mb-12">
               How It Works

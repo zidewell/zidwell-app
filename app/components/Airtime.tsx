@@ -287,7 +287,7 @@ export default function AirtimePurchase() {
       merchantTxRef: `AIRTIME-${Date.now()}-${Math.floor(
         Math.random() * 1000
       )}`,
-      senderName: userData?.firstName || "Zidwell User",
+      senderName: userData?.fullName || "Zidwell User",
     };
 
     try {

@@ -386,8 +386,8 @@ export default function EditContractPage({
       if (contract.creator_name) {
         setCreatorName(contract.creator_name);
         setLocalCreatorName(contract.creator_name);
-      } else if (userData?.firstName && userData?.lastName) {
-        const fullName = `${userData.firstName} ${userData.lastName}`;
+      } else if (userData?.fullName) {
+        const fullName = `${userData.fullName}`;
         setCreatorName(fullName);
         setLocalCreatorName(fullName);
       }
@@ -902,7 +902,7 @@ export default function EditContractPage({
         contractTitle={form.contractTitle}
         contractContent={form.contractContent}
         contractDate={form.contractDate}
-        initiatorName={`${userData?.firstName || ""} ${
+        initiatorName={`${userData?.fullName || ""} ${
           userData?.lastName || ""
         }`}
         initiatorEmail={userData?.email || ""}

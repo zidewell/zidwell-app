@@ -1,7 +1,9 @@
+// components/Invoice-components/hooks/useInvoiceForm.ts
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUserContextData } from "@/app/context/userData"; 
-import { InvoiceForm, FreeInvoiceInfo } from "../types";
+import { useSubscription } from "@/app/hooks/useSubscripion";
+import { InvoiceForm, InvoiceUsageInfo } from "../types";
 import { generateInvoiceId, generateItemId, calculateTotals } from "../utils/invoiceUtils";
 import { showCustomNotification } from "../utils/notification";
 
@@ -9,6 +11,7 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { userData } = useUserContextData();
+  const { userTier } = useSubscription();
 
   const [form, setForm] = useState<InvoiceForm>({
     name: "",
@@ -31,12 +34,40 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     targetQuantity: 1,
   });
 
-  const [freeInvoiceInfo, setFreeInvoiceInfo] = useState<FreeInvoiceInfo>({
-    freeInvoicesLeft: 0,
-    totalInvoicesCreated: 0,
-    hasFreeInvoices: false,
+  // NEW: Usage tracking with the subscription system
+  const [invoiceUsage, setInvoiceUsage] = useState<InvoiceUsageInfo>({
+    used: 0,
+    limit: 5,
+    remaining: 5,
+    hasAccess: true,
     isChecking: true,
   });
+
+  // Fetch usage data
+  useEffect(() => {
+    const fetchUsage = async () => {
+      if (!userData?.id) return;
+      
+      try {
+        const res = await fetch("/api/user/usage");
+        if (res.ok) {
+          const data = await res.json();
+          setInvoiceUsage({
+            used: data.invoices.used,
+            limit: data.invoices.limit,
+            remaining: data.invoices.remaining,
+            hasAccess: data.invoices.remaining > 0 || userTier !== 'free',
+            isChecking: false,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching usage:", error);
+        setInvoiceUsage(prev => ({ ...prev, isChecking: false }));
+      }
+    };
+
+    fetchUsage();
+  }, [userData?.id, userTier]);
 
   // Initialize from userData
   useEffect(() => {
@@ -49,59 +80,12 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
         issue_date: today,
         from: userData.email || "",
         business_name:
-          userData.firstName && userData.lastName
-            ? `${userData.firstName} ${userData.lastName}`
+          userData.fullName
+            ? `${userData.fullName}`
             : userData.email || "",
       }));
     }
   }, [userData]);
-
-  // Check free invoice status
-  useEffect(() => {
-    const checkInvoiceStatus = async () => {
-      if (userData?.id) {
-        try {
-          const res = await fetch(
-            `/api/check-remaning-free-invoice?userId=${userData.id}`
-          );
-          const data = await res.json();
-
-          if (data.success) {
-            setFreeInvoiceInfo({
-              freeInvoicesLeft: data.freeInvoicesLeft ?? 0,
-              totalInvoicesCreated: data.totalInvoicesCreated ?? 0,
-              hasFreeInvoices: data.hasFreeInvoices ?? false,
-              isChecking: false,
-            });
-          } else {
-            setFreeInvoiceInfo({
-              freeInvoicesLeft: 0,
-              totalInvoicesCreated: 0,
-              hasFreeInvoices: false,
-              isChecking: false,
-            });
-          }
-        } catch (error) {
-          console.error("Error checking invoice status:", error);
-          setFreeInvoiceInfo({
-            freeInvoicesLeft: 0,
-            totalInvoicesCreated: 0,
-            hasFreeInvoices: false,
-            isChecking: false,
-          });
-        }
-      } else {
-        setFreeInvoiceInfo({
-          freeInvoicesLeft: 0,
-          totalInvoicesCreated: 0,
-          hasFreeInvoices: false,
-          isChecking: false,
-        });
-      }
-    };
-
-    checkInvoiceStatus();
-  }, [userData?.id]);
 
   const handleItemSubmit = (item: any) => {
     const itemWithId = {
@@ -190,14 +174,19 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const isPremium = userTier === 'premium' || userTier === 'elite';
+
   return {
     form,
     setForm,
-    freeInvoiceInfo,
+    invoiceUsage,
     handleItemSubmit,
     removeItem,
     validateInvoiceForm,
     handleChange,
     calculateTotals: () => calculateTotals(form.invoice_items, form.fee_option),
+    canCreate: isPremium || invoiceUsage.remaining > 0,
+    remainingInvoices: invoiceUsage.remaining,
+    isPremium,
   };
 };

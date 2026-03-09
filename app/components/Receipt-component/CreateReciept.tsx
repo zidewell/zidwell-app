@@ -21,6 +21,8 @@ import {
   EyeOff,
   Check,
   Download,
+  AlertCircle,
+  Wallet,
 } from "lucide-react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -42,6 +44,7 @@ import Swal from "sweetalert2";
 import { Badge } from "../ui/badge";
 import { GenerateReceiptModal } from "./GenerateReceiptModal";
 import { ReceiptPreview } from "../previews/RecieptPreview";
+import Link from "next/link";
 
 // Import separated components
 import { ReceiptSummary } from "./ReceiptSummary";
@@ -62,7 +65,23 @@ import type {
   ReceiptSummaryItem,
 } from "./receiptTypes";
 
-function CreateReceiptPage() {
+interface ReceiptUsageInfo {
+  used: number;
+  limit: number;
+  remaining: number;
+  hasAccess: boolean;
+  isChecking: boolean;
+  isPayPerUse?: boolean;
+}
+
+interface CreateReceiptProps {
+  userTier?: 'free' | 'growth' | 'premium' | 'elite';
+  hasReachedLimit?: boolean;
+}
+
+const RECEIPT_FEE = 100; // ₦100 per receipt after limit
+
+function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: CreateReceiptProps) {
   const inputCount = 4;
   const [pin, setPin] = useState(Array(inputCount).fill(""));
   const [isPinOpen, setIsPinOpen] = useState(false);
@@ -75,10 +94,13 @@ function CreateReceiptPage() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [activeTab, setActiveTab] = useState<"create" | "preview">("create");
   const [saveSignatureForFuture, setSaveSignatureForFuture] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentDeducted, setPaymentDeducted] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { userData } = useUserContextData();
+  const { userData, balance } = useUserContextData();
 
   const sellerNameRef = useRef<HTMLInputElement>(null);
   const sellerPhoneRef = useRef<HTMLInputElement>(null);
@@ -86,6 +108,24 @@ function CreateReceiptPage() {
   const receiverNameRef = useRef<HTMLInputElement>(null);
   const receiverEmailRef = useRef<HTMLInputElement>(null);
   const receiverPhoneRef = useRef<HTMLInputElement>(null);
+
+  // Receipt usage tracking
+  const [receiptUsage, setReceiptUsage] = useState<ReceiptUsageInfo>({
+    used: 0,
+    limit: userTier === 'free' ? 5 : Infinity,
+    remaining: userTier === 'free' ? 5 : Infinity,
+    hasAccess: true,
+    isChecking: true,
+    isPayPerUse: false,
+  });
+
+  // Safe balance value
+  const safeBalance = balance || 0;
+
+  // Determine user tier
+  const isPremium = userTier === 'premium' || userTier === 'elite';
+  const isGrowth = userTier === 'growth';
+  const hasUnlimitedReceipts = isPremium || isGrowth;
 
   const [receiptType, setReceiptType] = useState<ReceiptType>("general");
   const [seller, setSeller] = useState<SellerInfo>({
@@ -116,8 +156,52 @@ function CreateReceiptPage() {
   const [generatedSigningLink, setGeneratedSigningLink] = useState<string>("");
   const [savedReceiptId, setSavedReceiptId] = useState<string>("");
 
-  // Constants
-  const RECEIPT_FEE = 100;
+  // Fetch receipt usage
+  useEffect(() => {
+    const fetchUsage = async () => {
+      if (!userData?.id) return;
+
+      try {
+        const res = await fetch("/api/user/usage");
+        if (res.ok) {
+          const data = await res.json();
+          
+          setReceiptUsage({
+            used: data.receipts.used || 0,
+            limit: data.receipts.limit || (userTier === 'free' ? 5 : Infinity),
+            remaining: data.receipts.remaining || (userTier === 'free' ? 5 : Infinity),
+            hasAccess: true,
+            isChecking: false,
+            isPayPerUse: data.receipts.remaining <= 0 && !hasUnlimitedReceipts,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching usage:", error);
+        setReceiptUsage((prev) => ({ ...prev, isChecking: false }));
+      }
+    };
+
+    fetchUsage();
+  }, [userData?.id, userTier, hasUnlimitedReceipts]);
+
+  // Check if user has free receipt access
+  const hasFreeReceiptAccess = (): boolean => {
+    if (hasUnlimitedReceipts) return true;
+    return receiptUsage.remaining > 0;
+  };
+
+  // Determine if PIN confirmation is needed
+  const requiresPinConfirmation = (): boolean => {
+    if (isPremium) return false; // Premium users never need PIN
+    if (hasUnlimitedReceipts) return false; // Growth users with unlimited
+    if (receiptUsage.remaining > 0) return false; // Free receipt available
+    return true; // Pay-per-use
+  };
+
+  // Check if user has sufficient balance
+  const hasSufficientBalance = (): boolean => {
+    return safeBalance >= RECEIPT_FEE;
+  };
 
   // Generate receipt ID
   const generateReceiptId = useCallback(() => {
@@ -140,8 +224,8 @@ function CreateReceiptPage() {
     if (userData) {
       const sellerInfo = {
         name:
-          userData.firstName && userData.lastName
-            ? `${userData.firstName} ${userData.lastName}`
+          userData.fullName
+            ? `${userData.fullName}`
             : userData.email || "",
         email: userData.email || "",
         phone: userData.phone || "",
@@ -566,7 +650,7 @@ function CreateReceiptPage() {
               onclick="event.stopPropagation();"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 011.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
               </svg>
             </button>
           </div>
@@ -948,10 +1032,15 @@ function CreateReceiptPage() {
   };
 
   const handleDeduct = async (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      const pinString = pin.join("") || "0000";
+    // If user has free access, no need to deduct
+    if (!requiresPinConfirmation()) {
+      return true;
+    }
 
-      fetch("/api/pay-app-service", {
+    const pinString = pin.join("");
+
+    try {
+      const res = await fetch("/api/deduct-funds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -960,23 +1049,55 @@ function CreateReceiptPage() {
           amount: RECEIPT_FEE,
           description: "Receipt creation",
           isReceiptCreation: true,
-          service: "receipt",
         }),
-      })
-        .then(async (res) => {
-          const data: PaymentResponse = await res.json();
-          if (!res.ok) {
-            toast.error(data.error || "Something went wrong");
-            resolve(false);
-          } else {
-            resolve(true);
-          }
-        })
-        .catch((err) => {
-          toast.error(err.message);
-          resolve(false);
-        });
-    });
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          Swal.fire({
+            icon: "warning",
+            title: "Limit Reached",
+            text: data.message || "You've reached your monthly receipt limit.",
+          });
+          router.push("/pricing?upgrade=growth");
+        } else if (res.status === 400 && data.error?.includes("Insufficient")) {
+          Swal.fire({
+            icon: "error",
+            title: "Insufficient Balance",
+            text: data.message || "Please fund your wallet to continue.",
+          });
+          router.push("/dashboard/fund-account");
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "Payment Failed",
+            text: data.error || "Something went wrong",
+          });
+        }
+        return false;
+      }
+
+      // Update receipt usage if returned
+      if (data.usedThisMonth !== undefined) {
+        setReceiptUsage((prev) => ({
+          ...prev,
+          used: data.usedThisMonth,
+          remaining: data.remaining === "unlimited" ? 999 : data.remaining,
+          isPayPerUse: data.pay_per_use || false,
+        }));
+      }
+
+      return true;
+    } catch (err: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message,
+      });
+      return false;
+    }
   };
 
   const handleRefund = async () => {
@@ -1014,84 +1135,106 @@ function CreateReceiptPage() {
   // Helper function to reset all loading states
   const resetAllLoadingStates = () => {
     setIsProcessingPayment(false);
-    setLoading(false);
-    setIsFormLocked(false);
+    setIsSubmitting(false);
+    setPaymentDeducted(false);
+    setPin(Array(inputCount).fill(""));
   };
 
   const processPaymentAndSubmit = async () => {
+    let deducted = false;
+    
     try {
-      // Payment processing starts here (after PIN confirmation)
       setIsProcessingPayment(true);
+      setIsSubmitting(true);
 
-      const paymentSuccess = await handleDeduct();
-
-      if (paymentSuccess) {
-        const result = await handleSaveReceipt(false);
-        if (result.success) {
-          triggerConfetti();
-
-          // Reset all loading states since we're done
+      // Step 1: Handle payment if required
+      if (requiresPinConfirmation()) {
+        deducted = await handleDeduct();
+        setPaymentDeducted(deducted);
+        
+        if (!deducted) {
           resetAllLoadingStates();
           setIsPinOpen(false);
-          setPin(Array(inputCount).fill(""));
-
-          setHasUnsavedChanges(false);
-          setCurrentDraftId(null);
-
-          // Reset form
-          setSeller({
-            name:
-              userData?.firstName && userData?.lastName
-                ? `${userData.firstName} ${userData.lastName}`
-                : userData?.email || "",
-            email: userData?.email || "",
-            phone: userData?.phone || "",
-          });
-          setReceiver({ name: "", email: "", phone: "" });
-          setItems([
-            {
-              id: "item_1",
-              description: "",
-              amount: 0,
-              quantity: 1,
-              unitPrice: 0,
-            },
-          ]);
-          setSellerSignature("");
-          setReceiptType("general");
-
-          setShowSuccessModal(true);
-        } else {
-          await handleRefund();
-          resetAllLoadingStates();
-          setIsPinOpen(false);
-          setPin(Array(inputCount).fill(""));
-          window.location.reload();
+          return;
         }
       } else {
-        // Payment failed
+        // Free receipt - mark as deducted for tracking
+        deducted = true;
+        setPaymentDeducted(true);
+      }
+
+      // Step 2: Save the receipt
+      const result = await handleSaveReceipt(false);
+      
+      if (result.success) {
+        setGeneratedSigningLink(result.signingLink || "");
+        setSavedReceiptId(result.receiptId || "");
+
+        triggerConfetti();
+
         resetAllLoadingStates();
         setIsPinOpen(false);
-        setPin(Array(inputCount).fill(""));
+
+        setHasUnsavedChanges(false);
+        setCurrentDraftId(null);
+
+        // Reset form
+        setSeller({
+          name:
+            userData?.fullName
+              ? `${userData.fullName}`
+              : userData?.email || "",
+          email: userData?.email || "",
+          phone: userData?.phone || "",
+        });
+        setReceiver({ name: "", email: "", phone: "" });
+        setItems([
+          {
+            id: "item_1",
+            description: "",
+            amount: 0,
+            quantity: 1,
+            unitPrice: 0,
+          },
+        ]);
+        setSellerSignature("");
+        setReceiptType("general");
+
+        setShowSuccessModal(true);
+      } else {
+        // Receipt save failed - refund if payment was deducted
+        if (deducted) {
+          await handleRefund();
+        }
+        resetAllLoadingStates();
+        setIsPinOpen(false);
       }
     } catch (error) {
+      // Unexpected error - refund if payment was deducted
+      if (deducted) {
+        await handleRefund();
+      }
       resetAllLoadingStates();
       setIsPinOpen(false);
-      setPin(Array(inputCount).fill(""));
+      
       Swal.fire({
         icon: "error",
         title: "Processing Failed",
-        text: "Failed to process payment. Please try again.",
+        text: "Failed to process your request. Please try again.",
         confirmButtonColor: "#C29307",
-      }).then(() => {
-        window.location.reload();
       });
     }
   };
 
   const handleSubmit = async (isDraft: boolean = false) => {
+    // Check if user has reached limit
+    if (!isPremium && hasReachedLimit && !isDraft) {
+      setShowUpgradePrompt(true);
+      return;
+    }
+
     // Prevent multiple submissions
-    if (loading || isFormLocked || draftLoading || isProcessingPayment) {
+    if (isSubmitting || isProcessingPayment || draftLoading) {
       return;
     }
 
@@ -1102,6 +1245,8 @@ function CreateReceiptPage() {
 
     // Don't set loading state here - just validate and show summary
     try {
+      setIsSubmitting(true);
+      
       const { isValid, errorMessages } = validateForm();
 
       if (!isValid) {
@@ -1120,6 +1265,7 @@ function CreateReceiptPage() {
           confirmButtonText: "OK",
           width: 500,
         });
+        setIsSubmitting(false);
         return;
       }
 
@@ -1132,12 +1278,37 @@ function CreateReceiptPage() {
         text: "An error occurred while processing your request.",
         confirmButtonColor: "#C29307",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleSummaryConfirm = () => {
     setShowReceiptSummary(false);
-    setIsPinOpen(true);
+    
+    // Check if user has sufficient balance for pay-per-use
+    if (requiresPinConfirmation() && !hasSufficientBalance()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Insufficient Balance",
+        text: `You need ₦${RECEIPT_FEE} in your wallet. Would you like to fund your wallet?`,
+        showCancelButton: true,
+        confirmButtonText: "Fund Wallet",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#C29307",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          router.push("/dashboard/fund-account");
+        }
+      });
+      return;
+    }
+
+    if (requiresPinConfirmation()) {
+      setIsPinOpen(true);
+    } else {
+      processPaymentAndSubmit();
+    }
   };
 
   const handleSummaryBack = () => {
@@ -1189,8 +1360,8 @@ function CreateReceiptPage() {
       if (result.isConfirmed) {
         setSeller({
           name:
-            userData?.firstName && userData?.lastName
-              ? `${userData.firstName} ${userData.lastName}`
+            userData?.fullName
+              ? `${userData.fullName}`
               : userData?.email || "",
           email: userData?.email || "",
           phone: userData?.phone || "",
@@ -1248,12 +1419,85 @@ function CreateReceiptPage() {
     };
   };
 
+  // Get button text based on state
+  const getGenerateButtonText = () => {
+    if (isProcessingPayment || isSubmitting) {
+      return (
+        <>
+          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+          Processing...
+        </>
+      );
+    }
+    if (!hasFreeReceiptAccess()) {
+      return (
+        <>
+          <Wallet className="h-5 w-5 mr-2" />
+          Pay ₦{RECEIPT_FEE} & Generate
+        </>
+      );
+    }
+    return (
+      <>
+        <FileText className="h-5 w-5 mr-2" />
+        Generate Receipt
+      </>
+    );
+  };
+
   // Custom CSS for better focus styling
   const customFocusStyle =
     "focus:ring-2 focus:ring-[#C29307] focus:ring-offset-2 focus:border-[#C29307] transition-all duration-200";
 
   return (
     <>
+      {/* Upgrade Prompt Modal */}
+      {showUpgradePrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-xl font-bold text-center mb-2">Limit Reached</h3>
+            <p className="text-gray-600 text-center mb-6">
+              You've used all your free receipts this month. 
+              {userTier === 'free' 
+                ? ` You can pay ₦${RECEIPT_FEE} per receipt or upgrade to Growth plan for unlimited receipts.`
+                : ' Upgrade to Premium for unlimited receipts.'}
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button
+                onClick={() => {
+                  setShowUpgradePrompt(false);
+                  setShowReceiptSummary(true);
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Wallet className="w-4 h-4 mr-2" />
+                Pay ₦{RECEIPT_FEE} & Generate
+              </Button>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowUpgradePrompt(false)}
+                >
+                  Cancel
+                </Button>
+                <Link 
+                  href={userTier === 'free' ? "/pricing?upgrade=growth" : "/pricing?upgrade=premium"} 
+                  className="flex-1"
+                >
+                  <Button className="w-full bg-[#C29307] hover:bg-[#b38606] text-white">
+                    Upgrade
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pin Popup */}
       <PinPopOver
         setIsOpen={(newValue) => {
@@ -1267,8 +1511,14 @@ function CreateReceiptPage() {
         pin={pin}
         setPin={setPin}
         inputCount={inputCount}
-        onConfirm={async (pinCode) => {
+        onConfirm={async () => {
           await processPaymentAndSubmit();
+        }}
+        invoiceFeeInfo={{
+          isFree: !requiresPinConfirmation(),
+          freeInvoicesLeft: receiptUsage.remaining,
+          totalInvoicesCreated: receiptUsage.used,
+          feeAmount: RECEIPT_FEE,
         }}
       />
 
@@ -1300,6 +1550,65 @@ function CreateReceiptPage() {
 
       <div className="min-h-screen">
         <div className="py-6 sm:py-8">
+          {/* Usage Warning Banner */}
+          {!hasUnlimitedReceipts && !receiptUsage.isChecking && receiptUsage.remaining <= 2 && (
+            <div className={`mb-4 p-3 rounded-lg border ${
+              receiptUsage.remaining <= 0
+                ? "bg-blue-50 border-blue-200"
+                : "bg-yellow-50 border-yellow-200"
+            } max-w-3xl mx-auto`}>
+              <div className="flex items-start gap-3">
+                <AlertCircle
+                  className={`w-5 h-5 mt-0.5 ${
+                    receiptUsage.remaining <= 0
+                      ? "text-blue-500"
+                      : "text-yellow-500"
+                  }`}
+                />
+                <div className="flex-1">
+                  <p
+                    className={`font-medium ${
+                      receiptUsage.remaining <= 0
+                        ? "text-blue-700"
+                        : "text-yellow-700"
+                    }`}
+                  >
+                    {receiptUsage.remaining <= 0
+                      ? "Pay-per-use mode active"
+                      : `Only ${receiptUsage.remaining} free receipt${receiptUsage.remaining !== 1 ? 's' : ''} remaining`}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {receiptUsage.remaining <= 0
+                      ? `This receipt will cost ₦${RECEIPT_FEE}.`
+                      : `After your free limit, receipts cost ₦${RECEIPT_FEE} each.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Premium Badge */}
+          {isPremium && (
+            <div className="mb-4 p-3 bg-[#C29307]/10 border border-[#C29307] rounded-lg max-w-3xl mx-auto">
+              <p className="text-[#C29307] font-medium flex items-center gap-2 text-sm">
+                <span className="bg-[#C29307] text-white px-2 py-0.5 rounded text-xs uppercase">
+                  {userTier}
+                </span>
+                You have unlimited receipts! No charges for receipt creation.
+              </p>
+            </div>
+          )}
+
+          {/* Wallet Balance */}
+          <div className="mb-4 max-w-3xl mx-auto flex justify-end">
+            <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full border border-green-200">
+              <Wallet className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-medium text-green-700">
+                ₦{safeBalance.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
           <Tabs
             defaultValue="create"
             value={activeTab}
@@ -1356,6 +1665,22 @@ function CreateReceiptPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {!receiptUsage.isChecking && (
+                    <Badge
+                      variant="outline"
+                      className={
+                        receiptUsage.remaining <= 0
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : receiptUsage.remaining <= 2
+                          ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                          : "bg-green-50 text-green-700 border-green-200"
+                      }
+                    >
+                      {receiptUsage.remaining <= 0
+                        ? "Pay-per-use"
+                        : `${receiptUsage.remaining} left`}
+                    </Badge>
+                  )}
                   {currentDraftId && (
                     <Badge
                       variant="outline"
@@ -1372,32 +1697,12 @@ function CreateReceiptPage() {
                       Unsaved changes
                     </Badge>
                   )}
-                  {items.some(
-                    (item) => item.description || item.amount > 0
-                  ) && (
-                    <Badge
-                      variant="outline"
-                      className="bg-blue-50 text-blue-700 border-blue-200"
-                    >
-                      <FileText className="w-3 h-3 mr-1" />
-                      {items.filter((item) => item.description).length} item(s)
-                    </Badge>
-                  )}
                   {sellerSignature && (
                     <Badge
                       variant="outline"
                       className="bg-green-50 text-green-700 border-green-200"
                     >
                       ✓ Signed
-                    </Badge>
-                  )}
-                  {isProcessingPayment && (
-                    <Badge
-                      variant="outline"
-                      className="bg-red-50 text-red-700 border-red-200"
-                    >
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      Processing Payment...
                     </Badge>
                   )}
                 </div>
@@ -1526,20 +1831,6 @@ function CreateReceiptPage() {
                       )}
                     </div>
                   )}
-
-                  {sellerSignature && !saveSignatureForFuture && (
-                    <div className="mt-3 p-3 bg-white border border-green-200 rounded-lg">
-                      <div className="flex items-center">
-                        <div className="h-6 w-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                          <Check className="h-4 w-4 text-green-600" />
-                        </div>
-                        <p className="text-sm text-green-700">
-                          Signature loaded successfully! It will appear in your
-                          receipt.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <form
@@ -1588,14 +1879,6 @@ function CreateReceiptPage() {
                           }
                           className={`mt-1.5 bg-card ${customFocusStyle}`}
                           disabled={isFormLocked || isProcessingPayment}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              if (sellerPhoneRef.current) {
-                                sellerPhoneRef.current.focus();
-                              }
-                            }
-                          }}
                         />
                       </div>
                       <div>
@@ -1612,14 +1895,6 @@ function CreateReceiptPage() {
                             }
                             className={`mt-1.5 bg-card pl-10 ${customFocusStyle}`}
                             disabled={isFormLocked || isProcessingPayment}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                if (sellerEmailRef.current) {
-                                  sellerEmailRef.current.focus();
-                                }
-                              }
-                            }}
                           />
                         </div>
                       </div>
@@ -1643,14 +1918,6 @@ function CreateReceiptPage() {
                             }
                             className={`mt-1.5 bg-card pl-10 ${customFocusStyle}`}
                             disabled={isFormLocked || isProcessingPayment}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                if (receiverNameRef.current) {
-                                  receiverNameRef.current.focus();
-                                }
-                              }
-                            }}
                           />
                         </div>
                       </div>
@@ -1688,14 +1955,6 @@ function CreateReceiptPage() {
                           }
                           className={`mt-1.5 bg-card ${customFocusStyle}`}
                           disabled={isFormLocked || isProcessingPayment}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              if (receiverEmailRef.current) {
-                                receiverEmailRef.current.focus();
-                              }
-                            }
-                          }}
                         />
                       </div>
 
@@ -1720,14 +1979,6 @@ function CreateReceiptPage() {
                               }
                               className={`mt-1.5 bg-card pl-10 ${customFocusStyle}`}
                               disabled={isFormLocked || isProcessingPayment}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  if (receiverPhoneRef.current) {
-                                    receiverPhoneRef.current.focus();
-                                  }
-                                }
-                              }}
                             />
                           </div>
                           {receiver.email &&
@@ -1759,13 +2010,6 @@ function CreateReceiptPage() {
                               }
                               className={`mt-1.5 bg-card pl-10 ${customFocusStyle}`}
                               disabled={isFormLocked || isProcessingPayment}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  // Focus will automatically go to the first item description field
-                                  // due to the useEffect in ReceiptItemsForm
-                                }
-                              }}
                             />
                           </div>
                         </div>
@@ -1871,21 +2115,17 @@ function CreateReceiptPage() {
                         className="data-[state=checked]:bg-[#C29307]"
                       />
                     </div>
-
-                    {/* Signature Status Message */}
-                    {sellerSignature && saveSignatureForFuture && (
-                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center">
-                          <div className="h-6 w-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                            <Check className="h-4 w-4 text-green-600" />
-                          </div>
-                          <p className="text-sm text-green-700">
-                            Your signature will be saved for future use.
-                          </p>
-                        </div>
-                      </div>
-                    )}
                   </div>
+
+                  {/* Insufficient balance warning */}
+                  {requiresPinConfirmation() && !hasSufficientBalance() && (
+                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-sm text-red-600">
+                        <AlertCircle className="w-4 h-4" />
+                        Insufficient balance. Please fund your wallet to create receipts.
+                      </div>
+                    </div>
+                  )}
 
                   {/* Action Buttons */}
                   <div className="pt-4 flex gap-3">
@@ -1897,7 +2137,7 @@ function CreateReceiptPage() {
                         isProcessingPayment ||
                         draftLoading ||
                         isFormLocked ||
-                        loading
+                        isSubmitting
                       }
                       className="flex-1 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
@@ -1917,32 +2157,58 @@ function CreateReceiptPage() {
                       type="submit"
                       variant="default"
                       size="lg"
-                      className="flex-1 bg-[#C29307] hover:bg-[#b38606] text-white focus:ring-2 focus:ring-offset-2 focus:ring-[#C29307]"
+                      className={`flex-1 ${
+                        requiresPinConfirmation() && !hasFreeReceiptAccess()
+                          ? "bg-blue-600 hover:bg-blue-700"
+                          : "bg-[#C29307] hover:bg-[#b38606]"
+                      } text-white focus:ring-2 focus:ring-offset-2 focus:ring-[#C29307]`}
                       disabled={
                         isProcessingPayment ||
-                        loading ||
+                        isSubmitting ||
                         isFormLocked ||
-                        draftLoading
+                        draftLoading ||
+                        (requiresPinConfirmation() && !hasSufficientBalance())
                       }
                     >
-                      {isProcessingPayment ? (
-                        <>
-                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                          Processing Payment...
-                        </>
-                      ) : loading ? (
-                        <>
-                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                          Validating...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="h-5 w-5 mr-2" />
-                          Generate Receipt
-                        </>
-                      )}
+                      {getGenerateButtonText()}
                     </Button>
                   </div>
+
+                  {/* Limit Warning */}
+                  {!isPremium && hasReachedLimit && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                        <div>
+                          <h3 className="font-medium text-red-800">
+                            Monthly Limit Reached
+                          </h3>
+                          <p className="text-sm text-red-700 mt-1">
+                            You've used all your free receipts for this month. 
+                            Pay ₦{RECEIPT_FEE} per receipt or upgrade to Growth plan for unlimited receipts.
+                          </p>
+                          <div className="flex gap-3 mt-3">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setShowUpgradePrompt(false);
+                                setShowReceiptSummary(true);
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                            >
+                              <Wallet className="w-4 h-4 mr-2" />
+                              Pay ₦{RECEIPT_FEE} & Continue
+                            </Button>
+                            <Link href="/pricing?upgrade=growth">
+                              <Button size="sm" className="bg-[#C29307] hover:bg-[#b38606] text-white">
+                                Upgrade Plan
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </form>
               </div>
             </TabsContent>
@@ -2056,10 +2322,12 @@ function CreateReceiptPage() {
   );
 }
 
-export default function CreateReceipt() {
+export default function CreateReceipt({ userTier = 'free', hasReachedLimit = false }: CreateReceiptProps) {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <CreateReceiptPage />
+    <Suspense fallback={<div className="flex justify-center items-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C29307]"></div>
+    </div>}>
+      <CreateReceiptPage userTier={userTier} hasReachedLimit={hasReachedLimit} />
     </Suspense>
   );
 }

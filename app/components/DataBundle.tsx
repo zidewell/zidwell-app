@@ -262,7 +262,7 @@ export default function DataBundlePurchase() {
       network: serviceName,
       phoneNumber: phoneNumber,
       merchantTxRef: `Data-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      senderName: userData?.firstName || "Zidwell User",
+      senderName: userData?.fullName || "Zidwell User",
     };
 
     // Step 5: Make request

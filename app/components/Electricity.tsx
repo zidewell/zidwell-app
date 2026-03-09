@@ -173,7 +173,7 @@ export default function ElectricityBills() {
       customerId: userInfo.meterNumber,
       meterType: userInfo.meterType.toLowerCase(),
       amount: Number(amount),
-      payerName: userData?.firstName || "Valued Customer",
+      payerName: userData?.fullName || "Valued Customer",
       merchantTxRef: `power-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     };
 
