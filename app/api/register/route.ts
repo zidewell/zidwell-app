@@ -6,26 +6,19 @@ import { transporter } from "@/lib/node-mailer";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const {
-      name,
-      email,
-      phone,
-      password,
-      bvn,
-      transactionPin,
-    } = body;
+    const { name, email, phone, password, bvn, transactionPin } = body;
 
     // ✅ 1. Validate required fields
     if (!name || !email || !phone || !password) {
       return NextResponse.json(
         { error: "Name, email, phone, and password are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -39,20 +32,20 @@ export async function POST(req: NextRequest) {
     if (existingUser) {
       return NextResponse.json(
         { error: "User with this email already exists" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
     // ✅ 3. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     // ✅ 4. Hash PIN if provided
     let hashedPin = null;
     if (transactionPin) {
       if (!/^\d{4}$/.test(transactionPin)) {
         return NextResponse.json(
           { error: "Transaction PIN must be exactly 4 digits" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       hashedPin = await bcrypt.hash(transactionPin, 10);
@@ -63,21 +56,22 @@ export async function POST(req: NextRequest) {
     const generatedReferral = `${namePart}-${Date.now().toString(36)}`;
 
     // ✅ 6. Create user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: email.toLowerCase(),
-      password: password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: name,
-        phone: phone,
-      },
-    });
+    const { data: authData, error: authError } =
+      await supabase.auth.admin.createUser({
+        email: email.toLowerCase(),
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: name,
+          phone: phone,
+        },
+      });
 
     if (authError || !authData.user) {
       console.error("❌ Auth creation error:", authError);
       return NextResponse.json(
         { error: authError?.message || "Failed to create user" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -107,7 +101,7 @@ export async function POST(req: NextRequest) {
       await supabase.auth.admin.deleteUser(userId);
       return NextResponse.json(
         { error: "Failed to create user profile" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -128,7 +122,7 @@ export async function POST(req: NextRequest) {
               accountRef: userId,
               bvn: bvn,
             }),
-          }
+          },
         );
 
         const wallet = await nombaRes.json();
@@ -151,9 +145,10 @@ export async function POST(req: NextRequest) {
     // ✅ 9. Send welcome email (non-blocking)
     (async () => {
       try {
-        const baseUrl = process.env.NODE_ENV === "development"
-          ? process.env.NEXT_PUBLIC_DEV_URL
-          : process.env.NEXT_PUBLIC_BASE_URL;
+        const baseUrl =
+          process.env.NODE_ENV === "development"
+            ? process.env.NEXT_PUBLIC_DEV_URL
+            : process.env.NEXT_PUBLIC_BASE_URL;
 
         await transporter.sendMail({
           from: `"Zidwell" <${process.env.EMAIL_USER}>`,
@@ -162,16 +157,16 @@ export async function POST(req: NextRequest) {
           html: `
             <div style="background: #f3f4f6; padding: 20px;">
               <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px;">
-                <div style="background: #C29307; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+                <div style="background: #2b825b; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
                   <h2 style="color: white; margin: 0;">Welcome to Zidwell 🎉</h2>
                 </div>
                 <div style="padding: 30px;">
                   <h2>Hi ${name},</h2>
                   <p>Congratulations! Your Zidwell account is ready.</p>
-                  <p>We've rewarded you with <strong style="color: #C29307;">₦20 Zidcoin</strong> 🎁.</p>
+                  <p>We've rewarded you with <strong style="color: #2b825b;">₦20 Zidcoin</strong> 🎁.</p>
                   <div style="text-align: center; margin: 30px 0;">
                     <a href="${baseUrl}/dashboard" 
-                       style="background: #C29307; color: white; padding: 12px 24px; border-radius: 8px; 
+                       style="background: #2b825b; color: white; padding: 12px 24px; border-radius: 8px; 
                               text-decoration: none; display: inline-block;">
                       Go to Dashboard
                     </a>
@@ -187,18 +182,17 @@ export async function POST(req: NextRequest) {
     })();
 
     return NextResponse.json(
-      { 
-        success: true, 
+      {
+        success: true,
         message: "Registration successful",
       },
-      { status: 201 }
+      { status: 201 },
     );
-
   } catch (error: any) {
     console.error("❌ Unexpected Error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to register user" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

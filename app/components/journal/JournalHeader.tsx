@@ -19,13 +19,13 @@ export function JournalHeader() {
     <header className="space-y-6">
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <p className="text-sm font-medium" style={{ color: '#80746e' }}>
+          <p className="text-sm font-medium dark:text-gray-400" style={{ color: '#80746e' }}>
             {format(today, 'EEEE, MMMM d, yyyy')}
           </p>
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
             {getGreeting()}
           </h1>
-          <p style={{ color: '#80746e' }}>
+          <p className="dark:text-gray-400" style={{ color: '#80746e' }}>
             Let's reflect on your finances today.
           </p>
         </div>

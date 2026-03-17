@@ -88,7 +88,7 @@ export default function CableCustomerCard(props: any) {
               }
             }}
             disabled={!selectedPlan || loading}
-            className="w-full bg-[#C29307] hover:opacity-90 py-3 font-semibold rounded-lg shadow-electric-glow transition-all duration-300"
+            className="w-full bg-[#2b825b] hover:opacity-90 py-3 font-semibold rounded-lg shadow-electric-glow transition-all duration-300"
           >
             {loading ? (
               <div className="flex items-center gap-2">

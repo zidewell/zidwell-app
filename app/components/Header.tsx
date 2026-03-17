@@ -36,7 +36,8 @@ const Header = () => {
         const el = document.getElementById(href);
         if (el) {
           const yOffset = -96;
-          const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          const y =
+            el.getBoundingClientRect().top + window.pageYOffset + yOffset;
           window.scrollTo({ top: y, behavior: "smooth" });
         }
       } else {
@@ -66,13 +67,16 @@ const Header = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link href={pathname === "/app" ? "/app" : "/"} className="flex items-center gap-2">
+          <Link
+            href={pathname === "/app" ? "/app" : "/"}
+            className="flex items-center gap-2"
+          >
             <Image
               src="/logo.png"
               alt="Zidwell Logo"
               width={40}
               height={40}
-              className="w-10 h-10 object-contain border-2 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] bg-black dark:bg-gray-950 p-1 border-[#C29307]"
+              className="w-10 h-10 object-contain border-2 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] bg-black dark:bg-gray-950 p-1 border-[#2b825b]"
             />
             <span className="font-black text-xl tracking-tight text-gray-900 dark:text-gray-50">
               Zidwell
@@ -88,7 +92,7 @@ const Header = () => {
                 className="font-medium text-gray-900/80 dark:text-gray-50/80 hover:text-gray-900 dark:hover:text-gray-50 transition-colors relative group"
               >
                 {link.name}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#C29307] transition-all group-hover:w-full" />
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#2b825b] transition-all group-hover:w-full" />
               </button>
             ))}
           </nav>

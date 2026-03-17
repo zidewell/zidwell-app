@@ -13,7 +13,7 @@ import GlobalVerificationModal from "./components/GlobalVerificationModal";
 import { VerificationModalProvider } from "./context/verificationModalContext";
 
 export const viewport: Viewport = {
-  themeColor: "#C29307",
+  themeColor: "#2b825b",
   width: "device-width",
   initialScale: 1,
 
@@ -519,7 +519,7 @@ export default function RootLayout({
               <FloatingWhatsApp />
               {/* <FloatingHelpButton /> */}
               <NotificationToast />
-              <DashboardFooter />
+              {/* <DashboardFooter /> */}
             </VerificationModalProvider>
           </SessionWatcher>
         </UserProvider>

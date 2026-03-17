@@ -1,22 +1,14 @@
+// app/components/sign-contract-form-component/FormBody.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import RichTextArea from "./RichTextArea";
 import SignContractFileUpload from "./SignContractFileUpload";
 import SignContractInput from "./SignContractInput";
-import SignContractSelect from "./SignContractSelect";
 import SignContractToggle from "./SignContractToggle";
 import PreviewTab from "./PreviewTab";
 import { ContractSuccessModal } from "./ContractSuccessModal";
 import confetti from "canvas-confetti";
-import { contractTitles } from "@/app/data/sampleContracts";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
   Edit,
@@ -24,50 +16,30 @@ import {
   FileText,
   Save,
   Send,
-  Upload,
   Loader2,
   History,
   ArrowLeft,
-  Copy,
-  X,
-  Scale,
-  Download,
-  Check,
   Trash2,
-  Wallet,
-  Coins,
+  Crown,
   AlertCircle,
+  Zap,
+  Sparkles,
+  Star,
 } from "lucide-react";
 import { Button } from "../ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
 import { useRouter } from "next/navigation";
 import { useUserContextData } from "@/app/context/userData";
 import { useSubscription } from "@/app/hooks/useSubscripion";
 import Swal from "sweetalert2";
-import PinPopOver from "../PinPopOver";
 import ContractSummary from "./ContractSummary";
 import { Badge } from "../ui/badge";
 import { Label } from "../ui/label";
-import { Switch } from "../ui/switch";
 import { Input } from "../ui/input";
 import { SignaturePad } from "../SignaturePad";
+import Link from "next/link";
+import { Switch } from "../ui/switch";
 
 // Types
-interface ContractUsageInfo {
-  used: number;
-  limit: number;
-  remaining: number;
-  hasAccess: boolean;
-  isChecking: boolean;
-  isPayPerUse?: boolean;
-}
-
 type ContractDraft = {
   id: string;
   contract_id?: string;
@@ -121,13 +93,6 @@ type AttachmentFile = {
   previewUrl?: string;
 };
 
-interface DraftsResponse {
-  success: boolean;
-  drafts: ContractDraft[];
-  count: number;
-  error?: string;
-}
-
 interface SaveContractResponse {
   success: boolean;
   signingLink?: string;
@@ -137,23 +102,16 @@ interface SaveContractResponse {
   message?: string;
 }
 
-interface PaymentResponse {
-  error?: string;
-  message?: string;
-}
-
-const CONTRACT_FEE = 10;
+const CONTRACT_FEE = 1000;
 const LAWYER_FEE = 10000;
 
 const FormBody: React.FC = () => {
   const router = useRouter();
-  const { userData, balance } = useUserContextData();
-  const { userTier, isPremium } = useSubscription();
+  const { userData } = useUserContextData();
+  const { userTier, isPremium, isGrowth, isElite, isZidLite, hasRequiredTier } =
+    useSubscription();
 
   const inputCount = 4;
-  const [isPinOpen, setIsPinOpen] = useState(false);
-  const [pin, setPin] = useState<string[]>(Array(inputCount).fill(""));
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -165,94 +123,78 @@ const FormBody: React.FC = () => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [includeLawyerSignature, setIncludeLawyerSignature] = useState(false);
-  const [totalAmount, setTotalAmount] = useState(CONTRACT_FEE);
   const [saveSignatureForFuture, setSaveSignatureForFuture] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentDeducted, setPaymentDeducted] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
-  // Contract usage tracking from your API
-  const [contractUsage, setContractUsage] = useState<ContractUsageInfo>({
-    used: 0,
-    limit: 1,
-    remaining: 1,
-    hasAccess: true,
-    isChecking: true,
-    isPayPerUse: false,
-  });
+  // Determine user tier
+  const isFree = userTier === "free";
+  const isZidLiteUser = userTier === "zidlite";
+  const isGrowthUser = userTier === "growth";
+  const isPremiumUser = userTier === "premium" || userTier === "elite";
+  const hasUnlimitedContracts = isPremiumUser || isGrowthUser;
+
+  // Contract limits based on tier
+  const contractLimit = isFree
+    ? 1
+    : isZidLiteUser
+      ? 2
+      : isGrowthUser
+        ? 5
+        : Infinity;
+
+  // Get tier icon and color
+  const getTierInfo = () => {
+    if (isElite)
+      return {
+        icon: Sparkles,
+        color: "text-purple-600",
+        bg: "bg-purple-100",
+        label: "Elite",
+      };
+    if (isPremium)
+      return {
+        icon: Crown,
+        color: "text-[#2b825b]",
+        bg: "bg-[#2b825b]/10",
+        label: "Premium",
+      };
+    if (isGrowth)
+      return {
+        icon: Zap,
+        color: "text-green-600",
+        bg: "bg-green-100",
+        label: "Growth",
+      };
+    if (isZidLite)
+      return {
+        icon: Zap,
+        color: "text-blue-600",
+        bg: "bg-blue-100",
+        label: "ZidLite",
+      };
+    return {
+      icon: Star,
+      color: "text-gray-600",
+      bg: "bg-gray-100",
+      label: "Free Trial",
+    };
+  };
+
+  const tierInfo = getTierInfo();
+  const TierIcon = tierInfo.icon;
 
   const [creatorName, setCreatorName] = useState(
-    userData?.fullName
-      ? `${userData.fullName}`
-      : ""
+    userData?.fullName ? `${userData.fullName}` : "",
   );
   const [creatorSignature, setCreatorSignature] = useState<string | null>(null);
   const [localCreatorName, setLocalCreatorName] = useState(creatorName);
 
-  // Local signature state for the signature pad
+  // Local signature state
   const [localSignature, setLocalSignature] = useState<string | null>(null);
 
-  // Safe balance value
-  const safeBalance = balance || 0;
-
-  // Determine user tier
-  const hasUnlimitedContracts = isPremium || userTier === "growth";
-
-  // Fetch usage data from your API
-  useEffect(() => {
-    const fetchUsage = async () => {
-      if (!userData?.id) return;
-
-      try {
-        const res = await fetch("/api/user/usage");
-        if (res.ok) {
-          const data = await res.json();
-          
-          setContractUsage({
-            used: data.contracts.used,
-            limit: data.contracts.limit,
-            remaining: data.contracts.remaining,
-            hasAccess: true,
-            isChecking: false,
-            isPayPerUse: data.contracts.remaining <= 0 && !hasUnlimitedContracts,
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching usage:", error);
-        setContractUsage((prev) => ({ ...prev, isChecking: false }));
-      }
-    };
-
-    fetchUsage();
-  }, [userData?.id, hasUnlimitedContracts]);
-
-  // Check if user has free contract access
-  const hasFreeContractAccess = (): boolean => {
-    if (hasUnlimitedContracts) return true;
-    if (includeLawyerSignature) return false; // Lawyer signature always costs
-    return contractUsage.remaining > 0;
-  };
-
-  // Determine if PIN confirmation is needed
-  const requiresPinConfirmation = (): boolean => {
-    if (isPremium) return false; // Premium users never need PIN
-    if (includeLawyerSignature) return true; // Lawyer signature always costs
-    if (hasUnlimitedContracts) return false; // Growth users with remaining contracts
-    if (contractUsage.remaining > 0 && !includeLawyerSignature) return false;
-    return true;
-  };
-
-  // Check if user has sufficient balance
-  const hasSufficientBalance = (): boolean => {
-    return safeBalance >= totalAmount;
-  };
-
-  useEffect(() => {
-    if (includeLawyerSignature) {
-      setTotalAmount(CONTRACT_FEE + LAWYER_FEE);
-    } else {
-      setTotalAmount(CONTRACT_FEE);
-    }
-  }, [includeLawyerSignature]);
+  // Contract count for tier limits
+  const [contractCount, setContractCount] = useState(0);
 
   const [form, setForm] = useState<FormState>({
     receiverName: "",
@@ -278,7 +220,6 @@ const FormBody: React.FC = () => {
     receiverEmail: "",
     contractContent: "",
     contractDate: "",
-    pin: "",
     ageConsent: "",
     termsConsent: "",
   });
@@ -288,12 +229,36 @@ const FormBody: React.FC = () => {
     setLocalSignature(creatorSignature);
   }, [creatorSignature]);
 
+  // Fetch contract count for tier limits
+  useEffect(() => {
+    const fetchContractCount = async () => {
+      if (!userData?.email) return;
+
+      try {
+        const res = await fetch("/api/contract/get-contract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userEmail: userData.email }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setContractCount(data.contracts?.length || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching contracts:", error);
+      }
+    };
+
+    fetchContractCount();
+  }, [userData?.email]);
+
   const triggerContractConfetti = () => {
     confetti({
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: ["#2b825b", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
     });
 
     setTimeout(() => {
@@ -302,25 +267,16 @@ const FormBody: React.FC = () => {
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
       confetti({
         particleCount: 80,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
     }, 150);
-
-    setTimeout(() => {
-      confetti({
-        particleCount: 100,
-        spread: 100,
-        origin: { y: 0.8 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
-      });
-    }, 300);
   };
 
   const generateContractId = useCallback(() => {
@@ -352,20 +308,7 @@ const FormBody: React.FC = () => {
     ) {
       setHasUnsavedChanges(true);
     }
-  }, [
-    isInitialLoad,
-    form.contractTitle,
-    form.contractContent,
-    form.paymentTerms,
-    form.receiverName,
-    form.receiverEmail,
-    form.receiverPhone,
-    form.ageConsent,
-    form.termsConsent,
-    form.contractDate,
-    attachments.length,
-    localSignature,
-  ]);
+  }, [isInitialLoad, form, attachments.length, localSignature]);
 
   useEffect(() => {
     if (userData?.id) {
@@ -373,33 +316,18 @@ const FormBody: React.FC = () => {
     }
   }, [userData?.id]);
 
-  useEffect(() => {
-    return () => {
-      setIsProcessingPayment(false);
-      setIsPinOpen(false);
-      setShowContractSummary(false);
-      setShowSuccessModal(false);
-      setPin(Array(inputCount).fill(""));
-    };
-  }, [inputCount]);
-
   const loadUserDrafts = async () => {
     try {
-      if (!userData?.id) {
-        console.log("No user data found");
-        return;
-      }
+      if (!userData?.id) return;
 
       setIsLoadingDrafts(true);
       const res = await fetch(
-        `/api/contract/contract-drafts?userId=${userData.id}`
+        `/api/contract/contract-drafts?userId=${userData.id}`,
       );
 
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
-      const result: DraftsResponse = await res.json();
+      const result = await res.json();
 
       if (result.success && result.drafts && result.drafts.length > 0) {
         setDrafts(result.drafts);
@@ -410,7 +338,6 @@ const FormBody: React.FC = () => {
           !form.paymentTerms &&
           !form.receiverName &&
           !form.receiverEmail &&
-          !form.contractDate &&
           attachments.length === 0
         ) {
           setTimeout(() => {
@@ -427,29 +354,20 @@ const FormBody: React.FC = () => {
               confirmButtonText: "Load Recent",
               denyButtonText: "View All Drafts",
               cancelButtonText: "Start Fresh",
-              confirmButtonColor: "#C29307",
+              confirmButtonColor: "#2b825b",
               cancelButtonColor: "#6b7280",
               denyButtonColor: "#3b82f6",
               width: 500,
-              customClass: {
-                popup: "rounded-lg",
-                title: "text-xl font-bold",
-                htmlContainer: "text-gray-600",
-              },
             }).then((swalResult) => {
               if (swalResult.isConfirmed) {
                 const recentDraft = result.drafts[0];
                 loadDraftIntoForm(recentDraft);
               } else if (swalResult.isDenied) {
                 showDraftsList(result.drafts);
-              } else if (swalResult.dismiss === Swal.DismissReason.cancel) {
-                console.log("User chose to start fresh");
               }
             });
           }, 1000);
         }
-      } else {
-        console.log("No drafts found");
       }
     } catch (error) {
       console.error("Failed to load drafts:", error);
@@ -469,48 +387,34 @@ const FormBody: React.FC = () => {
         return;
       }
 
-      const res = await fetch(
-        `/api/saved-signature?userId=${userData.id}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const res = await fetch(`/api/saved-signature?userId=${userData.id}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
 
       const data = await res.json();
 
-      if (res.ok && data.success) {
-        if (data.signature) {
-          setCreatorSignature(data.signature);
-          setLocalSignature(data.signature);
-          setSaveSignatureForFuture(true);
+      if (res.ok && data.success && data.signature) {
+        setCreatorSignature(data.signature);
+        setLocalSignature(data.signature);
+        setSaveSignatureForFuture(true);
 
-          Swal.fire({
-            icon: "success",
-            title: "Signature Loaded",
-            text: "Your saved signature has been loaded.",
-            confirmButtonColor: "#C29307",
-            timer: 2000,
-            showConfirmButton: false,
-          });
-        } else {
-          Swal.fire({
-            icon: "info",
-            title: "No Saved Signature",
-            text: "No saved signature found. Please create a new one.",
-            confirmButtonColor: "#C29307",
-            timer: 2000,
-            showConfirmButton: false,
-          });
-        }
+        Swal.fire({
+          icon: "success",
+          title: "Signature Loaded",
+          text: "Your saved signature has been loaded.",
+          confirmButtonColor: "#2b825b",
+          timer: 2000,
+          showConfirmButton: false,
+        });
       } else {
         Swal.fire({
-          icon: "error",
-          title: "Load Failed",
-          text: "Failed to load saved signature. Please try again.",
-          confirmButtonColor: "#C29307",
+          icon: "info",
+          title: "No Saved Signature",
+          text: "No saved signature found. Please create a new one.",
+          confirmButtonColor: "#2b825b",
+          timer: 2000,
+          showConfirmButton: false,
         });
       }
     } catch (error) {
@@ -518,22 +422,18 @@ const FormBody: React.FC = () => {
         icon: "error",
         title: "Load Failed",
         text: "Failed to load saved signature. Please try again.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     }
   };
 
   const saveSignatureToDatabase = async (signatureDataUrl: string) => {
     try {
-      if (!userData?.id) {
-        return false;
-      }
+      if (!userData?.id) return false;
 
       const res = await fetch("/api/saved-signature", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData.id,
           signature: signatureDataUrl,
@@ -541,12 +441,7 @@ const FormBody: React.FC = () => {
       });
 
       const data = await res.json();
-
-      if (res.ok && data.success) {
-        return true;
-      } else {
-        return false;
-      }
+      return res.ok && data.success;
     } catch (error) {
       return false;
     }
@@ -556,32 +451,21 @@ const FormBody: React.FC = () => {
     setSaveSignatureForFuture(save);
 
     if (save && creatorSignature && userData?.id) {
-      try {
-        const saved = await saveSignatureToDatabase(creatorSignature);
-        if (saved) {
-          Swal.fire({
-            icon: "success",
-            title: "Signature Saved",
-            text: "Your signature has been saved for future use.",
-            confirmButtonColor: "#C29307",
-            timer: 2000,
-            showConfirmButton: false,
-          });
-        }
-      } catch (error) {
+      const saved = await saveSignatureToDatabase(creatorSignature);
+      if (saved) {
         Swal.fire({
-          icon: "error",
-          title: "Save Failed",
-          text: "Failed to save signature. Please try again.",
-          confirmButtonColor: "#C29307",
+          icon: "success",
+          title: "Signature Saved",
+          text: "Your signature has been saved for future use.",
+          confirmButtonColor: "#2b825b",
+          timer: 2000,
+          showConfirmButton: false,
         });
       }
     }
 
     if (!save && userData?.id) {
-      try {
-        await deleteSavedSignature();
-      } catch (error) {}
+      await deleteSavedSignature();
     }
   };
 
@@ -590,15 +474,11 @@ const FormBody: React.FC = () => {
     setCreatorSignature(signature);
 
     if (!signature && saveSignatureForFuture && userData?.id) {
-      try {
-        await deleteSavedSignature();
-      } catch (error) {}
+      await deleteSavedSignature();
     }
 
     if (signature && saveSignatureForFuture && userData?.id) {
-      try {
-        await saveSignatureToDatabase(signature);
-      } catch (error) {}
+      await saveSignatureToDatabase(signature);
     }
   };
 
@@ -608,19 +488,12 @@ const FormBody: React.FC = () => {
 
       const res = await fetch("/api/contract/saved-signature", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: userData.id }),
       });
 
       const data = await res.json();
-
-      if (res.ok && data.success) {
-        return true;
-      } else {
-        return false;
-      }
+      return res.ok && data.success;
     } catch (error) {
       return false;
     }
@@ -631,112 +504,125 @@ const FormBody: React.FC = () => {
     setCreatorSignature(null);
   };
 
-  const loadDraftIntoForm = (draft: ContractDraft) => {
-    const draftContractId =
-      draft.metadata?.contract_id ||
-      draft.contract_id ||
-      draft.id ||
-      generateContractId();
+const loadDraftIntoForm = (draft: ContractDraft) => {
+  const draftContractId =
+    draft.metadata?.contract_id ||
+    draft.contract_id ||
+    draft.id ||
+    generateContractId();
 
-    const paymentTerms = draft.metadata?.payment_terms || "";
-
-    const formData: FormState = {
-      receiverName: draft.receiver_name || draft.signee_name || "",
-      receiverEmail: draft.receiver_email || draft.signee_email || "",
-      receiverPhone:
-        draft.receiver_phone || draft.phone_number?.toString() || "",
-      contractTitle: draft.contract_title || "",
-      contractContent: draft.contract_content || draft.contract_text || "",
-      paymentTerms: paymentTerms,
-      ageConsent: draft.age_consent || false,
-      termsConsent: draft.terms_consent || false,
-      status: (draft.status as "pending" | "draft") || "draft",
-      contractId: draftContractId,
-      contractType: "custom",
-      contractDate:
-        draft.contract_date || new Date().toISOString().split("T")[0],
-    };
-
-    setForm(formData);
-    setHasUnsavedChanges(false);
-
-    if (draft.creator_name) {
-      setCreatorName(draft.creator_name);
-      setLocalCreatorName(draft.creator_name);
+  const paymentTerms = draft.metadata?.payment_terms || "";
+  
+  // Get the contract content
+  let contractContent = draft.contract_content || draft.contract_text || "";
+  
+  // Log the raw content for debugging
+  console.log('Raw draft content:', {
+    contract_content: draft.contract_content,
+    contract_text: draft.contract_text,
+    type: typeof draft.contract_content,
+    length: contractContent.length
+  });
+  
+  // Check if the content is wrapped in quotes (JSON string)
+  if (typeof contractContent === 'string') {
+    // Remove any extra quotes that might be wrapping the content
+    if (contractContent.startsWith('"') && contractContent.endsWith('"')) {
+      try {
+        contractContent = JSON.parse(contractContent);
+      } catch (e) {
+        // If parsing fails, just remove the quotes
+        contractContent = contractContent.slice(1, -1);
+      }
     }
-    if (draft.creator_signature) {
-      setCreatorSignature(draft.creator_signature);
-      setLocalSignature(draft.creator_signature);
+    
+    // If it's a JSON string that contains HTML, ensure it's properly decoded
+    try {
+      const parsed = JSON.parse(contractContent);
+      if (typeof parsed === 'string') {
+        contractContent = parsed;
+      }
+    } catch {
+      // Not JSON, keep as is
     }
-    if (draft.include_lawyer_signature) {
-      setIncludeLawyerSignature(draft.include_lawyer_signature);
+    
+    // Decode HTML entities if present
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = contractContent;
+    if (textarea.innerHTML !== contractContent) {
+      contractContent = textarea.value;
     }
+  }
 
-    if (draft.attachment_url || draft.attachment_name) {
-      Swal.fire({
-        icon: "info",
-        title: "Attachment Notice",
-        text: "This draft had an attachment. You'll need to re-upload the file.",
-        confirmButtonColor: "#C29307",
-      });
-    }
+  setForm({
+    receiverName: draft.receiver_name || draft.signee_name || "",
+    receiverEmail: draft.receiver_email || draft.signee_email || "",
+    receiverPhone:
+      draft.receiver_phone || draft.phone_number?.toString() || "",
+    contractTitle: draft.contract_title || "",
+    contractContent: contractContent, // Use the processed content
+    paymentTerms: paymentTerms,
+    ageConsent: draft.age_consent || false,
+    termsConsent: draft.terms_consent || false,
+    status: (draft.status as "pending" | "draft") || "draft",
+    contractId: draftContractId,
+    contractType: "custom",
+    contractDate:
+      draft.contract_date || new Date().toISOString().split("T")[0],
+  });
 
-    setTimeout(() => {
-      Swal.fire({
-        icon: "success",
-        title: "Draft Loaded!",
-        text: "Your draft has been loaded into the form successfully.",
-        confirmButtonColor: "#C29307",
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
-    }, 300);
-  };
+  setHasUnsavedChanges(false);
 
+  if (draft.creator_name) {
+    setCreatorName(draft.creator_name);
+    setLocalCreatorName(draft.creator_name);
+  }
+  if (draft.creator_signature) {
+    setCreatorSignature(draft.creator_signature);
+    setLocalSignature(draft.creator_signature);
+  }
+  if (draft.include_lawyer_signature) {
+    setIncludeLawyerSignature(draft.include_lawyer_signature);
+  }
+
+
+  setTimeout(() => {
+    Swal.fire({
+      icon: "success",
+      title: "Draft Loaded!",
+      text: "Your draft has been loaded into the form successfully.",
+      confirmButtonColor: "#2b825b",
+      timer: 2000,
+      showConfirmButton: false,
+    });
+  }, 300);
+};
   const showDraftsList = (draftsList: ContractDraft[]) => {
     const draftListHTML = draftsList
       .map(
         (draft, index) => `
-    <div style="padding: 12px; border-bottom: 1px solid #e5e7eb; cursor: pointer; transition: background-color 0.2s;" 
-         data-draft-index="${index}"
-         class="hover:bg-gray-50 rounded">
-      <strong class="text-gray-900">${
-        draft.contract_title || "Untitled Contract"
-      }</strong><br>
-      <small class="text-gray-600">To: ${
-        draft.receiver_name || draft.signee_name || "No recipient"
-      }</small><br>
-      <small class="text-gray-500">Created: ${new Date(
-        draft.created_at
-      ).toLocaleDateString()}</small>
-    </div>
-  `
+        <div style="padding: 12px; border-bottom: 1px solid #e5e7eb; cursor: pointer;" 
+             data-draft-index="${index}" class="hover:bg-gray-50">
+          <strong>${draft.contract_title || "Untitled Contract"}</strong><br>
+          <small>To: ${draft.receiver_name || draft.signee_name || "No recipient"}</small><br>
+          <small>Created: ${new Date(draft.created_at).toLocaleDateString()}</small>
+        </div>
+      `,
       )
       .join("");
 
     Swal.fire({
       title: "Select a Draft to Load",
-      html: `
-    <div style="text-align: left; max-height: 300px; overflow-y auto; padding-right: 4px;">
-      ${draftListHTML}
-    </div>
-  `,
+      html: `<div style="max-height: 300px; overflow-y: auto;">${draftListHTML}</div>`,
       showConfirmButton: true,
       confirmButtonText: "Close",
-      confirmButtonColor: "#C29307",
+      confirmButtonColor: "#2b825b",
       width: 500,
-      customClass: {
-        popup: "rounded-lg",
-        title: "text-xl font-bold mb-4",
-        htmlContainer: "text-gray-600",
-      },
       didOpen: () => {
-        const draftElements = document.querySelectorAll("[data-draft-index]");
-        draftElements.forEach((element) => {
+        document.querySelectorAll("[data-draft-index]").forEach((element) => {
           element.addEventListener("click", () => {
             const index = parseInt(
-              element.getAttribute("data-draft-index") || "0"
+              element.getAttribute("data-draft-index") || "0",
             );
             loadDraftIntoForm(draftsList[index]);
             Swal.close();
@@ -748,15 +634,7 @@ const FormBody: React.FC = () => {
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (
-        hasUnsavedChanges &&
-        (form.contractTitle.trim() ||
-          form.contractContent.trim() ||
-          form.paymentTerms.trim() ||
-          form.contractDate ||
-          attachments.length > 0 ||
-          localSignature)
-      ) {
+      if (hasUnsavedChanges) {
         e.preventDefault();
         e.returnValue =
           "You have unsaved changes. Are you sure you want to leave?";
@@ -766,15 +644,7 @@ const FormBody: React.FC = () => {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [
-    hasUnsavedChanges,
-    form.contractTitle,
-    form.contractContent,
-    form.paymentTerms,
-    form.contractDate,
-    attachments.length,
-    localSignature,
-  ]);
+  }, [hasUnsavedChanges]);
 
   const handleSaveDraft = async () => {
     try {
@@ -809,10 +679,9 @@ const FormBody: React.FC = () => {
       const payload = {
         userId: userData.id,
         initiator_email: userData.email || "",
-        initiator_name:
-          userData.fullName && userData.lastName
-            ? `${userData.fullName}`
-            : userData.email || "",
+        initiator_name: userData.fullName
+          ? `${userData.fullName}`
+          : userData.email || "",
         contract_id: draftContractId,
         contractTitle: form.contractTitle || "Untitled Contract",
         contractContent: form.contractContent,
@@ -826,8 +695,6 @@ const FormBody: React.FC = () => {
         contract_type: "custom",
         status: "draft",
         is_draft: true,
-        has_attachments: attachments.length > 0,
-        attachment_count: attachments.length,
         creator_name: creatorName,
         creator_signature: localSignature || creatorSignature,
         include_lawyer_signature: includeLawyerSignature,
@@ -839,9 +706,7 @@ const FormBody: React.FC = () => {
 
       const res = await fetch("/api/contract/contract-drafts", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -849,7 +714,7 @@ const FormBody: React.FC = () => {
 
       if (!res.ok) {
         throw new Error(
-          result.error || result.message || "Failed to save draft"
+          result.error || result.message || "Failed to save draft",
         );
       }
 
@@ -857,7 +722,7 @@ const FormBody: React.FC = () => {
         icon: "success",
         title: "Draft Saved!",
         text: "Your contract draft has been saved successfully.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
 
       setHasUnsavedChanges(false);
@@ -885,7 +750,6 @@ const FormBody: React.FC = () => {
       receiverEmail: "",
       contractContent: "",
       contractDate: "",
-      pin: "",
       ageConsent: "",
       termsConsent: "",
     };
@@ -910,8 +774,7 @@ const FormBody: React.FC = () => {
       hasErrors = true;
       errorMessages.push("• Signee email is required");
     } else if (form.receiverEmail.trim() === userData?.email) {
-      newErrors.receiverEmail =
-        "Sorry, the signee email address cannot be the same as the initiator's email address.";
+      newErrors.receiverEmail = "Signee email cannot be the same as yours.";
       hasErrors = true;
       errorMessages.push("• Signee email cannot be the same as your email");
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.receiverEmail)) {
@@ -953,8 +816,8 @@ const FormBody: React.FC = () => {
       Swal.fire({
         icon: "warning",
         title: "Signature Required",
-        text: "Please add your signature in the form before submitting.",
-        confirmButtonColor: "#C29307",
+        text: "Please add your signature before submitting.",
+        confirmButtonColor: "#2b825b",
       });
       return false;
     }
@@ -963,8 +826,8 @@ const FormBody: React.FC = () => {
       Swal.fire({
         icon: "warning",
         title: "Name Required",
-        text: "Please enter your full legal name in the creator name field.",
-        confirmButtonColor: "#C29307",
+        text: "Please enter your full legal name.",
+        confirmButtonColor: "#2b825b",
       });
       return false;
     }
@@ -987,23 +850,13 @@ const FormBody: React.FC = () => {
             </ul>
           </div>
         `,
-        confirmButtonColor: "#C29307",
-        confirmButtonText: "OK",
+        confirmButtonColor: "#2b825b",
         width: 500,
-        customClass: {
-          popup: "rounded-lg",
-          title: "text-xl font-bold",
-          htmlContainer: "text-gray-600",
-        },
       });
       return false;
     }
 
-    const signatureValid = validateSignature();
-    if (!signatureValid) {
-      return false;
-    }
-    return true;
+    return validateSignature();
   };
 
   const uploadAttachmentFiles = async (): Promise<
@@ -1032,14 +885,14 @@ const FormBody: React.FC = () => {
           {
             method: "POST",
             body: formData,
-          }
+          },
         );
 
         const result = await res.json();
 
         if (!res.ok) {
           throw new Error(
-            result.error || `Failed to upload: ${attachment.name}`
+            result.error || `Failed to upload: ${attachment.name}`,
           );
         }
 
@@ -1062,7 +915,7 @@ const FormBody: React.FC = () => {
   };
 
   const handleSaveContract = async (
-    isDraft: boolean = false
+    isDraft: boolean = false,
   ): Promise<SaveContractResponse> => {
     try {
       if (!userData?.id) {
@@ -1077,10 +930,9 @@ const FormBody: React.FC = () => {
       const payload = {
         userId: userData.id,
         initiator_email: userData.email || "",
-        initiator_name:
-          userData.fullName && userData.lastName
-            ? `${userData.fullName}`
-            : userData.email || "",
+        initiator_name: userData.fullName
+          ? `${userData.fullName}`
+          : userData.email || "",
         contract_id: contractIdToUse,
         contract_title: form.contractTitle,
         contract_content: form.contractContent,
@@ -1101,13 +953,10 @@ const FormBody: React.FC = () => {
           attachments: attachmentsData,
           attachment_count: attachments.length,
           lawyer_signature: includeLawyerSignature,
-          base_fee: CONTRACT_FEE,
-          lawyer_fee: includeLawyerSignature ? LAWYER_FEE : 0,
-          total_fee: totalAmount,
-          creator_name: creatorName,
-          creator_signature: localSignature || creatorSignature,
           payment_terms: form.paymentTerms,
           contract_date: form.contractDate,
+          creator_name: creatorName,
+          creator_signature: localSignature || creatorSignature,
         },
       };
 
@@ -1136,164 +985,26 @@ const FormBody: React.FC = () => {
       Swal.fire(
         "Error",
         (err as Error)?.message || "Something went wrong",
-        "error"
+        "error",
       );
-
       return { success: false };
     }
   };
 
-  const handleDeduct = async (): Promise<boolean> => {
-    // If user has free access and no lawyer signature, no need to deduct
-    if (!requiresPinConfirmation()) {
-      return true;
-    }
-
-    const pinString = pin.join("");
-
+  const processContractAndSubmit = async () => {
     try {
-      const res = await fetch("/api/deduct-funds", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData?.id,
-          pin: pinString,
-          amount: totalAmount,
-          description: includeLawyerSignature
-            ? "Contract with lawyer signature"
-            : "Contract creation",
-          isContractCreation: true,
-          include_lawyer_signature: includeLawyerSignature,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 403) {
-          Swal.fire({
-            icon: "warning",
-            title: "Limit Reached",
-            text: data.message || "You've reached your monthly contract limit.",
-          });
-          router.push("/pricing?upgrade=growth");
-        } else if (res.status === 400 && data.error?.includes("Insufficient")) {
-          Swal.fire({
-            icon: "error",
-            title: "Insufficient Balance",
-            text: data.message || "Please fund your wallet to continue.",
-          });
-          router.push("/dashboard/fund-account");
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "Payment Failed",
-            text: data.error || "Something went wrong",
-          });
-        }
-        return false;
-      }
-
-      // Update contract usage if returned
-      if (data.usedThisMonth !== undefined) {
-        setContractUsage((prev) => ({
-          ...prev,
-          used: data.usedThisMonth,
-          remaining: data.remaining === "unlimited" ? 999 : data.remaining,
-          isPayPerUse: data.pay_per_use || false,
-        }));
-      }
-
-      return true;
-    } catch (err: any) {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: err.message,
-      });
-      return false;
-    }
-  };
-
-  const handleRefund = async () => {
-    try {
-      const res = await fetch("/api/refund-service", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData?.id,
-          amount: totalAmount,
-          description: includeLawyerSignature
-            ? "Refund for failed contract generation with lawyer signature"
-            : "Refund for failed contract generation",
-        }),
-      });
-
-      const data: PaymentResponse = await res.json();
-
-      if (res.ok) {
-        Swal.fire({
-          icon: "info",
-          title: "Refund Processed",
-          text: includeLawyerSignature
-            ? `₦${totalAmount.toLocaleString()} has been refunded to your wallet due to failed contract sending.`
-            : "₦10 has been refunded to your wallet due to failed contract sending.",
-        });
-      } else {
-        throw new Error(data.error || "Refund failed");
-      }
-    } catch (err) {
-      Swal.fire({
-        icon: "warning",
-        title: "Refund Failed",
-        text: "Payment deduction was made, but refund failed. Please contact support.",
-      });
-    }
-  };
-
-  // Helper function to reset all loading states
-  const resetAllLoadingStates = () => {
-    setIsProcessingPayment(false);
-    setIsSubmitting(false);
-    setPaymentDeducted(false);
-    setPin(Array(inputCount).fill(""));
-  };
-
-  const processPaymentAndSubmit = async () => {
-    let deducted = false;
-    
-    try {
-      setIsProcessingPayment(true);
       setIsSubmitting(true);
 
-      // Step 1: Handle payment if required
-      if (requiresPinConfirmation()) {
-        deducted = await handleDeduct();
-        setPaymentDeducted(deducted);
-        
-        if (!deducted) {
-          resetAllLoadingStates();
-          setIsPinOpen(false);
-          return;
-        }
-      } else {
-        // Free contract - mark as deducted for tracking
-        deducted = true;
-        setPaymentDeducted(true);
-      }
-
-      // Step 2: Save the contract
+      // Save the contract
       const result = await handleSaveContract(false);
-      
+
       if (result.success) {
         setGeneratedSigningLink(result.signingLink || "");
         setSavedContractId(result.contractId || "");
 
         triggerContractConfetti();
 
-        resetAllLoadingStates();
-        setIsPinOpen(false);
-
+        setIsSubmitting(false);
         setHasUnsavedChanges(false);
 
         // Reset form
@@ -1316,85 +1027,36 @@ const FormBody: React.FC = () => {
         setCreatorSignature(null);
         setLocalSignature(null);
 
-        setTimeout(() => {
-          setShowSuccessModal(true);
-        }, 300);
+        setShowSuccessModal(true);
       } else {
-        // Contract save failed - refund if payment was deducted
-        if (deducted) {
-          await handleRefund();
-        }
-        resetAllLoadingStates();
-        setIsPinOpen(false);
+        setIsSubmitting(false);
       }
     } catch (error) {
-      // Unexpected error - refund if payment was deducted
-      if (deducted) {
-        await handleRefund();
-      }
-      resetAllLoadingStates();
-      setIsPinOpen(false);
-      
+      setIsSubmitting(false);
       Swal.fire({
         icon: "error",
         title: "Processing Failed",
         text: "Failed to process your request. Please try again.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     }
   };
 
   const handleCreatorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isProcessingPayment || isSubmitting) return;
+    if (isSubmitting) return;
     const name = e.target.value;
     setLocalCreatorName(name);
     setCreatorName(name);
   };
 
-  const handleSummaryConfirm = (options?: { includeLawyerSignature: boolean }) => {
+  const handleSummaryConfirm = () => {
     setShowContractSummary(false);
-
-    if (options?.includeLawyerSignature !== undefined) {
-      setIncludeLawyerSignature(options.includeLawyerSignature);
-    }
-
-    // Calculate required amount
-    const totalRequired = hasFreeContractAccess() && !includeLawyerSignature 
-      ? 0 
-      : totalAmount;
-
-    // Check if user has sufficient balance for pay-per-use
-    if (totalRequired > 0 && safeBalance < totalRequired) {
-      Swal.fire({
-        icon: "warning",
-        title: "Insufficient Balance",
-        text: `You need ₦${totalRequired} in your wallet. Would you like to fund your wallet?`,
-        showCancelButton: true,
-        confirmButtonText: "Fund Wallet",
-        cancelButtonText: "Cancel",
-        confirmButtonColor: "#C29307",
-      }).then((result) => {
-        if (result.isConfirmed) {
-          router.push("/dashboard/fund-account");
-        }
-      });
-      return;
-    }
-
-    // Only show PIN popup if payment is required
-    if (requiresPinConfirmation()) {
-      setIsPinOpen(true);
-    } else {
-      // Process directly without PIN (free contract)
-      processPaymentAndSubmit();
-    }
+    processContractAndSubmit();
   };
 
   const handleSummaryBack = () => {
     setShowContractSummary(false);
-    resetAllLoadingStates();
-    setIsPinOpen(false);
-    setPin(Array(inputCount).fill(""));
+    setIsSubmitting(false);
   };
 
   const handleCopySigningLink = () => {
@@ -1404,17 +1066,22 @@ const FormBody: React.FC = () => {
         icon: "success",
         title: "Contract Link Copied!",
         text: "Contract link copied to clipboard",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
         timer: 2000,
-        timerProgressBar: true,
         showConfirmButton: false,
       });
     }
   };
 
   const handleSubmit = async (isDraft: boolean = false) => {
-    if (isSubmitting || isProcessingPayment || isSavingDraft) {
-      return;
+    if (isSubmitting || isSavingDraft) return;
+
+    // Check limit for free and ZidLite tiers
+    if (!hasUnlimitedContracts && !isDraft) {
+      if (contractCount >= contractLimit) {
+        setShowUpgradePrompt(true);
+        return;
+      }
     }
 
     if (isDraft) {
@@ -1422,47 +1089,32 @@ const FormBody: React.FC = () => {
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      
-      const inputsValid = validateInputs();
+    const inputsValid = validateInputs();
 
-      if (!inputsValid) {
-        setIsSubmitting(false);
-        return;
-      }
-
-      setShowContractSummary(true);
-    } catch (error) {
-      console.error("Submit error:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Submission Error",
-        text: "An error occurred while processing your request.",
-        confirmButtonColor: "#C29307",
-      });
-    } finally {
-      setIsSubmitting(false);
+    if (!inputsValid) {
+      return;
     }
+
+    setShowContractSummary(true);
   };
 
   const resetForm = () => {
-    if (isProcessingPayment || isSubmitting) {
+    if (isSubmitting) {
       Swal.fire({
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot clear form while submission is in progress.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return;
     }
 
     Swal.fire({
       title: "Clear Form?",
-      text: "This will remove all current form data, including uploaded attachments.",
+      text: "This will remove all current form data.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#C29307",
+      confirmButtonColor: "#2b825b",
       cancelButtonColor: "#6b7280",
       confirmButtonText: "Clear",
       cancelButtonText: "Cancel",
@@ -1486,33 +1138,15 @@ const FormBody: React.FC = () => {
         setIncludeLawyerSignature(false);
         setCreatorSignature(null);
         setLocalSignature(null);
-        setCreatorName(
-          userData?.fullName
-            ? `${userData.fullName}`
-            : ""
-        );
-        setLocalCreatorName(
-          userData?.fullName
-            ? `${userData.fullName}`
-            : ""
-        );
+        setCreatorName(userData?.fullName ? `${userData.fullName}` : "");
+        setLocalCreatorName(userData?.fullName ? `${userData.fullName}` : "");
         setHasUnsavedChanges(false);
-        setErrors({
-          contractTitle: "",
-          receiverName: "",
-          receiverEmail: "",
-          contractContent: "",
-          contractDate: "",
-          pin: "",
-          ageConsent: "",
-          termsConsent: "",
-        });
 
         Swal.fire({
           icon: "success",
           title: "Form Reset",
           text: "Form has been cleared successfully.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
           timer: 1500,
           showConfirmButton: false,
         });
@@ -1521,84 +1155,58 @@ const FormBody: React.FC = () => {
   };
 
   const handleFormChange = (field: keyof FormState, value: any) => {
-    if (isProcessingPayment || isSubmitting) return;
+    if (isSubmitting) return;
     setForm((prev) => ({ ...prev, [field]: value }));
-    const errorField = field as keyof typeof errors;
-    if (errors[errorField]) {
-      setErrors((prev) => ({ ...prev, [errorField]: "" }));
+    if (errors[field as keyof typeof errors]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
-  const handleSelectChange = (value: string) => {
-    if (isProcessingPayment || isSubmitting) return;
-    handleFormChange("contractTitle", value);
-  };
-
   const handleFileUpload = (file: File) => {
-    if (isProcessingPayment || isSubmitting) {
+    if (isSubmitting) {
       Swal.fire({
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot upload files while submission is in progress.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return;
     }
 
-    let previewUrl: string | undefined;
-    if (file.type.startsWith("image/")) {
-      previewUrl = URL.createObjectURL(file);
-    }
+    const previewUrl = file.type.startsWith("image/")
+      ? URL.createObjectURL(file)
+      : undefined;
 
-    const newAttachment: AttachmentFile = {
-      file,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      previewUrl,
-    };
-
-    setAttachments((prev) => [...prev, newAttachment]);
+    setAttachments((prev) => [
+      ...prev,
+      { file, name: file.name, size: file.size, type: file.type, previewUrl },
+    ]);
     setHasUnsavedChanges(true);
-
-    Swal.fire({
-      icon: "success",
-      title: "File Added!",
-      text: `${file.name} has been added as an attachment.`,
-      confirmButtonColor: "#C29307",
-      timer: 1500,
-      showConfirmButton: false,
-    });
   };
 
   const handleRemoveAttachment = (index: number) => {
-    if (isProcessingPayment || isSubmitting) {
+    if (isSubmitting) {
       Swal.fire({
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot remove attachments while submission is in progress.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return;
     }
 
-    const attachmentToRemove = attachments[index];
-
-    if (attachmentToRemove.previewUrl) {
-      URL.revokeObjectURL(attachmentToRemove.previewUrl);
+    if (attachments[index].previewUrl) {
+      URL.revokeObjectURL(attachments[index].previewUrl!);
     }
 
     setAttachments((prev) => prev.filter((_, i) => i !== index));
     setHasUnsavedChanges(true);
   };
 
-  const handleLawyerToggle = useCallback(
-    (checked: boolean) => {
-      if (isProcessingPayment || isSubmitting) return;
-      setIncludeLawyerSignature(checked);
-    },
-    [isProcessingPayment, isSubmitting]
-  );
+  const handleLawyerToggle = (checked: boolean) => {
+    if (isSubmitting) return;
+    setIncludeLawyerSignature(checked);
+  };
 
   useEffect(() => {
     return () => {
@@ -1610,29 +1218,12 @@ const FormBody: React.FC = () => {
     };
   }, [attachments]);
 
-  // Get button text based on state
   const getSendButtonText = () => {
-    if (isProcessingPayment || isSubmitting) {
+    if (isSubmitting) {
       return (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Processing...
-        </>
-      );
-    }
-    if (includeLawyerSignature) {
-      return (
-        <>
-          <Scale className="mr-2 h-4 w-4" />
-          Pay ₦{totalAmount.toLocaleString()} & Send
-        </>
-      );
-    }
-    if (!hasFreeContractAccess()) {
-      return (
-        <>
-          <Wallet className="mr-2 h-4 w-4" />
-          Pay ₦{CONTRACT_FEE} & Send
         </>
       );
     }
@@ -1644,114 +1235,90 @@ const FormBody: React.FC = () => {
     );
   };
 
-  // Get status badge
-  const getStatusBadge = () => {
-    if (isProcessingPayment || isSubmitting) {
-      return (
-        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-          Processing...
-        </Badge>
-      );
+  const getLimitDisplay = () => {
+    if (hasUnlimitedContracts) return "Unlimited";
+    if (isFree) return `${Math.max(0, 1 - contractCount)}/1`;
+    if (isZidLite) return `${Math.max(0, 2 - contractCount)}/2`;
+    if (isGrowth) return `${Math.max(0, 5 - contractCount)}/5`;
+    return "0/0";
+  };
+
+  const getTierMessage = () => {
+    if (isPremiumUser || isGrowthUser) {
+      return "You have unlimited contracts! Create as many as you need.";
     }
-    if (hasUnlimitedContracts) {
-      return (
-        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-          <span className="mr-1">👑</span>
-          Unlimited
-        </Badge>
-      );
+    if (isZidLiteUser) {
+      return `You have ${Math.max(0, 2 - contractCount)} contract${Math.max(0, 2 - contractCount) !== 1 ? "s" : ""} remaining.`;
     }
-    if (!contractUsage.isChecking && contractUsage.remaining <= 0 && !includeLawyerSignature) {
-      return (
-        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-          <Wallet className="w-3 h-3 mr-1" />
-          Pay-per-use
-        </Badge>
-      );
-    }
-    if (contractUsage.remaining > 0 && contractUsage.remaining <= 2) {
-      return (
-        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-          {contractUsage.remaining} left
-        </Badge>
-      );
-    }
-    return null;
+    return `You have ${Math.max(0, 1 - contractCount)} contract${Math.max(0, 1 - contractCount) !== 1 ? "s" : ""} remaining.`;
   };
 
   return (
     <>
-      {/* Pin Popup - Using invoiceFeeInfo as required by the component */}
-      <PinPopOver
-        setIsOpen={(newValue) => {
-          setIsPinOpen(newValue);
-          if (!newValue) {
-            resetAllLoadingStates();
-            setPin(Array(inputCount).fill(""));
-          }
-        }}
-        isOpen={isPinOpen}
-        pin={pin}
-        setPin={setPin}
-        inputCount={inputCount}
-        onConfirm={async () => {
-          await processPaymentAndSubmit();
-        }}
-        invoiceFeeInfo={{
-          isFree: !requiresPinConfirmation(),
-          freeInvoicesLeft: contractUsage.remaining,
-          totalInvoicesCreated: contractUsage.used,
-          feeAmount: totalAmount,
-        }}
-      />
+      {/* Upgrade Prompt Modal */}
+      {showUpgradePrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Crown className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-xl font-bold text-center mb-2">
+              Contract Limit Reached
+            </h3>
+            <p className="text-gray-600 text-center mb-6">
+              {isZidLiteUser
+                ? "You've used all your ZidLite contracts. Upgrade to continue creating unlimited contracts!"
+                : "You've used all your free contracts. Upgrade to continue creating unlimited contracts!"}
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowUpgradePrompt(false)}
+              >
+                Cancel
+              </Button>
+              <Link href="/pricing?upgrade=growth" className="flex-1">
+                <Button className="w-full bg-[#2b825b] hover:bg-[#1e5d42] text-white">
+                  View Plans
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ContractSummary
         contractTitle={form.contractTitle}
         contractContent={form.contractContent}
         contractDate={form.contractDate}
-        initiatorName={`${userData?.fullName || ""} ${
-          userData?.lastName || ""
-        }`}
+        initiatorName={creatorName}
         initiatorEmail={userData?.email || ""}
         receiverName={form.receiverName}
         receiverEmail={form.receiverEmail}
         receiverPhone={form.receiverPhone}
-        amount={CONTRACT_FEE}
+        amount={0}
         confirmContract={showContractSummary}
         onBack={handleSummaryBack}
         onConfirm={handleSummaryConfirm}
-        onClose={() => {
-          setShowContractSummary(false);
-          resetAllLoadingStates();
-          setIsPinOpen(false);
-          setPin(Array(inputCount).fill(""));
-        }}
+        onClose={() => setShowContractSummary(false)}
         contractType="Custom Contract"
         dateCreated={new Date(form.contractDate).toLocaleDateString()}
         attachments={attachments}
         currentLawyerSignature={includeLawyerSignature}
-        usageInfo={contractUsage}
-        userTier={userTier || "free"}
-        walletBalance={safeBalance}
+        userTier={userTier}
+        contractCount={contractCount}
+        hasUnlimitedContracts={hasUnlimitedContracts}
       />
 
-      {/* Success Modal */}
       <ContractSuccessModal
         open={showSuccessModal}
         onClose={() => {
           setShowSuccessModal(false);
-          resetAllLoadingStates();
-          setIsPinOpen(false);
-          setPin(Array(inputCount).fill(""));
-          setShowContractSummary(false);
+          window.location.reload();
         }}
         onNewContract={() => {
           setShowSuccessModal(false);
-          resetAllLoadingStates();
-          setIsPinOpen(false);
-          setPin(Array(inputCount).fill(""));
-          setShowContractSummary(false);
           window.location.reload();
         }}
         contractId={savedContractId}
@@ -1763,7 +1330,6 @@ const FormBody: React.FC = () => {
         onCopyLink={handleCopySigningLink}
       />
 
-      {/* Main Form Content */}
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8 px-4">
           <div className="flex items-start justify-between mb-6">
@@ -1772,28 +1338,39 @@ const FormBody: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  if (isProcessingPayment || isSubmitting) {
+                  if (isSubmitting) {
                     Swal.fire({
                       icon: "warning",
                       title: "Form is Processing",
                       text: "Cannot navigate away while submission is in progress.",
-                      confirmButtonColor: "#C29307",
+                      confirmButtonColor: "#2b825b",
                     });
                     return;
                   }
                   router.back();
                 }}
-                className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+                className="text-[#2b825b] hover:bg-white/10"
+                disabled={isSubmitting}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                <span className="hidden md:block">Back</span>
+                Back
               </Button>
 
               <div>
-                <h1 className="md:text-3xl text-xl font-bold mb-2 flex items-center gap-3">
-                  Create Contract
-                  {!contractUsage.isChecking && getStatusBadge()}
-                </h1>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="md:text-3xl text-xl font-bold">
+                    Create Contract
+                  </h1>
+                  {/* Single Tier Badge */}
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
+                  >
+                    <TierIcon className={`w-4 h-4 ${tierInfo.color}`} />
+                    <span className={`text-xs font-semibold ${tierInfo.color}`}>
+                      {tierInfo.label}
+                    </span>
+                  </div>
+                </div>
                 <p className="text-muted-foreground">
                   Generate a professional contract and send for signatures
                 </p>
@@ -1801,18 +1378,26 @@ const FormBody: React.FC = () => {
             </div>
 
             <div className="hidden md:flex items-center gap-2">
-              {/* Wallet Balance */}
-              <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-                <Wallet className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-700">
-                  ₦{safeBalance.toLocaleString()}
-                </span>
-              </div>
-
+              {!hasUnlimitedContracts && (
+                <Badge
+                  variant="outline"
+                  className="bg-blue-50 text-blue-700 border-blue-200"
+                >
+                  {getLimitDisplay()} used
+                </Badge>
+              )}
+              {hasUnlimitedContracts && (
+                <Badge
+                  variant="outline"
+                  className="bg-purple-50 text-purple-700 border-purple-200"
+                >
+                  Unlimited
+                </Badge>
+              )}
               {hasUnsavedChanges && (
                 <Badge
                   variant="outline"
-                  className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                  className="bg-green-50 text-yellow-700 border-yellow-200"
                 >
                   Unsaved changes
                 </Badge>
@@ -1823,7 +1408,7 @@ const FormBody: React.FC = () => {
                   className="bg-blue-50 text-blue-700 border-blue-200"
                 >
                   <FileText className="w-3 h-3 mr-1" />
-                  {attachments.length} attachment(s)
+                  {attachments.length}
                 </Badge>
               )}
               {includeLawyerSignature && (
@@ -1831,8 +1416,7 @@ const FormBody: React.FC = () => {
                   variant="outline"
                   className="bg-purple-50 text-purple-700 border-purple-200"
                 >
-                  <Scale className="w-3 h-3 mr-1" />
-                  +₦{LAWYER_FEE.toLocaleString()}
+                  + Lawyer Signature
                 </Badge>
               )}
               {localSignature && (
@@ -1846,69 +1430,113 @@ const FormBody: React.FC = () => {
             </div>
           </div>
 
-          {/* Usage Warning */}
-          {!hasUnlimitedContracts && !contractUsage.isChecking && contractUsage.remaining <= 2 && (
+          {/* Tier Message - For paid tiers */}
+          {!isFree && (
             <div
-              className={`mb-6 p-4 rounded-lg border ${
-                contractUsage.remaining <= 0
-                  ? "bg-blue-50 border-blue-200"
-                  : "bg-yellow-50 border-yellow-200"
+              className={`mb-6 p-4 rounded-lg border-2 ${
+                isPremiumUser
+                  ? "bg-purple-50 border-purple-200"
+                  : isGrowthUser
+                    ? "bg-green-50 border-green-200"
+                    : isZidLiteUser
+                      ? "bg-blue-50 border-blue-200"
+                      : ""
               }`}
             >
-              <div className="flex items-start gap-3">
-                <AlertCircle
-                  className={`w-5 h-5 mt-0.5 ${
-                    contractUsage.remaining <= 0
-                      ? "text-blue-500"
-                      : "text-yellow-500"
+              <p
+                className={`font-medium flex items-center gap-2 ${
+                  isPremiumUser
+                    ? "text-purple-600"
+                    : isGrowthUser
+                      ? "text-green-600"
+                      : isZidLiteUser
+                        ? "text-blue-600"
+                        : ""
+                }`}
+              >
+                <span
+                  className={`px-2 py-0.5 rounded text-xs font-bold ${
+                    isPremiumUser
+                      ? "bg-purple-100 text-purple-600 border border-purple-200"
+                      : isGrowthUser
+                        ? "bg-green-100 text-green-600 border border-green-200"
+                        : isZidLiteUser
+                          ? "bg-blue-100 text-blue-600 border border-blue-200"
+                          : ""
                   }`}
-                />
-                <div className="flex-1">
-                  <p
-                    className={`font-medium ${
-                      contractUsage.remaining <= 0
-                        ? "text-blue-700"
-                        : "text-yellow-700"
-                    }`}
-                  >
-                    {contractUsage.remaining <= 0
-                      ? "Pay-per-use mode active"
-                      : `Only ${contractUsage.remaining} free contract${contractUsage.remaining !== 1 ? 's' : ''} remaining`}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {contractUsage.remaining <= 0
-                      ? `This contract will cost ₦${CONTRACT_FEE}. Select "Lawyer Signature" for additional verification (₦${LAWYER_FEE.toLocaleString()}).`
-                      : `After your free limit, contracts cost ₦${CONTRACT_FEE} each.`}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Premium Banner */}
-          {hasUnlimitedContracts && (
-            <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <p className="text-purple-700 font-medium flex items-center gap-2">
-                <span className="bg-purple-600 text-white px-2 py-1 rounded text-xs">
-                  {userTier === "growth" ? "GROWTH" : "PREMIUM"}
+                >
+                  {tierInfo.label.toUpperCase()}
                 </span>
-                You have unlimited contracts! No payment required for standard contracts.
+                {getTierMessage()}
               </p>
             </div>
           )}
 
-          <div className="flex justify-between md:items-center mb-6 flex-col md:flex-row gap-3 ">
+          {/* Usage Warning - Only for Free Tier */}
+          {isFree &&
+            !hasUnlimitedContracts &&
+            contractCount >= contractLimit - 1 && (
+              <div
+                className={`mb-6 p-4 rounded-lg border ${
+                  contractCount >= contractLimit
+                    ? "bg-red-50 border-red-200"
+                    : "bg-green-50 border-yellow-200"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle
+                    className={`w-5 h-5 mt-0.5 ${
+                      contractCount >= contractLimit
+                        ? "text-red-500"
+                        : "text-yellow-500"
+                    }`}
+                  />
+                  <div className="flex-1">
+                    <p
+                      className={`font-medium ${
+                        contractCount >= contractLimit
+                          ? "text-red-700"
+                          : "text-yellow-700"
+                      }`}
+                    >
+                      {contractCount >= contractLimit
+                        ? "Free contract limit reached"
+                        : `Only ${contractLimit - contractCount} contract${contractLimit - contractCount !== 1 ? "s" : ""} remaining`}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {contractCount >= contractLimit
+                        ? "You've reached your free contract limit. Upgrade to continue creating contracts."
+                        : `You have ${contractLimit - contractCount} free ${contractLimit - contractCount === 1 ? "contract" : "contracts"} left.`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          {/* Premium Banner */}
+          {(isPremiumUser || isGrowthUser) && (
+            <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <p className="text-purple-700 font-medium flex items-center gap-2">
+                <span className="bg-purple-600 text-white px-2 py-1 rounded text-xs uppercase">
+                  {userTier}
+                </span>
+                You have unlimited contracts! No payment required.
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-4">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (isProcessingPayment || isSubmitting) {
+                  if (isSubmitting) {
                     Swal.fire({
                       icon: "warning",
                       title: "Form is Processing",
                       text: "Cannot view drafts while submission is in progress.",
-                      confirmButtonColor: "#C29307",
+                      confirmButtonColor: "#2b825b",
                     });
                     return;
                   }
@@ -1919,7 +1547,7 @@ const FormBody: React.FC = () => {
                       icon: "info",
                       title: "No Drafts",
                       text: "You don't have any saved drafts.",
-                      confirmButtonColor: "#C29307",
+                      confirmButtonColor: "#2b825b",
                     });
                   }
                 }}
@@ -1945,7 +1573,7 @@ const FormBody: React.FC = () => {
           <Tabs
             value={activeTab}
             onValueChange={(value) => {
-              if (isProcessingPayment || isSubmitting) return;
+              if (isSubmitting) return;
               setActiveTab(value);
             }}
             className="w-full"
@@ -1969,11 +1597,11 @@ const FormBody: React.FC = () => {
                   </Label>
                   <Input
                     value={form.contractTitle}
-                    onChange={(e: any) =>
+                    onChange={(e) =>
                       handleFormChange("contractTitle", e.target.value)
                     }
                     placeholder="Enter contract title"
-                    disabled={isProcessingPayment || isSubmitting}
+                    disabled={isSubmitting}
                   />
                   {errors.contractTitle && (
                     <p className="text-xs text-red-500 mt-1">
@@ -1994,8 +1622,8 @@ const FormBody: React.FC = () => {
                       id="creator-name"
                       value={localCreatorName}
                       onChange={handleCreatorNameChange}
-                      placeholder="Enter your full legal name as it should appear on the contract"
-                      disabled={isProcessingPayment || isSubmitting}
+                      placeholder="Enter your full legal name"
+                      disabled={isSubmitting}
                     />
                   </div>
 
@@ -2013,7 +1641,7 @@ const FormBody: React.FC = () => {
                         handleFormChange("receiverName", e.target.value)
                       }
                       placeholder="John Doe"
-                      disabled={isProcessingPayment || isSubmitting}
+                      disabled={isSubmitting}
                     />
                     {errors.receiverName && (
                       <p className="text-xs text-red-500 mt-1">
@@ -2025,41 +1653,46 @@ const FormBody: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <div className="space-y-1">
-                      <Label
-                        htmlFor="contract-date"
-                        className="text-xs font-medium text-gray-600"
-                      >
-                        Contract Date*
-                      </Label>
-                      <Input
-                        id="contract-date"
-                        type="date"
-                        value={form.contractDate}
-                        onChange={(e) =>
-                          handleFormChange("contractDate", e.target.value)
-                        }
-                        className="w-full"
-                        max={new Date().toISOString().split("T")[0]}
-                        disabled={isProcessingPayment || isSubmitting}
-                      />
-                      {errors.contractDate && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.contractDate}
-                        </p>
-                      )}
-                    </div>
+                    <Label
+                      htmlFor="contract-date"
+                      className="text-xs font-medium text-gray-600"
+                    >
+                      Contract Date*
+                    </Label>
+                    <Input
+                      id="contract-date"
+                      type="date"
+                      value={form.contractDate}
+                      onChange={(e) =>
+                        handleFormChange("contractDate", e.target.value)
+                      }
+                      className="w-full mt-1.5"
+                      max={new Date().toISOString().split("T")[0]}
+                      disabled={isSubmitting}
+                    />
+                    {errors.contractDate && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.contractDate}
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <SignContractInput
-                      label="Email Address*"
+                    <Label
+                      htmlFor="receiver-email"
+                      className="text-xs font-medium text-gray-600"
+                    >
+                      Email Address*
+                    </Label>
+                    <Input
+                      id="receiver-email"
+                      type="email"
                       placeholder="john@example.com"
-                      id={"receiver-email"}
                       value={form.receiverEmail}
-                      onchange={(e) =>
+                      onChange={(e) =>
                         handleFormChange("receiverEmail", e.target.value)
                       }
-                      // disabled={isProcessingPayment || isSubmitting}
+                      className="mt-1.5"
+                      disabled={isSubmitting}
                     />
                     {errors.receiverEmail && (
                       <p className="text-xs text-red-500 mt-1">
@@ -2068,15 +1701,21 @@ const FormBody: React.FC = () => {
                     )}
                   </div>
                   <div>
-                    <SignContractInput
-                      label="Phone Number"
+                    <Label
+                      htmlFor="receiver-phone"
+                      className="text-xs font-medium text-gray-600"
+                    >
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="receiver-phone"
                       placeholder="+234 000 000 0000"
-                      id={"receiver-phone"}
                       value={form.receiverPhone}
-                      onchange={(e) =>
+                      onChange={(e) =>
                         handleFormChange("receiverPhone", e.target.value)
                       }
-                      // disabled={isProcessingPayment || isSubmitting}
+                      className="mt-1.5"
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -2095,7 +1734,7 @@ const FormBody: React.FC = () => {
                     onChange={(value) =>
                       handleFormChange("contractContent", value)
                     }
-                    // disabled={isProcessingPayment || isSubmitting}
+                    // disabled={isSubmitting}
                   />
                   {errors.contractContent && (
                     <p className="text-xs text-red-500 mt-1">
@@ -2113,22 +1752,16 @@ const FormBody: React.FC = () => {
                       {form.paymentTerms.length} characters
                     </span>
                   </div>
-                  <div className="">
-                    <textarea
-                      value={form.paymentTerms}
-                      onChange={(e) =>
-                        handleFormChange("paymentTerms", e.target.value)
-                      }
-                      placeholder="Specify payment terms, schedules, amounts, methods, and deadlines if applicable..."
-                      className="w-full h-20 p-4 text-sm resize-none border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#C29307] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
-                      rows={6}
-                      disabled={isProcessingPayment || isSubmitting}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Optional: Include payment amounts, schedules, methods, and
-                    deadlines
-                  </p>
+                  <textarea
+                    value={form.paymentTerms}
+                    onChange={(e) =>
+                      handleFormChange("paymentTerms", e.target.value)
+                    }
+                    placeholder="Specify payment terms, schedules, amounts, methods, and deadlines if applicable..."
+                    className="w-full h-20 p-4 text-sm resize-none border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2b825b] focus:border-transparent disabled:bg-gray-100"
+                    rows={6}
+                    disabled={isSubmitting}
+                  />
                 </div>
               </section>
 
@@ -2143,24 +1776,26 @@ const FormBody: React.FC = () => {
                     handleFormChange("termsConsent", value)
                   }
                   termsConsent={form.termsConsent}
-                  disabled={isProcessingPayment || isSubmitting}
+                  disabled={isSubmitting}
                 />
-                <div className="space-y-2">
-                  {errors.ageConsent && (
-                    <p className="text-xs text-red-500">
-                      {errors.ageConsent}
-                    </p>
-                  )}
-                  {errors.termsConsent && (
-                    <p className="text-xs text-red-500">
-                      {errors.termsConsent}
-                    </p>
-                  )}
-                </div>
+                {(errors.ageConsent || errors.termsConsent) && (
+                  <div className="space-y-1">
+                    {errors.ageConsent && (
+                      <p className="text-xs text-red-500">
+                        {errors.ageConsent}
+                      </p>
+                    )}
+                    {errors.termsConsent && (
+                      <p className="text-xs text-red-500">
+                        {errors.termsConsent}
+                      </p>
+                    )}
+                  </div>
+                )}
               </section>
 
               {/* Signature Section */}
-              <section className="md:border md:border-gray-200 rounded-lg md:p-6 md:bg-gray-50 print:hidden">
+              <section className="md:border md:border-gray-200 rounded-lg md:p-6 md:bg-gray-50">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
                   <div className="mb-4 sm:mb-0">
                     <h4 className="text-lg font-semibold text-gray-900">
@@ -2175,8 +1810,8 @@ const FormBody: React.FC = () => {
                       variant="outline"
                       size="sm"
                       onClick={clearSignature}
-                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
-                      disabled={isProcessingPayment || isSubmitting}
+                      className="border-red-200 text-red-600 hover:bg-red-50"
+                      disabled={isSubmitting}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Clear Signature
@@ -2193,15 +1828,14 @@ const FormBody: React.FC = () => {
                           Saved Signature Available
                         </p>
                         <p className="text-xs text-blue-600 mt-1">
-                          You have a signature saved for future use. Would you
-                          like to load it?
+                          You have a signature saved. Would you like to load it?
                         </p>
                       </div>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={loadSignatureManually}
-                        disabled={isProcessingPayment || isSubmitting}
+                        disabled={isSubmitting}
                         className="border-blue-300 text-blue-700 hover:bg-blue-100"
                       >
                         Load Saved Signature
@@ -2211,60 +1845,49 @@ const FormBody: React.FC = () => {
                 )}
 
                 <div className="space-y-6">
-                  {/* Signature Pad Component */}
                   <SignaturePad
                     value={localSignature || ""}
                     onChange={(signature) => handleSignatureChange(signature)}
                     label="Your Signature"
-                    disabled={isProcessingPayment || isSubmitting}
+                    disabled={isSubmitting}
                   />
 
-                  {/* Save Signature Toggle */}
                   {userData?.id && (
                     <div className="flex items-center space-x-3 p-4 bg-white border border-gray-200 rounded-lg">
                       <Switch
                         id="save-signature-toggle"
                         checked={saveSignatureForFuture}
                         onCheckedChange={handleSaveSignatureToggle}
-                        className="data-[state=checked]:bg-[#C29307]"
-                        disabled={(!localSignature && saveSignatureForFuture) || isProcessingPayment || isSubmitting}
+                        className="data-[state=checked]:bg-[#2b825b]"
+                        disabled={
+                          (!localSignature && saveSignatureForFuture) ||
+                          isSubmitting
+                        }
                       />
                       <div className="space-y-1 flex-1">
                         <Label
                           htmlFor="save-signature-toggle"
-                          className="cursor-pointer text-sm font-medium text-gray-700"
+                          className="cursor-pointer text-sm font-medium"
                         >
                           Save signature for future use
                         </Label>
                         <p className="text-xs text-gray-500">
-                          Your signature will be securely stored and automatically
-                          loaded for future contracts
+                          Your signature will be securely stored for future
+                          contracts
                         </p>
-                        {!localSignature && saveSignatureForFuture && (
-                          <p className="text-xs text-amber-600 mt-1">
-                            Please create a signature first to enable saving
-                          </p>
-                        )}
                       </div>
                     </div>
                   )}
                 </div>
               </section>
 
-              <div className="flex flex-col md:flex-row gap-3 pt-4 ">
+              <div className="flex flex-col md:flex-row gap-3 pt-4">
                 <Button
                   onClick={() => handleSubmit(true)}
                   variant="outline"
                   size="lg"
                   className="md:flex-1 hover:bg-blue-50"
-                  disabled={
-                    isProcessingPayment ||
-                    isSavingDraft ||
-                    isSubmitting ||
-                    (!form.contractTitle.trim() &&
-                      !form.contractContent.trim() &&
-                      !localSignature)
-                  }
+                  disabled={isSubmitting || isSavingDraft}
                 >
                   {isSavingDraft ? (
                     <>
@@ -2281,16 +1904,8 @@ const FormBody: React.FC = () => {
                 <Button
                   onClick={() => handleSubmit(false)}
                   size="lg"
-                  className={`md:flex-1 ${
-                    includeLawyerSignature || !hasFreeContractAccess()
-                      ? "bg-blue-600 hover:bg-blue-700"
-                      : "bg-[#C29307] hover:bg-[#b38606]"
-                  } text-white disabled:opacity-70 disabled:cursor-not-allowed`}
-                  disabled={
-                    isProcessingPayment || 
-                    isSavingDraft || 
-                    isSubmitting
-                  }
+                  className="md:flex-1 bg-[#2b825b] hover:bg-[#1e5d42] text-white"
+                  disabled={isSubmitting || isSavingDraft}
                 >
                   {getSendButtonText()}
                 </Button>
@@ -2314,7 +1929,7 @@ const FormBody: React.FC = () => {
                 creatorSignature={localSignature || creatorSignature}
                 localCreatorName={localCreatorName}
                 setLocalCreatorName={setLocalCreatorName}
-                disabled={isProcessingPayment || isSubmitting}
+                disabled={isSubmitting}
               />
             </TabsContent>
           </Tabs>

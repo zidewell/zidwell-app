@@ -115,7 +115,7 @@ export default function Transfer() {
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: ["#2b825b", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
     });
 
     // Side bursts
@@ -125,14 +125,14 @@ export default function Transfer() {
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
       confetti({
         particleCount: 80,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
     }, 150);
 
@@ -142,7 +142,7 @@ export default function Transfer() {
         particleCount: 100,
         spread: 100,
         origin: { y: 0.8 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
     }, 300);
   };
@@ -541,7 +541,7 @@ export default function Transfer() {
           title: "Transfer Successful! 🎉",
           text: "Your transaction has been processed successfully.",
           showConfirmButton: true,
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
           timer: 5000,
           timerProgressBar: true,
           background: "#fefefe",
@@ -551,7 +551,7 @@ export default function Transfer() {
                 particleCount: 50,
                 spread: 60,
                 origin: { y: 0.3 },
-                colors: ["#C29307", "#ffd700"],
+                colors: ["#2b825b", "#ffd700"],
               });
             }, 100);
           },
@@ -739,12 +739,12 @@ export default function Transfer() {
           }
         }}
       />
-      <Card className="shadow-xl border rounded-2xl">
+      <Card className="shadow-xl border rounded-2xl dark:bg-gray-800 dark:border-gray-700">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-gray-800">
+          <CardTitle className="text-2xl font-bold text-gray-800 dark:text-gray-100">
             Transfer Funds
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground dark:text-gray-400">
             Choose how you want to transfer funds from your wallet.
           </p>
         </CardHeader>
@@ -753,7 +753,7 @@ export default function Transfer() {
           <form onSubmit={handleTransfer} className="space-y-6">
             {/* Transfer Type */}
             <div className="space-y-2">
-              <Label>Transfer Type</Label>
+              <Label className="dark:text-gray-300">Transfer Type</Label>
               <Select
                 value={transferType}
                 onValueChange={(value) => {
@@ -764,25 +764,26 @@ export default function Transfer() {
                   setSaveP2PBeneficiary(false);
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                   <SelectValue placeholder="Select transfer type" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="my-account">My Bank Account</SelectItem>
-                  <SelectItem value="other-bank">Other Bank Account</SelectItem>
-                  <SelectItem value="p2p">Zidwell User (P2P)</SelectItem>
+                <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                  <SelectItem value="my-account" className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700">My Bank Account</SelectItem>
+                  <SelectItem value="other-bank" className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700">Other Bank Account</SelectItem>
+                  <SelectItem value="p2p" className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700">Zidwell User (P2P)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Amount */}
             <div className="space-y-1">
-              <Label>Amount (₦)</Label>
+              <Label className="dark:text-gray-300">Amount (₦)</Label>
               <Input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="e.g. 5000"
+                className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
               />
               {transferType !== "p2p" && (
                 <FeeDisplay
@@ -797,7 +798,7 @@ export default function Transfer() {
               )}
 
               {errors.amount && (
-                <p className="text-red-600 text-sm">{errors.amount}</p>
+                <p className="text-red-600 text-sm dark:text-red-400">{errors.amount}</p>
               )}
             </div>
 
@@ -805,37 +806,37 @@ export default function Transfer() {
             {transferType === "my-account" && (
               <>
                 {loading2 ? (
-                  <div className="bg-gray-50 p-3 rounded-lg border text-sm text-gray-600 animate-pulse">
+                  <div className="bg-gray-50 p-3 rounded-lg border text-sm text-gray-600 animate-pulse dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
                     Loading your bank details...
                   </div>
                 ) : userDetails?.payment_details.p_account_number &&
                   userDetails?.payment_details.p_account_name ? (
-                  <div className="bg-gray-50 p-3 rounded-lg border space-y-1 text-sm">
-                    <p>
-                      <strong>Bank:</strong>{" "}
+                  <div className="bg-gray-50 p-3 rounded-lg border space-y-1 text-sm dark:bg-gray-700 dark:border-gray-600">
+                    <p className="dark:text-gray-300">
+                      <strong className="dark:text-gray-200">Bank:</strong>{" "}
                       {userDetails.payment_details.p_bank_name}
                     </p>
-                    <p>
-                      <strong>Account Number:</strong>{" "}
+                    <p className="dark:text-gray-300">
+                      <strong className="dark:text-gray-200">Account Number:</strong>{" "}
                       {userDetails.payment_details.p_account_number}
                     </p>
-                    <p>
-                      <strong>Account Name:</strong>{" "}
+                    <p className="dark:text-gray-300">
+                      <strong className="dark:text-gray-200">Account Name:</strong>{" "}
                       {userDetails.payment_details.p_account_name}
                     </p>
                   </div>
                 ) : (
-                  <div className="bg-red-50 p-3 rounded-lg border text-sm text-red-600">
+                  <div className="bg-red-50 p-3 rounded-lg border text-sm text-red-600 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
                     You have not set your bank account details yet.{" "}
                     <Link
                       href="/dashboard/profile"
-                      className="text-blue-500 hover:underline"
+                      className="text-blue-500 hover:underline dark:text-blue-400"
                     >
                       Click here
                     </Link>{" "}
                     to add them.
                     {errors.myAccount && (
-                      <p className="text-red-600 text-sm">{errors.myAccount}</p>
+                      <p className="text-red-600 text-sm dark:text-red-400">{errors.myAccount}</p>
                     )}
                   </div>
                 )}
@@ -849,7 +850,7 @@ export default function Transfer() {
                 {savedAccounts.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">
+                      <Label className="text-sm font-medium dark:text-gray-300">
                         Saved Accounts
                       </Label>
                       <Button
@@ -857,7 +858,7 @@ export default function Transfer() {
                         variant="outline"
                         size="sm"
                         onClick={() => setShowSavedAccounts(!showSavedAccounts)}
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-1 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                       >
                         <Bookmark className="h-4 w-4" />
                         {showSavedAccounts ? "Hide" : "Show"} Saved
@@ -865,28 +866,28 @@ export default function Transfer() {
                     </div>
 
                     {showSavedAccounts && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto dark:bg-blue-900/20 dark:border-blue-800">
                         {savedAccounts.map((account) => (
                           <div
                             key={account.id}
                             onClick={() => handleSelectSavedAccount(account)}
                             className={`p-2 rounded cursor-pointer transition-colors ${
                               selectedSavedAccount?.id === account.id
-                                ? "bg-blue-100 border border-blue-300"
-                                : "bg-white hover:bg-gray-50 border"
+                                ? "bg-blue-100 border border-blue-300 dark:bg-blue-900/40 dark:border-blue-700"
+                                : "bg-white hover:bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"
                             }`}
                           >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <p className="font-medium text-gray-900 text-sm">
+                                <p className="font-medium text-gray-900 text-sm dark:text-gray-100">
                                   {account.account_name}
                                 </p>
-                                <p className="text-xs text-gray-600">
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
                                   {account.account_number} • {account.bank_name}
                                 </p>
                               </div>
                               {account.is_default && (
-                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2">
+                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2 dark:bg-green-900/30 dark:text-green-400">
                                   Default
                                 </span>
                               )}
@@ -899,13 +900,13 @@ export default function Transfer() {
                 )}
 
                 <div className="space-y-1">
-                  <Label>Select Bank Name</Label>
+                  <Label className="dark:text-gray-300">Select Bank Name</Label>
 
                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="w-full flex justify-between items-center border rounded px-3 py-2 text-sm"
+                        className="w-full flex justify-between items-center border rounded px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
                         aria-expanded={open}
                       >
                         {bankName || "Search bank..."}
@@ -913,21 +914,23 @@ export default function Transfer() {
                       </button>
                     </PopoverTrigger>
 
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput
-                          placeholder="Search bank..."
-                          value={search}
-                          onValueChange={setSearch}
+                    <PopoverContent className="w-full p-0 dark:bg-gray-800 dark:border-gray-700">
+                      <Command className="dark:bg-gray-800">
+                        <CommandInput 
+                          placeholder="Search bank..." 
+                          value={search} 
+                          onValueChange={setSearch} 
                           autoFocus
+                          className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                         />
                         <CommandList>
-                          <CommandEmpty>No bank found.</CommandEmpty>
+                          <CommandEmpty className="dark:text-gray-400">No bank found.</CommandEmpty>
                           <CommandGroup>
                             {filteredBanks.map((bank) => (
                               <CommandItem
                                 key={bank.code}
                                 onSelect={() => handleSelectBank(bank)}
+                                className="dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
                               >
                                 <Check
                                   className={cn(
@@ -947,34 +950,35 @@ export default function Transfer() {
                   </Popover>
 
                   {errors.otherBank && (
-                    <p className="text-red-600 text-sm">{errors.otherBank}</p>
+                    <p className="text-red-600 text-sm dark:text-red-400">{errors.otherBank}</p>
                   )}
                 </div>
 
                 <div className="space-y-1">
-                  <Label>Account Number</Label>
+                  <Label className="dark:text-gray-300">Account Number</Label>
                   <Input
                     type="number"
                     maxLength={10}
                     value={accountNumber}
                     onChange={handleAccountNumberChange}
                     placeholder="10-digit account number"
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                   />
                   {errors.accountNumber && (
-                    <p className="text-red-600 text-sm">
+                    <p className="text-red-600 text-sm dark:text-red-400">
                       {errors.accountNumber}
                     </p>
                   )}
                 </div>
 
                 {lookupLoading && (
-                  <p className="text-[#C29307] text-sm flex items-center gap-2">
+                  <p className="text-[#2b825b] text-sm flex items-center gap-2 dark:text-[#3aa873]">
                     <Loader2 className="animate-spin" /> Verifying account...
                   </p>
                 )}
                 {accountName && !errors.accountNumber && (
                   <div className="space-y-2">
-                    <p className="text-green-600 text-sm font-semibold">
+                    <p className="text-green-600 text-sm font-semibold dark:text-green-400">
                       Account Name: {accountName}
                     </p>
 
@@ -982,8 +986,8 @@ export default function Transfer() {
                     {!selectedSavedAccount &&
                       accountNumber.length === 10 &&
                       accountName && (
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                          <span className="text-sm font-medium text-gray-700">
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border dark:bg-gray-700 dark:border-gray-600">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                             Save to beneficiaries
                           </span>
                           <label className="relative inline-flex items-center cursor-pointer">
@@ -998,7 +1002,7 @@ export default function Transfer() {
                 peer-checked:after:translate-x-full peer-checked:after:border-white 
                 after:content-[''] after:absolute after:top-0.5 after:left-0.5 
                 after:bg-white after:border-gray-300 after:border after:rounded-full 
-                after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C29307]"
+                after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b] dark:bg-gray-600"
                             ></div>
                           </label>
                         </div>
@@ -1015,7 +1019,7 @@ export default function Transfer() {
                 {savedP2PBeneficiaries.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">
+                      <Label className="text-sm font-medium dark:text-gray-300">
                         Saved Beneficiaries
                       </Label>
                       <Button
@@ -1027,7 +1031,7 @@ export default function Transfer() {
                             !showSavedP2PBeneficiaries,
                           )
                         }
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-1 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                       >
                         <User className="h-4 w-4" />
                         {showSavedP2PBeneficiaries ? "Hide" : "Show"} Saved
@@ -1035,7 +1039,7 @@ export default function Transfer() {
                     </div>
 
                     {showSavedP2PBeneficiaries && (
-                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto dark:bg-purple-900/20 dark:border-purple-800">
                         {savedP2PBeneficiaries.map((beneficiary) => (
                           <div
                             key={beneficiary.id}
@@ -1044,21 +1048,21 @@ export default function Transfer() {
                             }
                             className={`p-2 rounded cursor-pointer transition-colors ${
                               selectedSavedP2PBeneficiary?.id === beneficiary.id
-                                ? "bg-purple-100 border border-purple-300"
-                                : "bg-white hover:bg-gray-50 border"
+                                ? "bg-purple-100 border border-purple-300 dark:bg-purple-900/40 dark:border-purple-700"
+                                : "bg-white hover:bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"
                             }`}
                           >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <p className="font-medium text-gray-900 text-sm">
+                                <p className="font-medium text-gray-900 text-sm dark:text-gray-100">
                                   {beneficiary.account_name}
                                 </p>
-                                <p className="text-xs text-gray-600">
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
                                   {beneficiary.account_number} • Zidwell User
                                 </p>
                               </div>
                               {beneficiary.is_default && (
-                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2">
+                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2 dark:bg-green-900/30 dark:text-green-400">
                                   Default
                                 </span>
                               )}
@@ -1071,26 +1075,27 @@ export default function Transfer() {
                 )}
 
                 <div className="space-y-1">
-                  <Label>Account Number (Zidwell User)</Label>
+                  <Label className="dark:text-gray-300">Account Number (Zidwell User)</Label>
                   <Input
                     type="number"
                     value={recepientAcc}
                     onChange={handleP2PAccountNumberChange}
                     placeholder="0234******"
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                   />
                   {errors.recepientAcc && (
-                    <p className="text-red-600 text-sm">
+                    <p className="text-red-600 text-sm dark:text-red-400">
                       {errors.recepientAcc}
                     </p>
                   )}
                   {lookupLoading && (
-                    <p className="text-[#C29307] text-sm flex items-center gap-2">
+                    <p className="text-[#2b825b] text-sm flex items-center gap-2 dark:text-[#3aa873]">
                       <Loader2 className="animate-spin" /> Verifying account...
                     </p>
                   )}
                   {p2pDetails?.name && !errors.recepientAcc && (
                     <div className="space-y-2">
-                      <p className="text-green-600 text-sm font-semibold">
+                      <p className="text-green-600 text-sm font-semibold dark:text-green-400">
                         Account Name: {p2pDetails.name}
                       </p>
 
@@ -1098,8 +1103,8 @@ export default function Transfer() {
                       {!selectedSavedP2PBeneficiary &&
                         recepientAcc.length >= 6 &&
                         p2pDetails?.name && (
-                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                            <span className="text-sm font-medium text-gray-700">
+                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border dark:bg-gray-700 dark:border-gray-600">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                               Save to beneficiaries
                             </span>
                             <label className="relative inline-flex items-center cursor-pointer">
@@ -1116,7 +1121,7 @@ export default function Transfer() {
                   peer-checked:after:translate-x-full peer-checked:after:border-white 
                   after:content-[''] after:absolute after:top-0.5 after:left-0.5 
                   after:bg-white after:border-gray-300 after:border after:rounded-full 
-                  after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C29307]"
+                  after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b] dark:bg-gray-600"
                               ></div>
                             </label>
                           </div>
@@ -1129,9 +1134,9 @@ export default function Transfer() {
 
             {/* Narration */}
             <div className="space-y-1">
-              <Label>
+              <Label className="dark:text-gray-300">
                 Narration{" "}
-                <span className="text-sm">(purpose of transaction)</span>
+                <span className="text-sm dark:text-gray-400">(purpose of transaction)</span>
               </Label>
               <Input
                 type="text"
@@ -1139,16 +1144,17 @@ export default function Transfer() {
                 onChange={(e) => setNarration(e.target.value)}
                 placeholder="e.g. Food"
                 maxLength={100}
+                className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
               />
             </div>
             {errors.narration && (
-              <p className="text-red-600 text-sm">{errors.narration}</p>
+              <p className="text-red-600 text-sm dark:text-red-400">{errors.narration}</p>
             )}
 
             <Button
               type="submit"
               disabled={isDisabled}
-              className="w-full bg-[#C29307] hover:bg-[#b28a06] text-white md:w-[200px]"
+              className="w-full bg-[#2b825b] hover:bg-[#b28a06] text-white md:w-[200px] dark:bg-[#236b49] dark:hover:bg-[#174c36]"
             >
               {loading ? "Processing..." : "Transfer Now"}
             </Button>

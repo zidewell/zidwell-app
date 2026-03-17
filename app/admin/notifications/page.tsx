@@ -52,11 +52,11 @@ const parseMarkdown = (text: string) => {
       .replace(/<\/p>/g, "</p>")
       .replace(
         /<a /g,
-        '<a class="text-blue-500 underline hover:text-blue-700" target="_blank" '
+        '<a class="text-blue-500 underline hover:text-blue-700" target="_blank" ',
       )
       .replace(
         /<img /g,
-        '<img class="my-4 w-64 rounded-lg shadow-md border border-gray-200" '
+        '<img class="my-4 w-64 rounded-lg shadow-md border border-gray-200" ',
       );
   }
 
@@ -69,11 +69,11 @@ const parseMarkdown = (text: string) => {
     .replace(/\*(.*?)\*/gim, '<em class="italic">$1</em>')
     .replace(
       /\[([^\[]+)\]\(([^\)]+)\)/gim,
-      '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>'
+      '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>',
     )
     .replace(
       /!\[([^\]]*)\]\(([^)]+)\)/gim,
-      '<img src="$2" alt="$1" class="my-4 max-w-full h-auto rounded-lg shadow-md border border-gray-200" />'
+      '<img src="$2" alt="$1" class="my-4 max-w-full h-auto rounded-lg shadow-md border border-gray-200" />',
     );
 };
 
@@ -116,10 +116,10 @@ export default function NotificationsCenterPage() {
   const { data: usersData, isLoading: isUsersLoading } = useSWR(
     userSearch
       ? `/api/admin-apis/notifications/users/search?search=${encodeURIComponent(
-          userSearch
+          userSearch,
         )}&limit=100`
       : null,
-    fetcher
+    fetcher,
   );
 
   useEffect(() => {
@@ -203,43 +203,43 @@ export default function NotificationsCenterPage() {
   const totalNotifications = useMemo(() => data?.total || 0, [data]);
   const totalPages = useMemo(
     () => Math.ceil(totalNotifications / itemsPerPage),
-    [totalNotifications, itemsPerPage]
+    [totalNotifications, itemsPerPage],
   );
 
   // Use statsData for calculations
   const allFilteredNotifications = useMemo(
     () => statsData?.notifications || [],
-    [statsData]
+    [statsData],
   );
 
   // Calculate stats
   const sentNotifications = useMemo(
     () => allFilteredNotifications.filter((n: any) => n.status === "sent"),
-    [allFilteredNotifications]
+    [allFilteredNotifications],
   );
 
   const scheduledNotifications = useMemo(
     () => allFilteredNotifications.filter((n: any) => n.status === "scheduled"),
-    [allFilteredNotifications]
+    [allFilteredNotifications],
   );
 
   const failedNotifications = useMemo(
     () => allFilteredNotifications.filter((n: any) => n.status === "failed"),
-    [allFilteredNotifications]
+    [allFilteredNotifications],
   );
 
   const pushNotifications = useMemo(
     () =>
       allFilteredNotifications.filter((n: any) => n.channels?.includes("push")),
-    [allFilteredNotifications]
+    [allFilteredNotifications],
   );
 
   const emailNotifications = useMemo(
     () =>
       allFilteredNotifications.filter((n: any) =>
-        n.channels?.includes("email")
+        n.channels?.includes("email"),
       ),
-    [allFilteredNotifications]
+    [allFilteredNotifications],
   );
 
   // User selection handlers
@@ -283,7 +283,7 @@ export default function NotificationsCenterPage() {
         {
           method: "POST",
           body: formData,
-        }
+        },
       );
 
       console.log("📤 API Response status:", response.status);
@@ -303,7 +303,7 @@ export default function NotificationsCenterPage() {
       } else {
         console.error("❌ Upload failed:", result);
         throw new Error(
-          result.error || result.message || "Image upload failed"
+          result.error || result.message || "Image upload failed",
         );
       }
     } catch (error: any) {
@@ -327,7 +327,7 @@ export default function NotificationsCenterPage() {
         Swal.fire(
           "Error",
           "Please select at least one user for specific user notification",
-          "error"
+          "error",
         );
         setIsSubmitting(false);
         return;
@@ -342,18 +342,18 @@ export default function NotificationsCenterPage() {
       ];
       const base64Matches = [
         ...newNotification.message.matchAll(
-          /src="(data:image\/[^;]+;base64,[^"]+)"/g
+          /src="(data:image\/[^;]+;base64,[^"]+)"/g,
         ),
       ];
 
       console.log(
-        `Found ${placeholderMatches.length} placeholders, ${base64Matches.length} base64 images`
+        `Found ${placeholderMatches.length} placeholders, ${base64Matches.length} base64 images`,
       );
 
       if (placeholderMatches.length > 0) {
         console.log(
           "Placeholder IDs:",
-          placeholderMatches.map((m) => m[1])
+          placeholderMatches.map((m) => m[1]),
         );
       }
 
@@ -362,7 +362,7 @@ export default function NotificationsCenterPage() {
       // Upload images first if there are any
       if (pendingNotificationImages.length > 0) {
         console.log(
-          `📤 Uploading ${pendingNotificationImages.length} images...`
+          `📤 Uploading ${pendingNotificationImages.length} images...`,
         );
 
         // Show progress dialog
@@ -390,7 +390,7 @@ export default function NotificationsCenterPage() {
                 size: file.size,
                 type: file.type,
                 placeholderId,
-              }
+              },
             );
 
             // Update progress
@@ -404,16 +404,16 @@ export default function NotificationsCenterPage() {
               const imageUrl = await uploadImage(file);
               console.log(
                 `✅ Upload successful for ${placeholderId}:`,
-                imageUrl
+                imageUrl,
               );
               uploadResults.push({ placeholderId, imageUrl });
             } catch (uploadError: any) {
               console.error(
                 `❌ Upload failed for ${placeholderId}:`,
-                uploadError
+                uploadError,
               );
               throw new Error(
-                `Failed to upload image "${file.name}": ${uploadError.message}`
+                `Failed to upload image "${file.name}": ${uploadError.message}`,
               );
             }
           }
@@ -429,14 +429,14 @@ export default function NotificationsCenterPage() {
             // Create regex to find the exact img tag with this placeholder
             const imgRegex = new RegExp(
               `(<img[^>]*data-placeholder-id="${placeholderId}"[^>]*>)`,
-              "gi"
+              "gi",
             );
             const match = finalMessage.match(imgRegex);
 
             if (match && match[0]) {
               console.log(
                 `Found img tag for ${placeholderId}:`,
-                match[0].substring(0, 100)
+                match[0].substring(0, 100),
               );
 
               // Get the current src (should be base64)
@@ -452,7 +452,7 @@ export default function NotificationsCenterPage() {
                   .replace(/data-placeholder-id="[^"]*"/, "")
                   .replace(
                     /style="[^"]*"/,
-                    'style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;"'
+                    'style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;"',
                   );
 
                 finalMessage = finalMessage.replace(match[0], newImgTag);
@@ -463,7 +463,7 @@ export default function NotificationsCenterPage() {
               }
             } else {
               console.warn(
-                `❌ Could not find img tag with placeholder ${placeholderId}`
+                `❌ Could not find img tag with placeholder ${placeholderId}`,
               );
 
               // Fallback: look for any base64 image
@@ -472,12 +472,12 @@ export default function NotificationsCenterPage() {
 
               if (base64Match && base64Match.length > 0) {
                 console.log(
-                  "Found base64 images, attempting fallback replacement..."
+                  "Found base64 images, attempting fallback replacement...",
                 );
                 // Replace the first base64 found
                 finalMessage = finalMessage.replace(
                   base64Match[0],
-                  `src="${imageUrl}"`
+                  `src="${imageUrl}"`,
                 );
                 replacementCount++;
               }
@@ -492,7 +492,7 @@ export default function NotificationsCenterPage() {
           ];
           if (remainingBase64.length > 0) {
             console.warn(
-              `⚠️ ${remainingBase64.length} base64 images still remain!`
+              `⚠️ ${remainingBase64.length} base64 images still remain!`,
             );
             console.log("Attempting final cleanup...");
 
@@ -512,7 +512,7 @@ export default function NotificationsCenterPage() {
           ];
 
           console.log(
-            `Final check: ${finalBase64Check.length} base64, ${finalPlaceholderCheck.length} placeholders`
+            `Final check: ${finalBase64Check.length} base64, ${finalPlaceholderCheck.length} placeholders`,
           );
 
           Swal.close();
@@ -545,7 +545,7 @@ export default function NotificationsCenterPage() {
           Swal.fire(
             "Error",
             `Failed to upload images: ${uploadError.message}`,
-            "error"
+            "error",
           );
           setIsSubmitting(false);
           return;
@@ -558,7 +558,7 @@ export default function NotificationsCenterPage() {
       console.log(
         "📝 Final message preview:",
         finalMessage.substring(0, 500) +
-          (finalMessage.length > 500 ? "..." : "")
+          (finalMessage.length > 500 ? "..." : ""),
       );
 
       // Count actual image URLs in final message
@@ -566,7 +566,7 @@ export default function NotificationsCenterPage() {
         finalMessage.match(/src="https?:\/\/[^"]+"/g) || []
       ).length;
       console.log(
-        `Found ${imageUrlCount} uploaded image URLs in final message`
+        `Found ${imageUrlCount} uploaded image URLs in final message`,
       );
 
       // Create the notification with final message
@@ -619,7 +619,7 @@ export default function NotificationsCenterPage() {
       } else {
         console.error("❌ API Error details:", result);
         throw new Error(
-          result.error || result.message || "Failed to create notification"
+          result.error || result.message || "Failed to create notification",
         );
       }
 
@@ -648,7 +648,7 @@ export default function NotificationsCenterPage() {
         `/api/admin-apis/notifications/${notificationId}/send`,
         {
           method: "POST",
-        }
+        },
       );
 
       const result = await response.json();
@@ -690,7 +690,7 @@ export default function NotificationsCenterPage() {
           `/api/admin-apis/notifications?id=${notificationId}`,
           {
             method: "DELETE",
-          }
+          },
         );
 
         const deleteResult = await response.json();
@@ -712,7 +712,7 @@ export default function NotificationsCenterPage() {
         Swal.fire(
           "Error",
           err.message || "Failed to cancel notification",
-          "error"
+          "error",
         );
       }
     }
@@ -811,7 +811,7 @@ export default function NotificationsCenterPage() {
               🔄 Refresh
             </Button>
             <Button
-              className="bg-[#C29307] text-white hover:bg-[#a87e06]"
+              className="bg-[#2b825b] text-white hover:bg-[#a87e06]"
               onClick={() => setShowCreateModal(true)}
             >
               📢 Create Notification
@@ -829,7 +829,7 @@ export default function NotificationsCenterPage() {
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Scheduled</h3>
-            <p className="text-2xl font-semibold text-[#C29307]">
+            <p className="text-2xl font-semibold text-[#2b825b]">
               {scheduledNotifications.length}
             </p>
           </div>
@@ -1008,7 +1008,7 @@ export default function NotificationsCenterPage() {
                           <span>
                             Scheduled:{" "}
                             {new Date(
-                              notification.scheduled_for
+                              notification.scheduled_for,
                             ).toLocaleString()}
                           </span>
                         )}
@@ -1129,7 +1129,7 @@ export default function NotificationsCenterPage() {
                             </PaginationLink>
                           </PaginationItem>
                         );
-                      }
+                      },
                     )}
 
                     <PaginationItem>
@@ -1238,7 +1238,7 @@ export default function NotificationsCenterPage() {
                             onImagesAdded={(images) => {
                               console.log(
                                 "Images added to editor:",
-                                images.length
+                                images.length,
                               );
                               setPendingNotificationImages(images);
                             }}
@@ -1428,27 +1428,27 @@ export default function NotificationsCenterPage() {
                             <input
                               type="checkbox"
                               checked={newNotification.channels.includes(
-                                channel
+                                channel,
                               )}
                               onChange={(e) => {
                                 const updatedChannels = e.target.checked
                                   ? [...newNotification.channels, channel]
                                   : newNotification.channels.filter(
-                                      (c) => c !== channel
+                                      (c) => c !== channel,
                                     );
                                 setNewNotification({
                                   ...newNotification,
                                   channels: updatedChannels,
                                 });
                               }}
-                              className="h-4 w-4 text-[#C29307] focus:ring-[#C29307] border-gray-300 rounded"
+                              className="h-4 w-4 text-[#2b825b] focus:ring-[#2b825b] border-gray-300 rounded"
                             />
                             <span className="text-sm capitalize">
                               {channel === "in_app"
                                 ? "📱 In-App"
                                 : channel === "email"
-                                ? "📧 Email"
-                                : channel}
+                                  ? "📧 Email"
+                                  : channel}
                             </span>
                           </div>
                         ))}
@@ -1481,7 +1481,7 @@ export default function NotificationsCenterPage() {
                               is_urgent: checked,
                             })
                           }
-                          className="data-[state=checked]:bg-[#C29307]"
+                          className="data-[state=checked]:bg-[#2b825b]"
                         />
                         <label className="text-sm font-medium">
                           Mark as Urgent
@@ -1556,7 +1556,7 @@ export default function NotificationsCenterPage() {
                             selectedUsers.length === 0) ||
                           isSubmitting
                         }
-                        className="bg-[#C29307] text-white hover:bg-[#a87e06]"
+                        className="bg-[#2b825b] text-white hover:bg-[#a87e06]"
                       >
                         {isSubmitting ? (
                           <>

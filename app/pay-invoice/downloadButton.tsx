@@ -133,7 +133,7 @@ export default function DownloadInvoiceButton({
               align-items: flex-start;
               margin-bottom: 40px;
               padding-bottom: 20px;
-              border-bottom: 2px solid #C29307;
+              border-bottom: 2px solid #2b825b;
             }
             .business-info {
               flex: 1;
@@ -152,10 +152,10 @@ export default function DownloadInvoiceButton({
               gap: 10px;
             }
             .account-details h2 {
-              color: #C29307;
+              color: #2b825b;
             }
             h1 {
-              color: #C29307;
+              color: #2b825b;
               margin: 0 0 10px 0;
               font-size: 32px;
               font-weight: bold;
@@ -214,7 +214,7 @@ export default function DownloadInvoiceButton({
             .grand-total {
               font-size: 20px;
               font-weight: bold;
-              color: #C29307;
+              color: #2b825b;
               margin-top: 15px;
               padding-top: 15px;
               border-top: 2px solid #ddd;
@@ -223,7 +223,7 @@ export default function DownloadInvoiceButton({
               background-color: #f8f9fa;
               padding: 20px;
               border-radius: 8px;
-              border-left: 4px solid #C29307;
+              border-left: 4px solid #2b825b;
               margin: 20px 0;
             }
             .payment-info {
@@ -247,7 +247,7 @@ export default function DownloadInvoiceButton({
             .status-badge {
               display: inline-block;
               padding: 4px 12px;
-              background-color: #C29307;
+              background-color: #2b825b;
               color: white;
               border-radius: 20px;
               font-size: 12px;
@@ -305,7 +305,7 @@ export default function DownloadInvoiceButton({
                 <h1>INVOICE</h1>
                 <p><strong>Invoice #:</strong> ${invoiceData.invoice_id}</p>
                 <p><strong>Issue Date:</strong> ${formatDate(
-                  invoiceData.issue_date
+                  invoiceData.issue_date,
                 )}</p>
                 <p><strong>Status:</strong> ${
                   invoiceData.status
@@ -365,10 +365,10 @@ export default function DownloadInvoiceButton({
               <div class="payment-info">
                 <h3>Payment Information</h3>
                 <p><strong>Amount Paid:</strong> ₦${Number(
-                  paidAmount
+                  paidAmount,
                 ).toLocaleString()}</p>
                 <p><strong>Balance Due:</strong> ₦${Number(
-                  totalAmount - paidAmount
+                  totalAmount - paidAmount,
                 ).toLocaleString()}</p>
                 ${
                   paymentCountText
@@ -406,13 +406,13 @@ export default function DownloadInvoiceButton({
                       }</td>
                       <td>${item.quantity || 0}</td>
                       <td>₦${Number(
-                        item.unit_price || item.unitPrice || 0
+                        item.unit_price || item.unitPrice || 0,
                       ).toLocaleString()}</td>
                       <td>₦${Number(
-                        item.total_amount || item.total || 0
+                        item.total_amount || item.total || 0,
                       ).toLocaleString()}</td>
                     </tr>
-                  `
+                  `,
                     )
                     .join("")}
                 </tbody>
@@ -428,7 +428,7 @@ export default function DownloadInvoiceButton({
                   ? `
               <div class="total-row">
                 <strong>Processing Fee:</strong> ₦${Number(
-                  feeAmount
+                  feeAmount,
                 ).toLocaleString()}
               </div>
               `
@@ -439,12 +439,12 @@ export default function DownloadInvoiceButton({
                   ? `
               <div class="total-row">
                 <strong>Amount Paid:</strong> ₦${Number(
-                  paidAmount
+                  paidAmount,
                 ).toLocaleString()}
               </div>
               <div class="total-row">
                 <strong>Balance Due:</strong> ₦${Number(
-                  totalAmount - paidAmount
+                  totalAmount - paidAmount,
                 ).toLocaleString()}
               </div>
               `
@@ -452,7 +452,7 @@ export default function DownloadInvoiceButton({
               }
               <div class="total-row grand-total">
                 <strong>TOTAL AMOUNT:</strong> ₦${Number(
-                  totalAmount
+                  totalAmount,
                 ).toLocaleString()}
               </div>
               ${
@@ -463,12 +463,12 @@ export default function DownloadInvoiceButton({
               </div>
               `
                   : invoiceData.fee_option === "customer" && feeAmount > 0
-                  ? `
+                    ? `
               <div class="total-row" style="font-size: 12px; color: #666;">
                 *2% processing fee added
               </div>
               `
-                  : ""
+                    : ""
               }
             </div>
 
@@ -512,7 +512,7 @@ export default function DownloadInvoiceButton({
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(
-          `Failed to generate PDF: ${response.status} - ${errorText}`
+          `Failed to generate PDF: ${response.status} - ${errorText}`,
         );
       }
 
@@ -554,7 +554,7 @@ export default function DownloadInvoiceButton({
     <Button
       variant="outline"
       size="lg"
-      className="w-full border-[#C29307] text-[#C29307] hover:bg-[#C29307]/10"
+      className="w-full border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b]/10"
       onClick={handleDownloadPDF}
       disabled={loading}
     >

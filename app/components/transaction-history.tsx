@@ -30,23 +30,23 @@ import { useIsMobile } from "../hooks/use-mobile";
 const statusConfig: any = {
   success: { 
     label: "Completed", 
-    className: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    dotColor: "bg-emerald-500"
+    className: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
+    dotColor: "bg-emerald-500 dark:bg-emerald-400"
   },
   pending: { 
     label: "Pending", 
-    className: "bg-amber-100 text-amber-800 border-amber-200",
-    dotColor: "bg-amber-500"
+    className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
+    dotColor: "bg-amber-500 dark:bg-amber-400"
   },
   failed: { 
     label: "Failed", 
-    className: "bg-red-100 text-red-800 border-red-200",
-    dotColor: "bg-red-500"
+    className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
+    dotColor: "bg-red-500 dark:bg-red-400"
   },
   processing: { 
     label: "Processing", 
-    className: "bg-blue-100 text-blue-800 border-blue-200",
-    dotColor: "bg-blue-500"
+    className: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+    dotColor: "bg-blue-500 dark:bg-blue-400"
   },
 };
 
@@ -109,26 +109,26 @@ const MobileCard = ({ tx, formatAmount, isEligibleForReceipt, isDownloadingRecei
                      "Transaction";
 
   return (
-    <div className="border-b border-border p-4 last:border-0">
+    <div className="border-b border-border dark:border-gray-700 p-4 last:border-0">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <p className="font-medium text-foreground">{description}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="font-medium text-foreground dark:text-gray-100">{description}</p>
+          <p className="text-xs text-muted-foreground dark:text-gray-400">
             {new Date(tx.created_at).toLocaleDateString()}
           </p>
           {tx.reference && (
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
               Ref: {tx.reference.substring(0, 8)}...
             </p>
           )}
         </div>
-        <span className={`font-semibold ${amountInfo.isOutflow ? "text-red-600" : "text-emerald-600"}`}>
+        <span className={`font-semibold ${amountInfo.isOutflow ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
           {amountInfo.signedDisplay}
         </span>
       </div>
       
       {tx.fee > 0 && (
-        <p className="text-xs text-muted-foreground mb-2">
+        <p className="text-xs text-muted-foreground dark:text-gray-400 mb-2">
           Fee: ₦{Number(tx.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
         </p>
       )}
@@ -140,7 +140,7 @@ const MobileCard = ({ tx, formatAmount, isEligibleForReceipt, isDownloadingRecei
             variant="ghost"
             size="sm"
             onClick={() => handleViewTransaction(tx)}
-            className="h-8 px-2"
+            className="h-8 px-2 dark:text-gray-400 dark:hover:text-gray-300"
           >
             <Eye className="w-4 h-4" />
           </Button>
@@ -150,7 +150,7 @@ const MobileCard = ({ tx, formatAmount, isEligibleForReceipt, isDownloadingRecei
               size="sm"
               onClick={() => handleDownloadReceipt(tx)}
               disabled={isDownloading}
-              className="h-8 px-2"
+              className="h-8 px-2 dark:text-gray-400 dark:hover:text-gray-300"
             >
               {isDownloading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -562,7 +562,7 @@ export default function TransactionHistory() {
 
       const notification = document.createElement("div");
       notification.className =
-        "fixed top-4 right-4 bg-[#C29307] text-white px-4 py-2 rounded-lg shadow-lg z-50";
+        "fixed top-4 right-4 bg-[#2b825b] text-white px-4 py-2 rounded-lg shadow-lg z-50 dark:bg-[#1e5f43]";
       notification.innerHTML = `
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -814,13 +814,13 @@ export default function TransactionHistory() {
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto bg-white shadow-sm">
+    <Card className="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700">
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle className="text-2xl font-bold text-gray-900">
+          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             Transaction History
             {allTransactions.length > 0 && (
-              <span className="text-sm font-normal text-gray-500 ml-2">
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
                 ({allTransactions.length} loaded)
               </span>
             )}
@@ -828,12 +828,12 @@ export default function TransactionHistory() {
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
               <Input
                 placeholder="Search transactions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full"
+                className="pl-10 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
               />
             </div>
 
@@ -841,7 +841,7 @@ export default function TransactionHistory() {
               <Button
                 variant="outline"
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
               >
                 <Filter className="w-4 h-4" />
                 <span className="hidden xs:inline">Filters</span>
@@ -853,7 +853,7 @@ export default function TransactionHistory() {
                   setShowStatementModal(true);
                   setStatementDateRange({ from: getLastMonth(), to: getToday() });
                 }}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
               >
                 <Download className="w-4 h-4" />
                 <span className="xs:hidden">Statement</span>
@@ -863,23 +863,23 @@ export default function TransactionHistory() {
         </div>
 
         {showFilters && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border dark:border-gray-600">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-gray-900">Filter Transactions</h3>
-              <Button variant="ghost" size="sm" onClick={handleResetFilters}>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Filter Transactions</h3>
+              <Button variant="ghost" size="sm" onClick={handleResetFilters} className="dark:text-gray-300 dark:hover:text-gray-100">
                 Reset All
               </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700">
+                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">
                   Status
                 </label>
                 <select
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  className="w-full border rounded-md px-3 py-2 text-gray-700 bg-white"
+                  className="w-full border rounded-md px-3 py-2 text-gray-700 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-600 bg-white"
                 >
                   <option value="All transactions">All transactions</option>
                   <option value="success">Success</option>
@@ -890,7 +890,7 @@ export default function TransactionHistory() {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700">
+                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">
                   Time Period
                 </label>
                 <select
@@ -901,7 +901,7 @@ export default function TransactionHistory() {
                       setDateRange({ from: "", to: "" });
                     }
                   }}
-                  className="w-full border rounded-md px-3 py-2 text-gray-700 bg-white"
+                  className="w-full border rounded-md px-3 py-2 text-gray-700 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-600 bg-white"
                 >
                   {durationOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -913,27 +913,27 @@ export default function TransactionHistory() {
 
               {durationFilter === "custom" && (
                 <div>
-                  <label className="text-sm font-medium mb-2 block text-gray-700">
+                  <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">
                     Custom Date Range
                   </label>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex-1">
-                      <label className="text-xs text-gray-500 mb-1 block">From</label>
+                      <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">From</label>
                       <input
                         type="date"
                         value={dateRange.from}
                         onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-                        className="w-full border rounded-md px-3 py-2 text-gray-700 bg-white"
+                        className="w-full border rounded-md px-3 py-2 text-gray-700 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-600 bg-white"
                         max={dateRange.to || getToday()}
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="text-xs text-gray-500 mb-1 block">To</label>
+                      <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">To</label>
                       <input
                         type="date"
                         value={dateRange.to}
                         onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-                        className="w-full border rounded-md px-3 py-2 text-gray-700 bg-white"
+                        className="w-full border rounded-md px-3 py-2 text-gray-700 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-600 bg-white"
                         min={dateRange.from}
                         max={getToday()}
                       />
@@ -943,8 +943,8 @@ export default function TransactionHistory() {
               )}
             </div>
 
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600">
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Showing {durationFilteredTransactions.length} transactions
                 {filter !== "All transactions" && ` with status: ${filter}`}
                 {durationFilter !== "all" && (
@@ -963,12 +963,12 @@ export default function TransactionHistory() {
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-[#C29307]" />
-              <p className="text-gray-500">Loading transactions...</p>
+              <Loader2 className="w-8 h-8 animate-spin text-[#2b825b] dark:text-[#3aa873]" />
+              <p className="text-gray-500 dark:text-gray-400">Loading transactions...</p>
             </div>
           </div>
         ) : durationFilteredTransactions.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             <p className="mb-2">No transactions found.</p>
             {allTransactions.length === 0 ? (
               <p className="text-sm">No transactions have been loaded yet.</p>
@@ -994,13 +994,13 @@ export default function TransactionHistory() {
           <>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Fee</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                <TableRow className="dark:border-gray-700">
+                  <TableHead className="dark:text-gray-400">Date</TableHead>
+                  <TableHead className="dark:text-gray-400">Description</TableHead>
+                  <TableHead className="text-right dark:text-gray-400">Amount</TableHead>
+                  <TableHead className="text-right dark:text-gray-400">Fee</TableHead>
+                  <TableHead className="text-center dark:text-gray-400">Status</TableHead>
+                  <TableHead className="text-right dark:text-gray-400">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1011,22 +1011,22 @@ export default function TransactionHistory() {
                   const description = getDescription(tx);
 
                   return (
-                    <TableRow key={tx.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
-                      <TableCell className="text-muted-foreground">
+                    <TableRow key={tx.id} className={`${i % 2 === 0 ? "bg-muted/30 dark:bg-gray-700/50" : ""} dark:border-gray-700`}>
+                      <TableCell className="text-muted-foreground dark:text-gray-400">
                         {new Date(tx.created_at).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium dark:text-gray-300">
                         {description}
                         {tx.reference && (
-                          <div className="text-xs text-muted-foreground mt-1">
+                          <div className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
                             Ref: {tx.reference}
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className={`text-right font-semibold ${amountInfo.isOutflow ? "text-red-600" : "text-emerald-600"}`}>
+                      <TableCell className={`text-right font-semibold ${amountInfo.isOutflow ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                         {amountInfo.signedDisplay}
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
+                      <TableCell className="text-right text-muted-foreground dark:text-gray-400">
                         {tx.fee > 0 ? `₦${Number(tx.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}` : "—"}
                       </TableCell>
                       <TableCell className="text-center">
@@ -1038,7 +1038,7 @@ export default function TransactionHistory() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleViewTransaction(tx)}
-                            className="h-8 px-2"
+                            className="h-8 px-2 dark:text-gray-400 dark:hover:text-gray-300"
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
@@ -1048,7 +1048,7 @@ export default function TransactionHistory() {
                               size="sm"
                               onClick={() => handleDownloadReceipt(tx)}
                               disabled={isDownloading}
-                              className="h-8 px-2"
+                              className="h-8 px-2 dark:text-gray-400 dark:hover:text-gray-300"
                             >
                               {isDownloading ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1066,12 +1066,12 @@ export default function TransactionHistory() {
             </Table>
 
             {hasMore && durationFilteredTransactions.length > 0 && (
-              <div className="text-center py-6 border-t">
+              <div className="text-center py-6 border-t dark:border-gray-700">
                 <Button
                   variant="outline"
                   onClick={handleLoadMore}
                   disabled={isLoadingMore}
-                  className="px-8"
+                  className="px-8 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                 >
                   {isLoadingMore ? (
                     <>
@@ -1089,8 +1089,8 @@ export default function TransactionHistory() {
             )}
 
             {!hasMore && durationFilteredTransactions.length > 0 && (
-              <div className="text-center py-6 border-t">
-                <p className="text-gray-500 text-sm">
+              <div className="text-center py-6 border-t dark:border-gray-700">
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
                   You've reached the end of your transaction history
                 </p>
               </div>
@@ -1100,45 +1100,45 @@ export default function TransactionHistory() {
       </CardContent>
 
       {showStatementModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto dark:border dark:border-gray-700">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Download Bank Statement</h3>
-                <button onClick={() => setShowStatementModal(false)} className="text-gray-400 hover:text-gray-500">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Download Bank Statement</h3>
+                <button onClick={() => setShowStatementModal(false)} className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <p className="text-gray-600 text-sm">
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
                   Select a date range to download your transaction statement as PDF.
                 </p>
 
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium mb-1 block text-gray-700">From Date</label>
+                    <label className="text-sm font-medium mb-1 block text-gray-700 dark:text-gray-300">From Date</label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
                       <input
                         type="date"
                         value={statementDateRange.from}
                         onChange={(e) => setStatementDateRange((prev) => ({ ...prev, from: e.target.value }))}
-                        className="w-full border rounded-md px-3 py-2 pl-10 text-gray-700 bg-white"
+                        className="w-full border rounded-md px-3 py-2 pl-10 text-gray-700 dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 bg-white"
                         max={statementDateRange.to || getToday()}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-1 block text-gray-700">To Date</label>
+                    <label className="text-sm font-medium mb-1 block text-gray-700 dark:text-gray-300">To Date</label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
                       <input
                         type="date"
                         value={statementDateRange.to}
                         onChange={(e) => setStatementDateRange((prev) => ({ ...prev, to: e.target.value }))}
-                        className="w-full border rounded-md px-3 py-2 pl-10 text-gray-700 bg-white"
+                        className="w-full border rounded-md px-3 py-2 pl-10 text-gray-700 dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 bg-white"
                         min={statementDateRange.from}
                         max={getToday()}
                       />
@@ -1153,7 +1153,7 @@ export default function TransactionHistory() {
                     fromDate.setDate(fromDate.getDate() - 7);
                     const from = fromDate.toISOString().split("T")[0];
                     setStatementDateRange({ from, to });
-                  }}>
+                  }} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
                     Last 7 days
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => {
@@ -1162,7 +1162,7 @@ export default function TransactionHistory() {
                     fromDate.setDate(fromDate.getDate() - 30);
                     const from = fromDate.toISOString().split("T")[0];
                     setStatementDateRange({ from, to });
-                  }}>
+                  }} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
                     Last 30 days
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => {
@@ -1171,16 +1171,16 @@ export default function TransactionHistory() {
                     fromDate.setMonth(fromDate.getMonth() - 3);
                     const from = fromDate.toISOString().split("T")[0];
                     setStatementDateRange({ from, to });
-                  }}>
+                  }} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
                     Last 3 months
                   </Button>
                 </div>
 
-                <div className="pt-4 border-t">
+                <div className="pt-4 border-t dark:border-gray-700">
                   <Button
                     onClick={handleDownloadStatement}
                     disabled={!statementDateRange.from || !statementDateRange.to || downloadingStatement}
-                    className="w-full bg-[#C29307] hover:bg-[#b28a06]"
+                    className="w-full bg-[#2b825b] hover:bg-[#236b49] dark:bg-[#2b825b] dark:hover:bg-[#1e5f43] text-white"
                   >
                     {downloadingStatement ? (
                       <>

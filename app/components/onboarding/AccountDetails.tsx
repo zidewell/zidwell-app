@@ -177,7 +177,7 @@ export const AccountDetailsStep = ({
           {isDataComplete && (
             <Button
               onClick={onNext}
-              className="bg-[#C29307] hover:opacity-100 transition-smooth flex items-center gap-2"
+              className="bg-[#2b825b] hover:opacity-100 transition-smooth flex items-center gap-2"
             >
               Continue
               <ArrowRight className="w-4 h-4" />

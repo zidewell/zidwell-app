@@ -121,7 +121,7 @@ export function EntryForm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-md max-h-[90vh] overflow-y-auto"
+        className="sm:max-w-md max-h-[90vh] overflow-y-auto dark:bg-gray-800 dark:border-gray-700"
         style={{
           backgroundColor: "#fcfbf9",
           borderColor: "#e6dfd6",
@@ -129,7 +129,7 @@ export function EntryForm({
       >
         <DialogHeader>
           <DialogTitle
-            className="text-xl"
+            className="text-xl dark:text-gray-100"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             {isEditing ? "Edit" : "Add"}{" "}
@@ -140,7 +140,7 @@ export function EntryForm({
         <form onSubmit={handleSubmit} className="space-y-5 mt-4">
           {/* Entry Type Toggle */}
           <div
-            className="flex gap-2 p-1 rounded-xl"
+            className="flex gap-2 p-1 rounded-xl dark:bg-gray-700"
             style={{ backgroundColor: "#f5f1ea" }}
           >
             <button
@@ -179,7 +179,7 @@ export function EntryForm({
 
           {/* Date Picker */}
           <div className="space-y-2">
-            <label className="text-sm font-medium" style={{ color: "#80746e" }}>
+            <label className="text-sm font-medium dark:text-gray-300" style={{ color: "#80746e" }}>
               Date
             </label>
             <Popover>
@@ -187,7 +187,7 @@ export function EntryForm({
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full justify-start text-left font-normal",
+                    "w-full justify-start text-left font-normal dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300",
                     !date && "text-muted-foreground",
                   )}
                   style={{
@@ -200,7 +200,7 @@ export function EntryForm({
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-auto p-0 z-50"
+                className="w-auto p-0 z-50 dark:bg-gray-800 dark:border-gray-700"
                 align="start"
                 style={{
                   backgroundColor: "#fcfbf9",
@@ -212,7 +212,7 @@ export function EntryForm({
                   selected={date}
                   onSelect={(d) => d && setDate(d)}
                   initialFocus
-                  className="pointer-events-auto"
+                  className="pointer-events-auto dark:bg-gray-800 dark:text-gray-100"
                 />
               </PopoverContent>
             </Popover>
@@ -220,7 +220,7 @@ export function EntryForm({
 
           {/* Amount */}
           <div className="space-y-2">
-            <label className="text-sm font-medium" style={{ color: "#80746e" }}>
+            <label className="text-sm font-medium dark:text-gray-300" style={{ color: "#80746e" }}>
               Amount (₦)
             </label>
             <Input
@@ -228,7 +228,7 @@ export function EntryForm({
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="text-lg font-semibold"
+              className="text-lg font-semibold dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
               style={{ backgroundColor: "#fcfbf9" }}
               min="0"
               step="0.01"
@@ -240,7 +240,7 @@ export function EntryForm({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label
-                className="text-sm font-medium"
+                className="text-sm font-medium dark:text-gray-300"
                 style={{ color: "#80746e" }}
               >
                 Category
@@ -248,8 +248,8 @@ export function EntryForm({
               <button
                 type="button"
                 onClick={() => setShowNewCategory(!showNewCategory)}
-                className="text-xs hover:underline flex items-center gap-1"
-                style={{ color: "#eab308" }}
+                className="text-xs hover:underline flex items-center gap-1 dark:text-[#3aa873]"
+                style={{ color: "#2b825b" }}
               >
                 <Plus className="h-3 w-3" />
                 Add custom
@@ -258,14 +258,14 @@ export function EntryForm({
 
             {showNewCategory && (
               <div
-                className="flex gap-2 p-3 rounded-xl mb-2"
+                className="flex gap-2 p-3 rounded-xl mb-2 dark:bg-gray-700"
                 style={{ backgroundColor: "#f5f1ea" }}
               >
                 <Input
                   placeholder="Category name"
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
-                  className="flex-1"
+                  className="flex-1 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
                   style={{ backgroundColor: "#fcfbf9" }}
                 />
                 <IconPicker
@@ -276,17 +276,18 @@ export function EntryForm({
                   type="button"
                   size="icon"
                   onClick={handleAddCategory}
-                  className="shrink-0"
+                  className="shrink-0 dark:bg-[#2b825b] dark:hover:bg-[#1e5f43]"
                   disabled={isAddingCategory}
+                  style={{ backgroundColor: "#2b825b" }}
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-4 w-4 text-white" />
                 </Button>
                 <Button
                   type="button"
                   size="icon"
                   variant="ghost"
                   onClick={() => setShowNewCategory(false)}
-                  className="shrink-0"
+                  className="shrink-0 dark:text-gray-400 dark:hover:text-gray-300"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -306,15 +307,15 @@ export function EntryForm({
                       : "",
                   )}
                   style={{
-                    borderColor: categoryId === cat.id ? "#eab308" : "#e6dfd6",
+                    borderColor: categoryId === cat.id ? "#2b825b" : "#e6dfd6",
                     backgroundColor:
                       categoryId === cat.id
-                        ? "rgba(234, 179, 8, 0.1)"
+                        ? "rgba(43, 130, 91, 0.1)"
                         : "#fcfbf9",
                   }}
                 >
-                  <span className="text-xl">{cat.icon}</span>
-                  <span className="text-xs font-medium truncate w-full">
+                  <span className="text-xl dark:text-gray-300">{cat.icon}</span>
+                  <span className="text-xs font-medium truncate w-full dark:text-gray-300">
                     {cat.name}
                   </span>
                 </button>
@@ -324,14 +325,14 @@ export function EntryForm({
 
           {/* Note */}
           <div className="space-y-2">
-            <label className="text-sm font-medium" style={{ color: "#80746e" }}>
+            <label className="text-sm font-medium dark:text-gray-300" style={{ color: "#80746e" }}>
               Note (optional)
             </label>
             <Textarea
               placeholder="Add a note..."
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="resize-none"
+              className="resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
               style={{ backgroundColor: "#fcfbf9" }}
               rows={2}
             />
@@ -340,11 +341,11 @@ export function EntryForm({
           {/* Submit */}
           <Button
             type="submit"
-            className="w-full font-semibold hover:opacity-90 transition-opacity"
+            className="w-full font-semibold hover:opacity-90 transition-opacity dark:bg-[#2b825b] dark:hover:bg-[#1e5f43]"
             style={{
-              background: "#C29307",
-              color: "#26121c",
-              boxShadow: "0 4px 20px -4px rgba(234, 179, 8, 0.3)",
+              background: "#2b825b",
+              color: "#ffffff",
+              boxShadow: "0 4px 20px -4px rgba(43, 130, 91, 0.3)",
             }}
             disabled={!amount || !categoryId}
           >

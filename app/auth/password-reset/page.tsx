@@ -85,7 +85,7 @@ const PasswordReset = () => {
           {errors.email && <p className="text-red-500">{errors.email}</p>}
           {errors.general && <p className="text-red-500">{errors.general}</p>}
           <Button
-            className="bg-[#C29307] mt-4"
+            className="bg-[#2b825b] mt-4"
             type="submit"
             disabled={loading}
           >

@@ -54,7 +54,7 @@ function Contact() {
               type="text"
               id="name"
               placeholder="Your name"
-              className="w-full px-4 py-3 rounded-md bg-white/5 border border-gray-300 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C29307]"
+              className="w-full px-4 py-3 rounded-md bg-white/5 border border-gray-300 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b825b]"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               required
@@ -69,7 +69,7 @@ function Contact() {
               type="email"
               id="email"
               placeholder="you@example.com"
-              className="w-full px-4 py-3 rounded-md bg-white/5 border border-gray-300 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C29307]"
+              className="w-full px-4 py-3 rounded-md bg-white/5 border border-gray-300 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b825b]"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               required
@@ -84,7 +84,7 @@ function Contact() {
               id="message"
               rows={5}
               placeholder="Your message..."
-              className="w-full px-4 py-3 rounded-md bg-white/5 border border-gray-300 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C29307]"
+              className="w-full px-4 py-3 rounded-md bg-white/5 border border-gray-300 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b825b]"
               value={form.message}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
               required
@@ -93,7 +93,7 @@ function Contact() {
 
           <button
             type="submit"
-            className="w-full bg-[#C29307] font-semibold py-3 px-6 rounded-xl transition-all duration-300 hover:scale-105 text-white"
+            className="w-full bg-[#2b825b] font-semibold py-3 px-6 rounded-xl transition-all duration-300 hover:scale-105 text-white"
           >
             Send Message
           </button>

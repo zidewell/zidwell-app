@@ -27,7 +27,7 @@ interface RichTextEditorProps {
   className?: string;
   height?: number;
   onImagesAdded?: (
-    images: Array<{ file: File; placeholderId: string }>
+    images: Array<{ file: File; placeholderId: string }>,
   ) => void;
 }
 
@@ -82,7 +82,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const execCommand = (
     command: string,
     value: string = "",
-    showUI: boolean = false
+    showUI: boolean = false,
   ) => {
     if (!editorRef.current) return;
 
@@ -162,12 +162,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             console.log(
               `✅ Image compressed: ${file.size} → ${
                 compressedFile.size
-              } bytes (${Math.round((compressedFile.size / file.size) * 100)}%)`
+              } bytes (${Math.round((compressedFile.size / file.size) * 100)}%)`,
             );
             resolve(compressedFile);
           },
           "image/jpeg",
-          0.7 // Quality setting (0.7 = 70% quality)
+          0.7, // Quality setting (0.7 = 70% quality)
         );
       };
 
@@ -213,8 +213,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       if (file.size > maxSize) {
         alert(
           `File too large: ${(file.size / 1024 / 1024).toFixed(
-            1
-          )}MB. Maximum is 10MB.`
+            1,
+          )}MB. Maximum is 10MB.`,
         );
         return;
       }
@@ -226,9 +226,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           .substring(7)}`;
 
         // Show loading message
-        const loadingMsg = `<div class="image-loading" data-placeholder-id="${placeholderId}" style="border:2px dashed #C29307;padding:20px;text-align:center;color:#C29307;border-radius:0.375rem;margin:0.5rem 0;background-color:#fefce8;">
+        const loadingMsg = `<div class="image-loading" data-placeholder-id="${placeholderId}" style="border:2px dashed #2b825b;padding:20px;text-align:center;color:#2b825b;border-radius:0.375rem;margin:0.5rem 0;background-color:#fefce8;">
           <div>⏳ Compressing image... (${(file.size / 1024 / 1024).toFixed(
-            1
+            1,
           )}MB)</div>
         </div>`;
 
@@ -243,7 +243,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           } catch (compressError) {
             console.warn(
               "Failed to compress image, using original:",
-              compressError
+              compressError,
             );
           }
         }
@@ -252,13 +252,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         const base64 = await fileToBase64(finalFile);
 
         // Replace loading message with actual image
-        const imgHTML = `<img src="${base64}" alt="Uploaded image" data-placeholder-id="${placeholderId}" data-filename="${file.name}" data-size="${finalFile.size}" data-original-size="${file.size}" style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:2px dashed #C29307;opacity:0.8;" />`;
+        const imgHTML = `<img src="${base64}" alt="Uploaded image" data-placeholder-id="${placeholderId}" data-filename="${file.name}" data-size="${finalFile.size}" data-original-size="${file.size}" style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:2px dashed #2b825b;opacity:0.8;" />`;
 
         // Find and replace the loading div
         if (editorRef.current) {
           const editor = editorRef.current;
           const loadingDiv = editor.querySelector(
-            `div[data-placeholder-id="${placeholderId}"]`
+            `div[data-placeholder-id="${placeholderId}"]`,
           );
           if (loadingDiv) {
             loadingDiv.outerHTML = imgHTML;
@@ -308,7 +308,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
     const editor = editorRef.current;
     const img = editor.querySelector(
-      `img[data-placeholder-id="${placeholderId}"]`
+      `img[data-placeholder-id="${placeholderId}"]`,
     ) as HTMLImageElement;
 
     if (img) {
@@ -319,12 +319,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       // Use setAttribute for style to ensure it works
       img.setAttribute(
         "style",
-        "max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:1px solid #e5e7eb;opacity:1;"
+        "max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:1px solid #e5e7eb;opacity:1;",
       );
 
       // Remove from pending images
       const updatedPendingImages = pendingImages.filter(
-        (img) => img.placeholderId !== placeholderId
+        (img) => img.placeholderId !== placeholderId,
       );
       setPendingImages(updatedPendingImages);
 
@@ -339,7 +339,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
     const editor = editorRef.current;
     const placeholders = editor.querySelectorAll(
-      "img[data-placeholder-id], div[data-placeholder-id]"
+      "img[data-placeholder-id], div[data-placeholder-id]",
     );
     placeholders.forEach((img) => img.remove());
 
@@ -622,7 +622,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         onPaste={handlePaste}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        className="w-full p-4 border border-t-0 border-gray-300 rounded-b-lg focus:outline-none focus:ring-1 focus:ring-[#C29307] focus:border-[#C29307] overflow-y-auto bg-white"
+        className="w-full p-4 border border-t-0 border-gray-300 rounded-b-lg focus:outline-none focus:ring-1 focus:ring-[#2b825b] focus:border-[#2b825b] overflow-y-auto bg-white"
         style={{
           height: `${height - 50}px`,
           minHeight: "200px",
@@ -632,7 +632,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
       {/* Pending images info */}
       {pendingImages.length > 0 && (
-        <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+        <div className="mt-2 p-3 bg-green-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
           <div className="flex items-center justify-between mb-2">
             <span className="font-medium flex items-center">
               ⚠️ {pendingImages.length} image
@@ -666,7 +666,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             ))}
           </div>
 
-          <p className="text-xs mt-2 text-[#C29307]">
+          <p className="text-xs mt-2 text-[#2b825b]">
             Images are compressed automatically. They will be uploaded when you
             submit the notification.
           </p>
@@ -721,7 +721,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
 
         .rich-text-editor [contenteditable] a {
-          color: #c29307;
+          color: #2b825b;
           text-decoration: none;
         }
 
@@ -738,16 +738,16 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
 
         .rich-text-editor [contenteditable] img[data-placeholder-id] {
-          border: 2px dashed #c29307;
+          border: 2px dashed #2b825b;
           opacity: 0.8;
         }
 
         /* Image loading placeholder */
         .rich-text-editor [contenteditable] .image-loading {
-          border: 2px dashed #c29307;
+          border: 2px dashed #2b825b;
           padding: 20px;
           text-align: center;
-          color: #c29307;
+          color: #2b825b;
           border-radius: 0.375rem;
           margin: 0.5rem 0;
           background-color: #fefce8;
@@ -755,7 +755,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
 
         .rich-text-editor [contenteditable] blockquote {
-          border-left: 3px solid #c29307;
+          border-left: 3px solid #2b825b;
           margin: 1rem 0;
           padding-left: 1rem;
           font-style: italic;

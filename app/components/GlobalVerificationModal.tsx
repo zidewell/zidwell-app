@@ -121,7 +121,8 @@ const GlobalVerificationModal = () => {
         <DialogHeader>
           <DialogTitle>Complete Your BVN Verification</DialogTitle>
           <DialogDescription>
-            Set up your wallet by verifying your BVN and creating a transaction PIN.
+            Set up your wallet by verifying your BVN and creating a transaction
+            PIN.
           </DialogDescription>
         </DialogHeader>
 
@@ -138,9 +139,7 @@ const GlobalVerificationModal = () => {
               className={errors.bvn ? "border-red-500" : ""}
               disabled={loading}
             />
-            {errors.bvn && (
-              <p className="text-xs text-red-500">{errors.bvn}</p>
-            )}
+            {errors.bvn && <p className="text-xs text-red-500">{errors.bvn}</p>}
           </div>
 
           {/* PIN Field */}
@@ -156,9 +155,7 @@ const GlobalVerificationModal = () => {
               className={errors.pin ? "border-red-500" : ""}
               disabled={loading}
             />
-            {errors.pin && (
-              <p className="text-xs text-red-500">{errors.pin}</p>
-            )}
+            {errors.pin && <p className="text-xs text-red-500">{errors.pin}</p>}
           </div>
 
           {/* Confirm PIN Field */}
@@ -181,23 +178,21 @@ const GlobalVerificationModal = () => {
 
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
             <p className="text-xs text-amber-800">
-              <strong>CBN Regulation:</strong> BVN verification is required before we can issue your virtual account number. Your information is encrypted and secure.
+              <strong>CBN Regulation:</strong> BVN verification is required
+              before we can issue your virtual account number. Your information
+              is encrypted and secure.
             </p>
           </div>
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={loading}
-          >
+          <Button variant="outline" onClick={handleClose} disabled={loading}>
             Later
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={loading}
-            className="bg-[#C29307] hover:bg-[#a67905]"
+            className="bg-[#2b825b] hover:bg-[#a67905]"
           >
             {loading ? (
               <>

@@ -210,7 +210,7 @@ function EditSecurityInfo() {
           {/* Update Button */}
           <Button
             disabled={loading}
-            className="bg-[#C29307] hover:opacity-100 transition-smooth"
+            className="bg-[#2b825b] hover:opacity-100 transition-smooth"
             onClick={changeUserPassword}
           >
             {loading ? "updating..." : "Update Password"}

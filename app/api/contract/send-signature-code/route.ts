@@ -5,14 +5,13 @@ import { transporter } from "@/lib/node-mailer";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-  const baseUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.NEXT_PUBLIC_DEV_URL
-        : process.env.NEXT_PUBLIC_BASE_URL;
-
+const baseUrl =
+  process.env.NODE_ENV === "development"
+    ? process.env.NEXT_PUBLIC_DEV_URL
+    : process.env.NEXT_PUBLIC_BASE_URL;
 
 // Generate a 6-digit verification code
 function generateVerificationCode(): string {
@@ -26,7 +25,7 @@ export async function POST(request: Request) {
     if (!contractToken || !signeeEmail) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -41,7 +40,7 @@ export async function POST(request: Request) {
       console.error("Contract not found:", error);
       return NextResponse.json(
         { error: "Contract not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -49,7 +48,7 @@ export async function POST(request: Request) {
     if (contract.signee_email !== signeeEmail) {
       return NextResponse.json(
         { error: "Email does not match the contract signee" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -63,7 +62,7 @@ export async function POST(request: Request) {
         verification_code: verificationCode,
         verification_code_sent_at: new Date().toISOString(),
         verification_code_expires_at: new Date(
-          Date.now() + 30 * 60 * 1000
+          Date.now() + 30 * 60 * 1000,
         ).toISOString(), // 30 minutes
         verification_failed_attempts: 0, // Reset failed attempts
       })
@@ -73,21 +72,21 @@ export async function POST(request: Request) {
       console.error("Error updating verification code:", updateError);
       return NextResponse.json(
         { error: "Failed to generate verification code" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-       const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
     // Send email with verification code
-  await transporter.sendMail({
-  from: `Zidwell Contracts <${process.env.EMAIL_USER}>`,
-  to: signeeEmail,
-  subject: `Your Signature Verification Code - ${
-    contract.contract_title || "Contract"
-  }`,
-  html: `
+    await transporter.sendMail({
+      from: `Zidwell Contracts <${process.env.EMAIL_USER}>`,
+      to: signeeEmail,
+      subject: `Your Signature Verification Code - ${
+        contract.contract_title || "Contract"
+      }`,
+      html: `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -135,7 +134,7 @@ export async function POST(request: Request) {
         .code-display {
             display: inline-block;
             background: #f0f9ff;
-            border: 2px dashed #C29307;
+            border: 2px dashed #2b825b;
             padding: 30px 50px;
             border-radius: 12px;
         }
@@ -151,7 +150,7 @@ export async function POST(request: Request) {
         /* Typography */
         .text-primary { color: #111827 !important; }
         .text-secondary { color: #6b7280 !important; }
-        .text-accent { color: #C29307 !important; }
+        .text-accent { color: #2b825b !important; }
         .text-success { color: #2f855a !important; }
         
         .text-sm { font-size: 14px !important; }
@@ -200,7 +199,7 @@ export async function POST(request: Request) {
             <!-- Verification Code -->
             <div class="verification-code-box">
                 <div class="code-display">
-                    <div style="font-size: 12px; color: #C29307; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 600;">
+                    <div style="font-size: 12px; color: #2b825b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 600;">
                         Verification Code
                     </div>
                     <div style="font-size: 40px; font-weight: 700; letter-spacing: 8px; color: #1a365d; font-family: monospace; margin: 15px 0;">
@@ -231,7 +230,7 @@ export async function POST(request: Request) {
             
             <!-- Automated Message -->
             <div style="background: #fefcf5; padding: 15px; text-align: center; margin-top: 25px; border-radius: 8px;">
-                <p style="margin: 0; color: #C29307; font-size: 12px;">
+                <p style="margin: 0; color: #2b825b; font-size: 12px;">
                     This is an automated message from Zidwell Contracts. Please do not reply to this email.
                 </p>
             </div>
@@ -244,7 +243,7 @@ export async function POST(request: Request) {
 </body>
 </html>
   `,
-});
+    });
 
     return NextResponse.json(
       {
@@ -255,7 +254,7 @@ export async function POST(request: Request) {
           expiresIn: "30 minutes",
         },
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error in contract/send-signature-code:", error);
@@ -268,7 +267,7 @@ export async function POST(request: Request) {
             ? error.message
             : "Failed to send verification code",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

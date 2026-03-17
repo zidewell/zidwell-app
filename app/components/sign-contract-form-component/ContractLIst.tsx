@@ -1,3 +1,4 @@
+// app/components/sign-contract-form-component/ContractLIst.tsx
 "use client";
 
 import {
@@ -6,8 +7,11 @@ import {
   Eye,
   FileText,
   Loader2,
-  AlertCircle,
-  Wallet,
+  Crown,
+  Zap,
+  Sparkles,
+  Star,
+  Play,
 } from "lucide-react";
 import React, { useState, useMemo, useCallback } from "react";
 import { Button } from "../ui/button";
@@ -22,11 +26,9 @@ import Link from "next/link";
 type Props = {
   contracts: any[];
   loading: boolean;
-  userTier?: 'free' | 'growth' | 'premium' | 'elite';
+  userTier?: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite';
   isPremium?: boolean;
   hasReachedLimit?: boolean;
-  requiresPayment?: boolean;
-  contractFee?: number;
   onRefresh?: () => void;
 };
 
@@ -38,14 +40,22 @@ const ContractList: React.FC<Props> = ({
   userTier = 'free',
   isPremium = false,
   hasReachedLimit = false,
-  requiresPayment = false,
-  contractFee = 10,
 }) => {
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
-  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const router = useRouter();
+
+  // Get tier icon
+  const getTierIcon = (tier: string) => {
+    switch (tier) {
+      case 'elite': return <Sparkles className="w-3 h-3" />;
+      case 'premium': return <Crown className="w-3 h-3" />;
+      case 'growth': return <Zap className="w-3 h-3" />;
+      case 'zidlite': return <Zap className="w-3 h-3" />;
+      default: return <Star className="w-3 h-3" />;
+    }
+  };
 
   const statusColors: Record<ContractStatus, string> = useMemo(() => ({
     signed: "bg-green-100 text-green-800",
@@ -53,7 +63,38 @@ const ContractList: React.FC<Props> = ({
     draft: "bg-gray-100 text-gray-800",
   }), []);
 
+  const handleContinueDraft = useCallback((contract: any) => {
+    // Store contract data in sessionStorage to load it in the form
+    sessionStorage.setItem('draftToLoad', JSON.stringify({
+      id: contract.id,
+      contract_title: contract.contract_title,
+      contract_text: contract.contract_text,
+      signee_name: contract.signee_name,
+      signee_email: contract.signee_email,
+      phone_number: contract.phone_number,
+      age_consent: contract.age_consent,
+      terms_consent: contract.terms_consent,
+      creator_name: contract.creator_name,
+      creator_signature: contract.creator_signature,
+      include_lawyer_signature: contract.include_lawyer_signature,
+      metadata: contract.metadata
+    }));
+    
+    // Navigate to the create contract page with draft ID
+    router.push(`/dashboard/services/contract/create-contract-form?draftId=${contract.id}`);
+  }, [router]);
+
   const handleDownload = useCallback(async (contract: any) => {
+    // Don't allow download for draft contracts
+    if (contract.status === "draft") {
+      Swal.fire(
+        "Cannot Download Draft",
+        "Please complete and send the contract before downloading.",
+        "warning"
+      );
+      return;
+    }
+
     if (!contract.contract_text?.trim()) {
       Swal.fire(
         "Empty Contract",
@@ -133,17 +174,9 @@ const ContractList: React.FC<Props> = ({
     }
   }, []);
 
-  const handleAddLawyerSignature = useCallback(async (contract: any) => {
-    if (!isPremium) {
-      setShowUpgradePrompt(true);
-      return;
-    }
-    router.push(`/dashboard/services/contract/${contract.id}/lawyer-signature`);
-  }, [isPremium, router]);
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-64">
         <Loader />
       </div>
     );
@@ -155,62 +188,12 @@ const ContractList: React.FC<Props> = ({
         <FileText className="w-16 h-16 text-gray-300 mb-4" />
         <p className="text-gray-500 text-lg mb-2">No contracts found</p>
         <p className="text-gray-400 text-sm mb-6">Create your first contract to get started</p>
-        
-        {/* Pay-per-use info in empty state */}
-        {hasReachedLimit && !isPremium && (
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md">
-            <div className="flex items-start gap-3">
-              <Wallet className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
-              <div>
-                <h3 className="font-medium text-blue-800">Pay-per-use Available</h3>
-                <p className="text-sm text-blue-700 mt-1">
-                  You've reached your free limit. Create contracts for ₦{contractFee} each.
-                </p>
-                <Link href="/dashboard/services/contract/create-contract-form?payPerUse=true">
-                  <Button size="sm" className="mt-3 bg-blue-600 hover:bg-blue-700 text-white">
-                    <Wallet className="w-4 h-4 mr-2" />
-                    Pay ₦{contractFee} & Create
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Upgrade Prompt Modal */}
-      {showUpgradePrompt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-6 h-6 text-red-600" />
-            </div>
-            <h3 className="text-xl font-bold text-center mb-2">Feature Requires Upgrade</h3>
-            <p className="text-gray-600 text-center mb-6">
-              Lawyer signatures are available on Premium and Elite plans only.
-            </p>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowUpgradePrompt(false)}
-              >
-                Cancel
-              </Button>
-              <Link href="/pricing?upgrade=premium" className="flex-1">
-                <Button className="w-full bg-[#C29307] hover:bg-[#b38606] text-white">
-                  Upgrade to Premium
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-
       {contracts?.map((contract) => {
         const title = contract.contract_title || "Untitled Contract";
         const status = contract.status || "draft";
@@ -239,14 +222,12 @@ const ContractList: React.FC<Props> = ({
                         👨‍⚖️ Lawyer Signed
                       </Badge>
                     )}
-                    
-                    {/* Show pay-per-use badge if applicable */}
-                    {hasReachedLimit && !isPremium && (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                        <Wallet className="w-3 h-3 mr-1" />
-                        Pay-per-use
-                      </Badge>
-                    )}
+
+                    {/* Show tier badge on contract */}
+                    <Badge variant="outline" className="bg-gray-50">
+                      {getTierIcon(userTier)}
+                      <span className="ml-1 text-xs capitalize">{userTier}</span>
+                    </Badge>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-gray-500">
                     <span>Issue Date: {createdAt.toLocaleDateString()}</span>
@@ -254,32 +235,6 @@ const ContractList: React.FC<Props> = ({
                       <span>Signed Date: {sentAt.toLocaleDateString()}</span>
                     )}
                   </div>
-
-                  {/* Show lawyer signature availability */}
-                  {status === "pending" && !contract.has_lawyer_signature && (
-                    <div className="mt-2">
-                      {isPremium ? (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          onClick={() => handleAddLawyerSignature(contract)}
-                          className="text-purple-600 hover:text-purple-700 p-0 h-auto text-xs"
-                        >
-                          Add Lawyer Signature (₦10,000)
-                        </Button>
-                      ) : (
-                        <p className="text-xs text-gray-500">
-                          Lawyer signatures available on Premium plans •{" "}
-                          <button
-                            onClick={() => setShowUpgradePrompt(true)}
-                            className="text-[#C29307] hover:underline"
-                          >
-                            Upgrade
-                          </button>
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </div>
                 <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
                   <Button
@@ -293,7 +248,22 @@ const ContractList: React.FC<Props> = ({
                     <Eye className="w-4 h-4 mr-1" />
                     View
                   </Button>
-                  {(status === "draft" || status === "pending") && (
+                  
+                  {/* Continue Draft Button - Only for draft status */}
+                  {status === "draft" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleContinueDraft(contract)}
+                      className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                    >
+                      <Play className="w-4 h-4 mr-1" />
+                      Continue Draft
+                    </Button>
+                  )}
+                  
+                  {/* Edit Button - Only for draft or pending */}
+                  {(status === "draft" || status === "pending") && status !== "draft" && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -307,19 +277,23 @@ const ContractList: React.FC<Props> = ({
                       Edit
                     </Button>
                   )}
-                  <Button
-                    onClick={() => handleDownload(contract)}
-                    variant="outline"
-                    size="sm"
-                    disabled={status === "pending" || isDownloading}
-                  >
-                    {isDownloading ? (
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                    ) : (
-                      <Download className="w-4 h-4 mr-1" />
-                    )}
-                    {isDownloading ? "Downloading..." : "Download"}
-                  </Button>
+                  
+                  {/* Download Button - Only for signed or completed contracts */}
+                  {status !== "draft" && (
+                    <Button
+                      onClick={() => handleDownload(contract)}
+                      variant="outline"
+                      size="sm"
+                      disabled={status === "pending" || isDownloading}
+                    >
+                      {isDownloading ? (
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4 mr-1" />
+                      )}
+                      {isDownloading ? "Downloading..." : "Download"}
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>

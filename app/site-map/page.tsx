@@ -86,11 +86,11 @@ export default function SiteMapPage() {
               {pages.map((page) => (
                 <div
                   key={page.href}
-                  className="border border-gray-200 rounded-lg p-4 hover:border-[#C29307] transition-colors"
+                  className="border border-gray-200 rounded-lg p-4 hover:border-[#2b825b] transition-colors"
                 >
                   <Link
                     href={page.href}
-                    className="text-lg font-medium text-[#C29307] hover:text-[#a67905] block mb-2"
+                    className="text-lg font-medium text-[#2b825b] hover:text-[#a67905] block mb-2"
                   >
                     {page.name}
                   </Link>

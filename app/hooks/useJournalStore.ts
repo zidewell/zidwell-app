@@ -18,25 +18,57 @@ import { useUserContextData } from '../context/userData';
 const API_BASE = '/api/journal';
 
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId: string) {
-  const url = new URL(`${API_BASE}${endpoint}`, window.location.origin);
-
-  // Add userId as query param for GET and DELETE requests
-  if (!options.method || options.method === 'GET' || options.method === 'DELETE') {
-    url.searchParams.set('userId', userId);
+  // For POST and PUT requests, don't add userId to URL, send it in body
+  const isMutation = options.method === 'POST' || options.method === 'PUT';
+  
+  let url = `${API_BASE}${endpoint}`;
+  
+  // For GET and DELETE, add userId as query param
+  if (!isMutation) {
+    const separator = url.includes('?') ? '&' : '?';
+    url = `${url}${separator}userId=${encodeURIComponent(userId)}`;
   }
 
-  const res = await fetch(url.toString(), {
+  // Prepare request options
+  const requestOptions: RequestInit = {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
     },
     credentials: 'include',
-  });
+  };
+
+  // For POST and PUT, ensure userId is in the body if not already present
+  if (isMutation && options.body) {
+    try {
+      const bodyData = JSON.parse(options.body as string);
+      if (!bodyData.userId) {
+        bodyData.userId = userId;
+        requestOptions.body = JSON.stringify(bodyData);
+      }
+    } catch (e) {
+      // If body can't be parsed, leave as is
+    }
+  }
+
+  const res = await fetch(url, requestOptions);
 
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(errorData.error || `API error (${res.status})`);
+    let errorMessage = `API error (${res.status})`;
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } catch {
+      // If response is not JSON, try to get text
+      try {
+        const textError = await res.text();
+        if (textError) errorMessage = textError;
+      } catch {
+        // Ignore
+      }
+    }
+    throw new Error(errorMessage);
   }
 
   return res.json();
@@ -196,30 +228,20 @@ export function useJournalStore() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/journal/categories/${id}`, {
+      const data = await fetchWithAuth(`/categories/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
-          userId: userId,
           ...updates,
+          userId,
         }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Failed to update category (${response.status})`);
-      }
-
-      const updatedCategory = await response.json();
+      }, userId);
       
       setCategories(prev =>
-        prev.map(cat => cat.id === id ? { ...cat, ...updatedCategory } : cat)
+        prev.map(cat => cat.id === id ? { ...cat, ...data } : cat)
       );
       
       forceUpdate();
-      return updatedCategory;
+      return data;
     } catch (error) {
       console.error('Error updating category:', error);
       setError(error instanceof Error ? error.message : 'Failed to update category');
@@ -236,14 +258,9 @@ export function useJournalStore() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/journal/categories/${id}?userId=${userId}`, {
+      await fetchWithAuth(`/categories/${id}`, {
         method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Failed to delete category (${response.status})`);
-      }
+      }, userId);
 
       setCategories(prev => prev.filter(cat => cat.id !== id));
       forceUpdate();

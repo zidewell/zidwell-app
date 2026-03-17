@@ -40,7 +40,7 @@ export const KYCStep = ({
         icon: "warning",
         title: "Invalid BVN",
         text: "Your BVN must be exactly 11 digits.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return;
     }
@@ -51,7 +51,7 @@ export const KYCStep = ({
         icon: "warning",
         title: "Invalid Transaction PIN",
         text: "Transaction PIN must be exactly 4 digits.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return;
     }
@@ -96,7 +96,7 @@ export const KYCStep = ({
             maxLength={11}
             required
             placeholder="Enter your 11-digit BVN"
-            className="w-full border p-3 mb-4 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-[#C29307]"
+            className="w-full border p-3 mb-4 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-[#2b825b]"
             value={data.documentNumber}
             onChange={(e) =>
               handleInputChange("documentNumber", e.target.value)
@@ -114,7 +114,7 @@ export const KYCStep = ({
             pattern="\d*"
             maxLength={4}
             placeholder="Enter 4-digit PIN"
-            className="w-full border p-3 mb-4 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-[#C29307]"
+            className="w-full border p-3 mb-4 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-[#2b825b]"
             value={data.transactionPin}
             onChange={(e) =>
               handleInputChange("transactionPin", e.target.value)
@@ -138,7 +138,7 @@ export const KYCStep = ({
         <Button
           type="submit"
           disabled={loading}
-          className="bg-[#C29307] text-white py-3 rounded-lg hover:bg-[#a67905] transition font-semibold"
+          className="bg-[#2b825b] text-white py-3 rounded-lg hover:bg-[#a67905] transition font-semibold"
         >
           {loading ? "Processing..." : "Verify BVN"}
         </Button>

@@ -63,6 +63,7 @@ export interface SaveReceiptResponse {
   error?: string;
   message?: string;
   data?: any;
+  metadata?:any;
 }
 
 export interface PaymentResponse {

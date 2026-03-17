@@ -98,7 +98,7 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const router = useRouter();
   const { userData, setUserData } = useUserContextData();
@@ -107,8 +107,9 @@ export default function AdminSidebar() {
   useEffect(() => {
     const currentSection = navSections.find((section) =>
       section.links.some(
-        (link) => pathname === link.href || pathname.startsWith(link.href + "/")
-      )
+        (link) =>
+          pathname === link.href || pathname.startsWith(link.href + "/"),
+      ),
     );
 
     if (currentSection) {
@@ -213,7 +214,7 @@ export default function AdminSidebar() {
       href={href}
       className={`flex items-center gap-3 p-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
         isLinkActive(href)
-          ? "bg-[#C29307] text-white shadow-sm"
+          ? "bg-[#2b825b] text-white shadow-sm"
           : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
       }`}
     >
@@ -307,7 +308,7 @@ export default function AdminSidebar() {
         <div className="p-4 border-b border-gray-200 bg-blue-50">
           <Button
             onClick={handleBackToUserDashboard}
-            className="w-full cursor-pointer flex items-center justify-center gap-2 border  bg-white text-black  hover:text-white hover:bg-[#C29307]  transition-all duration-200"
+            className="w-full cursor-pointer flex items-center justify-center gap-2 border  bg-white text-black  hover:text-white hover:bg-[#2b825b]  transition-all duration-200"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to User Dashboard</span>
@@ -339,7 +340,7 @@ export default function AdminSidebar() {
         {/* 👤 User & Logout Section */}
         <div className="p-4 border-t border-gray-200 bg-gray-50 shrink-0">
           <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-white border border-gray-200">
-            <div className="w-8 h-8 bg-[#C29307] rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-[#2b825b] rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-semibold">
                 {userData?.email?.charAt(0).toUpperCase() || "A"}
               </span>

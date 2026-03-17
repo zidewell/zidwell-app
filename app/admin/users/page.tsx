@@ -56,7 +56,7 @@ export default function UsersPage() {
     activeTab === "pending"
       ? "/api/admin-apis/users/pending-users"
       : "/api/admin-apis/users",
-    fetcher
+    fetcher,
   );
 
   useEffect(() => {
@@ -225,7 +225,7 @@ export default function UsersPage() {
   const totalPages = Math.ceil(currentUsers.length / itemsPerPage);
   const paginatedUsers = currentUsers.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   // ---------- User Profile Navigation ----------
@@ -263,7 +263,7 @@ export default function UsersPage() {
       console.log("Exporting with params:", params.toString());
 
       const response = await fetch(
-        `/api/admin-apis/users/export?${params.toString()}`
+        `/api/admin-apis/users/export?${params.toString()}`,
       );
 
       if (!response.ok) {
@@ -279,7 +279,7 @@ export default function UsersPage() {
 
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(
-          /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+          /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
         );
         if (filenameMatch && filenameMatch[1]) {
           filename = filenameMatch[1].replace(/['"]/g, "");
@@ -337,7 +337,7 @@ export default function UsersPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       if (!r.ok) {
@@ -399,7 +399,7 @@ export default function UsersPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ reason }),
-        }
+        },
       );
 
       if (!r.ok) {
@@ -517,7 +517,7 @@ export default function UsersPage() {
       Swal.fire(
         `${actionText}ed`,
         `${user.email} has been ${actionText.toLowerCase()}ed.`,
-        "success"
+        "success",
       );
       mutate();
     } catch (err: any) {
@@ -532,16 +532,16 @@ export default function UsersPage() {
       title: `Edit ${user.email}`,
       html:
         `<input id="swal-first_name" class="swal2-input" placeholder="First name" value="${escapeHtml(
-          user.first_name ?? ""
+          user.first_name ?? "",
         )}">` +
         `<input id="swal-last_name" class="swal2-input" placeholder="Last name" value="${escapeHtml(
-          user.last_name ?? ""
+          user.last_name ?? "",
         )}">` +
         `<input id="swal-email" class="swal2-input" placeholder="Email" value="${escapeHtml(
-          user.email ?? ""
+          user.email ?? "",
         )}">` +
         `<input id="swal-phone" class="swal2-input" placeholder="Phone" value="${escapeHtml(
-          user.phone ?? ""
+          user.phone ?? "",
         )}">` +
         `<select id="swal-role" class="swal2-select">
            <option value="user" ${
@@ -646,7 +646,7 @@ export default function UsersPage() {
   const handleViewLoginHistory = async (user: any) => {
     try {
       const response = await fetch(
-        `/api/admin-apis/users/${user.id}/login-history`
+        `/api/admin-apis/users/${user.id}/login-history`,
       );
       if (!response.ok) throw new Error("Failed to fetch login history");
 
@@ -751,7 +751,7 @@ export default function UsersPage() {
     if (amount > HIGH_BALANCE_THRESHOLD) {
       balanceClass = "font-bold text-purple-600";
     } else if (amount <= LOW_BALANCE_THRESHOLD && amount >= 0) {
-      balanceClass = "text-[#C29307]";
+      balanceClass = "text-[#2b825b]";
     } else if (amount < 0) {
       balanceClass = "font-medium text-red-600";
     } else if (amount === 0) {
@@ -974,7 +974,7 @@ export default function UsersPage() {
                 <h3 className="text-sm font-medium text-gray-500">
                   Low Balance
                 </h3>
-                <p className="text-2xl font-semibold text-[#C29307]">
+                <p className="text-2xl font-semibold text-[#2b825b]">
                   {lowBalanceUsers.length}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -1040,7 +1040,7 @@ export default function UsersPage() {
                 <h3 className="text-sm font-medium text-gray-500">
                   Total Pending
                 </h3>
-                <p className="text-2xl font-semibold text-[#C29307]">
+                <p className="text-2xl font-semibold text-[#2b825b]">
                   {pendingUsersCount}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">Awaiting approval</p>

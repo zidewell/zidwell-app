@@ -113,7 +113,7 @@ export default function FundingLogsPage() {
   const totalLogs = useMemo(() => data?.total || 0, [data]);
   const totalPages = useMemo(
     () => Math.ceil(totalLogs / itemsPerPage),
-    [totalLogs, itemsPerPage]
+    [totalLogs, itemsPerPage],
   );
 
   // Calculate stats
@@ -122,7 +122,7 @@ export default function FundingLogsPage() {
       logs
         .filter((log: any) => log.type === "funding")
         .reduce((sum: number, log: any) => sum + Number(log.amount || 0), 0),
-    [logs]
+    [logs],
   );
 
   const totalWithdrawals = useMemo(
@@ -130,17 +130,17 @@ export default function FundingLogsPage() {
       logs
         .filter((log: any) => log.type === "withdrawal")
         .reduce((sum: number, log: any) => sum + Number(log.amount || 0), 0),
-    [logs]
+    [logs],
   );
 
   const successfulTransactions = useMemo(
     () => logs.filter((log: any) => log.status === "success"),
-    [logs]
+    [logs],
   );
 
   const failedTransactions = useMemo(
     () => logs.filter((log: any) => log.status === "failed"),
-    [logs]
+    [logs],
   );
 
   // Handle search input change
@@ -148,7 +148,7 @@ export default function FundingLogsPage() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearchTerm(e.target.value);
     },
-    []
+    [],
   );
 
   // View transaction details
@@ -168,7 +168,7 @@ export default function FundingLogsPage() {
           
           <div><strong>Amount:</strong></div>
           <div class="font-bold text-lg">₦${Number(
-            row.amount || 0
+            row.amount || 0,
           ).toLocaleString()}</div>
           
           <div><strong>Gateway:</strong></div>
@@ -182,8 +182,8 @@ export default function FundingLogsPage() {
             row.status === "success"
               ? "text-green-600"
               : row.status === "failed"
-              ? "text-red-600"
-              : "text-[#C29307]"
+                ? "text-red-600"
+                : "text-[#2b825b]"
           }">
             ${row.status?.toUpperCase()}
           </div>
@@ -200,7 +200,7 @@ export default function FundingLogsPage() {
           <pre class="text-xs whitespace-pre-wrap">${JSON.stringify(
             row.metadata,
             null,
-            2
+            2,
           )}</pre>
         </div>
       `;
@@ -221,7 +221,7 @@ export default function FundingLogsPage() {
     const result = await Swal.fire({
       title: "Retry Transaction?",
       text: `Retry this ${row.type} transaction for ₦${Number(
-        row.amount || 0
+        row.amount || 0,
       ).toLocaleString()}?`,
       icon: "question",
       showCancelButton: true,

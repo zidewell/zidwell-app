@@ -33,7 +33,7 @@ export default function ReceiptPage() {
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+          className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           <span className="hidden md:block">Back</span>
@@ -45,13 +45,13 @@ export default function ReceiptPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-[#FEF9C2] mb-6">
-            <Receipt className="h-8 w-8 text-[#C29307]" />
+            <Receipt className="h-8 w-8 text-[#2b825b]" />
           </div>
           <div className="flex items-center justify-center gap-4 mb-4">
             <h1 className="text-4xl md:text-5xl font-bold">
               Professional Receipt Management
             </h1>
-            <span className="bg-[#FEF9C2] text-[#C29307] text-sm font-semibold px-3 py-1 rounded-full">
+            <span className="bg-[#FEF9C2] text-[#2b825b] text-sm font-semibold px-3 py-1 rounded-full">
               ₦100 per receipt
             </span>
           </div>
@@ -146,7 +146,7 @@ export default function ReceiptPage() {
                 title: "Professional Templates",
                 description:
                   "Multiple design templates for different business types",
-                icon: <FileText className="h-5 w-5 text-[#C29307]" />,
+                icon: <FileText className="h-5 w-5 text-[#2b825b]" />,
               },
               {
                 title: "Custom Branding",
@@ -201,10 +201,10 @@ export default function ReceiptPage() {
             <div className="bg-white rounded-xl p-6 shadow-lg border-2">
               <div className="text-center mb-4">
                 <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-[#FEF9C2] mb-3">
-                  <CreditCard className="h-6 w-6 text-[#C29307]" />
+                  <CreditCard className="h-6 w-6 text-[#2b825b]" />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">Digital Receipts</h3>
-                <div className="text-3xl font-bold text-[#C29307]">₦100</div>
+                <div className="text-3xl font-bold text-[#2b825b]">₦100</div>
                 <p className="text-sm text-gray-500">per receipt only</p>
               </div>
               <div className="space-y-3">
@@ -236,7 +236,7 @@ export default function ReceiptPage() {
             </div>
 
             <div className="text-center mt-8 p-4 bg-white rounded-lg border border-blue-200">
-              <p className="font-semibold text-[#C29307]">
+              <p className="font-semibold text-[#2b825b]">
                 💡 Save money with our pay-per-use model. Only pay for receipts
                 you actually create!
               </p>
@@ -257,7 +257,7 @@ export default function ReceiptPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/dashboard/services/receipt">
               <Button
-                className="bg-[#C29307] hover:bg-[#FEF9C2] text-white hover:text-black px-8 py-6 text-lg"
+                className="bg-[#2b825b] hover:bg-[#FEF9C2] text-white hover:text-black px-8 py-6 text-lg"
                 size="lg"
               >
                 Create Receipt (₦100)

@@ -70,7 +70,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
     <div className="">
       <div className="flex items-center justify-between">
         <div className="mb-5">
-          <CardTitle className="text-[#C29307]">Contract Preview</CardTitle>
+          <CardTitle className="text-[#2b825b]">Contract Preview</CardTitle>
           <CardDescription>
             Review your contract document before sending
           </CardDescription>
@@ -231,10 +231,10 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                       <div className="space-y-4">
                         <div className="border-t border-gray-300 pt-4">
                           <div className="flex items-center mb-4">
-                            <div className="h-6 w-6 bg-[#C29307] rounded-full flex items-center justify-center mr-2">
+                            <div className="h-6 w-6 bg-[#2b825b] rounded-full flex items-center justify-center mr-2">
                               <span className="text-white text-xs">✓</span>
                             </div>
-                            <p className="text-sm font-medium text-[#C29307]">
+                            <p className="text-sm font-medium text-[#2b825b]">
                               LEGAL WITNESS SIGNATURE
                             </p>
                           </div>
@@ -252,7 +252,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                             <p className="text-sm text-gray-600 mt-1">
                               Legal Counsel
                             </p>
-                            <p className="text-xs bg-[#C29307]/10 text-[#C29307] px-2 py-1 rounded-full inline-block mt-2">
+                            <p className="text-xs bg-[#2b825b]/10 text-[#2b825b] px-2 py-1 rounded-full inline-block mt-2">
                               Verified Lawyer
                             </p>
                           </div>
@@ -373,7 +373,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
               <Button
                 variant="default"
                 onClick={() => setActiveTab("create")}
-                className="bg-[#C29307] hover:bg-[#b38606]"
+                className="bg-[#2b825b] hover:bg-[#1e5d42]"
                 disabled={disabled} // Apply disabled prop
               >
                 <Edit className="h-4 w-4 mr-2" />

@@ -84,10 +84,7 @@ async function handleUpdate(req: NextRequest) {
     // If you want to update initiator_name when creator_name is set
     if (data.creator_name !== undefined) updateData.initiator_name = data.creator_name;
 
-    console.log("Updating contract with data:", {
-      id: data.id,
-      updateData
-    });
+ 
 
     // Try to update by different identifier fields
     let updatedContract = null;

@@ -1,3 +1,4 @@
+// PinPopOver.tsx
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -12,14 +13,8 @@ interface PinPopOverProps {
   setPin: (pin: string[]) => void;
   inputCount: number;
   onConfirm?: (code: string) => Promise<void> | void;
-  error?: string | null; // Add error prop from parent
-  onClearError?: () => void; // Callback to clear error in parent
-  invoiceFeeInfo?: {
-    isFree: boolean;
-    freeInvoicesLeft: number;
-    totalInvoicesCreated: number;
-    feeAmount: number;
-  };
+  error?: string | null;
+  onClearError?: () => void;
 }
 
 export default function PinPopOver({
@@ -31,7 +26,6 @@ export default function PinPopOver({
   onConfirm,
   error,
   onClearError,
-  invoiceFeeInfo,
 }: PinPopOverProps) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -43,9 +37,7 @@ export default function PinPopOver({
     if (error) {
       setLocalError(error);
       setIsProcessing(false);
-      // Clear PIN on error for security
       setPin(Array(inputCount).fill(""));
-      // Focus first input after error
       setTimeout(() => {
         inputsRef.current[0]?.focus();
       }, 100);
@@ -74,17 +66,16 @@ export default function PinPopOver({
   const handleInput = (index: number, value: string) => {
     if (isProcessing) return;
     if (!/^\d?$/.test(value)) return;
-    
+
     const newPin = [...pin];
     newPin[index] = value;
     setPin(newPin);
-    
-    // Clear any error when user starts typing
+
     if (localError) {
       setLocalError(null);
       if (onClearError) onClearError();
     }
-    
+
     if (value && index < inputCount - 1) {
       inputsRef.current[index + 1]?.focus();
     }
@@ -92,17 +83,16 @@ export default function PinPopOver({
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
-    index: number
+    index: number,
   ) => {
     if (isProcessing) return;
-    
+
     if (e.key === "Backspace" || e.key === "Delete") {
       if (!pin[index] && index > 0) {
         inputsRef.current[index - 1]?.focus();
       }
     }
-    
-    // Handle Enter key to submit
+
     if (e.key === "Enter" && pin.join("").length === inputCount) {
       handleSubmit(e as any);
     }
@@ -111,18 +101,17 @@ export default function PinPopOver({
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     if (isProcessing) return;
     e.preventDefault();
-    
+
     const text = e.clipboardData.getData("text").trim();
     if (!new RegExp(`^[0-9]{${inputCount}}$`).test(text)) {
       setLocalError(`PIN must be ${inputCount} digits`);
       return;
     }
-    
+
     const digits = text.split("");
     setPin(digits);
     inputsRef.current[inputCount - 1]?.focus();
-    
-    // Clear any error
+
     if (localError) {
       setLocalError(null);
       if (onClearError) onClearError();
@@ -132,7 +121,7 @@ export default function PinPopOver({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = pin.join("");
-    
+
     if (isProcessing || code.length !== inputCount) {
       if (code.length !== inputCount) {
         setLocalError(`Please enter all ${inputCount} digits`);
@@ -147,29 +136,24 @@ export default function PinPopOver({
     try {
       if (onConfirm) {
         await onConfirm(code);
-        // Don't clear PIN on success - let parent handle it
       }
     } catch (err: any) {
       console.error("Error during PIN confirmation:", err);
-      
-      // Increment attempts
-      setAttempts(prev => prev + 1);
-      
-      // Set appropriate error message
+
+      setAttempts((prev) => prev + 1);
+
       if (err?.message?.toLowerCase().includes("pin")) {
         setLocalError(err.message || "Invalid PIN. Please try again.");
       } else {
         setLocalError(err?.message || "Transaction failed. Please try again.");
       }
-      
-      // Clear PIN fields for security
+
       setPin(Array(inputCount).fill(""));
-      
-      // Focus first input for retry
+
       setTimeout(() => {
         inputsRef.current[0]?.focus();
       }, 100);
-      
+
       setIsProcessing(false);
     }
   };
@@ -213,60 +197,24 @@ export default function PinPopOver({
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
             <div className="max-w-md w-full text-center bg-white px-4 sm:px-8 py-10 rounded-xl shadow-xl relative">
-              
-              {/* Close button */}
               <button
                 onClick={handleClose}
                 disabled={isProcessing}
                 className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${
-                  isProcessing 
-                    ? 'text-gray-300 cursor-not-allowed' 
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  isProcessing
+                    ? "text-gray-300 cursor-not-allowed"
+                    : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
                 }`}
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
 
-              {/* Invoice Fee Information */}
-              {invoiceFeeInfo && (
-                <div
-                  className={`mb-4 p-3 rounded-lg border ${
-                    invoiceFeeInfo.isFree
-                      ? "bg-green-50 border-green-200"
-                      : "bg-yellow-50 border-yellow-200"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold">
-                        {invoiceFeeInfo.isFree
-                          ? "🎉 Free Invoice"
-                          : "💰 Invoice Fee"}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={`text-xl font-bold ${
-                          invoiceFeeInfo.isFree
-                            ? "text-green-600"
-                            : "text-[#C29307]"
-                        }`}
-                      >
-                        {invoiceFeeInfo.isFree ? "FREE" : `₦${invoiceFeeInfo.feeAmount}`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <header className="mb-6">
-                <h1 className="text-2xl font-bold mb-1">
-                  Transaction PIN
-                </h1>
+                <h1 className="text-2xl font-bold mb-1">Transaction PIN</h1>
                 <p className="text-[15px] text-slate-500">
                   {isProcessing ? (
-                    <span className="text-[#C29307] font-medium flex items-center justify-center gap-2">
+                    <span className="text-[#2b825b] font-medium flex items-center justify-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       Processing transaction...
                     </span>
@@ -307,10 +255,10 @@ export default function PinPopOver({
                       onPaste={handlePaste}
                       className={`w-14 h-14 text-center text-2xl font-extrabold rounded-lg outline-none transition-all ${
                         isProcessing
-                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
                           : localError
-                          ? 'bg-red-50 text-red-900 border-2 border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200'
-                          : 'bg-slate-100 text-slate-900 border-2 border-transparent hover:border-slate-200 focus:border-[#C29307] focus:ring-2 focus:ring-[#C29307]/20'
+                            ? "bg-red-50 text-red-900 border-2 border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                            : "bg-slate-100 text-slate-900 border-2 border-transparent hover:border-slate-200 focus:border-[#2b825b] focus:ring-2 focus:ring-[#2b825b]/20"
                       }`}
                       disabled={isProcessing}
                       aria-label={`PIN digit ${i + 1}`}
@@ -318,7 +266,6 @@ export default function PinPopOver({
                   ))}
                 </div>
 
-                {/* Error message with retry button */}
                 {localError && !isProcessing && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -330,7 +277,7 @@ export default function PinPopOver({
                       variant="outline"
                       size="sm"
                       onClick={handleRetry}
-                      className="text-[#C29307] border-[#C29307] hover:bg-[#C29307]/10 mx-auto"
+                      className="text-[#2b825b] border-[#2b825b] hover:bg-[#2b825b]/10 mx-auto"
                     >
                       Try Again
                     </Button>
@@ -342,10 +289,10 @@ export default function PinPopOver({
                     type="submit"
                     className={`w-full inline-flex justify-center items-center whitespace-nowrap rounded-lg px-3.5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 ${
                       isProcessing || !isPinComplete
-                        ? 'bg-gray-400 cursor-not-allowed hover:bg-gray-400 focus:ring-gray-400'
+                        ? "bg-gray-400 cursor-not-allowed hover:bg-gray-400 focus:ring-gray-400"
                         : localError
-                        ? 'bg-red-500 hover:bg-red-600 focus:ring-red-500'
-                        : 'bg-[#C29307] hover:bg-[#C29307]/90 focus:ring-[#C29307]'
+                          ? "bg-red-500 hover:bg-red-600 focus:ring-red-500"
+                          : "bg-[#2b825b] hover:bg-[#2b825b]/90 focus:ring-[#2b825b]"
                     }`}
                     disabled={isProcessing || !isPinComplete}
                   >
@@ -356,23 +303,19 @@ export default function PinPopOver({
                       </>
                     ) : localError ? (
                       "Try Again"
-                    ) : invoiceFeeInfo?.isFree ? (
-                      "Confirm Free Transaction"
                     ) : (
                       "Confirm Payment"
                     )}
                   </Button>
-                  
-                  {/* Forgot PIN link */}
+
                   {!isProcessing && !localError && (
                     <p className="mt-4 text-sm">
                       <button
                         type="button"
                         onClick={() => {
-                          // Navigate to reset PIN page or show modal
                           window.location.href = "/dashboard/profile?reset-pin=true";
                         }}
-                        className="text-[#C29307] hover:underline focus:outline-none"
+                        className="text-[#2b825b] hover:underline focus:outline-none"
                       >
                         Forgot PIN?
                       </button>

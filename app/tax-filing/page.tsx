@@ -23,7 +23,7 @@ import {
 
 const TaxFilingInfoPage = () => {
   const router = useRouter();
-  const primaryColor = "#C29307";
+  const primaryColor = "#2b825b";
 
   const reasons = [
     "You'll get a detailed financial report every month of the financial health of your business",
@@ -131,7 +131,7 @@ const TaxFilingInfoPage = () => {
             variant="ghost"
             size="sm"
             onClick={() => router.push("/")}
-            className="text-[#C29307] hover:bg-white/10"
+            className="text-[#2b825b] hover:bg-white/10"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -183,7 +183,7 @@ const TaxFilingInfoPage = () => {
             <div className="grid md:grid-cols-2 gap-6">
               {reasons.map((text, i) => (
                 <div key={i} className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-[#C29307] rounded-full flex items-center justify-center shrink-0 mt-1">
+                  <div className="w-8 h-8 bg-[#2b825b] rounded-full flex items-center justify-center shrink-0 mt-1">
                     <span className="text-white font-bold text-sm">
                       {i + 1}
                     </span>
@@ -207,14 +207,14 @@ const TaxFilingInfoPage = () => {
               {steps.map((step, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <div
-                    className={`w-12 h-12 bg-[#C29307] rounded-full flex items-center justify-center shrink-0`}
+                    className={`w-12 h-12 bg-[#2b825b] rounded-full flex items-center justify-center shrink-0`}
                   >
                     {React.isValidElement(step.icon)
                       ? React.cloneElement(
                           step.icon as React.ReactElement<
                             React.SVGProps<SVGSVGElement>
                           >,
-                          { className: "w-6 h-6 text-white" }
+                          { className: "w-6 h-6 text-white" },
                         )
                       : step.icon}
                   </div>
@@ -231,7 +231,7 @@ const TaxFilingInfoPage = () => {
         </Card>
 
         {/* Call to Action */}
-        <Card className="bg-[#C29307] text-white shadow-elevated">
+        <Card className="bg-[#2b825b] text-white shadow-elevated">
           <CardContent className="p-8 text-center">
             <CheckCircle className="w-16 h-16 mx-auto mb-4 text-white" />
             <h2 className="text-2xl font-bold mb-4">
@@ -241,7 +241,7 @@ const TaxFilingInfoPage = () => {
             <Button
               size="lg"
               onClick={() => router.push("/dashboard")}
-              className="bg-white text-[#C29307] hover:bg-gray-100"
+              className="bg-white text-[#2b825b] hover:bg-gray-100"
             >
               Start Tax Filing Process
             </Button>

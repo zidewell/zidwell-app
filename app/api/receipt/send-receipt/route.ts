@@ -6,19 +6,19 @@ import { isAuthenticated } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export async function POST(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const user = await isAuthenticated(req);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please login to access transactions" },
+      { status: 401 },
+    );
+  }
+
   try {
     const contentType = req.headers.get("content-type") || "";
     let body: any = {};
@@ -31,24 +31,24 @@ export async function POST(req: NextRequest) {
       body = await req.json();
     }
 
-    console.log("Received body from frontend:", JSON.stringify(body, null, 2));
-
     // Extract data from frontend format
     const userId = body.userId || body.user_id;
     const isDraft = body.is_draft || body.isDraft || false;
     const pin = body.pin;
-    
+
     // Get receipt data - handle both formats
     let receiptData = body.data || body;
-    
+
     // If data is nested under 'data', use that, otherwise use the whole body
     if (body.data) {
       receiptData = body.data;
     }
 
     // Extract receipt information from frontend structure
-    const receiptId = receiptData.receipt_id || `REC-${Date.now().toString().slice(-6)}`;
-    const businessName = receiptData.business_name || receiptData.initiator_name || "";
+    const receiptId =
+      receiptData.receipt_id || `REC-${Date.now().toString().slice(-6)}`;
+    const businessName =
+      receiptData.business_name || receiptData.initiator_name || "";
     const initiatorEmail = receiptData.initiator_email || "";
     const initiatorName = receiptData.initiator_name || "";
     const initiatorPhone = receiptData.initiator_phone || "";
@@ -57,11 +57,13 @@ export async function POST(req: NextRequest) {
     const clientPhone = receiptData.client_phone || "";
     const paymentMethod = receiptData.payment_method || "transfer";
     const paymentFor = receiptData.payment_for || "general";
-    const issueDate = receiptData.issue_date || new Date().toISOString().split('T')[0];
+    const issueDate =
+      receiptData.issue_date || new Date().toISOString().split("T")[0];
     const customerNote = receiptData.customer_note || "";
-    const sellerSignature = receiptData.seller_signature || body.seller_signature || "";
+    const sellerSignature =
+      receiptData.seller_signature || body.seller_signature || "";
     const fromName = receiptData.from_name || businessName;
-    
+
     // Get receipt items from frontend format
     let receiptItems = [];
     if (receiptData.receipt_items && Array.isArray(receiptData.receipt_items)) {
@@ -69,10 +71,14 @@ export async function POST(req: NextRequest) {
       let subtotal = 0;
       receiptItems = receiptData.receipt_items.map((item: any) => {
         const quantity = Number(item.quantity || item.quantity || 1);
-        const unitPrice = Number(item.unit_price || item.unitPrice || item.price || 0);
-        const amount = Number(item.total || item.amount || (quantity * unitPrice));
+        const unitPrice = Number(
+          item.unit_price || item.unitPrice || item.price || 0,
+        );
+        const amount = Number(
+          item.total || item.amount || quantity * unitPrice,
+        );
         subtotal += amount;
-        
+
         return {
           id: item.id || uuidv4(),
           description: item.description || item.item || "",
@@ -91,7 +97,7 @@ export async function POST(req: NextRequest) {
           success: false,
           error: "User ID is required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -102,11 +108,13 @@ export async function POST(req: NextRequest) {
         : process.env.NEXT_PUBLIC_BASE_URL;
 
     const signingLink = !isDraft ? `${baseUrl}/sign-receipt/${token}` : null;
-    const verificationCode = !isDraft ? Math.floor(100000 + Math.random() * 900000).toString() : "";
+    const verificationCode = !isDraft
+      ? Math.floor(100000 + Math.random() * 900000).toString()
+      : "";
 
     const metadata: any = {
-      base_fee: 100, 
-      total_fee: 100, 
+      base_fee: 100,
+      total_fee: 100,
       initiator_name: initiatorName,
       initiator_email: initiatorEmail,
       initiator_phone: initiatorPhone,
@@ -118,7 +126,6 @@ export async function POST(req: NextRequest) {
       customer_note: customerNote,
     };
 
- 
     if (body.metadata?.attachments) {
       metadata.attachments = body.metadata.attachments;
       metadata.attachment_count = body.metadata.attachment_count || 0;
@@ -149,9 +156,7 @@ export async function POST(req: NextRequest) {
 
       if (draftByReceiptId) {
         existingDraft = draftByReceiptId;
-      
       }
-
 
       if (!existingDraft) {
         const { data: draftsWithReceiptId } = await supabase
@@ -164,12 +169,10 @@ export async function POST(req: NextRequest) {
 
         if (draftsWithReceiptId) {
           existingDraft = draftsWithReceiptId;
-         
         }
       }
     }
 
-  
     if (!existingDraft && !isDraft && clientEmail && businessName) {
       console.log("Looking for draft by business name and email...");
       const { data: draftData } = await supabase
@@ -184,16 +187,12 @@ export async function POST(req: NextRequest) {
 
       if (draftData && draftData.length > 0) {
         existingDraft = draftData[0];
-      
       }
     }
 
     const now = new Date().toISOString();
 
-
     if (existingDraft && !isDraft) {
-    
-
       const updateData: any = {
         business_name: businessName,
         client_name: clientName,
@@ -343,7 +342,7 @@ export async function POST(req: NextRequest) {
         
         .action-button {
             display: inline-block;
-            background-color: #C29307;
+            background-color: #2b825b;
             color: white;
             padding: 14px 32px;
             text-decoration: none;
@@ -358,7 +357,7 @@ export async function POST(req: NextRequest) {
         /* Typography */
         .text-primary { color: #111827 !important; }
         .text-secondary { color: #6b7280 !important; }
-        .text-accent { color: #C29307 !important; }
+        .text-accent { color: #2b825b !important; }
         
         .text-sm { font-size: 14px !important; }
         .text-base { font-size: 16px !important; }
@@ -382,7 +381,7 @@ export async function POST(req: NextRequest) {
             padding: 15px 0;
             font-weight: bold;
             font-size: 18px;
-            color: #C29307;
+            color: #2b825b;
         }
         
         /* Mobile Responsive */
@@ -463,7 +462,9 @@ export async function POST(req: NextRequest) {
             <!-- Items Summary -->
             <div class="info-card">
                 <h3 class="font-semibold text-primary" style="margin: 0 0 15px 0;">Items Summary</h3>
-                ${receiptItems.map((item: any) => `
+                ${receiptItems
+                  .map(
+                    (item: any) => `
                 <div class="receipt-item">
                     <div>
                         <div class="text-base">${item.description}</div>
@@ -471,7 +472,9 @@ export async function POST(req: NextRequest) {
                     </div>
                     <div class="font-semibold">₦${item.total.toLocaleString()}</div>
                 </div>
-                `).join('')}
+                `,
+                  )
+                  .join("")}
                 <div class="receipt-total">
                     <div>TOTAL AMOUNT</div>
                     <div>₦${total.toLocaleString()}</div>
@@ -486,7 +489,7 @@ export async function POST(req: NextRequest) {
             </div>
             
             <!-- Important Information -->
-            <div class="info-card" style="background: #f0f9ff; border-color: #C29307;">
+            <div class="info-card" style="background: #f0f9ff; border-color: #2b825b;">
                 <h3 class="font-semibold text-accent" style="margin: 0 0 10px 0;">ℹ️ Important Information</h3>
                 <ul style="margin: 0; padding-left: 20px; color: #4b5563;">
                     <li style="margin-bottom: 8px;">This receipt requires your digital signature</li>
@@ -506,7 +509,7 @@ export async function POST(req: NextRequest) {
             
             <!-- Automated Message -->
             <div style="background: #fefcf5; padding: 15px; text-align: center; margin-top: 25px; border-radius: 8px;">
-                <p style="margin: 0; color: #C29307; font-size: 12px;">
+                <p style="margin: 0; color: #2b825b; font-size: 12px;">
                     This is an automated message from Zidwell Receipts. Please do not reply to this email.
                 </p>
             </div>
@@ -548,22 +551,22 @@ export async function POST(req: NextRequest) {
         success: false,
         error: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // DELETE endpoint for drafts/receipts
 export async function DELETE(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const user = await isAuthenticated(req);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please login to access transactions" },
+      { status: 401 },
+    );
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const receiptId = searchParams.get("id");
@@ -572,7 +575,7 @@ export async function DELETE(req: NextRequest) {
     if (!receiptId || !userId) {
       return NextResponse.json(
         { success: false, error: "Receipt ID and User ID are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -593,22 +596,22 @@ export async function DELETE(req: NextRequest) {
     console.error("Error deleting receipt:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // GET endpoint for receipts/drafts
 export async function GET(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const user = await isAuthenticated(req);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please login to access transactions" },
+      { status: 401 },
+    );
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
@@ -619,7 +622,7 @@ export async function GET(req: NextRequest) {
     if (!userId && !token && !receiptId) {
       return NextResponse.json(
         { success: false, error: "User ID, Token, or Receipt ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -632,12 +635,12 @@ export async function GET(req: NextRequest) {
       query = query.eq("receipt_id", receiptId);
     } else if (userId) {
       query = query.eq("user_id", userId);
-      
+
       // Filter drafts if requested
       if (draftOnly) {
         query = query.eq("status", "draft");
       }
-      
+
       query = query.order("created_at", { ascending: false });
     }
 
@@ -691,16 +694,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       receipts: receipts,
-      drafts: draftOnly ? receipts : receipts.filter(r => r.status === "draft"),
-      signed: receipts.filter(r => r.status === "signed"),
-      pending: receipts.filter(r => r.status === "pending"),
+      drafts: draftOnly
+        ? receipts
+        : receipts.filter((r) => r.status === "draft"),
+      signed: receipts.filter((r) => r.status === "signed"),
+      pending: receipts.filter((r) => r.status === "pending"),
       count: receipts.length,
     });
   } catch (error: any) {
     console.error("Error fetching receipts:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

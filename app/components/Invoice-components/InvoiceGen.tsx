@@ -109,7 +109,7 @@ export default function InvoiceGen() {
     }
   }, [userData?.email]);
 
-  // ✅ totals - UPDATED to include partially_paid
+  // totals
   const totalAmount = invoices?.reduce((sum, invoice) => {
     return sum + (invoice.total_amount || 0);
   }, 0);
@@ -144,11 +144,9 @@ export default function InvoiceGen() {
     (inv) => inv.status?.toLowerCase() === "partially_paid",
   ).length;
 
-  // UPDATED: Added partially_paid to status options
   const statusOptions = ["All", "Paid", "Unpaid", "Draft", "Partially Paid"];
 
   const filteredInvoices = invoices.filter((item) => {
-    // normalize db value
     const status = item.status?.toLowerCase().trim() || "";
 
     const statusMatch =
@@ -193,15 +191,14 @@ export default function InvoiceGen() {
     return <Loader />;
   }
 
-  // ✅ Conditionally show empty state if invoices length is 0
   if (invoices.length === 0 && !loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Invoices Yet</h3>
-          <p className="text-gray-600 mb-4">Get started by creating your first invoice</p>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No Invoices Yet</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">Get started by creating your first invoice</p>
           <Button
-            className="hover:bg-black bg-[#C29307] hover:shadow-xl transition-all duration-300"
+            className="hover:bg-black bg-[#2b825b] hover:shadow-xl transition-all duration-300 dark:bg-[#2b825b] dark:hover:bg-[#1e5d42] text-white"
             onClick={() => router.push("/dashboard/services/create-invoice/create")}
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -216,55 +213,55 @@ export default function InvoiceGen() {
     <div className="space-y-6">
       {activeTab === "invoices" && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <Card>
+          <Card className="bg-white dark:bg-gray-900 border-border dark:border-gray-800">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Total Invoiced</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Invoiced</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   ₦{totalAmount.toLocaleString()}
                 </p>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white dark:bg-gray-900 border-border dark:border-gray-800">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Total Received</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Received</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   ₦{totalReceivedAmount.toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   (Paid: ₦{paidAmount.toLocaleString()} + Partial: ₦
                   {partiallyPaidAmount.toLocaleString()})
                 </p>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white dark:bg-gray-900 border-border dark:border-gray-800">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Paid Invoices</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Paid Invoices</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {paidInvoice}
                 </p>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white dark:bg-gray-900 border-border dark:border-gray-800">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Unpaid Invoices</p>
-                <p className="text-2xl font-bold text-[#C29307]">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Unpaid Invoices</p>
+                <p className="text-2xl font-bold text-[#2b825b] dark:text-[#2b825b]">
                   {unpaidInvoice}
                 </p>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white dark:bg-gray-900 border-border dark:border-gray-800">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Partially Paid</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Partially Paid</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {partiallyPaidInvoice}
                 </p>
               </div>
@@ -274,20 +271,22 @@ export default function InvoiceGen() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex flex-wrap gap-2 mb-4">
-          <TabsTrigger value="invoices">All Invoices</TabsTrigger>
+        <TabsList className="flex flex-wrap gap-2 mb-4 bg-gray-100 dark:bg-gray-800">
+          <TabsTrigger value="invoices" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#2b825b] dark:data-[state=active]:text-[#2b825b]">
+            All Invoices
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="invoices" className="space-y-6">
           {/* Error Message */}
           {error && (
-            <Card className="border-red-200 bg-red-50">
+            <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
               <CardContent className="p-4">
-                <p className="text-red-700 text-sm">{error}</p>
+                <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-2"
+                  className="mt-2 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400"
                   onClick={() =>
                     userData?.email && fetchInvoice(userData.email)
                   }
@@ -299,18 +298,18 @@ export default function InvoiceGen() {
           )}
 
           {/* Search + Filter */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-900 border-border dark:border-gray-800">
             <CardContent className="pt-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-col sm:flex-row gap-4 flex-1">
                   {/* Search Input */}
                   <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
                     <Input
                       placeholder="Search by invoice ID, client, or business..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-full"
+                      className="pl-10 w-full bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
                     />
                   </div>
 
@@ -332,7 +331,14 @@ export default function InvoiceGen() {
                                 : "outline"
                             }
                             size="sm"
-                            className="hover:bg-[#C29307] hover:text-white border hover:shadow-xl transition-all duration-300"
+                            className={
+                              selectedStatus ===
+                              (status === "Partially Paid"
+                                ? "partially paid"
+                                : lowercase)
+                                ? "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42] text-white"
+                                : "border-border dark:border-gray-700 text-foreground dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                            }
                             onClick={() =>
                               setSelectedStatus(
                                 status === "Partially Paid"
@@ -353,13 +359,13 @@ export default function InvoiceGen() {
                         onClick={() => setIsMenuOpen((prev) => !prev)}
                         variant="outline"
                         size="sm"
-                        className="p-2"
+                        className="p-2 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
                       >
                         <MoreHorizontal className="w-4 h-4" />
                       </Button>
 
                       {isMenuOpen && (
-                        <div className="absolute right-0 top-full z-10 bg-white shadow-md rounded-lg mt-2 p-2 border border-gray-200 w-48">
+                        <div className="absolute right-0 top-full z-10 bg-white dark:bg-gray-900 shadow-md rounded-lg mt-2 p-2 border border-gray-200 dark:border-gray-700 w-48">
                           {statusOptions.map((status) => {
                             const displayStatus =
                               status === "Partially Paid"
@@ -370,8 +376,8 @@ export default function InvoiceGen() {
                                 key={status}
                                 className={`w-full text-left p-2 rounded mb-1 text-sm ${
                                   selectedStatus === displayStatus
-                                    ? "bg-[#C29307] text-white"
-                                    : "hover:bg-gray-100"
+                                    ? "bg-[#2b825b] text-white"
+                                    : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
                                 }`}
                                 onClick={() => {
                                   setSelectedStatus(displayStatus);
@@ -391,7 +397,7 @@ export default function InvoiceGen() {
                 {/* New Invoice button */}
                 <div className="w-full sm:w-auto">
                   <Button
-                    className="w-full sm:w-auto hover:bg-black bg-[#C29307] hover:shadow-xl transition-all duration-300"
+                    className="w-full sm:w-auto hover:bg-black bg-[#2b825b] hover:shadow-xl transition-all duration-300 dark:bg-[#2b825b] dark:hover:bg-[#1e5d42] text-white"
                     onClick={() =>
                       router.push("/dashboard/services/create-invoice/create")
                     }

@@ -109,7 +109,7 @@ interface ApiResponse {
   data?: any;
 }
 
-const UPDATE_FEE = 50; 
+const UPDATE_FEE = 50;
 
 function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -120,14 +120,14 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const [saving, setSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isFormLocked, setIsFormLocked] = useState(false);
-  
+
   // Payment states
   const inputCount = 4;
   const [isOpen, setIsOpen] = useState(false);
   const [pin, setPin] = useState<string[]>(Array(inputCount).fill(""));
   const [isSending, setIsSending] = useState(false);
   const [showReceiptSummary, setShowReceiptSummary] = useState(false);
-  
+
   const [activeTab, setActiveTab] = useState("create");
   const [saveSignatureForFuture, setSaveSignatureForFuture] = useState(false);
 
@@ -170,25 +170,13 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
     unwrapParams();
   }, [params]);
 
- const parseReceiptItems = (items: any): ReceiptItem[] => {
-  try {
-    if (!items) return [];
-    
-    if (Array.isArray(items)) {
-      // Map the incoming items to match your ReceiptItem type
-      return items.map((item: any, index: number) => ({
-        id: item.id || `item_${index + 1}`,
-        description: item.description || "",
-        quantity: item.quantity || 1,
-        unitPrice: item.unit_price || item.unitPrice || 0,
-        amount: item.total || item.amount || 0,
-      }));
-    }
-    
-    if (typeof items === 'string') {
-      const parsed = JSON.parse(items);
-      if (Array.isArray(parsed)) {
-        return parsed.map((item: any, index: number) => ({
+  const parseReceiptItems = (items: any): ReceiptItem[] => {
+    try {
+      if (!items) return [];
+
+      if (Array.isArray(items)) {
+        // Map the incoming items to match your ReceiptItem type
+        return items.map((item: any, index: number) => ({
           id: item.id || `item_${index + 1}`,
           description: item.description || "",
           quantity: item.quantity || 1,
@@ -196,171 +184,206 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
           amount: item.total || item.amount || 0,
         }));
       }
+
+      if (typeof items === "string") {
+        const parsed = JSON.parse(items);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item: any, index: number) => ({
+            id: item.id || `item_${index + 1}`,
+            description: item.description || "",
+            quantity: item.quantity || 1,
+            unitPrice: item.unit_price || item.unitPrice || 0,
+            amount: item.total || item.amount || 0,
+          }));
+        }
+      }
+
+      return [];
+    } catch (error) {
+      console.error("Error parsing receipt items:", error);
+      return [];
     }
-    
-    return [];
-  } catch (error) {
-    console.error("Error parsing receipt items:", error);
-    return [];
-  }
-};
+  };
 
-const fetchReceipt = async () => {
-  if (!receiptId) return;
-  
-  try {
-    setLoading(true);
-    
+  const fetchReceipt = async () => {
+    if (!receiptId) return;
 
-    const res = await fetch(`/api/receipt/get-receipt?id=${receiptId}`);
-    const data: ApiResponse = await res.json();
-    
-    if (!res.ok) {
-      throw new Error(data.message || `Failed to fetch receipt (${res.status})`);
-    }
-    
-    if (!data.success || !data.receipt) {
-      throw new Error(data.message || "Receipt not found");
-    }
-    
-    const receipt: Receipt = data.receipt;
-   
-    // Parse receipt items
-    const receiptItems = parseReceiptItems(receipt.receipt_items);
-
-    
-    // Set form states
-    setReceiptType(receipt.payment_for as ReceiptType || "general");
-    setSeller({
-      name: receipt.initiator_name || "",
-      email: receipt.initiator_email || "",
-      phone: receipt.metadata.initiator_phone || "",
-    });
-    setReceiver({
-      name: receipt.client_name || "",
-      email: receipt.client_email || "",
-      phone: receipt.client_phone || "",
-    });
-
-    if (receiptItems.length > 0) {
-      setItems(receiptItems);
-    } else {
-      // Keep at least one empty item
-      setItems([{ id: "item_1", description: "", amount: 0, quantity: 1, unitPrice: 0 }]);
-    }
-    
-    setPaymentMethod(receipt.payment_method as any || "transfer");
-    
-    if (receipt.seller_signature && receipt.seller_signature !== "null" && receipt.seller_signature !== "") {
-      setSellerSignature(receipt.seller_signature);
-    }
-    
-    setCustomerNote(receipt.customer_note || "");
-    setIssueDate(receipt.issue_date || new Date().toISOString().split('T')[0]);
-    
-    // Check if receipt is signed
-    if (receipt.status === "signed") {
-      Swal.fire({
-        icon: "info",
-        title: "Receipt Already Signed",
-        text: "This receipt has been signed. Editing will reset the signature status and require the client to sign again.",
-        confirmButtonColor: "#C29307",
-      });
-    }
-    
-  } catch (error) {
-    console.error("❌ Failed to fetch receipt", error);
-    Swal.fire({
-      icon: "error",
-      title: "Error",
-      text: error instanceof Error ? error.message : "Failed to load receipt",
-      confirmButtonColor: "#C29307",
-    }).then(() => {
-      router.push("/dashboard/services/receipt");
-    });
-  } finally {
-    setLoading(false);
-  }
-};
-
-console.log("Receipt ID to edit:", seller);
-// Update receipt using PUT endpoint
-const updateReceiptInDatabase = async (): Promise<boolean> => {
-  try {
-    if (!userData?.id) {
-      throw new Error("User not authenticated");
-    }
-
-    const totalAmount = calculateTotal();
-    const subtotalAmount = calculateSubtotal();
-
-    // Prepare items with proper structure
-    const receipt_items = items.map((item) => ({
-      id: item.id,
-      description: item.description,
-      quantity: item.quantity || 1,
-      unitPrice: item.unitPrice || 0,
-      amount: item.amount || 0,
-    }));
-
-    const payload = {
-      id: receiptId,
-      initiator_email: seller.email,
-      initiator_name: seller.name,
-      initiator_phone: seller.phone,
-      business_name: seller.name,
-      client_name: receiver.name || "",
-      client_email: receiver.email || "",
-      client_phone: receiver.phone || "",
-      bill_to: receiver.name || "",
-      from_name: seller.name,
-      issue_date: issueDate || new Date().toISOString().split('T')[0],
-      customer_note: customerNote || (sellerSignature ? "Updated receipt with signature" : "Updated receipt"),
-      payment_for: receiptType,
-      payment_method: paymentMethod,
-      subtotal: subtotalAmount,
-      total: totalAmount,
-      status: "pending", 
-      receipt_items: receipt_items,
-      seller_signature: sellerSignature || null,
-    };
-
-
-    // Call the PUT API to update receipt
-    const res = await fetch("/api/receipt/update-receipt", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("Update failed with status:", res.status, "Response:", errorText);
-      throw new Error(`Failed to update receipt: ${res.status} - ${errorText}`);
-    }
-
-    let data: ApiResponse;
     try {
-      data = await res.json();
-    } catch (parseError) {
-      console.error("Error parsing JSON response:", parseError);
-      throw new Error("Invalid response from server");
-    }
+      setLoading(true);
 
-    if (!data.success) {
-      console.error("Update failed:", data);
-      throw new Error(data.message || data.error || "Receipt update failed");
-    }
+      const res = await fetch(`/api/receipt/get-receipt?id=${receiptId}`);
+      const data: ApiResponse = await res.json();
 
-    console.log("Update successful:", data);
-    return true;
-  } catch (err) {
-    console.error("Update receipt error:", err);
-    throw err;
-  }
-};
+      if (!res.ok) {
+        throw new Error(
+          data.message || `Failed to fetch receipt (${res.status})`,
+        );
+      }
+
+      if (!data.success || !data.receipt) {
+        throw new Error(data.message || "Receipt not found");
+      }
+
+      const receipt: Receipt = data.receipt;
+
+      // Parse receipt items
+      const receiptItems = parseReceiptItems(receipt.receipt_items);
+
+      // Set form states
+      setReceiptType((receipt.payment_for as ReceiptType) || "general");
+      setSeller({
+        name: receipt.initiator_name || "",
+        email: receipt.initiator_email || "",
+        phone: receipt.metadata.initiator_phone || "",
+      });
+      setReceiver({
+        name: receipt.client_name || "",
+        email: receipt.client_email || "",
+        phone: receipt.client_phone || "",
+      });
+
+      if (receiptItems.length > 0) {
+        setItems(receiptItems);
+      } else {
+        // Keep at least one empty item
+        setItems([
+          {
+            id: "item_1",
+            description: "",
+            amount: 0,
+            quantity: 1,
+            unitPrice: 0,
+          },
+        ]);
+      }
+
+      setPaymentMethod((receipt.payment_method as any) || "transfer");
+
+      if (
+        receipt.seller_signature &&
+        receipt.seller_signature !== "null" &&
+        receipt.seller_signature !== ""
+      ) {
+        setSellerSignature(receipt.seller_signature);
+      }
+
+      setCustomerNote(receipt.customer_note || "");
+      setIssueDate(
+        receipt.issue_date || new Date().toISOString().split("T")[0],
+      );
+
+      // Check if receipt is signed
+      if (receipt.status === "signed") {
+        Swal.fire({
+          icon: "info",
+          title: "Receipt Already Signed",
+          text: "This receipt has been signed. Editing will reset the signature status and require the client to sign again.",
+          confirmButtonColor: "#2b825b",
+        });
+      }
+    } catch (error) {
+      console.error("❌ Failed to fetch receipt", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error instanceof Error ? error.message : "Failed to load receipt",
+        confirmButtonColor: "#2b825b",
+      }).then(() => {
+        router.push("/dashboard/services/receipt");
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  console.log("Receipt ID to edit:", seller);
+  // Update receipt using PUT endpoint
+  const updateReceiptInDatabase = async (): Promise<boolean> => {
+    try {
+      if (!userData?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      const totalAmount = calculateTotal();
+      const subtotalAmount = calculateSubtotal();
+
+      // Prepare items with proper structure
+      const receipt_items = items.map((item) => ({
+        id: item.id,
+        description: item.description,
+        quantity: item.quantity || 1,
+        unitPrice: item.unitPrice || 0,
+        amount: item.amount || 0,
+      }));
+
+      const payload = {
+        id: receiptId,
+        initiator_email: seller.email,
+        initiator_name: seller.name,
+        initiator_phone: seller.phone,
+        business_name: seller.name,
+        client_name: receiver.name || "",
+        client_email: receiver.email || "",
+        client_phone: receiver.phone || "",
+        bill_to: receiver.name || "",
+        from_name: seller.name,
+        issue_date: issueDate || new Date().toISOString().split("T")[0],
+        customer_note:
+          customerNote ||
+          (sellerSignature
+            ? "Updated receipt with signature"
+            : "Updated receipt"),
+        payment_for: receiptType,
+        payment_method: paymentMethod,
+        subtotal: subtotalAmount,
+        total: totalAmount,
+        status: "pending",
+        receipt_items: receipt_items,
+        seller_signature: sellerSignature || null,
+      };
+
+      // Call the PUT API to update receipt
+      const res = await fetch("/api/receipt/update-receipt", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(
+          "Update failed with status:",
+          res.status,
+          "Response:",
+          errorText,
+        );
+        throw new Error(
+          `Failed to update receipt: ${res.status} - ${errorText}`,
+        );
+      }
+
+      let data: ApiResponse;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        console.error("Error parsing JSON response:", parseError);
+        throw new Error("Invalid response from server");
+      }
+
+      if (!data.success) {
+        console.error("Update failed:", data);
+        throw new Error(data.message || data.error || "Receipt update failed");
+      }
+
+      console.log("Update successful:", data);
+      return true;
+    } catch (err) {
+      console.error("Update receipt error:", err);
+      throw err;
+    }
+  };
 
   useEffect(() => {
     if (receiptId) {
@@ -383,7 +406,16 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
     ) {
       setHasUnsavedChanges(true);
     }
-  }, [seller, receiver, items, sellerSignature, receiptType, paymentMethod, customerNote, issueDate]);
+  }, [
+    seller,
+    receiver,
+    items,
+    sellerSignature,
+    receiptType,
+    paymentMethod,
+    customerNote,
+    issueDate,
+  ]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -412,7 +444,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
     return items.reduce((total, item) => {
       const quantity = item.quantity || 1;
       const unitPrice = item.unitPrice || 0;
-      return total + (quantity * unitPrice);
+      return total + quantity * unitPrice;
     }, 0);
   };
 
@@ -461,13 +493,13 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
       });
 
       const data: PaymentResponse = await res.json();
-      
+
       if (res.ok) {
         Swal.fire({
           icon: "info",
           title: "Refund Processed",
           text: `₦${UPDATE_FEE.toLocaleString()} has been refunded to your wallet due to failed receipt update.`,
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
         });
       } else {
         throw new Error(data.error || "Refund failed");
@@ -478,12 +510,10 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
         icon: "warning",
         title: "Refund Failed",
         text: "Payment deduction was made, but refund failed. Please contact support.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     }
   };
-
-
 
   const validateForm = (): { isValid: boolean; errorMessages: string[] } => {
     const errorMessages: string[] = [];
@@ -512,8 +542,13 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
 
     // Validate items
     items.forEach((item, index) => {
-      if (item.description && (item.amount <= 0 || (item.unitPrice || 0) <= 0)) {
-        errorMessages.push(`• Item ${index + 1}: Amount must be greater than 0`);
+      if (
+        item.description &&
+        (item.amount <= 0 || (item.unitPrice || 0) <= 0)
+      ) {
+        errorMessages.push(
+          `• Item ${index + 1}: Amount must be greater than 0`,
+        );
       }
     });
 
@@ -530,10 +565,10 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
 
       if (paymentSuccess) {
         const updateSuccess = await updateReceiptInDatabase();
-        
+
         if (updateSuccess) {
           triggerConfetti();
-          
+
           Swal.fire({
             icon: "success",
             title: "Receipt Updated!",
@@ -547,7 +582,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                 </p>
               </div>
             `,
-            confirmButtonColor: "#C29307",
+            confirmButtonColor: "#2b825b",
             timer: 4000,
             showConfirmButton: false,
           }).then(() => {
@@ -563,7 +598,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
             icon: "error",
             title: "Update Failed",
             text: "Failed to update receipt. Your payment has been refunded.",
-            confirmButtonColor: "#C29307",
+            confirmButtonColor: "#2b825b",
           });
         }
       } else {
@@ -572,7 +607,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
           icon: "error",
           title: "Payment Failed",
           text: "Payment deduction failed. Please check your PIN and try again.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
         });
       }
     } catch (error) {
@@ -582,7 +617,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
         icon: "error",
         title: "Processing Failed",
         text: "Failed to process payment and update receipt. Please try again.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     } finally {
       setSaving(false);
@@ -594,7 +629,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
 
   const handleUpdateReceipt = () => {
     if (isFormLocked || isSending) return;
-    
+
     const { isValid, errorMessages } = validateForm();
 
     if (!isValid) {
@@ -609,7 +644,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
             </ul>
           </div>
         `,
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
         confirmButtonText: "OK",
         width: 500,
       });
@@ -638,7 +673,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
       particleCount: 100,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: ["#2b825b", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
     });
   };
 
@@ -660,7 +695,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
       if (!res.ok || !data.success) {
         throw new Error(data.message || "Failed to load signature");
       }
-      
+
       if (data.data?.signature) {
         setSellerSignature(data.data.signature);
         setSaveSignatureForFuture(true);
@@ -669,7 +704,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
           icon: "success",
           title: "Signature Loaded",
           text: "Your saved signature has been loaded.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
           timer: 2000,
           showConfirmButton: false,
         });
@@ -678,7 +713,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
           icon: "info",
           title: "No Saved Signature",
           text: "No saved signature found. Please create a new one.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
           timer: 2000,
           showConfirmButton: false,
         });
@@ -688,7 +723,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
         icon: "error",
         title: "Load Failed",
         text: "Failed to load saved signature. Please try again.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     }
   };
@@ -720,7 +755,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
           icon: "success",
           title: "Signature Saved",
           text: "Your signature has been saved for future use.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
           timer: 2000,
           showConfirmButton: false,
         });
@@ -731,7 +766,6 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
 
     if (!save && userData?.id) {
       try {
-     
         await fetch("/api/saved-signature", {
           method: "DELETE",
           headers: {
@@ -788,7 +822,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot reset form while processing is in progress.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return;
     }
@@ -798,7 +832,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
       text: "This will discard all unsaved changes and reload the original receipt.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#C29307",
+      confirmButtonColor: "#2b825b",
       cancelButtonColor: "#6b7280",
       confirmButtonText: "Reset",
       cancelButtonText: "Cancel",
@@ -806,12 +840,12 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
       if (result.isConfirmed) {
         fetchReceipt();
         setHasUnsavedChanges(false);
-        
+
         Swal.fire({
           icon: "success",
           title: "Changes Reset",
           text: "All changes have been discarded.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
           timer: 1500,
           showConfirmButton: false,
         });
@@ -825,7 +859,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot cancel while processing is in progress.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return;
     }
@@ -836,7 +870,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
         text: "You have unsaved changes. Are you sure you want to leave?",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
         cancelButtonColor: "#6b7280",
         confirmButtonText: "Yes, Discard",
         cancelButtonText: "Continue Editing",
@@ -885,7 +919,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
   }
 
   const customFocusStyle =
-    "focus:ring-2 focus:ring-[#C29307] focus:ring-offset-2 focus:border-[#C29307] transition-all duration-200";
+    "focus:ring-2 focus:ring-[#2b825b] focus:ring-offset-2 focus:border-[#2b825b] transition-all duration-200";
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -929,12 +963,10 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
         receiptType={receiptType}
         sellerPhone={seller.phone}
         receiverPhone={receiver.phone}
-     
       />
 
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-4 sm:py-6 px-3 sm:px-4">
-      
           <div className="mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div className="flex items-start gap-3">
@@ -942,7 +974,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                   variant="ghost"
                   size="sm"
                   onClick={handleCancel}
-                  className="text-[#C29307] hover:bg-white/10"
+                  className="text-[#2b825b] hover:bg-white/10"
                   disabled={isFormLocked}
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
@@ -964,7 +996,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                 {hasUnsavedChanges && (
                   <Badge
                     variant="outline"
-                    className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs"
+                    className="bg-green-50 text-yellow-700 border-yellow-200 text-xs"
                   >
                     <AlertTriangle className="w-3 h-3 mr-1" />
                     Unsaved
@@ -992,7 +1024,6 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
             </div>
           </div>
 
-    
           <div className="flex justify-center">
             <div className="w-full max-w-3xl lg:max-w-4xl">
               <Card className="p-4 sm:p-6">
@@ -1013,7 +1044,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                       size="sm"
                       onClick={() => setActiveTab("preview")}
                       disabled={isFormLocked}
-                      className="border-[#C29307] text-[#C29307] hover:bg-[#C29307]/10 text-xs sm:text-sm"
+                      className="border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b]/10 text-xs sm:text-sm"
                     >
                       <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                       Preview
@@ -1034,17 +1065,28 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-8">
-                    <TabsTrigger value="create" className="gap-1 sm:gap-2 text-xs sm:text-sm" disabled={isFormLocked}>
+                    <TabsTrigger
+                      value="create"
+                      className="gap-1 sm:gap-2 text-xs sm:text-sm"
+                      disabled={isFormLocked}
+                    >
                       <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                       Edit Receipt
                     </TabsTrigger>
-                    <TabsTrigger value="preview" className="gap-1 sm:gap-2 text-xs sm:text-sm" disabled={isFormLocked}>
+                    <TabsTrigger
+                      value="preview"
+                      className="gap-1 sm:gap-2 text-xs sm:text-sm"
+                      disabled={isFormLocked}
+                    >
                       <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                       Preview
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="create" className="space-y-6 sm:space-y-8">
+                  <TabsContent
+                    value="create"
+                    className="space-y-6 sm:space-y-8"
+                  >
                     {/* Signature Load Banner */}
                     <div className="p-3 sm:p-4 bg-gray-50 border border-gray-200 rounded-lg">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1061,9 +1103,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                           size="sm"
                           onClick={loadSignatureManually}
                           disabled={
-                            !userData?.id ||
-                            !!sellerSignature ||
-                            isFormLocked
+                            !userData?.id || !!sellerSignature || isFormLocked
                           }
                           className="border-gray-300 text-gray-700 hover:bg-gray-100 text-xs sm:text-sm"
                         >
@@ -1097,7 +1137,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                               checked={saveSignatureForFuture}
                               onCheckedChange={handleSaveSignatureToggle}
                               disabled={isFormLocked}
-                              className="data-[state=checked]:bg-[#C29307] scale-75 sm:scale-90"
+                              className="data-[state=checked]:bg-[#2b825b] scale-75 sm:scale-90"
                             />
                           </div>
                           {saveSignatureForFuture && (
@@ -1131,7 +1171,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                         style={{ animationDelay: "0.1s" }}
                       >
                         <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
-                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#C29307] text-white">
+                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#2b825b] text-white">
                             1
                           </span>
                           Seller Information
@@ -1166,7 +1206,12 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                             />
                           </div>
                           <div>
-                            <Label htmlFor="seller-phone" className="text-sm sm:text-base">Phone (Optional)</Label>
+                            <Label
+                              htmlFor="seller-phone"
+                              className="text-sm sm:text-base"
+                            >
+                              Phone (Optional)
+                            </Label>
                             <div className="relative">
                               <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3 sm:h-4 sm:w-4" />
                               <Input
@@ -1175,7 +1220,10 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                                 placeholder="+234 800 000 0000"
                                 value={seller.phone}
                                 onChange={(e) =>
-                                  setSeller({ ...seller, phone: e.target.value })
+                                  setSeller({
+                                    ...seller,
+                                    phone: e.target.value,
+                                  })
                                 }
                                 className={`mt-1.5 text-sm sm:text-base pl-8 sm:pl-10 ${customFocusStyle}`}
                                 disabled={isFormLocked}
@@ -1206,7 +1254,10 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                                 placeholder="email@example.com"
                                 value={seller.email}
                                 onChange={(e) =>
-                                  setSeller({ ...seller, email: e.target.value })
+                                  setSeller({
+                                    ...seller,
+                                    email: e.target.value,
+                                  })
                                 }
                                 className={`mt-1.5 text-sm sm:text-base pl-8 sm:pl-10 ${customFocusStyle}`}
                                 disabled={isFormLocked}
@@ -1230,7 +1281,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                         style={{ animationDelay: "0.15s" }}
                       >
                         <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
-                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#C29307] text-white">
+                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#2b825b] text-white">
                             2
                           </span>
                           Receiver Information
@@ -1251,7 +1302,10 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                               placeholder="Enter receiver's full name"
                               value={receiver.name}
                               onChange={(e) =>
-                                setReceiver({ ...receiver, name: e.target.value })
+                                setReceiver({
+                                  ...receiver,
+                                  name: e.target.value,
+                                })
                               }
                               className={`mt-1.5 text-sm sm:text-base ${customFocusStyle}`}
                               disabled={isFormLocked}
@@ -1268,7 +1322,10 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             <div>
-                              <Label htmlFor="receiver-email" className="text-sm sm:text-base">
+                              <Label
+                                htmlFor="receiver-email"
+                                className="text-sm sm:text-base"
+                              >
                                 Email (Optional)
                               </Label>
                               <div className="relative">
@@ -1300,7 +1357,10 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                             </div>
 
                             <div>
-                              <Label htmlFor="receiver-phone" className="text-sm sm:text-base">
+                              <Label
+                                htmlFor="receiver-phone"
+                                className="text-sm sm:text-base"
+                              >
                                 Phone (Optional)
                               </Label>
                               <div className="relative">
@@ -1325,7 +1385,12 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
 
                           {/* Issue Date */}
                           <div>
-                            <Label htmlFor="issue-date" className="text-sm sm:text-base">Issue Date</Label>
+                            <Label
+                              htmlFor="issue-date"
+                              className="text-sm sm:text-base"
+                            >
+                              Issue Date
+                            </Label>
                             <Input
                               id="issue-date"
                               type="date"
@@ -1333,7 +1398,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                               onChange={(e) => setIssueDate(e.target.value)}
                               className={`mt-1.5 text-sm sm:text-base ${customFocusStyle}`}
                               disabled={isFormLocked}
-                              max={new Date().toISOString().split('T')[0]}
+                              max={new Date().toISOString().split("T")[0]}
                             />
                           </div>
                         </div>
@@ -1345,7 +1410,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                         style={{ animationDelay: "0.2s" }}
                       >
                         <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
-                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#C29307] text-white">
+                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#2b825b] text-white">
                             3
                           </span>
                           Transaction Details
@@ -1369,14 +1434,19 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                             <span className="text-lg sm:text-xl text-gray-800 font-bold">
                               Total
                             </span>
-                            <span className="text-xl sm:text-2xl font-bold text-[#C29307]">
+                            <span className="text-xl sm:text-2xl font-bold text-[#2b825b]">
                               {formatCurrency(calculateTotal())}
                             </span>
                           </div>
                         </div>
 
                         <div>
-                          <Label htmlFor="payment-method" className="text-sm sm:text-base">Payment Method</Label>
+                          <Label
+                            htmlFor="payment-method"
+                            className="text-sm sm:text-base"
+                          >
+                            Payment Method
+                          </Label>
                           <Select
                             value={paymentMethod}
                             onValueChange={(v) =>
@@ -1402,7 +1472,12 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
 
                         {/* Customer Note */}
                         <div>
-                          <Label htmlFor="customer-note" className="text-sm sm:text-base">Customer Note (Optional)</Label>
+                          <Label
+                            htmlFor="customer-note"
+                            className="text-sm sm:text-base"
+                          >
+                            Customer Note (Optional)
+                          </Label>
                           <Input
                             id="customer-note"
                             placeholder="Add any additional notes for the customer"
@@ -1420,7 +1495,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                         style={{ animationDelay: "0.25s" }}
                       >
                         <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
-                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#C29307] text-white">
+                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#2b825b] text-white">
                             4
                           </span>
                           Your Signature
@@ -1451,7 +1526,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                             checked={saveSignatureForFuture}
                             onCheckedChange={handleSaveSignatureToggle}
                             disabled={!sellerSignature || isFormLocked}
-                            className="data-[state=checked]:bg-[#C29307]"
+                            className="data-[state=checked]:bg-[#2b825b]"
                           />
                         </div>
                       </div>
@@ -1471,7 +1546,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                           type="submit"
                           variant="default"
                           size="lg"
-                          className="flex-1 bg-[#C29307] hover:bg-[#b38606] text-white focus:ring-2 focus:ring-offset-2 focus:ring-[#C29307] text-sm sm:text-base"
+                          className="flex-1 bg-[#2b825b] hover:bg-[#1e5d42] text-white focus:ring-2 focus:ring-offset-2 focus:ring-[#2b825b] text-sm sm:text-base"
                           disabled={isFormLocked || isSending}
                         >
                           {isSending ? (
@@ -1500,19 +1575,19 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
                       sellerSignature={sellerSignature}
                       onLoadSavedSignature={loadSignatureManually}
                       isProcessingPayment={isFormLocked}
-                    
                     />
-                    
+
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-4 border-t mt-6 gap-3">
                       <div className="text-sm text-gray-500">
                         <p>
-                          Switch to the "Edit Receipt" tab to modify your receipt
+                          Switch to the "Edit Receipt" tab to modify your
+                          receipt
                         </p>
                       </div>
                       <Button
                         variant="outline"
                         onClick={() => setActiveTab("create")}
-                        className="border-[#C29307] text-[#C29307] hover:bg-[#C29307]/10"
+                        className="border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b]/10"
                       >
                         <EyeOff className="h-4 w-4 mr-2" />
                         Back to Editor
@@ -1529,7 +1604,11 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
   );
 }
 
-export default function EditReceipt({ params }: { params: Promise<{ id: string }> }) {
+export default function EditReceipt({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <EditReceiptPage params={params} />

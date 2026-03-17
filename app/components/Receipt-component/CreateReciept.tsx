@@ -22,7 +22,9 @@ import {
   Check,
   Download,
   AlertCircle,
-  Wallet,
+  Crown,
+  Zap,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -37,10 +39,11 @@ import {
 } from "../ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { useUserContextData } from "../../context/userData";
-import PinPopOver from "../PinPopOver";
+import { useSubscription } from "../../hooks/useSubscripion";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
 import { Badge } from "../ui/badge";
 import { GenerateReceiptModal } from "./GenerateReceiptModal";
 import { ReceiptPreview } from "../previews/RecieptPreview";
@@ -52,7 +55,6 @@ import { SignaturePad } from "../SignaturePad";
 import { ReceiptItemsForm } from "./ReceiptItemsForm";
 import { ReceiptTypeSelector } from "./ReceiptTypeSelector";
 
-// Import types
 import type {
   ReceiptType,
   SellerInfo,
@@ -61,46 +63,58 @@ import type {
   ReceiptDraft,
   DraftsResponse,
   SaveReceiptResponse,
-  PaymentResponse,
   ReceiptSummaryItem,
 } from "./receiptTypes";
 
 interface ReceiptUsageInfo {
   used: number;
-  limit: number;
-  remaining: number;
+  limit: number | string;
+  remaining: number | string;
   hasAccess: boolean;
   isChecking: boolean;
-  isPayPerUse?: boolean;
+  requiresUpgrade: boolean;
 }
 
 interface CreateReceiptProps {
-  userTier?: 'free' | 'growth' | 'premium' | 'elite';
+  userTier?: "free" | "zidlite" | "growth" | "premium" | "elite";
   hasReachedLimit?: boolean;
 }
 
-const RECEIPT_FEE = 100; // ₦100 per receipt after limit
+const MySwal = withReactContent(Swal);
 
-function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: CreateReceiptProps) {
-  const inputCount = 4;
-  const [pin, setPin] = useState(Array(inputCount).fill(""));
-  const [isPinOpen, setIsPinOpen] = useState(false);
+function CreateReceiptPage({
+  userTier,
+  hasReachedLimit = false,
+}: CreateReceiptProps) {
+  // Get subscription data directly from hook
+  const {
+    userTier: subscriptionTier,
+    isPremium,
+    isGrowth,
+    isElite,
+    isZidLite,
+    hasRequiredTier,
+    getPlanLimits,
+  } = useSubscription();
+
+  const effectiveUserTier = subscriptionTier || userTier || "free";
+
   const [loading, setLoading] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [isFormLocked, setIsFormLocked] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [showReceiptSummary, setShowReceiptSummary] = useState(false);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<"create" | "preview">("create");
   const [saveSignatureForFuture, setSaveSignatureForFuture] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentDeducted, setPaymentDeducted] = useState(false);
+  const [savedReceiptData, setSavedReceiptData] = useState<any>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { userData, balance } = useUserContextData();
+  const { userData } = useUserContextData();
 
   const sellerNameRef = useRef<HTMLInputElement>(null);
   const sellerPhoneRef = useRef<HTMLInputElement>(null);
@@ -109,23 +123,27 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
   const receiverEmailRef = useRef<HTMLInputElement>(null);
   const receiverPhoneRef = useRef<HTMLInputElement>(null);
 
+  // Determine user tier using effective values
+  const isPremiumUser = isPremium || effectiveUserTier === "premium";
+  const isEliteUser = isElite || effectiveUserTier === "elite";
+  const isGrowthUser = isGrowth || effectiveUserTier === "growth";
+  const isZidLiteUser = isZidLite || effectiveUserTier === "zidlite";
+  const isFreeUser = effectiveUserTier === "free";
+
+  const hasUnlimitedReceipts = isPremiumUser || isGrowthUser || isEliteUser;
+
+  // Get plan limits
+  const limits = getPlanLimits();
+
   // Receipt usage tracking
   const [receiptUsage, setReceiptUsage] = useState<ReceiptUsageInfo>({
     used: 0,
-    limit: userTier === 'free' ? 5 : Infinity,
-    remaining: userTier === 'free' ? 5 : Infinity,
+    limit: hasUnlimitedReceipts ? "unlimited" : isZidLiteUser ? 10 : 5,
+    remaining: hasUnlimitedReceipts ? "unlimited" : isZidLiteUser ? 10 : 5,
     hasAccess: true,
     isChecking: true,
-    isPayPerUse: false,
+    requiresUpgrade: false,
   });
-
-  // Safe balance value
-  const safeBalance = balance || 0;
-
-  // Determine user tier
-  const isPremium = userTier === 'premium' || userTier === 'elite';
-  const isGrowth = userTier === 'growth';
-  const hasUnlimitedReceipts = isPremium || isGrowth;
 
   const [receiptType, setReceiptType] = useState<ReceiptType>("general");
   const [seller, setSeller] = useState<SellerInfo>({
@@ -165,14 +183,25 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         const res = await fetch("/api/user/usage");
         if (res.ok) {
           const data = await res.json();
-          
+
           setReceiptUsage({
             used: data.receipts.used || 0,
-            limit: data.receipts.limit || (userTier === 'free' ? 5 : Infinity),
-            remaining: data.receipts.remaining || (userTier === 'free' ? 5 : Infinity),
+            limit: hasUnlimitedReceipts
+              ? "unlimited"
+              : data.receipts.limit || (isZidLiteUser ? 10 : 5),
+            remaining: hasUnlimitedReceipts
+              ? "unlimited"
+              : data.receipts.remaining ||
+                Math.max(
+                  0,
+                  (isZidLiteUser ? 10 : 5) - (data.receipts.used || 0),
+                ),
             hasAccess: true,
             isChecking: false,
-            isPayPerUse: data.receipts.remaining <= 0 && !hasUnlimitedReceipts,
+            requiresUpgrade:
+              !hasUnlimitedReceipts &&
+              (data.receipts.remaining <= 0 ||
+                (data.receipts.used || 0) >= (isZidLiteUser ? 10 : 5)),
           });
         }
       } catch (error) {
@@ -182,25 +211,15 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
     };
 
     fetchUsage();
-  }, [userData?.id, userTier, hasUnlimitedReceipts]);
+  }, [userData?.id, hasUnlimitedReceipts, isZidLiteUser]);
 
   // Check if user has free receipt access
   const hasFreeReceiptAccess = (): boolean => {
     if (hasUnlimitedReceipts) return true;
-    return receiptUsage.remaining > 0;
-  };
-
-  // Determine if PIN confirmation is needed
-  const requiresPinConfirmation = (): boolean => {
-    if (isPremium) return false; // Premium users never need PIN
-    if (hasUnlimitedReceipts) return false; // Growth users with unlimited
-    if (receiptUsage.remaining > 0) return false; // Free receipt available
-    return true; // Pay-per-use
-  };
-
-  // Check if user has sufficient balance
-  const hasSufficientBalance = (): boolean => {
-    return safeBalance >= RECEIPT_FEE;
+    if (typeof receiptUsage.remaining === "number") {
+      return receiptUsage.remaining > 0;
+    }
+    return receiptUsage.remaining === "unlimited";
   };
 
   // Generate receipt ID
@@ -208,10 +227,6 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
     const datePart = new Date().getFullYear();
     const randomPart = Math.floor(1000 + Math.random() * 9000);
     return `REC-${datePart}-${randomPart}`;
-  }, []);
-
-  const generateReceiptNumber = useCallback(() => {
-    return `REC-${Date.now().toString().slice(-6)}`;
   }, []);
 
   // Generate unique token
@@ -223,10 +238,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
   useEffect(() => {
     if (userData) {
       const sellerInfo = {
-        name:
-          userData.fullName
-            ? `${userData.fullName}`
-            : userData.email || "",
+        name: userData.fullName ? `${userData.fullName}` : userData.email || "",
         email: userData.email || "",
         phone: userData.phone || "",
       };
@@ -298,6 +310,13 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
+  // Reset upgrade prompt when user has unlimited receipts
+  useEffect(() => {
+    if (hasUnlimitedReceipts && showUpgradePrompt) {
+      setShowUpgradePrompt(false);
+    }
+  }, [hasUnlimitedReceipts, showUpgradePrompt]);
+
   // SIGNATURE SAVE/LOAD FUNCTIONS
   const loadSignatureManually = async () => {
     try {
@@ -306,6 +325,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
           icon: "warning",
           title: "Not Logged In",
           text: "You need to be logged in to load saved signatures.",
+          confirmButtonColor: "#2b825b",
         });
         return;
       }
@@ -328,7 +348,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
             icon: "success",
             title: "Signature Loaded",
             text: "Your saved signature has been loaded.",
-            confirmButtonColor: "#C29307",
+            confirmButtonColor: "#2b825b",
             timer: 2000,
             showConfirmButton: false,
           });
@@ -337,7 +357,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
             icon: "info",
             title: "No Saved Signature",
             text: "No saved signature found. Please create a new one.",
-            confirmButtonColor: "#C29307",
+            confirmButtonColor: "#2b825b",
             timer: 2000,
             showConfirmButton: false,
           });
@@ -347,7 +367,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
           icon: "error",
           title: "Load Failed",
           text: "Failed to load saved signature. Please try again.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
         });
       }
     } catch (error) {
@@ -355,7 +375,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         icon: "error",
         title: "Load Failed",
         text: "Failed to load saved signature. Please try again.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     }
   };
@@ -400,7 +420,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
             icon: "success",
             title: "Signature Saved",
             text: "Your signature has been saved for future use.",
-            confirmButtonColor: "#C29307",
+            confirmButtonColor: "#2b825b",
             timer: 2000,
             showConfirmButton: false,
           });
@@ -410,7 +430,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
           icon: "error",
           title: "Save Failed",
           text: "Failed to save signature. Please try again.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
         });
       }
     }
@@ -465,13 +485,12 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
   const loadUserDrafts = async () => {
     try {
       if (!userData?.id) {
-        console.log("No user data found");
         return;
       }
 
       setIsLoadingDrafts(true);
       const res = await fetch(
-        `/api/receipt/receipt-drafts?userId=${userData.id}`
+        `/api/receipt/receipt-drafts?userId=${userData.id}`,
       );
 
       if (!res.ok) {
@@ -504,7 +523,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
               confirmButtonText: "Load Recent",
               denyButtonText: "View All Drafts",
               cancelButtonText: "Start Fresh",
-              confirmButtonColor: "#C29307",
+              confirmButtonColor: "#2b825b",
               cancelButtonColor: "#6b7280",
               denyButtonColor: "#3b82f6",
               width: 500,
@@ -556,7 +575,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         setItems(items);
       }
 
-      // Set seller info - using correct field names from sample data
+      // Set seller info
       setSeller({
         name: draft.initiator_name || draft.business_name || "",
         email: draft.initiator_email || "",
@@ -575,7 +594,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         setSellerSignature(draft.seller_signature);
         setSaveSignatureForFuture(true);
       } else {
-        setSellerSignature(""); // Clear signature if none exists
+        setSellerSignature("");
       }
 
       // Try to extract receipt type from payment_for field
@@ -604,7 +623,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         icon: "success",
         title: "Draft Loaded!",
         text: "Your receipt draft has been loaded successfully.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
         timer: 2000,
         showConfirmButton: false,
       });
@@ -614,7 +633,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         icon: "error",
         title: "Error Loading Draft",
         text: "Failed to load draft data. Please try again.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     }
   };
@@ -625,23 +644,23 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         (draft, index) => `
           <div style="padding: 12px; border-bottom: 1px solid #e5e7eb; cursor: pointer; transition: background-color 0.2s;" 
                data-draft-index="${index}"
-               class="hover:bg-gray-50 rounded flex justify-between items-start">
+               class="hover:bg-gray-50 dark:hover:bg-gray-800 rounded flex justify-between items-start">
             <div>
-              <strong class="text-gray-900">${
+              <strong class="text-gray-900 dark:text-white">${
                 draft.business_name || "Untitled Receipt"
               }</strong><br>
-              <small class="text-gray-600">To: ${
+              <small class="text-gray-600 dark:text-gray-400">To: ${
                 draft.client_name || "No recipient"
               }</small><br>
-              <small class="text-gray-500">Email: ${
+              <small class="text-gray-500 dark:text-gray-500">Email: ${
                 draft.client_email || "Not provided"
               }</small><br>
-              <small class="text-gray-500">Phone: ${
+              <small class="text-gray-500 dark:text-gray-500">Phone: ${
                 draft.client_phone || "Not provided"
               }</small><br>
-              <small class="text-gray-500">Amount: ₦${draft.total.toLocaleString()}</small><br>
-              <small class="text-gray-500">Created: ${new Date(
-                draft.created_at
+              <small class="text-gray-500 dark:text-gray-500">Amount: ₦${draft.total.toLocaleString()}</small><br>
+              <small class="text-gray-500 dark:text-gray-500">Created: ${new Date(
+                draft.created_at,
               ).toLocaleDateString()}</small>
             </div>
             <button 
@@ -654,21 +673,24 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
               </svg>
             </button>
           </div>
-        `
+        `,
       )
       .join("");
 
     Swal.fire({
       title: "Select a Draft to Load",
       html: `
-        <div style="text-align: left; max-height: 300px; overflow-y auto; padding-right: 4px;">
+        <div style="text-align: left; max-height: 300px; overflow-y auto; padding-right: 4px;" class="dark:bg-gray-900">
           ${draftListHTML}
         </div>
       `,
       showConfirmButton: true,
       confirmButtonText: "Close",
-      confirmButtonColor: "#C29307",
+      confirmButtonColor: "#2b825b",
       width: 600,
+      background: document.documentElement.classList.contains("dark")
+        ? "#1f2937"
+        : "#ffffff",
       didOpen: () => {
         // Add click handlers for loading drafts
         const draftElements = document.querySelectorAll("[data-draft-index]");
@@ -676,7 +698,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
           element.addEventListener("click", (e) => {
             if (!(e.target as HTMLElement).closest("[data-delete-index]")) {
               const index = parseInt(
-                element.getAttribute("data-draft-index") || "0"
+                element.getAttribute("data-draft-index") || "0",
               );
               loadDraftIntoForm(draftsList[index]);
               Swal.close();
@@ -692,7 +714,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
             e.stopPropagation();
 
             const index = parseInt(
-              button.getAttribute("data-delete-index") || "0"
+              button.getAttribute("data-delete-index") || "0",
             );
             const draftToDelete = draftsList[index];
 
@@ -703,10 +725,13 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
               }"?`,
               icon: "warning",
               showCancelButton: true,
-              confirmButtonColor: "#C29307",
+              confirmButtonColor: "#2b825b",
               cancelButtonColor: "#6b7280",
               confirmButtonText: "Yes, delete it!",
               cancelButtonText: "Cancel",
+              background: document.documentElement.classList.contains("dark")
+                ? "#1f2937"
+                : "#ffffff",
             });
 
             if (result.isConfirmed) {
@@ -724,52 +749,31 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
   };
 
   const validateForm = (): { isValid: boolean; errorMessages: string[] } => {
-    const newErrors = {
-      sellerName: "",
-      sellerEmail: "",
-      receiverName: "",
-      receiverEmail: "",
-      items: "",
-    };
-
-    let hasErrors = false;
     const errorMessages: string[] = [];
 
     if (!seller.name.trim()) {
-      newErrors.sellerName = "Seller name is required.";
-      hasErrors = true;
       errorMessages.push("• Seller name is required");
     }
 
     if (!seller.email.trim()) {
-      newErrors.sellerEmail = "Seller email is required.";
-      hasErrors = true;
       errorMessages.push("• Seller email is required");
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(seller.email)) {
-      newErrors.sellerEmail = "Invalid seller email format.";
-      hasErrors = true;
       errorMessages.push("• Invalid seller email format");
     }
 
     if (!receiver.name.trim()) {
-      newErrors.receiverName = "Receiver name is required.";
-      hasErrors = true;
       errorMessages.push("• Receiver name is required");
     }
 
     if (receiver.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receiver.email)) {
-      newErrors.receiverEmail = "Invalid receiver email format.";
-      hasErrors = true;
       errorMessages.push("• Invalid receiver email format");
     }
 
     if (items.every((item) => !item.description && item.amount === 0)) {
-      newErrors.items = "At least one item is required.";
-      hasErrors = true;
       errorMessages.push("• At least one item is required");
     }
 
-    return { isValid: !hasErrors, errorMessages };
+    return { isValid: errorMessages.length === 0, errorMessages };
   };
 
   const handleSaveDraft = async () => {
@@ -782,6 +786,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
           icon: "warning",
           title: "Unauthorized",
           text: "You must be logged in to save a draft.",
+          confirmButtonColor: "#2b825b",
         });
         setIsFormLocked(false);
         return;
@@ -797,6 +802,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
           icon: "warning",
           title: "No Content",
           text: "Please add some content before saving as draft.",
+          confirmButtonColor: "#2b825b",
         });
         setIsFormLocked(false);
         return;
@@ -806,7 +812,6 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
       const totalAmount = calculateTotal();
       const token = generateToken();
 
-    
       const receipt_items = items.map((item) => ({
         id: item.id,
         description: item.description,
@@ -815,7 +820,6 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         amount: item.amount || 0,
       }));
 
-    
       const payload: any = {
         token,
         receipt_id: receiptId,
@@ -865,7 +869,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
 
       if (!res.ok) {
         throw new Error(
-          result.error || result.message || "Failed to save draft"
+          result.error || result.message || "Failed to save draft",
         );
       }
 
@@ -875,7 +879,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         text: currentDraftId
           ? "Your receipt draft has been updated successfully."
           : "Your receipt draft has been saved successfully.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
 
       setHasUnsavedChanges(false);
@@ -885,6 +889,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         icon: "error",
         title: "Failed to Save Draft",
         text: err.message || "An unexpected error occurred.",
+        confirmButtonColor: "#2b825b",
       });
     } finally {
       setDraftLoading(false);
@@ -892,13 +897,18 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
     }
   };
 
+  const resetAllLoadingStates = useCallback(() => {
+    setIsProcessing(false);
+    setIsSubmitting(false);
+  }, []);
+
   const deleteDraft = async (draftId: string) => {
     try {
       const res = await fetch(
         `/api/receipt/receipt-drafts?id=${draftId}&userId=${userData?.id}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       const result = await res.json();
@@ -927,7 +937,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
       : process.env.NEXT_PUBLIC_BASE_URL;
 
   const handleSaveReceipt = async (
-    isDraft: boolean = false
+    isDraft: boolean = false,
   ): Promise<SaveReceiptResponse> => {
     try {
       setLoading(true);
@@ -962,9 +972,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         tax_amount: 0,
         discount_amount: 0,
         total: totalAmount,
-        signing_link: isDraft
-          ? ""
-          : `https://yourapp.com/receipt/sign/${token}`,
+        signing_link: isDraft ? "" : `${baseUrl}/sign-receipt/${token}`,
         verification_code: isDraft
           ? ""
           : Math.random().toString(36).substr(2, 6).toUpperCase(),
@@ -972,26 +980,15 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         status: isDraft ? "draft" : "pending",
         receipt_items: items,
         seller_signature: sellerSignature || null,
-        pin: isDraft ? "" : pin.join(""),
       };
-
-      // For final receipt (not draft), include the PIN
-      const requestBody = isDraft
-        ? payload
-        : {
-            ...payload,
-            pin: pin.join(""),
-          };
 
       const endpoint = "/api/receipt/send-receipt";
       const method = "POST";
 
-      console.log("Sending receipt data:", requestBody);
-
       const res = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(payload),
       });
 
       const result: SaveReceiptResponse = await res.json();
@@ -1000,13 +997,25 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         throw new Error(
           result.error ||
             result.message ||
-            `Failed to save receipt: ${res.status}`
+            `Failed to save receipt: ${res.status}`,
         );
       }
 
       if (!isDraft) {
+        // Store the complete receipt data for the modal
+        const receiptData = {
+          ...payload,
+          id: result.receiptId || receiptId,
+          created_at: new Date().toISOString(),
+          signed_at: null,
+          client_signature: null,
+          metadata: result.metadata || {},
+          ...result.data,
+        };
+
+        setSavedReceiptData(receiptData);
         setGeneratedSigningLink(
-          result.signingLink || `${baseUrl}/sign-receipt/${token}`
+          result.signingLink || `${baseUrl}/sign-receipt/${token}`,
         );
         setSavedReceiptId(receiptId);
         setShowSuccessModal(true);
@@ -1014,8 +1023,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
 
       return {
         success: true,
-        signingLink:
-          result.signingLink || `https://yourapp.com/receipt/sign/${token}`,
+        signingLink: result.signingLink || `${baseUrl}/sign-receipt/${token}`,
         receiptId: result.receiptId || receiptId,
         data: result,
       };
@@ -1031,141 +1039,14 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
     }
   };
 
-  const handleDeduct = async (): Promise<boolean> => {
-    // If user has free access, no need to deduct
-    if (!requiresPinConfirmation()) {
-      return true;
-    }
-
-    const pinString = pin.join("");
-
+  const processReceiptAndSubmit = async () => {
     try {
-      const res = await fetch("/api/deduct-funds", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData?.id,
-          pin: pinString,
-          amount: RECEIPT_FEE,
-          description: "Receipt creation",
-          isReceiptCreation: true,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 403) {
-          Swal.fire({
-            icon: "warning",
-            title: "Limit Reached",
-            text: data.message || "You've reached your monthly receipt limit.",
-          });
-          router.push("/pricing?upgrade=growth");
-        } else if (res.status === 400 && data.error?.includes("Insufficient")) {
-          Swal.fire({
-            icon: "error",
-            title: "Insufficient Balance",
-            text: data.message || "Please fund your wallet to continue.",
-          });
-          router.push("/dashboard/fund-account");
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "Payment Failed",
-            text: data.error || "Something went wrong",
-          });
-        }
-        return false;
-      }
-
-      // Update receipt usage if returned
-      if (data.usedThisMonth !== undefined) {
-        setReceiptUsage((prev) => ({
-          ...prev,
-          used: data.usedThisMonth,
-          remaining: data.remaining === "unlimited" ? 999 : data.remaining,
-          isPayPerUse: data.pay_per_use || false,
-        }));
-      }
-
-      return true;
-    } catch (err: any) {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: err.message,
-      });
-      return false;
-    }
-  };
-
-  const handleRefund = async () => {
-    try {
-      const res = await fetch("/api/refund-service", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData?.id,
-          amount: RECEIPT_FEE,
-          description: "Refund for failed receipt generation",
-        }),
-      });
-
-      const data: PaymentResponse = await res.json();
-
-      if (res.ok) {
-        Swal.fire({
-          icon: "info",
-          title: "Refund Processed",
-          text: `₦${RECEIPT_FEE.toLocaleString()} has been refunded to your wallet due to failed receipt sending.`,
-        });
-      } else {
-        throw new Error(data.error || "Refund failed");
-      }
-    } catch (err) {
-      Swal.fire({
-        icon: "warning",
-        title: "Refund Failed",
-        text: "Payment deduction was made, but refund failed. Please contact support.",
-      });
-    }
-  };
-
-  // Helper function to reset all loading states
-  const resetAllLoadingStates = () => {
-    setIsProcessingPayment(false);
-    setIsSubmitting(false);
-    setPaymentDeducted(false);
-    setPin(Array(inputCount).fill(""));
-  };
-
-  const processPaymentAndSubmit = async () => {
-    let deducted = false;
-    
-    try {
-      setIsProcessingPayment(true);
+      setIsProcessing(true);
       setIsSubmitting(true);
 
-      // Step 1: Handle payment if required
-      if (requiresPinConfirmation()) {
-        deducted = await handleDeduct();
-        setPaymentDeducted(deducted);
-        
-        if (!deducted) {
-          resetAllLoadingStates();
-          setIsPinOpen(false);
-          return;
-        }
-      } else {
-        // Free receipt - mark as deducted for tracking
-        deducted = true;
-        setPaymentDeducted(true);
-      }
-
-      // Step 2: Save the receipt
+      // Create the receipt
       const result = await handleSaveReceipt(false);
-      
+
       if (result.success) {
         setGeneratedSigningLink(result.signingLink || "");
         setSavedReceiptId(result.receiptId || "");
@@ -1173,17 +1054,15 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         triggerConfetti();
 
         resetAllLoadingStates();
-        setIsPinOpen(false);
 
         setHasUnsavedChanges(false);
         setCurrentDraftId(null);
 
         // Reset form
         setSeller({
-          name:
-            userData?.fullName
-              ? `${userData.fullName}`
-              : userData?.email || "",
+          name: userData?.fullName
+            ? `${userData.fullName}`
+            : userData?.email || "",
           email: userData?.email || "",
           phone: userData?.phone || "",
         });
@@ -1202,39 +1081,83 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
 
         setShowSuccessModal(true);
       } else {
-        // Receipt save failed - refund if payment was deducted
-        if (deducted) {
-          await handleRefund();
-        }
         resetAllLoadingStates();
-        setIsPinOpen(false);
       }
     } catch (error) {
-      // Unexpected error - refund if payment was deducted
-      if (deducted) {
-        await handleRefund();
-      }
       resetAllLoadingStates();
-      setIsPinOpen(false);
-      
+
       Swal.fire({
         icon: "error",
         title: "Processing Failed",
         text: "Failed to process your request. Please try again.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     }
   };
 
   const handleSubmit = async (isDraft: boolean = false) => {
-    // Check if user has reached limit
-    if (!isPremium && hasReachedLimit && !isDraft) {
-      setShowUpgradePrompt(true);
+    // FIRST CHECK: If user has unlimited receipts (Premium, Growth, or Elite), always allow submission
+    if (hasUnlimitedReceipts) {
+      // Skip all limit checks for unlimited users
+      if (isDraft) {
+        await handleSaveDraft();
+        return;
+      }
+
+      // For non-draft, proceed to validation and summary
+      try {
+        setIsSubmitting(true);
+
+        const { isValid, errorMessages } = validateForm();
+
+        if (!isValid) {
+          Swal.fire({
+            icon: "error",
+            title: "Validation Error",
+            html: `
+              <div class="text-left">
+                <p class="font-semibold mb-2">Please fix the following errors:</p>
+                <ul class="list-disc pl-4 space-y-1">
+                  ${errorMessages.map((msg) => `<li>${msg}</li>`).join("")}
+                </ul>
+              </div>
+            `,
+            confirmButtonColor: "#2b825b",
+            confirmButtonText: "OK",
+            width: 500,
+            background: document.documentElement.classList.contains("dark")
+              ? "#1f2937"
+              : "#ffffff",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        setShowReceiptSummary(true);
+      } catch (error) {
+        console.error("Submit error:", error);
+        Swal.fire({
+          icon: "error",
+          title: "Submission Error",
+          text: "An error occurred while processing your request.",
+          confirmButtonColor: "#2b825b",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
+    // For Free and ZidLite users, check if they've reached the limit
+    if (!hasUnlimitedReceipts) {
+      if (receiptUsage.requiresUpgrade && !isDraft) {
+        setShowUpgradePrompt(true);
+        return;
+      }
+    }
+
     // Prevent multiple submissions
-    if (isSubmitting || isProcessingPayment || draftLoading) {
+    if (isSubmitting || isProcessing || draftLoading) {
       return;
     }
 
@@ -1243,10 +1166,9 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
       return;
     }
 
-    // Don't set loading state here - just validate and show summary
     try {
       setIsSubmitting(true);
-      
+
       const { isValid, errorMessages } = validateForm();
 
       if (!isValid) {
@@ -1261,9 +1183,12 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
               </ul>
             </div>
           `,
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
           confirmButtonText: "OK",
           width: 500,
+          background: document.documentElement.classList.contains("dark")
+            ? "#1f2937"
+            : "#ffffff",
         });
         setIsSubmitting(false);
         return;
@@ -1276,7 +1201,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
         icon: "error",
         title: "Submission Error",
         text: "An error occurred while processing your request.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     } finally {
       setIsSubmitting(false);
@@ -1285,37 +1210,25 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
 
   const handleSummaryConfirm = () => {
     setShowReceiptSummary(false);
-    
-    // Check if user has sufficient balance for pay-per-use
-    if (requiresPinConfirmation() && !hasSufficientBalance()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Insufficient Balance",
-        text: `You need ₦${RECEIPT_FEE} in your wallet. Would you like to fund your wallet?`,
-        showCancelButton: true,
-        confirmButtonText: "Fund Wallet",
-        cancelButtonText: "Cancel",
-        confirmButtonColor: "#C29307",
-      }).then((result) => {
-        if (result.isConfirmed) {
-          router.push("/dashboard/fund-account");
-        }
-      });
+
+    // If user has unlimited receipts, proceed directly
+    if (hasUnlimitedReceipts) {
+      processReceiptAndSubmit();
       return;
     }
 
-    if (requiresPinConfirmation()) {
-      setIsPinOpen(true);
+    // For free/ZidLite users with remaining receipts, proceed
+    if (hasFreeReceiptAccess()) {
+      processReceiptAndSubmit();
     } else {
-      processPaymentAndSubmit();
+      // This should not happen as we check in handleSubmit, but just in case
+      setShowUpgradePrompt(true);
     }
   };
 
   const handleSummaryBack = () => {
     setShowReceiptSummary(false);
     resetAllLoadingStates();
-    setIsPinOpen(false);
-    setPin(Array(inputCount).fill(""));
   };
 
   const triggerConfetti = () => {
@@ -1323,7 +1236,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: ["#2b825b", "#1e5f43", "#3a9f72", "#ffffff", "#fbbf24"],
     });
   };
 
@@ -1332,17 +1245,13 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
     toast.success("Receipt link copied to clipboard");
   };
 
-  const handleDownloadPDF = async () => {
-    toast.success("Your receipt has been downloaded as PDF");
-  };
-
   const resetForm = () => {
-    if (isFormLocked || isProcessingPayment) {
+    if (isFormLocked || isProcessing) {
       Swal.fire({
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot clear form while submission is in progress.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return;
     }
@@ -1352,17 +1261,19 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
       text: "This will remove all current form data including signature.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#C29307",
+      confirmButtonColor: "#2b825b",
       cancelButtonColor: "#6b7280",
       confirmButtonText: "Clear",
       cancelButtonText: "Cancel",
+      background: document.documentElement.classList.contains("dark")
+        ? "#1f2937"
+        : "#ffffff",
     }).then((result) => {
       if (result.isConfirmed) {
         setSeller({
-          name:
-            userData?.fullName
-              ? `${userData.fullName}`
-              : userData?.email || "",
+          name: userData?.fullName
+            ? `${userData.fullName}`
+            : userData?.email || "",
           email: userData?.email || "",
           phone: userData?.phone || "",
         });
@@ -1421,19 +1332,11 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
 
   // Get button text based on state
   const getGenerateButtonText = () => {
-    if (isProcessingPayment || isSubmitting) {
+    if (isProcessing || isSubmitting) {
       return (
         <>
           <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-          Processing...
-        </>
-      );
-    }
-    if (!hasFreeReceiptAccess()) {
-      return (
-        <>
-          <Wallet className="h-5 w-5 mr-2" />
-          Pay ₦{RECEIPT_FEE} & Generate
+          Generating...
         </>
       );
     }
@@ -1447,87 +1350,58 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
 
   // Custom CSS for better focus styling
   const customFocusStyle =
-    "focus:ring-2 focus:ring-[#C29307] focus:ring-offset-2 focus:border-[#C29307] transition-all duration-200";
+    "focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:border-primary transition-all duration-200";
+
+  // Get tier display name
+  const getTierDisplayName = () => {
+    if (isEliteUser) return "Elite";
+    if (isPremiumUser) return "Premium";
+    if (isGrowthUser) return "Growth";
+    if (isZidLiteUser) return "ZidLite";
+    return "Free Trial";
+  };
 
   return (
     <>
-      {/* Upgrade Prompt Modal */}
-      {showUpgradePrompt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-6 h-6 text-red-600" />
+      {/* Upgrade Prompt Modal - Only show for free and ZidLite tiers */}
+      {showUpgradePrompt && !hasUnlimitedReceipts && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl max-w-md w-full p-6">
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Crown className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
-            <h3 className="text-xl font-bold text-center mb-2">Limit Reached</h3>
-            <p className="text-gray-600 text-center mb-6">
-              You've used all your free receipts this month. 
-              {userTier === 'free' 
-                ? ` You can pay ₦${RECEIPT_FEE} per receipt or upgrade to Growth plan for unlimited receipts.`
-                : ' Upgrade to Premium for unlimited receipts.'}
+            <h3 className="text-xl font-bold text-center mb-2 dark:text-white">
+              Upgrade Required
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
+              {isZidLiteUser
+                ? "You've used all your ZidLite receipts. Upgrade to continue creating receipts with unlimited access!"
+                : "You've used all your free receipts. Upgrade to continue creating receipts with unlimited access!"}
             </p>
-            <div className="flex flex-col gap-3">
+            <div className="flex gap-3">
               <Button
-                onClick={() => {
-                  setShowUpgradePrompt(false);
-                  setShowReceiptSummary(true);
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                variant="outline"
+                className="flex-1 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                onClick={() => setShowUpgradePrompt(false)}
               >
-                <Wallet className="w-4 h-4 mr-2" />
-                Pay ₦{RECEIPT_FEE} & Generate
+                Cancel
               </Button>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowUpgradePrompt(false)}
-                >
-                  Cancel
+              <Link href="/pricing?upgrade=growth" className="flex-1">
+                <Button className="w-full bg-primary hover:bg-primary-dark text-white">
+                  View Plans
                 </Button>
-                <Link 
-                  href={userTier === 'free' ? "/pricing?upgrade=growth" : "/pricing?upgrade=premium"} 
-                  className="flex-1"
-                >
-                  <Button className="w-full bg-[#C29307] hover:bg-[#b38606] text-white">
-                    Upgrade
-                  </Button>
-                </Link>
-              </div>
+              </Link>
             </div>
           </div>
         </div>
       )}
-
-      {/* Pin Popup */}
-      <PinPopOver
-        setIsOpen={(newValue) => {
-          setIsPinOpen(newValue);
-          if (!newValue) {
-            resetAllLoadingStates();
-            setPin(Array(inputCount).fill(""));
-          }
-        }}
-        isOpen={isPinOpen}
-        pin={pin}
-        setPin={setPin}
-        inputCount={inputCount}
-        onConfirm={async () => {
-          await processPaymentAndSubmit();
-        }}
-        invoiceFeeInfo={{
-          isFree: !requiresPinConfirmation(),
-          freeInvoicesLeft: receiptUsage.remaining,
-          totalInvoicesCreated: receiptUsage.used,
-          feeAmount: RECEIPT_FEE,
-        }}
-      />
 
       <ReceiptSummary
         receiptData={getReceiptSummaryData()}
         totalAmount={calculateTotal()}
         initiatorName={seller.name}
         initiatorEmail={seller.email}
-        amount={RECEIPT_FEE}
+        amount={0}
         confirmReceipt={showReceiptSummary}
         onBack={handleSummaryBack}
         onConfirm={handleSummaryConfirm}
@@ -1543,71 +1417,106 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
           window.location.reload();
         }}
         receiptId={savedReceiptId}
-        onDownload={handleDownloadPDF}
         onCopyLink={handleCopySigningLink}
         signingLink={generatedSigningLink}
+        receiptData={savedReceiptData}
       />
 
       <div className="min-h-screen">
         <div className="py-6 sm:py-8">
-          {/* Usage Warning Banner */}
-          {!hasUnlimitedReceipts && !receiptUsage.isChecking && receiptUsage.remaining <= 2 && (
-            <div className={`mb-4 p-3 rounded-lg border ${
-              receiptUsage.remaining <= 0
-                ? "bg-blue-50 border-blue-200"
-                : "bg-yellow-50 border-yellow-200"
-            } max-w-3xl mx-auto`}>
+          {/* Usage Warning Banner - Only show for free and ZidLite tiers */}
+          {!hasUnlimitedReceipts && !receiptUsage.isChecking && (
+            <div
+              className={`mb-4 p-3 rounded-lg border ${
+                receiptUsage.requiresUpgrade
+                  ? "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
+                  : typeof receiptUsage.remaining === "number" &&
+                      receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
+                    ? "bg-green-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800"
+                    : "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+              } max-w-3xl mx-auto`}
+            >
               <div className="flex items-start gap-3">
                 <AlertCircle
                   className={`w-5 h-5 mt-0.5 ${
-                    receiptUsage.remaining <= 0
-                      ? "text-blue-500"
-                      : "text-yellow-500"
+                    receiptUsage.requiresUpgrade
+                      ? "text-red-500 dark:text-red-400"
+                      : typeof receiptUsage.remaining === "number" &&
+                          receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
+                        ? "text-yellow-500 dark:text-yellow-400"
+                        : "text-green-500 dark:text-green-400"
                   }`}
                 />
                 <div className="flex-1">
                   <p
                     className={`font-medium ${
-                      receiptUsage.remaining <= 0
-                        ? "text-blue-700"
-                        : "text-yellow-700"
+                      receiptUsage.requiresUpgrade
+                        ? "text-red-700 dark:text-red-300"
+                        : typeof receiptUsage.remaining === "number" &&
+                            receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
+                          ? "text-yellow-700 dark:text-yellow-300"
+                          : "text-green-700 dark:text-green-300"
                     }`}
                   >
-                    {receiptUsage.remaining <= 0
-                      ? "Pay-per-use mode active"
-                      : `Only ${receiptUsage.remaining} free receipt${receiptUsage.remaining !== 1 ? 's' : ''} remaining`}
+                    {receiptUsage.requiresUpgrade
+                      ? isZidLiteUser
+                        ? "ZidLite receipts exhausted - Upgrade required"
+                        : "Free receipts exhausted - Upgrade required"
+                      : `${receiptUsage.remaining} receipt${receiptUsage.remaining !== 1 ? "s" : ""} remaining`}
                   </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {receiptUsage.remaining <= 0
-                      ? `This receipt will cost ₦${RECEIPT_FEE}.`
-                      : `After your free limit, receipts cost ₦${RECEIPT_FEE} each.`}
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {receiptUsage.requiresUpgrade
+                      ? "Upgrade to Growth plan or higher for unlimited receipts."
+                      : `You have ${receiptUsage.remaining} ${isZidLiteUser ? "ZidLite" : "free"} ${receiptUsage.remaining === 1 ? "receipt" : "receipts"} left.`}
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Premium Badge */}
-          {isPremium && (
-            <div className="mb-4 p-3 bg-[#C29307]/10 border border-[#C29307] rounded-lg max-w-3xl mx-auto">
-              <p className="text-[#C29307] font-medium flex items-center gap-2 text-sm">
-                <span className="bg-[#C29307] text-white px-2 py-0.5 rounded text-xs uppercase">
-                  {userTier}
+          {/* Premium/Growth/ZidLite Badge */}
+          {(hasUnlimitedReceipts || isZidLiteUser) && (
+            <div
+              className={`mb-4 p-3 ${
+                isEliteUser
+                  ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800"
+                  : isPremiumUser
+                    ? "bg-primary-light-bg border-primary dark:bg-primary-light-bg"
+                    : isGrowthUser
+                      ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+                      : "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800"
+              } border rounded-lg max-w-3xl mx-auto`}
+            >
+              <p
+                className={`${
+                  isEliteUser
+                    ? "text-purple-600 dark:text-purple-400"
+                    : isPremiumUser
+                      ? "text-primary dark:text-primary"
+                      : isGrowthUser
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-blue-600 dark:text-blue-400"
+                } font-medium flex items-center gap-2 text-sm`}
+              >
+                <span
+                  className={`${
+                    isEliteUser
+                      ? "bg-purple-600"
+                      : isPremiumUser
+                        ? "bg-primary"
+                        : isGrowthUser
+                          ? "bg-green-600"
+                          : "bg-blue-600"
+                  } text-white px-2 py-0.5 rounded text-xs uppercase`}
+                >
+                  {getTierDisplayName()}
                 </span>
-                You have unlimited receipts! No charges for receipt creation.
+                {hasUnlimitedReceipts
+                  ? "You have unlimited receipts! No charges for receipt creation."
+                  : `You have ${receiptUsage.remaining} receipts remaining.`}
               </p>
             </div>
           )}
-
-          {/* Wallet Balance */}
-          <div className="mb-4 max-w-3xl mx-auto flex justify-end">
-            <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-              <Wallet className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-green-700">
-                ₦{safeBalance.toLocaleString()}
-              </span>
-            </div>
-          </div>
 
           <Tabs
             defaultValue="create"
@@ -1617,7 +1526,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
             }
             className="w-full mb-6"
           >
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-2 dark:bg-gray-800">
               <TabsTrigger value="create" className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Create Receipt
@@ -1636,19 +1545,19 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      if (isFormLocked || isProcessingPayment) {
+                      if (isFormLocked || isProcessing) {
                         Swal.fire({
                           icon: "warning",
                           title: "Form is Processing",
                           text: "Cannot navigate away while submission is in progress.",
-                          confirmButtonColor: "#C29307",
+                          confirmButtonColor: "#2b825b",
                         });
                         return;
                       }
                       router.back();
                     }}
-                    className="text-[#C29307] hover:bg-white/10"
-                    disabled={isProcessingPayment}
+                    className="text-primary hover:bg-primary/10"
+                    disabled={isProcessing}
                   >
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back
@@ -1665,26 +1574,43 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {!receiptUsage.isChecking && (
+                  {!receiptUsage.isChecking && !hasUnlimitedReceipts && (
                     <Badge
                       variant="outline"
                       className={
-                        receiptUsage.remaining <= 0
-                          ? "bg-blue-50 text-blue-700 border-blue-200"
-                          : receiptUsage.remaining <= 2
-                          ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                          : "bg-green-50 text-green-700 border-green-200"
+                        receiptUsage.requiresUpgrade
+                          ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
+                          : typeof receiptUsage.remaining === "number" &&
+                              receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
+                            ? "bg-green-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800"
+                            : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
                       }
                     >
-                      {receiptUsage.remaining <= 0
-                        ? "Pay-per-use"
+                      {receiptUsage.requiresUpgrade
+                        ? "Upgrade needed"
                         : `${receiptUsage.remaining} left`}
+                    </Badge>
+                  )}
+                  {hasUnlimitedReceipts && (
+                    <Badge
+                      variant="outline"
+                      className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800"
+                    >
+                      Unlimited
+                    </Badge>
+                  )}
+                  {isZidLiteUser && !hasUnlimitedReceipts && (
+                    <Badge
+                      variant="outline"
+                      className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+                    >
+                      ZidLite • {receiptUsage.remaining} left
                     </Badge>
                   )}
                   {currentDraftId && (
                     <Badge
                       variant="outline"
-                      className="bg-purple-50 text-purple-700 border-purple-200"
+                      className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800"
                     >
                       Editing Draft
                     </Badge>
@@ -1692,7 +1618,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                   {hasUnsavedChanges && (
                     <Badge
                       variant="outline"
-                      className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                      className="bg-green-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800"
                     >
                       Unsaved changes
                     </Badge>
@@ -1700,7 +1626,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                   {sellerSignature && (
                     <Badge
                       variant="outline"
-                      className="bg-green-50 text-green-700 border-green-200"
+                      className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
                     >
                       ✓ Signed
                     </Badge>
@@ -1708,131 +1634,8 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                 </div>
               </div>
 
-              <div className="md:max-w-3xl mx-auto bg-card p-6 rounded-lg shadow-sm border">
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex items-center gap-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (isFormLocked || isProcessingPayment) {
-                          Swal.fire({
-                            icon: "warning",
-                            title: "Form is Processing",
-                            text: "Cannot view drafts while submission is in progress.",
-                            confirmButtonColor: "#C29307",
-                          });
-                          return;
-                        }
-                        if (userDrafts.length > 0) {
-                          showDraftsList(userDrafts);
-                        } else {
-                          Swal.fire({
-                            icon: "info",
-                            title: "No Drafts",
-                            text: "You don't have any saved drafts.",
-                            confirmButtonColor: "#C29307",
-                          });
-                        }
-                      }}
-                      className="border-blue-300 text-blue-700 hover:bg-blue-50"
-                      disabled={isLoadingDrafts || isProcessingPayment}
-                    >
-                      {isLoadingDrafts ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <History className="h-4 w-4 mr-2" />
-                      )}
-                      View Drafts ({userDrafts.length})
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={resetForm}
-                      className="text-gray-600 hover:text-gray-900"
-                      disabled={isFormLocked || isProcessingPayment}
-                    >
-                      Clear Form
-                    </Button>
-                    {currentDraftId && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteDraft(currentDraftId)}
-                        className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
-                        disabled={isFormLocked || isProcessingPayment}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete Draft
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Signature Load Banner */}
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">
-                        Your Saved Signature
-                      </p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Load your saved signature to use in this receipt
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={loadSignatureManually}
-                      disabled={
-                        !userData?.id ||
-                        !!sellerSignature ||
-                        isProcessingPayment
-                      }
-                      className="border-gray-300 text-gray-700 hover:bg-gray-100"
-                    >
-                      {sellerSignature ? (
-                        <>
-                          <Check className="h-4 w-4 mr-2" />
-                          Signature Loaded
-                        </>
-                      ) : (
-                        <>
-                          <Download className="h-4 w-4 mr-2" />
-                          Load Saved Signature
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  {/* Save for future toggle */}
-                  {sellerSignature && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Save className="h-3 w-3 text-blue-600" />
-                          </div>
-                          <span className="text-sm text-gray-700">
-                            Save this signature for future use
-                          </span>
-                        </div>
-                        <Switch
-                          checked={saveSignatureForFuture}
-                          onCheckedChange={handleSaveSignatureToggle}
-                          disabled={isProcessingPayment}
-                          className="data-[state=checked]:bg-[#C29307] scale-90"
-                        />
-                      </div>
-                      {saveSignatureForFuture && (
-                        <p className="text-xs text-green-600 mt-2 ml-9">
-                          ✓ Your signature will be saved for future receipts
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
+              {/* Create Receipt Form */}
+              <div className="md:max-w-3xl mx-auto bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -1845,7 +1648,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                     <ReceiptTypeSelector
                       value={receiptType}
                       onChange={setReceiptType}
-                      disabled={isFormLocked || isProcessingPayment}
+                      disabled={isFormLocked || isProcessing}
                     />
                   </div>
 
@@ -1855,7 +1658,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                     style={{ animationDelay: "0.1s" }}
                   >
                     <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#C29307] text-white">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-primary text-white">
                         1
                       </span>
                       Seller Information
@@ -1877,14 +1680,14 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                           onChange={(e) =>
                             setSeller({ ...seller, name: e.target.value })
                           }
-                          className={`mt-1.5 bg-card ${customFocusStyle}`}
-                          disabled={isFormLocked || isProcessingPayment}
+                          className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 ${customFocusStyle}`}
+                          disabled={isFormLocked || isProcessing}
                         />
                       </div>
                       <div>
                         <Label htmlFor="seller-phone">Phone (Optional)</Label>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
                           <Input
                             id="seller-phone"
                             ref={sellerPhoneRef}
@@ -1893,8 +1696,8 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                             onChange={(e) =>
                               setSeller({ ...seller, phone: e.target.value })
                             }
-                            className={`mt-1.5 bg-card pl-10 ${customFocusStyle}`}
-                            disabled={isFormLocked || isProcessingPayment}
+                            className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 pl-10 ${customFocusStyle}`}
+                            disabled={isFormLocked || isProcessing}
                           />
                         </div>
                       </div>
@@ -1906,7 +1709,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                           Email <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
                           <Input
                             id="seller-email"
                             ref={sellerEmailRef}
@@ -1916,8 +1719,8 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                             onChange={(e) =>
                               setSeller({ ...seller, email: e.target.value })
                             }
-                            className={`mt-1.5 bg-card pl-10 ${customFocusStyle}`}
-                            disabled={isFormLocked || isProcessingPayment}
+                            className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 pl-10 ${customFocusStyle}`}
+                            disabled={isFormLocked || isProcessing}
                           />
                         </div>
                       </div>
@@ -1930,7 +1733,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                     style={{ animationDelay: "0.15s" }}
                   >
                     <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#C29307] text-white">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-primary text-white">
                         2
                       </span>
                       Receiver Information
@@ -1953,8 +1756,8 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                           onChange={(e) =>
                             setReceiver({ ...receiver, name: e.target.value })
                           }
-                          className={`mt-1.5 bg-card ${customFocusStyle}`}
-                          disabled={isFormLocked || isProcessingPayment}
+                          className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 ${customFocusStyle}`}
+                          disabled={isFormLocked || isProcessing}
                         />
                       </div>
 
@@ -1964,7 +1767,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                             Email (Optional)
                           </Label>
                           <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
                             <Input
                               id="receiver-email"
                               ref={receiverEmailRef}
@@ -1977,13 +1780,13 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                                   email: e.target.value,
                                 })
                               }
-                              className={`mt-1.5 bg-card pl-10 ${customFocusStyle}`}
-                              disabled={isFormLocked || isProcessingPayment}
+                              className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 pl-10 ${customFocusStyle}`}
+                              disabled={isFormLocked || isProcessing}
                             />
                           </div>
                           {receiver.email &&
                             !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                              receiver.email
+                              receiver.email,
                             ) && (
                               <p className="text-xs text-red-500 mt-1">
                                 Please enter a valid email address
@@ -1996,7 +1799,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                             Phone (Optional)
                           </Label>
                           <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
                             <Input
                               id="receiver-phone"
                               ref={receiverPhoneRef}
@@ -2008,8 +1811,8 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                                   phone: e.target.value,
                                 })
                               }
-                              className={`mt-1.5 bg-card pl-10 ${customFocusStyle}`}
-                              disabled={isFormLocked || isProcessingPayment}
+                              className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 pl-10 ${customFocusStyle}`}
+                              disabled={isFormLocked || isProcessing}
                             />
                           </div>
                         </div>
@@ -2023,7 +1826,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                     style={{ animationDelay: "0.2s" }}
                   >
                     <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#C29307] text-white">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-primary text-white">
                         3
                       </span>
                       Transaction Details
@@ -2031,15 +1834,15 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                     <ReceiptItemsForm
                       items={items}
                       onChange={setItems}
-                      disabled={isFormLocked || isProcessingPayment}
+                      disabled={isFormLocked || isProcessing}
                     />
 
                     <div className="p-4">
                       <div className="flex justify-between items-center">
-                        <span className="text-lg text-gray-400 font-semibold">
+                        <span className="text-lg text-muted-foreground font-semibold">
                           Total
                         </span>
-                        <span className="text-2xl font-bold text-[#C29307]">
+                        <span className="text-2xl font-bold text-primary">
                           ₦
                           {calculateTotal().toLocaleString("en-NG", {
                             minimumFractionDigits: 2,
@@ -2056,14 +1859,14 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                         onValueChange={(v) =>
                           setPaymentMethod(v as typeof paymentMethod)
                         }
-                        disabled={isFormLocked || isProcessingPayment}
+                        disabled={isFormLocked || isProcessing}
                       >
                         <SelectTrigger
-                          className={`mt-1.5 bg-card ${customFocusStyle}`}
+                          className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 ${customFocusStyle}`}
                         >
                           <SelectValue placeholder="Select payment method" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
                           <SelectItem value="cash">Cash</SelectItem>
                           <SelectItem value="transfer">
                             Bank Transfer
@@ -2081,7 +1884,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                     style={{ animationDelay: "0.25s" }}
                   >
                     <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#C29307] text-white">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-primary text-white">
                         4
                       </span>
                       Your Signature
@@ -2090,20 +1893,20 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                       value={sellerSignature}
                       onChange={handleSignatureChange}
                       label="Seller Signature (Optional)"
-                      disabled={isFormLocked || isProcessingPayment}
+                      disabled={isFormLocked || isProcessing}
                     />
 
                     {/* Toggle Button for Saving Signature */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                       <div className="flex items-center space-x-3">
-                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                          <Save className="h-4 w-4 text-blue-600" />
+                        <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                          <Save className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
                             Save this signature for future use
                           </p>
-                          <p className="text-xs text-gray-600">
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
                             Your signature will be securely stored
                           </p>
                         </div>
@@ -2111,21 +1914,11 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                       <Switch
                         checked={saveSignatureForFuture}
                         onCheckedChange={handleSaveSignatureToggle}
-                        disabled={!sellerSignature || isProcessingPayment}
-                        className="data-[state=checked]:bg-[#C29307]"
+                        disabled={!sellerSignature || isProcessing}
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
                   </div>
-
-                  {/* Insufficient balance warning */}
-                  {requiresPinConfirmation() && !hasSufficientBalance() && (
-                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="flex items-center gap-2 text-sm text-red-600">
-                        <AlertCircle className="w-4 h-4" />
-                        Insufficient balance. Please fund your wallet to create receipts.
-                      </div>
-                    </div>
-                  )}
 
                   {/* Action Buttons */}
                   <div className="pt-4 flex gap-3">
@@ -2134,12 +1927,12 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                       variant="outline"
                       onClick={() => handleSubmit(true)}
                       disabled={
-                        isProcessingPayment ||
+                        isProcessing ||
                         draftLoading ||
                         isFormLocked ||
                         isSubmitting
                       }
-                      className="flex-1 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      className="flex-1 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                     >
                       {draftLoading ? (
                         <>
@@ -2157,51 +1950,40 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                       type="submit"
                       variant="default"
                       size="lg"
-                      className={`flex-1 ${
-                        requiresPinConfirmation() && !hasFreeReceiptAccess()
-                          ? "bg-blue-600 hover:bg-blue-700"
-                          : "bg-[#C29307] hover:bg-[#b38606]"
-                      } text-white focus:ring-2 focus:ring-offset-2 focus:ring-[#C29307]`}
+                      className={`flex-1 bg-primary hover:bg-primary-dark text-white focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
                       disabled={
-                        isProcessingPayment ||
+                        isProcessing ||
                         isSubmitting ||
                         isFormLocked ||
-                        draftLoading ||
-                        (requiresPinConfirmation() && !hasSufficientBalance())
+                        draftLoading
                       }
                     >
                       {getGenerateButtonText()}
                     </Button>
                   </div>
 
-                  {/* Limit Warning */}
-                  {!isPremium && hasReachedLimit && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  {/* Upgrade Required Warning */}
+                  {receiptUsage.requiresUpgrade && !hasUnlimitedReceipts && (
+                    <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                       <div className="flex items-start gap-3">
-                        <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                        <Crown className="h-5 w-5 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
                         <div>
-                          <h3 className="font-medium text-red-800">
-                            Monthly Limit Reached
+                          <h3 className="font-medium text-red-800 dark:text-red-300">
+                            {isZidLiteUser ? "ZidLite" : "Free"} Receipts
+                            Exhausted
                           </h3>
-                          <p className="text-sm text-red-700 mt-1">
-                            You've used all your free receipts for this month. 
-                            Pay ₦{RECEIPT_FEE} per receipt or upgrade to Growth plan for unlimited receipts.
+                          <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                            {isZidLiteUser
+                              ? "You've used all your ZidLite receipts. Upgrade to Growth plan for unlimited receipts."
+                              : "You've used all your free receipts. Upgrade to Growth plan for unlimited receipts."}
                           </p>
                           <div className="flex gap-3 mt-3">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setShowUpgradePrompt(false);
-                                setShowReceiptSummary(true);
-                              }}
-                              className="bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                              <Wallet className="w-4 h-4 mr-2" />
-                              Pay ₦{RECEIPT_FEE} & Continue
-                            </Button>
                             <Link href="/pricing?upgrade=growth">
-                              <Button size="sm" className="bg-[#C29307] hover:bg-[#b38606] text-white">
-                                Upgrade Plan
+                              <Button
+                                size="sm"
+                                className="bg-primary hover:bg-primary-dark text-white"
+                              >
+                                Upgrade Now
                               </Button>
                             </Link>
                           </div>
@@ -2221,19 +2003,19 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      if (isFormLocked || isProcessingPayment) {
+                      if (isFormLocked || isProcessing) {
                         Swal.fire({
                           icon: "warning",
                           title: "Form is Processing",
                           text: "Cannot navigate away while submission is in progress.",
-                          confirmButtonColor: "#C29307",
+                          confirmButtonColor: "#2b825b",
                         });
                         return;
                       }
                       router.back();
                     }}
-                    className="text-[#C29307] hover:bg-white/10"
-                    disabled={isProcessingPayment}
+                    className="text-primary hover:bg-primary/10"
+                    disabled={isProcessing}
                   >
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back
@@ -2252,17 +2034,17 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                 <div className="flex items-center gap-2">
                   <Badge
                     variant="outline"
-                    className="bg-blue-50 text-blue-700 border-blue-200"
+                    className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
                   >
                     Live Preview
                   </Badge>
-                  {isProcessingPayment && (
+                  {isProcessing && (
                     <Badge
                       variant="outline"
-                      className="bg-red-50 text-red-700 border-red-200"
+                      className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
                     >
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      Processing Payment...
+                      Generating...
                     </Badge>
                   )}
                 </div>
@@ -2270,14 +2052,14 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
 
               <div className="space-y-6">
                 {/* Info Banner */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                   <div className="flex items-start gap-3">
-                    <Eye className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                    <Eye className="h-5 w-5 text-blue-500 dark:text-blue-400 mt-0.5 shrink-0" />
                     <div>
-                      <h3 className="font-medium text-blue-800">
+                      <h3 className="font-medium text-blue-800 dark:text-blue-300">
                         Live Preview Mode
                       </h3>
-                      <p className="text-sm text-blue-700 mt-1">
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                         This is a real-time preview of how your receipt will
                         look. Any changes made in the "Create Receipt" tab will
                         be reflected here instantly.
@@ -2294,12 +2076,12 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                   paymentMethod={paymentMethod}
                   sellerSignature={sellerSignature}
                   onLoadSavedSignature={loadSignatureManually}
-                  isProcessingPayment={isProcessingPayment}
+                  isProcessingPayment={isProcessing}
                 />
 
                 {/* Action Buttons */}
-                <div className="flex justify-between items-center pt-4 border-t">
-                  <div className="text-sm text-gray-500">
+                <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">
+                  <div className="text-sm text-muted-foreground">
                     <p>
                       Switch to the "Create Receipt" tab to edit your receipt
                     </p>
@@ -2307,7 +2089,7 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
                   <Button
                     variant="outline"
                     onClick={() => setActiveTab("create")}
-                    className="border-[#C29307] text-[#C29307] hover:bg-[#C29307]/10"
+                    className="border-primary text-primary hover:bg-primary/10 dark:border-primary dark:text-primary"
                   >
                     <EyeOff className="h-4 w-4 mr-2" />
                     Back to Editor
@@ -2322,12 +2104,22 @@ function CreateReceiptPage({ userTier = 'free', hasReachedLimit = false }: Creat
   );
 }
 
-export default function CreateReceipt({ userTier = 'free', hasReachedLimit = false }: CreateReceiptProps) {
+export default function CreateReceipt({
+  userTier,
+  hasReachedLimit = false,
+}: CreateReceiptProps) {
   return (
-    <Suspense fallback={<div className="flex justify-center items-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C29307]"></div>
-    </div>}>
-      <CreateReceiptPage userTier={userTier} hasReachedLimit={hasReachedLimit} />
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      }
+    >
+      <CreateReceiptPage
+        userTier={userTier}
+        hasReachedLimit={hasReachedLimit}
+      />
     </Suspense>
   );
 }

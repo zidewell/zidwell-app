@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 import { useJournal } from "@/app/context/JournalContext";
 
 const CHART_COLORS = [
-  "#eab308",
+  "#2b825b",
   "#f59e0b",
   "#16a34a",
   "#3b82f6",
@@ -182,13 +182,13 @@ export function InsightsCharts() {
     if (active && payload && payload.length) {
       return (
         <div 
-          className="rounded-lg p-3 shadow-[0_12px_40px_-12px_rgba(30,10,10,0.15)]"
+          className="rounded-lg p-3 shadow-[0_12px_40px_-12px_rgba(30,10,10,0.15)] dark:bg-gray-800 dark:border-gray-700"
           style={{
             backgroundColor: '#fcfbf9',
             borderColor: '#e6dfd6'
           }}
         >
-          <p className="font-medium text-sm mb-2">{label}</p>
+          <p className="font-medium text-sm mb-2 dark:text-gray-300">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
               {entry.name}: {formatCurrency(entry.value)}
@@ -204,7 +204,7 @@ export function InsightsCharts() {
     <div className="space-y-6">
       {/* Filter Tabs */}
       <div 
-        className="flex gap-2 p-1 rounded-xl w-fit"
+        className="flex gap-2 p-1 rounded-xl w-fit dark:bg-gray-700"
         style={{ backgroundColor: '#f5f1ea' }}
       >
         {(["daily", "weekly", "monthly", "yearly"] as TimeFilter[]).map((f) => (
@@ -216,8 +216,7 @@ export function InsightsCharts() {
             )}
             style={{
               backgroundColor: filter === f ? '#fcfbf9' : 'transparent',
-              color: filter === f ? '#26121c' : '#80746e',
-              boxShadow: filter === f ? '0 2px 20px -4px rgba(38,33,28,0.08)' : 'none'
+              color: filter === f ? '#26121c' : '#80746e'
             }}
           >
             {f}
@@ -229,13 +228,13 @@ export function InsightsCharts() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Expense Breakdown Pie Chart */}
         <div 
-          className="p-6 rounded-2xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)]"
+          className="p-6 rounded-2xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] dark:bg-gray-800 dark:border-gray-700"
           style={{
             backgroundColor: '#fcfbf9',
             borderColor: '#e6dfd6'
           }}
         >
-          <h3 className="text-lg mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          <h3 className="text-lg mb-4 dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
             Expense Breakdown
           </h3>
           {categoryData.length > 0 ? (
@@ -267,7 +266,7 @@ export function InsightsCharts() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[250px] flex items-center justify-center" style={{ color: '#80746e' }}>
+            <div className="h-[250px] flex items-center justify-center dark:text-gray-400" style={{ color: '#80746e' }}>
               No expense data for this period
             </div>
           )}
@@ -275,13 +274,13 @@ export function InsightsCharts() {
 
         {/* Income vs Expenses Bar Chart */}
         <div 
-          className="p-6 rounded-2xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)]"
+          className="p-6 rounded-2xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] dark:bg-gray-800 dark:border-gray-700"
           style={{
             backgroundColor: '#fcfbf9',
             borderColor: '#e6dfd6'
           }}
         >
-          <h3 className="text-lg mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          <h3 className="text-lg mb-4 dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
             Income vs Expenses
           </h3>
           {incomeVsExpenseData.some((d) => d.income > 0 || d.expenses > 0) ? (
@@ -318,7 +317,7 @@ export function InsightsCharts() {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[250px] flex items-center justify-center" style={{ color: '#80746e' }}>
+            <div className="h-[250px] flex items-center justify-center dark:text-gray-400" style={{ color: '#80746e' }}>
               No data for this period
             </div>
           )}
@@ -326,13 +325,13 @@ export function InsightsCharts() {
 
         {/* Financial Trend Line Chart */}
         <div 
-          className="p-6 rounded-2xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] lg:col-span-2"
+          className="p-6 rounded-2xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] lg:col-span-2 dark:bg-gray-800 dark:border-gray-700"
           style={{
             backgroundColor: '#fcfbf9',
             borderColor: '#e6dfd6'
           }}
         >
-          <h3 className="text-lg mb-4" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          <h3 className="text-lg mb-4 dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
             Financial Trend (Year)
           </h3>
           {trendData.some((d) => d.balance !== 0) ? (
@@ -358,9 +357,9 @@ export function InsightsCharts() {
                   type="monotone"
                   dataKey="balance"
                   name="Running Balance"
-                  stroke="#eab308"
+                  stroke="#2b825b"
                   strokeWidth={3}
-                  dot={{ fill: "#eab308", strokeWidth: 2 }}
+                  dot={{ fill: "#2b825b", strokeWidth: 2 }}
                 />
                 <Line
                   type="monotone"
@@ -373,7 +372,7 @@ export function InsightsCharts() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center" style={{ color: '#80746e' }}>
+            <div className="h-[300px] flex items-center justify-center dark:text-gray-400" style={{ color: '#80746e' }}>
               Start logging entries to see your financial trend
             </div>
           )}

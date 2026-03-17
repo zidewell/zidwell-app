@@ -217,12 +217,12 @@ export default function TransactionsPage() {
   // Memoize calculations
   const transactions = useMemo(
     () => data?.transactions || [],
-    [data]
+    [data],
   ) as Transaction[];
   const totalTransactions = useMemo(() => data?.total || 0, [data]);
   const totalPages = useMemo(
     () => Math.ceil(totalTransactions / itemsPerPage),
-    [totalTransactions, itemsPerPage]
+    [totalTransactions, itemsPerPage],
   );
 
   // Get stats from API response (server-side calculated)
@@ -231,7 +231,7 @@ export default function TransactionsPage() {
   // Use direct fees data for accurate calculations
   const directFees = useMemo(
     () => directFeesData?.data || {},
-    [directFeesData]
+    [directFeesData],
   ) as DirectFeesData;
 
   // IMPORTANT: Use server-side calculated stats, not frontend calculations
@@ -259,19 +259,19 @@ export default function TransactionsPage() {
   // Calculate other stats from API stats
   const successfulTransactionsCount = useMemo(
     () => apiStats?.successful || 0,
-    [apiStats]
+    [apiStats],
   );
   const failedTransactionsCount = useMemo(
     () => apiStats?.failed || 0,
-    [apiStats]
+    [apiStats],
   );
   const pendingTransactionsCount = useMemo(
     () => apiStats?.pending || 0,
-    [apiStats]
+    [apiStats],
   );
   const processingTransactionsCount = useMemo(
     () => apiStats?.processing || 0,
-    [apiStats]
+    [apiStats],
   );
 
   // Calculate rates using server-side data
@@ -280,19 +280,19 @@ export default function TransactionsPage() {
       apiStats?.total
         ? (successfulTransactionsCount / apiStats.total) * 100
         : 0,
-    [apiStats, successfulTransactionsCount]
+    [apiStats, successfulTransactionsCount],
   );
 
   const failureRate = useMemo(
     () =>
       apiStats?.total ? (failedTransactionsCount / apiStats.total) * 100 : 0,
-    [apiStats, failedTransactionsCount]
+    [apiStats, failedTransactionsCount],
   );
 
   const pendingRate = useMemo(
     () =>
       apiStats?.total ? (pendingTransactionsCount / apiStats.total) * 100 : 0,
-    [apiStats, pendingTransactionsCount]
+    [apiStats, pendingTransactionsCount],
   );
 
   // Get transaction type distribution from API stats
@@ -304,19 +304,19 @@ export default function TransactionsPage() {
       Object.entries(transactionTypes)
         .sort(([, a], [, b]) => (b as number) - (a as number))
         .slice(0, 3),
-    [transactionTypes]
+    [transactionTypes],
   );
 
   // Calculate average fee per transaction
   const avgFeePerTransaction = useMemo(
     () => (apiStats?.total ? totalFee / apiStats.total : 0),
-    [apiStats, totalFee]
+    [apiStats, totalFee],
   );
 
   // Calculate average transaction amount
   const avgTransactionAmount = useMemo(
     () => (apiStats?.total ? totalAmount / apiStats.total : 0),
-    [apiStats, totalAmount]
+    [apiStats, totalAmount],
   );
 
   // Handle user click to navigate to user-specific transactions
@@ -325,12 +325,12 @@ export default function TransactionsPage() {
       if (userId) {
         router.push(
           `/admin/transactions/user/${userId}?email=${encodeURIComponent(
-            userEmail || ""
-          )}`
+            userEmail || "",
+          )}`,
         );
       }
     },
-    [router]
+    [router],
   );
 
   // Handle fee verification
@@ -343,7 +343,7 @@ export default function TransactionsPage() {
           headers: {
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       const result = await response.json();
@@ -420,7 +420,7 @@ export default function TransactionsPage() {
               <tr class="border-b">
                 <td class="py-1 font-mono text-xs">${user.user_id?.substring(
                   0,
-                  8
+                  8,
                 )}...</td>
                 <td class="py-1 font-semibold">₦${user.total_fee?.toLocaleString()}</td>
                 <td class="py-1">${user.transactions}</td>
@@ -473,7 +473,7 @@ export default function TransactionsPage() {
       if (endDate) exportParams.append("endDate", endDate);
 
       const exportResponse = await fetch(
-        `/api/admin-apis/transactions?${exportParams.toString()}`
+        `/api/admin-apis/transactions?${exportParams.toString()}`,
       );
       const exportData = await exportResponse.json();
       const exportTransactions = exportData.transactions || [];
@@ -517,7 +517,7 @@ export default function TransactionsPage() {
       const csvContent = [
         headers.join(","),
         ...csvData.map((row: any[]) =>
-          row.map((field) => `"${field}"`).join(",")
+          row.map((field) => `"${field}"`).join(","),
         ),
       ].join("\n");
 
@@ -582,7 +582,7 @@ export default function TransactionsPage() {
           
           <div><strong>Amount:</strong></div>
           <div class="font-semibold">₦${Number(
-            transaction.amount
+            transaction.amount,
           ).toLocaleString()}</div>
           
           <div><strong>Fee:</strong></div>
@@ -590,7 +590,7 @@ export default function TransactionsPage() {
           
           <div><strong>Total:</strong></div>
           <div class="font-semibold">₦${Number(
-            transaction.total_deduction || transaction.amount
+            transaction.total_deduction || transaction.amount,
           ).toLocaleString()}</div>
           
           <div><strong>Status:</strong></div>
@@ -724,7 +724,7 @@ export default function TransactionsPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       if (!r.ok) throw new Error("Retry failed");
@@ -752,7 +752,7 @@ export default function TransactionsPage() {
 
   const renderUserIdCell = (
     value: string | null | undefined,
-    row: Transaction
+    row: Transaction,
   ) => {
     if (!value) return <span className="text-gray-400 italic">No user ID</span>;
     return (
@@ -768,7 +768,7 @@ export default function TransactionsPage() {
 
   const renderAmountCell = (
     value: number | string | null | undefined,
-    row: Transaction
+    row: Transaction,
   ) => {
     const amount = Number(value) || 0;
     const isPositive = [
@@ -1090,7 +1090,7 @@ export default function TransactionsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#C29307]">
+              <div className="text-2xl font-bold text-[#2b825b]">
                 {pendingTransactionsCount}
               </div>
               <div className="text-xs text-gray-500 mt-1">

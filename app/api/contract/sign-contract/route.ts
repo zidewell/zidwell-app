@@ -7,7 +7,7 @@ import { transporter } from "@/lib/node-mailer";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const baseUrl =
@@ -19,7 +19,7 @@ function generateContractHTML(
   contract: any,
   signeeName: string,
   signeeSignatureImage: string,
-  creatorSignatureImage?: string
+  creatorSignatureImage?: string,
 ): string {
   const formatDate = (dateString: string) => {
     if (!dateString) return "Date not specified";
@@ -126,7 +126,7 @@ function generateContractHTML(
     // Ensure all images use https for email/PDF compatibility
     const sanitizedContent = content.replace(
       /src="http:\/\//gi,
-      'src="https://'
+      'src="https://',
     );
 
     return sanitizedContent;
@@ -139,27 +139,27 @@ function generateContractHTML(
     ? contractContent
         .replace(
           /<h1[^>]*>/g,
-          '<h1 style="page-break-after: avoid; margin-top: 30px; margin-bottom: 20px; font-size: 24px; font-weight: bold; color: #111827;">'
+          '<h1 style="page-break-after: avoid; margin-top: 30px; margin-bottom: 20px; font-size: 24px; font-weight: bold; color: #111827;">',
         )
         .replace(
           /<h2[^>]*>/g,
-          '<h2 style="page-break-after: avoid; margin-top: 25px; margin-bottom: 15px; font-size: 20px; font-weight: bold; color: #111827;">'
+          '<h2 style="page-break-after: avoid; margin-top: 25px; margin-bottom: 15px; font-size: 20px; font-weight: bold; color: #111827;">',
         )
         .replace(
           /<h3[^>]*>/g,
-          '<h3 style="page-break-after: avoid; margin-top: 20px; margin-bottom: 10px; font-size: 18px; font-weight: bold; color: #111827;">'
+          '<h3 style="page-break-after: avoid; margin-top: 20px; margin-bottom: 10px; font-size: 18px; font-weight: bold; color: #111827;">',
         )
         .replace(
           /<p[^>]*>/g,
-          '<p style="margin: 10px 0; line-height: 1.6; color: #4b5563;">'
+          '<p style="margin: 10px 0; line-height: 1.6; color: #4b5563;">',
         )
         .replace(
           /<ul[^>]*>/g,
-          '<ul style="margin: 15px 0; padding-left: 30px;">'
+          '<ul style="margin: 15px 0; padding-left: 30px;">',
         )
         .replace(
           /<ol[^>]*>/g,
-          '<ol style="margin: 15px 0; padding-left: 30px;">'
+          '<ol style="margin: 15px 0; padding-left: 30px;">',
         )
         .replace(/<li[^>]*>/g, '<li style="margin: 8px 0; line-height: 1.5;">')
         .replace(/<strong[^>]*>/g, '<strong style="font-weight: bold;">')
@@ -214,7 +214,7 @@ function generateContractHTML(
         }
         
         .contract-title {
-            color: #C29307;
+            color: #2b825b;
             background-color: #073b2a;
             font-size: 24px;
             font-weight: bold;
@@ -274,7 +274,7 @@ function generateContractHTML(
         .divider-line {
             flex: 1;
             height: 1px;
-            background-color: #C29307;
+            background-color: #2b825b;
             border-radius: 2px;
         }
         
@@ -447,7 +447,7 @@ function generateContractHTML(
         .lawyer-check {
             width: 24px;
             height: 24px;
-            background-color: #C29307;
+            background-color: #2b825b;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -464,7 +464,7 @@ function generateContractHTML(
         .lawyer-title {
             font-size: 14px;
             font-weight: 600;
-            color: #C29307;
+            color: #2b825b;
         }
         
         .lawyer-signature-line {
@@ -504,7 +504,7 @@ function generateContractHTML(
             display: inline-block;
             padding: 4px 12px;
             background-color: rgba(194, 147, 7, 0.1);
-            color: #C29307;
+            color: #2b825b;
             border-radius: 16px;
             font-size: 12px;
             font-weight: 500;
@@ -792,7 +792,7 @@ function generateContractHTML(
                                     <span style="font-size: 12px; color: #6b7280;">Legal Counsel</span>
                                 </div>
                                 <div style="margin-top: 4px;">
-                                    <span style="font-size: 11px; padding: 2px 8px; background-color: rgba(194, 147, 7, 0.1); color: #C29307; border-radius: 12px;">
+                                    <span style="font-size: 11px; padding: 2px 8px; background-color: rgba(194, 147, 7, 0.1); color: #2b825b; border-radius: 12px;">
                                         Verified Lawyer
                                     </span>
                                 </div>
@@ -856,8 +856,8 @@ function generateContractHTML(
               contract.verification_status === "verified"
                 ? "<br />✓ Identity Verified"
                 : contract.verification_status === "pending"
-                ? "<br />⚠ Identity Verification Pending"
-                : "<br />⛔ Identity Not Verified"
+                  ? "<br />⚠ Identity Verification Pending"
+                  : "<br />⛔ Identity Not Verified"
             }
             <br />
             Generated on: ${new Date().toLocaleDateString("en-US", {
@@ -881,7 +881,7 @@ async function generatePdfBuffer(
   contract: any,
   signeeName: string,
   signeeSignatureImage: string,
-  creatorSignatureImage?: string
+  creatorSignatureImage?: string,
 ): Promise<Buffer> {
   let browser = null;
 
@@ -903,8 +903,8 @@ async function generatePdfBuffer(
         (process.platform === "win32"
           ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
           : process.platform === "darwin"
-          ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-          : "/usr/bin/google-chrome");
+            ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            : "/usr/bin/google-chrome");
 
       browserArgs = [
         "--no-sandbox",
@@ -929,7 +929,7 @@ async function generatePdfBuffer(
       contract,
       signeeName,
       signeeSignatureImage,
-      creatorSignatureImage
+      creatorSignatureImage,
     );
 
     await page.setContent(htmlContent, {
@@ -947,7 +947,7 @@ async function generatePdfBuffer(
             img.addEventListener("load", resolve);
             img.addEventListener("error", reject);
           });
-        })
+        }),
       );
     });
 
@@ -960,7 +960,7 @@ async function generatePdfBuffer(
         body.offsetHeight,
         html.clientHeight,
         html.scrollHeight,
-        html.offsetHeight
+        html.offsetHeight,
       );
     });
 
@@ -1007,7 +1007,7 @@ export async function POST(request: Request) {
     if (!contractToken || !signeeEmail || !signeeName || !signatureImage) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -1022,14 +1022,14 @@ export async function POST(request: Request) {
       console.error("Contract not found:", error);
       return NextResponse.json(
         { error: "Contract not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (contract.signee_email !== signeeEmail) {
       return NextResponse.json(
         { error: "Email does not match the contract signee" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -1037,7 +1037,7 @@ export async function POST(request: Request) {
     if (contract.verification_status !== "verified") {
       return NextResponse.json(
         { error: "Identity verification required before signing" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -1073,7 +1073,7 @@ export async function POST(request: Request) {
       console.error("Error updating contract:", updateError);
       return NextResponse.json(
         { error: "Failed to update contract status" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -1082,7 +1082,7 @@ export async function POST(request: Request) {
       contract,
       signeeName,
       signatureImage,
-      creatorSignatureImage
+      creatorSignatureImage,
     );
 
     // Determine file type
@@ -1155,7 +1155,7 @@ export async function POST(request: Request) {
         
         .highlight-box {
             background: linear-gradient(135deg, rgba(194, 147, 7, 0.05), rgba(194, 147, 7, 0.02));
-            border-left: 4px solid #C29307;
+            border-left: 4px solid #2b825b;
             padding: 16px 20px;
             margin: 20px 0;
         }
@@ -1175,7 +1175,7 @@ export async function POST(request: Request) {
         /* Typography */
         .text-primary { color: #111827; }
         .text-secondary { color: #6b7280; }
-        .text-accent { color: #C29307; }
+        .text-accent { color: #2b825b; }
         .text-success { color: #2f855a; }
         
         .text-sm { font-size: 14px; }
@@ -1332,7 +1332,7 @@ export async function POST(request: Request) {
           hasSigneeSignature: true,
         },
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error in sign-contract:", error);
@@ -1345,7 +1345,7 @@ export async function POST(request: Request) {
             ? error.message
             : "Failed to process contract signing",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

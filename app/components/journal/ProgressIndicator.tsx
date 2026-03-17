@@ -37,14 +37,14 @@ export function ProgressIndicator({
 
   return (
     <div
-      className="p-4 rounded-xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)]"
+      className="p-4 rounded-xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] dark:bg-gray-800 dark:border-gray-700"
       style={{
         backgroundColor: "#fcfbf9",
         borderColor: "#e6dfd6",
       }}
     >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium" style={{ color: "#80746e" }}>
+        <span className="text-sm font-medium dark:text-gray-300" style={{ color: "#80746e" }}>
           {label}
         </span>
         <div
@@ -67,7 +67,7 @@ export function ProgressIndicator({
 
       <div className="space-y-2">
         <div
-          className="flex justify-between text-xs"
+          className="flex justify-between text-xs dark:text-gray-400"
           style={{ color: "#80746e" }}
         >
           <span>
@@ -81,14 +81,14 @@ export function ProgressIndicator({
         </div>
 
         <div
-          className="h-2 rounded-full overflow-hidden"
+          className="h-2 rounded-full overflow-hidden dark:bg-gray-600"
           style={{ backgroundColor: "#f5f1ea" }}
         >
           <div
             className={cn("h-full rounded-full transition-all duration-500")}
             style={{
               width: `${Math.abs(netPercentage)}%`,
-              background: summary.net >= 0 ? "#C29307" : "#e11d48",
+              background: summary.net >= 0 ? "#2b825b" : "#e11d48",
             }}
           />
         </div>

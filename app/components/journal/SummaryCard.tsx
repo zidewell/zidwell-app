@@ -40,8 +40,8 @@ export function SummaryCard({
       case "net":
         return amount >= 0
           ? {
-              border: "rgba(234, 179, 8, 0.3)",
-              background: "#C29307",
+              border: "rgba(43, 130, 91, 0.3)",
+              background: "#2b825b",
               textColor: "#ffffff",
             }
           : {
@@ -63,7 +63,7 @@ export function SummaryCard({
       case "expense":
         return "#e11d48";
       case "net":
-        return amount >= 0 ? "#26121c" : "#e11d48";
+        return amount >= 0 ? "#ffffff" : "#e11d48";
       default:
         return "#26121c";
     }
@@ -84,8 +84,8 @@ export function SummaryCard({
       case "net":
         return amount >= 0
           ? {
-              background: "rgba(38, 33, 28, 0.2)",
-              color: "#26121c",
+              background: "rgba(255, 255, 255, 0.2)",
+              color: "#ffffff",
             }
           : {
               background: "rgba(225, 29, 72, 0.1)",
@@ -93,8 +93,8 @@ export function SummaryCard({
             };
       default:
         return {
-          background: "rgba(234, 179, 8, 0.1)",
-          color: "#eab308",
+          background: "rgba(43, 130, 91, 0.1)",
+          color: "#2b825b",
         };
     }
   };
@@ -105,7 +105,7 @@ export function SummaryCard({
   return (
     <div
       className={cn(
-        "p-5 rounded-2xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] transition-all duration-200 hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)]",
+        "p-5 rounded-2xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] transition-all duration-200 hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] dark:bg-gray-800 dark:border-gray-700",
         className,
       )}
       style={{
@@ -124,7 +124,7 @@ export function SummaryCard({
             style={{
               color:
                 variant === "net" && amount >= 0
-                  ? "rgba(38, 33, 28, 0.8)"
+                  ? "rgba(255, 255, 255, 0.8)"
                   : "#80746e",
             }}
           >

@@ -201,13 +201,13 @@ export function JournalDashboard() {
     }
     
     .journal-badge {
-      background: linear-gradient(135deg, #C29307 0%, #eab308 100%);
-      color: #26121c;
+      background: #2b825b;
+      color: #ffffff;
       padding: 12px 24px;
       border-radius: 100px;
       font-weight: 600;
       font-size: 18px;
-      box-shadow: 0 4px 20px -4px rgba(194, 147, 7, 0.3);
+      box-shadow: 0 4px 20px -4px rgba(43, 130, 91, 0.3);
     }
     
     /* Period Section */
@@ -272,7 +272,7 @@ export function JournalDashboard() {
     }
     
     .summary-card.net {
-      background: linear-gradient(135deg, #C29307 0%, #eab308 100%);
+      background: #2b825b;
       border: none;
     }
     
@@ -283,7 +283,7 @@ export function JournalDashboard() {
     }
     
     .summary-card.net .summary-title {
-      color: rgba(38, 33, 28, 0.8);
+      color: rgba(255, 255, 255, 0.8);
     }
     
     .summary-amount {
@@ -300,7 +300,7 @@ export function JournalDashboard() {
     }
     
     .summary-card.net .summary-amount {
-      color: #26121c;
+      color: #ffffff;
     }
     
     /* Category Breakdown */
@@ -513,7 +513,7 @@ export function JournalDashboard() {
       <div class="summary-card net">
         <div class="summary-title">Net Balance</div>
         <div class="summary-amount">₦${netTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</div>
-        <div style="font-size: 12px; color: rgba(38,33,28,0.8); margin-top: 8px;">
+        <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 8px;">
           ${netTotal >= 0 ? 'Positive' : 'Negative'}
         </div>
       </div>
@@ -634,7 +634,7 @@ export function JournalDashboard() {
 
       // Success notification
       const notification = document.createElement('div');
-      notification.className = 'fixed top-4 right-4 bg-[#C29307] text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2';
+      notification.className = 'fixed top-4 right-4 bg-[#2b825b] text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2';
       notification.innerHTML = `
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -655,21 +655,21 @@ export function JournalDashboard() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen dark:bg-gray-900">
       <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 space-y-8">
         <JournalHeader />
 
         {/* Navigation */}
-        <nav className="flex gap-2 pb-4 flex-wrap" style={{ borderBottomColor: '#e6dfd6' }}>
+        <nav className="flex gap-2 pb-4 flex-wrap dark:border-gray-700" style={{ borderBottomColor: '#e6dfd6' }}>
           <button
             onClick={() => setActiveView('dashboard')}
             className={cn(
               'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all'
             )}
             style={{
-              backgroundColor: activeView === 'dashboard' ? '#C29307' : 'transparent',
-              color: activeView === 'dashboard' ? '#26121c' : '#80746e',
-              boxShadow: activeView === 'dashboard' ? '0 4px 20px -4px rgba(194, 147, 7, 0.3)' : 'none'
+              backgroundColor: activeView === 'dashboard' ? '#2b825b' : 'transparent',
+              color: activeView === 'dashboard' ? '#ffffff' : '#80746e',
+              boxShadow: activeView === 'dashboard' ? '0 4px 20px -4px rgba(43, 130, 91, 0.3)' : 'none'
             }}
           >
             <Wallet className="h-4 w-4" />
@@ -681,9 +681,9 @@ export function JournalDashboard() {
               'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all'
             )}
             style={{
-              backgroundColor: activeView === 'insights' ? '#C29307' : 'transparent',
-              color: activeView === 'insights' ? '#26121c' : '#80746e',
-              boxShadow: activeView === 'insights' ? '0 4px 20px -4px rgba(194, 147, 7, 0.3)' : 'none'
+              backgroundColor: activeView === 'insights' ? '#2b825b' : 'transparent',
+              color: activeView === 'insights' ? '#ffffff' : '#80746e',
+              boxShadow: activeView === 'insights' ? '0 4px 20px -4px rgba(43, 130, 91, 0.3)' : 'none'
             }}
           >
             <BarChart3 className="h-4 w-4" />
@@ -695,9 +695,9 @@ export function JournalDashboard() {
               'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all'
             )}
             style={{
-              backgroundColor: activeView === 'entries' ? '#C29307' : 'transparent',
-              color: activeView === 'entries' ? '#26121c' : '#80746e',
-              boxShadow: activeView === 'entries' ? '0 4px 20px -4px rgba(194, 147, 7, 0.3)' : 'none'
+              backgroundColor: activeView === 'entries' ? '#2b825b' : 'transparent',
+              color: activeView === 'entries' ? '#ffffff' : '#80746e',
+              boxShadow: activeView === 'entries' ? '0 4px 20px -4px rgba(43, 130, 91, 0.3)' : 'none'
             }}
           >
             <List className="h-4 w-4" />
@@ -709,9 +709,9 @@ export function JournalDashboard() {
               'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all'
             )}
             style={{
-              backgroundColor: activeView === 'transactions' ? '#C29307' : 'transparent',
-              color: activeView === 'transactions' ? '#26121c' : '#80746e',
-              boxShadow: activeView === 'transactions' ? '0 4px 20px -4px rgba(194, 147, 7, 0.3)' : 'none'
+              backgroundColor: activeView === 'transactions' ? '#2b825b' : 'transparent',
+              color: activeView === 'transactions' ? '#ffffff' : '#80746e',
+              boxShadow: activeView === 'transactions' ? '0 4px 20px -4px rgba(43, 130, 91, 0.3)' : 'none'
             }}
           >
             <ArrowLeftRight className="h-4 w-4" />
@@ -720,7 +720,7 @@ export function JournalDashboard() {
           
           <button
             onClick={() => setShowCategoryManager(true)}
-            className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:opacity-80"
+            className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:opacity-80 dark:bg-gray-700 dark:text-gray-300"
             style={{
               color: '#80746e',
               backgroundColor: '#f5f1ea'
@@ -735,7 +735,7 @@ export function JournalDashboard() {
           <div className="space-y-8 animate-fade-in">
             {/* ALL-TIME Summary Cards */}
             <section className="space-y-4">
-              <h2 className="text-xl font-medium" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              <h2 className="text-xl font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
                 Account Summary
               </h2>
               <div className="grid gap-4 sm:grid-cols-3">
@@ -767,7 +767,7 @@ export function JournalDashboard() {
             <section className="flex gap-4">
               <Button
                 onClick={() => openEntryForm('income')}
-                className="flex-1 h-14 text-base font-semibold shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow"
+                className="flex-1 h-14 text-base font-semibold shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#16a34a] dark:hover:bg-[#138f3f]"
                 style={{
                   backgroundColor: '#16a34a',
                   color: '#ffffff'
@@ -778,7 +778,7 @@ export function JournalDashboard() {
               </Button>
               <Button
                 onClick={() => openEntryForm('expense')}
-                className="flex-1 h-14 text-base font-semibold shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow"
+                className="flex-1 h-14 text-base font-semibold shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#e11d48] dark:hover:bg-[#c0183d]"
                 style={{
                   backgroundColor: '#e11d48',
                   color: '#ffffff'
@@ -791,7 +791,7 @@ export function JournalDashboard() {
 
             {/* Progress Indicators */}
             <section className="space-y-4">
-              <h2 className="text-xl font-medium" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              <h2 className="text-xl font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
                 Progress
               </h2>
               <div className="grid gap-4 sm:grid-cols-3">
@@ -816,19 +816,19 @@ export function JournalDashboard() {
             {/* Recent Activity */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-medium" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                <h2 className="text-xl font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
                   Recent Entries
                 </h2>
                 <button 
                   onClick={() => setActiveView('entries')}
-                  className="text-sm hover:underline transition-all"
-                  style={{ color: '#C29307' }}
+                  className="text-sm hover:underline transition-all dark:text-[#3aa873]"
+                  style={{ color: '#2b825b' }}
                 >
                   View all →
                 </button>
               </div>
               <div 
-                className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)]"
+                className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] dark:bg-gray-800 dark:border-gray-700"
                 style={{
                   backgroundColor: 'rgba(252, 251, 249, 0.5)',
                   borderColor: '#e6dfd6'
@@ -849,14 +849,14 @@ export function JournalDashboard() {
         {activeView === 'entries' && (
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-medium" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              <h2 className="text-xl font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
                 Journal Entries
               </h2>
               <div className="flex gap-3">
                 <Button
                   onClick={() => setShowExportModal(true)}
                   disabled={exporting}
-                  className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-all"
+                  className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-all dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
                   style={{
                     backgroundColor: '#f5f1ea',
                     color: '#80746e',
@@ -881,7 +881,7 @@ export function JournalDashboard() {
             <div className="flex gap-3">
               <Button
                 onClick={() => openEntryForm('income')}
-                className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow"
+                className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#16a34a] dark:hover:bg-[#138f3f]"
                 style={{
                   backgroundColor: '#16a34a',
                   color: '#ffffff'
@@ -892,7 +892,7 @@ export function JournalDashboard() {
               </Button>
               <Button
                 onClick={() => openEntryForm('expense')}
-                className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow"
+                className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#e11d48] dark:hover:bg-[#c0183d]"
                 style={{
                   backgroundColor: '#e11d48',
                   color: '#ffffff'
@@ -904,7 +904,7 @@ export function JournalDashboard() {
             </div>
 
             <div 
-              className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)]"
+              className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] dark:bg-gray-800 dark:border-gray-700"
               style={{
                 backgroundColor: 'rgba(252, 251, 249, 0.5)',
                 borderColor: '#e6dfd6'

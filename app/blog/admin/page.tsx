@@ -1,9 +1,26 @@
 "use client";
 
 import AdminLayout from "@/app/components/blog-components/admin/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card"; 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
-import { FileText, MessageSquare, Eye, TrendingUp, Plus, Calendar, Users, BarChart, RefreshCw, TrendingUpIcon, Timer } from "lucide-react";
+import {
+  FileText,
+  MessageSquare,
+  Eye,
+  TrendingUp,
+  Plus,
+  Calendar,
+  Users,
+  BarChart,
+  RefreshCw,
+  TrendingUpIcon,
+  Timer,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { format, subDays } from "date-fns";
@@ -60,36 +77,36 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState<BlogStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [cacheInfo, setCacheInfo] = useState<{ 
-    cached: boolean; 
-    age: number; 
-    expiresIn: number 
+  const [cacheInfo, setCacheInfo] = useState<{
+    cached: boolean;
+    age: number;
+    expiresIn: number;
   } | null>(null);
 
   // Fetch stats from API
   const fetchStats = async (skipCache = false) => {
     setIsRefreshing(true);
     try {
-      const url = `/api/blog/stats${skipCache ? '?skipCache=true' : ''}`;
+      const url = `/api/blog/stats${skipCache ? "?skipCache=true" : ""}`;
       const response = await fetch(url);
-      
+
       if (!response.ok) {
-        throw new Error('Failed to fetch blog stats');
+        throw new Error("Failed to fetch blog stats");
       }
-      
+
       const data: BlogStats = await response.json();
       setStats(data);
-      
+
       // Extract cache info
       if (data.cacheInfo) {
         setCacheInfo({
           cached: data.cacheInfo.cached || false,
           age: data.cacheInfo.cacheAge || 0,
-          expiresIn: data.cacheInfo.cacheExpiresIn || 600
+          expiresIn: data.cacheInfo.cacheExpiresIn || 600,
         });
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error("Error fetching stats:", error);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -100,18 +117,18 @@ const AdminDashboard = () => {
   const forceRefreshStats = async () => {
     try {
       // Clear cache via API
-      await fetch('/api/blog/stats', {
-        method: 'POST',
+      await fetch("/api/blog/stats", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ action: 'clearCache' })
+        body: JSON.stringify({ action: "clearCache" }),
       });
-      
+
       // Fetch fresh data
       await fetchStats(true);
     } catch (error) {
-      console.error('Error clearing cache:', error);
+      console.error("Error clearing cache:", error);
     }
   };
 
@@ -142,7 +159,7 @@ const AdminDashboard = () => {
       icon: FileText,
       change: `${stats?.overview.publishedPosts || 0} published`,
       subtext: `${stats?.overview.draftPosts || 0} drafts`,
-      color: "text-blue-600"
+      color: "text-blue-600",
     },
     {
       title: "Total Comments",
@@ -150,7 +167,7 @@ const AdminDashboard = () => {
       icon: MessageSquare,
       change: "User interactions",
       subtext: `${stats?.overview.avgCommentsPerPost || 0} avg per post`,
-      color: "text-green-600"
+      color: "text-green-600",
     },
     {
       title: "Total Views",
@@ -158,7 +175,7 @@ const AdminDashboard = () => {
       icon: Eye,
       change: "All time traffic",
       subtext: `${stats?.overview.avgViewsPerPost || 0} avg per post`,
-      color: "text-purple-600"
+      color: "text-purple-600",
     },
     {
       title: "Engagement Rate",
@@ -166,7 +183,7 @@ const AdminDashboard = () => {
       icon: TrendingUp,
       change: "Comments per view",
       subtext: "Higher is better",
-      color: "text-amber-600"
+      color: "text-amber-600",
     },
     {
       title: "Active Authors",
@@ -174,7 +191,7 @@ const AdminDashboard = () => {
       icon: Users,
       change: "Content contributors",
       subtext: "Team members",
-      color: "text-indigo-600"
+      color: "text-indigo-600",
     },
     {
       title: "Content Growth",
@@ -182,8 +199,8 @@ const AdminDashboard = () => {
       icon: BarChart,
       change: "vs last week",
       subtext: `${stats?.timeline.postsLast7Days || 0} posts this week`,
-      color: "text-emerald-600"
-    }
+      color: "text-emerald-600",
+    },
   ];
 
   return (
@@ -200,15 +217,15 @@ const AdminDashboard = () => {
               <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                 <Timer className="w-3 h-3" />
                 <span>
-                  {cacheInfo.cached ? `Cached • ` : ''}
+                  {cacheInfo.cached ? `Cached • ` : ""}
                   Refreshes in {Math.max(0, cacheInfo.expiresIn)}s
                 </span>
               </div>
             )}
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleRefreshData}
               disabled={isRefreshing}
               className="gap-2"
@@ -220,15 +237,18 @@ const AdminDashboard = () => {
               )}
               Refresh
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleForceRefresh}
               disabled={isRefreshing}
               className="gap-2"
             >
               Clear Cache
             </Button>
-            <Button onClick={handleCreateNewPost} className="bg-[#C29307] hover:bg-yellow-600 gap-2">
+            <Button
+              onClick={handleCreateNewPost}
+              className="bg-[#2b825b] hover:bg-yellow-600 gap-2"
+            >
               <Plus className="w-4 h-4" />
               New Post
             </Button>
@@ -238,7 +258,10 @@ const AdminDashboard = () => {
         {/* Stats Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {statsData.map((stat) => (
-            <Card key={stat.title} className="hover:shadow-sm transition-shadow hover:border-primary/20">
+            <Card
+              key={stat.title}
+              className="hover:shadow-sm transition-shadow hover:border-primary/20"
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   {stat.title}
@@ -247,8 +270,12 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
-                <p className="text-xs text-muted-foreground mt-1">{stat.subtext}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stat.change}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stat.subtext}
+                </p>
               </CardContent>
             </Card>
           ))}
@@ -273,7 +300,10 @@ const AdminDashboard = () => {
               {isLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex items-center justify-between py-2">
+                    <div
+                      key={i}
+                      className="flex items-center justify-between py-2"
+                    >
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-muted rounded animate-pulse"></div>
                         <div className="space-y-2">
@@ -291,7 +321,9 @@ const AdminDashboard = () => {
                     <div
                       key={post.id}
                       className="flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-muted/50 px-2 rounded-lg transition-colors cursor-pointer"
-                      onClick={() => router.push(`/blog/admin/posts/${post.id}/edit`)}
+                      onClick={() =>
+                        router.push(`/blog/admin/posts/${post.id}/edit`)
+                      }
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         {post.featured_image ? (
@@ -300,7 +332,7 @@ const AdminDashboard = () => {
                             alt={post.title}
                             className="w-12 h-12 rounded object-cover flex-shrink-0"
                             onError={(e) => {
-                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.style.display = "none";
                             }}
                           />
                         ) : (
@@ -317,7 +349,9 @@ const AdminDashboard = () => {
                             <span>•</span>
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              {post.created_at ? format(new Date(post.created_at), 'MMM d') : 'N/A'}
+                              {post.created_at
+                                ? format(new Date(post.created_at), "MMM d")
+                                : "N/A"}
                             </span>
                           </div>
                         </div>
@@ -376,7 +410,10 @@ const AdminDashboard = () => {
               {isLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex items-center justify-between py-2">
+                    <div
+                      key={i}
+                      className="flex items-center justify-between py-2"
+                    >
                       <div className="space-y-2 w-full">
                         <div className="h-4 bg-muted rounded w-3/4 animate-pulse"></div>
                         <div className="h-3 bg-muted rounded w-1/2 animate-pulse"></div>
@@ -391,7 +428,9 @@ const AdminDashboard = () => {
                     <div
                       key={post.id}
                       className="flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-muted/50 px-2 rounded-lg transition-colors cursor-pointer"
-                      onClick={() => router.push(`/blog/admin/posts/${post.id}/edit`)}
+                      onClick={() =>
+                        router.push(`/blog/admin/posts/${post.id}/edit`)
+                      }
                     >
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium line-clamp-2 text-sm md:text-base">
@@ -437,14 +476,16 @@ const AdminDashboard = () => {
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {stats.categories.slice(0, 8).map((category) => (
-                  <div 
-                    key={category.name} 
+                  <div
+                    key={category.name}
                     className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
                     onClick={() => router.push(`/blog/admin/categories`)}
                   >
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium truncate">{category.name}</h4>
-                      <p className="text-sm text-muted-foreground">{category.count} posts</p>
+                      <p className="text-sm text-muted-foreground">
+                        {category.count} posts
+                      </p>
                     </div>
                     <div className="ml-2">
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
@@ -459,7 +500,7 @@ const AdminDashboard = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => router.push('/blog/admin/categories')}
+                    onClick={() => router.push("/blog/admin/categories")}
                   >
                     View all {stats.categories.length} categories
                   </Button>
@@ -484,7 +525,9 @@ const AdminDashboard = () => {
                   <div
                     key={post.id}
                     className="flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-muted/50 px-2 rounded-lg transition-colors cursor-pointer"
-                    onClick={() => router.push(`/blog/admin/posts/${post.id}/edit`)}
+                    onClick={() =>
+                      router.push(`/blog/admin/posts/${post.id}/edit`)
+                    }
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">

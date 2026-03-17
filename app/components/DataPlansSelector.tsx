@@ -93,8 +93,8 @@ export default function DataPlanSelector({
             className={cn(
               "px-4 py-1 whitespace-nowrap rounded-full text-sm border transition",
               activeTab === tab
-                ? "bg-[#C29307] text-white border-[#C29307]"
-                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                ? "bg-[#2b825b] text-white border-[#2b825b]"
+                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100",
             )}
           >
             {tab}
@@ -118,12 +118,12 @@ export default function DataPlanSelector({
                 onClick={() => onSelect(plan)}
                 className={`relative cursor-pointer transition-all border-2 rounded-xl ${
                   isSelected
-                    ? "border-[#C29307] ring-1 ring-[#C29307]"
+                    ? "border-[#2b825b] ring-1 ring-[#2b825b]"
                     : "hover:border-gray-300 border-gray-200"
                 }`}
               >
                 {isSelected && (
-                  <div className="absolute top-2 right-2 text-[#C29307]">
+                  <div className="absolute top-2 right-2 text-[#2b825b]">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                 )}

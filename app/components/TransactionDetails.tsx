@@ -565,20 +565,23 @@ export default function TransactionDetailsPage() {
 
   if (!transaction) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <DashboardSidebar />
         <div className="lg:ml-64">
           <DashboardHeader />
           <main className="p-4 sm:p-5">
             <div className="max-w-4xl mx-auto">
               <div className="text-center py-8 sm:py-12">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
                   Transaction Not Found
                 </h2>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
                   The transaction with ID "{params.id}" could not be found.
                 </p>
-                <Button onClick={() => router.back()}>
+                <Button 
+                  onClick={() => router.back()}
+                  className="bg-[#2b825b] hover:bg-[#236b49] dark:bg-[#2b825b] dark:hover:bg-[#1e5f43]"
+                >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to Transactions
                 </Button>
@@ -646,7 +649,7 @@ export default function TransactionDetailsPage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <DashboardSidebar />
 
       <div className="lg:ml-64">
@@ -661,16 +664,16 @@ export default function TransactionDetailsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => router.back()}
-                  className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+                  className="text-[#2b825b] hover:bg-white/10 dark:text-[#3aa873] dark:hover:bg-gray-800 text-sm md:text-base"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   <span className="hidden md:block">Back</span>
                 </Button>
                 <div className="min-w-0">
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 truncate">
                     Transaction Details
                   </h1>
-                  <p className="text-gray-600 text-sm sm:text-base">
+                  <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                     View complete transaction information
                   </p>
                 </div>
@@ -680,7 +683,7 @@ export default function TransactionDetailsPage() {
                 <Button
                   onClick={handleDownloadReceipt}
                   disabled={downloading}
-                  className="flex items-center gap-2 bg-[#C29307] text-white hover:bg-[#a87e06] w-full sm:w-auto justify-center"
+                  className="flex items-center gap-2 bg-[#2b825b] text-white hover:bg-[#236b49] dark:bg-[#2b825b] dark:hover:bg-[#1e5f43] w-full sm:w-auto justify-center"
                 >
                   {downloading ? (
                     <Loader2 className="animate-spin w-4 h-4" />
@@ -699,9 +702,9 @@ export default function TransactionDetailsPage() {
               {/* Left Column */}
               <div className="space-y-4 sm:space-y-6">
                 {/* Amount Card */}
-                <Card>
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
                   <CardHeader className="pb-3">
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
                       Amount
                     </h2>
                   </CardHeader>
@@ -710,14 +713,14 @@ export default function TransactionDetailsPage() {
                       <div
                         className={`text-2xl sm:text-3xl lg:text-4xl font-bold ${
                           amountInfo.isOutflow
-                            ? "text-red-500"
-                            : "text-green-600"
+                            ? "text-red-500 dark:text-red-400"
+                            : "text-green-600 dark:text-green-400"
                         }`}
                       >
                         {amountInfo.signedDisplay}
                       </div>
 
-                      <p className="text-gray-600 mt-2 text-sm sm:text-base capitalize">
+                      <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm sm:text-base capitalize">
                         {transaction.status?.toLowerCase() === "success"
                           ? "Transaction Successful"
                           : transaction.status?.toLowerCase() === "pending"
@@ -730,16 +733,16 @@ export default function TransactionDetailsPage() {
 
                 {/* Narration Card */}
                 {narration && (
-                  <Card>
+                  <Card className="dark:bg-gray-800 dark:border-gray-700">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                      <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                      <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" />
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
                         Transaction Narration
                       </h2>
                     </CardHeader>
                     <CardContent>
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <p className="text-blue-800 italic text-sm sm:text-base">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 dark:bg-blue-900/20 dark:border-blue-800">
+                        <p className="text-blue-800 dark:text-blue-400 italic text-sm sm:text-base">
                           "{narration}"
                         </p>
                       </div>
@@ -749,38 +752,38 @@ export default function TransactionDetailsPage() {
 
                 {/* Sender Information */}
                 {(displaySender.name !== "N/A" || displaySender.accountNumber !== "N/A") && (
-                  <Card>
+                  <Card className="dark:bg-gray-800 dark:border-gray-700">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" />
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
                         {isWithdrawal ? "From (Zidwell)" : "Sender Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                        <span className="text-gray-600 text-sm sm:text-base">
+                        <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                           Name
                         </span>
-                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-gray-900 dark:text-gray-100">
                           {displaySender.name}
                         </span>
                       </div>
                       {displaySender.accountNumber && displaySender.accountNumber !== "N/A" && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-gray-600 text-sm sm:text-base">
+                          <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                             Account Number
                           </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-gray-900 dark:text-gray-100">
                             {displaySender.accountNumber}
                           </span>
                         </div>
                       )}
                       {displaySender.bankName && displaySender.bankName !== "N/A" && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-gray-600 text-sm sm:text-base">
+                          <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                             Bank Name
                           </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-gray-900 dark:text-gray-100">
                             {displaySender.bankName}
                           </span>
                         </div>
@@ -791,48 +794,48 @@ export default function TransactionDetailsPage() {
 
                 {/* Receiver Information */}
                 {(displayReceiver.name !== "N/A" || displayReceiver.accountNumber !== "N/A") && (
-                  <Card>
+                  <Card className="dark:bg-gray-800 dark:border-gray-700">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                      <Building className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                      <Building className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" />
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
                         {isWithdrawal ? "To (Recipient)" : "Receiver Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                        <span className="text-gray-600 text-sm sm:text-base">
+                        <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                           {isWithdrawal ? "Recipient Name" : "Account Name"}
                         </span>
-                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-gray-900 dark:text-gray-100">
                           {displayReceiver.name}
                         </span>
                       </div>
                       {displayReceiver.accountNumber && displayReceiver.accountNumber !== "N/A" && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-gray-600 text-sm sm:text-base">
+                          <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                             Account Number
                           </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-gray-900 dark:text-gray-100">
                             {displayReceiver.accountNumber}
                           </span>
                         </div>
                       )}
                       {displayReceiver.bankName && displayReceiver.bankName !== "N/A" && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-gray-600 text-sm sm:text-base">
+                          <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                             Bank Name
                           </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-gray-900 dark:text-gray-100">
                             {displayReceiver.bankName}
                           </span>
                         </div>
                       )}
                       {displayReceiver.bankCode && displayReceiver.bankCode !== "N/A" && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-gray-600 text-sm sm:text-base">
+                          <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                             Bank Code
                           </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-gray-900 dark:text-gray-100">
                             {displayReceiver.bankCode}
                           </span>
                         </div>
@@ -845,49 +848,49 @@ export default function TransactionDetailsPage() {
               {/* Right Column */}
               <div className="space-y-4 sm:space-y-6">
                 {/* Transaction Details */}
-                <Card>
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
                   <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" />
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
                       Transaction Details
                     </h2>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-gray-600 text-sm sm:text-base">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                         Type
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left capitalize">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left capitalize text-gray-900 dark:text-gray-100">
                         {transaction.type || "N/A"}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-gray-600 text-sm sm:text-base">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                         Description
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-gray-900 dark:text-gray-100">
                         {transaction.description || "N/A"}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-gray-600 text-sm sm:text-base">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                         Reference
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-gray-900 dark:text-gray-100">
                         {transaction.reference || transaction.merchant_tx_ref || transaction.id}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-gray-600 text-sm sm:text-base">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                         Status
                       </span>
                       <span
                         className={`font-medium text-sm sm:text-base text-right xs:text-left capitalize ${
                           transaction.status?.toLowerCase() === "success"
-                            ? "text-green-600"
+                            ? "text-green-600 dark:text-green-400"
                             : transaction.status?.toLowerCase() === "pending"
-                            ? "text-blue-600"
-                            : "text-red-600"
+                            ? "text-blue-600 dark:text-blue-400"
+                            : "text-red-600 dark:text-red-400"
                         }`}
                       >
                         {transaction.status}
@@ -896,10 +899,10 @@ export default function TransactionDetailsPage() {
 
                     {transaction.fee > 0 && (
                       <div className="flex items-center justify-between gap-1 xs:gap-2">
-                        <span className="text-gray-600 text-sm sm:text-base">
+                        <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                           Transaction Fee
                         </span>
-                        <span className="font-medium text-sm ">
+                        <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
                           ₦
                           {Number(transaction.fee).toLocaleString("en-NG", {
                             minimumFractionDigits: 2,
@@ -911,10 +914,10 @@ export default function TransactionDetailsPage() {
                     {transaction.total_deduction > 0 &&
                     transaction.total_deduction !== transaction.amount ? (
                       <div className="flex items-center justify-between gap-1 xs:gap-2">
-                        <span className="text-gray-600 text-sm sm:text-base">
+                        <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                           Total Deduction
                         </span>
-                        <span className="font-medium text-sm ">
+                        <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
                           ₦
                           {Number(transaction.total_deduction).toLocaleString(
                             "en-NG",
@@ -929,35 +932,35 @@ export default function TransactionDetailsPage() {
                 </Card>
 
                 {/* Date & Time */}
-                <Card>
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
                   <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" />
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
                       Date & Time
                     </h2>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-gray-600 text-sm sm:text-base">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                         Date
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left text-gray-900 dark:text-gray-100">
                         {new Date(transaction.created_at).toLocaleDateString()}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-gray-600 text-sm sm:text-base">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                         Time
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left text-gray-900 dark:text-gray-100">
                         {new Date(transaction.created_at).toLocaleTimeString()}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-gray-600 text-sm sm:text-base">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                         Full Date
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left text-gray-900 dark:text-gray-100">
                         {new Date(transaction.created_at).toLocaleString()}
                       </span>
                     </div>

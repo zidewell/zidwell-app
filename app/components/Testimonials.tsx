@@ -41,7 +41,7 @@ const Testimonials = () => {
         {/* Section Header */}
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-gray-900 dark:text-gray-50">
-            Loved by Our <span className="text-[#C29307]">Users</span>
+            Loved by Our <span className="text-[#2b825b]">Users</span>
           </h2>
           <p className="text-lg text-gray-500 dark:text-gray-400">
             Real stories from real Nigerian businesses
@@ -82,7 +82,7 @@ const Testimonials = () => {
               key={index}
               className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 md:p-8 hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150"
             >
-              <Quote className="w-10 h-10 text-[#C29307] mb-4" />
+              <Quote className="w-10 h-10 text-[#2b825b] mb-4" />
               <p className="text-lg font-medium mb-6 text-gray-900 dark:text-gray-50">
                 "{testimonial.quote}"
               </p>

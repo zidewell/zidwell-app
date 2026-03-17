@@ -21,7 +21,7 @@ interface BlogHeaderProps {
 
 const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
   const { posts, refreshPosts, isLoading } = useBlog();
-  const {userData} = useUserContextData()
+  const { userData } = useUserContextData();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Calculate top categories from posts if categories prop not provided
@@ -90,23 +90,21 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
               </Link>
             ))}
 
-             {userData &&
-                [
-                  "super_admin",
-                  "finance_admin",
-                  "operations_admin",
-                  "support_admin",
-                  "legal_admin",
-                ].includes(userData?.role) && (
-                  <Link
-              href="/blog/admin"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Write
-            </Link>
-                )}
-
-           
+            {userData &&
+              [
+                "super_admin",
+                "finance_admin",
+                "operations_admin",
+                "support_admin",
+                "legal_admin",
+              ].includes(userData?.role) && (
+                <Link
+                  href="/blog/admin"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Write
+                </Link>
+              )}
 
             <Button
               variant="ghost"
@@ -165,7 +163,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
           {/* Subscribe Button */}
           <div className="hidden md:flex items-center gap-4">
             <Link href="/blog/subscribe">
-              <Button className="px-4 py-2 text-sm font-medium bg-[#C29307]  rounded-full hover:opacity-90 transition-opacity">
+              <Button className="px-4 py-2 text-sm font-medium bg-[#2b825b]  rounded-full hover:opacity-90 transition-opacity">
                 Subscribe
               </Button>
             </Link>

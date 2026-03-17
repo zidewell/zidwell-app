@@ -6,7 +6,7 @@ import { transporter } from "@/lib/node-mailer";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 // Helper function to extract admin user info from cookies
@@ -90,7 +90,7 @@ const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
 
         // Check if it's a base64 image
         if (src.startsWith("data:image")) {
-          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
+          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #2b825b; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
                   🖼️ <strong>Image included in notification</strong><br>
                   <small>(View in the app to see the image)</small>
                 </div>`;
@@ -108,7 +108,7 @@ const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
           />
         </div>
       `;
-      }
+      },
     );
 
     // Also handle markdown image syntax
@@ -116,7 +116,7 @@ const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
       /!\[([^\]]*)\]\(([^)]+)\)/g,
       (match, altText, imageUrl) => {
         if (imageUrl.startsWith("data:image")) {
-          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
+          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #2b825b; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
                     🖼️ <strong>${
                       altText || "Image included in notification"
                     }</strong><br>
@@ -140,7 +140,7 @@ const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
             }
           </div>
         `;
-      }
+      },
     );
   }
 
@@ -149,7 +149,7 @@ const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
 
   console.log(
     "parseMarkdown output (first 200 chars):",
-    processed.substring(0, 200)
+    processed.substring(0, 200),
   );
   return processed;
 };
@@ -276,7 +276,7 @@ async function sendEmailNotification({
           background-color: #ffffff;
         }
         .header { 
-          background: linear-gradient(135deg, #C29307 0%, #a87e06 100%);
+          background: linear-gradient(135deg, #2b825b 0%, #a87e06 100%);
           padding: 30px 20px; 
           border-radius: 10px 10px 0 0; 
           margin-bottom: 30px; 
@@ -293,7 +293,7 @@ async function sendEmailNotification({
           background: #f8fafc;
           padding: 25px;
           border-radius: 8px;
-          border-left: 4px solid #C29307;
+          border-left: 4px solid #2b825b;
           margin: 30px 0;
           font-size: 16px;
           line-height: 1.6;
@@ -327,11 +327,11 @@ async function sendEmailNotification({
           line-height: 1.4;
         }
         .zidwell-brand {
-          color: #C29307;
+          color: #2b825b;
           font-weight: bold;
         }
         .support-link {
-          color: #C29307;
+          color: #2b825b;
           text-decoration: none;
           font-weight: 500;
         }
@@ -560,14 +560,14 @@ async function sendNotificationToUsers({
       const emailResults = await Promise.all(emailPromises);
 
       deliveryResults.email.successful = emailResults.filter(
-        (r) => r.success
+        (r) => r.success,
       ).length;
       deliveryResults.email.failed = emailResults.filter(
-        (r) => !r.success
+        (r) => !r.success,
       ).length;
 
       console.log(
-        `Email results: ${deliveryResults.email.successful} successful, ${deliveryResults.email.failed} failed`
+        `Email results: ${deliveryResults.email.successful} successful, ${deliveryResults.email.failed} failed`,
       );
     }
 
@@ -635,7 +635,7 @@ export async function POST(req: NextRequest) {
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -646,7 +646,7 @@ export async function POST(req: NextRequest) {
     if (!body.title || !body.message) {
       return NextResponse.json(
         { error: "Title and message are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -660,7 +660,7 @@ export async function POST(req: NextRequest) {
           error:
             "At least one user must be selected for specific user notifications",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -668,7 +668,7 @@ export async function POST(req: NextRequest) {
     if (!body.channels || body.channels.length === 0) {
       return NextResponse.json(
         { error: "At least one channel must be selected" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -769,7 +769,7 @@ export async function GET(req: NextRequest) {
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -847,7 +847,7 @@ export async function DELETE(req: NextRequest) {
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -857,7 +857,7 @@ export async function DELETE(req: NextRequest) {
     if (!id) {
       return NextResponse.json(
         { error: "Notification ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -871,7 +871,7 @@ export async function DELETE(req: NextRequest) {
       if (fetchError.code === "PGRST116") {
         return NextResponse.json(
           { error: "Notification not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
       throw fetchError;
@@ -880,13 +880,13 @@ export async function DELETE(req: NextRequest) {
     if (existingNotification.status === "sent") {
       return NextResponse.json(
         { error: "Cannot delete already sent notifications" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Extract image URLs from the message before deleting
     const imageUrls = extractImageUrlsFromMarkdown(
-      existingNotification.message
+      existingNotification.message,
     );
 
     // Delete the notification
@@ -941,7 +941,7 @@ export async function PATCH(req: Request) {
     if (!id) {
       return NextResponse.json(
         { error: "Notification ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -955,7 +955,7 @@ export async function PATCH(req: Request) {
     if (fetchError) {
       return NextResponse.json(
         { error: "Notification not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -963,7 +963,7 @@ export async function PATCH(req: Request) {
     if (currentNotification.status === "sent") {
       return NextResponse.json(
         { error: "Cannot modify already sent notifications" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -972,13 +972,13 @@ export async function PATCH(req: Request) {
     if (updates.message && updates.message !== currentNotification.message) {
       // Extract old image URLs
       const oldImageUrls = extractImageUrlsFromMarkdown(
-        currentNotification.message
+        currentNotification.message,
       );
       const newImageUrls = extractImageUrlsFromMarkdown(updates.message);
 
       // Find images that were removed
       imagesToDelete = oldImageUrls.filter(
-        (url) => !newImageUrls.includes(url)
+        (url) => !newImageUrls.includes(url),
       );
     }
 
@@ -1047,7 +1047,7 @@ export async function PUT(req: NextRequest) {
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -1056,7 +1056,7 @@ export async function PUT(req: NextRequest) {
     if (!id) {
       return NextResponse.json(
         { error: "Notification ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -1070,7 +1070,7 @@ export async function PUT(req: NextRequest) {
     if (fetchError) {
       return NextResponse.json(
         { error: "Notification not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -1078,7 +1078,7 @@ export async function PUT(req: NextRequest) {
     if (currentNotification.status === "sent") {
       return NextResponse.json(
         { error: "Cannot update and send already sent notifications" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -1087,13 +1087,13 @@ export async function PUT(req: NextRequest) {
     if (updates.message && updates.message !== currentNotification.message) {
       // Extract old image URLs
       const oldImageUrls = extractImageUrlsFromMarkdown(
-        currentNotification.message
+        currentNotification.message,
       );
       const newImageUrls = extractImageUrlsFromMarkdown(updates.message);
 
       // Find images that were removed
       imagesToDelete = oldImageUrls.filter(
-        (url) => !newImageUrls.includes(url)
+        (url) => !newImageUrls.includes(url),
       );
     }
 

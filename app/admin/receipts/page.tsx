@@ -89,13 +89,13 @@ export default function ReceiptsPage() {
   const totalReceipts = useMemo(() => data?.total || 0, [data]);
   const totalPages = useMemo(
     () => Math.ceil(totalReceipts / itemsPerPage),
-    [totalReceipts, itemsPerPage]
+    [totalReceipts, itemsPerPage],
   );
 
   // Use statsData for calculations
   const allFilteredReceipts = useMemo(
     () => statsData?.receipts || [],
-    [statsData]
+    [statsData],
   );
 
   // Calculate stats
@@ -103,38 +103,38 @@ export default function ReceiptsPage() {
     () =>
       allFilteredReceipts.reduce(
         (sum: number, r: any) => sum + Number(r.amount_balance || 0),
-        0
+        0,
       ),
-    [allFilteredReceipts]
+    [allFilteredReceipts],
   );
 
   const pendingReceipts = useMemo(
     () =>
       allFilteredReceipts.filter(
-        (r: any) => r.status === "pending" || r.status === "draft"
+        (r: any) => r.status === "pending" || r.status === "draft",
       ),
-    [allFilteredReceipts]
+    [allFilteredReceipts],
   );
 
   const signedReceipts = useMemo(
     () =>
       allFilteredReceipts.filter(
-        (r: any) => r.status === "signed" || r.status === "completed"
+        (r: any) => r.status === "signed" || r.status === "completed",
       ),
-    [allFilteredReceipts]
+    [allFilteredReceipts],
   );
 
   const rejectedReceipts = useMemo(
     () =>
       allFilteredReceipts.filter(
-        (r: any) => r.status === "rejected" || r.status === "cancelled"
+        (r: any) => r.status === "rejected" || r.status === "cancelled",
       ),
-    [allFilteredReceipts]
+    [allFilteredReceipts],
   );
 
   const expiredReceipts = useMemo(
     () => allFilteredReceipts.filter((r: any) => r.status === "expired"),
-    [allFilteredReceipts]
+    [allFilteredReceipts],
   );
 
   // ✅ Edit receipt status
@@ -236,7 +236,7 @@ export default function ReceiptsPage() {
           
           <div><strong>Amount:</strong></div>
           <div class="font-semibold">₦${Number(
-            row.amount_balance || 0
+            row.amount_balance || 0,
           ).toLocaleString()}</div>
           
           <div><strong>Status:</strong></div>
@@ -377,7 +377,7 @@ export default function ReceiptsPage() {
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-            <p className="text-2xl font-semibold text-[#C29307]">
+            <p className="text-2xl font-semibold text-[#2b825b]">
               {pendingReceipts.length}
             </p>
           </div>

@@ -142,7 +142,7 @@ export const SuggestEditsModal = ({
           </Button>
           <Button
             type="button"
-            className="flex-1 bg-[#C29307] hover:bg-[#b38606]"
+            className="flex-1 bg-[#2b825b] hover:bg-[#1e5d42]"
             onClick={handleSubmit}
             disabled={isSubmitting}
           >

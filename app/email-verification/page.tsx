@@ -73,7 +73,7 @@ export default function EmailVerificationPage() {
         <button
           onClick={checkVerification}
           disabled={loading}
-          className="w-full bg-[#C29307] text-white py-3 rounded-lg mb-3 hover:bg-[#a67905] transition"
+          className="w-full bg-[#2b825b] text-white py-3 rounded-lg mb-3 hover:bg-[#a67905] transition"
         >
           {loading ? "Checking..." : "I have verified my email"}
         </button>
@@ -81,7 +81,7 @@ export default function EmailVerificationPage() {
         <button
           onClick={handleResend}
           disabled={loading}
-          className="w-full border border-[#C29307] text-[#C29307] py-3 rounded-lg hover:bg-[#FFF5D9] transition"
+          className="w-full border border-[#2b825b] text-[#2b825b] py-3 rounded-lg hover:bg-[#FFF5D9] transition"
         >
           {loading ? "Resending..." : "Resend Email"}
         </button>

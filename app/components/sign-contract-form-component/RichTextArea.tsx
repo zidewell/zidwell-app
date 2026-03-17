@@ -1,197 +1,197 @@
-import React, { useRef, useEffect } from 'react';
-import Quill from 'quill';
+import React, { useRef, useEffect, useState } from 'react';
 import 'quill/dist/quill.snow.css';
 import { Trash2, Eraser } from 'lucide-react';
 import { Button } from '../ui/button';
 
-interface ContractEditorProps {
+// Load Quill only on client side
+let Quill: any = null;
+if (typeof window !== 'undefined') {
+  import('quill').then(module => {
+    Quill = module.default;
+  });
+}
+
+interface RichTextAreaProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   readOnly?: boolean;
+  minHeight?: string;
 }
 
-// Function to clean Quill HTML artifacts
-const cleanQuillHTML = (html: string): string => {
-  if (!html) return "";
-  
-  // Remove Quill UI spans
-  let cleaned = html
-    .replace(/<span class="ql-ui"[^>]*><\/span>/g, '')
-    .replace(/<span[^>]*data-list="[^"]*"[^>]*>/g, '')
-    .replace(/<\/span>/g, '');
-  
-  // Remove empty list items
-  cleaned = cleaned
-    .replace(/<li>\s*<br>\s*<\/li>/g, '')
-    .replace(/<li><br><\/li>/g, '')
-    .replace(/<li>\s*<\/li>/g, '');
-  
-  // Remove data-list attributes
-  cleaned = cleaned.replace(/\s+data-list="[^"]*"/g, '');
-  
-  // Clean up empty paragraphs
-  cleaned = cleaned
-    .replace(/<p>\s*<br>\s*<\/p>/g, '')
-    .replace(/<p><br><\/p>/g, '')
-    .replace(/<p>\s*<\/p>/g, '');
-  
-  // Remove empty headers
-  cleaned = cleaned
-    .replace(/<h[1-6]>\s*<br>\s*<\/h[1-6]>/g, '')
-    .replace(/<h[1-6]><br><\/h[1-6]>/g, '');
-  
-  return cleaned.trim();
-};
-
-const RichTextArea = ({ 
-  value, 
-  onChange, 
-  placeholder = 'Enter your contract details here...', 
-  readOnly = false 
-}: ContractEditorProps) => {
+const RichTextArea = ({
+  value,
+  onChange,
+  placeholder = 'Enter your contract details here...',
+  readOnly = false,
+  minHeight = '300px',
+}: RichTextAreaProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  const quillInstanceRef = useRef<Quill | null>(null);
+  const quillInstance = useRef<any>(null);
+  const [isQuillLoaded, setIsQuillLoaded] = useState(false);
 
-  // Initialize Quill
+  // Load Quill dynamically
   useEffect(() => {
-    if (!editorRef.current || quillInstanceRef.current) return;
+    if (typeof window === 'undefined') return;
 
-    const quill = new Quill(editorRef.current, {
-      theme: 'snow',
-      placeholder,
-      readOnly,
-      modules: {
-        toolbar: {
-          container: [
-            ['bold', 'italic', 'underline'],               // Text formatting
-            [{ 'header': [1, 2, 3, false] }],              // Headings
-            [{ 'list': 'ordered' }, { 'list': 'bullet' }], // Lists
-            [{ 'align': [] }],                             // Alignment
-            ['link'],                                      // Links
-          ],
-        },
-        clipboard: {
-          matchVisual: true,
-        },
-        history: {
-          delay: 1000,
-          maxStack: 50,
-          userOnly: true,
-        },
-      },
-      formats: [
-        'header',
-        'bold', 'italic', 'underline',
-        'list', 'bullet', 'ordered',
-        'align',
-        'link',
-      ],
-    });
+    const loadQuill = async () => {
+      if (!Quill) {
+        const module = await import('quill');
+        Quill = module.default;
+      }
+      setIsQuillLoaded(true);
+    };
 
-    quillInstanceRef.current = quill;
-
-    // Set initial value - clean it first
-    if (value) {
-      // Store the cleaned value in a separate variable
-      const initialValue = cleanQuillHTML(value);
-      quill.clipboard.dangerouslyPasteHTML(initialValue);
-    }
-
-    // Handle text changes - clean HTML before sending to parent
-    quill.on('text-change', () => {
-      const html = quill.root.innerHTML;
-      const cleanedHtml = cleanQuillHTML(html);
-      onChange(cleanedHtml);
-    });
+    loadQuill();
 
     return () => {
-      quillInstanceRef.current = null;
+      if (quillInstance.current) {
+        quillInstance.current = null;
+      }
     };
   }, []);
 
-  // Update value when prop changes
+  // Initialize Quill
   useEffect(() => {
-    if (quillInstanceRef.current && value !== quillInstanceRef.current.root.innerHTML) {
-      // Clean the incoming value before setting it in the editor
-      const cleanedValue = cleanQuillHTML(value);
-      quillInstanceRef.current.clipboard.dangerouslyPasteHTML(cleanedValue);
+    if (!isQuillLoaded || !editorRef.current || quillInstance.current) return;
+
+    // Configure Quill
+    const toolbarOptions = [
+      ['bold', 'italic', 'underline'],
+      [{ header: [1, 2, 3, false] }],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      [{ align: [] }],
+      ['link'],
+      ['clean'], // Add clean button for clearing formatting
+    ];
+
+    try {
+      const quill = new Quill(editorRef.current, {
+        theme: 'snow',
+        placeholder,
+        readOnly,
+        modules: {
+          toolbar: toolbarOptions,
+          clipboard: {
+            matchVisual: false, // Prevents some formatting issues
+          },
+          keyboard: {
+            bindings: {
+              // Fix for list handling
+              'list autofill': {
+                key: ' ',
+                prefix: /^(\d+\.|-|\*|\+)$/,
+                handler: function (range: any, context: any) {
+                  return true;
+                }
+              }
+            }
+          }
+        },
+      });
+
+      quillInstance.current = quill;
+
+      // Set initial content if provided
+      if (value) {
+        quill.root.innerHTML = value;
+      }
+
+      // Handle text changes
+      quill.on('text-change', () => {
+        const content = quill.root.innerHTML;
+        onChange(content);
+      });
+
+      // Fix for backspace/delete issues
+      quill.root.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+          // Allow default behavior
+          setTimeout(() => {
+            const content = quill.root.innerHTML;
+            onChange(content);
+          }, 0);
+        }
+      });
+
+    } catch (error) {
+      console.error('Error initializing Quill:', error);
+    }
+
+    return () => {
+      if (quillInstance.current) {
+        quillInstance.current = null;
+      }
+    };
+  }, [isQuillLoaded]);
+
+  // Update content when value prop changes
+  useEffect(() => {
+    if (!quillInstance.current || !value) return;
+    
+    const currentContent = quillInstance.current.root.innerHTML;
+    if (value !== currentContent) {
+      quillInstance.current.root.innerHTML = value;
     }
   }, [value]);
 
   // Update readOnly state
   useEffect(() => {
-    if (quillInstanceRef.current) {
-      quillInstanceRef.current.enable(!readOnly);
-    }
+    if (!quillInstance.current) return;
+    quillInstance.current.enable(!readOnly);
   }, [readOnly]);
 
-  // Handle clear all content
   const handleClearAll = () => {
-    if (quillInstanceRef.current) {
-      quillInstanceRef.current.setText('');
-      // Trigger onChange with empty string
-      onChange('');
-    }
+    if (!quillInstance.current) return;
+    quillInstance.current.setText('');
+    onChange('');
   };
 
-  // Handle clear formatting
   const handleClearFormatting = () => {
-    if (quillInstanceRef.current) {
-      const quill = quillInstanceRef.current;
-      const range = quill.getSelection();
-      if (range) {
-        quill.removeFormat(range.index, range.length);
-      } else {
-        // If no selection, clear formatting of entire document
-        quill.removeFormat(0, quill.getLength());
+    if (!quillInstance.current) return;
+    
+    const quill = quillInstance.current;
+    const range = quill.getSelection();
+    
+    if (range && range.length > 0) {
+      // Clear formatting on selected text
+      quill.removeFormat(range.index, range.length);
+    } else {
+      // If no selection, clear formatting on entire document
+      const length = quill.getLength();
+      if (length > 1) {
+        quill.removeFormat(0, length - 1);
       }
-      // Get the cleaned HTML after clearing formatting
-      const html = quill.root.innerHTML;
-      const cleanedHtml = cleanQuillHTML(html);
-      onChange(cleanedHtml);
     }
+    
+    // Get updated content
+    const content = quill.root.innerHTML;
+    onChange(content);
   };
 
-  // Custom CSS
+  // Styles
   const editorStyles = `
     .ql-container {
       font-family: inherit;
-      font-size: 14px;
-      min-height: 224px;
+      font-size: 16px;
+      min-height: ${minHeight};
       border: none !important;
-      border-radius: 0 0 0.5rem 0.5rem !important;
     }
     
     .ql-toolbar {
       border: none !important;
       border-bottom: 1px solid #e5e7eb !important;
-      border-radius: 0.5rem 0.5rem 0 0 !important;
       background-color: #f9fafb;
-      padding: 0.75rem !important;
+      padding: 0.5rem !important;
     }
     
     .ql-toolbar .ql-formats {
-      margin-right: 12px;
-    }
-    
-    .ql-editor {
-      min-height: 224px;
-      padding: 1rem;
-      font-size: 14px;
-      line-height: 1.6;
-      color: #374151;
-    }
-    
-    .ql-editor.ql-blank::before {
-      color: #9ca3af;
-      font-style: normal;
-      left: 1rem;
+      margin-right: 8px;
     }
     
     .ql-toolbar button {
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       border-radius: 4px;
     }
     
@@ -203,41 +203,91 @@ const RichTextArea = ({
       background-color: #dbeafe;
       color: #2563eb;
     }
+    
+    .ql-editor {
+      min-height: ${minHeight};
+      padding: 1rem;
+      font-size: 16px;
+      line-height: 1.75;
+      color: #1f2937;
+    }
+    
+    .ql-editor p {
+      margin-bottom: 1rem;
+    }
+    
+    .ql-editor h1, .ql-editor h2, .ql-editor h3 {
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    
+    .ql-editor h1 { font-size: 2em; }
+    .ql-editor h2 { font-size: 1.5em; }
+    .ql-editor h3 { font-size: 1.17em; }
+    
+    .ql-editor ul, .ql-editor ol {
+      padding-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .ql-editor li {
+      margin-bottom: 0.25rem;
+    }
+    
+    .ql-editor.ql-blank::before {
+      color: #9ca3af;
+      font-style: normal;
+      left: 1rem;
+    }
   `;
 
+  if (!isQuillLoaded) {
+    return (
+      <div 
+        className="border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center"
+        style={{ minHeight }}
+      >
+        <p className="text-gray-400">Loading editor...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
       <style>{editorStyles}</style>
       
-      {/* Custom toolbar with clear buttons */}
-      <div className="flex items-start justify-between p-3 bg-muted border-b border-border">
-        {/* Quill toolbar container */}
+      {/* Toolbar wrapper */}
+      <div className="flex items-center justify-between bg-muted border-b border-border">
         <div className="flex-1">
-          <div ref={editorRef} className="[&_.ql-toolbar]:p-0 [&_.ql-toolbar]:border-none [&_.ql-toolbar]:bg-transparent" />
+          <div 
+            ref={editorRef} 
+            className="[&_.ql-toolbar]:border-0 [&_.ql-toolbar]:bg-transparent [&_.ql-toolbar]:p-2"
+          />
         </div>
         
-        {/* Clear buttons */}
-        <div className="flex gap-2 ml-4">
+        {/* Custom buttons */}
+        <div className="flex gap-2 px-2">
           <Button
             size="sm"
             variant="ghost"
             onClick={handleClearFormatting}
-            className="h-8 px-3 text-xs"
-            title="Clear Formatting"
+            className="h-8 px-2 text-xs"
+            title="Clear formatting"
             type="button"
           >
-            <Eraser className="h-4 w-4 mr-1" />
+            <Eraser className="h-3 w-3 mr-1" />
             Clear Format
           </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={handleClearAll}
-            className="h-8 px-3 text-xs"
-            title="Clear All Content"
+            className="h-8 px-2 text-xs"
+            title="Clear all content"
             type="button"
           >
-            <Trash2 className="h-4 w-4 mr-1" />
+            <Trash2 className="h-3 w-3 mr-1" />
             Clear All
           </Button>
         </div>
@@ -246,6 +296,4 @@ const RichTextArea = ({
   );
 };
 
-// Export the clean function for use in other components
-export { cleanQuillHTML };
 export default RichTextArea;

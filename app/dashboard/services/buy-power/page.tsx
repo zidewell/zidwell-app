@@ -1,22 +1,28 @@
-import DashboardHeader from "@/app/components/dashboard-hearder";
-import DashboardSidebar from "@/app/components/dashboard-sidebar";
+"use client";
+import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
+import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import ElectricityBills from "@/app/components/Electricity";
-export default function page() {
+import { useState } from "react";
+
+export default function ElectricityPage() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
+    <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] relative">
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-      <div className="min-h-screen bg-gray-50">
-        <DashboardSidebar />
+      <div className="lg:pl-72 min-h-screen flex flex-col">
+        <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
-        <div className="lg:ml-64">
-          <DashboardHeader />
-
-          <main className="p-6">
-            <div className="max-w-6xl mx-auto">
-              <ElectricityBills />
-            </div>
-          </main>
-        </div>
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
+          <div className="max-w-6xl mx-auto">
+            <ElectricityBills />
+          </div>
+        </main>
       </div>
-  
+    </div>
   );
 }

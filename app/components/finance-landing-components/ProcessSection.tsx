@@ -18,7 +18,7 @@ const ProcessSection = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-block px-4 py-1 bg-[#C29307] text-neutral-900 text-sm font-semibold mb-4">
+          <div className="inline-block px-4 py-1 bg-[#2b825b] text-neutral-900 text-sm font-semibold mb-4">
             OUR PROCESS
           </div>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6">
@@ -33,7 +33,7 @@ const ProcessSection = () => {
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
           {/* Option 1: Self-Start */}
           <div className="bg-white text-neutral-900 border-2 border-white p-8 md:p-10 relative">
-            <div className="absolute -top-4 -left-4 w-12 h-12 bg-[#C29307] border-2 border-neutral-900 flex items-center justify-center font-black text-xl">
+            <div className="absolute -top-4 -left-4 w-12 h-12 bg-[#2b825b] border-2 border-neutral-900 flex items-center justify-center font-black text-xl">
               1
             </div>
 
@@ -46,19 +46,19 @@ const ProcessSection = () => {
 
               <ul className="space-y-3 mb-8">
                 <li className="flex items-start gap-3">
-                  <span className="w-6 h-6 bg-[#C29307] shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
+                  <span className="w-6 h-6 bg-[#2b825b] shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
                     ✓
                   </span>
                   <span>Sign up and fill out our business discovery form</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="w-6 h-6 bg-[#C29307] shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
+                  <span className="w-6 h-6 bg-[#2b825b] shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
                     ✓
                   </span>
                   <span>Choose one of our service plans</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="w-6 h-6 bg-[#C29307] shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
+                  <span className="w-6 h-6 bg-[#2b825b] shrink-0 flex items-center justify-center text-sm font-bold mt-0.5">
                     ✓
                   </span>
                   <span>Our team reaches out to get you started</span>
@@ -77,7 +77,7 @@ const ProcessSection = () => {
           </div>
 
           {/* Option 2: Talk to Expert */}
-          <div className="bg-[#C29307] text-neutral-900 border-2 border-neutral-900 p-8 md:p-10 relative shadow-[8px_8px_0px_hsl(0,0%,100%)]">
+          <div className="bg-[#2b825b] text-neutral-900 border-2 border-neutral-900 p-8 md:p-10 relative shadow-[8px_8px_0px_hsl(0,0%,100%)]">
             <div className="absolute -top-4 -left-4 w-12 h-12 bg-neutral-900 text-white border-2 border-white flex items-center justify-center font-black text-xl">
               2
             </div>

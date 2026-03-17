@@ -5,7 +5,7 @@ import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button2 } from "../ui/button2";
-import ConsultationModal from "./ConsultationModal"; 
+import ConsultationModal from "./ConsultationModal";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,19 +13,24 @@ const Navbar = () => {
 
   const navLinks = [
     { label: "Blog", href: "/blog", type: "link" },
-    { label: "Talk to Expert", href: "#talk-to-expert", type: "modal", variant: "heroOutline" as const },
+    {
+      label: "Talk to Expert",
+      href: "#talk-to-expert",
+      type: "modal",
+      variant: "heroOutline" as const,
+    },
     { label: "Get Started", href: "/f-onboarding", type: "external" },
   ];
 
   const handleActionClick = (label: string, href?: string, type?: string) => {
     console.log(`${label} clicked`);
-    
+
     if (type === "modal") {
       setIsConsultationOpen(true);
       setIsMenuOpen(false);
     } else if (type === "external" && href) {
       // Open external link in new tab
-      window.open(href, '_blank', 'noopener,noreferrer');
+      window.open(href, "_blank", "noopener,noreferrer");
       setIsMenuOpen(false);
     }
   };
@@ -44,7 +49,7 @@ const Navbar = () => {
                   alt="Zidwell Logo"
                   width={40}
                   height={40}
-                  className="w-10 h-10 object-contain border-2 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] bg-black dark:bg-gray-950 p-1 border-[#C29307]"
+                  className="w-10 h-10 object-contain border-2 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] bg-black dark:bg-gray-950 p-1 border-[#2b825b]"
                 />
                 <span className="font-black text-xl tracking-tight text-gray-900 dark:text-gray-50">
                   Zidwell
@@ -86,18 +91,20 @@ const Navbar = () => {
                     </Link>
                   ) : link.type === "external" ? (
                     <Button2
-                      onClick={() => handleActionClick(link.label, link.href, link.type)}
+                      onClick={() =>
+                        handleActionClick(link.label, link.href, link.type)
+                      }
                       size="sm"
-                      
                     >
                       {link.label}
                     </Button2>
                   ) : (
                     <Button2
-                      onClick={() => handleActionClick(link.label, link.href, link.type)}
+                      onClick={() =>
+                        handleActionClick(link.label, link.href, link.type)
+                      }
                       variant={link.variant}
                       size="sm"
-                      
                     >
                       {link.label}
                     </Button2>
@@ -152,14 +159,18 @@ const Navbar = () => {
                       </Link>
                     ) : link.type === "external" ? (
                       <Button2
-                        onClick={() => handleActionClick(link.label, link.href, link.type)}
+                        onClick={() =>
+                          handleActionClick(link.label, link.href, link.type)
+                        }
                         className="w-full justify-start text-lg py-3 font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
                         {link.label}
                       </Button2>
                     ) : (
                       <Button2
-                        onClick={() => handleActionClick(link.label, link.href, link.type)}
+                        onClick={() =>
+                          handleActionClick(link.label, link.href, link.type)
+                        }
                         variant={link.variant}
                         className="w-full justify-start text-lg py-3 font-medium transition-all"
                       >
@@ -175,9 +186,9 @@ const Navbar = () => {
       </nav>
 
       {/* Consultation Modal */}
-      <ConsultationModal 
-        open={isConsultationOpen} 
-        onOpenChange={setIsConsultationOpen} 
+      <ConsultationModal
+        open={isConsultationOpen}
+        onOpenChange={setIsConsultationOpen}
       />
     </>
   );

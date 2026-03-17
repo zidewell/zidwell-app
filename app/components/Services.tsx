@@ -61,7 +61,7 @@ const Services = () => {
       title: "Buy Power",
       description:
         "Purchase electricity units for your home or office with ease.",
-      color: "from-yellow-500 to-[#C29307]",
+      color: "from-yellow-500 to-[#2b825b]",
       link: "/platform-services/#electricity",
     },
     {
@@ -87,7 +87,7 @@ const Services = () => {
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             All Your Bills
-            <span className="ml-2 text-[#C29307]">One Platform</span>
+            <span className="ml-2 text-[#2b825b]">One Platform</span>
           </h2>
           <p className="md:text-xl text-gray-600 max-w-3xl mx-auto">
             Save time and money by managing all your bill payments in one

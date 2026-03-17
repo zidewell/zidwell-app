@@ -1,44 +1,52 @@
 "use client";
-import DashboardSidebar from "../../components/dashboard-sidebar";
-import DashboardHeader from "../../components/dashboard-hearder";
-import TransactionHistory from "../../components/transaction-history";
+import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
+import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
+import TransactionHistory from "@/app/components/transaction-history";
 import { Button } from "@/app/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function TransactionsPage() {
   const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardSidebar />
+    <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] relative">
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-      <div className="lg:ml-64">
-        <DashboardHeader />
+      <div className="lg:pl-72 min-h-screen flex flex-col">
+        <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="p-5">
-          <div className=" md:max-w-5xl md:mx-auto">
-            <div className="flex items-start  space-x-4 mb-5">
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-start gap-4 mb-6 md:mb-8">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+                className="text-[#2b825b] hover:text-[#1e5d42] hover:bg-[#f0efe7] dark:hover:bg-[#242424] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[#242424] dark:hover:border-[#474747] transition-all"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                <span className="hidden md:block">Back</span>
+                <ArrowLeft className="w-5 h-5 md:mr-2" />
+                <span className="hidden md:inline text-sm font-medium">Back</span>
               </Button>
 
-              <div className="">
-                <h1 className="md:text-3xl text-xl font-bold mb-4">
+              <div className="flex-1">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#141414] dark:text-[#f5f5f5] mb-2">
                   Transaction History
                 </h1>
-                <p className=" text-muted-foreground">
+                <p className="text-sm md:text-base text-[#6b6b6b] dark:text-[#a6a6a6]">
                   View and manage all your transactions
                 </p>
               </div>
             </div>
 
-            <TransactionHistory />
+            <div className="bg-[#ffffff] dark:bg-[#121212] border-2 border-[#242424] dark:border-[#474747] rounded-md p-4 md:p-6 shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]">
+              <TransactionHistory />
+            </div>
           </div>
         </main>
       </div>

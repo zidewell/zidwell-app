@@ -38,7 +38,7 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className={cn('w-16 text-xl p-0', className)}
+          className={cn('w-16 text-xl p-0 dark:bg-gray-700 dark:border-gray-600', className)}
           style={{
             backgroundColor: '#fcfbf9',
             borderColor: '#e6dfd6'
@@ -48,7 +48,7 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-80 p-0 z-50" 
+        className="w-80 p-0 z-50 dark:bg-gray-800 dark:border-gray-700" 
         align="start"
         style={{
           backgroundColor: '#fcfbf9',
@@ -67,8 +67,8 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
                   'px-2 py-1 text-xs rounded-md transition-colors'
                 )}
                 style={{
-                  backgroundColor: activeCategory === category ? '#eab308' : '#f5f1ea',
-                  color: activeCategory === category ? '#26121c' : '#80746e'
+                  backgroundColor: activeCategory === category ? '#2b825b' : '#f5f1ea',
+                  color: activeCategory === category ? '#ffffff' : '#80746e'
                 }}
               >
                 {category}
@@ -87,8 +87,8 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
                   'w-10 h-10 text-xl rounded-lg flex items-center justify-center transition-all'
                 )}
                 style={{
-                  backgroundColor: value === icon ? 'rgba(234, 179, 8, 0.2)' : 'transparent',
-                  border: value === icon ? '2px solid #eab308' : 'none'
+                  backgroundColor: value === icon ? 'rgba(43, 130, 91, 0.2)' : 'transparent',
+                  border: value === icon ? '2px solid #2b825b' : 'none'
                 }}
               >
                 {icon}

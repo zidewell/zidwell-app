@@ -14,7 +14,7 @@ interface BlogCardProps {
 const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
   const [isClient, setIsClient] = useState(false);
   const [formattedDate, setFormattedDate] = useState("");
-  
+
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -35,7 +35,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
           setFormattedDate("Recent");
         }
       } catch (error) {
-        console.warn('Error formatting date:', error);
+        console.warn("Error formatting date:", error);
         setFormattedDate("Recent");
       }
     }
@@ -44,17 +44,17 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
   // Helper function to get user initials
   const getInitials = (name: string): string => {
     if (!name || name === "Unknown Author") return "U";
-    
+
     const names = name.trim().split(" ");
     if (names.length === 1) return names[0].charAt(0).toUpperCase();
-    
+
     return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
   };
 
   // Helper function to get a consistent color based on name
   const getAvatarColor = (name: string): string => {
-    if (!name) return "#C29307";
-    
+    if (!name) return "#2b825b";
+
     const colors = [
       "#3B82F6", // Blue
       "#10B981", // Green
@@ -65,11 +65,11 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
       "#EC4899", // Pink
       "#8B4513", // Brown
     ];
-    
+
     const hash = name.split("").reduce((acc, char) => {
       return char.charCodeAt(0) + ((acc << 5) - acc);
     }, 0);
-    
+
     return colors[Math.abs(hash) % colors.length];
   };
 
@@ -82,7 +82,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
   const categories = post.categories || [];
   const title = post.title || "Untitled Post";
   const slug = post.slug || "";
-  
+
   // Avatar initials and color
   const initials = getInitials(authorName);
   const avatarColor = getAvatarColor(authorName);
@@ -106,18 +106,16 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
               {categories.slice(0, 2).map((cat) => (
                 <span
                   key={cat.id}
-                  className="text-xs font-medium text-[#C29307] uppercase tracking-wider"
+                  className="text-xs font-medium text-[#2b825b] uppercase tracking-wider"
                 >
                   {cat.name}
                 </span>
               ))}
             </div>
-            <h2 className="text-2xl md:text-3xl font-semibold mb-3 group-hover:text-[#C29307] transition-colors">
+            <h2 className="text-2xl md:text-3xl font-semibold mb-3 group-hover:text-[#2b825b] transition-colors">
               {title}
             </h2>
-            <p className="text-muted-foreground mb-4 line-clamp-3">
-              {excerpt}
-            </p>
+            <p className="text-muted-foreground mb-4 line-clamp-3">{excerpt}</p>
             <div className="flex items-center gap-3">
               <div className="relative w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border border-gray-200 dark:border-gray-700">
                 {authorAvatar ? (
@@ -129,15 +127,16 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
                     height={32}
                     loading="lazy"
                     onError={(e) => {
-                 
                       const target = e.currentTarget as HTMLImageElement;
-                      target.style.display = 'none';
-                      target.parentElement?.querySelector('.avatar-initials')?.classList.remove('hidden');
+                      target.style.display = "none";
+                      target.parentElement
+                        ?.querySelector(".avatar-initials")
+                        ?.classList.remove("hidden");
                     }}
                   />
                 ) : null}
-                <div 
-                  className={`avatar-initials ${authorAvatar ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}
+                <div
+                  className={`avatar-initials ${authorAvatar ? "hidden" : "flex"} items-center justify-center w-full h-full`}
                   style={{ backgroundColor: avatarColor }}
                 >
                   <span className="text-white text-xs font-semibold">
@@ -182,7 +181,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium line-clamp-2 group-hover:text-[#C29307] transition-colors">
+            <h3 className="font-medium line-clamp-2 group-hover:text-[#2b825b] transition-colors">
               {title}
             </h3>
             {isClient && formattedDate && (
@@ -213,13 +212,13 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
           {categories.slice(0, 1).map((cat) => (
             <span
               key={cat.id}
-              className="text-xs font-medium text-[#C29307] uppercase tracking-wider"
+              className="text-xs font-medium text-[#2b825b] uppercase tracking-wider"
             >
               {cat.name}
             </span>
           ))}
         </div>
-        <h2 className="text-xl font-semibold mb-2 group-hover:text-[#C29307] transition-colors line-clamp-2">
+        <h2 className="text-xl font-semibold mb-2 group-hover:text-[#2b825b] transition-colors line-clamp-2">
           {title}
         </h2>
         <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
@@ -238,13 +237,15 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
                 onError={(e) => {
                   // If image fails to load, fallback to initials
                   const target = e.currentTarget as HTMLImageElement;
-                  target.style.display = 'none';
-                  target.parentElement?.querySelector('.avatar-initials')?.classList.remove('hidden');
+                  target.style.display = "none";
+                  target.parentElement
+                    ?.querySelector(".avatar-initials")
+                    ?.classList.remove("hidden");
                 }}
               />
             ) : null}
-            <div 
-              className={`avatar-initials ${authorAvatar ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}
+            <div
+              className={`avatar-initials ${authorAvatar ? "hidden" : "flex"} items-center justify-center w-full h-full`}
               style={{ backgroundColor: avatarColor }}
             >
               <span className="text-white text-xs font-semibold">

@@ -24,11 +24,11 @@ const parseMarkdown = (text: string) => {
       .replace(/^# (.*$)/gim, '<h1 class="text-lg font-bold mt-2 mb-1">$1</h1>')
       .replace(
         /^## (.*$)/gim,
-        '<h2 class="text-base font-bold mt-1 mb-1">$1</h2>'
+        '<h2 class="text-base font-bold mt-1 mb-1">$1</h2>',
       )
       .replace(
         /^### (.*$)/gim,
-        '<h3 class="text-sm font-bold mt-1 mb-0.5">$1</h3>'
+        '<h3 class="text-sm font-bold mt-1 mb-0.5">$1</h3>',
       )
       // Bold
       .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold">$1</strong>')
@@ -39,14 +39,14 @@ const parseMarkdown = (text: string) => {
       // Links
       .replace(
         /\[([^\[]+)\]\(([^\)]+)\)/gim,
-        '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>'
+        '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>',
       )
       // Line breaks
       .replace(/\n/gim, "<br />")
       // Image placeholder
       .replace(
         /\[Image: (.*?)\]/gim,
-        '<div class="bg-gray-100 border rounded p-1 my-1 text-xs text-gray-600">🖼️ Image: $1</div>'
+        '<div class="bg-gray-100 border rounded p-1 my-1 text-xs text-gray-600">🖼️ Image: $1</div>',
       )
   );
 };
@@ -179,7 +179,7 @@ export default function NotificationBell() {
         <div className="max-h-64 overflow-y-auto">
           {notificationsLoading ? (
             <div className="p-4 text-center text-gray-500">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#C29307] mx-auto mb-2"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#2b825b] mx-auto mb-2"></div>
               <p className="text-sm">Loading notifications...</p>
             </div>
           ) : notifications.length === 0 ? (
@@ -196,7 +196,7 @@ export default function NotificationBell() {
                 key={notification.id}
                 className={`p-3 cursor-pointer border-b last:border-b-0 ${
                   !notification.read_at
-                    ? "bg-blue-50 border-l-2 border-l-[#C29307]"
+                    ? "bg-blue-50 border-l-2 border-l-[#2b825b]"
                     : ""
                 } hover:bg-gray-50 transition-colors`}
                 onClick={() => handleNotificationClick(notification.id)}
@@ -215,7 +215,7 @@ export default function NotificationBell() {
                     </div>
                     {!notification.read_at && (
                       <div
-                        className="w-2 h-2 bg-[#C29307] rounded-full shrink-0 mt-1.5"
+                        className="w-2 h-2 bg-[#2b825b] rounded-full shrink-0 mt-1.5"
                         aria-label="Unread notification"
                       />
                     )}
@@ -242,7 +242,7 @@ export default function NotificationBell() {
             <DropdownMenuItem asChild className="p-0">
               <Link
                 href="/dashboard/notifications"
-                className="cursor-pointer text-center justify-center py-2 text-[#C29307] hover:text-[#C29307] text-sm font-medium"
+                className="cursor-pointer text-center justify-center py-2 text-[#2b825b] hover:text-[#2b825b] text-sm font-medium"
               >
                 View All Notifications
               </Link>

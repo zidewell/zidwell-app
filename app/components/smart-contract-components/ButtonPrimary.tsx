@@ -9,7 +9,7 @@ const ButtonPrimary = ({ children, className = "", ...props }: ButtonProps) => {
   return (
     <Button
       {...props}
-      className={`bg-[#C29307] hover:bg-[#C29307] text-white shadow-sm `}
+      className={`bg-[#2b825b] hover:bg-[#2b825b] text-white shadow-sm `}
     >
       {children}
     </Button>

@@ -1,3 +1,4 @@
+// app/components/previews/ContractsPreview.tsx (minimal fix)
 "use client";
 
 import React, { useEffect, useRef } from "react";
@@ -39,6 +40,8 @@ const ContractsPreview: React.FC<ContractsPreviewProps> = ({
 
   if (!isOpen || !contract) return null;
 
+  const content = contract.contract_text || contract.description || "";
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
       <div
@@ -53,11 +56,16 @@ const ContractsPreview: React.FC<ContractsPreviewProps> = ({
             ✕
           </Button>
         </div>
-        <p className="whitespace-pre-line text-sm text-gray-700">
-          {contract.contract_text ||
-            contract.description ||
-            "No content available."}
-        </p>
+        
+        {/* Fixed: Use dangerouslySetInnerHTML to render HTML content */}
+        {content ? (
+          <div 
+            className="prose prose-sm max-w-none text-gray-700"
+            dangerouslySetInnerHTML={{ __html: content }}
+          />
+        ) : (
+          <p className="text-gray-500">No content available.</p>
+        )}
       </div>
     </div>
   );

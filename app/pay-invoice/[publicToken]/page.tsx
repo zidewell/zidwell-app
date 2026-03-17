@@ -79,7 +79,7 @@ export default async function InvoicePage({
         `
         *,
         invoice_items (*)
-      `
+      `,
       )
       .eq("public_token", publicToken)
       .single();
@@ -97,7 +97,7 @@ export default async function InvoicePage({
         quantity: dbItem.quantity,
         unitPrice: dbItem.unit_price,
         total: dbItem.total_amount,
-      })
+      }),
     );
 
     // Prepare invoice data
@@ -232,7 +232,7 @@ function BusinessHeaderSection({ invoice }: { invoice: any }) {
       </div>
       <div className="text-right">
         <div className="text-sm">Invoice</div>
-        <div className="text-lg font-bold text-[#C29307]">
+        <div className="text-lg font-bold text-[#2b825b]">
           #{invoice.invoice_id}
         </div>
         <div className="text-xs text-muted-foreground mt-1">
@@ -354,7 +354,7 @@ function TotalsSection({ invoice }: { invoice: any }) {
       <Separator className="my-3" />
       <div className="flex justify-between text-xl font-bold">
         <span className="text-foreground">Total Amount</span>
-        <span className="text-[#C29307]">
+        <span className="text-[#2b825b]">
           ₦{invoice.total_amount.toLocaleString()}
         </span>
       </div>
@@ -375,7 +375,7 @@ function FooterSection({ invoice }: { invoice: any }) {
     <div className="text-center mt-8">
       <p className="text-sm text-muted-foreground">
         Secured by{" "}
-        <span className="text-[#C29307] font-semibold">Zidwell Finance</span>
+        <span className="text-[#2b825b] font-semibold">Zidwell Finance</span>
       </p>
       <p className="text-xs text-muted-foreground mt-2">
         Need help? Contact {invoice.from_email}

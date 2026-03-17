@@ -60,21 +60,21 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col" 
+        className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col dark:bg-gray-800 dark:border-gray-700" 
         style={{
           backgroundColor: '#fcfbf9',
           borderColor: '#e6dfd6'
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-xl" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          <DialogTitle className="text-xl dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
             Manage Categories
           </DialogTitle>
         </DialogHeader>
 
         {/* Filter tabs */}
         <div 
-          className="flex gap-2 p-1 rounded-xl" 
+          className="flex gap-2 p-1 rounded-xl dark:bg-gray-700" 
           style={{
             backgroundColor: '#f5f1ea'
           }}
@@ -105,7 +105,7 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
           {filteredCategories.map((cat) => (
             <div
               key={cat.id}
-              className="flex items-center gap-3 p-3 rounded-xl border"
+              className="flex items-center gap-3 p-3 rounded-xl border dark:bg-gray-700 dark:border-gray-600"
               style={{
                 backgroundColor: 'rgba(245, 241, 234, 0.5)',
                 borderColor: '#e6dfd6'
@@ -117,7 +117,7 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="flex-1 h-9"
+                    className="flex-1 h-9 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
                     style={{
                       backgroundColor: '#fcfbf9'
                     }}
@@ -125,7 +125,7 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
                   <select
                     value={editType}
                     onChange={(e) => setEditType(e.target.value as EntryType | 'both')}
-                    className="h-9 px-2 rounded-md border text-sm"
+                    className="h-9 px-2 rounded-md border text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300"
                     style={{
                       backgroundColor: '#fcfbf9',
                       borderColor: '#e6dfd6'
@@ -139,7 +139,7 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
                     size="icon" 
                     variant="ghost" 
                     onClick={saveEdit} 
-                    className="h-8 w-8"
+                    className="h-8 w-8 dark:text-green-400 dark:hover:text-green-300"
                     style={{ color: '#16a34a' }}
                   >
                     <Check className="h-4 w-4" />
@@ -148,15 +148,15 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
                     size="icon" 
                     variant="ghost" 
                     onClick={cancelEdit} 
-                    className="h-8 w-8"
+                    className="h-8 w-8 dark:text-gray-400 dark:hover:text-gray-300"
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </>
               ) : (
                 <>
-                  <span className="text-xl w-8 text-center">{cat.icon}</span>
-                  <span className="flex-1 font-medium">{cat.name}</span>
+                  <span className="text-xl w-8 text-center dark:text-gray-300">{cat.icon}</span>
+                  <span className="flex-1 font-medium dark:text-gray-300">{cat.name}</span>
                   <span 
                     className={cn(
                       'text-xs px-2 py-0.5 rounded-full capitalize'
@@ -178,7 +178,7 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
                     size="icon"
                     variant="ghost"
                     onClick={() => startEdit(cat)}
-                    className="h-8 w-8"
+                    className="h-8 w-8 dark:text-gray-400 dark:hover:text-gray-300"
                     style={{ color: '#80746e' }}
                   >
                     <Pencil className="h-4 w-4" />
@@ -188,7 +188,7 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
                       size="icon"
                       variant="ghost"
                       onClick={() => handleDelete(cat.id)}
-                      className="h-8 w-8"
+                      className="h-8 w-8 dark:text-gray-400 dark:hover:text-gray-300"
                       style={{ color: '#80746e' }}
                     >
                       <Trash2 className="h-4 w-4" />

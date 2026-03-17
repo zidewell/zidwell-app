@@ -35,14 +35,15 @@ export interface InvoiceUsageInfo {
   /** Number of invoices used this month */
   used: number;
   /** Monthly limit based on subscription tier */
-  limit: number;
+  limit: number | string;
   /** Remaining invoices for this month */
-  remaining: number;
+  remaining: number | string;
   /** Whether user has access to create more invoices */
   hasAccess: boolean;
   /** Loading state */
   isChecking: boolean;
    isPayPerUse?: boolean;
+    canCreate: boolean;
 }
 
 // NEW: Props for InvoiceSummary component with usage info

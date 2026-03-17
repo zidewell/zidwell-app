@@ -11,7 +11,7 @@ import { transporter } from "@/lib/node-mailer";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const baseUrl =
@@ -26,6 +26,115 @@ function safeNum(v: any) {
   return Number.isFinite(n) ? n : 0;
 }
 
+const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
+// Helper function to update invoice totals
+async function updateInvoiceTotals(invoice: any, paidAmountNaira: number) {
+  try {
+    const paidAmount = paidAmountNaira;
+
+    const targetQty = Number(invoice.target_quantity || 1);
+    const totalAmount = Number(invoice.total_amount || 0);
+    const currentPaidAmount = Number(invoice.paid_amount || 0);
+    const currentPaidQty = Number(invoice.paid_quantity || 0);
+
+    let newPaidAmount = currentPaidAmount + paidAmount;
+    let newPaidQuantity = currentPaidQty;
+    let newStatus = invoice.status;
+
+    console.log("📊 Invoice update calculations:", {
+      currentPaidAmount,
+      paidAmount,
+      newPaidAmount,
+      totalAmount,
+      targetQty,
+      currentPaidQty,
+      allow_multiple_payments: invoice.allow_multiple_payments,
+    });
+
+    if (invoice.allow_multiple_payments) {
+      // For multiple payments, user can pay any amount
+      // Calculate if enough has been paid to complete a quantity
+      const quantityPaidSoFar = Math.floor(newPaidAmount / totalAmount);
+
+      console.log(`🔢 Multiple payments - quantity calculation:`, {
+        newPaidAmount,
+        totalAmount,
+        quantityPaidSoFar,
+        currentPaidQty,
+      });
+
+      // Update paid quantity if more quantities have been completed
+      if (quantityPaidSoFar > currentPaidQty) {
+        newPaidQuantity = quantityPaidSoFar;
+        console.log(
+          `✅ Quantity increased: ${currentPaidQty} → ${newPaidQuantity}`,
+        );
+      }
+
+      // Determine status based on quantities paid
+      if (newPaidQuantity >= targetQty) {
+        newStatus = "paid";
+        console.log("🎯 All quantities paid - marking as fully paid");
+      } else if (newPaidQuantity > 0 || newPaidAmount > 0) {
+        newStatus = "partially_paid";
+        console.log("📦 Partially paid - some quantities completed");
+      } else {
+        newStatus = invoice.status; // Keep existing status if no payment
+      }
+    } else {
+      // Single payment mode
+      if (newPaidAmount >= totalAmount) {
+        newStatus = "paid";
+        console.log("🎯 Full amount paid - marking as paid");
+      } else if (newPaidAmount > 0) {
+        newStatus = "partially_paid";
+        console.log("💰 Partial payment received");
+      } else {
+        newStatus = invoice.status; // Keep existing status
+      }
+    }
+
+    const updateData: any = {
+      paid_amount: newPaidAmount,
+      paid_quantity: newPaidQuantity,
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (newStatus === "paid") {
+      updateData.paid_at = new Date().toISOString();
+      console.log("⏰ Setting paid_at timestamp");
+    }
+
+    console.log("🔄 Updating invoice with data:", updateData);
+
+    const { error: updateError } = await supabase
+      .from("invoices")
+      .update(updateData)
+      .eq("id", invoice.id);
+
+    if (updateError) {
+      console.error("❌ Failed to update invoice:", updateError);
+      throw updateError;
+    }
+
+    console.log("✅ Invoice totals updated successfully:", {
+      invoice_id: invoice.invoice_id,
+      newPaidAmount,
+      newPaidQuantity,
+      targetQty,
+      newStatus,
+    });
+
+    return { newPaidAmount, newPaidQuantity, newStatus };
+  } catch (error) {
+    console.error("❌ Error in updateInvoiceTotals:", error);
+    throw error;
+  }
+}
+
 async function sendVirtualAccountDepositEmailNotification(
   userId: string,
   amount: number,
@@ -34,7 +143,7 @@ async function sendVirtualAccountDepositEmailNotification(
   accountNumber: string,
   accountName: string,
   senderName: string,
-  narration?: string
+  narration?: string,
 ) {
   try {
     // Fetch user email and name
@@ -47,7 +156,7 @@ async function sendVirtualAccountDepositEmailNotification(
     if (error || !user) {
       console.error(
         "Failed to fetch user for virtual account deposit email notification:",
-        error
+        error,
       );
       return;
     }
@@ -84,48 +193,54 @@ Zidwell Team
       subject,
       text: emailBody,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>${greeting}</p>
-          
-          <h3 style="color: #22c55e;">
-            ✅ Account Deposit Successful
-          </h3>
-          
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="margin-top: 0;">Transaction Details:</h4>
-            <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-            <p><strong>Bank:</strong> ${bankName}</p>
-            <p><strong>Account Number:</strong> ${accountNumber}</p>
-            <p><strong>Account Name:</strong> ${accountName}</p>
-            <p><strong>Sender:</strong> ${senderName}</p>
-            <p><strong>Narration:</strong> ${narration || "N/A"}</p>
-            <p><strong>Transaction ID:</strong> ${transactionId}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            <p><strong>Status:</strong> <span style="color: #22c55e; font-weight: bold;">Success</span></p>
-          </div>
-          
-          <p style="color: #64748b;">
-            The funds have been credited to your Zidwell wallet and are ready to use.
-          </p>
-          
-          <p>Thank you for using Zidwell!</p>
-          
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-          <p style="color: #64748b; font-size: 14px;">
-            Best regards,<br>
-            <strong>Zidwell Team</strong>
-          </p>
-        </div>
-      `,
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <!-- Header -->
+    <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
+    
+    <p>${greeting}</p>
+    
+    <h3 style="color: #22c55e;">
+      ✅ Account Deposit Successful
+    </h3>
+    
+    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+      <h4 style="margin-top: 0;">Transaction Details:</h4>
+      <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
+      <p><strong>Bank:</strong> ${bankName}</p>
+      <p><strong>Account Number:</strong> ${accountNumber}</p>
+      <p><strong>Account Name:</strong> ${accountName}</p>
+      <p><strong>Sender:</strong> ${senderName}</p>
+      <p><strong>Narration:</strong> ${narration || "N/A"}</p>
+      <p><strong>Transaction ID:</strong> ${transactionId}</p>
+      <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+      <p><strong>Status:</strong> <span style="color: #22c55e; font-weight: bold;">Success</span></p>
+    </div>
+    
+    <p style="color: #64748b;">
+      The funds have been credited to your Zidwell wallet and are ready to use.
+    </p>
+    
+    <p>Thank you for using Zidwell!</p>
+    
+    <!-- Footer -->
+    <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px; margin-bottom: 20px;" />
+    
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    <p style="color: #64748b; font-size: 14px;">
+      Best regards,<br>
+      <strong>Zidwell Team</strong>
+    </p>
+  </div>
+`,
     });
 
     console.log(
-      `💰 Virtual account deposit email notification sent to ${user.email} for ₦${amount} from ${senderName}`
+      `💰 Virtual account deposit email notification sent to ${user.email} for ₦${amount} from ${senderName}`,
     );
   } catch (emailError) {
     console.error(
       "Failed to send virtual account deposit email notification:",
-      emailError
+      emailError,
     );
   }
 }
@@ -142,7 +257,7 @@ async function sendWithdrawalEmailNotification(
   bankName: string,
   narration?: string,
   transactionId?: string,
-  errorDetail?: string
+  errorDetail?: string,
 ) {
   try {
     // Fetch user email
@@ -155,7 +270,7 @@ async function sendWithdrawalEmailNotification(
     if (error || !user) {
       console.error(
         "Failed to fetch user for Transfer email notification:",
-        error
+        error,
       );
       return;
     }
@@ -174,7 +289,7 @@ ${greeting}
 Your transfer was successful!
 
 💰 Transaction Details:
-• Amount: ₦${(amount - totalFee).toLocaleString()}
+• Amount: ₦${amount.toLocaleString()}
 • Fee: ₦${totalFee.toLocaleString()}
 • Total Deductin: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
@@ -198,7 +313,7 @@ ${greeting}
 Your transfer failed.
 
 💰 Transaction Details:
-• Amount: ₦${(amount - totalFee).toLocaleString()}
+• Amount: ₦${amount.toLocaleString()}
 • Fee: ₦${totalFee.toLocaleString()}
 • Total Deduction: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
@@ -232,68 +347,71 @@ Zidwell Team
       subject,
       text: emailBody,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>${greeting}</p>
-          
-          <h3 style="color: ${statusColor};">
-            ${statusIcon} ${statusText}
-          </h3>
-          
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="margin-top: 0;">Transaction Details:</h4>
-            <p><strong>Amount:</strong> ₦${
-              amount - totalFee
-            }.toLocaleString()}</p>
-            <p><strong>Fee:</strong> ₦${totalFee.toLocaleString()}</p>
-            <p><strong>Total Deduction:</strong> ₦${totalDeduction.toLocaleString()}</p>
-            <p><strong>Recipient Name:</strong> ${recipientName}</p>
-            <p><strong>Account Number:</strong> ${recipientAccount}</p>
-            <p><strong>Bank:</strong> ${bankName}</p>
-            <p><strong>Narration:</strong> ${narration || "N/A"}</p>
-            <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">
-              ${status === "success" ? "Success" : "Failed"}
-            </span></p>
-            ${
-              status === "failed"
-                ? `<p><strong>Reason:</strong> ${
-                    errorDetail || "Transaction failed"
-                  }</p>`
-                : ""
-            }
-          </div>
-          
-          ${
-            status === "success"
-              ? `<p style="color: #64748b;">
-                  The funds should reflect in the beneficiary's bank account shortly.
-                  If there are any dispute, please contact our support team.
-                </p>`
-              : ""
-          }
-          
-          ${
-            status === "failed" &&
-            (errorDetail?.includes("refunded") ||
-              errorDetail?.includes("refund"))
-              ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
-              : ""
-          }
-          
-          <p>Thank you for using Zidwell!</p>
-          
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-          <p style="color: #64748b; font-size: 14px;">
-            Best regards,<br>
-            <strong>Zidwell Team</strong>
-          </p>
-        </div>
-      `,
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <!-- Header -->
+    <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
+    
+    <p>${greeting}</p>
+    
+    <h3 style="color: ${statusColor};">
+      ${statusIcon} ${statusText}
+    </h3>
+    
+    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+      <h4 style="margin-top: 0;">Transaction Details:</h4>
+      <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
+      <p><strong>Fee:</strong> ₦${totalFee.toLocaleString()}</p>
+      <p><strong>Total Deduction:</strong> ₦${totalDeduction.toLocaleString()}</p>
+      <p><strong>Recipient Name:</strong> ${recipientName}</p>
+      <p><strong>Account Number:</strong> ${recipientAccount}</p>
+      <p><strong>Bank:</strong> ${bankName}</p>
+      <p><strong>Narration:</strong> ${narration || "N/A"}</p>
+      <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
+      <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+      <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">
+        ${status === "success" ? "Success" : "Failed"}
+      </span></p>
+      ${
+        status === "failed"
+          ? `<p><strong>Reason:</strong> ${
+              errorDetail || "Transaction failed"
+            }</p>`
+          : ""
+      }
+    </div>
+    
+    ${
+      status === "success"
+        ? `<p style="color: #64748b;">
+            The funds should reflect in the beneficiary's bank account shortly.
+            If there are any dispute, please contact our support team.
+          </p>`
+        : ""
+    }
+    
+    ${
+      status === "failed" &&
+      (errorDetail?.includes("refunded") || errorDetail?.includes("refund"))
+        ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
+        : ""
+    }
+    
+    <p>Thank you for using Zidwell!</p>
+    
+    <!-- Footer -->
+    <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px; margin-bottom: 20px;" />
+    
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    <p style="color: #64748b; font-size: 14px;">
+      Best regards,<br>
+      <strong>Zidwell Team</strong>
+    </p>
+  </div>
+`,
     });
 
     console.log(
-      `💰 Withdrawal email notification sent to ${user.email} for ${status} transaction`
+      `💰 Withdrawal email notification sent to ${user.email} for ${status} transaction`,
     );
   } catch (emailError) {
     console.error("Failed to send withdrawal email notification:", emailError);
@@ -309,12 +427,11 @@ async function sendInvoiceCreatorNotificationWithFees(
   customerName: string,
   customerEmail: string,
   invoice: any,
-  nombaFee?: number
+  nombaFee?: number,
 ) {
   try {
     const subject = `💰 New Payment Received for Invoice ${invoiceId} - ₦${totalAmount.toLocaleString()}`;
 
-    // Calculate total fees if nombaFee is provided
     const processingFee = nombaFee || 0;
     const totalFees = platformFee + processingFee;
 
@@ -350,54 +467,58 @@ Zidwell Team
       subject,
       text: emailBody,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #22c55e;">💰 New Payment Received!</h2>
-          
-          <p>Great news! You've received a new payment for your invoice.</p>
-          
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h3 style="margin-top: 0;">📋 Invoice Details</h3>
-            <p><strong>Invoice ID:</strong> ${invoiceId}</p>
-            <p><strong>Customer:</strong> ${customerName}</p>
-            <p><strong>Customer Email:</strong> ${
-              customerEmail || "Not provided"
-            }</p>
-          </div>
-          
-          <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #3b82f6;">
-            <h3 style="margin-top: 0;">💰 Payment Breakdown</h3>
-            <p><strong>Total Payment Received:</strong> ₦${totalAmount.toLocaleString()}</p>
-            <p><strong>Platform Service Fee (2%):</strong> ₦${platformFee.toLocaleString()}</p>
-            <p><strong>Payment Processing Fee:</strong> ₦${processingFee.toLocaleString()}</p>
-            <p><strong>Total Fees:</strong> ₦${totalFees.toLocaleString()}</p>
-            <p><strong>Amount Credited to Your Wallet:</strong> <span style="color: #22c55e; font-weight: bold;">₦${userAmount.toLocaleString()}</span></p>
-            <p><strong>Payment Method:</strong>Bank Transfer</p>
-          </div>
-          
-          <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #22c55e;">
-            <h3 style="margin-top: 0;">✅ Wallet Updated</h3>
-            <p>Your wallet has been successfully credited with <strong>₦${userAmount.toLocaleString()}</strong></p>
-            <p>The funds are now available for use in your Zidwell Wallet.</p>
-          </div>
-          
-          <p>Thank you for using Zidwell!</p>
-          
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-          <p style="color: #64748b; font-size: 14px;">
-            Best regards,<br>
-            <strong>Zidwell Team</strong>
-          </p>
-        </div>
-      `,
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <!-- Header -->
+    <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
+    
+    <h2 style="color: #22c55e;">💰 New Payment Received!</h2>
+    
+    <p>Great news! You've received a new payment for your invoice.</p>
+    
+    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+      <h3 style="margin-top: 0;">📋 Invoice Details</h3>
+      <p><strong>Invoice ID:</strong> ${invoiceId}</p>
+      <p><strong>Customer:</strong> ${customerName}</p>
+      <p><strong>Customer Email:</strong> ${customerEmail || "Not provided"}</p>
+    </div>
+    
+    <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #3b82f6;">
+      <h3 style="margin-top: 0;">💰 Payment Breakdown</h3>
+      <p><strong>Total Payment Received:</strong> ₦${totalAmount.toLocaleString()}</p>
+      <p><strong>Platform Service Fee (2%):</strong> ₦${platformFee.toLocaleString()}</p>
+      <p><strong>Payment Processing Fee:</strong> ₦${processingFee.toLocaleString()}</p>
+      <p><strong>Total Fees:</strong> ₦${totalFees.toLocaleString()}</p>
+      <p><strong>Amount Credited to Your Wallet:</strong> <span style="color: #22c55e; font-weight: bold;">₦${userAmount.toLocaleString()}</span></p>
+      <p><strong>Payment Method:</strong>Bank Transfer</p>
+    </div>
+    
+    <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #22c55e;">
+      <h3 style="margin-top: 0;">✅ Wallet Updated</h3>
+      <p>Your wallet has been successfully credited with <strong>₦${userAmount.toLocaleString()}</strong></p>
+      <p>The funds are now available for use in your Zidwell Wallet.</p>
+    </div>
+    
+    <p>Thank you for using Zidwell!</p>
+    
+    <!-- Footer -->
+    <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px; margin-bottom: 20px;" />
+    
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    <p style="color: #64748b; font-size: 14px;">
+      Best regards,<br>
+      <strong>Zidwell Team</strong>
+    </p>
+  </div>
+`,
     });
 
     console.log(
-      `📧 Invoice creator notification sent to ${creatorEmail} with fee details (Total: ₦${totalAmount}, Fees: ₦${totalFees}, Net: ₦${userAmount})`
+      `📧 Invoice creator notification sent to ${creatorEmail} with fee details (Total: ₦${totalAmount}, Fees: ₦${totalFees}, Net: ₦${userAmount})`,
     );
   } catch (emailError) {
     console.error(
       "❌ Failed to send invoice creator notification with fees:",
-      emailError
+      emailError,
     );
     throw emailError;
   }
@@ -409,26 +530,34 @@ async function processInvoicePaymentForDifferentUser(
   amount: number,
   transactionId: string,
   narration: string,
-  payload: any
+  payload: any,
 ) {
   console.log("💰 Processing cross-user invoice payment...");
 
   try {
+    // Determine payment method
+    const isP2P =
+      payload.data?.transaction?.type?.includes("p2p") ||
+      narration?.toLowerCase().includes("p2p");
+    const paymentMethod = isP2P ? "p2p_transfer" : "virtual_account";
+
     // Create payment record for the invoice
     const { error: paymentError } = await supabase
       .from("invoice_payments")
       .insert([
         {
           invoice_id: invoice.id,
-          user_id: invoice.user_id, // Invoice owner
+          user_id: invoice.user_id,
           order_reference: transactionId,
           payer_email: payload.data?.customer?.senderEmail || "N/A",
           payer_name:
-            payload.data?.customer?.senderName || "Virtual Account User",
+            payload.data?.customer?.senderName ||
+            (isP2P ? "P2P User" : "Virtual Account User"),
+          payer_user_id: depositorUserId,
           amount: amount,
           paid_amount: amount,
           status: "completed",
-          payment_method: "virtual_account",
+          payment_method: paymentMethod,
           nomba_transaction_id: transactionId,
           narration: narration,
           paid_at: new Date().toISOString(),
@@ -439,328 +568,42 @@ async function processInvoicePaymentForDifferentUser(
     if (paymentError) {
       console.error(
         "❌ Failed to create cross-user payment record:",
-        paymentError
+        paymentError,
       );
       return;
     }
 
     // Apply 2% fee deduction and credit invoice owner
-    const platformFee =
-      invoice.fee_option === "customer" ? invoice.fee_amount : 0;
+    const platformFee = Math.round(amount * 0.02);
     const netAmount = amount - platformFee;
 
     // Credit invoice owner
-    await supabase.rpc("increment_wallet_balance", {
-      user_id: invoice.user_id,
-      amt: netAmount,
-    });
+    const { error: creditError } = await supabase.rpc(
+      "increment_wallet_balance",
+      {
+        user_id: invoice.user_id,
+        amt: netAmount,
+      },
+    );
+
+    if (creditError) {
+      console.error("❌ Failed to credit invoice owner:", creditError);
+    } else {
+      console.log(
+        `✅ Cross-user ${paymentMethod} invoice payment processed. Credited ${invoice.user_id} with ₦${netAmount} (₦${platformFee} 2% fee deducted)`,
+      );
+    }
 
     // Update invoice totals
-    // Note: updateInvoiceTotals function is already defined in your code
-    // We need to call it, but we can't reference it here if it's defined inside another function
-    // Let's create a local version or reuse the existing one
-    console.log(
-      `✅ Cross-user invoice payment processed. Credited ${invoice.user_id} with ₦${netAmount} (₦${platformFee} 2% fee deducted)`
-    );
+    await updateInvoiceTotals(invoice, amount);
   } catch (error) {
     console.error("❌ Error in cross-user payment processing:", error);
-  }
-}
-
-// ==================== NEW FUNCTION: Send Follow-up Payment Email ====================
-async function sendFollowupPaymentEmail(
-  customerEmail: string,
-  customerName: string,
-  invoiceId: string,
-  paidAmount: number,
-  remainingAmount: number,
-  paymentLink: string,
-  invoice: any
-) {
-  try {
-    const subject = `Remaining Balance for Invoice ${invoiceId} - ₦${remainingAmount.toLocaleString()}`;
-    const greeting = customerName ? `Hi ${customerName},` : "Hello,";
-
-    // Calculate the amount with 2% fee for display
-    const platformFee = Math.round(remainingAmount * 0.02);
-    const totalWithFee = remainingAmount + platformFee;
-
-    const emailBody = `
-${greeting}
-
-Thank you for your partial payment of ₦${paidAmount.toLocaleString()} for Invoice ${invoiceId}.
-
-📋 Payment Summary:
-• Invoice Total: ₦${invoice.total_amount.toLocaleString()}
-• Amount Paid: ₦${paidAmount.toLocaleString()}
-• Remaining Balance: ₦${remainingAmount.toLocaleString()}
-• Platform Fee (2%): ₦${platformFee.toLocaleString()}
-• Total to Pay: ₦${totalWithFee.toLocaleString()}
-
-To complete your payment, please use the link below:
-
-🔗 Pay Remaining Balance: ${paymentLink}
-
-This payment link includes the 2% platform fee and will expire in 7 days.
-
-If you have any questions, please contact ${invoice.from_name} at ${invoice.from_email}.
-
-Thank you,
-Zidwell Team
-    `;
-
-    await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
-      to: customerEmail,
-      subject,
-      text: emailBody,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>${greeting}</p>
-          
-          <h3 style="color: #f59e0b;">Invoice Payment Incomplete</h3>
-          
-          <p>Thank you for your partial payment of <strong>₦${paidAmount.toLocaleString()}</strong> for Invoice ${invoiceId}.</p>
-          
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="margin-top: 0;">📋 Payment Summary</h4>
-            <p><strong>Invoice Total:</strong> ₦${invoice.total_amount.toLocaleString()}</p>
-            <p><strong>Amount Paid:</strong> ₦${paidAmount.toLocaleString()}</p>
-            <p><strong>Remaining Balance:</strong> <span style="color: #ef4444; font-weight: bold;">₦${remainingAmount.toLocaleString()}</span></p>
-            <p><strong>Platform Fee (2%):</strong> ₦${platformFee.toLocaleString()}</p>
-            <p><strong>Total to Pay:</strong> ₦${totalWithFee.toLocaleString()}</p>
-          </div>
-          
-          <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; border: 2px solid #22c55e;">
-            <p style="margin-top: 0; font-weight: bold;">Complete Your Payment</p>
-            <a href="${paymentLink}" 
-               style="background-color: #22c55e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
-               🔗 Pay Remaining ₦${totalWithFee.toLocaleString()}
-            </a>
-            <p style="color: #64748b; font-size: 14px; margin-top: 10px;">
-              Includes 2% platform fee • Expires in 7 days
-            </p>
-          </div>
-          
-          <p style="color: #64748b;">
-            If you have any questions, please contact <strong>${invoice.from_name}</strong> at ${invoice.from_email}.
-          </p>
-          
-          <p>Thank you,<br><strong>Zidwell Team</strong></p>
-        </div>
-      `,
-    });
-
-    console.log(`📧 Follow-up payment email sent to ${customerEmail} for remaining ₦${remainingAmount}`);
-  } catch (emailError) {
-    console.error("❌ Failed to send follow-up payment email:", emailError);
-  }
-}
-
-// ==================== NEW FUNCTION: Generate Follow-up Payment ====================
-async function generateRemainingBalancePayment(
-  invoice: any,
-  remainingAmount: number,
-  customerEmail: string,
-  customerName: string
-) {
-  try {
-    console.log(`🔗 Generating follow-up payment for remaining ₦${remainingAmount}...`);
-    
-    // Calculate the amount with 2% fee
-    const platformFee = Math.round(remainingAmount * 0.02); // 2% platform fee
-    const totalWithFee = remainingAmount + platformFee;
-    
-    // Generate unique reference
-    const followupRef = `INV-FOLLOWUP-${invoice.invoice_id}-${Date.now()}`;
-    
-    // Get Nomba token
-    const token = await getNombaToken();
-    
-    // Create payment data with 2% fee included
-    const paymentData = {
-      amount: totalWithFee,
-      customerEmail: customerEmail,
-      customerName: customerName,
-      currency: "NGN",
-      merchantId: process.env.NOMBA_MERCHANT_ID,
-      metadata: {
-        type: "invoice_followup",
-        invoiceId: invoice.id,
-        invoiceNumber: invoice.invoice_id,
-        userId: invoice.user_id,
-        remainingAmount: remainingAmount,
-        platformFee: platformFee,
-        totalWithFee: totalWithFee,
-        isPartialPayment: true,
-        followupReference: followupRef
-      },
-      callbackUrl: `${baseUrl}/api/invoice-payment-callback?invoiceId=${invoice.id}&type=followup`,
-      description: `Remaining balance for Invoice ${invoice.invoice_id}`,
-      redirectUrl: `${baseUrl}/dashboard/invoices/${invoice.id}?payment=followup&status=success`,
-      expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    };
-    
-    // Create payment link with Nomba
-    const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        accountId: process.env.NOMBA_ACCOUNT_ID!,
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(paymentData),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Nomba API error: ${errorText}`);
-    }
-    
-    const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error("Failed to create follow-up payment link");
-    }
-    
-    // Save follow-up payment record
-    const { error: insertError } = await supabase
-      .from("invoice_followup_payments")
-      .insert({
-        invoice_id: invoice.id,
-        user_id: invoice.user_id,
-        amount: remainingAmount,
-        platform_fee: platformFee,
-        total_amount: totalWithFee,
-        reference: followupRef,
-        payment_link: data.data?.paymentLink || data.paymentUrl,
-        nomba_checkout_id: data.data?.checkoutId,
-        status: "pending",
-        customer_email: customerEmail,
-        customer_name: customerName,
-        created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-      });
-    
-    if (insertError) {
-      console.error("❌ Failed to save follow-up payment:", insertError);
-    }
-    
-    // Update invoice with follow-up info
-    await supabase
-      .from("invoices")
-      .update({
-        has_followup_payment: true,
-        followup_amount: remainingAmount,
-        followup_reference: followupRef,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", invoice.id);
-    
-    console.log(`✅ Follow-up payment created: ${followupRef} for ₦${totalWithFee}`);
-    
-    return {
-      paymentLink: data.data?.paymentLink || data.paymentUrl,
-      reference: followupRef,
-      amount: remainingAmount,
-      platformFee: platformFee,
-      totalWithFee: totalWithFee,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    };
-    
-  } catch (error) {
-    console.error("❌ Error generating follow-up payment:", error);
-    throw error;
-  }
-}
-
-// ==================== NEW FUNCTION: Send Invoice Creator Follow-up Notification ====================
-async function sendInvoiceCreatorFollowupNotification(
-  creatorUserId: string,
-  invoiceId: string,
-  paidAmount: number,
-  remainingAmount: number,
-  customerName: string
-) {
-  try {
-    // Get creator details
-    const { data: creator, error } = await supabase
-      .from("users")
-      .select("email, first_name")
-      .eq("id", creatorUserId)
-      .single();
-
-    if (error || !creator) {
-      console.error("Failed to fetch invoice creator:", error);
-      return;
-    }
-
-    const subject = `Partial Payment Received - Follow-up Required for Invoice ${invoiceId}`;
-    const greeting = creator.first_name ? `Hi ${creator.first_name},` : "Hello,";
-
-    const emailBody = `
-${greeting}
-
-A partial payment has been received for Invoice ${invoiceId}.
-
-📋 Payment Details:
-• Customer: ${customerName}
-• Amount Paid: ₦${paidAmount.toLocaleString()}
-• Remaining Balance: ₦${remainingAmount.toLocaleString()}
-
-A follow-up payment link has been automatically generated and sent to the customer. The link includes the 2% platform fee and will expire in 7 days.
-
-You can monitor the payment status from your dashboard.
-
-Best regards,
-Zidwell Team
-    `;
-
-    await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
-      to: creator.email,
-      subject,
-      text: emailBody,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>${greeting}</p>
-          
-          <h3 style="color: #f59e0b;">⚠️ Partial Payment Received</h3>
-          
-          <p>A partial payment has been received for Invoice ${invoiceId}.</p>
-          
-          <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f59e0b;">
-            <h4 style="margin-top: 0;">📋 Payment Details</h4>
-            <p><strong>Customer:</strong> ${customerName}</p>
-            <p><strong>Amount Paid:</strong> ₦${paidAmount.toLocaleString()}</p>
-            <p><strong>Remaining Balance:</strong> <span style="color: #ef4444; font-weight: bold;">₦${remainingAmount.toLocaleString()}</span></p>
-          </div>
-          
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="margin-top: 0;">🔄 Follow-up Status</h4>
-            <p>A follow-up payment link has been automatically generated and sent to the customer.</p>
-            <p><strong>Platform Fee:</strong> 2% included in follow-up amount</p>
-            <p><strong>Link Expiry:</strong> 7 days</p>
-          </div>
-          
-          <p>You can monitor the payment status from your <a href="${baseUrl}/dashboard/invoices">dashboard</a>.</p>
-          
-          <p>Best regards,<br><strong>Zidwell Team</strong></p>
-        </div>
-      `,
-    });
-
-    console.log(`📧 Follow-up notification sent to invoice creator ${creator.email}`);
-  } catch (emailError) {
-    console.error("❌ Failed to send creator follow-up notification:", emailError);
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     console.log("====== Nomba Webhook Triggered ======");
-
-    // 1) Read raw body and parse
     const rawBody = await req.text();
     console.log("🔸 Raw body length:", rawBody?.length);
     let payload: any;
@@ -773,10 +616,9 @@ export async function POST(req: NextRequest) {
     }
     console.log(
       "🟢 Parsed payload.event_type:",
-      payload?.event_type || payload?.eventType
+      payload?.event_type || payload?.eventType,
     );
 
-    // 2) Signature verification (HMAC SHA256 -> Base64)
     const timestamp = req.headers.get("nomba-timestamp");
     const signature =
       req.headers.get("nomba-sig-value") || req.headers.get("nomba-signature");
@@ -788,11 +630,10 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json(
         { error: "Missing signature headers" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
-    // Build hash payload according to Nomba docs (use safe optional chaining)
     const hashingPayload = `${payload.event_type}:${payload.requestId}:${
       payload.data?.merchant?.userId || ""
     }:${payload.data?.merchant?.walletId || ""}:${
@@ -814,7 +655,7 @@ export async function POST(req: NextRequest) {
     console.log("🔐 Signature verification: expected:", expectedSignature);
     console.log(
       "🔐 Same length?:",
-      receivedBuffer.length === expectedBuffer.length
+      receivedBuffer.length === expectedBuffer.length,
     );
 
     if (
@@ -847,7 +688,7 @@ export async function POST(req: NextRequest) {
       tx.aliasAccount ||
       null;
     const transactionAmount = safeNum(
-      tx.transactionAmount ?? tx.amount ?? order?.amount ?? 0
+      tx.transactionAmount ?? tx.amount ?? order?.amount ?? 0,
     );
     const nombaFee = safeNum(tx.fee ?? payload.data?.transaction?.fee ?? 0);
     const txStatusRaw = (tx.status || payload.data?.status || "").toString();
@@ -866,7 +707,7 @@ export async function POST(req: NextRequest) {
       "nombaFee:",
       nombaFee,
       "txStatus:",
-      txStatus
+      txStatus,
     );
 
     const serviceTypes = [
@@ -898,11 +739,11 @@ export async function POST(req: NextRequest) {
 
     if (isServicePurchase) {
       console.log(
-        "📱 Ignoring service purchase (data/airtime/cable/electricity/topup) - already handled by main API"
+        "📱 Ignoring service purchase (data/airtime/cable/electricity/topup) - already handled by main API",
       );
       return NextResponse.json(
         { message: "Service purchase ignored - already processed by main API" },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -920,17 +761,13 @@ export async function POST(req: NextRequest) {
       console.log("📱 Ignoring service purchase payout event");
       return NextResponse.json(
         { message: "Service purchase payout event ignored" },
-        { status: 200 }
+        { status: 200 },
       );
     }
-
-    // 4) FIXED: Better logic to determine transaction flow
-    console.log("🎯 Determining transaction flow type...");
 
     const isCardPayment = Boolean(orderReference);
     const isVirtualAccountDeposit = Boolean(aliasAccountReference);
 
-    // FIX: Better detection for deposits vs withdrawals
     const isDepositEvent =
       eventType === "payment_success" ||
       eventType === "payment.succeeded" ||
@@ -952,6 +789,253 @@ export async function POST(req: NextRequest) {
     console.log("   - isPayoutOrTransfer:", isPayoutOrTransfer);
     console.log("   - isServicePurchase:", isServicePurchase);
 
+    // ========== P2P CREDIT INVOICE CHECKING ==========
+    const isP2PCredit =
+      transactionType === "p2p_credit" ||
+      tx.type?.toLowerCase() === "p2p_credit" ||
+      (payload.data?.transaction?.type &&
+        payload.data.transaction.type.toLowerCase().includes("p2p"));
+
+    if (isP2PCredit && txStatus === "success") {
+      console.log("💰 Processing P2P credit for invoice checking...");
+
+      // Extract narration from P2P transaction
+      const narration = tx.narration || "";
+      console.log("📝 P2P Credit Narration:", narration);
+
+      // Look for invoice pattern (INV_XXXX or INV-XXXX)
+      const invoicePattern = /INV[-_][A-Z0-9]{4}/i;
+      const narrationMatch = narration.match(invoicePattern);
+
+      if (narrationMatch) {
+        const invoiceReference = narrationMatch[0].toUpperCase();
+        console.log(
+          "🧾 Found invoice reference in P2P credit:",
+          invoiceReference,
+        );
+
+        try {
+          // Find the invoice
+          const { data: invoice, error: invoiceError } = await supabase
+            .from("invoices")
+            .select("*")
+            .eq("invoice_id", invoiceReference)
+            .single();
+
+          if (invoiceError || !invoice) {
+            console.log(
+              "❌ Invoice not found for reference:",
+              invoiceReference,
+            );
+            // Continue with normal P2P credit processing (will be handled by existing logic)
+            return NextResponse.json(
+              { message: "No invoice found, continuing with normal P2P" },
+              { status: 200 },
+            );
+          } else {
+            console.log("✅ Found invoice:", {
+              invoice_id: invoice.invoice_id,
+              user_id: invoice.user_id,
+              total_amount: invoice.total_amount,
+            });
+
+            // Get the receiver's user ID from aliasAccountReference or payload
+            let receiverUserId = null;
+
+            // Try to get receiver from aliasAccountReference
+            if (aliasAccountReference) {
+              receiverUserId = aliasAccountReference;
+            }
+
+            // If no aliasAccountReference, try to find user by wallet ID from payload
+            if (!receiverUserId) {
+              const receiverWalletId =
+                payload.data?.transaction?.receiverWalletId ||
+                payload.data?.merchant?.walletId;
+
+              if (receiverWalletId) {
+                const { data: receiverUser } = await supabase
+                  .from("users")
+                  .select("id")
+                  .eq("wallet_id", receiverWalletId)
+                  .single();
+
+                if (receiverUser) {
+                  receiverUserId = receiverUser.id;
+                }
+              }
+            }
+
+            if (!receiverUserId) {
+              console.log("❌ Could not determine receiver user ID for P2P");
+              return NextResponse.json(
+                { message: "Cannot identify receiver" },
+                { status: 200 },
+              );
+            }
+
+            console.log("👤 P2P Receiver User ID:", receiverUserId);
+
+            // Check if invoice belongs to P2P receiver
+            if (invoice.user_id === receiverUserId) {
+              console.log(
+                "✅ P2P receiver is invoice owner - processing as invoice payment",
+              );
+
+              // PROCESS AS INVOICE PAYMENT WITH PLATFORM FEES
+              const totalAmount = transactionAmount;
+              const platformFeePercentage = 0.02; // 2% platform revenue
+              const platformFee = Math.round(
+                totalAmount * platformFeePercentage,
+              );
+              const userAmount = totalAmount - platformFee;
+
+              console.log(`💰 Revenue calculation for ₦${totalAmount}:`, {
+                total_received: totalAmount,
+                platform_fee: platformFee,
+                user_amount: userAmount,
+                calculation: `₦${totalAmount} - ₦${platformFee} (2% platform) = ₦${userAmount}`,
+              });
+
+              // Check for duplicate payments
+              const { data: existingPayment, error: checkError } =
+                await supabase
+                  .from("invoice_payments")
+                  .select("*")
+                  .eq("nomba_transaction_id", nombaTransactionId)
+                  .maybeSingle();
+
+              if (existingPayment) {
+                console.log("⚠️ Duplicate P2P invoice payment detected");
+                return NextResponse.json({ success: true }, { status: 200 });
+              }
+
+              // Create invoice payment record
+              const { error: paymentError } = await supabase
+                .from("invoice_payments")
+                .insert([
+                  {
+                    invoice_id: invoice.id,
+                    user_id: invoice.user_id,
+                    order_reference: nombaTransactionId || `P2P-${Date.now()}`,
+                    payer_name:
+                      payload.data?.customer?.senderName || "P2P User",
+                    payer_phone: payload.data?.customer?.senderPhone || "N/A",
+                    amount: totalAmount,
+                    paid_amount: totalAmount,
+                    fee_amount: platformFee,
+                    platform_fee: platformFee,
+                    user_received: userAmount,
+                    status: "completed",
+                    nomba_transaction_id: nombaTransactionId,
+                    payment_method: "p2p_transfer",
+                    bank_name:
+                      payload.data?.customer?.bankName || "Nombank MFB",
+                    bank_account:
+                      payload.data?.customer?.accountNumber || "N/A",
+                    narration: narration,
+                    paid_at: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                  },
+                ]);
+
+              if (paymentError) {
+                console.error(
+                  "❌ Failed to create P2P invoice payment record:",
+                  paymentError,
+                );
+                return NextResponse.json(
+                  { error: "Payment record failed" },
+                  { status: 500 },
+                );
+              }
+
+              // ✅ UPDATE INVOICE TOTALS
+              await updateInvoiceTotals(invoice, totalAmount);
+
+              // The wallet was already credited with full amount in P2P flow
+              // We need to DEDUCT the platform fee from the wallet
+              const { error: deductError } = await supabase.rpc(
+                "deduct_wallet_balance",
+                {
+                  user_id: invoice.user_id,
+                  amt: platformFee,
+                  transaction_type: "debit",
+                  reference: `PLATFORM_FEE_${nombaTransactionId}`,
+                  description: `2% platform fee for invoice ${invoice.invoice_id}`,
+                },
+              );
+
+              if (deductError) {
+                console.error("❌ Failed to deduct platform fee:", deductError);
+              } else {
+                console.log(
+                  `✅ Deducted ₦${platformFee} platform fee from user ${invoice.user_id}`,
+                );
+              }
+
+              // Send notification to invoice creator
+              try {
+                const { data: creatorData } = await supabase
+                  .from("users")
+                  .select("email, first_name")
+                  .eq("id", invoice.user_id)
+                  .single();
+
+                if (creatorData?.email) {
+                  await sendInvoiceCreatorNotificationWithFees(
+                    creatorData.email,
+                    invoice.invoice_id,
+                    totalAmount,
+                    userAmount,
+                    platformFee,
+                    payload.data?.customer?.senderName || "P2P User",
+                    payload.data?.customer?.senderEmail || "N/A",
+                    invoice,
+                    0, // No Nomba fee for internal P2P
+                  );
+                }
+              } catch (emailError) {
+                console.error("❌ Email notification failed:", emailError);
+              }
+
+              console.log("✅ P2P invoice payment processed successfully");
+              return NextResponse.json(
+                {
+                  success: true,
+                  message: "P2P invoice payment processed",
+                  invoice_reference: invoiceReference,
+                  platform_fee: platformFee,
+                },
+                { status: 200 },
+              );
+            } else {
+              console.log("⚠️ P2P receiver is NOT invoice owner");
+              // Process as cross-user invoice payment
+              await processInvoicePaymentForDifferentUser(
+                invoice,
+                receiverUserId,
+                transactionAmount,
+                nombaTransactionId,
+                narration,
+                payload,
+              );
+              return NextResponse.json({ success: true }, { status: 200 });
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error processing P2P invoice payment:", error);
+          // Continue with normal P2P credit processing
+        }
+      }
+
+      // If we reach here, continue with normal P2P credit processing
+      console.log(
+        "📝 No invoice reference in P2P credit, processing as normal P2P transaction",
+      );
+    }
+    // ========== END P2P CREDIT INVOICE CHECKING ==========
+
     // ---------- DEPOSIT: CARD (orderReference) OR VA ----------
     if (isDepositEvent) {
       console.log("💰 Processing DEPOSIT transaction...");
@@ -959,100 +1043,216 @@ export async function POST(req: NextRequest) {
       // -------------------- SUBSCRIPTION HANDLING --------------------
       const isSubscription =
         orderReference?.includes("SUB-") ||
-        payload?.data?.order?.metadata?.type === "subscription";
+        payload?.data?.order?.metadata?.type === "subscription" ||
+        payload?.data?.order?.metadata?.isSubscription === true ||
+        payload?.data?.metadata?.subscription === true;
 
       if (isSubscription) {
         console.log("💰 Processing subscription payment...");
 
         const subscriptionId =
           payload?.data?.order?.metadata?.subscriptionId ||
+          payload?.data?.metadata?.subscriptionId ||
           orderReference?.split("-")[1];
 
-        if (eventType === "payment_success" || txStatus === "success") {
-          // Update subscription status to active
-          const { error: updateError } = await supabase
-            .from("user_subscriptions")
-            .update({
-              status: "active",
-            })
-            .eq("id", subscriptionId);
+        const userId =
+          payload?.data?.order?.metadata?.userId ||
+          payload?.data?.metadata?.userId ||
+          aliasAccountReference;
 
-          if (!updateError) {
-            console.log(`✅ Subscription activated: ${subscriptionId}`);
+        const planTier =
+          payload?.data?.order?.metadata?.planTier ||
+          payload?.data?.metadata?.planTier ||
+          "growth";
+
+        const isYearly =
+          payload?.data?.order?.metadata?.isYearly ||
+          payload?.data?.metadata?.isYearly ||
+          false;
+
+        if (eventType === "payment_success" || txStatus === "success") {
+          console.log(
+            `✅ Subscription payment successful for user ${userId}, plan: ${planTier}`,
+          );
+
+          // Calculate expiration date (30 days from now for monthly, 365 for yearly)
+          const expiresAt = new Date();
+          if (isYearly) {
+            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+          } else {
+            expiresAt.setMonth(expiresAt.getMonth() + 1);
+          }
+
+          // First, deactivate any existing active subscriptions
+          await supabase
+            .from("subscriptions")
+            .update({ status: "cancelled" })
+            .eq("user_id", userId)
+            .eq("status", "active");
+
+          // Create new subscription record
+          const { data: subscription, error: subError } = await supabase
+            .from("subscriptions")
+            .insert({
+              user_id: userId,
+              tier: planTier,
+              status: "active",
+              expires_at: expiresAt.toISOString(),
+              auto_renew: true,
+              payment_method: "card",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+          if (subError) {
+            console.error("❌ Failed to create subscription:", subError);
+          } else {
+            console.log(`✅ Subscription created: ${subscription.id}`);
 
             // Update user's subscription tier
-            const planName = payload?.data?.order?.metadata?.planName;
-            const userId = payload?.data?.order?.metadata?.userId;
+            const { error: userError } = await supabase
+              .from("users")
+              .update({
+                subscription_tier: planTier,
+                subscription_expires_at: expiresAt.toISOString(),
+              })
+              .eq("id", userId);
 
-            if (planName && userId) {
-              await supabase
-                .from("users")
-                .update({
-                  subscription_tier: planName
-                    .toLowerCase()
-                    .replace(/\s+/g, "_"),
-                  subscription_expires_at: new Date(
-                    new Date().getTime() + 30 * 24 * 60 * 60 * 1000
-                  ).toISOString(),
-                })
-                .eq("id", userId);
-
-              console.log(`✅ User ${userId} updated to ${planName} tier`);
+            if (userError) {
+              console.error(
+                "❌ Failed to update user subscription tier:",
+                userError,
+              );
+            } else {
+              console.log(`✅ User ${userId} updated to ${planTier} tier`);
             }
 
-            // Send confirmation email
-            const userEmail = payload?.data?.order?.customerEmail;
-            if (userEmail) {
-              try {
-                await fetch(`${baseUrl}/api/send-email`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    to: userEmail,
-                    subject: `🎉 Welcome to Zidwell ${planName}!`,
-                    message: `
-                <h2>Welcome to Zidwell ${planName}!</h2>
-                <p>Your subscription has been successfully activated and you now have access to all premium features.</p>
-                <p><strong>Plan:</strong> ${planName}</p>
-                <p><strong>Status:</strong> Active</p>
-                <p>Thank you for choosing Zidwell. We're excited to help you grow your business!</p>
-                <br>
-                <p>Best regards,<br>The Zidwell Team</p>
-              `,
-                  }),
-                });
-                console.log(
-                  `📧 Subscription confirmation email sent to ${userEmail}`
-                );
-              } catch (emailError) {
-                console.error("Failed to send subscription email:", emailError);
-              }
+            // Record the payment
+            const { error: paymentError } = await supabase
+              .from("subscription_payments")
+              .insert({
+                user_id: userId,
+                subscription_id: subscription.id,
+                amount: transactionAmount,
+                payment_method: "card",
+                status: "completed",
+                reference: nombaTransactionId || orderReference,
+                metadata: {
+                  tier: planTier,
+                  isYearly,
+                  orderReference,
+                  ...payload.data?.order?.metadata,
+                },
+                paid_at: new Date().toISOString(),
+              });
+
+            if (paymentError) {
+              console.error(
+                "Failed to record subscription payment:",
+                paymentError,
+              );
             }
-          } else {
-            console.error("Failed to update subscription:", updateError);
           }
+
+          // Send confirmation email
+          const userEmail =
+            payload?.data?.order?.customerEmail ||
+            payload?.data?.customer?.email;
+
+          if (userEmail) {
+            try {
+              await fetch(`${baseUrl}/api/send-email`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  to: userEmail,
+                  subject: `🎉 Welcome to Zidwell ${planTier.charAt(0).toUpperCase() + planTier.slice(1)}!`,
+                  html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #2b825b;">Welcome to Zidwell ${planTier.charAt(0).toUpperCase() + planTier.slice(1)}!</h2>
+                <p>Your subscription has been successfully activated and you now have access to all ${planTier} features.</p>
+                
+                <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0;">Subscription Details:</h3>
+                  <p><strong>Plan:</strong> ${planTier.charAt(0).toUpperCase() + planTier.slice(1)}</p>
+                  <p><strong>Billing:</strong> ${isYearly ? "Yearly" : "Monthly"}</p>
+                  <p><strong>Amount:</strong> ₦${transactionAmount.toLocaleString()}</p>
+                  <p><strong>Status:</strong> <span style="color: #22c55e;">Active</span></p>
+                  <p><strong>Renewal Date:</strong> ${expiresAt.toLocaleDateString()}</p>
+                </div>
+
+                <p>Thank you for choosing Zidwell. We're excited to help you grow your business!</p>
+                
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                <p style="color: #64748b;">Best regards,<br><strong>The Zidwell Team</strong></p>
+              </div>
+            `,
+                }),
+              });
+              console.log(
+                `📧 Subscription confirmation email sent to ${userEmail}`,
+              );
+            } catch (emailError) {
+              console.error("Failed to send subscription email:", emailError);
+            }
+          }
+
+          // Create notification for user
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            title: "🎉 Subscription Activated",
+            message: `Your ${planTier} plan has been activated! You now have access to all premium features.`,
+            type: "success",
+            channels: ["email"],
+          });
+
+          return NextResponse.json(
+            {
+              success: true,
+              message: "Subscription activated successfully",
+            },
+            { status: 200 },
+          );
         } else if (eventType === "payment_failed" || txStatus === "failed") {
-          // Update subscription status to failed
-          await supabase
-            .from("user_subscriptions")
-            .update({
-              status: "failed",
-            })
-            .eq("id", subscriptionId);
+          console.log(`❌ Subscription payment failed for user ${userId}`);
+
+          // Update subscription status to failed if it exists
+          if (subscriptionId) {
+            await supabase
+              .from("subscriptions")
+              .update({
+                status: "failed",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", subscriptionId);
+          }
+
+          // Create notification for user
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            title: "❌ Subscription Payment Failed",
+            message: `Your subscription payment failed. Please update your payment method to continue enjoying premium features.`,
+            type: "error",
+            channels: ["in_app", "email"],
+          });
 
           console.log(`❌ Subscription payment failed: ${subscriptionId}`);
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Subscription payment failed",
+            },
+            { status: 200 },
+          );
         }
-
-        // Return early since subscription is handled
-        return NextResponse.json({ success: true }, { status: 200 });
       }
       // -------------------- END SUBSCRIPTION HANDLING --------------------
-
-      // -------------------- INVOICE PAYMENT HANDLING (CARD ONLY) --------------------
       const isInvoicePayment =
         orderReference ||
         payload?.data?.order?.callbackUrl?.includes(
-          "/api/invoice-payment-callback"
+          "/api/invoice-payment-callback",
         );
 
       if (isInvoicePayment) {
@@ -1076,7 +1276,7 @@ export async function POST(req: NextRequest) {
           console.error("❌ Payment not successful - Event Type:", eventType);
           return NextResponse.json(
             { error: "Payment not successful" },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -1115,7 +1315,7 @@ export async function POST(req: NextRequest) {
               } else {
                 console.log(
                   "⚠️ Nomba verification inconclusive - Status:",
-                  transactionStatus
+                  transactionStatus,
                 );
               }
             } else {
@@ -1128,7 +1328,7 @@ export async function POST(req: NextRequest) {
         } catch (verifyError: any) {
           console.error(
             "❌ Verification error, but continuing with webhook data:",
-            verifyError.message
+            verifyError.message,
           );
         }
 
@@ -1154,7 +1354,7 @@ export async function POST(req: NextRequest) {
             console.error("❌ No invoice ID found");
             return NextResponse.json(
               { error: "No invoice ID" },
-              { status: 400 }
+              { status: 400 },
             );
           }
 
@@ -1181,7 +1381,7 @@ export async function POST(req: NextRequest) {
               console.error("❌ Invoice not found in fallback search");
               return NextResponse.json(
                 { error: "Invoice not found" },
-                { status: 404 }
+                { status: 404 },
               );
             }
 
@@ -1203,13 +1403,13 @@ export async function POST(req: NextRequest) {
             .from("invoice_payments")
             .select("*")
             .or(
-              `nomba_transaction_id.eq.${nombaTransactionId},order_reference.eq.${orderReference}`
+              `nomba_transaction_id.eq.${nombaTransactionId},order_reference.eq.${orderReference}`,
             )
             .maybeSingle();
 
           if (existingPayment) {
             console.log(
-              "⚠️ Duplicate payment detected, updating invoice totals only"
+              "⚠️ Duplicate payment detected, updating invoice totals only",
             );
             await updateInvoiceTotals(invoice, transactionAmount);
             return NextResponse.json({ success: true }, { status: 200 });
@@ -1219,7 +1419,7 @@ export async function POST(req: NextRequest) {
             console.error("❌ Error checking existing payment:", checkError);
             return NextResponse.json(
               { error: "Payment check failed" },
-              { status: 500 }
+              { status: 500 },
             );
           }
 
@@ -1260,7 +1460,7 @@ export async function POST(req: NextRequest) {
             console.error("❌ Failed to create payment record:", paymentError);
             return NextResponse.json(
               { error: "Payment record failed" },
-              { status: 500 }
+              { status: 500 },
             );
           }
 
@@ -1323,18 +1523,18 @@ export async function POST(req: NextRequest) {
             if (transactionError) {
               console.error(
                 "❌ Failed to create transaction record:",
-                transactionError
+                transactionError,
               );
             } else {
               console.log(
                 "✅ Transaction record created for merchant:",
-                transaction.id
+                transaction.id,
               );
             }
           } catch (transactionError: any) {
             console.error(
               "❌ Transaction creation error:",
-              transactionError.message
+              transactionError.message,
             );
           }
 
@@ -1359,7 +1559,7 @@ export async function POST(req: NextRequest) {
             {
               user_id: invoice.user_id,
               amt: netAmount,
-            }
+            },
           );
 
           if (creditError) {
@@ -1367,7 +1567,7 @@ export async function POST(req: NextRequest) {
             // Don't fail the entire process if wallet credit fails
           } else {
             console.log(
-              `✅ Successfully credited ₦${paidAmount} to user ${invoice.user_id}`
+              `✅ Successfully credited ₦${paidAmount} to user ${invoice.user_id}`,
             );
           }
 
@@ -1388,13 +1588,13 @@ export async function POST(req: NextRequest) {
                 invoice.invoice_id,
                 paidAmount,
                 customerName || "Customer",
-                invoice
+                invoice,
               ).catch((error) =>
-                console.error("❌ Payer email failed:", error)
+                console.error("❌ Payer email failed:", error),
               );
             } else {
               console.log(
-                "⚠️ No customer email available for payment confirmation"
+                "⚠️ No customer email available for payment confirmation",
               );
             }
 
@@ -1406,9 +1606,9 @@ export async function POST(req: NextRequest) {
                 paidAmount,
                 customerName || "Customer",
                 customerEmail || "N/A",
-                invoice
+                invoice,
               ).catch((error) =>
-                console.error("❌ Creator notification failed:", error)
+                console.error("❌ Creator notification failed:", error),
               );
             } else {
               console.log("⚠️ No creator email available for notification");
@@ -1418,63 +1618,8 @@ export async function POST(req: NextRequest) {
           } catch (emailError) {
             console.error(
               "❌ Email setup error (but payment still processed):",
-              emailError
+              emailError,
             );
-          }
-
-          // ==================== NEW: CHECK FOR PARTIAL PAYMENT AND GENERATE FOLLOW-UP ====================
-          const invoiceTotal = Number(invoice.total_amount);
-          const isPartialPayment = paidAmount < invoiceTotal;
-          
-          if (isPartialPayment) {
-            const remainingBalance = invoiceTotal - paidAmount;
-            
-            console.log(`⚠️ PARTIAL PAYMENT DETECTED:`, {
-              invoice_total: invoiceTotal,
-              amount_paid: paidAmount,
-              remaining_balance: remainingBalance,
-              percentage: `${((paidAmount / invoiceTotal) * 100).toFixed(2)}% paid`
-            });
-            
-            // Generate follow-up payment link for remaining balance
-            if (remainingBalance > 0) {
-              try {
-                console.log(`🔄 Generating follow-up payment for remaining ₦${remainingBalance}...`);
-                
-                const followupPayment = await generateRemainingBalancePayment(
-                  invoice,
-                  remainingBalance,
-                  customerEmail || invoice.client_email,
-                  customerName || invoice.client_name
-                );
-                
-                // Send follow-up payment email to customer
-                await sendFollowupPaymentEmail(
-                  customerEmail || invoice.client_email,
-                  customerName || invoice.client_name,
-                  invoice.invoice_id,
-                  paidAmount,
-                  remainingBalance,
-                  followupPayment.paymentLink,
-                  invoice
-                );
-                
-                // Notify invoice creator about partial payment
-                await sendInvoiceCreatorFollowupNotification(
-                  invoice.user_id,
-                  invoice.invoice_id,
-                  paidAmount,
-                  remainingBalance,
-                  customerName || "Customer"
-                );
-                
-                console.log(`✅ Follow-up payment system activated for remaining ₦${remainingBalance}`);
-                
-              } catch (followupError) {
-                console.error("❌ Failed to generate follow-up payment:", followupError);
-                // Don't fail the main payment processing
-              }
-            }
           }
 
           return NextResponse.json({ success: true }, { status: 200 });
@@ -1482,117 +1627,11 @@ export async function POST(req: NextRequest) {
           console.error("❌ Invoice processing error:", invoiceError);
           return NextResponse.json(
             { error: "Invoice processing failed" },
-            { status: 500 }
+            { status: 500 },
           );
         }
       }
       // -------------------- END INVOICE PAYMENT HANDLING --------------------
-
-      // Helper function to update invoice totals
-      async function updateInvoiceTotals(
-        invoice: any,
-        paidAmountNaira: number
-      ) {
-        try {
-          const paidAmount = paidAmountNaira;
-
-          const targetQty = Number(invoice.target_quantity || 1);
-          const totalAmount = Number(invoice.total_amount || 0);
-          const currentPaidAmount = Number(invoice.paid_amount || 0);
-          const currentPaidQty = Number(invoice.paid_quantity || 0);
-
-          let newPaidAmount = currentPaidAmount + paidAmount;
-          let newPaidQuantity = currentPaidQty;
-          let newStatus = invoice.status;
-
-          console.log("📊 Invoice update calculations:", {
-            currentPaidAmount,
-            paidAmount,
-            newPaidAmount,
-            totalAmount,
-            targetQty,
-            currentPaidQty,
-            allow_multiple_payments: invoice.allow_multiple_payments,
-          });
-
-          if (invoice.allow_multiple_payments) {
-            // FIXED: Calculate how many COMPLETE quantities are paid for
-            const cumulativeQuantitiesPaid = Math.floor(
-              newPaidAmount / totalAmount
-            );
-
-            console.log(`🔢 Cumulative quantities paid calculation:`, {
-              newPaidAmount,
-              totalAmount,
-              division: newPaidAmount / totalAmount,
-              cumulativeQuantitiesPaid,
-            });
-
-            // Only update if we have more complete quantities than before
-            if (cumulativeQuantitiesPaid > currentPaidQty) {
-              newPaidQuantity = cumulativeQuantitiesPaid;
-              console.log(
-                `✅ Quantity increased: ${currentPaidQty} → ${newPaidQuantity}`
-              );
-            }
-
-            // Check if all quantities are paid
-            if (newPaidQuantity >= targetQty) {
-              newStatus = "paid";
-              console.log("🎯 All quantities paid - marking as fully paid");
-            } else if (newPaidQuantity > 0 || newPaidAmount > 0) {
-              newStatus = "partially_paid";
-              console.log("📦 Partially paid - some quantities completed");
-            }
-          } else {
-            // For single payment invoices
-            if (newPaidAmount >= totalAmount) {
-              newStatus = "paid";
-              console.log("🎯 Full amount paid - marking as paid");
-            } else if (newPaidAmount > 0) {
-              newStatus = "partially_paid";
-              console.log("💰 Partial payment received");
-            }
-          }
-
-          const updateData: any = {
-            paid_amount: newPaidAmount,
-            paid_quantity: newPaidQuantity,
-            status: newStatus,
-            updated_at: new Date().toISOString(),
-          };
-
-          if (newStatus === "paid") {
-            updateData.paid_at = new Date().toISOString();
-            console.log("⏰ Setting paid_at timestamp");
-          }
-
-          console.log("🔄 Updating invoice with data:", updateData);
-
-          const { error: updateError } = await supabase
-            .from("invoices")
-            .update(updateData)
-            .eq("id", invoice.id);
-
-          if (updateError) {
-            console.error("❌ Failed to update invoice:", updateError);
-            throw updateError;
-          }
-
-          console.log("✅ Invoice totals updated successfully:", {
-            invoice_id: invoice.invoice_id,
-            newPaidAmount,
-            newPaidQuantity,
-            targetQty,
-            newStatus,
-          });
-
-          return { newPaidAmount, newPaidQuantity, newStatus };
-        } catch (error) {
-          console.error("❌ Error in updateInvoiceTotals:", error);
-          throw error;
-        }
-      }
 
       // DETERMINE userId & reference for transaction
       let userId: string | null = null;
@@ -1613,10 +1652,9 @@ export async function POST(req: NextRequest) {
 
         // -------------------- UPDATED VIRTUAL ACCOUNT NARRATION LOGIC -------------------
         console.log(
-          "🏦 Processing Virtual Account deposit with enhanced narration logic..."
+          "🏦 Processing Virtual Account deposit with enhanced narration logic...",
         );
 
-        // Extract ALL possible fields from your payload structure
         const narration = payload.data?.transaction?.narration || "";
         const merchantTxRef = tx.merchantTxRef || tx.merchant_tx_ref || "";
         const orderReference = order?.orderReference || "";
@@ -1647,19 +1685,19 @@ export async function POST(req: NextRequest) {
           invoiceReference = narrationMatch[0].toUpperCase();
           console.log(
             "📝 Found invoice reference in NARRATION:",
-            invoiceReference
+            invoiceReference,
           );
         } else if (merchantMatch) {
           invoiceReference = merchantMatch[0].toUpperCase();
           console.log(
             "📝 Found invoice reference in MERCHANT_TX_REF:",
-            invoiceReference
+            invoiceReference,
           );
         } else if (orderMatch) {
           invoiceReference = orderMatch[0].toUpperCase();
           console.log(
             "📝 Found invoice reference in ORDER_REFERENCE:",
-            invoiceReference
+            invoiceReference,
           );
         }
 
@@ -1670,7 +1708,7 @@ export async function POST(req: NextRequest) {
           try {
             console.log(
               "🔍 Searching for invoice with reference:",
-              invoiceReference
+              invoiceReference,
             );
 
             // First, try exact match
@@ -1694,7 +1732,7 @@ export async function POST(req: NextRequest) {
             if (invoiceError || !invoice) {
               console.log(
                 "❌ Invoice not found with reference:",
-                invoiceReference
+                invoiceReference,
               );
               console.log("❌ Full error:", invoiceError);
 
@@ -1704,14 +1742,14 @@ export async function POST(req: NextRequest) {
                 .select("invoice_id, user_id")
                 .ilike(
                   "invoice_id",
-                  `%${invoiceReference.replace(/^INV[-_]/i, "")}%`
+                  `%${invoiceReference.replace(/^INV[-_]/i, "")}%`,
                 );
 
               console.log("🔍 Similar invoices found:", similarInvoices);
 
               // Fall back to normal deposit flow
               console.log(
-                "🔄 Falling back to normal virtual account deposit..."
+                "🔄 Falling back to normal virtual account deposit...",
               );
             } else {
               console.log("✅ Found invoice:", {
@@ -1727,7 +1765,7 @@ export async function POST(req: NextRequest) {
                   "❌ Invoice belongs to different user. Invoice owner:",
                   invoice.user_id,
                   "Depositor:",
-                  aliasAccountReference
+                  aliasAccountReference,
                 );
 
                 // Process as payment to someone else's invoice
@@ -1737,7 +1775,7 @@ export async function POST(req: NextRequest) {
                   transactionAmount,
                   nombaTransactionId,
                   narration,
-                  payload
+                  payload,
                 );
                 return NextResponse.json({ success: true }, { status: 200 });
               }
@@ -1745,14 +1783,14 @@ export async function POST(req: NextRequest) {
               // 🔥 MULTIPLE PAYMENTS CHECK - Allow multiple payments for the same invoice
               if (invoice.allow_multiple_payments) {
                 console.log(
-                  "🔄 Multiple payments enabled - processing payment"
+                  "🔄 Multiple payments enabled - processing payment",
                 );
                 // Continue to process the payment
               } else {
                 // For single payment invoices, check if already paid
                 if (invoice.status === "paid") {
                   console.log(
-                    "⚠️ Invoice already paid, processing as normal deposit"
+                    "⚠️ Invoice already paid, processing as normal deposit",
                   );
                   // Continue with normal deposit flow (skip invoice processing)
                 }
@@ -1768,7 +1806,7 @@ export async function POST(req: NextRequest) {
 
               if (existingPayment) {
                 console.log(
-                  "⚠️ Duplicate invoice payment detected, updating invoice totals only"
+                  "⚠️ Duplicate invoice payment detected, updating invoice totals only",
                 );
                 await updateInvoiceTotals(invoice, transactionAmount);
                 return NextResponse.json({ success: true }, { status: 200 });
@@ -1791,11 +1829,6 @@ export async function POST(req: NextRequest) {
                   user_amount: userAmount,
                   calculation: `₦${totalAmount} - ₦${platformFeeRounded} (2% platform) - ₦${nombaFee} (Nomba) = ₦${userAmount}`,
                 });
-                
-                // ⭐ CHECK FOR PARTIAL PAYMENT
-                const invoiceTotal = Number(invoice.total_amount);
-                const isPartialPayment = totalAmount < invoiceTotal;
-                
                 // Create payment record
                 const { data: paymentRecord, error: paymentError } =
                   await supabase
@@ -1835,8 +1868,6 @@ export async function POST(req: NextRequest) {
                         is_reusable: false,
                         payment_attempts: 1,
                         created_at: new Date().toISOString(),
-                        is_partial_payment: isPartialPayment,
-                        remaining_balance: isPartialPayment ? invoiceTotal - totalAmount : 0
                       },
                     ])
                     .select()
@@ -1845,11 +1876,11 @@ export async function POST(req: NextRequest) {
                 if (paymentError) {
                   console.error(
                     "❌ Failed to create invoice payment record:",
-                    paymentError
+                    paymentError,
                   );
                   // Fall back to normal deposit flow
                   console.log(
-                    "🔄 Falling back to normal deposit due to payment record error"
+                    "🔄 Falling back to normal deposit due to payment record error",
                   );
                 } else {
                   // 🔥 CREDIT USER'S WALLET WITH AMOUNT AFTER PLATFORM FEE (userAmount)
@@ -1863,7 +1894,7 @@ export async function POST(req: NextRequest) {
                       total_fees: platformFeeRounded + nombaFee,
                       user_credit_amount: userAmount,
                       calculation: `₦${totalAmount} - ₦${platformFeeRounded} (2% platform) - ₦${nombaFee} (Nomba) = ₦${userAmount}`,
-                    }
+                    },
                   );
 
                   const { error: creditError } = await supabase.rpc(
@@ -1871,17 +1902,17 @@ export async function POST(req: NextRequest) {
                     {
                       user_id: invoice.user_id,
                       amt: userAmount,
-                    }
+                    },
                   );
 
                   if (creditError) {
                     console.error(
                       "❌ Failed to credit invoice owner's wallet:",
-                      creditError
+                      creditError,
                     );
                   } else {
                     console.log(
-                      `✅ Successfully credited ₦${userAmount} to invoice owner ${invoice.user_id} (₦${platformFeeRounded} 2% platform + ₦${nombaFee} Nomba fee deducted)`
+                      `✅ Successfully credited ₦${userAmount} to invoice owner ${invoice.user_id} (₦${platformFeeRounded} 2% platform + ₦${nombaFee} Nomba fee deducted)`,
                     );
                   }
 
@@ -1895,12 +1926,12 @@ export async function POST(req: NextRequest) {
                         {
                           user_id: invoice.user_id,
                           type: "virtual_account_deposit",
-                          amount: userAmount, // The amount user actually receives
+                          amount: userAmount,
                           status: "success",
                           reference: nombaTransactionId || `VA-${Date.now()}`,
                           description: transactionDescription,
                           narration: `Payment received for Invoice #${invoice.invoice_id} via virtual account`,
-                          fee: platformFeeRounded, // Only platform fee, no Nomba fee
+                          fee: platformFeeRounded,
                           total_deduction: totalAmount, // Total amount deducted from payer
                           channel: "virtual_account",
                           sender: {
@@ -1940,64 +1971,12 @@ export async function POST(req: NextRequest) {
                   if (transactionError) {
                     console.error(
                       "❌ Failed to create transaction record:",
-                      transactionError
+                      transactionError,
                     );
                   }
 
                   // ✅ UPDATE INVOICE TOTALS with total amount paid
                   await updateInvoiceTotals(invoice, totalAmount);
-                  
-                  // ⭐ CHECK FOR PARTIAL PAYMENT AND GENERATE FOLLOW-UP (for VA payments)
-                  if (isPartialPayment) {
-                    const remainingBalance = invoiceTotal - totalAmount;
-                    
-                    console.log(`⚠️ VIRTUAL ACCOUNT PARTIAL PAYMENT DETECTED:`, {
-                      invoice_total: invoiceTotal,
-                      amount_paid: totalAmount,
-                      remaining_balance: remainingBalance,
-                      percentage: `${((totalAmount / invoiceTotal) * 100).toFixed(2)}% paid`
-                    });
-                    
-                    // Generate follow-up payment link for remaining balance
-                    if (remainingBalance > 0) {
-                      try {
-                        console.log(`🔄 Generating follow-up payment for remaining ₦${remainingBalance}...`);
-                        
-                        const followupPayment = await generateRemainingBalancePayment(
-                          invoice,
-                          remainingBalance,
-                          payload.data?.customer?.senderEmail || invoice.client_email,
-                          payload.data?.customer?.senderName || invoice.client_name
-                        );
-                        
-                        // Send follow-up payment email to customer
-                        await sendFollowupPaymentEmail(
-                          payload.data?.customer?.senderEmail || invoice.client_email,
-                          payload.data?.customer?.senderName || invoice.client_name,
-                          invoice.invoice_id,
-                          totalAmount,
-                          remainingBalance,
-                          followupPayment.paymentLink,
-                          invoice
-                        );
-                        
-                        // Notify invoice creator about partial payment
-                        await sendInvoiceCreatorFollowupNotification(
-                          invoice.user_id,
-                          invoice.invoice_id,
-                          totalAmount,
-                          remainingBalance,
-                          payload.data?.customer?.senderName || "Customer"
-                        );
-                        
-                        console.log(`✅ Follow-up payment system activated for remaining ₦${remainingBalance}`);
-                        
-                      } catch (followupError) {
-                        console.error("❌ Failed to generate follow-up payment:", followupError);
-                        // Don't fail the main payment processing
-                      }
-                    }
-                  }
 
                   // Send notifications
                   try {
@@ -2018,9 +1997,9 @@ export async function POST(req: NextRequest) {
                         invoice.invoice_id,
                         totalAmount,
                         payload.data?.customer?.senderName || "Customer",
-                        invoice
+                        invoice,
                       ).catch((error) =>
-                        console.error("❌ Payer email failed:", error)
+                        console.error("❌ Payer email failed:", error),
                       );
                     }
 
@@ -2036,12 +2015,12 @@ export async function POST(req: NextRequest) {
                         payload.data?.customer?.senderName || "Customer",
                         payerEmail || "N/A",
                         invoice,
-                        nombaFee
+                        nombaFee,
                       );
                     }
 
                     console.log(
-                      "✅ Virtual account invoice payment processed successfully"
+                      "✅ Virtual account invoice payment processed successfully",
                     );
 
                     return NextResponse.json(
@@ -2057,12 +2036,12 @@ export async function POST(req: NextRequest) {
                           percentage: "2% platform fee",
                         },
                       },
-                      { status: 200 }
+                      { status: 200 },
                     );
                   } catch (emailError) {
                     console.error(
                       "❌ Email error, but payment processed:",
-                      emailError
+                      emailError,
                     );
                     // Payment was still successful, so return success
                     return NextResponse.json(
@@ -2071,7 +2050,7 @@ export async function POST(req: NextRequest) {
                         message: "Invoice payment processed (emails failed)",
                         invoice_reference: invoiceReference,
                       },
-                      { status: 200 }
+                      { status: 200 },
                     );
                   }
                 }
@@ -2080,13 +2059,13 @@ export async function POST(req: NextRequest) {
           } catch (invoiceProcessingError: any) {
             console.error(
               "❌ Invoice processing error, falling back to normal deposit:",
-              invoiceProcessingError
+              invoiceProcessingError,
             );
             // Fall through to normal deposit processing
           }
         } else {
           console.log(
-            "📝 No invoice reference found in narration, processing as normal virtual account deposit"
+            "📝 No invoice reference found in narration, processing as normal virtual account deposit",
           );
         }
         // -------------------- END UPDATED VIRTUAL ACCOUNT NARRATION LOGIC --------------------
@@ -2126,7 +2105,7 @@ export async function POST(req: NextRequest) {
       if (!userId) {
         console.warn(
           "⚠️ Could not determine userId for deposit. referenceToUse:",
-          referenceToUse
+          referenceToUse,
         );
 
         if (aliasAccountReference) {
@@ -2137,7 +2116,7 @@ export async function POST(req: NextRequest) {
           console.error("❌ No user to credit - aborting");
           return NextResponse.json(
             { message: "No user to credit" },
-            { status: 200 }
+            { status: 200 },
           );
         }
       }
@@ -2145,15 +2124,15 @@ export async function POST(req: NextRequest) {
       // ✅ DEPOSIT FEE CALCULATIONS
       const amount = transactionAmount;
 
-      // NO APP FEES FOR ANY PAYMENT METHOD
+      // DEDUCT NOMBA FEE FOR VIRTUAL ACCOUNT DEPOSITS
       let ourAppFee = 0;
-      let totalFees = 0; // No fees for normal deposits
-      let netCredit = amount; // User gets full amount
+      let totalFees = isVirtualAccountDeposit ? nombaFee : 0;
+      let netCredit = amount - totalFees;
       const total_deduction = amount;
 
-      console.log("💰 Deposit calculations (NO CHARGES):");
+      console.log("💰 Deposit calculations (WITH NOMBA FEE DEDUCTION):");
       console.log("   - Amount:", amount);
-      console.log("   - Nomba's fee:", nombaFee, "(absorbed by platform)");
+      console.log("   - Nomba's fee:", nombaFee, "(deducted from user)");
       console.log("   - Our app fee:", ourAppFee);
       console.log("   - Total fees:", totalFees);
       console.log("   - Net credit to user:", netCredit);
@@ -2163,7 +2142,7 @@ export async function POST(req: NextRequest) {
         .from("transactions")
         .select("*")
         .or(
-          `reference.eq.${referenceToUse},merchant_tx_ref.eq.${nombaTransactionId}`
+          `reference.eq.${referenceToUse},merchant_tx_ref.eq.${nombaTransactionId}`,
         )
         .maybeSingle();
 
@@ -2175,18 +2154,18 @@ export async function POST(req: NextRequest) {
       // ✅ Already successfully processed
       if (existingTx && existingTx.status === "success") {
         console.log(
-          "⚠️ Deposit already processed (idempotent). Skipping credit."
+          "⚠️ Deposit already processed (idempotent). Skipping credit.",
         );
         return NextResponse.json(
           { message: "Already processed" },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
       // 🔁 Existing pending tx: mark success and credit
       if (existingTx) {
         console.log(
-          "🔁 Found existing transaction. Updating to success and crediting user."
+          "🔁 Found existing transaction. Updating to success and crediting user.",
         );
         // Store fee breakdown in external_response
         const updatedExternalResponse = {
@@ -2215,7 +2194,7 @@ export async function POST(req: NextRequest) {
           console.error("❌ Failed to update existing transaction:", updErr);
           return NextResponse.json(
             { error: "Failed to update transaction" },
-            { status: 500 }
+            { status: 500 },
           );
         }
 
@@ -2225,7 +2204,7 @@ export async function POST(req: NextRequest) {
           {
             user_id: existingTx.user_id,
             amt: netCredit,
-          }
+          },
         );
 
         if (rpcErr) {
@@ -2241,7 +2220,7 @@ export async function POST(req: NextRequest) {
             console.error("❌ User not found for manual credit fallback");
             return NextResponse.json(
               { error: "User not found" },
-              { status: 500 }
+              { status: 500 },
             );
           }
 
@@ -2255,28 +2234,28 @@ export async function POST(req: NextRequest) {
             console.error("❌ Manual wallet update failed:", updUserErr);
             return NextResponse.json(
               { error: "Failed to credit wallet" },
-              { status: 500 }
+              { status: 500 },
             );
           }
         }
 
         console.log(
-          `✅ Credited user ${existingTx.user_id} with ₦${netCredit} (existing tx updated)`
+          `✅ Credited user ${existingTx.user_id} with ₦${netCredit} (existing tx updated)`,
         );
         return NextResponse.json({ success: true }, { status: 200 });
       }
 
       // No existing tx: create and credit (auto-create best-effort)
       console.log(
-        "➕ No existing tx — creating transaction and crediting user now (auto-create)."
+        "➕ No existing tx — creating transaction and crediting user now (auto-create).",
       );
       // Store fee breakdown in external_response
       const updatedExternalResponse = {
         ...payload,
         fee_breakdown: {
-          nomba_fee: nombaFee, // Still track it but user doesn't pay
+          nomba_fee: nombaFee,
           app_fee: ourAppFee,
-          total_fee: totalFees, // Zero for user
+          total_fee: totalFees,
           note: "Nomba fee absorbed by platform for non-invoice deposits",
         },
       };
@@ -2295,8 +2274,9 @@ export async function POST(req: NextRequest) {
             txType === "card_deposit"
               ? "Card deposit"
               : txType === "virtual_account_deposit"
-              ? "Account deposit"
-              : "Bank deposit",
+                ? "Account deposit"
+                : "Bank deposit",
+          narration: payload.data?.transaction?.narration || "",
           external_response: updatedExternalResponse,
           channel: channel,
         },
@@ -2306,17 +2286,17 @@ export async function POST(req: NextRequest) {
         // if duplicate (unique constraint) — treat as processed
         if (insertErr.code === "23505") {
           console.warn(
-            "⚠️ Duplicate insert prevented. Treating as already processed."
+            "⚠️ Duplicate insert prevented. Treating as already processed.",
           );
           return NextResponse.json(
             { message: "Duplicate ignored" },
-            { status: 200 }
+            { status: 200 },
           );
         }
         console.error("❌ Failed to insert new transaction:", insertErr);
         return NextResponse.json(
           { error: "Failed to record transaction" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -2326,7 +2306,7 @@ export async function POST(req: NextRequest) {
         {
           user_id: userId,
           amt: netCredit,
-        }
+        },
       );
       if (rpcErr2) {
         console.error("❌ RPC increment failed (after insert):", rpcErr2);
@@ -2340,7 +2320,7 @@ export async function POST(req: NextRequest) {
           console.error("❌ User not found for manual credit fallback");
           return NextResponse.json(
             { error: "User not found" },
-            { status: 500 }
+            { status: 500 },
           );
         }
         const newBal = Number(before.wallet_balance) + netCredit;
@@ -2352,13 +2332,13 @@ export async function POST(req: NextRequest) {
           console.error("❌ Manual wallet update failed:", uiErr);
           return NextResponse.json(
             { error: "Failed to credit wallet" },
-            { status: 500 }
+            { status: 500 },
           );
         }
       }
 
       console.log(
-        `✅ Auto-created transaction and credited user ${userId} with ₦${netCredit}`
+        `✅ Auto-created transaction and credited user ${userId} with ₦${netCredit}`,
       );
 
       // VIRTUAL ACCOUNT DEPOSIT EMAIL NOTIFICATION
@@ -2403,7 +2383,7 @@ export async function POST(req: NextRequest) {
           accountNumber,
           accountName,
           senderName,
-          narration // Add this parameter
+          narration, // Add this parameter
         );
       }
 
@@ -2414,14 +2394,59 @@ export async function POST(req: NextRequest) {
     if (isPayoutOrTransfer) {
       console.log("➡️ Handling payout/transfer flow");
 
-      const refCandidates = [merchantTxRef, nombaTransactionId].filter(Boolean);
+      // Collect ALL possible references from the webhook payload
+      const possibleRefs = [
+        merchantTxRef, // Your merchant_tx_ref
+        nombaTransactionId, // Nomba's transaction ID
+        tx.merchantTxRef, // Alternative location
+        tx.merchant_tx_ref, // Alternative location
+        payload.data?.meta?.merchantTxRef, // Meta field
+        payload.data?.reference, // Generic reference field
+        payload.data?.transaction?.reference, // Transaction reference
+        orderReference, // Order reference if any
+        tx.sessionId, // Session ID
+        tx.id, // Transaction ID
+        tx.reference, // Transaction reference
+        payload.data?.transaction?.sessionId, // Session ID in transaction
+        payload.data?.transaction?.id, // Transaction ID in transaction
+      ].filter(Boolean);
 
-      const orExprParts = refCandidates
-        .map((r) => `merchant_tx_ref.eq.${r}`)
-        .concat(refCandidates.map((r) => `reference.eq.${r}`));
-      const orExpr = orExprParts.join(",");
+      // Remove duplicates
+      const uniqueRefs = [...new Set(possibleRefs)];
 
-      const { data: pendingTxList, error: pendingErr } = await supabase
+      console.log("🔍 Searching for transaction with references:", uniqueRefs);
+
+      // Build OR query for all possible reference fields
+      const conditions = [];
+
+      // Add conditions for each reference in each possible field
+      uniqueRefs.forEach((ref) => {
+        conditions.push(`merchant_tx_ref.eq.${ref}`); // Primary reference from withdrawal
+        conditions.push(`reference.eq.${ref}`); // Secondary reference
+
+        // Search inside external_response JSONB (fallback)
+        conditions.push(
+          `external_response->withdrawal_details->>merchant_tx_ref.eq.${ref}`,
+        );
+        conditions.push(
+          `external_response->references->>merchant_tx_ref.eq.${ref}`,
+        );
+        conditions.push(`external_response->references->>reference.eq.${ref}`);
+      });
+
+      // Also search by the actual transaction ID if available
+      if (nombaTransactionId) {
+        conditions.push(
+          `external_response->>nomba_transaction_id.eq.${nombaTransactionId}`,
+        );
+        conditions.push(
+          `external_response->data->>id.eq.${nombaTransactionId}`,
+        );
+      }
+
+      const orExpr = conditions.join(",");
+
+      let { data: pendingTxList, error: pendingErr } = await supabase
         .from("transactions")
         .select("*")
         .or(orExpr)
@@ -2432,29 +2457,156 @@ export async function POST(req: NextRequest) {
       if (pendingErr) {
         console.error(
           "❌ DB error while finding pending transaction:",
-          pendingErr
+          pendingErr,
         );
         return NextResponse.json({ error: "DB error" }, { status: 500 });
       }
 
-      const pendingTx = pendingTxList?.[0];
+      let pendingTx = pendingTxList?.[0];
+
+      // If still not found, try a more aggressive search using receiver details
+      if (!pendingTx) {
+        console.log(
+          "⚠️ Transaction not found by references, trying fallback search by amount and receiver...",
+        );
+
+        const webhookAmount = Number(transactionAmount);
+        const webhookAccountNumber =
+          payload.data?.customer?.accountNumber ||
+          payload.data?.transaction?.accountNumber ||
+          payload.data?.beneficiary?.accountNumber;
+
+        const webhookBankCode =
+          payload.data?.customer?.bankCode ||
+          payload.data?.transaction?.bankCode ||
+          payload.data?.beneficiary?.bankCode;
+
+        console.log("📊 Fallback search criteria:", {
+          amount: webhookAmount,
+          accountNumber: webhookAccountNumber,
+          bankCode: webhookBankCode,
+        });
+
+        // Try to find by looking at all pending withdrawals from last 30 minutes
+        const thirtyMinutesAgo = new Date(
+          Date.now() - 30 * 60 * 1000,
+        ).toISOString();
+
+        const { data: recentWithdrawals, error: recentError } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("type", "withdrawal")
+          .in("status", ["pending", "processing"])
+          .gte("created_at", thirtyMinutesAgo)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (!recentError && recentWithdrawals) {
+          console.log(
+            `📋 Found ${recentWithdrawals.length} recent pending withdrawals`,
+          );
+
+          // Try to match by amount and receiver details
+          for (const tx of recentWithdrawals) {
+            const receiver = tx.receiver || {};
+            const txAmount = Number(tx.amount);
+
+            // Check if amounts match (within 1 naira tolerance)
+            if (Math.abs(txAmount - webhookAmount) <= 1) {
+              // Check from receiver object (primary)
+              if (receiver.accountNumber === webhookAccountNumber) {
+                console.log(
+                  "✅ Found matching transaction by amount and account (receiver object):",
+                  {
+                    id: tx.id,
+                    amount: txAmount,
+                    account: receiver.accountNumber,
+                  },
+                );
+                pendingTx = tx;
+                break;
+              }
+
+              // If bank code is available, check that too
+              if (webhookBankCode && receiver.bankCode === webhookBankCode) {
+                console.log(
+                  "✅ Found matching transaction by amount and bank code:",
+                  {
+                    id: tx.id,
+                    amount: txAmount,
+                    bankCode: webhookBankCode,
+                  },
+                );
+                pendingTx = tx;
+                break;
+              }
+            }
+          }
+        }
+      }
 
       if (!pendingTx) {
         console.warn(
-          "⚠️ No matching pending withdrawal found for refs:",
-          refCandidates
+          "⚠️ No matching pending withdrawal found after all attempts",
         );
+
+        // Log all possible identifiers for debugging
+        console.log("🔍 Debug - All possible identifiers:", {
+          merchantTxRef,
+          nombaTransactionId,
+          transactionAmount,
+          accountNumber: payload.data?.customer?.accountNumber,
+          bankCode: payload.data?.customer?.bankCode,
+          uniqueRefs,
+        });
+
         return NextResponse.json(
           { message: "No matching withdrawal transaction" },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
-      // Check if this is a P2P transfer or regular withdrawal
-      const isP2PTransfer = pendingTx.type === "p2p_transfer";
-      const isRegularWithdrawal = pendingTx.type === "withdrawal";
+      console.log("✅ Found transaction:", {
+        id: pendingTx.id,
+        status: pendingTx.status,
+        merchant_tx_ref: pendingTx.merchant_tx_ref,
+        reference: pendingTx.reference,
+        amount: pendingTx.amount,
+        receiver: pendingTx.receiver,
+        sender: pendingTx.sender,
+      });
 
-      console.log("   - Is P2P Transfer:", isP2PTransfer);
+      // Store the Nomba transaction ID in external_response for future reference
+      if (
+        nombaTransactionId &&
+        !pendingTx.external_response?.nomba_transaction_id
+      ) {
+        const currentExternal = pendingTx.external_response || {};
+
+        const updatedExternalResponse = {
+          ...currentExternal,
+          nomba_transaction_id: nombaTransactionId,
+          nomba_received_at: new Date().toISOString(),
+          webhook_payload: {
+            event_type: eventType,
+            timestamp: new Date().toISOString(),
+            transaction_id: nombaTransactionId,
+          },
+        };
+
+        await supabase
+          .from("transactions")
+          .update({
+            external_response: updatedExternalResponse,
+          })
+          .eq("id", pendingTx.id);
+
+        console.log(
+          `✅ Stored Nomba transaction ID ${nombaTransactionId} for transaction ${pendingTx.id}`,
+        );
+      }
+
+      const isRegularWithdrawal = pendingTx.type === "withdrawal";
       console.log("   - Is Regular Withdrawal:", isRegularWithdrawal);
 
       // Idempotency - check if already processed
@@ -2462,107 +2614,77 @@ export async function POST(req: NextRequest) {
         console.log(`⚠️ Transaction already ${pendingTx.status}. Skipping.`);
         return NextResponse.json(
           { message: "Already processed" },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
-      const txAmount = Number(pendingTx.amount ?? transactionAmount ?? 0);
+      const txAmount = Number(transactionAmount ?? 0);
 
-      let appFee = 0;
-      let totalFees = 0;
-      let totalDeduction = txAmount;
+      // Get values from the transaction (these were set during withdrawal)
+      const appFee = Number(pendingTx.fee || 0);
+      const totalDeduction = Number(
+        pendingTx.total_deduction || pendingTx.amount,
+      );
+      const nombaFee = Number(payload.data?.transaction?.fee || 0);
 
-      if (isRegularWithdrawal) {
-        // Regular withdrawal fee logic: 1% (₦20 min, ₦1000 cap)
-        appFee = txAmount * 0.0025;
-        appFee = Math.max(appFee, 20);
-        appFee = Math.min(appFee, 150);
-        appFee = Number(appFee.toFixed(2));
-        totalFees = Number((nombaFee + appFee).toFixed(2));
-        totalDeduction = txAmount;
-
-        console.log("💰 Regular Withdrawal calculations:");
-        console.log("   - Withdrawal amount:", txAmount);
-        console.log("   - Nomba fee:", nombaFee);
-        console.log("   - Our app fee:", appFee);
-        console.log("   - Total fees:", totalFees);
-        console.log("   - Total deduction:", totalDeduction);
-      } else if (isP2PTransfer) {
-        // 🔥 P2P transfers have NO FEES
-        appFee = 0;
-        totalFees = 0; // No fees for P2P
-        totalDeduction = txAmount; // Only deduct the transfer amount
-
-        console.log("💰 P2P Transfer calculations (NO FEES):");
-        console.log("   - Transfer amount:", txAmount);
-        console.log("   - Nomba fee:", nombaFee); // This might be 0 for internal transfers
-        console.log("   - Our app fee:", appFee);
-        console.log("   - Total fees:", totalFees);
-        console.log("   - Total deduction:", totalDeduction);
-      }
+      console.log("💰 Transaction calculations:", {
+        transactionAmount: txAmount,
+        pendingAmount: pendingTx.amount,
+        appFee,
+        nombaFee,
+        totalDeduction,
+      });
 
       // ✅ SUCCESS CASE
       if (eventType === "payout_success" || txStatus === "success") {
-        console.log(
-          `✅ ${
-            isP2PTransfer ? "P2P Transfer" : "Withdrawal"
-          } success - marking transaction as success`
-        );
+        console.log(`✅ Withdrawal success - marking transaction as success`);
 
-        const reference = nombaTransactionId || crypto.randomUUID();
+        const reference =
+          nombaTransactionId || pendingTx.reference || crypto.randomUUID();
 
-        // Build updated external response with fee info
+        // Build updated external response with fee info and preserve existing data
+        const currentExternal = pendingTx.external_response || {};
         const updatedExternalResponse = {
-          ...payload,
+          ...currentExternal, // Preserve existing data
+          ...payload, // Add new webhook data
           fee_breakdown: {
-            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
             amount: txAmount,
             nomba_fee: nombaFee,
             app_fee: appFee,
-            total_fee: totalFees,
+            total_fee: appFee + nombaFee,
             total_deduction: totalDeduction,
+            ...(currentExternal.fee_breakdown || {}),
+          },
+          nomba_transaction_id: nombaTransactionId,
+          webhook_processed_at: new Date().toISOString(),
+          webhook_status: "success",
+          success_data: {
+            processed_at: new Date().toISOString(),
+            event_type: eventType,
+            nomba_reference: nombaTransactionId,
           },
         };
 
-        // 🟩 No second deduction here — we already deducted at initiation
         const { error: updateErr } = await supabase
           .from("transactions")
           .update({
             status: "success",
             reference,
             external_response: updatedExternalResponse,
-            total_deduction: totalDeduction,
-            fee: totalFees,
+            // Keep existing total_deduction and fee values
           })
           .eq("id", pendingTx.id);
 
-        const withdrawalDetails =
-          pendingTx.external_response?.withdrawal_details || {};
+        // Extract withdrawal details for email (from transaction receiver object)
+        const receiver = pendingTx.receiver || {};
+        const sender = pendingTx.sender || {};
 
-        const recipientName =
-          payload.data?.customer?.recipientName ||
-          withdrawalDetails.account_name ||
-          "N/A";
+        const recipientName = receiver.name || "N/A";
+        const recipientAccount = receiver.accountNumber || "N/A";
+        const bankName = receiver.bankName || "N/A";
+        const webhookNarration = pendingTx.narration || "Transfer";
 
-        const recipientAccount =
-          payload.data?.customer?.accountNumber ||
-          withdrawalDetails.account_number ||
-          "N/A";
-
-        const bankName =
-          payload.data?.customer?.bankName ||
-          withdrawalDetails.bank_name ||
-          "N/A";
-
-        const narration = payload.data?.transaction?.narration;
-
-        // console.log("🏦 Extracted Withdrawal Details:", {
-        //   recipientName,
-        //   recipientAccount,
-        //   bankName,
-        //   narration, // Add narration to logs
-        // });
-
+        // Send email notification
         await sendWithdrawalEmailNotification(
           pendingTx.user_id,
           "success",
@@ -2573,8 +2695,8 @@ export async function POST(req: NextRequest) {
           recipientName,
           recipientAccount,
           bankName,
-          narration,
-          pendingTx.id
+          webhookNarration,
+          pendingTx.id,
         );
 
         if (updateErr) {
@@ -2582,105 +2704,53 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "Update failed" }, { status: 500 });
         }
 
-        // 🔥 NEW: For P2P transfers, also credit the receiver
-        if (isP2PTransfer && pendingTx.receiver) {
-          try {
-            console.log("💰 Processing P2P receiver credit...");
-
-            // Find receiver by wallet_id from the transaction record
-            const { data: receiver, error: receiverError } = await supabase
-              .from("users")
-              .select("id, first_name, last_name")
-              .eq("wallet_id", pendingTx.receiver.wallet_id)
-              .single();
-
-            if (receiverError || !receiver) {
-              console.error("❌ P2P receiver not found:", pendingTx.receiver);
-            } else {
-              // Credit receiver's wallet
-              const { error: creditError } = await supabase.rpc(
-                "increment_wallet_balance",
-                {
-                  user_id: receiver.id,
-                  amt: txAmount,
-                }
-              );
-
-              if (creditError) {
-                console.error(
-                  "❌ Failed to credit receiver wallet:",
-                  creditError
-                );
-              } else {
-                // Create receiver transaction record
-                await supabase.from("transactions").insert({
-                  user_id: receiver.id,
-                  type: "p2p_received",
-                  amount: txAmount,
-                  status: "success",
-                  description: `Received ₦${txAmount} from ${
-                    pendingTx.sender?.name || "User"
-                  }`,
-                  narration: pendingTx.narration || "P2P Received",
-                  reference: reference,
-                  external_response: updatedExternalResponse,
-                  sender: pendingTx.sender,
-                });
-
-                console.log(
-                  `✅ P2P receiver ${receiver.id} credited with ₦${txAmount}`
-                );
-              }
-            }
-          } catch (receiverErr) {
-            console.error(
-              "❌ Error processing P2P receiver credit:",
-              receiverErr
-            );
-            // Don't fail the whole webhook - log and continue
-          }
-        }
+        console.log(`✅ Transaction ${pendingTx.id} updated to success`);
 
         return NextResponse.json(
           {
             success: true,
-            message: `${
-              isP2PTransfer ? "P2P Transfer" : "Withdrawal"
-            } processed successfully`,
-            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+            message: "Withdrawal processed successfully",
+            transaction_id: pendingTx.id,
+            transaction_type: "withdrawal",
           },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
       // ❌ FAILURE CASE — REFUND USER
       if (eventType === "payout_failed" || txStatus === "failed") {
-        console.log(
-          `❌ ${
-            isP2PTransfer ? "P2P Transfer" : "Withdrawal"
-          } failed - refunding user and marking transaction failed`
-        );
+        console.log(`❌ Withdrawal failed - refunding user`);
 
-        // Extract error details from the payload
         const errorDetail =
           payload.data?.transaction?.responseMessage ||
           payload.data?.transaction?.narration ||
           payload.error?.message ||
           "Transaction failed";
 
-        const narration =
-          payload.data?.transaction?.narration ||
-          pendingTx.narration ||
-          "Transfer";
+        const narration = pendingTx.narration || "Transfer";
 
+        // Build updated external response with error info
+        const currentExternal = pendingTx.external_response || {};
         const updatedExternalResponse = {
+          ...currentExternal,
           ...payload,
           fee_breakdown: {
-            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+            ...(currentExternal.fee_breakdown || {}),
+            amount: txAmount,
             nomba_fee: nombaFee,
             app_fee: appFee,
-            total_fee: totalFees,
+            total_fee: appFee + nombaFee,
+            total_deduction: totalDeduction,
             failed: true,
+            error: errorDetail,
+          },
+          nomba_transaction_id: nombaTransactionId,
+          webhook_processed_at: new Date().toISOString(),
+          webhook_status: "failed",
+          error_details: {
+            message: errorDetail,
+            code: payload.data?.transaction?.responseCode || "FAILED",
+            timestamp: new Date().toISOString(),
           },
         };
 
@@ -2694,65 +2764,66 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", pendingTx.id);
 
-        // Extract withdrawal details from the actual webhook payload
-        const withdrawalDetails =
-          pendingTx.external_response?.withdrawal_details || {};
+        // Extract withdrawal details for email (from transaction receiver object)
+        const receiver = pendingTx.receiver || {};
+        const sender = pendingTx.sender || {};
 
-        const recipientName =
-          payload.data?.customer?.recipientName ||
-          withdrawalDetails.account_name ||
-          "N/A";
-
-        const recipientAccount =
-          payload.data?.customer?.accountNumber ||
-          withdrawalDetails.account_number ||
-          "N/A";
-
-        const bankName =
-          payload.data?.customer?.bankName ||
-          withdrawalDetails.bank_name ||
-          "N/A";
-
-        console.log("🏦 Extracted Withdrawal Details:", {
-          recipientName,
-          recipientAccount,
-          bankName,
-          narration,
-          errorDetail,
-        });
+        const recipientName = receiver.name || "N/A";
+        const recipientAccount = receiver.accountNumber || "N/A";
+        const bankName = receiver.bankName || "N/A";
 
         if (updateError) {
           console.error("❌ Failed to update transaction status:", updateError);
-          return NextResponse.json(
-            { error: "Failed to update transaction" },
-            { status: 500 }
-          );
         }
 
-        // Refund wallet via RPC since we deducted earlier
+        // REFUND THE USER
         console.log("🔄 Refunding user wallet...");
-        const refundReference = `refund_${
-          nombaTransactionId || crypto.randomUUID()
-        }`;
+        const refundReference = `REFUND_${nombaTransactionId || Date.now()}`;
+
         const { error: refundErr } = await supabase.rpc(
-          "deduct_wallet_balance",
+          "increment_wallet_balance",
           {
             user_id: pendingTx.user_id,
-            amt: -totalDeduction, // negative = credit back
-            transaction_type: "credit",
-            reference: refundReference,
-            description: `Refund for failed ${
-              isP2PTransfer ? "P2P transfer" : "withdrawal"
-            } of ₦${txAmount}`,
-          }
+            amt: totalDeduction, // Refund full amount
+          },
         );
 
         if (refundErr) {
-          console.error("❌ Refund RPC failed:", refundErr.message);
-          return NextResponse.json(
-            { error: "Failed to refund wallet via RPC" },
-            { status: 500 }
+          console.error("❌ Refund failed:", refundErr);
+
+          // Update transaction with refund error
+          await supabase
+            .from("transactions")
+            .update({
+              external_response: {
+                ...updatedExternalResponse,
+                refund_error: {
+                  message: refundErr.message,
+                  attempted: true,
+                  failed: true,
+                  timestamp: new Date().toISOString(),
+                },
+              },
+            })
+            .eq("id", pendingTx.id);
+        } else {
+          console.log(
+            `✅ Refund of ₦${totalDeduction} completed for user ${pendingTx.user_id}`,
           );
+
+          // Update transaction with refund info
+          await supabase
+            .from("transactions")
+            .update({
+              external_response: {
+                ...updatedExternalResponse,
+                refunded: true,
+                refund_amount: totalDeduction,
+                refund_reference: refundReference,
+                refunded_at: new Date().toISOString(),
+              },
+            })
+            .eq("id", pendingTx.id);
         }
 
         // Send failure email with error details
@@ -2768,24 +2839,28 @@ export async function POST(req: NextRequest) {
           bankName,
           narration,
           pendingTx.id,
-          errorDetail
+          errorDetail +
+            (refundErr
+              ? " (Refund may have failed)"
+              : " (Refunded successfully)"),
         );
 
-        console.log(
-          `✅ Refund completed successfully for user ${pendingTx.user_id}`
-        );
         return NextResponse.json(
           {
             refunded: true,
-            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+            transaction_id: pendingTx.id,
+            transaction_type: "withdrawal",
+            refund_amount: totalDeduction,
+            refund_status: refundErr ? "failed" : "success",
           },
-          { status: 200 }
+          { status: 200 },
         );
       }
+
       console.log("ℹ️ Unhandled transfer event/status. Ignoring.");
       return NextResponse.json(
         { message: "Ignored transfer event" },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -2796,7 +2871,7 @@ export async function POST(req: NextRequest) {
     console.error("🔥 Webhook processing error:", err);
     return NextResponse.json(
       { error: err.message || "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

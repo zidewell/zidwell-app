@@ -253,7 +253,7 @@ const Footer = () => {
                   href={social.href}
                   aria-label={social.label}
                   target="_blank"
-                  className="w-10 h-10 bg-gray-50/10 dark:bg-gray-900/10 border border-gray-50/20 dark:border-gray-900/20 flex items-center justify-center hover:bg-[#C29307] hover:border-[#C29307] transition-colors"
+                  className="w-10 h-10 bg-gray-50/10 dark:bg-gray-900/10 border border-gray-50/20 dark:border-gray-900/20 flex items-center justify-center hover:bg-[#2b825b] hover:border-[#2b825b] transition-colors"
                 >
                   <social.icon className="w-5 h-5" />
                 </a>
@@ -269,7 +269,7 @@ const Footer = () => {
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="text-gray-50/70 dark:text-gray-900/70 hover:text-[#C29307] transition-colors text-sm"
+                    className="text-gray-50/70 dark:text-gray-900/70 hover:text-[#2b825b] transition-colors text-sm"
                   >
                     {link.label}
                   </a>
@@ -286,7 +286,7 @@ const Footer = () => {
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="text-gray-50/70 dark:text-gray-900/70 hover:text-[#C29307] transition-colors text-sm"
+                    className="text-gray-50/70 dark:text-gray-900/70 hover:text-[#2b825b] transition-colors text-sm"
                   >
                     {link.label}
                   </a>
@@ -303,7 +303,7 @@ const Footer = () => {
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="text-gray-50/70 dark:text-gray-900/70 hover:text-[#C29307] transition-colors text-sm"
+                    className="text-gray-50/70 dark:text-gray-900/70 hover:text-[#2b825b] transition-colors text-sm"
                   >
                     {link.label}
                   </a>

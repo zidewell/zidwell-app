@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { X } from "lucide-react";
-import { InvoiceItem } from "./types"; 
+import { InvoiceItem } from "./types";
 
 interface InvoiceItemFormProps {
   item: InvoiceItem | null;
@@ -47,7 +47,7 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
 
   useEffect(() => {
     const total = formData.quantity * formData.unitPrice;
-    setFormData((prev:any) => ({ ...prev, total }));
+    setFormData((prev: any) => ({ ...prev, total }));
   }, [formData.quantity, formData.unitPrice]);
 
   const validateForm = () => {
@@ -76,7 +76,7 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
   };
 
   const handleChange = (field: keyof InvoiceItem, value: string | number) => {
-    setFormData((prev:any) => ({
+    setFormData((prev: any) => ({
       ...prev,
       [field]: value,
     }));
@@ -112,7 +112,7 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
               id="description"
               placeholder="Item/Service name"
               value={formData.description}
-              onChange={(e:any) => handleChange("description", e.target.value)}
+              onChange={(e: any) => handleChange("description", e.target.value)}
               required
               autoFocus
               className={errors.description ? "border-red-500" : ""}
@@ -130,7 +130,7 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
                 type="number"
                 placeholder="Qty"
                 value={formData.quantity}
-                onChange={(e:any) =>
+                onChange={(e: any) =>
                   handleChange("quantity", parseFloat(e.target.value) || 0)
                 }
                 min="1"
@@ -150,7 +150,7 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
                 type="number"
                 placeholder="Price"
                 value={formData.unitPrice}
-                onChange={(e:any) =>
+                onChange={(e: any) =>
                   handleChange("unitPrice", parseFloat(e.target.value) || 0)
                 }
                 min="0"
@@ -179,7 +179,7 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-[#C29307] hover:bg-[#b38606]">
+            <Button type="submit" className="bg-[#2b825b] hover:bg-[#1e5d42]">
               {item ? "Update Item" : "Add Item"}
             </Button>
           </div>

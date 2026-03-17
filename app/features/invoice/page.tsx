@@ -31,7 +31,7 @@ export default function InvoicePage() {
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+          className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           <span className="hidden md:block">Back</span>
@@ -42,8 +42,8 @@ export default function InvoicePage() {
       <div className="max-w-6xl mx-auto px-4 py-12 md:py-20">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-[#C29307]/10 mb-6">
-            <FileText className="h-8 w-8 text-[#C29307]" />
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-[#2b825b]/10 mb-6">
+            <FileText className="h-8 w-8 text-[#2b825b]" />
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             Professional Invoices & Payment System
@@ -93,7 +93,7 @@ export default function InvoicePage() {
             ].map((item) => (
               <div key={item.step} className="text-center">
                 <div className="relative mb-4">
-                  <div className="h-16 w-16 rounded-full bg-[#C29307] text-white flex items-center justify-center text-2xl font-bold mx-auto">
+                  <div className="h-16 w-16 rounded-full bg-[#2b825b] text-white flex items-center justify-center text-2xl font-bold mx-auto">
                     {item.step}
                   </div>
                 </div>
@@ -193,7 +193,7 @@ export default function InvoicePage() {
         </div>
 
         {/* Pricing Section */}
-        <div className="bg-linear-to-r from-[#C29307]/5 to-[#C29307]/10 rounded-2xl p-8 md:p-12 mb-16">
+        <div className="bg-linear-to-r from-[#2b825b]/5 to-[#2b825b]/10 rounded-2xl p-8 md:p-12 mb-16">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl font-bold mb-4">Transparent Pricing</h2>
             <p className="text-xl mb-8">
@@ -202,7 +202,7 @@ export default function InvoicePage() {
             </p>
 
             <div className="bg-white rounded-xl p-8 shadow-lg inline-block">
-              <div className="text-5xl font-bold text-[#C29307] mb-2">2%</div>
+              <div className="text-5xl font-bold text-[#2b825b] mb-2">2%</div>
               <div className="text-2xl font-semibold mb-4">per transaction</div>
               <div className="text-lg text-muted-foreground">
                 Capped at ₦2,000 maximum fee per invoice
@@ -239,7 +239,7 @@ export default function InvoicePage() {
 
           <Link href="/dashboard/services/create-invoice">
             <Button
-              className="bg-[#C29307] hover:bg-[#b38606] text-white px-8 py-6 text-lg"
+              className="bg-[#2b825b] hover:bg-[#1e5d42] text-white px-8 py-6 text-lg"
               size="lg"
             >
               Create Your First Invoice

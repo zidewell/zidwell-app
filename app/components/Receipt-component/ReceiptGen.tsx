@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, AlertCircle, Wallet } from "lucide-react";
+import { Plus, Search, AlertCircle, Crown } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
@@ -60,17 +60,15 @@ export interface Receipt {
 interface ReceiptGenProps {
   receipts: Receipt[];
   loading: boolean;
-  userTier?: 'free' | 'growth' | 'premium' | 'elite';
+  userTier?: "free" | "zidlite" | "growth" | "premium" | "elite";
   remainingReceipts?: string | number;
 }
 
-const RECEIPT_FEE = 100; // ₦100 per receipt after limit
-
-export default function ReceiptGen({ 
-  receipts, 
-  loading, 
-  userTier = 'free',
-  remainingReceipts = 5 
+export default function ReceiptGen({
+  receipts,
+  loading,
+  userTier,
+  remainingReceipts = 5,
 }: ReceiptGenProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
@@ -78,21 +76,25 @@ export default function ReceiptGen({
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
   // Calculate limits based on tier
-  const isPremium = userTier === 'premium' || userTier === 'elite';
+  const isPremium = userTier === "premium" || userTier === "elite";
+  const isGrowth = userTier === "growth";
+  const isZidLite = userTier === "zidlite";
+  const isFree = userTier === "free";
+
+  const hasUnlimitedReceipts = isPremium || isGrowth;
   const receiptCount = receipts.length;
-  const receiptLimit = userTier === 'free' ? 5 : Infinity;
-  const hasReachedLimit = !isPremium && receiptCount >= receiptLimit;
-  
-  // Use total instead of calculating from items
+  const receiptLimit = isFree ? 5 : isZidLite ? 10 : Infinity;
+  const hasReachedLimit = !hasUnlimitedReceipts && receiptCount >= receiptLimit;
+
   const totalAmount = receipts.reduce((sum, receipt) => {
     return sum + receipt.total;
   }, 0);
 
   const signedReceipt = receipts.filter(
-    (rcp) => rcp.status === "signed"
+    (rcp) => rcp.status === "signed",
   ).length;
   const pendingReceipt = receipts.filter(
-    (rcp) => rcp.status === "pending"
+    (rcp) => rcp.status === "pending",
   ).length;
   const draftReceipt = receipts.filter((rcp) => rcp.status === "draft").length;
 
@@ -118,92 +120,143 @@ export default function ReceiptGen({
     }
   };
 
+  const getRemainingText = () => {
+    if (hasUnlimitedReceipts) return "Unlimited";
+    if (isZidLite) return `${Math.max(0, 10 - receiptCount)} remaining`;
+    return `${Math.max(0, 5 - receiptCount)} remaining`;
+  };
+
+  const getUsageColor = () => {
+    if (hasUnlimitedReceipts)
+      return "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400";
+    if (isZidLite) {
+      if (receiptCount >= 10)
+        return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
+      if (receiptCount >= 8)
+        return "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400";
+      return "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400";
+    }
+    if (receiptCount >= 5)
+      return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
+    if (receiptCount >= 4)
+      return "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400";
+    return "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400";
+  };
+
   return (
     <div className="space-y-6">
-      {/* Upgrade/Pay-per-use Prompt Modal */}
+      {/* Upgrade Prompt Modal */}
       {showUpgradePrompt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-6 h-6 text-red-600" />
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl max-w-md w-full p-6">
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Crown className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
-            <h3 className="text-xl font-bold text-center mb-2">Limit Reached</h3>
-            <p className="text-gray-600 text-center mb-6">
-              You've used all {receiptCount} free receipts this month. 
-              You can pay ₦{RECEIPT_FEE} per receipt or upgrade to Growth plan for unlimited receipts!
+            <h3 className="text-xl font-bold text-center mb-2 dark:text-white">
+              Upgrade Required
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
+              {isZidLite
+                ? "You've used all your ZidLite receipts. Upgrade to continue creating unlimited receipts!"
+                : "You've used all your free receipts. Upgrade to continue creating unlimited receipts!"}
             </p>
-            <div className="flex flex-col gap-3">
-              <Link href="/dashboard/services/receipt/create?payPerUse=true" className="w-full">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                  <Wallet className="w-4 h-4 mr-2" />
-                  Pay ₦{RECEIPT_FEE} & Create
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                onClick={() => setShowUpgradePrompt(false)}
+              >
+                Cancel
+              </Button>
+              <Link href="/pricing?upgrade=growth" className="flex-1">
+                <Button className="w-full bg-primary hover:bg-primary-dark text-white">
+                  View Plans
                 </Button>
               </Link>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowUpgradePrompt(false)}
-                >
-                  Cancel
-                </Button>
-                <Link href="/pricing?upgrade=growth" className="flex-1">
-                  <Button className="w-full bg-[#C29307] hover:bg-[#b38606] text-white">
-                    Upgrade Now
-                  </Button>
-                </Link>
-              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Premium Badge */}
-      {isPremium && (
-        <div className="bg-[#C29307]/10 px-3 py-1 rounded-full border border-[#C29307] inline-block">
-          <span className="text-[#C29307] font-medium text-sm flex items-center gap-1">
-            <span className="w-2 h-2 bg-[#C29307] rounded-full"></span>
-            PREMIUM • Unlimited Receipts
+      {/* Tier Badge */}
+      <div className="flex items-center justify-between">
+        <div
+          className={`px-3 py-1 rounded-full ${
+            isPremium
+              ? "bg-primary-light-bg border border-primary dark:bg-primary-light-bg"
+              : isGrowth
+                ? "bg-green-100 border border-green-200 dark:bg-green-900/30 dark:border-green-800"
+                : isZidLite
+                  ? "bg-blue-100 border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800"
+                  : "bg-gray-100 border border-gray-200 dark:bg-gray-800 dark:border-gray-700"
+          } inline-block`}
+        >
+          <span
+            className={`font-medium text-sm flex items-center gap-1 ${
+              isPremium
+                ? "text-primary dark:text-primary"
+                : isGrowth
+                  ? "text-green-600 dark:text-green-400"
+                  : isZidLite
+                    ? "text-blue-600 dark:text-blue-400"
+                    : "text-gray-600 dark:text-gray-400"
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isPremium
+                  ? "bg-primary"
+                  : isGrowth
+                    ? "bg-green-600 dark:bg-green-400"
+                    : isZidLite
+                      ? "bg-blue-600 dark:bg-blue-400"
+                      : "bg-gray-600 dark:bg-gray-400"
+              }`}
+            ></span>
+            {isPremium
+              ? "PREMIUM"
+              : isGrowth
+                ? "GROWTH"
+                : isZidLite
+                  ? "ZIDLITE"
+                  : "FREE TRIAL"}{" "}
+            • {getRemainingText()}
           </span>
         </div>
-      )}
+      </div>
 
       {/* Usage Stats Banner */}
-      {!isPremium && (
-        <div className={`p-3 rounded-lg border ${
-          hasReachedLimit 
-            ? 'bg-blue-50 border-blue-200' 
-            : receiptCount >= 4
-            ? 'bg-yellow-50 border-yellow-200'
-            : 'bg-green-50 border-green-200'
-        }`}>
+      {!hasUnlimitedReceipts && (
+        <div
+          className={`p-3 rounded-lg border ${
+            hasReachedLimit
+              ? "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
+              : isZidLite && receiptCount >= 8
+                ? "bg-green-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800"
+                : !isZidLite && receiptCount >= 4
+                  ? "bg-green-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800"
+                  : "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+          }`}
+        >
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">
-                Monthly Receipt Usage:
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {isZidLite ? "ZidLite" : "Free Trial"} Receipt Usage:
               </span>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                hasReachedLimit 
-                  ? 'bg-blue-100 text-blue-600' 
-                  : receiptCount >= 4
-                  ? 'bg-yellow-100 text-yellow-600'
-                  : 'bg-green-100 text-green-600'
-              }`}>
-                {receiptCount}/5 used
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs font-bold ${getUsageColor()}`}
+              >
+                {receiptCount}/{isZidLite ? 10 : 5} used
               </span>
-              {hasReachedLimit && (
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 ml-2">
-                  <Wallet className="w-3 h-3 mr-1" />
-                  Pay-per-use active
-                </Badge>
-              )}
             </div>
-            
+
             {hasReachedLimit && (
-              <Link href="/dashboard/services/receipt/create?payPerUse=true">
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs">
-                  <Wallet className="w-3 h-3 mr-1" />
-                  Pay ₦{RECEIPT_FEE} & Create
+              <Link href="/pricing?upgrade=growth">
+                <Button
+                  size="sm"
+                  className="bg-primary hover:bg-primary-dark text-white h-8 text-xs"
+                >
+                  Upgrade for Unlimited
                 </Button>
               </Link>
             )}
@@ -217,8 +270,10 @@ export default function ReceiptGen({
           <Card>
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Total Receipts</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Total Receipts
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {receipts.length}
                 </p>
               </div>
@@ -227,8 +282,10 @@ export default function ReceiptGen({
           <Card>
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Total Value</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Total Value
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   ₦{totalAmount.toLocaleString()}
                 </p>
               </div>
@@ -237,8 +294,10 @@ export default function ReceiptGen({
           <Card>
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Signed</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Signed
+                </p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {signedReceipt}
                 </p>
               </div>
@@ -247,8 +306,10 @@ export default function ReceiptGen({
           <Card>
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Pending</p>
-                <p className="text-2xl font-bold text-[#C29307]">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Pending
+                </p>
+                <p className="text-2xl font-bold text-primary dark:text-primary">
                   {pendingReceipt + draftReceipt}
                 </p>
               </div>
@@ -258,12 +319,16 @@ export default function ReceiptGen({
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex flex-wrap gap-2 mb-4">
+        <TabsList className="flex flex-wrap gap-2 mb-4 dark:bg-gray-800">
           <TabsTrigger value="Receipts">All Receipts</TabsTrigger>
-          <TabsTrigger 
-            value="create" 
-            disabled={hasReachedLimit && !isPremium}
-            className={hasReachedLimit && !isPremium ? 'opacity-50 cursor-not-allowed' : ''}
+          <TabsTrigger
+            value="create"
+            disabled={hasReachedLimit && !hasUnlimitedReceipts}
+            className={
+              hasReachedLimit && !hasUnlimitedReceipts
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+            }
           >
             Create Receipt
           </TabsTrigger>
@@ -276,12 +341,12 @@ export default function ReceiptGen({
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 {/* Search Input */}
                 <div className="relative w-full sm:flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
                   <Input
                     placeholder="Search by client name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-full"
+                    className="pl-10 w-full dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                   />
                 </div>
 
@@ -294,8 +359,10 @@ export default function ReceiptGen({
                         selectedStatus === status ? "default" : "outline"
                       }
                       size="sm"
-                      className={`hover:bg-[#C29307] hover:text-white border hover:shadow-xl transition-all duration-300 ${
-                        selectedStatus === status ? 'bg-[#C29307] text-white' : ''
+                      className={`hover:bg-primary hover:text-white border hover:shadow-xl transition-all duration-300 ${
+                        selectedStatus === status
+                          ? "bg-primary text-white"
+                          : "dark:text-gray-300 dark:border-gray-600"
                       }`}
                       onClick={() => setSelectedStatus(status)}
                     >
@@ -308,12 +375,12 @@ export default function ReceiptGen({
                 <div className="w-full sm:w-auto">
                   <Button
                     className={`w-full sm:w-auto hover:shadow-xl transition-all duration-300 ${
-                      hasReachedLimit && !isPremium
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-[#C29307] hover:bg-black'
+                      hasReachedLimit && !hasUnlimitedReceipts
+                        ? "bg-gray-400 cursor-not-allowed dark:bg-gray-600"
+                        : "bg-primary hover:bg-primary-dark text-white"
                     }`}
                     onClick={handleCreateClick}
-                    disabled={hasReachedLimit && !isPremium}
+                    disabled={hasReachedLimit && !hasUnlimitedReceipts}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     New Receipt
@@ -321,13 +388,15 @@ export default function ReceiptGen({
                 </div>
               </div>
 
-              {/* Pay-per-use info message */}
-              {hasReachedLimit && !isPremium && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              {/* Upgrade info message */}
+              {hasReachedLimit && !hasUnlimitedReceipts && (
+                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                   <div className="flex items-start gap-2">
-                    <Wallet className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-                    <p className="text-sm text-blue-700">
-                      You've reached your monthly limit. You can continue with pay-per-use (₦{RECEIPT_FEE} per receipt) or upgrade your plan for unlimited receipts.
+                    <Crown className="h-4 w-4 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
+                    <p className="text-sm text-red-700 dark:text-red-300">
+                      {isZidLite
+                        ? "You've reached your ZidLite receipt limit. Upgrade your plan for unlimited receipts."
+                        : "You've reached your free receipt limit. Upgrade your plan for unlimited receipts."}
                     </p>
                   </div>
                 </div>
@@ -340,7 +409,7 @@ export default function ReceiptGen({
         </TabsContent>
 
         <TabsContent value="create">
-          <CreateReceipt 
+          <CreateReceipt
             userTier={userTier}
             hasReachedLimit={hasReachedLimit}
           />

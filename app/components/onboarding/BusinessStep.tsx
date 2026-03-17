@@ -244,7 +244,7 @@ export const BusinessStep = ({
           {isFormComplete && (
             <Button
               onClick={onNext}
-              className="bg-[#C29307] hover:opacity-100 transition-smooth"
+              className="bg-[#2b825b] hover:opacity-100 transition-smooth"
             >
               Continue
               <ArrowRight className="w-4 h-4" />

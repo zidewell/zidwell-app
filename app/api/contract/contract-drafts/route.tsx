@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       id: contract.id,
       contract_id: contract.metadata?.contract_id || contract.id, 
       contract_title: contract.contract_title,
-      contract_content: contract.contract_text, // Store as plain text
+      contract_content: contract.contract_text, // This will now be HTML
       contract_text: contract.contract_text,
       contract_type: contract.contract_type || 'custom',
       receiver_name: contract.signee_name || '',
@@ -88,17 +88,8 @@ async function createNewContractDraft(body: any) {
     payment_terms: body.paymentTerms || body.payment_terms || '',
   };
 
-  // Convert HTML to plain text for storage
+  // Store the HTML content as-is, without stripping tags
   const contractContent = body.contractContent || body.contract_content || '';
-  const plainTextContent = contractContent
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
-    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
-    .replace(/&amp;/g, '&') // Replace &amp; with &
-    .replace(/&lt;/g, '<') // Replace &lt; with <
-    .replace(/&gt;/g, '>') // Replace &gt; with >
-    .replace(/&quot;/g, '"') // Replace &quot; with "
-    .replace(/&#39;/g, "'") // Replace &#39; with '
-    .trim();
 
   // Prepare the contract data
   const contractData = {
@@ -106,7 +97,7 @@ async function createNewContractDraft(body: any) {
     user_id: body.userId,
     token: token,
     contract_title: body.contractTitle || body.contract_title || 'Untitled Contract',
-    contract_text: plainTextContent, // Store as plain text
+    contract_text: contractContent, // Store HTML content directly
     initiator_email: body.initiator_email || body.initiatorEmail || '',
     initiator_name: body.initiator_name || body.initiatorName || '',
     signee_email: body.receiverEmail || body.receiver_email || body.signee_email || '',
@@ -183,17 +174,8 @@ export async function POST(req: NextRequest) {
     const contractIdFromBody = body.contract_id || body.contractId;
     const paymentTerms = body.paymentTerms || body.payment_terms || '';
     
-    // Convert HTML to plain text for storage
+    // Store HTML content as-is, without stripping tags
     const contractContent = body.contractContent || body.contract_content || '';
-    const plainTextContent = contractContent
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .trim();
     
     // Check if a draft with same contract_id already exists (in metadata)
     if (contractIdFromBody) {
@@ -210,7 +192,7 @@ export async function POST(req: NextRequest) {
         
         // Update existing draft
         const updateData: any = {
-          contract_text: plainTextContent,
+          contract_text: contractContent, // Store HTML directly
           age_consent: body.ageConsent || body.age_consent || false,
           terms_consent: body.termsConsent || body.terms_consent || false,
           signee_name: body.receiverName || body.receiver_name || body.signee_name || existingDraft.signee_name || '',
@@ -264,7 +246,7 @@ export async function POST(req: NextRequest) {
         
         // Update existing draft
         const updateData: any = {
-          contract_text: plainTextContent,
+          contract_text: contractContent, // Store HTML directly
           age_consent: body.ageConsent || body.age_consent || false,
           terms_consent: body.termsConsent || body.terms_consent || false,
           signee_name: body.receiverName || body.receiver_name || body.signee_name || existingDraft.signee_name || '',
@@ -358,17 +340,8 @@ export async function PUT(req: NextRequest) {
     const contractIdFromBody = body.contract_id || body.contractId;
     const paymentTerms = body.paymentTerms || body.payment_terms || '';
     
-    // Convert HTML to plain text for storage
+    // Store HTML content as-is, without stripping tags
     const contractContent = body.contractContent || body.contract_content || '';
-    const plainTextContent = contractContent
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .trim();
     
     // Check for existing draft - first by contract_id, then by title/email
     let existingDraft = null;
@@ -405,7 +378,7 @@ export async function PUT(req: NextRequest) {
       
       // Update existing draft
       const updateData: any = {
-        contract_text: plainTextContent,
+        contract_text: contractContent, // Store HTML directly
         age_consent: body.ageConsent || body.age_consent || false,
         terms_consent: body.termsConsent || body.terms_consent || false,
         signee_name: body.receiverName || body.receiver_name || body.signee_name || existingDraft.signee_name || '',
@@ -445,7 +418,7 @@ export async function PUT(req: NextRequest) {
       });
     } else {
       // Create new draft only if there's enough content
-      const hasContent = plainTextContent.trim().length > 0;
+      const hasContent = contractContent.trim().length > 0;
       const hasTitle = contractTitle.trim().length > 0;
       
       if (hasTitle && hasContent) {

@@ -45,7 +45,7 @@ const FAQ = () => {
         {/* Section Header */}
         <div className="max-w-3xl mx-auto text-center mb-16">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-gray-900 dark:text-gray-50">
-            Frequently Asked <span className="text-[#C29307]">Questions</span>
+            Frequently Asked <span className="text-[#2b825b]">Questions</span>
           </h2>
           <p className="text-lg text-gray-500 dark:text-gray-400">
             Got questions? We've got answers.

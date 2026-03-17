@@ -9,7 +9,9 @@ interface BVNVerificationBadgeProps {
   className?: string;
 }
 
-const BVNVerificationBadge = ({ className = "" }: BVNVerificationBadgeProps) => {
+const BVNVerificationBadge = ({
+  className = "",
+}: BVNVerificationBadgeProps) => {
   const { userData } = useUserContextData();
   const { openVerificationModal } = useVerificationModal();
 
@@ -29,11 +31,13 @@ const BVNVerificationBadge = ({ className = "" }: BVNVerificationBadgeProps) => 
 
   return (
     <div className={`sticky top-0 left-0 right-0 z-50 w-full ${className}`}>
-      <div className={`w-full px-4 py-3 border-b shadow-sm ${
-        isPending 
-          ? "bg-yellow-50 border-yellow-200" 
-          : "bg-red-50 border-red-200"
-      }`}>
+      <div
+        className={`w-full px-4 py-3 border-b shadow-sm ${
+          isPending
+            ? "bg-green-50 border-yellow-200"
+            : "bg-red-50 border-red-200"
+        }`}
+      >
         <div className="max-w-7xl mx-auto flex items-center gap-3">
           <div className="shrink-0">
             {isPending ? (
@@ -44,18 +48,22 @@ const BVNVerificationBadge = ({ className = "" }: BVNVerificationBadgeProps) => 
           </div>
           <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h4 className={`text-sm font-semibold ${
-                isPending ? "text-yellow-800" : "text-red-800"
-              }`}>
-                {isPending 
-                  ? "BVN Verification Pending" 
+              <h4
+                className={`text-sm font-semibold ${
+                  isPending ? "text-yellow-800" : "text-red-800"
+                }`}
+              >
+                {isPending
+                  ? "BVN Verification Pending"
                   : "Complete Your Profile"}
               </h4>
-              <p className={`text-xs ${
-                isPending ? "text-yellow-700" : "text-red-700"
-              }`}>
-                {isPending 
-                  ? "Your BVN verification is being processed." 
+              <p
+                className={`text-xs ${
+                  isPending ? "text-yellow-700" : "text-red-700"
+                }`}
+              >
+                {isPending
+                  ? "Your BVN verification is being processed."
                   : "Verify your BVN to unlock full wallet features and get your virtual account."}
               </p>
             </div>
@@ -63,7 +71,7 @@ const BVNVerificationBadge = ({ className = "" }: BVNVerificationBadgeProps) => 
               <Button
                 onClick={openVerificationModal}
                 size="sm"
-                className="bg-[#C29307] hover:bg-[#a67905] text-white h-8 text-xs whitespace-nowrap"
+                className="bg-[#2b825b] hover:bg-[#a67905] text-white h-8 text-xs whitespace-nowrap"
               >
                 <Banknote className="h-3 w-3 mr-1" />
                 Verify Now

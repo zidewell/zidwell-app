@@ -183,7 +183,7 @@ export const ProfileStep = ({ data, onUpdate, onNext }: ProfileStepProps) => {
       <div className="flex justify-end pt-6">
         <Button
           onClick={handleNext}
-          className="bg-[#C29307] hover:opacity-100 transition-smooth"
+          className="bg-[#2b825b] hover:opacity-100 transition-smooth"
         >
           Continue
         </Button>

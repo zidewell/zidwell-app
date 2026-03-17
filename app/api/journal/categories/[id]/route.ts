@@ -16,7 +16,7 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
     
-    // ✅ Correctly await params
+   
     const id = (await params).id;
     
     if (!userId) {

@@ -20,8 +20,8 @@ export const ToggleButton = ({
         <button
           type="button"
           onClick={() => onToggle(!isActive)}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#C29307] focus:ring-offset-2 ${
-            isActive ? "bg-[#C29307]" : "bg-gray-200"
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#2b825b] focus:ring-offset-2 ${
+            isActive ? "bg-[#2b825b]" : "bg-gray-200"
           }`}
         >
           <span

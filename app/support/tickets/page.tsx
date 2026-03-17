@@ -106,7 +106,7 @@ export default function UserTicketsPage() {
             </p>
           </div>
           <Link href="/support/create-ticket">
-            <Button className="bg-[#C29307]">+ New Ticket</Button>
+            <Button className="bg-[#2b825b]">+ New Ticket</Button>
           </Link>
         </div>
 
@@ -163,7 +163,7 @@ export default function UserTicketsPage() {
                 <div className="text-center py-8">
                   <p className="text-gray-500">No tickets found.</p>
                   <Link href="/support/create-ticket">
-                    <Button className="mt-4 bg-[#C29307]">
+                    <Button className="mt-4 bg-[#2b825b]">
                       Create Your First Ticket
                     </Button>
                   </Link>

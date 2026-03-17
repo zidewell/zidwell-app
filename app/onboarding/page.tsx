@@ -52,7 +52,7 @@ const triggerConfetti = () => {
     particleCount: 150,
     spread: 70,
     origin: { y: 0.6 },
-    colors: ["#C29307", "#22c55e", "#3b82f6", "#ef4444", "#8b5cf6"],
+    colors: ["#2b825b", "#22c55e", "#3b82f6", "#ef4444", "#8b5cf6"],
   });
 };
 
@@ -101,7 +101,7 @@ export default function Page() {
           icon: "error",
           title: "Verification Failed",
           text: verifyData.error || "Invalid BVN, please try again.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
         });
         return;
       }
@@ -161,7 +161,7 @@ export default function Page() {
         icon: "success",
         title: "Onboarding Complete 🎉",
         text: "Your information has been successfully verified.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       }).then(() => {
         window.location.href = "/dashboard";
       });
@@ -171,7 +171,7 @@ export default function Page() {
         icon: "error",
         title: "Network Error",
         text: "Something went wrong. Please try again.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     } finally {
       setLoading(false);
@@ -275,8 +275,8 @@ export default function Page() {
                             currentStep > step.id
                               ? "#22c55e"
                               : currentStep === step.id
-                              ? "#C29307"
-                              : "#d1d5db",
+                                ? "#2b825b"
+                                : "#d1d5db",
                           color: currentStep >= step.id ? "#fff" : "#374151",
                           scale: currentStep === step.id ? 1.1 : 1,
                         }}

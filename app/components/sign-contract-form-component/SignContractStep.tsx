@@ -6,7 +6,7 @@ const SignContractStep: React.FC<{
   children?: React.ReactNode;
 }> = ({ num, title, children }) => (
   <div className="flex items-start gap-3 p-3 rounded border border-gray-100">
-    <div className="shrink-0 h-8 w-8 rounded-full bg-yellow-50 text-[#C29307] flex items-center justify-center font-semibold">
+    <div className="shrink-0 h-8 w-8 rounded-full bg-green-50 text-[#2b825b] flex items-center justify-center font-semibold">
       {num}
     </div>
     <div>

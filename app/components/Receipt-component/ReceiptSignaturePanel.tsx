@@ -53,7 +53,9 @@ export const ReceiptSignaturePanel = ({
   onSignatureComplete,
   onCancel,
 }: ReceiptSignaturePanelProps) => {
-  const [step, setStep] = useState<"verification" | "signature" | "review">("verification");
+  const [step, setStep] = useState<"verification" | "signature" | "review">(
+    "verification",
+  );
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [typedName, setTypedName] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -65,7 +67,8 @@ export const ReceiptSignaturePanel = ({
   const [codeSent, setCodeSent] = useState(false);
   const [sendCooldown, setSendCooldown] = useState(0);
   const [signatureMode, setSignatureMode] = useState<"draw" | "upload">("draw");
-  const [storedVerificationCode, setStoredVerificationCode] = useState<string>("");
+  const [storedVerificationCode, setStoredVerificationCode] =
+    useState<string>("");
 
   // Confetti function
   const triggerConfetti = () => {
@@ -73,7 +76,7 @@ export const ReceiptSignaturePanel = ({
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: ["#2b825b", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
     });
 
     setTimeout(() => {
@@ -82,14 +85,14 @@ export const ReceiptSignaturePanel = ({
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
       confetti({
         particleCount: 80,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
     }, 150);
 
@@ -98,7 +101,7 @@ export const ReceiptSignaturePanel = ({
         particleCount: 100,
         spread: 100,
         origin: { y: 0.8 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
     }, 300);
   };
@@ -133,9 +136,9 @@ export const ReceiptSignaturePanel = ({
       text,
       icon: "success",
       confirmButtonText: "OK",
-      confirmButtonColor: "#C29307",
+      confirmButtonColor: "#2b825b",
       background: "#fafafa",
-      iconColor: "#C29307",
+      iconColor: "#2b825b",
       timer: 3000,
       timerProgressBar: true,
     });
@@ -166,11 +169,11 @@ export const ReceiptSignaturePanel = ({
   // Verification functions
   const handleVerification = async () => {
     setIsVerifying(true);
-    
+
     if (!verificationCode || verificationCode.length !== 6) {
       showErrorAlert(
         "Invalid Code",
-        "Please enter a valid 6-digit verification code"
+        "Please enter a valid 6-digit verification code",
       );
       setIsVerifying(false);
       return;
@@ -178,7 +181,7 @@ export const ReceiptSignaturePanel = ({
 
     try {
       console.log("Verifying code:", verificationCode);
-      
+
       const response = await fetch("/api/receipt/verify-signature-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -202,7 +205,7 @@ export const ReceiptSignaturePanel = ({
       setIsVerifying(false);
       showSuccessAlert(
         "Verified!",
-        "Identity verified successfully. You can now sign the receipt."
+        "Identity verified successfully. You can now sign the receipt.",
       );
     } catch (error) {
       console.error("Verification error:", error);
@@ -213,13 +216,13 @@ export const ReceiptSignaturePanel = ({
       if (newAttempts >= 3) {
         showErrorAlert(
           "Too Many Attempts",
-          "Please request a new verification code"
+          "Please request a new verification code",
         );
         setVerificationCode("");
       } else {
         showErrorAlert(
           "Verification Failed",
-          error instanceof Error ? error.message : "Invalid verification code"
+          error instanceof Error ? error.message : "Invalid verification code",
         );
       }
     }
@@ -254,13 +257,13 @@ export const ReceiptSignaturePanel = ({
       setSendCooldown(60);
       showSuccessAlert(
         "Code Sent!",
-        "Check your email for the verification code"
+        "Check your email for the verification code",
       );
     } catch (error) {
       console.error("Error sending code:", error);
       showErrorAlert(
         "Error",
-        error instanceof Error ? error.message : "Failed to send code"
+        error instanceof Error ? error.message : "Failed to send code",
       );
     } finally {
       setIsSendingCode(false);
@@ -271,7 +274,7 @@ export const ReceiptSignaturePanel = ({
     if (!signatureData) {
       showErrorAlert(
         "Signature Required",
-        "Please provide your signature before proceeding"
+        "Please provide your signature before proceeding",
       );
       return;
     }
@@ -329,7 +332,7 @@ export const ReceiptSignaturePanel = ({
           <div class="text-center">
             <div class="mb-4">
               <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#FEFCE8] mb-3">
-                <svg class="w-8 h-8 text-[#C29307]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-8 h-8 text-[#2b825b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
               </div>
@@ -337,19 +340,19 @@ export const ReceiptSignaturePanel = ({
             </div>
             <div class="space-y-2 text-gray-600">
               <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[#C29307]" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-[#2b825b]" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
                 Digital signature recorded
               </p>
               <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[#C29307]" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-[#2b825b]" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
                 Legal acknowledgement generated
               </p>
               <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[#C29307]" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-[#2b825b]" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
                 Email sent with signed copy
@@ -380,7 +383,7 @@ export const ReceiptSignaturePanel = ({
       console.error("Signing error:", error);
       showErrorAlert(
         "Error",
-        error instanceof Error ? error.message : "Failed to sign receipt"
+        error instanceof Error ? error.message : "Failed to sign receipt",
       );
       setIsSigning(false);
     }
@@ -410,7 +413,7 @@ export const ReceiptSignaturePanel = ({
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-[#C29307]" />
+            <Shield className="h-5 w-5 text-[#2b825b]" />
             Secure Receipt Signature Panel
           </DialogTitle>
           <DialogDescription>
@@ -419,11 +422,11 @@ export const ReceiptSignaturePanel = ({
         </DialogHeader>
 
         {/* Receipt Summary */}
-        <div className="bg-linear-to-r from-[#C29307]/10 to-[#b38606]/10 rounded-lg p-4 mb-4">
+        <div className="bg-linear-to-r from-[#2b825b]/10 to-[#b38606]/10 rounded-lg p-4 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#C29307]/20 rounded-lg flex items-center justify-center">
-                <Receipt className="h-5 w-5 text-[#C29307]" />
+              <div className="w-10 h-10 bg-[#2b825b]/20 rounded-lg flex items-center justify-center">
+                <Receipt className="h-5 w-5 text-[#2b825b]" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">{receiptTitle}</h3>
@@ -433,12 +436,10 @@ export const ReceiptSignaturePanel = ({
               </div>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-[#C29307]">
+              <p className="text-lg font-bold text-[#2b825b]">
                 {formatCurrency(totalAmount)}
               </p>
-              <p className="text-sm text-gray-600">
-                {formatDate(issueDate)}
-              </p>
+              <p className="text-sm text-gray-600">{formatDate(issueDate)}</p>
             </div>
           </div>
         </div>
@@ -472,7 +473,7 @@ export const ReceiptSignaturePanel = ({
                     value={verificationCode}
                     onChange={(e) =>
                       setVerificationCode(
-                        e.target.value.replace(/\D/g, "").slice(0, 6)
+                        e.target.value.replace(/\D/g, "").slice(0, 6),
                       )
                     }
                     placeholder="Enter 6-digit code"
@@ -521,9 +522,13 @@ export const ReceiptSignaturePanel = ({
                 </Button>
                 <Button
                   type="button"
-                  className="flex-1 bg-[#C29307] hover:bg-[#b38606]"
+                  className="flex-1 bg-[#2b825b] hover:bg-[#1e5d42]"
                   onClick={handleVerification}
-                  disabled={!verificationCode || verificationCode.length !== 6 || isVerifying}
+                  disabled={
+                    !verificationCode ||
+                    verificationCode.length !== 6 ||
+                    isVerifying
+                  }
                 >
                   {isVerifying ? (
                     <span className="flex items-center gap-2">
@@ -546,7 +551,9 @@ export const ReceiptSignaturePanel = ({
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-amber-800">Legal Acknowledgement</h4>
+                  <h4 className="font-semibold text-amber-800">
+                    Legal Acknowledgement
+                  </h4>
                   <p className="text-sm text-amber-700 mt-1">
                     Your signature confirms that you have received and accepted
                     the items/services described in this receipt.
@@ -598,7 +605,7 @@ export const ReceiptSignaturePanel = ({
                     onChange={handleSignatureChange}
                     label="Draw Your Signature *"
                   />
-                  
+
                   <div className="flex items-start text-xs text-gray-500">
                     <div className="h-2 w-2 bg-gray-400 rounded-full mr-2 mt-1 shrink-0"></div>
                     <p>
@@ -663,7 +670,7 @@ export const ReceiptSignaturePanel = ({
                 </Button>
                 <Button
                   type="button"
-                  className="flex-1 bg-[#C29307] hover:bg-[#b38606]"
+                  className="flex-1 bg-[#2b825b] hover:bg-[#1e5d42]"
                   onClick={handleProceedToSignature}
                   disabled={!signatureData || !typedName.trim()}
                 >
@@ -679,7 +686,7 @@ export const ReceiptSignaturePanel = ({
         {step === "review" && (
           <div className="space-y-6 py-4">
             <div className="text-center">
-              <CheckCircle className="h-16 w-16 text-[#C29307] mx-auto mb-4" />
+              <CheckCircle className="h-16 w-16 text-[#2b825b] mx-auto mb-4" />
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 Review Your Acknowledgment
               </h3>
@@ -707,11 +714,15 @@ export const ReceiptSignaturePanel = ({
                         </div>
                         <div className="flex justify-between">
                           <span className="text-sm text-gray-500">Amount:</span>
-                          <span className="font-medium">{formatCurrency(totalAmount)}</span>
+                          <span className="font-medium">
+                            {formatCurrency(totalAmount)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-sm text-gray-500">Date:</span>
-                          <span className="font-medium">{formatDate(issueDate)}</span>
+                          <span className="font-medium">
+                            {formatDate(issueDate)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -772,8 +783,8 @@ export const ReceiptSignaturePanel = ({
                       Final Confirmation
                     </h4>
                     <p className="text-sm text-red-700 mt-1">
-                      By confirming, you acknowledge that you have received
-                      and accepted the items/services described in this receipt.
+                      By confirming, you acknowledge that you have received and
+                      accepted the items/services described in this receipt.
                       This is a legally binding acknowledgment.
                     </p>
                   </div>

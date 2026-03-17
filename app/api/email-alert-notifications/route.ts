@@ -1,8 +1,8 @@
-import { transporter } from '@/lib/node-mailer';
-import { NextRequest, NextResponse } from 'next/server';
+import { transporter } from "@/lib/node-mailer";
+import { NextRequest, NextResponse } from "next/server";
 
 interface EmailNotificationData {
-  type: 'login' | 'debit' | 'credit' | 'alert';
+  type: "login" | "debit" | "credit" | "alert";
   user: {
     email: string;
     full_name: string;
@@ -34,50 +34,47 @@ const baseUrl =
     ? process.env.NEXT_PUBLIC_DEV_URL
     : process.env.NEXT_PUBLIC_BASE_URL;
 
-
-
 export async function POST(request: NextRequest) {
   try {
     const body: EmailNotificationData = await request.json();
-    
+
     const { type, user, transaction, device, timestamp } = body;
 
-    let emailSubject = '';
-    let emailHtml = '';
+    let emailSubject = "";
+    let emailHtml = "";
 
-    console.log('Preparing to send email notification:', user);
+    console.log("Preparing to send email notification:", user);
 
     switch (type) {
-      case 'login':
+      case "login":
         emailSubject = `Security Alert: New Login to Your Account`;
         emailHtml = generateLoginEmail(user, device, timestamp);
         break;
 
-      case 'debit':
+      case "debit":
         emailSubject = `Debit Alert: ₦${transaction?.amount.toLocaleString()} ${transaction?.description}`;
         emailHtml = generateDebitEmail(user, transaction!, timestamp);
         break;
 
-      case 'credit':
+      case "credit":
         emailSubject = `Credit Alert: ₦${transaction?.amount.toLocaleString()} ${transaction?.description}`;
         emailHtml = generateCreditEmail(user, transaction!, timestamp);
         break;
 
-      case 'alert':
+      case "alert":
         emailSubject = `Account Alert: ${transaction?.description}`;
         emailHtml = generateAlertEmail(user, transaction!, timestamp);
         break;
 
       default:
         return NextResponse.json(
-          { error: 'Invalid notification type' },
-          { status: 400 }
+          { error: "Invalid notification type" },
+          { status: 400 },
         );
     }
 
     // Send email using Nodemailer
 
-    
     const mailOptions = {
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
@@ -88,19 +85,21 @@ export async function POST(request: NextRequest) {
     const result = await transporter.sendMail(mailOptions);
 
     // // Log notification for audit purposes
-    console.log(`Email notification sent: ${type} to ${user.email}`, result.messageId);
+    console.log(
+      `Email notification sent: ${type} to ${user.email}`,
+      result.messageId,
+    );
 
     return NextResponse.json({
       success: true,
-      message: 'Notification sent successfully',
+      message: "Notification sent successfully",
       messageId: result.messageId,
     });
-
   } catch (error) {
-    console.error('Notification API error:', error);
+    console.error("Notification API error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }
@@ -140,7 +139,7 @@ function generateLoginEmail(user: any, device: any, timestamp: string): string {
 
           <!-- Title -->
           <tr>
-            <td style="background:#C29307; color:#ffffff; text-align:center; padding:20px;">
+            <td style="background:#2b825b; color:#ffffff; text-align:center; padding:20px;">
               <h1 style="margin:0; font-size:22px;">Zidwell Security Alert</h1>
             </td>
           </tr>
@@ -168,13 +167,13 @@ function generateLoginEmail(user: any, device: any, timestamp: string): string {
                 <p style="margin-top:0;"><strong>If this wasn’t you:</strong></p>
                 <p style="margin:6px 0;">
                   • Change your password immediately  
-                  <a href="${baseUrl}/auth/password-reset" style="color:#C29307; font-weight:bold;">
+                  <a href="${baseUrl}/auth/password-reset" style="color:#2b825b; font-weight:bold;">
                     Click here
                   </a>
                 </p>
                 <p style="margin:6px 0;">
                   • Contact our support team  
-                  <a href="https://wa.me/7069175399" style="color:#C29307; font-weight:bold;">
+                  <a href="https://wa.me/7069175399" style="color:#2b825b; font-weight:bold;">
                     Click to contact support
                   </a>
                 </p>
@@ -207,10 +206,14 @@ function generateLoginEmail(user: any, device: any, timestamp: string): string {
 `;
 }
 
-
-function generateDebitEmail(user: any, transaction: any, timestamp: string): string {
-  const isTransfer = transaction.type?.includes('transfer');
-  const isBillPayment = transaction.type?.includes('bill') || transaction.type?.includes('payment');
+function generateDebitEmail(
+  user: any,
+  transaction: any,
+  timestamp: string,
+): string {
+  const isTransfer = transaction.type?.includes("transfer");
+  const isBillPayment =
+    transaction.type?.includes("bill") || transaction.type?.includes("payment");
 
   return `
     <!DOCTYPE html>
@@ -244,24 +247,32 @@ function generateDebitEmail(user: any, transaction: any, timestamp: string): str
             <p><strong>Transaction Type:</strong> ${transaction.type}</p>
             <p><strong>Reference:</strong> ${transaction.reference}</p>
             <p><strong>Date & Time:</strong> ${new Date(timestamp).toLocaleString()}</p>
-            ${transaction.balance_after ? `<p><strong>Available Balance:</strong> ₦${transaction.balance_after.toLocaleString()}</p>` : ''}
+            ${transaction.balance_after ? `<p><strong>Available Balance:</strong> ₦${transaction.balance_after.toLocaleString()}</p>` : ""}
           </div>
 
-          ${isTransfer && transaction.recipient_name ? `
+          ${
+            isTransfer && transaction.recipient_name
+              ? `
           <div class="recipient-info">
             <h3>Recipient Details</h3>
             <p><strong>Name:</strong> ${transaction.recipient_name}</p>
-            ${transaction.recipient_account ? `<p><strong>Account:</strong> ${transaction.recipient_account}</p>` : ''}
-            ${transaction.recipient_bank ? `<p><strong>Bank:</strong> ${transaction.recipient_bank}</p>` : ''}
+            ${transaction.recipient_account ? `<p><strong>Account:</strong> ${transaction.recipient_account}</p>` : ""}
+            ${transaction.recipient_bank ? `<p><strong>Bank:</strong> ${transaction.recipient_bank}</p>` : ""}
           </div>
-          ` : ''}
+          `
+              : ""
+          }
 
-          ${isBillPayment ? `
+          ${
+            isBillPayment
+              ? `
           <div class="recipient-info">
             <h3>Payment Details</h3>
             <p>Your ${transaction.description} has been processed successfully.</p>
           </div>
-          ` : ''}
+          `
+              : ""
+          }
 
           <p>If you didn't authorize this transaction, please contact our support team immediately.</p>
           <p><strong>Zidwell App Team</strong></p>
@@ -272,8 +283,12 @@ function generateDebitEmail(user: any, transaction: any, timestamp: string): str
   `;
 }
 
-function generateCreditEmail(user: any, transaction: any, timestamp: string): string {
-  const isTransfer = transaction.type?.includes('transfer');
+function generateCreditEmail(
+  user: any,
+  transaction: any,
+  timestamp: string,
+): string {
+  const isTransfer = transaction.type?.includes("transfer");
 
   return `
     <!DOCTYPE html>
@@ -307,16 +322,20 @@ function generateCreditEmail(user: any, transaction: any, timestamp: string): st
             <p><strong>Transaction Type:</strong> ${transaction.type}</p>
             <p><strong>Reference:</strong> ${transaction.reference}</p>
             <p><strong>Date & Time:</strong> ${new Date(timestamp).toLocaleString()}</p>
-            ${transaction.balance_after ? `<p><strong>Available Balance:</strong> ₦${transaction.balance_after.toLocaleString()}</p>` : ''}
+            ${transaction.balance_after ? `<p><strong>Available Balance:</strong> ₦${transaction.balance_after.toLocaleString()}</p>` : ""}
           </div>
 
-          ${isTransfer && transaction.sender_name ? `
+          ${
+            isTransfer && transaction.sender_name
+              ? `
           <div class="sender-info">
             <h3>Sender Details</h3>
             <p><strong>From:</strong> ${transaction.sender_name}</p>
-            ${transaction.sender_account ? `<p><strong>Account:</strong> ${transaction.sender_account}</p>` : ''}
+            ${transaction.sender_account ? `<p><strong>Account:</strong> ${transaction.sender_account}</p>` : ""}
           </div>
-          ` : ''}
+          `
+              : ""
+          }
 
           <p>Your account has been credited successfully.</p>
           <p><strong>Zidwell App Team</strong></p>
@@ -327,7 +346,11 @@ function generateCreditEmail(user: any, transaction: any, timestamp: string): st
   `;
 }
 
-function generateAlertEmail(user: any, transaction: any, timestamp: string): string {
+function generateAlertEmail(
+  user: any,
+  transaction: any,
+  timestamp: string,
+): string {
   return `
     <!DOCTYPE html>
     <html>
@@ -352,13 +375,13 @@ function generateAlertEmail(user: any, transaction: any, timestamp: string): str
           
           <div class="alert">
             <p><strong>${transaction.description}</strong></p>
-            ${transaction.amount ? `<p><strong>Amount:</strong> ₦${transaction.amount.toLocaleString()}</p>` : ''}
-            ${transaction.reference ? `<p><strong>Reference:</strong> ${transaction.reference}</p>` : ''}
+            ${transaction.amount ? `<p><strong>Amount:</strong> ₦${transaction.amount.toLocaleString()}</p>` : ""}
+            ${transaction.reference ? `<p><strong>Reference:</strong> ${transaction.reference}</p>` : ""}
           </div>
 
           <div class="info-box">
             <p><strong>Time:</strong> ${new Date(timestamp).toLocaleString()}</p>
-            <p><strong>Account:</strong> ${user.account_number || 'N/A'}</p>
+            <p><strong>Account:</strong> ${user.account_number || "N/A"}</p>
           </div>
 
           <p>This is an automated alert from your Zidwell App account.</p>

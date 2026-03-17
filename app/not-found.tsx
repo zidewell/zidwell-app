@@ -8,7 +8,7 @@ const NotFound = () => {
         </p>
         <a
           href="/"
-          className="text-[#C29307] underline hover:text-[#C29307]/90"
+          className="text-[#2b825b] underline hover:text-[#2b825b]/90"
         >
           Return to Home
         </a>

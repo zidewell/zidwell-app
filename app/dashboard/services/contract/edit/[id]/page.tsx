@@ -1,20 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import RichTextArea from "@/app/components/sign-contract-form-component/RichTextArea"; 
-import SignContractInput from "@/app/components/sign-contract-form-component/SignContractInput"; 
-import SignContractSelect from "@/app/components/sign-contract-form-component/SignContractSelect";  
-import SignContractToggle from "@/app/components/sign-contract-form-component/SignContractToggle"; 
-import PreviewTab from "@/app/components/sign-contract-form-component/PreviewTab"; 
-import { contractTitles } from "@/app/data/sampleContracts";
+import RichTextArea from "@/app/components/sign-contract-form-component/RichTextArea";
+import SignContractInput from "@/app/components/sign-contract-form-component/SignContractInput";
+import SignContractToggle from "@/app/components/sign-contract-form-component/SignContractToggle";
+import PreviewTab from "@/app/components/sign-contract-form-component/PreviewTab";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/app/components/ui/tabs";
 import {
   Edit,
   Eye,
@@ -29,10 +25,7 @@ import {
   Download,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import {
-  Card,
-  CardContent,
-} from "@/app/components/ui/card";
+import { Card, CardContent } from "@/app/components/ui/card";
 import { useRouter } from "next/navigation";
 import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
@@ -40,8 +33,6 @@ import { Badge } from "@/app/components/ui/badge";
 import { Label } from "@/app/components/ui/label";
 import { Switch } from "@/app/components/ui/switch";
 import Loader from "@/app/components/Loader";
-import PinPopOver from "@/app/components/PinPopOver";
-import ContractSummary from "@/app/components/sign-contract-form-component/ContractSummary";
 import { Input } from "@/app/components/ui/input";
 import { SignaturePad } from "@/app/components/SignaturePad";
 
@@ -96,11 +87,6 @@ type AttachmentFile = {
   previewUrl?: string;
 };
 
-interface PaymentResponse {
-  error?: string;
-  message?: string;
-}
-
 export default function EditContractPage({
   params,
 }: {
@@ -114,21 +100,14 @@ export default function EditContractPage({
   const [saving, setSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isFormLocked, setIsFormLocked] = useState(false);
-  
-  // Payment states - matching the FormBody logic
-  const inputCount = 4;
-  const [isOpen, setIsOpen] = useState(false);
-  const [pin, setPin] = useState<string[]>(Array(inputCount).fill(""));
-  const [isSending, setIsSending] = useState(false);
-  const [showContractSummary, setShowContractSummary] = useState(false);
-  
+
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [includeLawyerSignature, setIncludeLawyerSignature] = useState(false);
   const [creatorName, setCreatorName] = useState("");
   const [creatorSignature, setCreatorSignature] = useState<string | null>(null);
   const [localCreatorName, setLocalCreatorName] = useState("");
   const [saveSignatureForFuture, setSaveSignatureForFuture] = useState(false);
-  
+
   // Local signature state for the signature pad
   const [localSignature, setLocalSignature] = useState<string | null>(null);
 
@@ -157,9 +136,6 @@ export default function EditContractPage({
     contractDate: new Date().toISOString().split("T")[0],
   });
 
-  // Payment constants
-  const UPDATE_FEE = 500; // ₦500 for each update
-
   // Unwrap params
   useEffect(() => {
     const unwrapParams = async () => {
@@ -185,15 +161,12 @@ export default function EditContractPage({
         return;
       }
 
-      const res = await fetch(
-        `/api/saved-signature?userId=${userData.id}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const res = await fetch(`/api/saved-signature?userId=${userData.id}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       const data = await res.json();
 
@@ -207,7 +180,7 @@ export default function EditContractPage({
             icon: "success",
             title: "Signature Loaded",
             text: "Your saved signature has been loaded.",
-            confirmButtonColor: "#C29307",
+            confirmButtonColor: "#2b825b",
             timer: 2000,
             showConfirmButton: false,
           });
@@ -216,7 +189,7 @@ export default function EditContractPage({
             icon: "info",
             title: "No Saved Signature",
             text: "No saved signature found. Please create a new one.",
-            confirmButtonColor: "#C29307",
+            confirmButtonColor: "#2b825b",
             timer: 2000,
             showConfirmButton: false,
           });
@@ -226,7 +199,7 @@ export default function EditContractPage({
           icon: "error",
           title: "Load Failed",
           text: "Failed to load saved signature. Please try again.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
         });
       }
     } catch (error) {
@@ -234,7 +207,7 @@ export default function EditContractPage({
         icon: "error",
         title: "Load Failed",
         text: "Failed to load saved signature. Please try again.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
     }
   };
@@ -279,7 +252,7 @@ export default function EditContractPage({
             icon: "success",
             title: "Signature Saved",
             text: "Your signature has been saved for future use.",
-            confirmButtonColor: "#C29307",
+            confirmButtonColor: "#2b825b",
             timer: 2000,
             showConfirmButton: false,
           });
@@ -289,7 +262,7 @@ export default function EditContractPage({
           icon: "error",
           title: "Save Failed",
           text: "Failed to save signature. Please try again.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
         });
       }
     }
@@ -349,39 +322,42 @@ export default function EditContractPage({
 
   const fetchContract = async () => {
     if (!contractId) return;
-    
+
     try {
       setLoading(true);
-      
+
       const res = await fetch(`/api/contract/get-contract?id=${contractId}`);
       const data = await res.json();
-      
+
       if (!res.ok) {
-        throw new Error(data.message || `Failed to fetch contract (${res.status})`);
+        throw new Error(
+          data.message || `Failed to fetch contract (${res.status})`,
+        );
       }
-      
+
       if (!data.contract) {
         throw new Error("Contract data is empty");
       }
-      
+
       const contract = data.contract;
-      
+
       const formData: FormState = {
         receiverName: contract.signee_name || "",
         receiverEmail: contract.signee_email || "",
         receiverPhone: contract.phone_number?.toString() || "",
         contractTitle: contract.contract_title || "",
-        contractContent: contract.contract_text || "", 
+        contractContent: contract.contract_text || "",
         ageConsent: contract.age_consent || false,
         termsConsent: contract.terms_consent || false,
         status: contract.status || "pending",
         contractId: contract.id || contract.token || "",
         contractType: contract.contract_type || "custom",
-        contractDate: contract.contract_date || new Date().toISOString().split("T")[0],
+        contractDate:
+          contract.contract_date || new Date().toISOString().split("T")[0],
       };
-      
+
       setForm(formData);
-      
+
       // Set additional state
       if (contract.creator_name) {
         setCreatorName(contract.creator_name);
@@ -391,7 +367,7 @@ export default function EditContractPage({
         setCreatorName(fullName);
         setLocalCreatorName(fullName);
       }
-      
+
       if (contract.creator_signature) {
         setCreatorSignature(contract.creator_signature);
         setLocalSignature(contract.creator_signature);
@@ -399,24 +375,24 @@ export default function EditContractPage({
       if (contract.include_lawyer_signature) {
         setIncludeLawyerSignature(contract.include_lawyer_signature);
       }
-      
+
       // Check if contract is signed
       if (contract.status === "signed") {
         Swal.fire({
           icon: "info",
           title: "Contract Already Signed",
           text: "This contract has been signed. Editing is limited.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
         });
       }
-      
     } catch (error) {
       console.error("❌ Failed to fetch contract", error);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: error instanceof Error ? error.message : "Failed to load contract",
-        confirmButtonColor: "#C29307",
+        text:
+          error instanceof Error ? error.message : "Failed to load contract",
+        confirmButtonColor: "#2b825b",
       }).then(() => {
         router.push("/dashboard/services/contract");
       });
@@ -542,7 +518,7 @@ export default function EditContractPage({
         icon: "warning",
         title: "Signature Required",
         text: "Please add your signature in the form before submitting.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return false;
     }
@@ -552,80 +528,12 @@ export default function EditContractPage({
         icon: "warning",
         title: "Name Required",
         text: "Please enter your full legal name in the creator name field.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return false;
     }
 
     return true;
-  };
-
-  // Same payment handling logic as FormBody
-  const handleDeduct = async (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      const pinString = pin.join("");
-
-      fetch("/api/pay-app-service", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData?.id,
-          pin: pinString,
-          amount: UPDATE_FEE,
-          description: "Contract update fee",
-          service: "contract_update",
-        }),
-      })
-        .then(async (res) => {
-          const data: PaymentResponse = await res.json();
-          if (!res.ok) {
-            Swal.fire("Error", data.error || "Something went wrong", "error");
-            resolve(false);
-          } else {
-            resolve(true);
-          }
-        })
-        .catch((err) => {
-          Swal.fire("Error", err.message, "error");
-          resolve(false);
-        });
-    });
-  };
-
-  // Same refund logic as FormBody
-  const handleRefund = async () => {
-    try {
-      const res = await fetch("/api/refund-service", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData?.id,
-          amount: UPDATE_FEE,
-          description: "Refund for failed contract update",
-        }),
-      });
-
-      const data: PaymentResponse = await res.json();
-      
-      if (res.ok) {
-        Swal.fire({
-          icon: "info",
-          title: "Refund Processed",
-          text: `₦${UPDATE_FEE.toLocaleString()} has been refunded to your wallet due to failed contract update.`,
-          confirmButtonColor: "#C29307",
-        });
-      } else {
-        throw new Error(data.error || "Refund failed");
-      }
-    } catch (err) {
-      console.error("Refund failed:", err);
-      Swal.fire({
-        icon: "warning",
-        title: "Refund Failed",
-        text: "Payment deduction was made, but refund failed. Please contact support.",
-        confirmButtonColor: "#C29307",
-      });
-    }
   };
 
   const updateContractInDatabase = async (): Promise<boolean> => {
@@ -641,7 +549,9 @@ export default function EditContractPage({
         contract_date: form.contractDate,
         signee_name: form.receiverName,
         signee_email: form.receiverEmail,
-        phone_number: form.receiverPhone ? parseFloat(form.receiverPhone.replace(/\D/g, '')) : null,
+        phone_number: form.receiverPhone
+          ? parseFloat(form.receiverPhone.replace(/\D/g, ""))
+          : null,
         age_consent: form.ageConsent,
         terms_consent: form.termsConsent,
         status: form.status,
@@ -662,7 +572,9 @@ export default function EditContractPage({
       console.log("Update contract response:", result);
 
       if (!res.ok) {
-        throw new Error(result.message || result.error || "Failed to update contract");
+        throw new Error(
+          result.message || result.error || "Failed to update contract",
+        );
       }
 
       return true;
@@ -672,67 +584,9 @@ export default function EditContractPage({
     }
   };
 
-  // Same payment processing logic as FormBody
-  const processPaymentAndUpdate = async () => {
-    setSaving(true);
-    setIsOpen(false);
-    setIsFormLocked(true);
+  const handleUpdateContract = async () => {
+    if (isFormLocked || saving) return;
 
-    try {
-      const paymentSuccess = await handleDeduct();
-
-      if (paymentSuccess) {
-        const updateSuccess = await updateContractInDatabase();
-        
-        if (updateSuccess) {
-          Swal.fire({
-            icon: "success",
-            title: "Contract Updated!",
-            html: `
-              <div class="text-center">
-                <p>Your contract has been updated successfully.</p>
-                <p class="text-sm text-gray-600 mt-2">
-                  <strong>Fee:</strong> ₦${UPDATE_FEE.toLocaleString()}<br>
-                  <strong>Contract ID:</strong> ${form.contractId}
-                </p>
-              </div>
-            `,
-            confirmButtonColor: "#C29307",
-            timer: 3000,
-            showConfirmButton: false,
-          }).then(() => {
-            setHasUnsavedChanges(false);
-            setIsFormLocked(false);
-            router.push("/dashboard/services/contract");
-          });
-        } else {
-          // If update fails, refund the payment
-          await handleRefund();
-          setIsFormLocked(false);
-        }
-      } else {
-        setIsFormLocked(false);
-      }
-    } catch (error) {
-      console.error("Error in process:", error);
-      setIsFormLocked(false);
-      Swal.fire({
-        icon: "error",
-        title: "Processing Failed",
-        text: "Failed to process payment and update contract. Please try again.",
-        confirmButtonColor: "#C29307",
-      });
-    } finally {
-      setSaving(false);
-      setIsSending(false);
-      // Reset PIN
-      setPin(Array(inputCount).fill(""));
-    }
-  };
-
-  const handleSendForSignature = () => {
-    if (isFormLocked || isSending || isSigned) return;
-    
     if (!validateFormFields()) {
       const errorMessages = [];
       if (errors.contractTitle) errorMessages.push(errors.contractTitle);
@@ -746,8 +600,8 @@ export default function EditContractPage({
         Swal.fire({
           icon: "error",
           title: "Please fix the following errors:",
-          html: errorMessages.map(msg => `• ${msg}`).join('<br>'),
-          confirmButtonColor: "#C29307",
+          html: errorMessages.map((msg) => `• ${msg}`).join("<br>"),
+          confirmButtonColor: "#2b825b",
         });
       }
       return;
@@ -755,26 +609,48 @@ export default function EditContractPage({
 
     const signatureValid = validateSignature();
     if (!signatureValid) {
-      setIsSending(false);
       return;
     }
 
-    setIsSending(true);
-    setShowContractSummary(true);
+    setSaving(true);
     setIsFormLocked(true);
-  };
 
-  // Same summary handling as FormBody
-  const handleSummaryConfirm = () => {
-    setShowContractSummary(false);
-    setIsOpen(true);
-    setIsSending(false);
-  };
+    try {
+      const updateSuccess = await updateContractInDatabase();
 
-  const handleSummaryBack = () => {
-    setShowContractSummary(false);
-    setIsSending(false);
-    setIsFormLocked(false);
+      if (updateSuccess) {
+        Swal.fire({
+          icon: "success",
+          title: "Contract Updated!",
+          html: `
+            <div class="text-center">
+              <p>Your contract has been updated successfully.</p>
+              <p class="text-sm text-gray-600 mt-2">
+                <strong>Contract ID:</strong> ${form.contractId}
+              </p>
+            </div>
+          `,
+          confirmButtonColor: "#2b825b",
+          timer: 3000,
+          showConfirmButton: false,
+        }).then(() => {
+          setHasUnsavedChanges(false);
+          setIsFormLocked(false);
+          router.push("/dashboard/services/contract");
+        });
+      }
+    } catch (error) {
+      console.error("Error updating contract:", error);
+      setIsFormLocked(false);
+      Swal.fire({
+        icon: "error",
+        title: "Update Failed",
+        text: "Failed to update contract. Please try again.",
+        confirmButtonColor: "#2b825b",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleFormChange = (field: keyof FormState, value: any) => {
@@ -786,18 +662,13 @@ export default function EditContractPage({
     }
   };
 
-  const handleSelectChange = (value: string) => {
-    if (isFormLocked || isSigned) return;
-    handleFormChange("contractTitle", value);
-  };
-
   const resetForm = () => {
     if (isFormLocked) {
       Swal.fire({
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot reset form while processing is in progress.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return;
     }
@@ -807,7 +678,7 @@ export default function EditContractPage({
       text: "This will discard all unsaved changes and reload the original contract.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#C29307",
+      confirmButtonColor: "#2b825b",
       cancelButtonColor: "#6b7280",
       confirmButtonText: "Reset",
       cancelButtonText: "Cancel",
@@ -815,12 +686,12 @@ export default function EditContractPage({
       if (result.isConfirmed) {
         fetchContract();
         setHasUnsavedChanges(false);
-        
+
         Swal.fire({
           icon: "success",
           title: "Changes Reset",
           text: "All changes have been discarded.",
-          confirmButtonColor: "#C29307",
+          confirmButtonColor: "#2b825b",
           timer: 1500,
           showConfirmButton: false,
         });
@@ -834,7 +705,7 @@ export default function EditContractPage({
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot cancel while processing is in progress.",
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
       });
       return;
     }
@@ -845,7 +716,7 @@ export default function EditContractPage({
         text: "You have unsaved changes. Are you sure you want to leave?",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: "#C29307",
+        confirmButtonColor: "#2b825b",
         cancelButtonColor: "#6b7280",
         confirmButtonText: "Yes, Discard",
         cancelButtonText: "Continue Editing",
@@ -878,48 +749,6 @@ export default function EditContractPage({
 
   return (
     <>
-      {/* PinPopOver - same as FormBody */}
-      {isOpen && !showContractSummary && (
-        <PinPopOver
-          setIsOpen={(newValue) => {
-            setIsOpen(newValue);
-            // When PinPopOver closes, reset isSending
-            if (!newValue) {
-              setIsSending(false);
-              setIsFormLocked(false);
-            }
-          }}
-          isOpen={isOpen}
-          pin={pin}
-          setPin={setPin}
-          inputCount={inputCount}
-          onConfirm={processPaymentAndUpdate}
-        />
-      )}
-
-      {/* ContractSummary - same as FormBody */}
-      <ContractSummary
-        contractTitle={form.contractTitle}
-        contractContent={form.contractContent}
-        contractDate={form.contractDate}
-        initiatorName={`${userData?.fullName || ""} ${
-          userData?.lastName || ""
-        }`}
-        initiatorEmail={userData?.email || ""}
-        receiverName={form.receiverName}
-        receiverEmail={form.receiverEmail}
-        receiverPhone={form.receiverPhone}
-        amount={UPDATE_FEE}
-        confirmContract={showContractSummary}
-        onBack={handleSummaryBack}
-        onConfirm={handleSummaryConfirm}
-        contractType="Contract Update"
-        dateCreated={new Date(form.contractDate).toLocaleDateString()}
-        attachments={attachments}
-        currentLawyerSignature={includeLawyerSignature}
-        // isUpdate={true}
-      />
-
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8 px-4">
           <div className="flex items-start justify-between mb-6">
@@ -928,7 +757,7 @@ export default function EditContractPage({
                 variant="ghost"
                 size="sm"
                 onClick={handleCancel}
-                className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+                className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
                 disabled={isFormLocked}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -978,28 +807,24 @@ export default function EditContractPage({
                   variant="outline"
                   className="bg-green-50 text-green-700 border-green-200"
                 >
-                  ✓ Signed
+                  <Check className="w-3 h-3 mr-1" />
+                  Signed
                 </Badge>
               )}
               <Badge
                 variant="outline"
                 className={`
-                  ${form.status === "signed" ? "bg-green-100 text-green-800 border-green-200" :
-                    form.status === "pending" ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
-                    "bg-gray-100 text-gray-800 border-gray-200"}
+                  ${
+                    form.status === "signed"
+                      ? "bg-green-100 text-green-800 border-green-200"
+                      : form.status === "pending"
+                        ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                        : "bg-gray-100 text-gray-800 border-gray-200"
+                  }
                 `}
               >
                 {form.status.charAt(0).toUpperCase() + form.status.slice(1)}
               </Badge>
-              {isFormLocked && (
-                <Badge
-                  variant="outline"
-                  className="bg-red-50 text-red-700 border-red-200"
-                >
-                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                  Processing...
-                </Badge>
-              )}
             </div>
           </div>
 
@@ -1008,456 +833,484 @@ export default function EditContractPage({
               <div className="flex items-center">
                 <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
                 <p className="text-yellow-800 text-sm">
-                  <strong>Note:</strong> This contract has been signed. You can view and download it, but editing is limited.
+                  <strong>Note:</strong> This contract has been signed. You can
+                  view and download it, but editing is limited.
                 </p>
               </div>
             </div>
           )}
-           <div className="flex justify-center">
-<div className="w-full max-w-3xl lg:max-w-4xl">
-          <Card className="p-6 h-fit">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={resetForm}
-                  disabled={!hasUnsavedChanges || isFormLocked || isSigned}
-                  className="text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Reset Changes
-                </Button>
-              </div>
-              <div className="text-sm text-gray-500">
-                Contract ID: {form.contractId}
-              </div>
-            </div>
 
-            <Tabs
-              value={activeTab}
-              onValueChange={(value) => {
-                if (isFormLocked) return;
-                setActiveTab(value);
-              }}
-              className="w-full"
-            >
-              <TabsList className="grid w-full grid-cols-2 mb-8">
-                <TabsTrigger value="create" className="gap-2" disabled={isFormLocked}>
-                  <Edit className="h-4 w-4" />
-                  Edit Contract
-                </TabsTrigger>
-                <TabsTrigger value="preview" className="gap-2" disabled={isFormLocked}>
-                  <Eye className="h-4 w-4" />
-                  Preview
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="create" className="space-y-6">
-                <section className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="text-lg font-medium">Contract Details</h4>
+          <div className="flex justify-center">
+            <div className="w-full max-w-3xl lg:max-w-4xl">
+              <Card className="p-6 h-fit">
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center gap-4">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      onClick={() => setActiveTab("preview")}
-                      disabled={!form.contractContent || isFormLocked}
+                      onClick={resetForm}
+                      disabled={!hasUnsavedChanges || isFormLocked || isSigned}
+                      className="text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Preview
+                      Reset Changes
                     </Button>
                   </div>
-
-                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">
-                          Your Saved Signature
-                        </p>
-                        <p className="text-xs text-gray-600 mt-1">
-                          Load your saved signature to use in this contract
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={loadSignatureManually}
-                        disabled={
-                          !userData?.id || !!localSignature || isFormLocked || isSigned
-                        }
-                        className="border-gray-300 text-gray-700 hover:bg-gray-100"
-                      >
-                        {localSignature ? (
-                          <>
-                            <Check className="h-4 w-4 mr-2" />
-                            Signature Loaded
-                          </>
-                        ) : (
-                          <>
-                            <Download className="h-4 w-4 mr-2" />
-                            Load Saved Signature
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    {localSignature && (
-                      <div className="mt-3 p-3 bg-white border border-green-200 rounded-lg">
-                        <div className="flex items-center">
-                          <div className="h-6 w-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                            <Check className="h-4 w-4 text-green-600" />
-                          </div>
-                          <p className="text-sm text-green-700">
-                            Signature loaded successfully!
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                  <div className="text-sm text-gray-500">
+                    Contract ID: {form.contractId}
                   </div>
+                </div>
 
-                  <div className="flex md:flex-row flex-col gap-3">
-                    <div className="space-y-2 w-full">
-                      <Label
-                        htmlFor="creator-name"
-                        className="text-gray-700 font-medium"
-                      >
-                        PARTY A (Creator) *
-                      </Label>
-                      <Input
-                        id="creator-name"
-                        value={localCreatorName}
-                        onChange={handleCreatorNameChange}
-                        placeholder="Enter your full legal name as it should appear on the contract"
-                       
-                      />
-                    </div>
+                <Tabs
+                  value={activeTab}
+                  onValueChange={(value) => {
+                    if (isFormLocked) return;
+                    setActiveTab(value);
+                  }}
+                  className="w-full"
+                >
+                  <TabsList className="grid w-full grid-cols-2 mb-8">
+                    <TabsTrigger
+                      value="create"
+                      className="gap-2"
+                      disabled={isFormLocked}
+                    >
+                      <Edit className="h-4 w-4" />
+                      Edit Contract
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="preview"
+                      className="gap-2"
+                      disabled={isFormLocked}
+                    >
+                      <Eye className="h-4 w-4" />
+                      Preview
+                    </TabsTrigger>
+                  </TabsList>
 
-                    <div className="space-y-2 w-full">
-                      <Label
-                        htmlFor="receiver-name"
-                        className="text-gray-700 font-medium"
-                      >
-                        PARTY B (Signee) *
-                      </Label>
-                      <Input
-                        id="receiver-name"
-                        value={form.receiverName}
-                        onChange={(e) =>
-                          handleFormChange("receiverName", e.target.value)
-                        }
-                        placeholder="John Doe"
-                       
-                      />
-                      {errors.receiverName && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.receiverName}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <div className="space-y-1">
-                        <Label
-                          htmlFor="contract-date"
-                          className="text-xs font-medium text-gray-600"
-                        >
-                          Contract Date*
-                        </Label>
-                        <Input
-                          id="contract-date"
-                          type="date"
-                          value={form.contractDate}
-                          onChange={(e) =>
-                            handleFormChange("contractDate", e.target.value)
-                          }
-                          className="w-full"
-                          max={new Date().toISOString().split("T")[0]}
-                         
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <SignContractInput
-                        label="Email Address*"
-                        placeholder="john@example.com"
-                        id={"receiver-email"}
-                        value={form.receiverEmail}
-                        onchange={(e) =>
-                          handleFormChange("receiverEmail", e.target.value)
-                        }
-                       
-                      />
-                      {errors.receiverEmail && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.receiverEmail}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <SignContractInput
-                        label="Phone Number (Optional)"
-                        placeholder="+234 000 000 0000"
-                        id={"receiver-phone"}
-                        value={form.receiverPhone}
-                        onchange={(e) =>
-                          handleFormChange("receiverPhone", e.target.value)
-                        }
-                       
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-3">
-                    <div className="w-full">
-                      <Label className="block text-xs font-medium text-gray-600 mb-2">
-                        Contract Title <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        value={form.contractTitle}
-                        onChange={(e: any) =>
-                          handleFormChange("contractTitle", e.target.value)
-                        }
-                        placeholder="Enter contract title"
-                       
-                      />
-                      {errors.contractTitle && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.contractTitle}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <Label className="block text-xs font-medium text-gray-600">
-                        Contract Content <span className="text-red-500">*</span>
-                      </Label>
-                      <span className="text-xs text-gray-500">
-                        {form.contractContent.length} characters
-                      </span>
-                    </div>
-                    <RichTextArea
-                      value={form.contractContent}
-                      onChange={(value) =>
-                        handleFormChange("contractContent", value)
-                      }
-                     
-                    />
-                    {errors.contractContent && (
-                      <p className="text-xs text-red-500 mt-1">
-                        {errors.contractContent}
-                      </p>
-                    )}
-                  </div>
-
-                  {attachments.length > 0 && (
-                    <div className="mt-6 pt-6 border-t">
-                      <h4 className="text-lg font-medium mb-4">
-                        Attachments ({attachments.length})
-                      </h4>
-                      <div className="space-y-3">
-                        {attachments.map((attachment, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-                          >
-                            <div className="flex items-center">
-                              <FileText className="h-5 w-5 text-gray-500 mr-3" />
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {attachment.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {(attachment.size / 1024).toFixed(2)} KB •{" "}
-                                  {attachment.type}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Note: Attachments cannot be modified in edit mode
-                      </p>
-                    </div>
-                  )}
-                </section>
-
-                <section className="space-y-4">
-                  <h4 className="text-lg font-medium">Consent Declarations</h4>
-                  <SignContractToggle
-                    ageConsent={form.ageConsent}
-                    setAgeConsent={(value) =>
-                      handleFormChange("ageConsent", value)
-                    }
-                    setTermsConsent={(value) =>
-                      handleFormChange("termsConsent", value)
-                    }
-                    termsConsent={form.termsConsent}
-                   
-                  />
-                  <div className="space-y-2">
-                    {errors.ageConsent && (
-                      <p className="text-xs text-red-500">
-                        {errors.ageConsent}
-                      </p>
-                    )}
-                    {errors.termsConsent && (
-                      <p className="text-xs text-red-500">
-                        {errors.termsConsent}
-                      </p>
-                    )}
-                  </div>
-                </section>
-
-                {/* Signature Section - Added here under consent toggles */}
-                <section className="border border-gray-200 rounded-lg p-6 bg-gray-50 print:hidden">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-                    <div className="mb-4 sm:mb-0">
-                      <h4 className="text-lg font-semibold text-gray-900">
-                        Add Your Signature
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Draw or upload your signature to complete the contract
-                      </p>
-                    </div>
-                    {localSignature && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={clearSignature}
-                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
-                       
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Clear Signature
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Load Saved Signature Button */}
-                  {userData?.id && !localSignature && (
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-blue-800">
-                            Saved Signature Available
-                          </p>
-                          <p className="text-xs text-blue-600 mt-1">
-                            You have a signature saved for future use. Would you
-                            like to load it?
-                          </p>
-                        </div>
+                  <TabsContent value="create" className="space-y-6">
+                    <section className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h4 className="text-lg font-medium">
+                          Contract Details
+                        </h4>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          onClick={loadSignatureManually}
-                         
-                          className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                          onClick={() => setActiveTab("preview")}
+                          disabled={!form.contractContent || isFormLocked}
                         >
-                          Load Saved Signature
+                          <Eye className="h-4 w-4 mr-2" />
+                          Preview
                         </Button>
                       </div>
-                    </div>
-                  )}
 
-                  <div className="space-y-6">
-                    {/* Signature Pad Component */}
-                    <SignaturePad
-                      value={localSignature || ""}
-                      onChange={(signature:any) => handleSignatureChange(signature)}
-                      label="Your Signature"
-                     
-                    />
-
-                    {/* Save Signature Toggle */}
-                    {userData?.id && !isSigned && (
-                      <div className="flex items-center space-x-3 p-4 bg-white border border-gray-200 rounded-lg">
-                        <Switch
-                          id="save-signature-toggle"
-                          checked={saveSignatureForFuture}
-                          onCheckedChange={handleSaveSignatureToggle}
-                          className="data-[state=checked]:bg-[#C29307]"
-                          disabled={(!localSignature && saveSignatureForFuture) || isFormLocked || isSigned}
-                        />
-                        <div className="space-y-1 flex-1">
-                          <Label
-                            htmlFor="save-signature-toggle"
-                            className="cursor-pointer text-sm font-medium text-gray-700"
+                      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">
+                              Your Saved Signature
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              Load your saved signature to use in this contract
+                            </p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={loadSignatureManually}
+                            disabled={
+                              !userData?.id ||
+                              !!localSignature ||
+                              isFormLocked ||
+                              isSigned
+                            }
+                            className="border-gray-300 text-gray-700 hover:bg-gray-100"
                           >
-                            Save signature for future use
+                            {localSignature ? (
+                              <>
+                                <Check className="h-4 w-4 mr-2" />
+                                Signature Loaded
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-4 w-4 mr-2" />
+                                Load Saved Signature
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        {localSignature && (
+                          <div className="mt-3 p-3 bg-white border border-green-200 rounded-lg">
+                            <div className="flex items-center">
+                              <div className="h-6 w-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                                <Check className="h-4 w-4 text-green-600" />
+                              </div>
+                              <p className="text-sm text-green-700">
+                                Signature loaded successfully!
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex md:flex-row flex-col gap-3">
+                        <div className="space-y-2 w-full">
+                          <Label
+                            htmlFor="creator-name"
+                            className="text-gray-700 font-medium"
+                          >
+                            PARTY A (Creator) *
                           </Label>
-                          <p className="text-xs text-gray-500">
-                            Your signature will be securely stored and automatically
-                            loaded for future contracts
-                          </p>
-                          {!localSignature && saveSignatureForFuture && (
-                            <p className="text-xs text-amber-600 mt-1">
-                              Please create a signature first to enable saving
+                          <Input
+                            id="creator-name"
+                            value={localCreatorName}
+                            onChange={handleCreatorNameChange}
+                            placeholder="Enter your full legal name as it should appear on the contract"
+                            disabled={isFormLocked || isSigned}
+                          />
+                        </div>
+
+                        <div className="space-y-2 w-full">
+                          <Label
+                            htmlFor="receiver-name"
+                            className="text-gray-700 font-medium"
+                          >
+                            PARTY B (Signee) *
+                          </Label>
+                          <Input
+                            id="receiver-name"
+                            value={form.receiverName}
+                            onChange={(e) =>
+                              handleFormChange("receiverName", e.target.value)
+                            }
+                            placeholder="John Doe"
+                            disabled={isFormLocked || isSigned}
+                          />
+                          {errors.receiverName && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.receiverName}
                             </p>
                           )}
                         </div>
                       </div>
-                    )}
-                  </div>
-                </section>
 
-                <div className="flex gap-3 pt-4 border-t">
-                  <Button
-                    onClick={handleCancel}
-                    variant="outline"
-                    size="lg"
-                    className="flex-1"
-                    disabled={saving || isSending || isFormLocked}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSendForSignature}
-                    size="lg"
-                    className="flex-1 bg-[#C29307] text-white hover:bg-[#b38606]"
-                    disabled={saving || isSending || isFormLocked || isSigned}
-                  >
-                    {isSending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Update Contract (₦{UPDATE_FEE.toLocaleString()})
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </TabsContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <div className="space-y-1">
+                            <Label
+                              htmlFor="contract-date"
+                              className="text-xs font-medium text-gray-600"
+                            >
+                              Contract Date*
+                            </Label>
+                            <Input
+                              id="contract-date"
+                              type="date"
+                              value={form.contractDate}
+                              onChange={(e) =>
+                                handleFormChange("contractDate", e.target.value)
+                              }
+                              className="w-full"
+                              max={new Date().toISOString().split("T")[0]}
+                              disabled={isFormLocked || isSigned}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <SignContractInput
+                            label="Email Address*"
+                            placeholder="john@example.com"
+                            id={"receiver-email"}
+                            value={form.receiverEmail}
+                            onchange={(e) =>
+                              handleFormChange("receiverEmail", e.target.value)
+                            }
+                            // disabled={isFormLocked || isSigned}
+                          />
+                          {errors.receiverEmail && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.receiverEmail}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <SignContractInput
+                            label="Phone Number (Optional)"
+                            placeholder="+234 000 000 0000"
+                            id={"receiver-phone"}
+                            value={form.receiverPhone}
+                            onchange={(e) =>
+                              handleFormChange("receiverPhone", e.target.value)
+                            }
+                            // disabled={isFormLocked || isSigned}
+                          />
+                        </div>
+                      </div>
 
-              <TabsContent value="preview">
-                <PreviewTab
-                  contractTitle={form.contractTitle}
-                  contractContent={form.contractContent}
-                  contractDate={form.contractDate}
-                  receiverName={form.receiverName}
-                  receiverEmail={form.receiverEmail}
-                  receiverPhone={form.receiverPhone}
-                  attachments={attachments}
-                  setActiveTab={setActiveTab}
-                  includeLawyerSignature={includeLawyerSignature}
-                  onIncludeLawyerChange={setIncludeLawyerSignature}
-                  creatorName={creatorName}
-                  onCreatorNameChange={setCreatorName}
-                  creatorSignature={localSignature || creatorSignature}
-                  localCreatorName={localCreatorName}
-                  setLocalCreatorName={setLocalCreatorName}
-                  // isUpdate={true}
-                  //
-                />
-              </TabsContent>
-            </Tabs>
-          </Card>
-          </div>
+                      <div className="flex flex-col gap-3">
+                        <div className="w-full">
+                          <Label className="block text-xs font-medium text-gray-600 mb-2">
+                            Contract Title{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            value={form.contractTitle}
+                            onChange={(e) =>
+                              handleFormChange("contractTitle", e.target.value)
+                            }
+                            placeholder="Enter contract title"
+                            disabled={isFormLocked || isSigned}
+                          />
+                          {errors.contractTitle && (
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.contractTitle}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <Label className="block text-xs font-medium text-gray-600">
+                            Contract Content{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <span className="text-xs text-gray-500">
+                            {form.contractContent.length} characters
+                          </span>
+                        </div>
+                        <RichTextArea
+                          value={form.contractContent}
+                          onChange={(value) =>
+                            handleFormChange("contractContent", value)
+                          }
+                          // disabled={isFormLocked || isSigned}
+                        />
+                        {errors.contractContent && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.contractContent}
+                          </p>
+                        )}
+                      </div>
+
+                      {attachments.length > 0 && (
+                        <div className="mt-6 pt-6 border-t">
+                          <h4 className="text-lg font-medium mb-4">
+                            Attachments ({attachments.length})
+                          </h4>
+                          <div className="space-y-3">
+                            {attachments.map((attachment, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
+                              >
+                                <div className="flex items-center">
+                                  <FileText className="h-5 w-5 text-gray-500 mr-3" />
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {attachment.name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {(attachment.size / 1024).toFixed(2)} KB •{" "}
+                                      {attachment.type}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Note: Attachments cannot be modified in edit mode
+                          </p>
+                        </div>
+                      )}
+                    </section>
+
+                    <section className="space-y-4">
+                      <h4 className="text-lg font-medium">
+                        Consent Declarations
+                      </h4>
+                      <SignContractToggle
+                        ageConsent={form.ageConsent}
+                        setAgeConsent={(value) =>
+                          handleFormChange("ageConsent", value)
+                        }
+                        setTermsConsent={(value) =>
+                          handleFormChange("termsConsent", value)
+                        }
+                        termsConsent={form.termsConsent}
+                        disabled={isFormLocked || isSigned}
+                      />
+                      <div className="space-y-2">
+                        {errors.ageConsent && (
+                          <p className="text-xs text-red-500">
+                            {errors.ageConsent}
+                          </p>
+                        )}
+                        {errors.termsConsent && (
+                          <p className="text-xs text-red-500">
+                            {errors.termsConsent}
+                          </p>
+                        )}
+                      </div>
+                    </section>
+
+                    {/* Signature Section */}
+                    <section className="border border-gray-200 rounded-lg p-6 bg-gray-50 print:hidden">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+                        <div className="mb-4 sm:mb-0">
+                          <h4 className="text-lg font-semibold text-gray-900">
+                            Add Your Signature
+                          </h4>
+                          <p className="text-sm text-gray-600">
+                            Draw or upload your signature to complete the
+                            contract
+                          </p>
+                        </div>
+                        {localSignature && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={clearSignature}
+                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
+                            disabled={isFormLocked || isSigned}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Clear Signature
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Load Saved Signature Button */}
+                      {userData?.id && !localSignature && (
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-blue-800">
+                                Saved Signature Available
+                              </p>
+                              <p className="text-xs text-blue-600 mt-1">
+                                You have a signature saved for future use. Would
+                                you like to load it?
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={loadSignatureManually}
+                              className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                              disabled={isFormLocked || isSigned}
+                            >
+                              Load Saved Signature
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-6">
+                        {/* Signature Pad Component */}
+                        <SignaturePad
+                          value={localSignature || ""}
+                          onChange={(signature) =>
+                            handleSignatureChange(signature)
+                          }
+                          label="Your Signature"
+                          disabled={isFormLocked || isSigned}
+                        />
+
+                        {/* Save Signature Toggle */}
+                        {userData?.id && !isSigned && (
+                          <div className="flex items-center space-x-3 p-4 bg-white border border-gray-200 rounded-lg">
+                            <Switch
+                              id="save-signature-toggle"
+                              checked={saveSignatureForFuture}
+                              onCheckedChange={handleSaveSignatureToggle}
+                              className="data-[state=checked]:bg-[#2b825b]"
+                              disabled={
+                                (!localSignature && saveSignatureForFuture) ||
+                                isFormLocked ||
+                                isSigned
+                              }
+                            />
+                            <div className="space-y-1 flex-1">
+                              <Label
+                                htmlFor="save-signature-toggle"
+                                className="cursor-pointer text-sm font-medium text-gray-700"
+                              >
+                                Save signature for future use
+                              </Label>
+                              <p className="text-xs text-gray-500">
+                                Your signature will be securely stored and
+                                automatically loaded for future contracts
+                              </p>
+                              {!localSignature && saveSignatureForFuture && (
+                                <p className="text-xs text-amber-600 mt-1">
+                                  Please create a signature first to enable
+                                  saving
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+
+                    <div className="flex gap-3 pt-4 border-t">
+                      <Button
+                        onClick={handleCancel}
+                        variant="outline"
+                        size="lg"
+                        className="flex-1"
+                        disabled={saving || isFormLocked}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleUpdateContract}
+                        size="lg"
+                        className="flex-1 bg-[#2b825b] text-white hover:bg-[#1e5d42]"
+                        disabled={
+                          saving || isFormLocked || isSigned
+                        }
+                      >
+                        {saving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Update Contract
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="preview">
+                    <PreviewTab
+                      contractTitle={form.contractTitle}
+                      contractContent={form.contractContent}
+                      contractDate={form.contractDate}
+                      receiverName={form.receiverName}
+                      receiverEmail={form.receiverEmail}
+                      receiverPhone={form.receiverPhone}
+                      attachments={attachments}
+                      setActiveTab={setActiveTab}
+                      includeLawyerSignature={includeLawyerSignature}
+                      onIncludeLawyerChange={setIncludeLawyerSignature}
+                      creatorName={creatorName}
+                      onCreatorNameChange={setCreatorName}
+                      creatorSignature={localSignature || creatorSignature}
+                      localCreatorName={localCreatorName}
+                      setLocalCreatorName={setLocalCreatorName}
+                      disabled={isFormLocked || isSigned}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </Card>
+            </div>
           </div>
         </div>
       </div>

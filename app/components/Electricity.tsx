@@ -1,3 +1,4 @@
+// ElectricityBills.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,7 +12,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-
 import {
   Select,
   SelectContent,
@@ -47,6 +47,7 @@ export default function ElectricityBills() {
   const [meterType, setMeterType] = useState("");
   const [pin, setPin] = useState(Array(inputCount).fill(""));
   const [isOpen, setIsOpen] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<any | null>(null);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
@@ -68,7 +69,6 @@ export default function ElectricityBills() {
     if (!amt) return "Amount is required";
     if (amt < 1000) return "Minimum amount is ₦1000";
     if (amt > 50000) return "Maximum amount is ₦50,000";
-
     return "";
   };
 
@@ -122,54 +122,28 @@ export default function ElectricityBills() {
       newErrors.meterType = "Please select a meter type";
     }
 
-    if (pin.length != 4) newErrors.pin = "Pin must be 4 digits";
-
-    if (!pin) newErrors.pin = "Please enter transaction pin";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handlePayment = async () => {
-    // Step 1: Validate form
+  const handlePayment = async (pinCode: string) => {
     if (!validateForm()) return;
 
-    // Step 2: Ensure critical selections exist
     if (!selectedProvider?.id) {
-      Swal.fire({
-        icon: "error",
-        title: "Missing Information",
-        text: "Please ensure you've selected a provider",
-        confirmButtonColor: "#dc2626",
-      });
-      return;
+      throw new Error("Please ensure you've selected a provider");
     }
 
-    // Step 3: Ensure userInfo exists
     if (!userInfo) {
-      Swal.fire({
-        icon: "error",
-        title: "Missing Customer Info",
-        text: "Please validate your meter number before proceeding.",
-        confirmButtonColor: "#dc2626",
-      });
-      return;
+      throw new Error("Please validate your meter number before proceeding");
     }
 
-    // Step 4: Validate amount
     if (!amount || isNaN(Number(amount))) {
-      Swal.fire({
-        icon: "error",
-        title: "Invalid Amount",
-        text: "Amount must be a valid number.",
-        confirmButtonColor: "#dc2626",
-      });
-      return;
+      throw new Error("Amount must be a valid number");
     }
 
-    // Step 5: Build payload
     const payload = {
       disco: selectedProvider.id,
-      pin,
+      pin: pinCode,
       customerId: userInfo.meterNumber,
       meterType: userInfo.meterType.toLowerCase(),
       amount: Number(amount),
@@ -177,9 +151,6 @@ export default function ElectricityBills() {
       merchantTxRef: `power-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     };
 
-    console.log("📦 Purchase payload:", payload);
-
-    // Step 6: Make the request
     try {
       setLoading3(true);
 
@@ -191,7 +162,9 @@ export default function ElectricityBills() {
 
       const data = await response.json();
 
-      if (!response.ok) throw data;
+      if (!response.ok) {
+        throw new Error(data.message || "Transaction failed");
+      }
 
       if (data.zidCoinBalance !== undefined) {
         setUserData((prev: any) => {
@@ -201,29 +174,26 @@ export default function ElectricityBills() {
         });
       }
 
-      Swal.fire({
-        icon: "success",
-        title: "Power Purchase Successful",
-        confirmButtonColor: "#0f172a",
-      }).then(() => {
-        window.location.reload();
-      });
+      setIsOpen(false);
 
-      // Clear form
       setPin(Array(inputCount).fill(""));
       setSelectedProvider(null);
       setSelectedPlan(null);
       setAmount(null);
       setUserInfo(null);
-    } catch (error: any) {
+      setMeterNumber("");
+      setMeterType("");
+
       Swal.fire({
-        icon: "error",
-        title: "Power Purchase Failed",
-        html: `<strong>${
-          error.message || "Something went wrong"
-        }</strong><br/><small>${error.detail || ""}</small>`,
-        confirmButtonColor: "#dc2626",
+        icon: "success",
+        title: "Power Purchase Successful",
+        confirmButtonColor: "#0f172a",
       });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Purchase error:", error);
+      throw error;
     } finally {
       setLoading3(false);
     }
@@ -235,8 +205,7 @@ export default function ElectricityBills() {
       const response = await fetch("/api/electricity-providers");
       const data = await response.json();
 
-      if (!response.ok)
-        throw new Error(data.error || "Failed to fetch providers");
+      if (!response.ok) throw new Error(data.error || "Failed to fetch providers");
 
       const prefixLogos: Record<string, string> = {
         ikedc: "/disco-img/ikeja.png",
@@ -251,13 +220,11 @@ export default function ElectricityBills() {
         yedc: "/disco-img/yola.png",
       };
 
-      // Merge logos into the providers with proper fallback
       const enrichedProviders = data.data.map((provider: any) => ({
         ...provider,
         logo: prefixLogos[provider.id] || "/disco-img/default.png",
       }));
 
-      console.log("Enriched providers:", enrichedProviders);
       setPowerProviders(enrichedProviders);
     } catch (error: any) {
       console.error("Fetch error:", error.message);
@@ -285,7 +252,6 @@ export default function ElectricityBills() {
       return;
     }
 
-    // ✅ Check cache first
     if (validatedMeters[meterNumber]) {
       setUserInfo(validatedMeters[meterNumber]);
       setIsVerified(true);
@@ -308,20 +274,16 @@ export default function ElectricityBills() {
 
       if (!response.ok) throw new Error(data?.error || "Validation failed");
 
-      // Success
       setUserInfo(data.data);
       setIsVerified(true);
       setErrors({});
       setValidatedMeters((prev) => ({ ...prev, [meterNumber]: data }));
-      console.log("✅ Meter validation:", data);
     } catch (err: any) {
       setIsVerified(false);
       setUserInfo(null);
       setErrors({
-        meterNumber:
-          "Meter number validation failed. Please check and try again.",
+        meterNumber: "Meter number validation failed. Please check and try again.",
       });
-      console.error("❌ Validation failed:", err.message);
     } finally {
       setLoading2(false);
     }
@@ -331,48 +293,60 @@ export default function ElectricityBills() {
     getPowerProviders();
   }, []);
 
-  // 0209227217814
-
   return (
-    <div className="space-y-6 md:max-w-5xl md:mx-auto pointer-events-none opacity-50">
-      {/* <div className="space-y-6 md:max-w-5xl md:mx-auto"> */}
-      {/* Header */}
+    <div className="space-y-6 md:max-w-5xl md:mx-auto opacity-50 pointer-events-none select-none relative">
+      {/* Disabled Overlay */}
+      <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center rounded-lg">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center max-w-md">
+          <Zap className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Coming Soon</h2>
+          <p className="text-gray-600">
+            Electricity bill payment service is currently under development. 
+            Please check back later.
+          </p>
+        </div>
+      </div>
+
       <PinPopOver
         setIsOpen={setIsOpen}
         isOpen={isOpen}
         pin={pin}
         setPin={setPin}
         inputCount={inputCount}
-        onConfirm={() => {
-          handlePayment();
+        onConfirm={async (pinCode) => {
+          try {
+            setPinError(null);
+            await handlePayment(pinCode);
+          } catch (error: any) {
+            setPinError(error.message || "Transaction failed. Please try again.");
+            throw error;
+          }
         }}
+        error={pinError}
+        onClearError={() => setPinError(null)}
       />
 
-      <div className="flex items-start  space-x-4">
+      <div className="flex items-start space-x-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+          className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           <span className="hidden md:block">Back</span>
         </Button>
 
         <div className="">
-          <h1 className="md:text-3xl text-xl font-bold mb-2">
-            Pay Electricity Bills
-          </h1>
-          <p className=" text-muted-foreground">
+          <h1 className="md:text-3xl text-xl font-bold mb-2">Pay Electricity Bills</h1>
+          <p className="text-muted-foreground">
             Pay your electricity bills instantly across all DISCOs in Nigeria
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Payment Form */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Provider Selection */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -383,7 +357,6 @@ export default function ElectricityBills() {
 
             <CardContent>
               {loading ? (
-                // 🔄 Loading skeleton (while fetching)
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[1, 2, 3, 4].map((i) => (
                     <div
@@ -406,7 +379,7 @@ export default function ElectricityBills() {
                         onClick={() => setSelectedProvider(provider)}
                         className={`relative p-4 border-2 rounded-md transition-all duration-200 cursor-pointer ${
                           isSelected
-                            ? "bg-gray-100 border-[#C29307] text-gray-900 shadow-md"
+                            ? "bg-gray-100 border-[#2b825b] text-gray-900 shadow-md"
                             : "bg-white border-gray-200 hover:border-gray-300"
                         }`}
                       >
@@ -425,7 +398,7 @@ export default function ElectricityBills() {
                         </div>
                         {isSelected && (
                           <div className="absolute -top-2 -right-2">
-                            <div className="w-6 h-6 bg-[#C29307] rounded-full flex items-center justify-center">
+                            <div className="w-6 h-6 bg-[#2b825b] rounded-full flex items-center justify-center">
                               <Check className="w-4 h-4 text-white" />
                             </div>
                           </div>
@@ -445,7 +418,6 @@ export default function ElectricityBills() {
             </CardContent>
           </Card>
 
-          {/* Meter Details */}
           {selectedProvider && (
             <Card>
               <CardHeader>
@@ -490,12 +462,8 @@ export default function ElectricityBills() {
                         type="text"
                         placeholder="Enter meter number"
                         value={meterNumber}
-                        onChange={(e) =>
-                          handleMeterNumberChange(e.target.value)
-                        }
-                        className={
-                          errors.meterNumber ? "border-destructive" : ""
-                        }
+                        onChange={(e) => handleMeterNumberChange(e.target.value)}
+                        className={errors.meterNumber ? "border-destructive" : ""}
                         onBlur={validateMeterNumber}
                         maxLength={13}
                       />
@@ -528,7 +496,6 @@ export default function ElectricityBills() {
             </Card>
           )}
 
-          {/* Amount Selection */}
           <Card>
             <CardHeader>
               <CardTitle>Select Amount</CardTitle>
@@ -542,18 +509,16 @@ export default function ElectricityBills() {
                     className={`relative p-4 border-2 rounded-lg cursor-pointer transition-all duration-200
                             ${
                               selectedAmount === amount.value && !isCustomAmount
-                                ? "border-[#C29307] bg-blue-50 text-[#C29307]"
+                                ? "border-[#2b825b] bg-blue-50 text-[#2b825b]"
                                 : "border-gray-100 hover:border-gray-200"
                             }`}
                   >
                     <div className="text-center">
-                      <p className="font-bold">
-                        ₦{amount.value.toLocaleString()}
-                      </p>
+                      <p className="font-bold">₦{amount.value.toLocaleString()}</p>
                     </div>
                     {selectedAmount === amount.value && !isCustomAmount && (
                       <div className="absolute -top-2 -right-2">
-                        <div className="w-6 h-6 bg-[#C29307] rounded-full flex items-center justify-center">
+                        <div className="w-6 h-6 bg-[#2b825b] rounded-full flex items-center justify-center">
                           <Check className="w-4 h-4 text-white" />
                         </div>
                       </div>
@@ -562,7 +527,6 @@ export default function ElectricityBills() {
                 ))}
               </div>
 
-              {/* Custom Amount */}
               <div className="border-t pt-4">
                 <Label htmlFor="customAmount">Or Enter Amount</Label>
                 <div className="relative">
@@ -588,33 +552,8 @@ export default function ElectricityBills() {
               )}
             </CardContent>
           </Card>
-
-          {/* Pin Input */}
-          {/* <div className="border-t pt-4">
-            <Label htmlFor="pin">Transaction Pin</Label>
-
-            <Input
-              id="pin"
-              type="password"
-              inputMode="numeric"
-              pattern="\d*"
-              placeholder="Enter Pin here.."
-              value={pin}
-              maxLength={4}
-              onChange={(e) => setPin(e.target.value)}
-              className={` ${errors.pin ? "border-red-500" : ""}`}
-            />
-          </div>
-
-          {errors.pin && (
-            <div className="flex items-center gap-2 text-red-600">
-              <AlertCircle className="w-4 h-4" />
-              <span className="text-sm">{errors.pin}</span>
-            </div>
-          )} */}
         </div>
 
-        {/* Payment Summary */}
         <div className="lg:col-span-1">
           <ElectricityCustomerCard
             customerName={userInfo || ""}

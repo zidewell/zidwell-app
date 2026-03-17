@@ -55,7 +55,7 @@ export default function BalanceCard() {
   // Protected navigation handlers
   const handleAddMoney = () => {
     const isVerified = userData?.bvnVerification === "verified";
-    
+
     if (!isVerified) {
       openVerificationModal();
     } else {
@@ -65,7 +65,7 @@ export default function BalanceCard() {
 
   const handleTransferCash = () => {
     const isVerified = userData?.bvnVerification === "verified";
-    
+
     if (!isVerified) {
       openVerificationModal();
     } else {
@@ -134,14 +134,14 @@ export default function BalanceCard() {
           <div className="flex items-center justify-center md:space-x-4 space-x-2 pt-4">
             <Button
               onClick={handleAddMoney}
-              className={`bg-[#C29307] hover:bg-[#C29307] text-white md:px-8 md:py-3 ${
+              className={`bg-[#2b825b] hover:bg-[#2b825b] text-white md:px-8 md:py-3 ${
                 !isVerified ? "relative overflow-hidden" : ""
               }`}
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Money
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={handleTransferCash}
@@ -153,8 +153,6 @@ export default function BalanceCard() {
               Transfer Cash
             </Button>
           </div>
-
-     
 
           {userData?.referralCode && (
             <div className="bg-gray-100 p-4 rounded-lg text-center ">
@@ -168,10 +166,7 @@ export default function BalanceCard() {
                   value={referralLink}
                   className="border border-gray-300 rounded px-3 py-2 text-sm w-full max-w-xs"
                 />
-                <Button
-                  variant="outline"
-                  onClick={handleCopyReferral}
-                >
+                <Button variant="outline" onClick={handleCopyReferral}>
                   {copyText ? "copied" : <Copy className="w-4 h-4" />}
                 </Button>
               </div>

@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect } from "react";
 import { CheckCircle2, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -19,7 +21,6 @@ export const PaymentSuccessModal = ({
 }: PaymentSuccessModalProps) => {
   useEffect(() => {
     if (open) {
-      // Trigger confetti animation
       const duration = 3000;
       const animationEnd = Date.now() + duration;
       const defaults = {
@@ -54,7 +55,6 @@ export const PaymentSuccessModal = ({
         // });
       }, 250);
 
-      // Redirect after 4 seconds if redirectUrl is provided
       if (redirectUrl) {
         const redirectTimer = setTimeout(() => {
           window.location.href = redirectUrl;
@@ -72,38 +72,38 @@ export const PaymentSuccessModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md bg-white dark:bg-gray-900 border-border dark:border-gray-800">
         <DialogHeader className="text-center items-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success/10">
-            <CheckCircle2 className="h-10 w-10 text-success" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success/10 dark:bg-green-900/30">
+            <CheckCircle2 className="h-10 w-10 text-success dark:text-green-400" />
           </div>
-          <DialogTitle className="text-2xl">Payment Successful!</DialogTitle>
+          <DialogTitle className="text-2xl text-foreground dark:text-gray-100">Payment Successful!</DialogTitle>
         </DialogHeader>
 
         <div className="text-center space-y-4">
           <div>
-            <p className="text-muted-foreground mb-2">Amount Paid</p>
-            <p className="text-3xl font-bold text-gold">
+            <p className="text-muted-foreground dark:text-gray-400 mb-2">Amount Paid</p>
+            <p className="text-3xl font-bold text-[#2b825b] dark:text-[#2b825b]">
               ₦{amount.toLocaleString()}
             </p>
           </div>
 
-          <div className="bg-muted/50 rounded-lg p-4 text-sm">
-            <p className="text-muted-foreground">
+          <div className="bg-muted/50 dark:bg-gray-800 rounded-lg p-4 text-sm">
+            <p className="text-muted-foreground dark:text-gray-400">
               Your payment has been processed successfully. The business has
               been notified.
             </p>
           </div>
 
           <div className="pt-4 space-y-2">
-            <Button className="w-full">
+            <Button className="w-full bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42] text-white">
               <Download className="mr-2 h-4 w-4" />
               Download Receipt
             </Button>
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="w-full"
+              className="w-full border-border dark:border-gray-700 text-foreground dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Close
             </Button>

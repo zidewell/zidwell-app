@@ -16,7 +16,7 @@ const SmartContractHero: React.FC = () => {
         <div className="mx-auto max-w-3xl">
           <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight">
             Smart Contracts
-            <span className="block text-[#C29307]">Made Simple</span>
+            <span className="block text-[#2b825b]">Made Simple</span>
           </h1>
 
           <p className="mt-4 text-gray-600">
@@ -33,9 +33,9 @@ const SmartContractHero: React.FC = () => {
               Create Contract Now
             </ButtonPrimary>
 
-            <a href="#contract-pricing">
+            {/* <a href="#contract-pricing">
               <Button variant="outline">View Pricing</Button>
-            </a>
+            </a> */}
           </div>
         </div>
       </div>

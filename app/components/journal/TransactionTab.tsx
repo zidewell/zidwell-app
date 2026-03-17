@@ -235,14 +235,14 @@ export function TransactionsTab() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-[#C29307]/10">
-              <Wallet className="h-5 w-5 text-[#C29307]" />
+            <div className="p-2 rounded-xl bg-[#2b825b]/10">
+              <Wallet className="h-5 w-5 text-[#2b825b]" />
             </div>
             <div>
-              <h3 className="font-medium" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              <h3 className="font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
                 Wallet Transactions
               </h3>
-              <p className="text-sm text-[#e11d48]">
+              <p className="text-sm text-[#e11d48] dark:text-red-400">
                 Error loading transactions
               </p>
             </div>
@@ -250,9 +250,10 @@ export function TransactionsTab() {
           <Button
             onClick={() => window.location.reload()}
             size="sm"
+            className="dark:bg-[#2b825b] dark:hover:bg-[#1e5f43]"
             style={{
-              backgroundColor: '#C29307',
-              color: '#26121c'
+              backgroundColor: '#2b825b',
+              color: '#ffffff'
             }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -268,7 +269,7 @@ export function TransactionsTab() {
       {/* Success Message */}
       {successMessage && (
         <div 
-          className="p-4 rounded-xl border animate-in fade-in slide-in-from-top-2"
+          className="p-4 rounded-xl border animate-in fade-in slide-in-from-top-2 dark:bg-gray-800"
           style={{
             backgroundColor: addedType === 'income' ? 'rgba(22, 163, 74, 0.1)' : 'rgba(225, 29, 72, 0.1)',
             borderColor: addedType === 'income' ? '#16a34a' : '#e11d48',
@@ -279,7 +280,7 @@ export function TransactionsTab() {
             <CheckCircle2 className="h-5 w-5" />
             <span className="font-medium">{successMessage}</span>
           </div>
-          <p className="text-xs mt-1 text-gray-600">
+          <p className="text-xs mt-1 text-gray-600 dark:text-gray-400">
             Added to your {activeJournalType} journal
           </p>
         </div>
@@ -288,22 +289,22 @@ export function TransactionsTab() {
       {/* Header - Exact match from mock */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-[#C29307]/10">
-            <Wallet className="h-5 w-5 text-[#C29307]" />
+          <div className="p-2 rounded-xl bg-[#2b825b]/10">
+            <Wallet className="h-5 w-5 text-[#2b825b]" />
           </div>
           <div>
-            <h3 className="font-medium" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            <h3 className="font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
               Wallet Transactions
             </h3>
-            <p className="text-sm text-[#80746e]">
+            <p className="text-sm dark:text-gray-400" style={{ color: '#80746e' }}>
               Add transactions to your {activeJournalType} journal
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-[#f5f1ea]">
-            <span className="text-xs font-medium text-[#80746e]">
-              Journal: <span className="text-[#C29307]">{activeJournalType}</span>
+          <div className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-[#f5f1ea] dark:bg-gray-700">
+            <span className="text-xs font-medium text-[#80746e] dark:text-gray-400">
+              Journal: <span className="text-[#2b825b] dark:text-[#3aa873]">{activeJournalType}</span>
             </span>
           </div>
           <Button
@@ -322,6 +323,7 @@ export function TransactionsTab() {
                 setLoading(false);
               }
             }}
+            className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
             style={{
               borderColor: '#e6dfd6',
               color: '#80746e',
@@ -337,21 +339,21 @@ export function TransactionsTab() {
       {/* Loading State */}
       {loading ? (
         <div className="h-64 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#C29307]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#2b825b] dark:text-[#3aa873]" />
         </div>
       ) : allTransactions.length === 0 ? (
         <div 
-          className="p-8 rounded-2xl text-center border"
+          className="p-8 rounded-2xl text-center border dark:bg-gray-800 dark:border-gray-700"
           style={{
             backgroundColor: '#fcfbf9',
             borderColor: '#e6dfd6'
           }}
         >
           <Wallet className="h-12 w-12 mx-auto mb-4" style={{ color: '#e6dfd6' }} />
-          <h4 className="font-medium mb-2" style={{ color: '#26121c' }}>
+          <h4 className="font-medium mb-2 dark:text-gray-300" style={{ color: '#26121c' }}>
             No Completed Transactions
           </h4>
-          <p style={{ color: '#80746e' }}>
+          <p className="dark:text-gray-400" style={{ color: '#80746e' }}>
             Your successful wallet transactions will appear here.
           </p>
         </div>
@@ -359,20 +361,20 @@ export function TransactionsTab() {
         <>
           {/* Transactions List - Exact match from mock */}
           <div 
-            className="rounded-2xl border overflow-hidden"
+            className="rounded-2xl border overflow-hidden dark:bg-gray-800 dark:border-gray-700"
             style={{
               backgroundColor: 'rgba(252, 251, 249, 0.5)',
               borderColor: '#e6dfd6'
             }}
           >
-            <div className="divide-y" style={{ borderColor: '#e6dfd6' }}>
+            <div className="divide-y dark:divide-gray-700" style={{ borderColor: '#e6dfd6' }}>
               {allTransactions.map((transaction) => {
                 const isCredit = inflowTypes.includes(transaction.type?.toLowerCase());
                 
                 return (
                   <div
                     key={transaction.id}
-                    className="flex items-center gap-4 p-4 hover:bg-[#f5f1ea]/50 transition-colors group"
+                    className="flex items-center gap-4 p-4 hover:bg-[#f5f1ea]/50 dark:hover:bg-gray-700 transition-colors group"
                   >
                     <div 
                       className={cn(
@@ -390,10 +392,10 @@ export function TransactionsTab() {
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate" style={{ color: '#26121c' }}>
+                      <p className="font-medium truncate dark:text-gray-300" style={{ color: '#26121c' }}>
                         {transaction.description || `${transaction.type} transaction`}
                       </p>
-                      <div className="flex items-center gap-2 text-xs" style={{ color: '#80746e' }}>
+                      <div className="flex items-center gap-2 text-xs dark:text-gray-400" style={{ color: '#80746e' }}>
                         <span>{format(new Date(transaction.created_at), 'MMM d, yyyy')}</span>
                         {transaction.reference && (
                           <>
@@ -401,7 +403,7 @@ export function TransactionsTab() {
                             <span className="truncate max-w-[100px]">{transaction.reference}</span>
                           </>
                         )}
-                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700">
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                           {transaction.status}
                         </span>
                       </div>
@@ -422,7 +424,7 @@ export function TransactionsTab() {
                       variant="outline"
                       size="sm"
                       onClick={() => openAddDialog(transaction)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                       style={{
                         borderColor: '#e6dfd6',
                         backgroundColor: '#fcfbf9',
@@ -445,7 +447,7 @@ export function TransactionsTab() {
                 variant="outline"
                 onClick={handleLoadMore}
                 disabled={isLoadingMore}
-                className="px-8"
+                className="px-8 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                 style={{
                   borderColor: '#e6dfd6',
                   color: '#80746e',
@@ -464,7 +466,7 @@ export function TransactionsTab() {
                   </>
                 )}
               </Button>
-              <p className="text-sm mt-2" style={{ color: '#80746e' }}>
+              <p className="text-sm mt-2 dark:text-gray-400" style={{ color: '#80746e' }}>
                 Showing {allTransactions.length} transactions
                 {hasMore && " (More available)"}
               </p>
@@ -473,11 +475,11 @@ export function TransactionsTab() {
 
           {/* No More Transactions Message */}
           {!hasMore && allTransactions.length > 0 && (
-            <div className="text-center mt-6 pt-6 border-t" style={{ borderColor: '#e6dfd6' }}>
-              <p className="text-sm" style={{ color: '#80746e' }}>
+            <div className="text-center mt-6 pt-6 border-t dark:border-gray-700" style={{ borderColor: '#e6dfd6' }}>
+              <p className="text-sm dark:text-gray-400" style={{ color: '#80746e' }}>
                 You've reached the end of your transaction history
               </p>
-              <p className="text-xs mt-1" style={{ color: '#80746e' }}>
+              <p className="text-xs mt-1 dark:text-gray-400" style={{ color: '#80746e' }}>
                 Total loaded: {allTransactions.length} transactions
               </p>
             </div>
@@ -488,7 +490,7 @@ export function TransactionsTab() {
       {/* Add to Journal Dialog - Exact match from mock */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent 
-          className="sm:max-w-md"
+          className="sm:max-w-md dark:bg-gray-800 dark:border-gray-700"
           style={{
             backgroundColor: '#fcfbf9',
             borderColor: '#e6dfd6'
@@ -496,7 +498,7 @@ export function TransactionsTab() {
         >
           <DialogHeader>
             <DialogTitle 
-              className="text-xl"
+              className="text-xl dark:text-gray-100"
               style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
             >
               Add to {selectedTransaction && (() => {
@@ -510,10 +512,10 @@ export function TransactionsTab() {
             <div className="space-y-5 mt-4">
               {/* Transaction Summary */}
               <div 
-                className="p-4 rounded-xl"
+                className="p-4 rounded-xl dark:bg-gray-700"
                 style={{ backgroundColor: '#f5f1ea' }}
               >
-                <p className="font-medium" style={{ color: '#26121c' }}>
+                <p className="font-medium dark:text-gray-300" style={{ color: '#26121c' }}>
                   {selectedTransaction.description || 'Wallet Transaction'}
                 </p>
                 <p 
@@ -527,14 +529,14 @@ export function TransactionsTab() {
                   {inflowTypes.includes(selectedTransaction.type?.toLowerCase()) ? '+' : '-'}
                   {formatCurrency(selectedTransaction.amount)}
                 </p>
-                <p className="text-sm mt-1" style={{ color: '#80746e' }}>
+                <p className="text-sm mt-1 dark:text-gray-400" style={{ color: '#80746e' }}>
                   {format(new Date(selectedTransaction.created_at), 'MMMM d, yyyy')}
                 </p>
               </div>
 
               {/* Category Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium" style={{ color: '#80746e' }}>
+                <label className="text-sm font-medium dark:text-gray-300" style={{ color: '#80746e' }}>
                   Select Category
                 </label>
                 <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
@@ -547,13 +549,13 @@ export function TransactionsTab() {
                         'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center'
                       )}
                       style={{
-                        borderColor: selectedCategory === cat.id ? '#C29307' : '#e6dfd6',
-                        backgroundColor: selectedCategory === cat.id ? 'rgba(194, 147, 7, 0.1)' : '#fcfbf9',
+                        borderColor: selectedCategory === cat.id ? '#2b825b' : '#e6dfd6',
+                        backgroundColor: selectedCategory === cat.id ? 'rgba(43, 130, 91, 0.1)' : '#fcfbf9',
                         boxShadow: selectedCategory === cat.id ? '0 2px 20px -4px rgba(38,33,28,0.08)' : 'none'
                       }}
                     >
-                      <span className="text-2xl">{cat.icon}</span>
-                      <span className="text-xs font-medium truncate w-full" style={{ color: '#26121c' }}>
+                      <span className="text-2xl dark:text-gray-300">{cat.icon}</span>
+                      <span className="text-xs font-medium truncate w-full dark:text-gray-300" style={{ color: '#26121c' }}>
                         {cat.name}
                       </span>
                     </button>
@@ -574,11 +576,11 @@ export function TransactionsTab() {
                 style={{
                   background: !selectedCategory || addingToJournal 
                     ? '#e6dfd6' 
-                    : 'linear-gradient(135deg, #C29307 0%, #eab308 100%)',
-                  color: !selectedCategory || addingToJournal ? '#80746e' : '#26121c',
+                    : '#2b825b',
+                  color: !selectedCategory || addingToJournal ? '#80746e' : '#ffffff',
                   boxShadow: !selectedCategory || addingToJournal 
                     ? 'none' 
-                    : '0 4px 20px -4px rgba(194, 147, 7, 0.3)',
+                    : '0 4px 20px -4px rgba(43, 130, 91, 0.3)',
                   border: 'none'
                 }}
               >

@@ -1,109 +1,127 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Sparkles, Crown, Zap, Star, ArrowRight } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { useSubscription } from "../hooks/useSubscripion"; 
+import {
+  Check,
+  Sparkles,
+  Crown,
+  Zap,
+  Star,
+  ArrowRight,
+  Loader2,
+  ArrowLeft,
+} from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SubscriptionBadge } from "../components/subscription-components/subscriptionBadges"; 
-import Link from "next/link";
+import { useSubscription } from "../hooks/useSubscripion";
+import { useUserContextData } from "../context/userData";
+import { SubscriptionBadge } from "../components/subscription-components/subscriptionBadges";
+import Footer from "../components/Footer";
+import { Button2 } from "../components/ui/button2";
+import Header from "../components/Header";
 
 const plans = [
   {
-    name: "Free",
+    name: "Free Trial",
     tier: "free",
     price: "₦0",
     period: "/month",
-    description: "For freelancers & early-stage businesses",
     icon: Star,
-    iconColor: "text-gray-600",
-    iconBg: "bg-gray-100",
+    description: "To Test if Zidwell is Right for You",
     features: [
-      "Unlimited money transfers at N50 per transfer",
+      "Unlimited transfers at N50 each",
       "Bookkeeping - 2 weeks free trial",
-      "5 Invoices per month",
-      "5 Receipts per month",
-      "1 Contract per month",
-      "Email support",
+      "Tax Calculator - 2 weeks free trial",
+      "5 Invoices total",
+      "5 Receipts total",
+      "1 Contract total",
+      "Basic support",
     ],
-    cta: "Get Started",
-    ctaLink: "/dashboard",
-    highlight: false,
-    borderColor: "border-gray-200",
-    bgColor: "bg-white",
-    textColor: "text-gray-900",
-    priceId: "free",
+    cta: "Start Free",
+    amount: 0,
+    color: "gray",
+  },
+  {
+    name: "ZidLite",
+    tier: "zidlite",
+    price: "₦4,900",
+    period: "/month",
+    yearlyPrice: "₦49,000/year (save ₦9,800)",
+    icon: Zap,
+    description:
+      "For businesses that want to test what finance automation looks like",
+    features: [
+      "Everything in Free Trial, plus:",
+      "Unlimited transfers at N50 each",
+      "Bookkeeping - 2 weeks free trial",
+      "Tax Calculator - 2 weeks free trial",
+      "10 Invoices total",
+      "10 Receipts total",
+      "2 Contracts total",
+      "WhatsApp Community access",
+      "WhatsApp support",
+    ],
+    cta: "Go ZidLite",
+    // amount: 4900,
+    amount: 100,
+    yearlyAmount: 49000,
+    color: "blue",
   },
   {
     name: "Growth",
     tier: "growth",
-    price: "₦10,000",
+    price: "₦9,900",
     period: "/month",
-    yearlyPrice: "₦100,000/year",
-    yearlySavings: "Save ₦20,000",
-    description: "For growing businesses that want structure without stress",
+    yearlyPrice: "₦99,000/year (save ₦19,800)",
     icon: Zap,
-    iconColor: "text-blue-600",
-    iconBg: "bg-blue-100",
+    description: "For growing businesses that want structure without stress",
     features: [
-      "Everything in Free, plus:",
+      "Everything in ZidLite, plus:",
       "Unlimited Invoices",
       "Unlimited Receipts",
-      "5 Contracts per month",
+      "5 Contracts total",
       "Bookkeeping tool",
       "Tax Calculator",
-      "Invoice Payment Reminders",
-      "Access to WhatsApp Business Community",
+      "WhatsApp Community access",
       "WhatsApp support",
     ],
     cta: "Go Growth",
-    ctaLink: "/api/payments/growth",
-    highlight: false,
-    borderColor: "border-blue-200",
-    bgColor: "bg-white",
-    textColor: "text-gray-900",
-    priceId: "price_growth_monthly",
-    yearlyPriceId: "price_growth_yearly",
+    highlight: true,
+    // amount: 9900,
+    amount: 100,
+    yearlyAmount: 99000,
+    color: "green",
   },
   {
     name: "Premium",
     tier: "premium",
-    price: "₦50,000",
+    price: "₦49,900",
     period: "/month",
-    yearlyPrice: "₦500,000/year",
-    yearlySavings: "Save ₦100,000",
-    description: "Best for founders and CEOs who want to move the burden of financial management",
+    yearlyPrice: "₦499,000/year (save ₦99,800)",
     icon: Crown,
-    iconColor: "text-[#C29307]",
-    iconBg: "bg-[#C29307]/10",
+    description: "Best for: founders and CEOs who want hands-on help",
     features: [
       "Everything in Growth, plus:",
+      "Invoice Payment Reminders",
       "Unlimited contracts",
       "Financial Statement Preparation",
       "Tax Calculation Support",
       "Tax filing support",
       "Priority support",
-      "Lawyer signatures (₦10,000)",
     ],
     cta: "Upgrade to Premium",
-    ctaLink: "/api/payments/premium",
-    highlight: true,
-    borderColor: "border-[#C29307]",
-    bgColor: "bg-[#C29307]/5",
-    textColor: "text-gray-900",
-    priceId: "price_premium_monthly",
-    yearlyPriceId: "price_premium_yearly",
+    // amount: 49900,
+    amount: 100,
+    yearlyAmount: 499000,
+    color: "amber",
   },
   {
     name: "Elite",
     tier: "elite",
     price: "₦100,000+",
     period: "/month",
-    yearlyPrice: "Custom pricing",
-    description: "For established businesses & founders needing full financial management",
+    yearlyPrice: "Customized price",
     icon: Sparkles,
-    iconColor: "text-purple-600",
-    iconBg: "bg-purple-100",
+    description: "For established businesses & founders that need tax support",
     features: [
       "Everything in Premium, plus:",
       "Full Tax Filing Support",
@@ -118,425 +136,535 @@ const plans = [
       "Annual Audit Coordination",
     ],
     cta: "Contact Us",
-    ctaLink: "/contact",
-    highlight: false,
-    borderColor: "border-purple-200",
-    bgColor: "bg-white",
-    textColor: "text-gray-900",
-    priceId: "elite",
+    // amount: 100000,
+    amount: 100,
+    color: "purple",
   },
 ];
 
 export default function PricingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { subscription, subscribe, loading, userTier } = useSubscription();
-  const [selectedBilling, setSelectedBilling] = useState<'monthly' | 'yearly'>('monthly');
+  const { subscription, loading, checkTrialStatus, activateTrial } =
+    useSubscription();
+  const { userData } = useUserContextData();
+
+  const [selectedBilling, setSelectedBilling] = useState<"monthly" | "yearly">(
+    "monthly",
+  );
   const [processingTier, setProcessingTier] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
+  const [taxCalculatorTrial, setTaxCalculatorTrial] = useState<any>(null);
 
-  const upgradeParam = searchParams?.get('upgrade');
-  const billingParam = searchParams?.get('billing') as 'monthly' | 'yearly' | null;
+  const upgradeParam = searchParams?.get("upgrade");
 
-  // Set billing from URL param if provided
+  // Check for payment status from URL
   useEffect(() => {
-    if (billingParam) {
-      setSelectedBilling(billingParam);
+    const paymentStatus = searchParams?.get("payment");
+    if (paymentStatus === "success") {
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 5000);
+    } else if (paymentStatus === "failed") {
+      setError("Payment failed. Please try again.");
+      setTimeout(() => setError(null), 5000);
     }
-  }, [billingParam]);
+  }, [searchParams]);
+
+  // Check trial status for free users
+  useEffect(() => {
+    if (subscription?.tier === "free") {
+      checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
+      checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
+    }
+  }, [subscription?.tier, checkTrialStatus]);
 
   // Scroll to highlighted plan if upgrade param exists
   useEffect(() => {
-    if (upgradeParam) {
-      const element = document.getElementById(`plan-${upgradeParam}`);
+    if (upgradeParam && plans.some((p) => p.tier === upgradeParam)) {
+      const element = document.getElementById("pricing");
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.scrollIntoView({ behavior: "smooth" });
       }
     }
   }, [upgradeParam]);
 
-  const handleSubscribe = async (plan: typeof plans[0]) => {
-    if (plan.tier === 'free') {
-      router.push('/dashboard');
+  const createNombaCheckout = async (
+    plan: (typeof plans)[0],
+    amount: number,
+  ) => {
+    try {
+      if (!userData?.id) {
+        sessionStorage.setItem("intendedUrl", "/pricing");
+        router.push("/auth/login");
+        return;
+      }
+
+      const orderReference = `SUB_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+      const response = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          planTier: plan.tier,
+          amount,
+          billingPeriod: selectedBilling,
+          userEmail: userData.email,
+          userId: userData.id,
+          orderReference,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Failed to create checkout");
+      }
+
+      sessionStorage.setItem(
+        "pendingOrder",
+        JSON.stringify({
+          orderReference: data.orderReference,
+          planTier: plan.tier,
+          amount,
+          billingPeriod: selectedBilling,
+          timestamp: Date.now(),
+        }),
+      );
+
+      window.location.href = data.checkoutLink;
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      setError(
+        error.message || "Failed to initialize payment. Please try again.",
+      );
+      setProcessingTier(null);
+    }
+  };
+
+  const handleSubscribe = async (plan: (typeof plans)[0]) => {
+    if (plan.tier === "free") {
+      router.push("/dashboard");
       return;
     }
 
-    if (plan.tier === 'elite') {
-      window.location.href = 'mailto:sales@zidwell.com?subject=Elite%20Plan%20Inquiry';
+    if (plan.tier === "elite") {
+      window.location.href =
+        "mailto:sales@zidwell.com?subject=Elite%20Plan%20Inquiry";
+      return;
+    }
+
+    // Check if user is logged in
+    if (!userData?.id) {
+      sessionStorage.setItem("intendedUrl", "/pricing");
+      router.push("/auth/login");
       return;
     }
 
     setProcessingTier(plan.tier);
+    setError(null);
 
     try {
-      // Calculate amount based on billing period
-      const amount = selectedBilling === 'yearly' 
-        ? (plan.tier === 'growth' ? 100000 : 500000)
-        : (plan.tier === 'growth' ? 10000 : 50000);
+      const amount =
+        selectedBilling === "yearly" && plan.yearlyAmount
+          ? plan.yearlyAmount
+          : plan.amount;
 
-      // Generate a unique reference
-      const paymentReference = `SUB_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-      // In production, you would integrate with Paystack/Flutterwave here
-      // For demo, simulate successful payment
-      
-      const result = await subscribe(
-        plan.tier as 'growth' | 'premium' | 'elite',
-        'card',
-        amount,
-        paymentReference,
-        selectedBilling === 'yearly'
-      );
-
-      if (result.success) {
-        setShowSuccess(true);
-        setTimeout(() => {
-          const intendedService = sessionStorage.getItem('intendedUrl');
-          if (intendedService) {
-            sessionStorage.removeItem('intendedUrl');
-            router.push(intendedService);
-          } else {
-            router.push('/dashboard?subscription=success');
-          }
-        }, 2000);
-      } else {
-        alert(`Subscription failed: ${result.error || 'Please try again'}`);
-      }
-    } catch (error) {
-      console.error('Subscription error:', error);
-      alert('An error occurred. Please try again.');
-    } finally {
+      // Directly create checkout WITHOUT creating subscription first
+      // The subscription will be created by the webhook after successful payment
+      await createNombaCheckout(plan, amount);
+    } catch (error: any) {
+      console.error("Subscription error:", error);
+      setError(error.message || "An error occurred. Please try again.");
       setProcessingTier(null);
     }
   };
 
   const isCurrentPlan = (tier: string) => {
-    return subscription?.tier === tier && subscription?.status === 'active';
+    return subscription?.tier === tier && subscription?.status === "active";
+  };
+
+  const handleActivateTrial = async (
+    trialType: "bookkeeping" | "tax_calculator",
+  ) => {
+    try {
+      const featureKey =
+        trialType === "bookkeeping"
+          ? "bookkeeping_access"
+          : "tax_calculator_access";
+      const result = await activateTrial(featureKey, 14);
+      if (result.success) {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 5000);
+        // Refresh trial status
+        if (trialType === "bookkeeping") {
+          checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
+        } else {
+          checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
+        }
+      } else {
+        setError(result.error || "Failed to activate trial");
+      }
+    } catch (error: any) {
+      setError(error.message);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-      {/* Success Toast */}
-      {showSuccess && (
-        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-slideIn">
-          <p className="font-bold">✓ Subscription successful!</p>
-          <p className="text-sm">Redirecting you...</p>
-        </div>
-      )}
-
-      {/* Hero Section */}
-      <div className="pt-20 pb-10 px-4">
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 text-gray-900 dark:text-gray-50">
-            Simple, transparent{" "}
-            <span className="text-[#C29307]">pricing</span>
-          </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto mb-8">
-            Choose the perfect plan for your business. All plans include core features,
-            with advanced tools for growing companies.
-          </p>
-
-          {/* Current Plan Display */}
-          {subscription && subscription.tier !== 'free' && (
-            <div className="inline-flex items-center gap-3 px-4 py-2 bg-[#C29307]/10 rounded-full mb-8">
-              <span className="text-sm text-gray-600 dark:text-gray-300">Current Plan:</span>
-              <SubscriptionBadge />
+    <>
+      <Header />
+      <section
+        id="pricing"
+        className="py-20 md:py-32 bg-gray-100/30 dark:bg-gray-900/30"
+      >
+        <div className="container mx-auto px-4">
+          {/* Success Message */}
+          {showSuccess && (
+            <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-slideIn">
+              <p className="font-bold">
+                ✓{" "}
+                {subscription?.tier === "free"
+                  ? "Trial activated!"
+                  : "Payment successful!"}
+              </p>
+              <p className="text-sm">
+                {subscription?.tier === "free"
+                  ? "Your 14-day trial has started."
+                  : "Your subscription has been activated."}
+              </p>
             </div>
           )}
 
-          {/* Billing Toggle */}
-          <div className="flex items-center justify-center mt-8">
-            <div className="bg-white dark:bg-gray-800 p-1 rounded-full border-2 border-gray-200 dark:border-gray-700 shadow-sm">
+          {/* Error Message */}
+          {error && (
+            <div className="fixed top-4 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg animate-slideIn">
+              <p className="font-bold">✗ Error</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Section Header */}
+          <div className="max-w-3xl mx-auto text-center mb-16">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-gray-900 dark:text-gray-50">
+              Simple plans that <span className="text-[#2b825b]">grow</span>{" "}
+              with you
+            </h2>
+            <p className="text-lg text-gray-500 dark:text-gray-400">
+              We've worked hard to make our pricing as affordable as possible so
+              you can get the best value. Choose the plan that matches your
+              business goals.
+            </p>
+
+            {/* Back Button */}
+            <div className="mt-4">
               <button
-                onClick={() => setSelectedBilling('monthly')}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                  selectedBilling === 'monthly'
-                    ? 'bg-[#C29307] text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
+                onClick={() => router.back()}
+                className="inline-flex items-center gap-2 text-[#2b825b] hover:underline"
               >
-                Monthly
-              </button>
-              <button
-                onClick={() => setSelectedBilling('yearly')}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                  selectedBilling === 'yearly'
-                    ? 'bg-[#C29307] text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-              >
-                Yearly <span className="text-xs ml-1 bg-green-100 text-green-600 px-2 py-0.5 rounded-full">Save 20%</span>
+                <ArrowLeft className="w-4 h-4" />
+                Back
               </button>
             </div>
+
+            {/* Current Plan Display */}
+            {subscription && subscription.tier !== "free" && (
+              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[#2b825b]/10 rounded-full">
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  Current Plan:
+                </span>
+                <SubscriptionBadge />
+              </div>
+            )}
+
+            {/* Trials Display for Free Users */}
+            {subscription?.tier === "free" && (
+              <div className="mt-6 space-y-2">
+                {bookkeepingTrial?.isActive && (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full mr-2">
+                    <span className="text-sm text-green-600 dark:text-green-300">
+                      Bookkeeping Trial: {bookkeepingTrial.daysRemaining} days
+                      remaining
+                    </span>
+                  </div>
+                )}
+                {taxCalculatorTrial?.isActive && (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full">
+                    <span className="text-sm text-green-600 dark:text-green-300">
+                      Tax Calculator Trial: {taxCalculatorTrial.daysRemaining}{" "}
+                      days remaining
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Billing Toggle */}
+            <div className="flex items-center justify-center mt-8">
+              <div className="bg-white dark:bg-gray-800 p-1 rounded-full border-2 border-gray-900 dark:border-gray-50">
+                <button
+                  onClick={() => setSelectedBilling("monthly")}
+                  disabled={processingTier !== null}
+                  className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                    selectedBilling === "monthly"
+                      ? "bg-[#2b825b] text-gray-900"
+                      : "text-gray-500 dark:text-gray-400"
+                  } disabled:opacity-50`}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setSelectedBilling("yearly")}
+                  disabled={processingTier !== null}
+                  className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                    selectedBilling === "yearly"
+                      ? "bg-[#2b825b] text-gray-900"
+                      : "text-gray-500 dark:text-gray-400"
+                  } disabled:opacity-50`}
+                >
+                  Yearly <span className="text-xs ml-1">Save up to 20%</span>
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Pricing Grid */}
-      <div className="max-w-7xl mx-auto px-4 pb-20">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {plans.map((plan) => {
-            const currentPlan = isCurrentPlan(plan.tier);
-            const isHighlighted = plan.highlight || upgradeParam === plan.tier;
-            
-            return (
-              <div
-                key={plan.tier}
-                id={`plan-${plan.tier}`}
-                className={`relative flex flex-col rounded-2xl border-2 transition-all duration-300
-                  ${plan.bgColor} dark:bg-gray-900
-                  ${isHighlighted ? 'border-[#C29307] shadow-[0_0_0_4px_rgba(194,147,7,0.1)] scale-105 z-10' : plan.borderColor}
-                  ${currentPlan ? 'ring-2 ring-green-500 ring-offset-2' : ''}
-                  hover:shadow-xl hover:-translate-y-1
-                `}
-              >
-                {/* Popular Badge */}
-                {plan.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#C29307] text-white text-xs font-bold rounded-full flex items-center gap-1 whitespace-nowrap">
-                    <Sparkles className="w-3 h-3" />
-                    MOST POPULAR
-                  </div>
-                )}
+          {/* Pricing Grid */}
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+            {plans.map((plan, index) => {
+              const currentPlan = isCurrentPlan(plan.tier);
+              const isUpgrade = upgradeParam === plan.tier;
+              const isProcessing = processingTier === plan.tier;
 
-                {/* Current Plan Badge */}
-                {currentPlan && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-green-500 text-white text-xs font-bold rounded-full whitespace-nowrap">
-                    CURRENT PLAN
-                  </div>
-                )}
-
-                <div className="p-6 flex-1">
-                  {/* Icon & Name */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-12 h-12 rounded-xl ${plan.iconBg} flex items-center justify-center`}>
-                      <plan.icon className={`w-6 h-6 ${plan.iconColor}`} />
+              return (
+                <div
+                  key={index}
+                  id={`plan-${plan.tier}`}
+                  className={`relative flex flex-col ${
+                    plan.highlight
+                      ? "bg-[#2b825b] text-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[6px_6px_0px_#111827] dark:shadow-[6px_6px_0px_#fbbf24]"
+                      : "bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24]"
+                  } p-6 hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150
+                  ${isUpgrade ? "ring-4 ring-[#2b825b] ring-opacity-50" : ""}`}
+                >
+                  {plan.highlight && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gray-900 dark:bg-gray-50 text-gray-50 dark:text-gray-900 text-xs font-bold flex items-center gap-1 rounded-full">
+                      <Sparkles className="w-3 h-3" />
+                      POPULAR
                     </div>
-                    <div>
-                      <h3 className={`text-xl font-bold ${plan.textColor} dark:text-gray-50`}>
-                        {plan.name}
-                      </h3>
-                    </div>
-                  </div>
+                  )}
 
-                  {/* Price */}
-                  <div className="mb-4">
+                  {/* Current Plan Badge */}
+                  {currentPlan && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-green-600 text-white text-xs font-bold rounded-full whitespace-nowrap">
+                      CURRENT PLAN
+                    </div>
+                  )}
+
+                  <div className="mb-6">
+                    <h3
+                      className={`text-xl font-bold mb-2 ${
+                        plan.highlight
+                          ? "text-gray-900"
+                          : "text-gray-900 dark:text-gray-50"
+                      }`}
+                    >
+                      {plan.name}
+                    </h3>
                     <div className="flex items-baseline gap-1">
-                      <span className={`text-3xl font-black ${plan.textColor} dark:text-gray-50`}>
-                        {selectedBilling === 'yearly' && plan.yearlyPrice ? plan.yearlyPrice : plan.price}
+                      <span
+                        className={`text-3xl font-black ${
+                          plan.highlight
+                            ? "text-gray-900"
+                            : "text-gray-900 dark:text-gray-50"
+                        }`}
+                      >
+                        {selectedBilling === "yearly" && plan.yearlyPrice
+                          ? plan.tier === "zidlite"
+                            ? "₦49,000"
+                            : plan.tier === "growth"
+                              ? "₦99,000"
+                              : plan.tier === "premium"
+                                ? "₦499,000"
+                                : plan.price
+                          : plan.price}
                       </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {selectedBilling === 'yearly' ? '/year' : plan.period}
+                      <span
+                        className={`text-sm ${
+                          plan.highlight
+                            ? "text-gray-900/70"
+                            : "text-gray-500 dark:text-gray-400"
+                        }`}
+                      >
+                        {selectedBilling === "yearly" ? "/year" : plan.period}
                       </span>
                     </div>
-                    {selectedBilling === 'yearly' && plan.yearlySavings && (
-                      <p className="text-xs text-green-600 mt-1 font-semibold">
-                        {plan.yearlySavings}
+                    {selectedBilling === "yearly" && plan.yearlyPrice && (
+                      <p
+                        className={`text-xs mt-1 ${
+                          plan.highlight
+                            ? "text-gray-900/70"
+                            : "text-gray-500 dark:text-gray-400"
+                        }`}
+                      >
+                        {plan.yearlyPrice}
                       </p>
                     )}
+                    <p
+                      className={`text-sm mt-3 ${
+                        plan.highlight
+                          ? "text-gray-900/80"
+                          : "text-gray-500 dark:text-gray-400"
+                      }`}
+                    >
+                      {plan.description}
+                    </p>
                   </div>
 
-                  {/* Description */}
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                    {plan.description}
-                  </p>
-
-                  {/* Features */}
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2 text-sm">
+                  <ul className="space-y-2 mb-8 flex-grow">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
                         {feature.startsWith("Everything in") ? (
-                          <span className="w-4 shrink-0" />
+                          <span className="w-4 shrink-0"></span>
                         ) : (
-                          <Check className="w-4 h-4 text-[#C29307] shrink-0 mt-0.5" />
+                          <Check
+                            className={`w-4 h-4 shrink-0 mt-0.5 ${
+                              plan.highlight
+                                ? "text-gray-900"
+                                : "text-[#2b825b]"
+                            }`}
+                          />
                         )}
-                        <span className={`${plan.textColor} dark:text-gray-300 ${
-                          feature.startsWith("Everything in") ? "font-semibold text-[#C29307]" : ""
-                        }`}>
+                        <span
+                          className={`${
+                            plan.highlight
+                              ? "text-gray-900"
+                              : "text-gray-900 dark:text-gray-50"
+                          } ${feature.startsWith("Everything in") ? "font-medium" : ""}`}
+                        >
                           {feature}
                         </span>
                       </li>
                     ))}
                   </ul>
 
-                  {/* CTA Button */}
-                  <Button
+                  <Button2
+                    variant={plan.highlight ? "heroOutline" : "default"}
+                    className={`w-full ${
+                      plan.highlight
+                        ? "bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        : ""
+                    }`}
                     onClick={() => handleSubscribe(plan)}
-                    disabled={loading || processingTier === plan.tier || currentPlan}
-                    className={`w-full py-6 text-base font-semibold rounded-xl transition-all
-                      ${plan.tier === 'free' ? 'bg-gray-900 text-white hover:bg-gray-800' : ''}
-                      ${plan.tier === 'growth' ? 'bg-blue-600 text-white hover:bg-blue-700' : ''}
-                      ${plan.tier === 'premium' ? 'bg-[#C29307] text-white hover:bg-[#b38606]' : ''}
-                      ${plan.tier === 'elite' ? 'bg-purple-600 text-white hover:bg-purple-700' : ''}
-                      ${currentPlan ? 'opacity-50 cursor-not-allowed' : ''}
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                    `}
+                    disabled={loading || isProcessing || currentPlan}
                   >
-                    {processingTier === plan.tier ? (
-                      <span className="flex items-center gap-2">
-                        <span className="animate-spin">⏳</span> Processing...
+                    {isProcessing
+                      ? "Processing..."
+                      : currentPlan
+                        ? "Current Plan"
+                        : plan.cta}
+                  </Button2>
+
+                  {/* Trial Buttons for Free Plan */}
+                  {plan.tier === "free" && subscription?.tier === "free" && (
+                    <div className="mt-3 space-y-2">
+                      {!bookkeepingTrial?.isActive && (
+                        <button
+                          onClick={() => handleActivateTrial("bookkeeping")}
+                          className="block w-full text-sm text-[#2b825b] hover:underline"
+                        >
+                          Activate 14-day bookkeeping trial
+                        </button>
+                      )}
+                      {!taxCalculatorTrial?.isActive && (
+                        <button
+                          onClick={() => handleActivateTrial("tax_calculator")}
+                          className="block w-full text-sm text-[#2b825b] hover:underline"
+                        >
+                          Activate 14-day tax calculator trial
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ZidCoin Economy Section */}
+          <div className="mt-20 max-w-4xl mx-auto">
+            <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[6px_6px_0px_#111827] dark:shadow-[6px_6px_0px_#fbbf24] p-8">
+              <h3 className="text-2xl md:text-3xl font-black mb-4 text-gray-900 dark:text-gray-50">
+                The ZidCoin Economy:{" "}
+                <span className="text-[#2b825b]">
+                  Our Cashback & Reward System
+                </span>
+              </h3>
+
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">
+                    What is ZidCoin?
+                  </h4>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Zidcoin is the currency inside Zidwell. It's what we pay you
+                    for using our app. Every time you load data, airtime, cable
+                    subscription and electricity on Zidwell, you earn Zidcoins
+                    (ZC).
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400 mt-2 font-semibold">
+                    Value: 1 Zidcoin = ₦1.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">
+                    How It Works
+                  </h4>
+                  <ul className="space-y-2 text-gray-600 dark:text-gray-400">
+                    <li className="flex items-start gap-2">
+                      <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#2b825b]" />
+                      <span>
+                        Get 20 Zidcoins rewards anytime you spend N2500 and
+                        above on Zidwell.
                       </span>
-                    ) : currentPlan ? (
-                      'Current Plan'
-                    ) : (
-                      <span className="flex items-center justify-center gap-2">
-                        {plan.cta}
-                        <ArrowRight className="w-4 h-4" />
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#2b825b]" />
+                      <span>
+                        Your Zidcoins accumulate in your wallet as cashback.
                       </span>
-                    )}
-                  </Button>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#2b825b]" />
+                      <span>
+                        Once your Zidcoin balance hits 3,000 ZC, you can cash it
+                        out.
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">
+                    Why It Matters
+                  </h4>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Zidcoin turns every business transaction into an opportunity
+                    to earn. The more you use Zidwell, the more value you unlock
+                    — it's structure, savings, and growth all in one.
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400 mt-2 font-semibold">
+                    Zidwell. Structure your hustle. Earn as you grow.
+                  </p>
                 </div>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Feature Comparison */}
-        <div className="mt-20">
-          <h2 className="text-3xl font-black text-center mb-12 text-gray-900 dark:text-gray-50">
-            Compare <span className="text-[#C29307]">Features</span>
-          </h2>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b-2 border-gray-200 dark:border-gray-700">
-                  <th className="py-4 px-6 text-left text-gray-900 dark:text-gray-50 font-bold">Feature</th>
-                  <th className="py-4 px-6 text-center text-gray-900 dark:text-gray-50 font-bold">Free</th>
-                  <th className="py-4 px-6 text-center text-gray-900 dark:text-gray-50 font-bold">Growth</th>
-                  <th className="py-4 px-6 text-center text-gray-900 dark:text-gray-50 font-bold">Premium</th>
-                  <th className="py-4 px-6 text-center text-gray-900 dark:text-gray-50 font-bold">Elite</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <td className="py-4 px-6 text-gray-700 dark:text-gray-300">Invoices</td>
-                  <td className="py-4 px-6 text-center text-gray-600 dark:text-gray-400">5/month</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">Unlimited</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">Unlimited</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">Unlimited</td>
-                </tr>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <td className="py-4 px-6 text-gray-700 dark:text-gray-300">Receipts</td>
-                  <td className="py-4 px-6 text-center text-gray-600 dark:text-gray-400">5/month</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">Unlimited</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">Unlimited</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">Unlimited</td>
-                </tr>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <td className="py-4 px-6 text-gray-700 dark:text-gray-300">Contracts</td>
-                  <td className="py-4 px-6 text-center text-gray-600 dark:text-gray-400">1/month</td>
-                  <td className="py-4 px-6 text-center text-gray-600 dark:text-gray-400">5/month</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">Unlimited</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">Unlimited</td>
-                </tr>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <td className="py-4 px-6 text-gray-700 dark:text-gray-300">Bookkeeping</td>
-                  <td className="py-4 px-6 text-center text-gray-600 dark:text-gray-400">14-day trial</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">✓</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">✓</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">✓</td>
-                </tr>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <td className="py-4 px-6 text-gray-700 dark:text-gray-300">Tax Calculator</td>
-                  <td className="py-4 px-6 text-center text-gray-400">✗</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">✓</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">✓</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">✓</td>
-                </tr>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <td className="py-4 px-6 text-gray-700 dark:text-gray-300">Tax Filing Support</td>
-                  <td className="py-4 px-6 text-center text-gray-400">✗</td>
-                  <td className="py-4 px-6 text-center text-gray-400">✗</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">✓</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">✓</td>
-                </tr>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <td className="py-4 px-6 text-gray-700 dark:text-gray-300">Full Tax Filing (VAT, PAYE, WHT)</td>
-                  <td className="py-4 px-6 text-center text-gray-400">✗</td>
-                  <td className="py-4 px-6 text-center text-gray-400">✗</td>
-                  <td className="py-4 px-6 text-center text-gray-400">✗</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">✓</td>
-                </tr>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <td className="py-4 px-6 text-gray-700 dark:text-gray-300">CFO Guidance</td>
-                  <td className="py-4 px-6 text-center text-gray-400">✗</td>
-                  <td className="py-4 px-6 text-center text-gray-400">✗</td>
-                  <td className="py-4 px-6 text-center text-gray-400">✗</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">✓</td>
-                </tr>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <td className="py-4 px-6 text-gray-700 dark:text-gray-300">Transfer Fee</td>
-                  <td className="py-4 px-6 text-center text-gray-600 dark:text-gray-400">₦50</td>
-                  <td className="py-4 px-6 text-center text-gray-600 dark:text-gray-400">₦50</td>
-                  <td className="py-4 px-6 text-center text-gray-600 dark:text-gray-400">₦25</td>
-                  <td className="py-4 px-6 text-center text-green-600 font-semibold">₦0</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* FAQ Section */}
-        <div className="mt-20 text-center">
-          <h2 className="text-3xl font-black mb-8 text-gray-900 dark:text-gray-50">
-            Frequently Asked <span className="text-[#C29307]">Questions</span>
-          </h2>
-          
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto text-left">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border-2 border-gray-200 dark:border-gray-700">
-              <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-50">
-                Can I change plans later?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Yes, you can upgrade or downgrade your plan at any time. Changes will be reflected in your next billing cycle.
-              </p>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border-2 border-gray-200 dark:border-gray-700">
-              <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-50">
-                What payment methods do you accept?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                We accept card payments, bank transfers, and USSD. All payments are processed securely.
-              </p>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border-2 border-gray-200 dark:border-gray-700">
-              <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-50">
-                Is there a discount for annual billing?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Yes! Save 20% when you choose yearly billing on Growth and Premium plans.
-              </p>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border-2 border-gray-200 dark:border-gray-700">
-              <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-50">
-                What happens when I reach my limit?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                We'll notify you and offer the option to upgrade or purchase additional credits.
-              </p>
             </div>
           </div>
         </div>
-
-        {/* CTA Section */}
-        <div className="mt-20 text-center bg-[#C29307]/5 rounded-3xl p-12 border-2 border-[#C29307]">
-          <h2 className="text-3xl font-black mb-4 text-gray-900 dark:text-gray-50">
-            Still not sure which plan?
-          </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-            Book a free consultation with our team to discuss your business needs and find the perfect plan.
-          </p>
-          <Link href="/contact">
-            <Button className="bg-[#C29307] hover:bg-[#b38606] text-white px-8 py-6 text-lg font-semibold rounded-xl">
-              Talk to Sales
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
-          </Link>
-        </div>
-      </div>
-    </div>
+      </section>
+      <Footer />
+    </>
   );
 }

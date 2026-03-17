@@ -1,3 +1,4 @@
+// DataBundlePurchase.tsx
 "use client";
 
 import {
@@ -22,7 +23,6 @@ import { Button } from "./ui/button";
 import { useUserContextData } from "../context/userData";
 import DataPlanSelector from "./DataPlansSelector";
 import Image from "next/image";
-import Loader from "./Loader";
 import { useRouter } from "next/navigation";
 import PinPopOver from "./PinPopOver";
 
@@ -42,17 +42,7 @@ const prefixColorMap = [
     name: "MTN",
     src: "/networks-img/mtn.png",
     prefix: [
-      "0803",
-      "0806",
-      "0703",
-      "0706",
-      "0813",
-      "0816",
-      "0810",
-      "0814",
-      "0903",
-      "0906",
-      "0913",
+      "0803", "0806", "0703", "0706", "0813", "0816", "0810", "0814", "0903", "0906", "0913",
     ],
   },
   {
@@ -81,6 +71,7 @@ export default function DataBundlePurchase() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [pin, setPin] = useState(Array(inputCount).fill(""));
   const [isOpen, setIsOpen] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
   const [bundles, setBundles] = useState<any[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<any | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -89,17 +80,12 @@ export default function DataBundlePurchase() {
   const { userData, setUserData } = useUserContextData();
   const router = useRouter();
 
-  // New states for saved beneficiaries
-  const [savedBeneficiaries, setSavedBeneficiaries] = useState<
-    SavedBeneficiary[]
-  >([]);
+  const [savedBeneficiaries, setSavedBeneficiaries] = useState<SavedBeneficiary[]>([]);
   const [saveBeneficiary, setSaveBeneficiary] = useState(false);
-  const [selectedSavedBeneficiary, setSelectedSavedBeneficiary] =
-    useState<SavedBeneficiary | null>(null);
+  const [selectedSavedBeneficiary, setSelectedSavedBeneficiary] = useState<SavedBeneficiary | null>(null);
   const [showSavedBeneficiaries, setShowSavedBeneficiaries] = useState(false);
   const [loadingBeneficiaries, setLoadingBeneficiaries] = useState(false);
 
-  // Fetch saved beneficiaries on component mount
   useEffect(() => {
     if (!userData?.id) return;
 
@@ -107,7 +93,7 @@ export default function DataBundlePurchase() {
       setLoadingBeneficiaries(true);
       try {
         const response = await fetch(
-          `/api/save-data-beneficiaries?userId=${userData.id}`
+          `/api/save-data-beneficiaries?userId=${userData.id}`,
         );
         const data = await response.json();
 
@@ -128,11 +114,7 @@ export default function DataBundlePurchase() {
     const cleanValue = value.replace(/\D/g, "");
     setPhoneNumber(cleanValue);
 
-    // If user starts typing and a saved beneficiary was selected, clear it
-    if (
-      selectedSavedBeneficiary &&
-      cleanValue !== selectedSavedBeneficiary.phoneNumber
-    ) {
+    if (selectedSavedBeneficiary && cleanValue !== selectedSavedBeneficiary.phoneNumber) {
       setSelectedSavedBeneficiary(null);
     }
 
@@ -153,22 +135,19 @@ export default function DataBundlePurchase() {
     return "";
   };
 
-  // Handle saved beneficiary selection
   const handleSelectSavedBeneficiary = (beneficiary: SavedBeneficiary) => {
     setSelectedSavedBeneficiary(beneficiary);
     setPhoneNumber(beneficiary.phoneNumber);
 
-    // Find and set the corresponding provider
     const provider = prefixColorMap.find((p) => p.id === beneficiary.network);
     if (provider) {
       setSelectedProvider(provider);
     }
 
     setShowSavedBeneficiaries(false);
-    setSaveBeneficiary(false); // Don't save an already saved beneficiary
+    setSaveBeneficiary(false);
   };
 
-  // Save beneficiary function
   const saveBeneficiaryToProfile = async () => {
     if (!userData?.id || !phoneNumber || !selectedProvider) {
       return;
@@ -191,7 +170,6 @@ export default function DataBundlePurchase() {
       const data = await response.json();
 
       if (data.success) {
-        // Update local state
         setSavedBeneficiaries((prev) => [...prev, data.beneficiary]);
         Swal.fire({
           icon: "success",
@@ -228,36 +206,18 @@ export default function DataBundlePurchase() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const purchaseDatabundle = async () => {
-    // Step 1: Validate form
+  const purchaseDatabundle = async (pinCode: string) => {
     if (!validateForm()) return;
 
-    // Step 2: Confirm required data is present
     if (!selectedProvider?.id || !selectedPlan) {
-      Swal.fire({
-        icon: "error",
-        title: "Missing Information",
-        text: "Please ensure you've selected a provider and a data plan.",
-        confirmButtonColor: "#dc2626",
-      });
-      return;
+      throw new Error("Please ensure you've selected a provider and a data plan.");
     }
 
     const serviceName = selectedProvider.id;
-    if (!serviceName) {
-      Swal.fire({
-        icon: "error",
-        title: "Invalid Provider",
-        text: "Unable to match provider with data service.",
-        confirmButtonColor: "#dc2626",
-      });
-      return;
-    }
 
-    // Step 4: Build payload
     const payload = {
       userId: userData?.id,
-      pin: pin,
+      pin: pinCode,
       amount: selectedPlan.amount,
       network: serviceName,
       phoneNumber: phoneNumber,
@@ -265,7 +225,6 @@ export default function DataBundlePurchase() {
       senderName: userData?.fullName || "Zidwell User",
     };
 
-    // Step 5: Make request
     try {
       setLoading2(true);
       const response = await fetch("/api/buy-data-bundle", {
@@ -275,8 +234,10 @@ export default function DataBundlePurchase() {
       });
 
       const data = await response.json();
-      console.log("DataBundle Purchase Response Data:", data);
-      if (!response.ok) throw data;
+
+      if (!response.ok) {
+        throw new Error(data.message || "Transaction failed");
+      }
 
       if (data.zidCoinBalance !== undefined) {
         setUserData((prev: any) => {
@@ -286,36 +247,30 @@ export default function DataBundlePurchase() {
         });
       }
 
-      // Save beneficiary if toggle is enabled and it's a new beneficiary
       if (saveBeneficiary && !selectedSavedBeneficiary) {
         await saveBeneficiaryToProfile();
       }
 
-      Swal.fire({
-        icon: "success",
-        title: "Data Bundle Purchase Successful",
-        text: `₦${payload.amount} sent to ${payload.phoneNumber}`,
-        confirmButtonColor: "#0f172a",
-      }).then(() => {
-        window.location.reload();
-      });
+      setIsOpen(false);
 
-      // Clear inputs after successful purchase
       setPin(Array(inputCount).fill(""));
       setPhoneNumber("");
       setSelectedProvider(null);
       setSelectedPlan(null);
       setSaveBeneficiary(false);
       setSelectedSavedBeneficiary(null);
-    } catch (error: any) {
+
       Swal.fire({
-        icon: "error",
-        title: "Databundle Purchase Failed",
-        html: `<strong>${error.message}</strong><br/><small>${
-          error.detail || ""
-        }</small>`,
-        confirmButtonColor: "#dc2626",
+        icon: "success",
+        title: "Data Bundle Purchase Successful",
+        text: `₦${payload.amount} sent to ${payload.phoneNumber}`,
+        confirmButtonColor: "#0f172a",
       });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Purchase error:", error);
+      throw error;
     } finally {
       setLoading2(false);
     }
@@ -327,12 +282,10 @@ export default function DataBundlePurchase() {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/get-data-bundles?service=${selectedProvider?.id}`
+        `/api/get-data-bundles?service=${selectedProvider?.id}`,
       );
       const data = await response.json();
-      console.log("📦 Bundles data:", data);
-      if (!response.ok)
-        throw new Error(data.error || "Failed to fetch bundles");
+      if (!response.ok) throw new Error(data.error || "Failed to fetch bundles");
       setBundles(data.data);
     } catch (error: any) {
       console.error("Fetch error:", error.message);
@@ -346,7 +299,7 @@ export default function DataBundlePurchase() {
     if (cleanNumber.length >= 4) {
       const prefix = cleanNumber.substring(0, 4);
       const matchedProvider = prefixColorMap.find((entry) =>
-        entry.prefix.includes(prefix)
+        entry.prefix.includes(prefix),
       );
       if (matchedProvider && matchedProvider?.id !== selectedProvider?.id) {
         setSelectedProvider(matchedProvider);
@@ -368,43 +321,46 @@ export default function DataBundlePurchase() {
 
   return (
     <div className="space-y-6 md:max-w-5xl md:mx-auto">
-      {/* Header */}
       <PinPopOver
         setIsOpen={setIsOpen}
         isOpen={isOpen}
         pin={pin}
         setPin={setPin}
         inputCount={inputCount}
-        onConfirm={() => {
-          purchaseDatabundle();
+        onConfirm={async (pinCode) => {
+          try {
+            setPinError(null);
+            await purchaseDatabundle(pinCode);
+          } catch (error: any) {
+            setPinError(error.message || "Transaction failed. Please try again.");
+            throw error;
+          }
         }}
+        error={pinError}
+        onClearError={() => setPinError(null)}
       />
 
-      <div className="flex items-start  space-x-4">
+      <div className="flex items-start space-x-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+          className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 md:mr-2" />
           <span className="hidden md:block">Back</span>
         </Button>
 
         <div className="">
-          <h1 className="md:text-3xl text-xl font-bold mb-2">
-            Buy Data Bundle
-          </h1>
-          <p className=" text-muted-foreground">
+          <h1 className="md:text-3xl text-xl font-bold mb-2">Buy Data Bundle</h1>
+          <p className="text-muted-foreground">
             Instant Data bundle top-up for all Nigerian networks
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Purchase Form */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Network Provider Selection */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -421,9 +377,9 @@ export default function DataBundlePurchase() {
                     <div
                       key={index}
                       onClick={() => setSelectedProvider(provider)}
-                      className={`relative p-4 border-2 rounded-md transition-all duration-200 ${
+                      className={`relative p-4 border-2 rounded-md transition-all duration-200 cursor-pointer ${
                         isSelected
-                          ? "bg-gray-100 border-[#C29307] text-gray-900 shadow-md"
+                          ? "bg-gray-100 border-[#2b825b] text-gray-900 shadow-md"
                           : "bg-white border-gray-200 hover:border-gray-300"
                       }`}
                     >
@@ -443,7 +399,7 @@ export default function DataBundlePurchase() {
 
                       {isSelected && (
                         <div className="absolute -top-2 -right-2">
-                          <div className="w-6 h-6 bg-[#C29307] rounded-full flex items-center justify-center">
+                          <div className="w-6 h-6 bg-[#2b825b] rounded-full flex items-center justify-center">
                             <Check className="w-4 h-4 text-white" />
                           </div>
                         </div>
@@ -461,13 +417,11 @@ export default function DataBundlePurchase() {
             </CardContent>
           </Card>
 
-          {/* Phone Number Input */}
           <Card>
             <CardHeader>
               <CardTitle>Enter Phone Number</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Saved Beneficiaries Section */}
               {savedBeneficiaries.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -478,9 +432,7 @@ export default function DataBundlePurchase() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setShowSavedBeneficiaries(!showSavedBeneficiaries)
-                      }
+                      onClick={() => setShowSavedBeneficiaries(!showSavedBeneficiaries)}
                       className="flex items-center gap-1"
                     >
                       <Bookmark className="h-4 w-4" />
@@ -492,7 +444,7 @@ export default function DataBundlePurchase() {
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
                       {loadingBeneficiaries ? (
                         <div className="flex items-center justify-center py-4">
-                          <Loader2 className="h-5 w-5 animate-spin text-[#C29307]" />
+                          <Loader2 className="h-5 w-5 animate-spin text-[#2b825b]" />
                           <span className="ml-2 text-sm">
                             Loading beneficiaries...
                           </span>
@@ -501,9 +453,7 @@ export default function DataBundlePurchase() {
                         savedBeneficiaries.map((beneficiary) => (
                           <div
                             key={beneficiary.id}
-                            onClick={() =>
-                              handleSelectSavedBeneficiary(beneficiary)
-                            }
+                            onClick={() => handleSelectSavedBeneficiary(beneficiary)}
                             className={`p-3 rounded cursor-pointer transition-colors ${
                               selectedSavedBeneficiary?.id === beneficiary.id
                                 ? "bg-blue-100 border border-blue-300"
@@ -547,9 +497,7 @@ export default function DataBundlePurchase() {
                     placeholder="0803 123 4567"
                     value={phoneNumber}
                     onChange={(e) => handlePhoneNumberChange(e.target.value)}
-                    className={`pl-14 ${
-                      errors.phoneNumber ? "border-red-500" : ""
-                    }`}
+                    className={`pl-14 ${errors.phoneNumber ? "border-red-500" : ""}`}
                   />
                   <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
                     <span className="text-gray-500 font-medium">+234</span>
@@ -568,36 +516,26 @@ export default function DataBundlePurchase() {
                   </div>
                 )}
 
-                {/* Save Beneficiary Toggle - Only show when user manually enters phone number (not from saved beneficiaries) */}
-                {!selectedSavedBeneficiary &&
-                  phoneNumber.length === 11 &&
-                  selectedProvider && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border mt-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        Save to beneficiaries
-                      </span>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={saveBeneficiary}
-                          onChange={(e) => setSaveBeneficiary(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div
-                          className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
-                        peer-checked:after:translate-x-full peer-checked:after:border-white 
-                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 
-                        after:bg-white after:border-gray-300 after:border after:rounded-full 
-                        after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C29307]"
-                        ></div>
-                      </label>
-                    </div>
-                  )}
+                {!selectedSavedBeneficiary && phoneNumber.length === 11 && selectedProvider && (
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border mt-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      Save to beneficiaries
+                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={saveBeneficiary}
+                        onChange={(e) => setSaveBeneficiary(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b]"></div>
+                    </label>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Data Plan Selection */}
           <div>
             <Label>Select Data Plan</Label>
             <DataPlanSelector
@@ -612,7 +550,6 @@ export default function DataBundlePurchase() {
           </div>
         </div>
 
-        {/* Purchase Summary */}
         <div className="lg:col-span-1">
           <Card className="sticky top-6">
             <CardHeader>
@@ -622,7 +559,6 @@ export default function DataBundlePurchase() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Selected Provider */}
               {selectedProvider && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <Image
@@ -639,7 +575,6 @@ export default function DataBundlePurchase() {
                 </div>
               )}
 
-              {/* Phone Number */}
               {phoneNumber && (
                 <div>
                   <p className="text-sm text-gray-600">Phone Number</p>
@@ -649,7 +584,6 @@ export default function DataBundlePurchase() {
                 </div>
               )}
 
-              {/* Selected Plan */}
               {selectedPlan && (
                 <div className="space-y-2">
                   <div>
@@ -666,7 +600,6 @@ export default function DataBundlePurchase() {
                 </div>
               )}
 
-              {/* Purchase Button */}
               <Button
                 onClick={() => {
                   if (validateForm()) {
@@ -674,7 +607,7 @@ export default function DataBundlePurchase() {
                   }
                 }}
                 disabled={!phoneNumber || !selectedPlan || loading2}
-                className="w-full bg-[#C29307] hover:bg-[#C29307] text-white py-3 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                className="w-full bg-[#2b825b] hover:bg-[#2b825b] text-white py-3 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 {loading2 ? (
                   <div className="flex items-center gap-2">
@@ -689,7 +622,6 @@ export default function DataBundlePurchase() {
                 )}
               </Button>
 
-              {/* Security Notice */}
               <div className="text-center text-xs text-gray-500 mt-4">
                 <p>🔒 Secure payment powered by Zidwell</p>
                 <p>Instant activation • 24/7 support</p>

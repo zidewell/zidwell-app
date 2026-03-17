@@ -1,9 +1,10 @@
+// app/components/Invoice-components/InvoiceSummary.tsx
 "use client";
 
 import { Button } from "../ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { Crown, Zap, Sparkles, Star, CheckCircle2, AlertCircle } from "lucide-react";
 
-// Use the same InvoiceItem type as main component
 interface InvoiceItem {
   id: string;
   description: string;
@@ -12,14 +13,12 @@ interface InvoiceItem {
   total: number;
 }
 
-// Updated InvoiceUsageInfo interface
 interface InvoiceUsageInfo {
   used: number;
-  limit: number | "unlimited";
-  remaining: number | "unlimited";
+  limit: string | number | "unlimited";
+  remaining: string | number | "unlimited";
   hasAccess: boolean;
   isChecking: boolean;
-  isPayPerUse?: boolean;
 }
 
 interface InvoiceSummaryProps {
@@ -51,15 +50,8 @@ interface InvoiceSummaryProps {
   confirmInvoice: boolean;
   onBack: () => void;
   onConfirm: () => void;
-  freeInvoiceInfo?: {
-    freeInvoicesLeft: number;
-    totalInvoicesCreated: number;
-    hasFreeInvoices: boolean;
-    isChecking: boolean;
-  };
   usageInfo?: InvoiceUsageInfo;
-  userTier?: 'free' | 'growth' | 'premium' | 'elite';
-  payPerUseFee?: number; // Added this prop
+  userTier?: "free" | "zidlite" | "growth" | "premium" | "elite";
 }
 
 export default function InvoiceSummary({
@@ -71,63 +63,96 @@ export default function InvoiceSummary({
   confirmInvoice,
   onBack,
   onConfirm,
-  freeInvoiceInfo,
   usageInfo,
-  userTier = 'free',
-  payPerUseFee = 100, // Default to 100
+  userTier = "free",
 }: InvoiceSummaryProps) {
-  
-  // Determine which system to use (new subscription system takes precedence)
-  const useNewSystem = usageInfo !== undefined;
-  
-  // Get usage data from either system
-  const isPremium = userTier === 'premium' || userTier === 'elite';
-  const isGrowth = userTier === 'growth';
-  const hasUnlimited = isPremium || isGrowth;
-  
-  // Safe function to get remaining value
+  const isFree = userTier === "free";
+  const isZidLite = userTier === "zidlite";
+  const isGrowth = userTier === "growth";
+  const isPremium = userTier === "premium";
+  const isElite = userTier === "elite";
+  const hasUnlimited = isPremium || isElite || isGrowth;
+
   const getRemaining = (): number => {
-    if (useNewSystem && usageInfo) {
-      return typeof usageInfo.remaining === 'number' ? usageInfo.remaining : 999;
+    if (usageInfo) {
+      return typeof usageInfo.remaining === "number" ? usageInfo.remaining : 999;
     }
-    return freeInvoiceInfo?.freeInvoicesLeft || 0;
+    return 0;
   };
-  
+
   const remainingInvoices = getRemaining();
-  
-  const hasFreeInvoices = useNewSystem
-    ? (hasUnlimited || (typeof usageInfo?.remaining === 'number' && usageInfo.remaining > 0))
-    : (freeInvoiceInfo?.hasFreeInvoices || false);
-  
-  const totalCreated = useNewSystem
-    ? usageInfo?.used || 0
-    : freeInvoiceInfo?.totalInvoicesCreated || 0;
-  
-  const isChecking = useNewSystem
-    ? usageInfo?.isChecking || false
-    : freeInvoiceInfo?.isChecking || false;
+  const hasFreeInvoices = hasUnlimited || remainingInvoices > 0;
+  const isChecking = usageInfo?.isChecking || false;
 
-  // Calculate invoice fee
-  const invoiceFee = hasUnlimited ? 0 : (hasFreeInvoices ? 0 : payPerUseFee);
-  const showInvoiceInfo = !isChecking;
+  const getTierIcon = () => {
+    if (isElite) return <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
+    if (isPremium) return <Crown className="w-5 h-5 text-[#2b825b]" />;
+    if (isGrowth) return <Zap className="w-5 h-5 text-green-600 dark:text-green-400" />;
+    if (isZidLite) return <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
+    return <Star className="w-5 h-5 text-gray-600 dark:text-gray-400" />;
+  };
 
-  // Safe email value
+  const getTierColors = () => {
+    if (isElite) return {
+      bg: "bg-purple-50 dark:bg-purple-900/20",
+      border: "border-purple-200 dark:border-purple-800",
+      text: "text-purple-700 dark:text-purple-400",
+      btn: "bg-purple-600 hover:bg-purple-700 dark:bg-purple-600 dark:hover:bg-purple-700",
+    };
+    if (isPremium) return {
+      bg: "bg-[#2b825b]/10",
+      border: "border-[#2b825b]",
+      text: "text-[#2b825b]",
+      btn: "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]",
+    };
+    if (isGrowth) return {
+      bg: "bg-green-50 dark:bg-green-900/20",
+      border: "border-green-200 dark:border-green-800",
+      text: "text-green-700 dark:text-green-400",
+      btn: "bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700",
+    };
+    if (isZidLite) return {
+      bg: "bg-blue-50 dark:bg-blue-900/20",
+      border: "border-blue-200 dark:border-blue-800",
+      text: "text-blue-700 dark:text-blue-400",
+      btn: "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700",
+    };
+    return {
+      bg: "bg-gray-50 dark:bg-gray-800",
+      border: "border-gray-200 dark:border-gray-700",
+      text: "text-gray-700 dark:text-gray-400",
+      btn: "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]",
+    };
+  };
+
+  const colors = getTierColors();
+  const tierIcon = getTierIcon();
+
+  const getTierDisplayName = () => {
+    if (isElite) return "Elite";
+    if (isPremium) return "Premium";
+    if (isGrowth) return "Growth";
+    if (isZidLite) return "ZidLite";
+    return "Free Trial";
+  };
+
   const safeEmail = initiatorEmail || invoiceData.email || "";
+
+  // Check if user has reached limit
+  const hasReachedLimit = !hasUnlimited && remainingInvoices <= 0;
 
   return (
     <AnimatePresence>
       {confirmInvoice && (
         <>
-          {/* 🔲 Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onBack}
           />
 
-          {/* 📄 Modal Container */}
           <motion.div
             className="fixed inset-0 flex items-center justify-center z-50 px-4"
             initial={{ opacity: 0, y: 60, scale: 0.9 }}
@@ -135,59 +160,56 @@ export default function InvoiceSummary({
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
-            <div className="max-w-2xl w-full mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="max-w-2xl w-full mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto border border-border dark:border-gray-800">
               {/* Invoice Status Banner */}
-              {showInvoiceInfo && (
+              {!isChecking && (
                 <div
                   className={`p-4 rounded-lg border ${
-                    hasUnlimited 
-                      ? "bg-purple-50 border-purple-200"
+                    hasUnlimited
+                      ? colors.bg + " " + colors.border
                       : hasFreeInvoices
-                      ? "bg-green-50 border-green-200"
-                      : "bg-yellow-50 border-yellow-200"
+                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                        : "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       {hasUnlimited ? (
                         <>
-                          <span className="text-purple-600 mr-3 text-2xl">
-                            👑
+                          <span className={`mr-3 text-2xl ${colors.text}`}>
+                            {tierIcon}
                           </span>
                           <div>
-                            <p className="font-semibold text-purple-800">
-                              {userTier === 'growth' ? 'Growth Plan' : 'Premium Plan'}
+                            <p className={`font-semibold ${colors.text}`}>
+                              {getTierDisplayName()} Plan
                             </p>
-                            <p className="text-sm text-purple-600">
-                              Unlimited invoices
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Unlimited invoices included
                             </p>
                           </div>
                         </>
                       ) : hasFreeInvoices ? (
                         <>
-                          <span className="text-green-600 mr-3 text-2xl">
-                            🎉
-                          </span>
+                          <CheckCircle2 className="text-green-600 dark:text-green-400 mr-3 w-6 h-6" />
                           <div>
-                            <p className="font-semibold text-green-800">
+                            <p className="font-semibold text-green-800 dark:text-green-400">
                               Free Invoice Available
                             </p>
-                            <p className="text-sm text-green-600">
-                              You have {remainingInvoices} free {remainingInvoices === 1 ? 'invoice' : 'invoices'} remaining this month
+                            <p className="text-sm text-green-600 dark:text-green-400">
+                              You have {remainingInvoices} free{" "}
+                              {remainingInvoices === 1 ? "invoice" : "invoices"} remaining
                             </p>
                           </div>
                         </>
                       ) : (
                         <>
-                          <span className="text-[#C29307] mr-3 text-2xl">
-                            💰
-                          </span>
+                          <AlertCircle className="text-yellow-600 dark:text-yellow-400 mr-3 w-6 h-6" />
                           <div>
-                            <p className="font-semibold text-yellow-800">
-                              Pay-Per-Use
+                            <p className="font-semibold text-yellow-800 dark:text-yellow-400">
+                              Limit Reached
                             </p>
-                            <p className="text-sm text-[#C29307]">
-                              You've reached your monthly limit
+                            <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                              You've used all your free invoices
                             </p>
                           </div>
                         </>
@@ -196,20 +218,17 @@ export default function InvoiceSummary({
                     <div className="text-right">
                       <p
                         className={`text-2xl font-bold ${
-                          hasUnlimited 
-                            ? "text-purple-600"
+                          hasUnlimited
+                            ? colors.text
                             : hasFreeInvoices
-                            ? "text-green-600"
-                            : "text-[#C29307]"
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-yellow-600 dark:text-yellow-400"
                         }`}
                       >
-                        {hasUnlimited ? "UNLIMITED" : (hasFreeInvoices ? "FREE" : `₦${invoiceFee}`)}
+                        {hasUnlimited ? "FREE" : hasFreeInvoices ? "FREE" : "LIMIT REACHED"}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {useNewSystem 
-                          ? `${totalCreated} used this month`
-                          : `${totalCreated} invoices created`
-                        }
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {usageInfo?.used || 0} used
                       </p>
                     </div>
                   </div>
@@ -217,74 +236,56 @@ export default function InvoiceSummary({
               )}
 
               {/* Header */}
-              <div className="flex flex-col items-center border-b pb-4">
-                <div className="text-gray-500 text-sm">Invoice Generation</div>
+              <div className="flex flex-col items-center border-b border-border dark:border-gray-800 pb-4">
+                <div className="text-gray-500 dark:text-gray-400 text-sm">
+                  Invoice Summary
+                </div>
                 <div
                   className={`text-3xl font-bold ${
-                    hasUnlimited 
-                      ? "text-purple-600"
+                    hasUnlimited
+                      ? colors.text
                       : hasFreeInvoices
-                      ? "text-green-600"
-                      : "text-gray-900"
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-yellow-600 dark:text-yellow-400"
                   }`}
                 >
-                  {hasUnlimited ? "FREE" : (hasFreeInvoices ? "FREE" : `₦${invoiceFee}`)}
+                  ₦{totals.totalAmount.toLocaleString()}
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   {invoiceData.payment_type === "multiple"
                     ? "Multiple Buyers Invoice"
                     : "Single Buyer Invoice"}
-                  {!hasUnlimited && showInvoiceInfo && (
-                    <span
-                      className={`block mt-1 ${
-                        hasFreeInvoices
-                          ? "text-green-600"
-                          : "text-[#C29307]"
-                      }`}
-                    >
-                      {hasFreeInvoices
-                        ? `(${remainingInvoices} ${remainingInvoices === 1 ? 'invoice' : 'invoices'} left this month)`
-                        : "(Monthly limit reached - Pay-per-use active)"}
-                    </span>
-                  )}
-                  {hasUnlimited && (
-                    <span className="block mt-1 text-purple-600">
-                      (Unlimited invoices)
-                    </span>
-                  )}
                 </div>
               </div>
 
               {/* INVOICE DETAILS Section */}
               <div>
-                <h3 className="text-gray-700 text-sm font-semibold mb-3">
+                <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold mb-3">
                   Invoice Details
                 </h3>
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3 text-sm">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Invoice Number</span>
-                    <span className="text-gray-900 font-medium">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Invoice Number
+                    </span>
+                    <span className="text-gray-900 dark:text-gray-200 font-medium">
                       {invoiceData.invoice_id}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Issue Date</span>
-                    <span className="text-gray-900">
-                      {invoiceData.issue_date}
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Issue Date
                     </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Fee Option</span>
-                    <span className="text-gray-900 capitalize">
-                      {invoiceData.fee_option === "customer"
-                        ? "Customer pays 2% fee"
-                        : "2% absorbed by you"}
+                    <span className="text-gray-900 dark:text-gray-200">
+                      {invoiceData.issue_date}
                     </span>
                   </div>
                   {invoiceData.payment_type === "multiple" && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Total Units</span>
-                      <span className="text-gray-900">
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Total Units
+                      </span>
+                      <span className="text-gray-900 dark:text-gray-200">
                         {invoiceData?.targetQuantity}
                       </span>
                     </div>
@@ -294,50 +295,58 @@ export default function InvoiceSummary({
 
               {/* PARTIES INVOLVED Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* FROM Section */}
                 <div>
-                  <h3 className="text-gray-700 text-sm font-semibold mb-2">
+                  <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">
                     From
                   </h3>
-                  <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 space-y-2 text-sm">
                     <div>
-                      <span className="text-gray-500 block text-xs">Name</span>
-                      <span className="text-gray-900 font-medium">
+                      <span className="text-gray-500 dark:text-gray-400 block text-xs">
+                        Name
+                      </span>
+                      <span className="text-gray-900 dark:text-gray-200 font-medium">
                         {initiatorName || invoiceData.business_name || invoiceData.from}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block text-xs">Email</span>
-                      <span className="text-gray-900">{safeEmail}</span>
+                      <span className="text-gray-500 dark:text-gray-400 block text-xs">
+                        Email
+                      </span>
+                      <span className="text-gray-900 dark:text-gray-200">
+                        {safeEmail}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block text-xs">
+                      <span className="text-gray-500 dark:text-gray-400 block text-xs">
                         Bill To
                       </span>
-                      <span className="text-gray-900">
+                      <span className="text-gray-900 dark:text-gray-200">
                         {invoiceData.bill_to || "Not specified"}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* TO Section */}
                 <div>
-                  <h3 className="text-gray-700 text-sm font-semibold mb-2">
+                  <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">
                     To
                   </h3>
-                  <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 space-y-2 text-sm">
                     <div>
-                      <span className="text-gray-500 block text-xs">
+                      <span className="text-gray-500 dark:text-gray-400 block text-xs">
                         Client Name
                       </span>
-                      <span className="text-gray-900 font-medium">
+                      <span className="text-gray-900 dark:text-gray-200 font-medium">
                         {invoiceData.name || "Not specified"}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block text-xs">Email</span>
-                      <span className="text-gray-900">{invoiceData.email || "Not specified"}</span>
+                      <span className="text-gray-500 dark:text-gray-400 block text-xs">
+                        Email
+                      </span>
+                      <span className="text-gray-900 dark:text-gray-200">
+                        {invoiceData.email || "Not specified"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -345,46 +354,40 @@ export default function InvoiceSummary({
 
               {/* ITEMS & TOTALS */}
               <div>
-                <h3 className="text-gray-700 text-sm font-semibold mb-2">
+                <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">
                   Items & Amount
                 </h3>
-                <div className="bg-gray-50 rounded-lg p-4">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
                   <div className="space-y-2 mb-3">
                     {invoiceData.invoice_items.map((item, index) => (
                       <div
                         key={item.id}
                         className="flex justify-between text-sm"
                       >
-                        <span className="text-gray-700">
+                        <span className="text-gray-700 dark:text-gray-300">
                           {item.description} (Qty: {item.quantity})
                         </span>
-                        <span className="text-gray-900">
+                        <span className="text-gray-900 dark:text-gray-200">
                           ₦{item.total.toLocaleString()}
                         </span>
                       </div>
                     ))}
                   </div>
 
-                  <div className="border-t pt-3 space-y-2 text-sm">
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Subtotal</span>
-                      <span className="text-gray-900">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Subtotal
+                      </span>
+                      <span className="text-gray-900 dark:text-gray-200">
                         ₦{totals.subtotal.toLocaleString()}
                       </span>
                     </div>
-                    {invoiceData.fee_option === "customer" && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">
-                          Processing Fee (2%) capped at ₦2000
-                        </span>
-                        <span className="text-gray-900">
-                          ₦{totals.feeAmount.toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between font-semibold border-t pt-2">
-                      <span className="text-gray-700">Total Amount</span>
-                      <span className="text-gray-900">
+                    <div className="flex justify-between font-semibold border-t border-gray-200 dark:border-gray-700 pt-2">
+                      <span className="text-gray-700 dark:text-gray-300">
+                        Total Amount
+                      </span>
+                      <span className="text-gray-900 dark:text-gray-200">
                         ₦{totals.totalAmount.toLocaleString()}
                       </span>
                     </div>
@@ -392,134 +395,100 @@ export default function InvoiceSummary({
                 </div>
               </div>
 
-              {/* MESSAGE & NOTES */}
-              {(invoiceData.message || invoiceData.customer_note) && (
-                <div className="space-y-3">
-                  {invoiceData.message && (
-                    <div>
-                      <h3 className="text-gray-700 text-sm font-semibold mb-2">
-                        Message
-                      </h3>
-                      <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                        <p className="text-gray-700">{invoiceData.message}</p>
-                      </div>
-                    </div>
-                  )}
-                  {invoiceData.customer_note && (
-                    <div>
-                      <h3 className="text-gray-700 text-sm font-semibold mb-2">
-                        Customer Note
-                      </h3>
-                      <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                        <p className="text-gray-700">
-                          {invoiceData.customer_note}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Important Notes */}
               <div
                 className={`rounded-lg p-4 text-sm flex items-start gap-3 ${
                   hasUnlimited
-                    ? "bg-purple-50 border border-purple-200 text-purple-700"
+                    ? colors.bg + " border " + colors.border
                     : hasFreeInvoices
-                    ? "bg-green-50 border border-green-200 text-green-700"
-                    : "bg-blue-50 border border-blue-200 text-blue-700"
+                      ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                      : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
                 }`}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className={`h-5 w-5 mt-0.5 shrink-0 ${
-                    hasUnlimited
-                      ? "text-purple-500"
-                      : hasFreeInvoices
-                      ? "text-green-500"
-                      : "text-blue-500"
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
                 <div className="space-y-1">
                   <p className="font-medium">Important Information</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
                     <li>This invoice will be sent to the client's email</li>
                     <li>Client can pay via multiple payment methods</li>
-                    
+
                     {hasUnlimited ? (
                       <>
                         <li>
-                          <strong className="text-purple-700">{userTier === 'growth' ? 'Growth Plan:' : 'Premium Plan:'}</strong> Unlimited invoices
+                          <strong className={colors.text}>
+                            {getTierDisplayName()} Plan:
+                          </strong>{" "}
+                          Unlimited invoices included
                         </li>
-                        <li>No monthly limits on invoice creation</li>
+                        <li>No additional charges for invoice creation</li>
                       </>
                     ) : hasFreeInvoices ? (
                       <>
                         <li>
-                          This invoice is <strong>FREE</strong> (within monthly limit)
+                          This invoice is <strong>FREE</strong> (within plan limit)
                         </li>
                         <li>
-                          You have {remainingInvoices - 1} free {remainingInvoices - 1 === 1 ? 'invoice' : 'invoices'} remaining this month
+                          You have {remainingInvoices - 1} free{" "}
+                          {remainingInvoices - 1 === 1 ? "invoice" : "invoices"} remaining
                         </li>
-                        <li>After reaching limit, you can continue with pay-per-use (₦{payPerUseFee} per invoice) or upgrade to Growth for unlimited</li>
+                        <li>
+                          Upgrade to a higher tier for unlimited invoices
+                        </li>
                       </>
                     ) : (
                       <>
-                        <li>
-                          This invoice will cost <strong>₦{payPerUseFee}</strong> (pay-per-use)
+                        <li className="text-yellow-700 dark:text-yellow-400 font-medium">
+                          ⚠️ You've reached your invoice limit
                         </li>
                         <li>
-                          You've reached your monthly limit of 5 free invoices
+                          You need to upgrade your plan to create more invoices
                         </li>
-                        <li>Upgrade to Growth for unlimited free invoices</li>
+                        <li>
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto text-[#2b825b] font-semibold underline"
+                            onClick={() => window.location.href = "/pricing?upgrade=growth"}
+                          >
+                            Upgrade to Growth
+                          </Button>{" "}
+                          for unlimited invoices
+                        </li>
                       </>
                     )}
-                    
+
                     <li>You will receive notifications when payment is made</li>
-                    {invoiceData.fee_option === "customer" && (
-                      <li>
-                        2% processing fee will be added to the client's total
-                      </li>
-                    )}
                   </ul>
                 </div>
               </div>
 
               {/* Buttons */}
-              <div className="flex justify-between pt-4 border-t">
+              <div className="flex justify-between pt-4 border-t border-border dark:border-gray-800">
                 <Button
                   variant="outline"
                   onClick={onBack}
-                  className="border border-gray-300 text-gray-700 hover:bg-gray-100"
+                  className="border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   Back to Edit
                 </Button>
-                <Button
-                  onClick={onConfirm}
-                  className={`px-8 ${
-                    hasUnlimited
-                      ? "bg-purple-600 hover:bg-purple-700 text-white"
-                      : hasFreeInvoices
-                      ? "bg-green-600 hover:bg-green-700 text-white"
-                      : "bg-[#C29307] hover:bg-[#b38606] text-white"
-                  }`}
-                >
-                  {hasUnlimited 
-                    ? "Create Invoice"
-                    : hasFreeInvoices 
-                    ? `Create Free Invoice (${remainingInvoices - 1} left)` 
-                    : `Pay ₦${payPerUseFee} & Create Invoice`}
-                </Button>
+                
+                {hasReachedLimit ? (
+                  <Button
+                    onClick={() => window.location.href = "/pricing?upgrade=growth"}
+                    className="px-8 bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42] text-white"
+                  >
+                    Upgrade Plan
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={onConfirm}
+                    className={`px-8 text-white ${
+                      hasUnlimited
+                        ? colors.btn
+                        : "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]"
+                    }`}
+                  >
+                    Create Invoice
+                  </Button>
+                )}
               </div>
             </div>
           </motion.div>

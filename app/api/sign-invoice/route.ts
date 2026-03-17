@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const baseUrl =
@@ -46,7 +46,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
 
   const total = items.reduce(
     (sum: number, item: any) => sum + (item.quantity || 0) * (item.price || 0),
-    0
+    0,
   );
 
   const formattedTotal = new Intl.NumberFormat("en-NG", {
@@ -90,7 +90,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
   object-fit: contain;
 }
     .header {
-      background: linear-gradient(90deg, #C29307, #937108);
+      background: linear-gradient(90deg, #2b825b, #937108);
       color: #fff;
       padding: 30px;
       display: flex;
@@ -160,7 +160,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
     }
 
     .message {
-      border-left: 4px solid #C29307;
+      border-left: 4px solid #2b825b;
       padding: 15px 20px;
       margin-bottom: 30px;
       background: #f0f4ff;
@@ -235,7 +235,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
       margin-top: 10px;
       border-top: 1px solid #e5e7eb;
       padding-top: 10px;
-      color: #C29307;
+      color: #2b825b;
     }
 
     .signatures {
@@ -354,10 +354,10 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
                   <td>${item.quantity}</td>
                   <td>₦${Number(item.price).toLocaleString("en-NG")}</td>
                   <td>₦${Number(item.quantity * item.price).toLocaleString(
-                    "en-NG"
+                    "en-NG",
                   )}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -415,7 +415,7 @@ export async function POST(request: Request) {
     if (!invoiceId) {
       return NextResponse.json(
         { message: "Missing invoiceId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -430,7 +430,7 @@ export async function POST(request: Request) {
     if (error || !invoice) {
       return NextResponse.json(
         { message: "Invoice not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -454,7 +454,7 @@ export async function POST(request: Request) {
     <h2 style="color: green;">Payment Confirmed</h2>
     <p>Hello ${invoice.signee_name},</p>
     <p>Your payment of <b>₦${Number(invoice.total_amount).toLocaleString(
-      "en-NG"
+      "en-NG",
     )}</b> for invoice <b>#${invoice.invoice_id}</b> has been received.</p>
     <p>You can now sign your invoice using the link below:</p>
     
@@ -483,7 +483,7 @@ export async function POST(request: Request) {
         message: "Invoice email sent",
         sendPaymentConfirmation: !!sendPaymentConfirmation,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Server error:", error);

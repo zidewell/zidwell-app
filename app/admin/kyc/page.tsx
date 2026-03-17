@@ -78,13 +78,13 @@ export default function KycPage() {
   const stats = React.useMemo(() => {
     const total = applications.length;
     const pending = applications.filter(
-      (app: any) => app.status === "pending"
+      (app: any) => app.status === "pending",
     ).length;
     const approved = applications.filter(
-      (app: any) => app.status === "approved"
+      (app: any) => app.status === "approved",
     ).length;
     const rejected = applications.filter(
-      (app: any) => app.status === "rejected"
+      (app: any) => app.status === "rejected",
     ).length;
 
     return { total, pending, approved, rejected };
@@ -106,7 +106,7 @@ export default function KycPage() {
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
   const paginatedApplications = filteredApplications.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   // ---------- Update KYC Status ----------
@@ -162,7 +162,7 @@ export default function KycPage() {
   // ---------- View Document in Modal ----------
   const handleViewDocument = async (
     documentUrl: string,
-    documentType: string
+    documentType: string,
   ) => {
     if (!documentUrl) return;
 
@@ -367,10 +367,10 @@ export default function KycPage() {
       didOpen: () => {
         // Add click handlers for the preview buttons
         const idCardBtn = document.querySelector(
-          '[onclick^="window.viewIdCard"]'
+          '[onclick^="window.viewIdCard"]',
         );
         const utilityBillBtn = document.querySelector(
-          '[onclick^="window.viewUtilityBill"]'
+          '[onclick^="window.viewUtilityBill"]',
         );
 
         if (idCardBtn) {
@@ -385,7 +385,7 @@ export default function KycPage() {
             e.preventDefault();
             handleViewDocument(
               application.signed_utility_bill_url,
-              "Utility Bill"
+              "Utility Bill",
             );
           });
         }
@@ -416,7 +416,7 @@ export default function KycPage() {
       Swal.fire(
         "Deleted",
         `KYC application for ${application.user_email} has been deleted.`,
-        "success"
+        "success",
       );
       mutate();
     } catch (err) {
@@ -642,7 +642,7 @@ export default function KycPage() {
             <h3 className="text-sm font-medium text-gray-500">
               Pending Review
             </h3>
-            <p className="text-2xl font-semibold text-[#C29307]">
+            <p className="text-2xl font-semibold text-[#2b825b]">
               {stats.pending}
             </p>
           </div>

@@ -91,30 +91,30 @@ export default function TaxFilingsPage() {
   const totalFilings = useMemo(() => data?.total || 0, [data]);
   const totalPages = useMemo(
     () => Math.ceil(totalFilings / itemsPerPage),
-    [totalFilings, itemsPerPage]
+    [totalFilings, itemsPerPage],
   );
 
   // Use statsData for calculations
   const allFilteredFilings = useMemo(
     () => statsData?.filings || [],
-    [statsData]
+    [statsData],
   );
 
   // Calculate stats
   const pendingFilings = useMemo(
     () =>
       allFilteredFilings.filter(
-        (f: any) => f.status === "pending" || f.status === "submitted"
+        (f: any) => f.status === "pending" || f.status === "submitted",
       ),
-    [allFilteredFilings]
+    [allFilteredFilings],
   );
 
   const processingFilings = useMemo(
     () =>
       allFilteredFilings.filter(
-        (f: any) => f.status === "processing" || f.status === "under_review"
+        (f: any) => f.status === "processing" || f.status === "under_review",
       ),
-    [allFilteredFilings]
+    [allFilteredFilings],
   );
 
   const successfulFilings = useMemo(
@@ -123,26 +123,26 @@ export default function TaxFilingsPage() {
         (f: any) =>
           f.status === "completed" ||
           f.status === "approved" ||
-          f.status === "success"
+          f.status === "success",
       ),
-    [allFilteredFilings]
+    [allFilteredFilings],
   );
 
   const rejectedFilings = useMemo(
     () =>
       allFilteredFilings.filter(
-        (f: any) => f.status === "rejected" || f.status === "failed"
+        (f: any) => f.status === "rejected" || f.status === "failed",
       ),
-    [allFilteredFilings]
+    [allFilteredFilings],
   );
 
   const totalRevenue = useMemo(
     () =>
       allFilteredFilings.reduce(
         (sum: number, f: any) => sum + Number(f.amount_paid || 0),
-        0
+        0,
       ),
-    [allFilteredFilings]
+    [allFilteredFilings],
   );
 
   if (isLoading) {
@@ -184,12 +184,11 @@ export default function TaxFilingsPage() {
             <h3 className="text-sm font-medium text-gray-500">Total Revenue</h3>
             <p className="text-2xl font-semibold">
               ₦{totalRevenue.toLocaleString()}
-              
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-            <p className="text-2xl font-semibold text-[#C29307]">
+            <p className="text-2xl font-semibold text-[#2b825b]">
               {pendingFilings.length}
             </p>
           </div>

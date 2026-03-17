@@ -1,3 +1,4 @@
+// context/userData.tsx
 "use client";
 
 import {
@@ -27,14 +28,14 @@ export interface SupabaseUser {
   address: string | null;
   dateOfBirth: string;
   profilePicture: string | null;
-  // Add subscription fields
-  subscription_tier?: 'free' | 'growth' | 'premium' | 'elite' | null;
+  // Add subscription fields with zidlite
+  subscription_tier?: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite' | null;
   subscription_expires_at?: string | null;
 }
 
-// Add subscription interface
+// Add subscription interface with zidlite
 export interface SubscriptionInfo {
-  tier: 'free' | 'growth' | 'premium' | 'elite';
+  tier: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite';
   status: 'active' | 'expired' | 'cancelled' | 'pending';
   expiresAt: Date | null;
   features: Record<string, any>;
@@ -72,7 +73,7 @@ interface UserContextType {
   markAllAsRead: () => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   clearNotificationCache: () => void;
-  // Add subscription-related methods
+  // Add subscription-related methods with zidlite
   subscription: SubscriptionInfo | null;
   subscriptionLoading: boolean;
   refreshSubscription: () => Promise<void>;
@@ -82,7 +83,7 @@ interface UserContextType {
     message?: string;
     requiredTier?: string;
   }>;
-  subscribe: (tier: 'growth' | 'premium' | 'elite', paymentMethod: string, amount: number, paymentReference: string, isYearly?: boolean) => Promise<any>;
+  subscribe: (tier: 'zidlite' | 'growth' | 'premium' | 'elite', paymentMethod: string, amount: number, paymentReference: string, isYearly?: boolean) => Promise<any>;
   cancelSubscription: () => Promise<any>;
   getUpgradeBenefits: (targetTier: string) => string[];
   canAccessFeature: (featureKey: string, currentCount?: number) => boolean;
@@ -211,18 +212,34 @@ class SubscriptionCache {
 
 const subscriptionCache = new SubscriptionCache();
 
-// Feature access mapping
+// Feature access mapping with zidlite
 const FEATURE_TIER_MAP: Record<string, string> = {
-  'invoices_per_month': 'free',
-  'receipts_per_month': 'free',
-  'contracts_per_month': 'free',
+  'invoices_total': 'free',
+  'receipts_total': 'free',
+  'contracts_total': 'free',
+  'transfer_fee': 'free',
+  'bookkeeping_trial_days': 'free',
+  'tax_calculator_trial_days': 'free',
+  'support_type': 'free',
+  
+  // ZidLite features
+  'zidlite_invoices_total': 'zidlite',
+  'zidlite_receipts_total': 'zidlite',
+  'zidlite_contracts_total': 'zidlite',
+  'whatsapp_community': 'zidlite',
+  
+  // Growth features
   'bookkeeping_access': 'growth',
   'tax_calculator': 'growth',
-  'payment_reminders': 'growth',
-  'whatsapp_community': 'growth',
+  'growth_contracts': 'growth',
+  
+  // Premium features
+  'payment_reminders': 'premium',
   'financial_statements': 'premium',
   'tax_support': 'premium',
   'priority_support': 'premium',
+  
+  // Elite features
   'full_tax_filing': 'elite',
   'vat_filing': 'elite',
   'paye_filing': 'elite',
@@ -233,8 +250,8 @@ const FEATURE_TIER_MAP: Record<string, string> = {
   'audit_coordination': 'elite',
 };
 
-// Tier hierarchy for upgrade benefits
-const TIER_HIERARCHY = ['free', 'growth', 'premium', 'elite'];
+// Tier hierarchy for upgrade benefits (includes zidlite)
+const TIER_HIERARCHY = ['free', 'zidlite', 'growth', 'premium', 'elite'];
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -594,9 +611,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
-  // Subscribe to a paid tier
+  // Subscribe to a paid tier (includes zidlite)
   const subscribe = async (
-    tier: 'growth' | 'premium' | 'elite',
+    tier: 'zidlite' | 'growth' | 'premium' | 'elite',
     paymentMethod: string,
     amount: number,
     paymentReference: string,
@@ -673,23 +690,30 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Get upgrade benefits from current tier to target tier
+  // Get upgrade benefits from current tier to target tier (includes zidlite)
   const getUpgradeBenefits = (targetTier: string): string[] => {
     const benefitsMap: Record<string, Record<string, string[]>> = {
       free: {
+        zidlite: [
+          "10 invoices total",
+          "10 receipts total",
+          "2 contracts total",
+          "Access to WhatsApp Business Community",
+          "WhatsApp support",
+        ],
         growth: [
           "Unlimited invoices",
           "Unlimited receipts",
-          "5 contracts per month",
+          "5 contracts total",
           "Bookkeeping tool access",
           "Tax calculator",
-          "Invoice payment reminders",
-          "WhatsApp community access",
+          "Access to WhatsApp Business Community",
           "WhatsApp support",
         ],
         premium: [
           "Everything in Growth, plus:",
           "Unlimited contracts",
+          "Invoice Payment Reminders",
           "Financial statement preparation",
           "Tax calculation support",
           "Tax filing support",
@@ -697,8 +721,34 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         ],
         elite: [
           "Everything in Premium, plus:",
-          "Full tax filing support",
-          "VAT, PAYE, WHT filing",
+          "Full tax filing support (VAT, PAYE, WHT)",
+          "CIT audit",
+          "Monthly & yearly tax filing",
+          "CFO-level guidance",
+          "Direct WhatsApp support",
+          "Annual audit coordination",
+        ],
+      },
+      zidlite: {
+        growth: [
+          "Unlimited invoices (up from 10)",
+          "Unlimited receipts (up from 10)",
+          "5 contracts total (up from 2)",
+          "Bookkeeping tool",
+          "Tax calculator",
+        ],
+        premium: [
+          "Unlimited invoices & receipts",
+          "Unlimited contracts (up from 2)",
+          "Invoice Payment Reminders",
+          "Financial statement preparation",
+          "Tax calculation support",
+          "Tax filing support",
+          "Priority support",
+        ],
+        elite: [
+          "Everything in Premium, plus:",
+          "Full tax filing support (VAT, PAYE, WHT)",
           "CIT audit",
           "Monthly & yearly tax filing",
           "CFO-level guidance",
@@ -708,7 +758,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       },
       growth: {
         premium: [
-          "Unlimited contracts",
+          "Unlimited contracts (up from 5)",
+          "Invoice Payment Reminders",
           "Financial statement preparation",
           "Tax calculation support",
           "Tax filing support",
@@ -716,8 +767,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         ],
         elite: [
           "Everything in Premium, plus:",
-          "Full tax filing support",
-          "VAT, PAYE, WHT filing",
+          "Full tax filing support (VAT, PAYE, WHT)",
           "CIT audit",
           "Monthly & yearly tax filing",
           "CFO-level guidance",
@@ -727,8 +777,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       },
       premium: {
         elite: [
-          "Full tax filing support",
-          "VAT, PAYE, WHT filing",
+          "Full tax filing support (VAT, PAYE, WHT)",
           "CIT audit",
           "Monthly & yearly tax filing",
           "CFO-level guidance",
@@ -939,7 +988,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         markAllAsRead,
         fetchUnreadCount,
         clearNotificationCache,
-        // Subscription values
+        // Subscription values with zidlite
         subscription: shouldFetchData ? subscription : null,
         subscriptionLoading: shouldFetchData ? subscriptionLoading : false,
         refreshSubscription,

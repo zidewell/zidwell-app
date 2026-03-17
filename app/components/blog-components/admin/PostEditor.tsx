@@ -252,7 +252,7 @@ const calculateReadTime = (content: string): number => {
 const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const router = useRouter();
   const { userData } = useUserContextData();
-  
+
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [excerpt, setExcerpt] = useState("");
@@ -313,11 +313,11 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     if (userData) {
       const name = userData.fullName || userData.username || "Author";
       setAuthorName(name);
-      
+
       if (userData.profilePicture) {
         setAuthorAvatar(userData.profilePicture);
       }
-      
+
       if (userData.bio) {
         setAuthorBio(userData.bio);
       }
@@ -332,8 +332,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         content,
         excerpt,
         categories: selectedCategories,
-        featuredImage: featuredImage.startsWith('blob:') ? '' : featuredImage,
-        audioFile: audioFile.startsWith('blob:') ? '' : audioFile,
+        featuredImage: featuredImage.startsWith("blob:") ? "" : featuredImage,
+        audioFile: audioFile.startsWith("blob:") ? "" : audioFile,
         tags,
         authorName,
         authorAvatar,
@@ -353,9 +353,9 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         setIsLoading(true);
         try {
           const response = await fetch(`/api/blog/posts?id=${postId}`);
-          if (!response.ok) throw new Error('Failed to fetch post');
+          if (!response.ok) throw new Error("Failed to fetch post");
           const post = await response.json();
-          
+
           setTitle(post.title);
           setContent(post.content || "");
           setExcerpt(post.excerpt || "");
@@ -364,11 +364,11 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
           setAudioFile(post.audio_file || "");
           setIsPublished(post.is_published);
           setTags(post.tags?.join(", ") || "");
-          
+
           setAuthorName(post.author?.name || post.author_name || "Author");
           setAuthorAvatar(post.author?.avatar || "");
           setAuthorBio(post.author?.bio || "");
-          
+
           setHasUnsavedChanges(false);
           setValidationErrors({});
         } catch (error) {
@@ -397,9 +397,15 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
               setFeaturedImage(parsed.featuredImage || "");
               setAudioFile(parsed.audioFile || "");
               setTags(parsed.tags || "");
-              setAuthorName(parsed.authorName || 
-                (userData?.fullName || userData?.username || "Author"));
-              setAuthorAvatar(parsed.authorAvatar || userData?.profilePicture || "");
+              setAuthorName(
+                parsed.authorName ||
+                  userData?.fullName ||
+                  userData?.username ||
+                  "Author",
+              );
+              setAuthorAvatar(
+                parsed.authorAvatar || userData?.profilePicture || "",
+              );
               setAuthorBio(parsed.authorBio || userData?.bio || "");
               showInfoAlert(
                 "Draft Loaded",
@@ -433,7 +439,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       });
     }
 
-    if (featuredImage.trim() && !featuredImage.startsWith('blob:')) {
+    if (featuredImage.trim() && !featuredImage.startsWith("blob:")) {
       const featuredImageValidation = validateUrl(
         featuredImage,
         "Featured image",
@@ -443,7 +449,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       }
     }
 
-    if (audioFile.trim() && !audioFile.startsWith('blob:')) {
+    if (audioFile.trim() && !audioFile.startsWith("blob:")) {
       const audioFileValidation = validateUrl(audioFile, "Audio file");
       if (!audioFileValidation.isValid && audioFileValidation.error) {
         errors.audioFile = audioFileValidation.error;
@@ -485,7 +491,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       console.log("Image file selected:", {
         name: file.name,
         type: file.type,
-        size: file.size
+        size: file.size,
       });
 
       const validImageTypes = [
@@ -514,7 +520,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         // Create preview URL
         const previewUrl = URL.createObjectURL(file);
         console.log("Created preview URL:", previewUrl);
-        
+
         // Store both the file and preview URL
         setFeaturedImage(previewUrl);
         setFeaturedImageFile(file);
@@ -552,7 +558,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       console.log("Audio file selected:", {
         name: file.name,
         type: file.type,
-        size: file.size
+        size: file.size,
       });
 
       const validAudioTypes = [
@@ -596,7 +602,9 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         console.error("Error processing audio:", error);
         showErrorAlert(
           "Processing Failed",
-          error instanceof Error ? error.message : "Failed to process audio file",
+          error instanceof Error
+            ? error.message
+            : "Failed to process audio file",
         );
       } finally {
         setUploadingAudio(false);
@@ -680,13 +688,13 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    e.currentTarget.classList.add("border-accent", "bg-[#C29307]/10");
+    e.currentTarget.classList.add("border-accent", "bg-[#2b825b]/10");
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    e.currentTarget.classList.remove("border-accent", "bg-[#C29307]/10");
+    e.currentTarget.classList.remove("border-accent", "bg-[#2b825b]/10");
   }, []);
 
   // Save draft to server
@@ -701,12 +709,15 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       formData.append("content", content.trim());
       formData.append("excerpt", excerpt.trim() || "");
       formData.append("categories", JSON.stringify(selectedCategories));
-      formData.append("tags", JSON.stringify(
-        tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean)
-      ));
+      formData.append(
+        "tags",
+        JSON.stringify(
+          tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
+        ),
+      );
       formData.append("authorId", userData?.id || "default-author-id");
       formData.append("authorName", authorName.trim());
       formData.append("authorAvatar", authorAvatar.trim() || "");
@@ -717,27 +728,38 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       console.log("Saving draft with:", {
         title,
         hasFeaturedImageFile: !!featuredImageFile,
-        featuredImageFileDetails: featuredImageFile ? {
-          name: featuredImageFile.name,
-          type: featuredImageFile.type,
-          size: featuredImageFile.size
-        } : null,
-        featuredImage: featuredImage ? {
-          startsWithBlob: featuredImage.startsWith('blob:'),
-          startsWithHttp: featuredImage.startsWith('http'),
-          value: featuredImage.substring(0, 50) + '...' // Truncate for logging
-        } : null,
+        featuredImageFileDetails: featuredImageFile
+          ? {
+              name: featuredImageFile.name,
+              type: featuredImageFile.type,
+              size: featuredImageFile.size,
+            }
+          : null,
+        featuredImage: featuredImage
+          ? {
+              startsWithBlob: featuredImage.startsWith("blob:"),
+              startsWithHttp: featuredImage.startsWith("http"),
+              value: featuredImage.substring(0, 50) + "...", // Truncate for logging
+            }
+          : null,
         hasAudioFileObj: !!audioFileObj,
       });
 
       // Handle featured image - THREE CASES:
       // 1. User uploaded a file from their device (has featuredImageFile)
       if (featuredImageFile) {
-        console.log("CASE 1: Appending featuredImage FILE:", featuredImageFile.name);
+        console.log(
+          "CASE 1: Appending featuredImage FILE:",
+          featuredImageFile.name,
+        );
         formData.append("featuredImage", featuredImageFile);
-      } 
+      }
       // 2. User provided an HTTPS URL (featuredImage is a non-blob HTTP URL)
-      else if (featuredImage && featuredImage.startsWith('http') && !featuredImage.includes('blob:')) {
+      else if (
+        featuredImage &&
+        featuredImage.startsWith("http") &&
+        !featuredImage.includes("blob:")
+      ) {
         console.log("CASE 2: Appending featuredImageUrl:", featuredImage);
         formData.append("featuredImageUrl", featuredImage);
       }
@@ -752,14 +774,24 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       // Log all form data entries for debugging
       console.log("FormData entries:");
       for (let pair of formData.entries()) {
-        if (pair[0] === 'featuredImage') {
-          console.log(pair[0], ':', pair[1] instanceof File ? `File: ${pair[1].name} (${pair[1].size} bytes)` : pair[1]);
-        } else if (pair[0] === 'featuredImageUrl') {
-          console.log(pair[0], ':', pair[1]);
-        } else if (pair[0] === 'audioFile') {
-          console.log(pair[0], ':', pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]);
+        if (pair[0] === "featuredImage") {
+          console.log(
+            pair[0],
+            ":",
+            pair[1] instanceof File
+              ? `File: ${pair[1].name} (${pair[1].size} bytes)`
+              : pair[1],
+          );
+        } else if (pair[0] === "featuredImageUrl") {
+          console.log(pair[0], ":", pair[1]);
+        } else if (pair[0] === "audioFile") {
+          console.log(
+            pair[0],
+            ":",
+            pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1],
+          );
         } else {
-          console.log(pair[0], ':', pair[1]);
+          console.log(pair[0], ":", pair[1]);
         }
       }
 
@@ -819,10 +851,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         }
 
         // Clean up blob URLs
-        if (featuredImage && featuredImage.startsWith('blob:')) {
+        if (featuredImage && featuredImage.startsWith("blob:")) {
           URL.revokeObjectURL(featuredImage);
         }
-        if (audioFile && audioFile.startsWith('blob:')) {
+        if (audioFile && audioFile.startsWith("blob:")) {
           URL.revokeObjectURL(audioFile);
         }
 
@@ -894,12 +926,15 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     formData.append("content", content.trim());
     formData.append("excerpt", excerpt.trim() || "");
     formData.append("categories", JSON.stringify(selectedCategories));
-    formData.append("tags", JSON.stringify(
-      tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean)
-    ));
+    formData.append(
+      "tags",
+      JSON.stringify(
+        tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+      ),
+    );
     formData.append("authorId", userData?.id || "default-author-id");
     formData.append("authorName", authorName.trim());
     formData.append("authorAvatar", authorAvatar.trim() || "");
@@ -910,17 +945,26 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     console.log("Publishing post with:", {
       title,
       hasFeaturedImageFile: !!featuredImageFile,
-      featuredImage: featuredImage ? {
-        startsWithBlob: featuredImage.startsWith('blob:'),
-        startsWithHttp: featuredImage.startsWith('http'),
-      } : null,
+      featuredImage: featuredImage
+        ? {
+            startsWithBlob: featuredImage.startsWith("blob:"),
+            startsWithHttp: featuredImage.startsWith("http"),
+          }
+        : null,
     });
 
     // Handle featured image
     if (featuredImageFile) {
-      console.log("Publish - Appending featuredImage FILE:", featuredImageFile.name);
+      console.log(
+        "Publish - Appending featuredImage FILE:",
+        featuredImageFile.name,
+      );
       formData.append("featuredImage", featuredImageFile);
-    } else if (featuredImage && featuredImage.startsWith('http') && !featuredImage.startsWith('blob:')) {
+    } else if (
+      featuredImage &&
+      featuredImage.startsWith("http") &&
+      !featuredImage.startsWith("blob:")
+    ) {
       console.log("Publish - Appending featuredImageUrl:", featuredImage);
       formData.append("featuredImageUrl", featuredImage);
     }
@@ -981,10 +1025,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       }
 
       // Clean up blob URLs
-      if (featuredImage && featuredImage.startsWith('blob:')) {
+      if (featuredImage && featuredImage.startsWith("blob:")) {
         URL.revokeObjectURL(featuredImage);
       }
-      if (audioFile && audioFile.startsWith('blob:')) {
+      if (audioFile && audioFile.startsWith("blob:")) {
         URL.revokeObjectURL(audioFile);
       }
 
@@ -1062,7 +1106,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     try {
       setIsLoading(true);
       const apiKey = getApiKey();
-      
+
       const response = await fetch(`/api/blog/posts?id=${postId}`, {
         method: "DELETE",
         headers: {
@@ -1090,7 +1134,15 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     } finally {
       setIsLoading(false);
     }
-  }, [postId, showConfirmDialog, showInfoAlert, showSuccessAlert, showErrorAlert, getApiKey, router]);
+  }, [
+    postId,
+    showConfirmDialog,
+    showInfoAlert,
+    showSuccessAlert,
+    showErrorAlert,
+    getApiKey,
+    router,
+  ]);
 
   const addCategory = useCallback(() => {
     const trimmedCategory = newCategory.trim();
@@ -1116,7 +1168,13 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     setNewCategory("");
     showSuccessAlert("Category Added", `Added category: ${trimmedCategory}`);
     setValidationErrors((prev) => ({ ...prev, categories: "" }));
-  }, [newCategory, selectedCategories, showErrorAlert, showWarningAlert, showSuccessAlert]);
+  }, [
+    newCategory,
+    selectedCategories,
+    showErrorAlert,
+    showWarningAlert,
+    showSuccessAlert,
+  ]);
 
   const removeCategory = useCallback(
     async (category: string) => {
@@ -1241,30 +1299,31 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   useEffect(() => {
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (showPreview) {
-        if (e.key === 'Escape') {
+        if (e.key === "Escape") {
           setShowPreview(false);
           setIsFullscreen(false);
         }
-        if (e.key === 'F11' || (e.key === 'f' && e.ctrlKey)) {
+        if (e.key === "F11" || (e.key === "f" && e.ctrlKey)) {
           e.preventDefault();
           setIsFullscreen(!isFullscreen);
         }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown as EventListener);
-    return () => window.removeEventListener('keydown', handleKeyDown as EventListener);
+    window.addEventListener("keydown", handleKeyDown as EventListener);
+    return () =>
+      window.removeEventListener("keydown", handleKeyDown as EventListener);
   }, [showPreview, isFullscreen]);
 
   // Prevent body scroll when preview is open
   useEffect(() => {
     if (showPreview) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [showPreview]);
 
@@ -1350,18 +1409,18 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
             {!postId && autoSaveEnabled && hasUnsavedChanges && (
               <div className="flex items-center gap-2 mt-2">
-                <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                 <span className="text-xs text-muted-foreground">
                   Auto-saving...{" "}
                   {lastSaved && `Last saved: ${lastSaved.toLocaleTimeString()}`}
                 </span>
               </div>
             )}
-            
+
             {authorAvatar && (
               <div className="flex items-center gap-2 mt-2">
-                <img 
-                  src={authorAvatar} 
+                <img
+                  src={authorAvatar}
                   alt={authorName}
                   className="w-6 h-6 rounded-full"
                 />
@@ -1401,7 +1460,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
               Preview
             </Button>
             <Button
-              className="bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90"
+              className="bg-[#2b825b] text-accent-foreground hover:bg-[#2b825b]/90"
               onClick={() => handleSave(true)}
               disabled={isLoading || isSaving}
             >
@@ -1570,8 +1629,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                       ? "This post is already published"
                       : "This post is currently a draft"
                     : isPublished
-                    ? "Post will be published immediately when saved"
-                    : "Post will be saved as a draft"}
+                      ? "Post will be published immediately when saved"
+                      : "Post will be saved as a draft"}
                 </p>
               </CardContent>
             </Card>
@@ -1764,7 +1823,11 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                     <Input
                       id="featured-image-url"
                       placeholder="Paste image URL..."
-                      value={featuredImage && !featuredImage.startsWith('blob:') ? featuredImage : ''}
+                      value={
+                        featuredImage && !featuredImage.startsWith("blob:")
+                          ? featuredImage
+                          : ""
+                      }
                       onChange={(e) => {
                         setFeaturedImage(e.target.value);
                         setFeaturedImageFile(null);
@@ -1897,7 +1960,11 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                     <Input
                       id="audio-file-url"
                       placeholder="Paste audio file URL..."
-                      value={audioFile && !audioFile.startsWith('blob:') ? audioFile : ''}
+                      value={
+                        audioFile && !audioFile.startsWith("blob:")
+                          ? audioFile
+                          : ""
+                      }
                       onChange={(e) => {
                         setAudioFile(e.target.value);
                         setAudioFileObj(null);
@@ -1956,8 +2023,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                         ? "Published"
                         : "Draft"
                       : isPublished
-                      ? "Will be published"
-                      : "Draft"}
+                        ? "Will be published"
+                        : "Draft"}
                   </span>
                 </div>
                 {postId && (

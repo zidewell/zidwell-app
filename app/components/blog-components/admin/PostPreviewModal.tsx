@@ -115,7 +115,7 @@ const previewStyles = `
   }
 
   .preview-content blockquote {
-    border-left: 4px solid #C29307;
+    border-left: 4px solid #2b825b;
     padding-left: 1rem;
     margin: 1rem 0;
     font-style: italic;
@@ -127,7 +127,7 @@ const previewStyles = `
   }
 
   .preview-content a {
-    color: #C29307;
+    color: #2b825b;
     text-decoration: underline;
     text-underline-offset: 2px;
   }
@@ -272,7 +272,7 @@ const previewStyles = `
     display: inline-block;
     width: 1.5rem;
     margin-left: -1.5rem;
-    color: #C29307;
+    color: #2b825b;
   }
 
   .preview-content ul[data-list="unchecked"] li:before {
@@ -365,7 +365,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
 
   // Clean content for preview using the same function as RichTextEditor
   const cleanContent = React.useMemo(() => {
-    return cleanQuillHTML(content || '');
+    return cleanQuillHTML(content || "");
   }, [content]);
 
   return (
@@ -375,7 +375,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
         className={`
           relative w-full max-w-6xl h-[90vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl
           flex flex-col overflow-hidden transition-all duration-300
-          ${isFullscreen ? 'fixed inset-0 m-0 rounded-none h-screen w-screen' : ''}
+          ${isFullscreen ? "fixed inset-0 m-0 rounded-none h-screen w-screen" : ""}
         `}
       >
         {/* Header */}
@@ -398,7 +398,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -413,7 +413,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
               )}
               {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             </Button>
-            
+
             {postId && (
               <Button
                 variant="outline"
@@ -425,7 +425,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
                 Open in New Tab
               </Button>
             )}
-            
+
             <Button
               variant="ghost"
               size="icon"
@@ -447,7 +447,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
                   <Badge
                     key={index}
                     variant="secondary"
-                    className="bg-[#C29307]/10 text-[#C29307] hover:bg-[#C29307]/20 uppercase text-xs tracking-wider px-2 py-1"
+                    className="bg-[#2b825b]/10 text-[#2b825b] hover:bg-[#2b825b]/20 uppercase text-xs tracking-wider px-2 py-1"
                   >
                     {category}
                   </Badge>
@@ -462,7 +462,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
 
             {/* Excerpt */}
             {excerpt && (
-              <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-6 italic border-l-4 border-[#C29307] pl-4 py-2">
+              <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-6 italic border-l-4 border-[#2b825b] pl-4 py-2">
                 {excerpt}
               </p>
             )}
@@ -472,17 +472,17 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
               <div className="flex items-center gap-3">
                 <div className="relative">
                   {authorAvatar ? (
-                    <img 
-                      src={authorAvatar} 
+                    <img
+                      src={authorAvatar}
                       alt={authorName}
                       className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#C29307]/20 to-[#C29307]/40 flex items-center justify-center">
-                      <User className="w-6 h-6 text-[#C29307]" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#2b825b]/20 to-[#2b825b]/40 flex items-center justify-center">
+                      <User className="w-6 h-6 text-[#2b825b]" />
                     </div>
                   )}
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#C29307] rounded-full border-2 border-white dark:border-gray-900"></div>
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#2b825b] rounded-full border-2 border-white dark:border-gray-900"></div>
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white">
@@ -491,10 +491,10 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
                   <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {new Date().toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
+                      {new Date().toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
                       })}
                     </span>
                     <span>•</span>
@@ -527,7 +527,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
             {audioFile && (
               <div className="mb-8 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-3 mb-3">
-                  <Volume2 className="w-6 h-6 text-[#C29307]" />
+                  <Volume2 className="w-6 h-6 text-[#2b825b]" />
                   <span className="font-medium text-gray-900 dark:text-white">
                     Audio Preview
                   </span>
@@ -544,10 +544,12 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
             )}
 
             {/* Content - Now using the same styling as RichTextEditor */}
-            <div 
+            <div
               className="preview-content prose prose-lg dark:prose-invert max-w-none mb-8"
-              dangerouslySetInnerHTML={{ 
-                __html: cleanContent || '<p class="text-gray-500 italic">No content yet. Start writing above!</p>' 
+              dangerouslySetInnerHTML={{
+                __html:
+                  cleanContent ||
+                  '<p class="text-gray-500 italic">No content yet. Start writing above!</p>',
               }}
             />
 
@@ -581,17 +583,22 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
                   <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     Post Status:
                   </span>
-                  <span className={`ml-2 px-3 py-1 text-sm rounded-full ${
-                    isPublished 
-                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" 
-                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                  }`}>
+                  <span
+                    className={`ml-2 px-3 py-1 text-sm rounded-full ${
+                      isPublished
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                    }`}
+                  >
                     {isPublished ? "Published" : "Draft"}
                   </span>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Last saved: {lastSaved ? lastSaved.toLocaleTimeString() : "Not saved yet"}
+                    Last saved:{" "}
+                    {lastSaved
+                      ? lastSaved.toLocaleTimeString()
+                      : "Not saved yet"}
                   </p>
                 </div>
               </div>
@@ -606,14 +613,11 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
               This is a preview. Changes are not saved until you publish.
             </div>
             <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={onClose}
-              >
+              <Button variant="outline" onClick={onClose}>
                 Close Preview
               </Button>
               <Button
-                className="bg-[#C29307] text-white hover:bg-[#C29307]/90"
+                className="bg-[#2b825b] text-white hover:bg-[#2b825b]/90"
                 onClick={onSaveDraft}
                 disabled={isSaving}
               >

@@ -15,7 +15,7 @@ export default function FundAccountMethods() {
   const [details, setDetails] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
   const [amount, setAmount] = useState<number | string>("");
-  const [showLifetime, setShowLifetime] = useState(false);
+  const [showAlltime, setShowAlltime] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
   const { userData, balance, lifetimeBalance } = useUserContextData();
 
@@ -118,36 +118,25 @@ export default function FundAccountMethods() {
   };
 
   return (
-    <div className="space-y-6 relative">
-      {/* ✅ Quick Fund Button */}
-      {/* <div className="w-full flex justify-end items-end">
-        <Button
-          className="bg-[#C29307]"
-          onClick={() => setShowModal(true)}
-          disabled={loading}
-        >
-          {loading ? "Processing..." : "Deposit with Card"}
-        </Button>
-      </div> */}
-
+    <div className="space-y-6 relative dark:bg-gray-900">
       {/* 💳 Account Balance */}
       <div className="flex flex-col md:flex-row gap-4">
-        {/* Lifetime Balance */}
-        <Card className="bg-linear-to-r from-[#C29307] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4">
+        {/* Alltime Balance */}
+        <Card className="bg-linear-to-r from-[#2b825b] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#1e5f43] dark:to-[#b37f1a]">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium">
-              Lifetime Balance
+              Alltime Balance
               <span className="block font-semibold text-xl mt-1">
-                {showLifetime ? `₦${formatNumber(lifetimeBalance)}` : "*****"}
+                {showAlltime ? `₦${formatNumber(lifetimeBalance)}` : "*****"}
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <button
-              onClick={() => setShowLifetime((prev) => !prev)}
-              className="bg-white/20 p-3 rounded-full"
+              onClick={() => setShowAlltime((prev) => !prev)}
+              className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
             >
-              {showLifetime ? (
+              {showAlltime ? (
                 <EyeOff className="text-white md:text-2xl" />
               ) : (
                 <Eye className="text-white md:text-2xl" />
@@ -157,7 +146,7 @@ export default function FundAccountMethods() {
         </Card>
 
         {/* Current Balance */}
-        <Card className="bg-linear-to-r from-gray-600 to-gray-800 text-white flex items-center justify-between shadow-lg rounded-xl p-4">
+        <Card className="bg-linear-to-r from-gray-600 to-gray-800 text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-gray-700 dark:to-gray-900">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium">
               Current Balance
@@ -169,7 +158,7 @@ export default function FundAccountMethods() {
           <CardContent className="p-0">
             <button
               onClick={() => setShowCurrent((prev) => !prev)}
-              className="bg-white/20 p-3 rounded-full"
+              className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
             >
               {showCurrent ? (
                 <EyeOff className="text-white md:text-2xl" />
@@ -180,28 +169,28 @@ export default function FundAccountMethods() {
           </CardContent>
         </Card>
 
-  
-        <Card className="flex items-center justify-between text-gray-700 bg-white border shadow-md rounded-xl p-4">
+        {/* Account Number Card */}
+        <Card className="flex items-center justify-between bg-white border shadow-md rounded-xl p-4 dark:bg-gray-800 dark:border-gray-700">
           <CardHeader className="p-0">
-            <CardTitle className="text-base md:text-lg font-medium">
+            <CardTitle className="text-base md:text-lg font-medium text-gray-900 dark:text-gray-100">
               Your Account Number
-              <div className="font-semibold text-black flex items-center gap-4 mt-1">
+              <div className="font-semibold flex items-center gap-4 mt-1 text-gray-900 dark:text-gray-100">
                 {details?.bank_details.bank_account_number}
                 <button
-                  className="text-sm border px-3 py-2 rounded-md cursor-pointer hover:bg-gray-100 transition"
+                  className="text-sm border px-3 py-2 rounded-md cursor-pointer hover:bg-gray-100 transition dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300"
                   onClick={handleCopyReferral}
                 >
                   {copyText ? "Copied" : <CopyIcon className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {details?.bank_details.bank_name}
               </p>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="bg-gray-100 p-3 rounded-full">
-              <Landmark className="md:text-2xl text-gray-700" />
+            <div className="bg-gray-100 p-3 rounded-full dark:bg-gray-700">
+              <Landmark className="md:text-2xl text-gray-700 dark:text-gray-300" />
             </div>
           </CardContent>
         </Card>
@@ -212,16 +201,16 @@ export default function FundAccountMethods() {
 
       {/* 💰 Popup Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white/90 backdrop-blur-xl rounded-xl p-6 w-[90%] max-w-md shadow-xl relative border border-gray-200">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 dark:bg-black/70">
+          <div className="bg-white backdrop-blur-xl rounded-xl p-6 w-[90%] max-w-md shadow-xl relative border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
             <button
-              className="absolute top-3 right-3 text-gray-600 hover:text-black"
+              className="absolute top-3 right-3 text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
               onClick={() => setShowModal(false)}
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h2 className="text-xl font-semibold mb-4 text-center">
+            <h2 className="text-xl font-semibold mb-4 text-center text-gray-900 dark:text-gray-100">
               Enter Amount to Deposit
             </h2>
 
@@ -230,12 +219,12 @@ export default function FundAccountMethods() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="e.g. 5000"
-              className="w-full p-3 border rounded-lg mb-4 text-center focus:outline-none focus:ring-2 focus:ring-[#C29307]"
+              className="w-full p-3 border rounded-lg mb-4 text-center focus:outline-none focus:ring-2 focus:ring-[#2b825b] dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
               min={100}
             />
 
             <Button
-              className="w-full bg-[#C29307] text-white"
+              className="w-full bg-[#2b825b] text-white hover:bg-[#236b49] dark:bg-[#1e5f43] dark:hover:bg-[#174c36]"
               disabled={loading || !amount}
               onClick={initializePayment}
             >
@@ -247,52 +236,3 @@ export default function FundAccountMethods() {
     </div>
   );
 }
-
-// {accountDetails && accountDetails.success && (
-//       <Card>
-//         <CardHeader>
-//           <CardTitle>Virtual Account Details</CardTitle>
-//         </CardHeader>
-//         <CardContent>
-//           <div className="space-y-3">
-//             {/* Account Number */}
-//             <div className="flex justify-between items-center">
-//               <span className="text-gray-600">Account Number:</span>
-//               <div className="flex gap-3 items-center">
-//                 <span className="font-mono">
-//                   {accountDetails.account.bankAccountNumber}
-//                 </span>
-//                 <Button
-//                   variant="ghost"
-//                   size="sm"
-//                   onClick={() =>
-//                     copyToClipboard(
-//                       accountDetails.account.bankAccountNumber,
-//                       "account"
-//                     )
-//                   }
-//                 >
-//                   {copied === "account" ? (
-//                     <Check className="w-4 h-4" />
-//                   ) : (
-//                     <Copy className="w-4 h-4" />
-//                   )}
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Bank Name */}
-//             <div className="flex justify-between items-center">
-//               <span className="text-gray-600">Bank Name:</span>
-//               <span>{accountDetails.account.bankName}</span>
-//             </div>
-
-//             {/* Expiry Date with Timer */}
-//             <div className="flex justify-between items-center">
-//               <span className="text-gray-600">Expires In:</span>
-//               <ExpiryTimer expiryDate={accountDetails.account.expiryDate} />
-//             </div>
-//           </div>
-//         </CardContent>
-//       </Card>
-//     )}

@@ -226,7 +226,7 @@ export default function CreateTicketPage() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-[#C29307]"
+                className="w-full bg-[#2b825b]"
               >
                 {isSubmitting ? "Creating Ticket..." : "Submit Ticket"}
               </Button>

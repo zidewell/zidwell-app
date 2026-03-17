@@ -29,7 +29,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   if (filteredEntries.length === 0) {
     return (
       <div className="p-8 text-center">
-        <p style={{ color: '#80746e' }}>No entries yet. Start journaling!</p>
+        <p className="dark:text-gray-400" style={{ color: '#80746e' }}>No entries yet. Start journaling!</p>
       </div>
     );
   }
@@ -42,14 +42,14 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
         return (
           <div
             key={entry.id}
-            className="flex items-center gap-4 p-4 rounded-xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] transition-shadow group"
+            className="flex items-center gap-4 p-4 rounded-xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] transition-shadow group dark:bg-gray-800 dark:border-gray-700"
             style={{
               backgroundColor: '#fcfbf9',
               borderColor: '#e6dfd6'
             }}
           >
             <div 
-              className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+              className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl dark:bg-gray-700"
               style={{ backgroundColor: '#f5f1ea' }}
             >
               {category?.icon || '📦'}
@@ -57,12 +57,12 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="font-medium truncate">{category?.name || 'Other'}</p>
+                <p className="font-medium truncate dark:text-gray-300">{category?.name || 'Other'}</p>
                 {entry.note && (
-                  <p className="text-sm truncate" style={{ color: '#80746e' }}>• {entry.note}</p>
+                  <p className="text-sm truncate dark:text-gray-400" style={{ color: '#80746e' }}>• {entry.note}</p>
                 )}
               </div>
-              <p className="text-xs" style={{ color: '#80746e' }}>
+              <p className="text-xs dark:text-gray-400" style={{ color: '#80746e' }}>
                 {format(parseISO(entry.date), 'MMM d, yyyy')}
               </p>
             </div>
@@ -79,6 +79,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="dark:text-gray-400 dark:hover:text-gray-300"
                   style={{ color: '#80746e' }}
                   onClick={() => onEdit(entry)}
                 >
@@ -88,6 +89,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
               <Button
                 variant="ghost"
                 size="icon"
+                className="dark:text-gray-400 dark:hover:text-gray-300"
                 style={{ color: '#80746e' }}
                 onClick={() => deleteEntry(entry.id)}
               >

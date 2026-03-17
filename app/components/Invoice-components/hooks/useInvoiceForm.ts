@@ -1,17 +1,21 @@
 // components/Invoice-components/hooks/useInvoiceForm.ts
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useUserContextData } from "@/app/context/userData"; 
+import { useUserContextData } from "@/app/context/userData";
 import { useSubscription } from "@/app/hooks/useSubscripion";
 import { InvoiceForm, InvoiceUsageInfo } from "../types";
-import { generateInvoiceId, generateItemId, calculateTotals } from "../utils/invoiceUtils";
+import {
+  generateInvoiceId,
+  generateItemId,
+  calculateTotals,
+} from "../utils/invoiceUtils";
 import { showCustomNotification } from "../utils/notification";
 
 export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { userData } = useUserContextData();
-  const { userTier } = useSubscription();
+  const { userTier, isPremium, isGrowth, isElite, isZidLite } = useSubscription();
 
   const [form, setForm] = useState<InvoiceForm>({
     name: "",
@@ -41,28 +45,43 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     remaining: 5,
     hasAccess: true,
     isChecking: true,
+    canCreate: true,
   });
 
   // Fetch usage data
   useEffect(() => {
     const fetchUsage = async () => {
       if (!userData?.id) return;
-      
+
       try {
         const res = await fetch("/api/user/usage");
         if (res.ok) {
           const data = await res.json();
+          
+          // Determine if user can create based on tier and remaining
+          let canCreate = false;
+          const hasUnlimited = data.invoices.limit === "unlimited";
+          
+          if (hasUnlimited) {
+            canCreate = true; // Unlimited tiers can always create
+          } else {
+            // For limited tiers (free/zidlite), check remaining count
+            const remaining = data.invoices.remaining;
+            canCreate = typeof remaining === "number" && remaining > 0;
+          }
+
           setInvoiceUsage({
             used: data.invoices.used,
             limit: data.invoices.limit,
             remaining: data.invoices.remaining,
-            hasAccess: data.invoices.remaining > 0 || userTier !== 'free',
+            hasAccess: data.invoices.remaining > 0 || hasUnlimited,
             isChecking: false,
+            canCreate: canCreate,
           });
         }
       } catch (error) {
         console.error("Error fetching usage:", error);
-        setInvoiceUsage(prev => ({ ...prev, isChecking: false }));
+        setInvoiceUsage((prev) => ({ ...prev, isChecking: false }));
       }
     };
 
@@ -79,10 +98,9 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
         invoice_id: generateInvoiceId(),
         issue_date: today,
         from: userData.email || "",
-        business_name:
-          userData.fullName
-            ? `${userData.fullName}`
-            : userData.email || "",
+        business_name: userData.fullName
+          ? `${userData.fullName}`
+          : userData.email || "",
       }));
     }
   }, [userData]);
@@ -98,7 +116,7 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
       setForm((prev) => ({
         ...prev,
         invoice_items: prev.invoice_items.map((i) =>
-          i.id === item.id ? itemWithId : i
+          i.id === item.id ? itemWithId : i,
         ),
       }));
     } else {
@@ -168,13 +186,40 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const isPremium = userTier === 'premium' || userTier === 'elite';
+  // FIXED: Proper canCreate check that handles "unlimited" correctly
+  const getCanCreate = (): boolean => {
+    // If still checking, default to false
+    if (invoiceUsage.isChecking) return false;
+    
+    // Premium/Growth/Elite always have unlimited access
+    if (isPremium || isGrowth || isElite) return true;
+    
+    // For limited tiers (free/zidlite), check if remaining > 0
+    if (typeof invoiceUsage.remaining === "number") {
+      return invoiceUsage.remaining > 0;
+    }
+    
+    // If remaining is "unlimited" (shouldn't happen for free/zidlite), return true
+    return invoiceUsage.remaining === "unlimited";
+  };
+
+  // FIXED: Get remaining count as number for display
+  const getRemainingCount = (): number => {
+    if (typeof invoiceUsage.remaining === "number") {
+      return invoiceUsage.remaining;
+    }
+    // For unlimited tiers, return a high number for display
+    return 999;
+  };
+
+  // Check if user has unlimited access
+  const hasUnlimitedAccess = isPremium || isGrowth || isElite;
 
   return {
     form,
@@ -185,8 +230,10 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     validateInvoiceForm,
     handleChange,
     calculateTotals: () => calculateTotals(form.invoice_items, form.fee_option),
-    canCreate: isPremium || invoiceUsage.remaining > 0,
-    remainingInvoices: invoiceUsage.remaining,
-    isPremium,
+    canCreate: getCanCreate(),
+    remainingInvoices: getRemainingCount(),
+    hasUnlimitedAccess,
+    isChecking: invoiceUsage.isChecking,
+    userTier,
   };
 };

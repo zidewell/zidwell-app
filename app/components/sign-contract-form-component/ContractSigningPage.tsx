@@ -60,65 +60,68 @@ interface ContractSigningPageProps {
 // Function to clean Quill HTML artifacts
 const cleanQuillHTML = (html: string): string => {
   if (!html) return "";
-  
+
   // Remove Quill UI spans
   let cleaned = html
-    .replace(/<span class="ql-ui"[^>]*><\/span>/g, '')
-    .replace(/<span[^>]*data-list="[^"]*"[^>]*>/g, '')
-    .replace(/<\/span>/g, '');
-  
+    .replace(/<span class="ql-ui"[^>]*><\/span>/g, "")
+    .replace(/<span[^>]*data-list="[^"]*"[^>]*>/g, "")
+    .replace(/<\/span>/g, "");
+
   // Remove empty list items
   cleaned = cleaned
-    .replace(/<li>\s*<br>\s*<\/li>/g, '')
-    .replace(/<li><br><\/li>/g, '')
-    .replace(/<li>\s*<\/li>/g, '');
-  
+    .replace(/<li>\s*<br>\s*<\/li>/g, "")
+    .replace(/<li><br><\/li>/g, "")
+    .replace(/<li>\s*<\/li>/g, "");
+
   // Remove data-list attributes
-  cleaned = cleaned.replace(/\s+data-list="[^"]*"/g, '');
-  
+  cleaned = cleaned.replace(/\s+data-list="[^"]*"/g, "");
+
   // Clean up empty paragraphs
   cleaned = cleaned
-    .replace(/<p>\s*<br>\s*<\/p>/g, '')
-    .replace(/<p><br><\/p>/g, '')
-    .replace(/<p>\s*<\/p>/g, '');
-  
+    .replace(/<p>\s*<br>\s*<\/p>/g, "")
+    .replace(/<p><br><\/p>/g, "")
+    .replace(/<p>\s*<\/p>/g, "");
+
   // Remove empty headers
   cleaned = cleaned
-    .replace(/<h[1-6]>\s*<br>\s*<\/h[1-6]>/g, '')
-    .replace(/<h[1-6]><br><\/h[1-6]>/g, '');
-  
+    .replace(/<h[1-6]>\s*<br>\s*<\/h[1-6]>/g, "")
+    .replace(/<h[1-6]><br><\/h[1-6]>/g, "");
+
   return cleaned.trim();
 };
 
 // Function to ensure proper list structure
 const ensureProperLists = (html: string): string => {
   if (!html) return "";
-  
+
   // Fix unordered lists that might be rendered as ordered
   let fixed = html
     // Ensure bullet lists start with <ul>
-    .replace(/<ol>\s*<li[^>]*>•/g, '<ul><li')
-    .replace(/<ol>\s*<li[^>]*>○/g, '<ul><li')
-    .replace(/<ol>\s*<li[^>]*>▪/g, '<ul><li');
-  
+    .replace(/<ol>\s*<li[^>]*>•/g, "<ul><li")
+    .replace(/<ol>\s*<li[^>]*>○/g, "<ul><li")
+    .replace(/<ol>\s*<li[^>]*>▪/g, "<ul><li");
+
   // Close <ul> tags properly
   const ulMatches = fixed.match(/<ul[^>]*>/g) || [];
   const olMatches = fixed.match(/<\/ol>/g) || [];
-  
+
   // Simple fix: if we see <ul> but no closing </ul>, add it
   if (ulMatches.length > 0) {
     const ulCount = ulMatches.length;
     const ulCloseCount = (fixed.match(/<\/ul>/g) || []).length;
-    
+
     if (ulCount > ulCloseCount) {
       // Find the last </ol> and replace with </ul>
-      const lastOlIndex = fixed.lastIndexOf('</ol>');
+      const lastOlIndex = fixed.lastIndexOf("</ol>");
       if (lastOlIndex !== -1) {
-        fixed = fixed.substring(0, lastOlIndex) + '</ul>' + fixed.substring(lastOlIndex + 5);
+        fixed =
+          fixed.substring(0, lastOlIndex) +
+          "</ul>" +
+          fixed.substring(lastOlIndex + 5);
       }
     }
   }
-  
+
   return fixed;
 };
 
@@ -133,7 +136,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
   // Clean and prepare the HTML content
   const cleanContent = useMemo(() => {
     if (!contract.content) return "";
-    
+
     const cleaned = cleanQuillHTML(contract.content);
     return ensureProperLists(cleaned);
   }, [contract.content]);
@@ -348,7 +351,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
       <div className="max-w-4xl mx-auto px-3 md:px-4 py-4 md:py-8">
         {/* Header - matches image design */}
         <div className="text-center mb-6 md:mb-10">
-          <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-[#C29307] bg-[#073b2a] uppercase mb-2 py-2 px-2 md:px-0 overflow-hidden">
+          <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-[#2b825b] bg-[#073b2a] uppercase mb-2 py-2 px-2 md:px-0 overflow-hidden">
             {contract.title || "SERVICE CONTRACT"}
           </h1>
           <p className="text-sm md:text-base text-gray-700 mb-6 md:mb-8">
@@ -381,16 +384,16 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
         {/* Terms Section */}
         <div className="mb-6 md:mb-10">
           <div className="flex items-center gap-3 md:gap-4 my-4 md:my-6">
-            <div className="flex-1 h-0.5 md:h-1 bg-[#C29307] rounded-2xl" />
+            <div className="flex-1 h-0.5 md:h-1 bg-[#2b825b] rounded-2xl" />
             <h2 className="text-base md:text-lg lg:text-xl font-bold text-center px-2">
               THE TERMS OF AGREEMENT ARE AS FOLLOWS
             </h2>
-            <div className="flex-1 h-0.5 md:h-1 bg-[#C29307] rounded-2xl" />
+            <div className="flex-1 h-0.5 md:h-1 bg-[#2b825b] rounded-2xl" />
           </div>
 
           {cleanContent ? (
             <div className="px-2 md:px-0">
-              <div 
+              <div
                 className="contract-content-container text-xs md:text-sm leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: cleanContent }}
               />
@@ -406,18 +409,21 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
         {paymentTerms && (
           <div className="mb-6 md:mb-10">
             <div className="flex items-center gap-3 md:gap-4 my-4 md:my-6">
-              <div className="flex-1 h-0.5 md:h-1 bg-[#C29307] rounded-2xl" />
+              <div className="flex-1 h-0.5 md:h-1 bg-[#2b825b] rounded-2xl" />
               <h2 className="text-base md:text-lg lg:text-xl font-bold text-center whitespace-nowrap px-2">
                 PAYMENT TERMS
               </h2>
-              <div className="flex-1 h-0.5 md:h-1 bg-[#C29307] rounded-2xl" />
+              <div className="flex-1 h-0.5 md:h-1 bg-[#2b825b] rounded-2xl" />
             </div>
 
             <div className="space-y-3 md:space-y-4 px-2 md:px-0">
-              {typeof paymentTerms === 'string' && paymentTerms.includes("<") ? (
-                <div 
+              {typeof paymentTerms === "string" &&
+              paymentTerms.includes("<") ? (
+                <div
                   className="contract-content-container text-xs md:text-sm leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: cleanQuillHTML(paymentTerms) }}
+                  dangerouslySetInnerHTML={{
+                    __html: cleanQuillHTML(paymentTerms),
+                  }}
                 />
               ) : (
                 <div className="whitespace-pre-wrap text-xs md:text-sm leading-relaxed contract-content-container">
@@ -431,11 +437,11 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
         {/* Signature Section */}
         <div className="mb-6 md:mb-10 pt-4 md:pt-6 border-t border-gray-200">
           <div className="flex items-center gap-3 md:gap-4 my-4 md:my-6">
-            <div className="flex-1 h-0.5 md:h-1 bg-[#C29307] rounded-2xl" />
+            <div className="flex-1 h-0.5 md:h-1 bg-[#2b825b] rounded-2xl" />
             <h2 className="text-base md:text-lg lg:text-xl font-bold text-center whitespace-nowrap px-2">
               SIGNATURES
             </h2>
-            <div className="flex-1 h-0.5 md:h-1 bg-[#C29307] rounded-2xl" />
+            <div className="flex-1 h-0.5 md:h-1 bg-[#2b825b] rounded-2xl" />
           </div>
 
           <div className="overflow-x-auto px-2 md:px-0 -mx-2 md:mx-0">
@@ -504,7 +510,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                           <p className="text-xs text-gray-600 mt-1">
                             Legal Counsel
                           </p>
-                          <p className="text-xs bg-[#C29307]/10 text-[#C29307] px-2 py-1 rounded-full inline-block mt-2">
+                          <p className="text-xs bg-[#2b825b]/10 text-[#2b825b] px-2 py-1 rounded-full inline-block mt-2">
                             Verified Lawyer
                           </p>
                         </div>
@@ -579,7 +585,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                             <p className="text-xs md:text-sm text-gray-600 mt-1">
                               Legal Counsel
                             </p>
-                            <p className="text-xs bg-[#C29307]/10 text-[#C29307] px-2 py-1 rounded-full inline-block mt-2">
+                            <p className="text-xs bg-[#2b825b]/10 text-[#2b825b] px-2 py-1 rounded-full inline-block mt-2">
                               Verified Lawyer
                             </p>
                           </div>
@@ -625,7 +631,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
             <div className="space-y-4 max-w-2xl mx-auto">
               <Button
                 onClick={handleSign}
-                className="w-full h-auto py-3 md:py-4 flex items-center justify-center gap-2 md:gap-3 bg-[#C29307] hover:bg-[#b38606] text-white"
+                className="w-full h-auto py-3 md:py-4 flex items-center justify-center gap-2 md:gap-3 bg-[#2b825b] hover:bg-[#1e5d42] text-white"
               >
                 <PenTool className="h-4 w-4 md:h-5 md:w-5" />
                 <div className="text-left">

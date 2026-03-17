@@ -2,7 +2,13 @@
 
 import React from "react";
 
-export type ReceiptType = "general" | "product" | "service" | "bookings" | "rental" | "funds_transfer";
+export type ReceiptType =
+  | "general"
+  | "product"
+  | "service"
+  | "bookings"
+  | "rental"
+  | "funds_transfer";
 
 const receiptTypeLabels: Record<ReceiptType, string> = {
   general: "General",
@@ -28,10 +34,10 @@ interface ReceiptTypeSelectorProps {
   disabled?: boolean;
 }
 
-export const ReceiptTypeSelector: React.FC<ReceiptTypeSelectorProps> = ({ 
-  value, 
-  onChange, 
-  disabled = false 
+export const ReceiptTypeSelector: React.FC<ReceiptTypeSelectorProps> = ({
+  value,
+  onChange,
+  disabled = false,
 }) => {
   const receiptTypes: ReceiptType[] = [
     "general",
@@ -44,7 +50,9 @@ export const ReceiptTypeSelector: React.FC<ReceiptTypeSelectorProps> = ({
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-medium text-foreground">Receipt Type</label>
+      <label className="text-sm font-medium text-foreground">
+        Receipt Type
+      </label>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {receiptTypes.map((type) => (
           <button
@@ -53,9 +61,9 @@ export const ReceiptTypeSelector: React.FC<ReceiptTypeSelectorProps> = ({
             onClick={() => !disabled && onChange(type)}
             className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all duration-200 ${
               value === type
-                ? "border-[#C29307] bg-[#C29307]/10 shadow-sm"
-                : "border-border bg-card hover:border-[#C29307]/50 hover:bg-secondary"
-            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                ? "border-[#2b825b] bg-[#2b825b]/10 shadow-sm"
+                : "border-border bg-card hover:border-[#2b825b]/50 hover:bg-secondary"
+            } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
             disabled={disabled}
           >
             <span className="text-2xl">{receiptTypeIcons[type]}</span>

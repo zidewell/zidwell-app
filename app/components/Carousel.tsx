@@ -8,18 +8,18 @@ const slides = [
   "/zid-pic/image2.jpg",
   "/zid-pic/image3.jpg",
   "/zid-pic/image4.jpg",
-  // "/zid-pic/image5.jpg",
-  // "/zid-pic/image6.jpg",
-  // "/zid-pic/image8.jpg",
-  // "/zid-pic/image9.jpg",
-  // "/zid-pic/image10.jpg",
-  // "/zid-pic/image11.jpg",
-  // "/zid-pic/image12.jpg",
-  // "/zid-pic/image13.jpg",
-  // "/zid-pic/image14.jpg",
-  // "/zid-pic/image15.jpg",
-  // "/zid-pic/image16.jpg",
-  // "/zid-pic/image17.jpg",
+  "/zid-pic/image5.jpg",
+  "/zid-pic/image6.jpg",
+  "/zid-pic/image8.jpg",
+  "/zid-pic/image9.jpg",
+  "/zid-pic/image10.jpg",
+  "/zid-pic/image11.jpg",
+  "/zid-pic/image12.jpg",
+  "/zid-pic/image13.jpg",
+  "/zid-pic/image14.jpg",
+  "/zid-pic/image15.jpg",
+  "/zid-pic/image16.jpg",
+  "/zid-pic/image17.jpg",
 ];
 
 const Carousel: React.FC = () => {
@@ -44,7 +44,7 @@ const Carousel: React.FC = () => {
 
   // Handle image load
   const handleImageLoad = (index: number) => {
-    setImagesLoaded(prev => ({ ...prev, [index]: true }));
+    setImagesLoaded((prev) => ({ ...prev, [index]: true }));
   };
 
   return (
@@ -66,36 +66,33 @@ const Carousel: React.FC = () => {
       </button>
 
       {/* Slides Container */}
-      <div 
+      <div
         className="flex h-full transition-transform duration-500 ease-in-out"
         style={{ transform: `translateX(-${current * 100}%)` }}
       >
         {slides.map((slide, index) => (
-          <div
-            key={index}
-            className="relative w-full h-full flex-shrink-0"
-          >
+          <div key={index} className="relative w-full h-full flex-shrink-0">
             {/* Loading placeholder */}
             {!imagesLoaded[index] && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
-                <div className="w-8 h-8 border-4 border-[hsl(43,91%,39%)] border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-4 border-[#2b825b] border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
-            
+
             {/* Image */}
             <Image
               src={slide}
               alt={`Slide ${index + 1}`}
               fill
               className={`object-cover transition-opacity duration-300 ${
-                imagesLoaded[index] ? 'opacity-100' : 'opacity-0'
+                imagesLoaded[index] ? "opacity-100" : "opacity-0"
               }`}
               sizes="50vw"
               priority={index === 0}
               onLoad={() => handleImageLoad(index)}
               onError={() => console.error(`Failed to load image: ${slide}`)}
             />
-            
+
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           </div>

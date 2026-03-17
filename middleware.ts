@@ -608,7 +608,7 @@ export async function middleware(req: NextRequest) {
 
         console.log(`User admin role: ${profile?.admin_role}`);
 
-        // Define allowed admin roles
+
         const allowedAdminRoles = [
           "super_admin", 
           "finance_admin", 

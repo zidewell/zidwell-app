@@ -1,65 +1,96 @@
+// app/components/Pricing.tsx
 "use client";
 
 import { Check, Sparkles } from "lucide-react";
 import { Button2 } from "./ui/button2";
-import { useSubscription } from "../hooks/useSubscripion"; 
+import { useSubscription } from "../hooks/useSubscripion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
-import { SubscriptionBadge } from "./subscription-components/subscriptionBadges"; 
+import { SubscriptionBadge } from "./subscription-components/subscriptionBadges";
+import { useUserContextData } from "../context/userData";
 
 const plans = [
   {
-    name: "Free",
+    name: "Free Trial",
     price: "₦0",
     period: "/month",
-    description:
-      "For freelancers & early-stage businesses",
+    description: "To Test if Zidwell is Right for You",
     features: [
       "Unlimited money transfers at N50 per transfer",
       "Bookkeeping - 2 weeks free trial",
-      "5 Invoices per month",
-      "5 Receipts per month",
-      "1 Contract per month",
-      "Email support",
+      "Tax Calculator - 2 weeks free trial",
+      "5 Invoices total",
+      "5 Receipts total",
+      "1 Contract total",
+      "Basic support",
     ],
-    cta: "Get Started",
+    cta: "Start Free",
     highlight: false,
     tier: "free",
     priceId: "free",
+    amount: 0,
+  },
+  {
+    name: "ZidLite",
+    price: "₦4,900",
+    period: "/month",
+    yearlyPrice: "₦49,000/year (save ₦9,800)",
+    description:
+      "For businesses that want to test what finance automation looks like",
+    features: [
+      "Everything in Free, plus:",
+      "Unlimited money transfers at N50 per transfer",
+      "Bookkeeping - 2 weeks free trial",
+      "Tax Calculator - 2 weeks free trial",
+      "10 Invoices total",
+      "10 Receipts total",
+      "2 Contracts total",
+      "Access to WhatsApp Business Community",
+      "WhatsApp support",
+    ],
+    cta: "Go ZidLite",
+    highlight: false,
+    tier: "zidlite",
+    priceId: "price_zidlite_monthly",
+    yearlyPriceId: "price_zidlite_yearly",
+    // amount: 4900,
+    amount: 100,
+    yearlyAmount: 49000,
   },
   {
     name: "Growth",
-    price: "₦10,000",
+    price: "₦9,900",
     period: "/month",
-    yearlyPrice: "₦100,000/year (save ₦20,000)",
-    description:
-      "For growing businesses that want structure without stress",
+    yearlyPrice: "₦99,000/year (save ₦19,800)",
+    description: "For growing businesses that want structure without stress",
     features: [
       "Everything in Free, plus:",
       "Unlimited Invoices",
       "Unlimited Receipts",
-      "5 Contracts",
+      "5 Contracts total",
       "Bookkeeping tool",
       "Tax Calculator",
-      "Invoice Payment Reminders",
       "Access to WhatsApp Business Community",
       "WhatsApp support",
     ],
     cta: "Go Growth",
-    highlight: false,
+    highlight: true,
     tier: "growth",
     priceId: "price_growth_monthly",
     yearlyPriceId: "price_growth_yearly",
+    // amount: 9900,
+    amount: 100,
+    yearlyAmount: 99000,
   },
   {
     name: "Premium",
-    price: "₦50,000",
+    price: "₦49,900",
     period: "/month",
-    yearlyPrice: "₦500,000/year (save ₦100,000)",
-    description:
-      "Best for: founders and CEOs who want to move the burden of financial management to someone else.",
+    yearlyPrice: "₦499,000/year (save ₦99,800)",
+    description: "Best for: founders and CEOs who want hands-on help",
     features: [
       "Everything in Growth, plus:",
+      "Invoice Payment Reminders",
       "Unlimited contracts",
       "Financial Statement Preparation",
       "Tax Calculation Support",
@@ -67,18 +98,20 @@ const plans = [
       "Priority support",
     ],
     cta: "Upgrade to Premium",
-    highlight: true,
+    highlight: false,
     tier: "premium",
     priceId: "price_premium_monthly",
     yearlyPriceId: "price_premium_yearly",
+    // amount: 49900,
+    amount: 100,
+    yearlyAmount: 499000,
   },
   {
     name: "Elite",
     price: "₦100,000+",
     period: "/month",
     yearlyPrice: "Customized price",
-    description:
-      "For established businesses & founders",
+    description: "For established businesses & founders that need tax support",
     features: [
       "Everything in Premium, plus:",
       "Full Tax Filing Support",
@@ -96,80 +129,197 @@ const plans = [
     highlight: false,
     tier: "elite",
     priceId: "elite",
+    // amount: 100000,
+     amount: 100,
   },
 ];
 
 export default function Pricing() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { subscription, subscribe, loading, userTier } = useSubscription();
-  const [selectedBilling, setSelectedBilling] = useState<'monthly' | 'yearly'>('monthly');
+  const {
+    subscription,
+    subscribe,
+    loading,
+    userTier,
+    canAccessFeature,
+    checkTrialStatus,
+    activateTrial,
+  } = useSubscription();
+
+  const { userData } = useUserContextData();
+
+  const [selectedBilling, setSelectedBilling] = useState<"monthly" | "yearly">(
+    "monthly",
+  );
   const [processingTier, setProcessingTier] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
+  const [taxCalculatorTrial, setTaxCalculatorTrial] = useState<any>(null);
 
-  const upgradeParam = searchParams?.get('upgrade');
+  const upgradeParam = searchParams?.get("upgrade");
 
   useEffect(() => {
-    if (upgradeParam && plans.some(p => p.tier === upgradeParam)) {
-      const element = document.getElementById('pricing');
+    const paymentStatus = searchParams?.get("payment");
+    if (paymentStatus === "success") {
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 5000);
+    } else if (paymentStatus === "failed") {
+      setError("Payment failed. Please try again.");
+      setTimeout(() => setError(null), 5000);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (subscription?.tier === "free") {
+      checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
+      checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
+    }
+  }, [subscription?.tier, checkTrialStatus]);
+
+  useEffect(() => {
+    if (upgradeParam && plans.some((p) => p.tier === upgradeParam)) {
+      const element = document.getElementById("pricing");
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
+        element.scrollIntoView({ behavior: "smooth" });
       }
     }
   }, [upgradeParam]);
 
-  const handleSubscribe = async (plan: typeof plans[0]) => {
-    if (plan.tier === 'free') {
-      router.push('/dashboard');
+  const createNombaCheckout = async (
+    plan: (typeof plans)[0],
+    amount: number,
+  ) => {
+    try {
+      if (!userData?.id) {
+        sessionStorage.setItem("intendedUrl", "/pricing");
+        router.push("/auth/login");
+        return;
+      }
+
+      const orderReference = `SUB_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+      const response = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          planTier: plan.tier,
+          amount,
+          billingPeriod: selectedBilling,
+          userEmail: userData.email,
+          userId: userData.id,
+          orderReference,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Failed to create checkout");
+      }
+
+      sessionStorage.setItem(
+        "pendingOrder",
+        JSON.stringify({
+          orderReference: data.orderReference,
+          planTier: plan.tier,
+          amount,
+          billingPeriod: selectedBilling,
+          timestamp: Date.now(),
+        }),
+      );
+
+      window.location.href = data.checkoutLink;
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      setError(
+        error.message || "Failed to initialize payment. Please try again.",
+      );
+      setProcessingTier(null);
+    }
+  };
+
+  const handleSubscribe = async (plan: (typeof plans)[0]) => {
+    if (plan.tier === "free") {
+      router.push("/dashboard");
       return;
     }
 
-    if (plan.tier === 'elite') {
-      window.location.href = 'mailto:sales@zidwell.com?subject=Elite%20Plan%20Inquiry';
+    if (plan.tier === "elite") {
+      window.location.href =
+        "mailto:sales@zidwell.com?subject=Elite%20Plan%20Inquiry";
+      return;
+    }
+
+    if (!userData?.id) {
+      sessionStorage.setItem("intendedUrl", "/pricing");
+      router.push("/auth/login");
       return;
     }
 
     setProcessingTier(plan.tier);
+    setError(null);
 
     try {
-      // Calculate amount based on billing period
-      const amount = selectedBilling === 'yearly' 
-        ? (plan.tier === 'growth' ? 100000 : 500000)
-        : (plan.tier === 'growth' ? 10000 : 50000);
+      const amount =
+        selectedBilling === "yearly" && plan.yearlyAmount
+          ? plan.yearlyAmount
+          : plan.amount;
 
-      // Generate a unique reference
       const paymentReference = `SUB_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-      // In production, you would integrate with Paystack/Flutterwave here
-      // For now, we'll simulate a successful payment
-      
-      const result = await subscribe(
+      const subscriptionResult = await subscribe(
         plan.tier as any,
-        'card',
+        "card",
         amount,
         paymentReference,
-        selectedBilling === 'yearly'
+        selectedBilling === "yearly",
       );
 
+      if (!subscriptionResult.success) {
+        throw new Error(
+          subscriptionResult.error || "Failed to create subscription",
+        );
+      }
+
+      await createNombaCheckout(plan, amount);
+    } catch (error: any) {
+      console.error("Subscription error:", error);
+      setError(error.message || "An error occurred. Please try again.");
+      setProcessingTier(null);
+    }
+  };
+
+  const isCurrentPlan = (tier: string) => {
+    return subscription?.tier === tier && subscription?.status === "active";
+  };
+
+  const handleActivateTrial = async (
+    trialType: "bookkeeping" | "tax_calculator",
+  ) => {
+    try {
+      const featureKey =
+        trialType === "bookkeeping"
+          ? "bookkeeping_access"
+          : "tax_calculator_access";
+      const result = await activateTrial(featureKey, 14);
       if (result.success) {
         setShowSuccess(true);
-        setTimeout(() => {
-          const intendedService = sessionStorage.getItem('intendedService');
-          if (intendedService) {
-            sessionStorage.removeItem('intendedService');
-            router.push(intendedService);
-          } else {
-            router.push('/dashboard?subscription=success');
-          }
-        }, 2000);
+        setTimeout(() => setShowSuccess(false), 5000);
+        // Refresh trial status
+        if (trialType === "bookkeeping") {
+          checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
+        } else {
+          checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
+        }
       } else {
-        alert(`Subscription failed: ${result.error || 'Please try again'}`);
+        setError(result.error || "Failed to activate trial");
       }
-    } catch (error) {
-      console.error('Subscription error:', error);
-      alert('An error occurred. Please try again.');
-    } finally {
-      setProcessingTier(null);
+    } catch (error: any) {
+      setError(error.message);
     }
   };
 
@@ -182,52 +332,96 @@ export default function Pricing() {
         {/* Success Message */}
         {showSuccess && (
           <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-slideIn">
-            <p className="font-bold">✓ Subscription successful!</p>
-            <p className="text-sm">Redirecting you...</p>
+            <p className="font-bold">
+              ✓{" "}
+              {subscription?.tier === "free"
+                ? "Trial activated!"
+                : "Payment successful!"}
+            </p>
+            <p className="text-sm">
+              {subscription?.tier === "free"
+                ? "Your 14-day trial has started."
+                : "Your subscription has been activated."}
+            </p>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="fixed top-4 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg animate-slideIn">
+            <p className="font-bold">✗ Error</p>
+            <p className="text-sm">{error}</p>
           </div>
         )}
 
         {/* Section Header */}
         <div className="max-w-3xl mx-auto text-center mb-16">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-gray-900 dark:text-gray-50">
-            Simple plans that <span className="text-[#C29307]">grow</span> with
+            Simple plans that <span className="text-[#2b825b]">grow</span> with
             you
           </h2>
           <p className="text-lg text-gray-500 dark:text-gray-400">
-            We've worked hard to make our pricing as affordable as possible so you can get the best value. 
-            Choose the plan that matches your business goals.
+            We've worked hard to make our pricing as affordable as possible so
+            you can get the best value. Choose the plan that matches your
+            business goals.
           </p>
-          
+
           {/* Current Plan Display */}
-          {subscription && subscription.tier !== 'free' && (
-            <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[#C29307]/10 rounded-full">
-              <span className="text-sm text-gray-600 dark:text-gray-300">Current Plan:</span>
+          {subscription && subscription.tier !== "free" && (
+            <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[#2b825b]/10 rounded-full">
+              <span className="text-sm text-gray-600 dark:text-gray-300">
+                Current Plan:
+              </span>
               <SubscriptionBadge />
             </div>
           )}
-          
-          {/* Billing Toggle */}
+
+          {/* Trials Display for Free Users */}
+          {subscription?.tier === "free" && (
+            <div className="mt-6 space-y-2">
+              {bookkeepingTrial?.isActive && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full mr-2">
+                  <span className="text-sm text-green-600 dark:text-green-300">
+                    Bookkeeping Trial: {bookkeepingTrial.daysRemaining} days
+                    remaining
+                  </span>
+                </div>
+              )}
+              {taxCalculatorTrial?.isActive && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full">
+                  <span className="text-sm text-green-600 dark:text-green-300">
+                    Tax Calculator Trial: {taxCalculatorTrial.daysRemaining}{" "}
+                    days remaining
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Billing Toggle - Hide for free and elite plans */}
           <div className="flex items-center justify-center mt-8">
             <div className="bg-white dark:bg-gray-800 p-1 rounded-full border-2 border-gray-900 dark:border-gray-50">
               <button
-                onClick={() => setSelectedBilling('monthly')}
+                onClick={() => setSelectedBilling("monthly")}
+                disabled={processingTier !== null}
                 className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                  selectedBilling === 'monthly'
-                    ? 'bg-[#C29307] text-gray-900'
-                    : 'text-gray-500 dark:text-gray-400'
-                }`}
+                  selectedBilling === "monthly"
+                    ? "bg-[#2b825b] text-gray-900"
+                    : "text-gray-500 dark:text-gray-400"
+                } disabled:opacity-50`}
               >
                 Monthly
               </button>
               <button
-                onClick={() => setSelectedBilling('yearly')}
+                onClick={() => setSelectedBilling("yearly")}
+                disabled={processingTier !== null}
                 className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                  selectedBilling === 'yearly'
-                    ? 'bg-[#C29307] text-gray-900'
-                    : 'text-gray-500 dark:text-gray-400'
-                }`}
+                  selectedBilling === "yearly"
+                    ? "bg-[#2b825b] text-gray-900"
+                    : "text-gray-500 dark:text-gray-400"
+                } disabled:opacity-50`}
               >
-                Yearly <span className="text-xs ml-1">Save 20%</span>
+                Yearly <span className="text-xs ml-1">Save up to 20%</span>
               </button>
             </div>
           </div>
@@ -236,18 +430,19 @@ export default function Pricing() {
         {/* Pricing Grid */}
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
           {plans.map((plan, index) => {
-            const isCurrentPlan = subscription?.tier === plan.tier && subscription?.status === 'active';
+            const currentPlan = isCurrentPlan(plan.tier);
             const isUpgrade = upgradeParam === plan.tier;
-            
+            const isProcessing = processingTier === plan.tier;
+
             return (
               <div
                 key={index}
                 className={`relative flex flex-col ${
                   plan.highlight
-                    ? "bg-[#C29307] text-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[6px_6px_0px_#111827] dark:shadow-[6px_6px_0px_#fbbf24]"
+                    ? "bg-[#2b825b] text-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[6px_6px_0px_#111827] dark:shadow-[6px_6px_0px_#fbbf24]"
                     : "bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24]"
                 } p-6 hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150
-                ${isUpgrade ? 'ring-4 ring-[#C29307] ring-opacity-50' : ''}`}
+                ${isUpgrade ? "ring-4 ring-[#2b825b] ring-opacity-50" : ""}`}
               >
                 {plan.highlight && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gray-900 dark:bg-gray-50 text-gray-50 dark:text-gray-900 text-xs font-bold flex items-center gap-1 rounded-full">
@@ -257,7 +452,7 @@ export default function Pricing() {
                 )}
 
                 {/* Current Plan Badge */}
-                {isCurrentPlan && (
+                {currentPlan && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-green-600 text-white text-xs font-bold rounded-full whitespace-nowrap">
                     CURRENT PLAN
                   </div>
@@ -281,14 +476,15 @@ export default function Pricing() {
                           : "text-gray-900 dark:text-gray-50"
                       }`}
                     >
-                      {selectedBilling === 'yearly' && plan.yearlyPrice 
-                        ? plan.tier === 'growth' 
-                          ? '₦100,000'
-                          : plan.tier === 'premium'
-                          ? '₦500,000'
-                          : plan.price
-                        : plan.price
-                      }
+                      {selectedBilling === "yearly" && plan.yearlyPrice
+                        ? plan.tier === "zidlite"
+                          ? "₦49,000"
+                          : plan.tier === "growth"
+                            ? "₦99,000"
+                            : plan.tier === "premium"
+                              ? "₦499,000"
+                              : plan.price
+                        : plan.price}
                     </span>
                     <span
                       className={`text-sm ${
@@ -297,10 +493,10 @@ export default function Pricing() {
                           : "text-gray-500 dark:text-gray-400"
                       }`}
                     >
-                      {selectedBilling === 'yearly' ? '/year' : plan.period}
+                      {selectedBilling === "yearly" ? "/year" : plan.period}
                     </span>
                   </div>
-                  {selectedBilling === 'yearly' && plan.yearlyPrice && (
+                  {selectedBilling === "yearly" && plan.yearlyPrice && (
                     <p
                       className={`text-xs mt-1 ${
                         plan.highlight
@@ -330,7 +526,7 @@ export default function Pricing() {
                       ) : (
                         <Check
                           className={`w-4 h-4 shrink-0 mt-0.5 ${
-                            plan.highlight ? "text-gray-900" : "text-[#C29307]"
+                            plan.highlight ? "text-gray-900" : "text-[#2b825b]"
                           }`}
                         />
                       )}
@@ -355,15 +551,36 @@ export default function Pricing() {
                       : ""
                   }`}
                   onClick={() => handleSubscribe(plan)}
-                  disabled={loading || processingTier === plan.tier || isCurrentPlan}
+                  disabled={loading || isProcessing || currentPlan}
                 >
-                  {processingTier === plan.tier 
-                    ? 'Processing...' 
-                    : isCurrentPlan
-                    ? 'Current Plan'
-                    : plan.cta
-                  }
+                  {isProcessing
+                    ? "Processing..."
+                    : currentPlan
+                      ? "Current Plan"
+                      : plan.cta}
                 </Button2>
+
+                {/* Trial Buttons for Free Plan */}
+                {plan.tier === "free" && subscription?.tier === "free" && (
+                  <div className="mt-3 space-y-2">
+                    {!bookkeepingTrial?.isActive && (
+                      <button
+                        onClick={() => handleActivateTrial("bookkeeping")}
+                        className="block w-full text-sm text-[#2b825b] hover:underline"
+                      >
+                        Activate 14-day bookkeeping trial
+                      </button>
+                    )}
+                    {!taxCalculatorTrial?.isActive && (
+                      <button
+                        onClick={() => handleActivateTrial("tax_calculator")}
+                        className="block w-full text-sm text-[#2b825b] hover:underline"
+                      >
+                        Activate 14-day tax calculator trial
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -373,15 +590,22 @@ export default function Pricing() {
         <div className="mt-20 max-w-4xl mx-auto">
           <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[6px_6px_0px_#111827] dark:shadow-[6px_6px_0px_#fbbf24] p-8">
             <h3 className="text-2xl md:text-3xl font-black mb-4 text-gray-900 dark:text-gray-50">
-              The ZidCoin Economy: <span className="text-[#C29307]">Our Cashback & Reward System</span>
+              The ZidCoin Economy:{" "}
+              <span className="text-[#2b825b]">
+                Our Cashback & Reward System
+              </span>
             </h3>
-            
+
             <div className="space-y-6">
               <div>
-                <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">What is ZidCoin?</h4>
+                <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">
+                  What is ZidCoin?
+                </h4>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Zidcoin is the currency inside Zidwell. It's what we pay you for using our app. 
-                  Every time you load data, airtime, cable subscription and electricity on Zidwell, you earn Zidcoins (ZC).
+                  Zidcoin is the currency inside Zidwell. It's what we pay you
+                  for using our app. Every time you load data, airtime, cable
+                  subscription and electricity on Zidwell, you earn Zidcoins
+                  (ZC).
                 </p>
                 <p className="text-gray-600 dark:text-gray-400 mt-2 font-semibold">
                   Value: 1 Zidcoin = ₦1.
@@ -389,28 +613,41 @@ export default function Pricing() {
               </div>
 
               <div>
-                <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">How It Works</h4>
+                <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">
+                  How It Works
+                </h4>
                 <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                   <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#C29307]" />
-                    <span>Get 20 Zidcoins rewards anytime you spend N2500 and above on Zidwell.</span>
+                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#2b825b]" />
+                    <span>
+                      Get 20 Zidcoins rewards anytime you spend N2500 and above
+                      on Zidwell.
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#C29307]" />
-                    <span>Your Zidcoins accumulate in your wallet as cashback.</span>
+                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#2b825b]" />
+                    <span>
+                      Your Zidcoins accumulate in your wallet as cashback.
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#C29307]" />
-                    <span>Once your Zidcoin balance hits 3,000 ZC, you can cash it out.</span>
+                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#2b825b]" />
+                    <span>
+                      Once your Zidcoin balance hits 3,000 ZC, you can cash it
+                      out.
+                    </span>
                   </li>
                 </ul>
               </div>
 
               <div>
-                <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">Why It Matters</h4>
+                <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">
+                  Why It Matters
+                </h4>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Zidcoin turns every business transaction into an opportunity to earn. 
-                  The more you use Zidwell, the more value you unlock — it's structure, savings, and growth all in one.
+                  Zidcoin turns every business transaction into an opportunity
+                  to earn. The more you use Zidwell, the more value you unlock —
+                  it's structure, savings, and growth all in one.
                 </p>
                 <p className="text-gray-600 dark:text-gray-400 mt-2 font-semibold">
                   Zidwell. Structure your hustle. Earn as you grow.

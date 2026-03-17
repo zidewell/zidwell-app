@@ -5,14 +5,14 @@ import chromium from "@sparticuz/chromium";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 function generateContractHTML(
   contract: any,
   signeeName: string,
   signeeSignatureImage: string,
-  creatorSignatureImage?: string
+  creatorSignatureImage?: string,
 ): string {
   const formatDate = (dateString: string) => {
     if (!dateString) return "Date not specified";
@@ -145,7 +145,7 @@ function generateContractHTML(
         }
         
         .contract-title {
-            color: #C29307;
+            color: #2b825b;
             background-color: #073b2a;
             font-size: 24px;
             font-weight: bold;
@@ -202,7 +202,7 @@ function generateContractHTML(
         .divider-line {
             flex: 1;
             height: 1px;
-            background-color: #C29307;
+            background-color: #2b825b;
             border-radius: 2px;
         }
         
@@ -315,7 +315,7 @@ function generateContractHTML(
         .lawyer-check {
             width: 24px;
             height: 24px;
-            background-color: #C29307;
+            background-color: #2b825b;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -332,7 +332,7 @@ function generateContractHTML(
         .lawyer-title {
             font-size: 14px;
             font-weight: 600;
-            color: #C29307;
+            color: #2b825b;
         }
         
         .lawyer-signature-line {
@@ -372,7 +372,7 @@ function generateContractHTML(
             display: inline-block;
             padding: 4px 12px;
             background-color: rgba(194, 147, 7, 0.1);
-            color: #C29307;
+            color: #2b825b;
             border-radius: 16px;
             font-size: 12px;
             font-weight: 500;
@@ -631,7 +631,7 @@ function generateContractHTML(
                                     <span style="font-size: 12px; color: #6b7280;">Legal Counsel</span>
                                 </div>
                                 <div style="margin-top: 4px;">
-                                    <span style="font-size: 11px; padding: 2px 8px; background-color: rgba(194, 147, 7, 0.1); color: #C29307; border-radius: 12px;">
+                                    <span style="font-size: 11px; padding: 2px 8px; background-color: rgba(194, 147, 7, 0.1); color: #2b825b; border-radius: 12px;">
                                         Verified Lawyer
                                     </span>
                                 </div>
@@ -700,8 +700,8 @@ function generateContractHTML(
               contract.verification_status === "verified"
                 ? "<br />✓ Identity Verified"
                 : contract.verification_status === "pending"
-                ? "<br />⚠ Identity Verification Pending"
-                : "<br />⛔ Identity Not Verified"
+                  ? "<br />⚠ Identity Verification Pending"
+                  : "<br />⛔ Identity Not Verified"
             }
             <br />
             Generated on: ${new Date().toLocaleDateString("en-US", {
@@ -721,7 +721,7 @@ async function generatePdfBuffer(
   contract: any,
   signeeName: string,
   signeeSignatureImage: string,
-  creatorSignatureImage?: string
+  creatorSignatureImage?: string,
 ): Promise<Buffer> {
   let browser = null;
 
@@ -743,8 +743,8 @@ async function generatePdfBuffer(
         (process.platform === "win32"
           ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
           : process.platform === "darwin"
-          ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-          : "/usr/bin/google-chrome");
+            ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            : "/usr/bin/google-chrome");
 
       browserArgs = [
         "--no-sandbox",
@@ -769,7 +769,7 @@ async function generatePdfBuffer(
       contract,
       signeeName,
       signeeSignatureImage,
-      creatorSignatureImage
+      creatorSignatureImage,
     );
 
     await page.setContent(htmlContent, {
@@ -787,7 +787,7 @@ async function generatePdfBuffer(
             img.addEventListener("load", resolve);
             img.addEventListener("error", reject);
           });
-        })
+        }),
       );
     });
 
@@ -800,7 +800,7 @@ async function generatePdfBuffer(
         body.offsetHeight,
         html.clientHeight,
         html.scrollHeight,
-        html.offsetHeight
+        html.offsetHeight,
       );
     });
 
@@ -854,7 +854,7 @@ export async function POST(request: Request) {
       if (error || !dbContract) {
         return NextResponse.json(
           { error: "Contract not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -865,7 +865,7 @@ export async function POST(request: Request) {
     if (!contract.contract_text) {
       return NextResponse.json(
         { error: "Contract text is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -881,7 +881,7 @@ export async function POST(request: Request) {
       contract,
       signeeName,
       signeeSignatureImage,
-      creatorSignatureImage
+      creatorSignatureImage,
     );
 
     // Return PDF as response
@@ -902,7 +902,7 @@ export async function POST(request: Request) {
             ? error.message
             : "Failed to generate contract PDF",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -288,7 +288,7 @@ export const IdentityVerificationModal = ({
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-[#C29307]" />
+            <Shield className="h-5 w-5 text-[#2b825b]" />
             Identity Verification
           </DialogTitle>
           <DialogDescription>
@@ -346,7 +346,7 @@ export const IdentityVerificationModal = ({
 
             <Button
               type="submit"
-              className="w-full bg-[#C29307] hover:bg-[#b38606]"
+              className="w-full bg-[#2b825b] hover:bg-[#1e5d42]"
             >
               Continue to Signature
             </Button>
@@ -391,7 +391,7 @@ export const IdentityVerificationModal = ({
                   value={verificationCode}
                   onChange={(e) =>
                     setVerificationCode(
-                      e.target.value.replace(/\D/g, "").slice(0, 6)
+                      e.target.value.replace(/\D/g, "").slice(0, 6),
                     )
                   }
                   placeholder="Enter 6-digit code"
@@ -422,7 +422,7 @@ export const IdentityVerificationModal = ({
               </Button>
               <Button
                 type="button"
-                className="flex-1 bg-[#C29307] hover:bg-[#b38606]"
+                className="flex-1 bg-[#2b825b] hover:bg-[#1e5d42]"
                 onClick={handleAuthenticate}
               >
                 Authenticate & Sign
@@ -433,7 +433,7 @@ export const IdentityVerificationModal = ({
 
         {step === "verifying" && (
           <div className="py-8 text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-[#C29307] mx-auto mb-4" />
+            <Loader2 className="h-12 w-12 animate-spin text-[#2b825b] mx-auto mb-4" />
             <p className="text-lg font-semibold mb-2">
               Verifying Your Identity
             </p>

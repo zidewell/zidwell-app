@@ -6,19 +6,19 @@ import { isAuthenticated } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export async function POST(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const user = await isAuthenticated(req);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please login to access transactions" },
+      { status: 401 },
+    );
+  }
+
   try {
     const contentType = req.headers.get("content-type") || "";
     let body: any = {};
@@ -35,7 +35,6 @@ export async function POST(req: NextRequest) {
     const contractTitle =
       body.contract_title || body.contractTitle || "Untitled Contract";
 
-    
     const contractContent =
       body.contract_content || body.contractContent || body.contract_text || "";
 
@@ -71,7 +70,7 @@ export async function POST(req: NextRequest) {
           success: false,
           error: "User ID is required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -308,7 +307,7 @@ export async function POST(req: NextRequest) {
         
         .action-button {
             display: inline-block;
-            background-color: #C29307;
+            background-color: #2b825b;
             color: white;
             padding: 14px 32px;
             text-decoration: none;
@@ -323,7 +322,7 @@ export async function POST(req: NextRequest) {
         /* Typography */
         .text-primary { color: #111827 !important; }
         .text-secondary { color: #6b7280 !important; }
-        .text-accent { color: #C29307 !important; }
+        .text-accent { color: #2b825b !important; }
         
         .text-sm { font-size: 14px !important; }
         .text-base { font-size: 16px !important; }
@@ -405,7 +404,7 @@ export async function POST(req: NextRequest) {
             </div>
             
             <!-- Important Information -->
-            <div class="info-card" style="background: #f0f9ff; border-color: #C29307;">
+            <div class="info-card" style="background: #f0f9ff; border-color: #2b825b;">
                 <h3 class="font-semibold text-accent" style="margin: 0 0 10px 0;">ℹ️ Important Information</h3>
                 <ul style="margin: 0; padding-left: 20px; color: #4b5563;">
                     <li style="margin-bottom: 8px;">This contract requires your digital signature</li>
@@ -425,7 +424,7 @@ export async function POST(req: NextRequest) {
             
             <!-- Automated Message -->
             <div style="background: #fefcf5; padding: 15px; text-align: center; margin-top: 25px; border-radius: 8px;">
-                <p style="margin: 0; color: #C29307; font-size: 12px;">
+                <p style="margin: 0; color: #2b825b; font-size: 12px;">
                     This is an automated message from Zidwell Contracts. Please do not reply to this email.
                 </p>
             </div>
@@ -466,22 +465,22 @@ export async function POST(req: NextRequest) {
         success: false,
         error: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // DELETE endpoint for drafts/contracts
 export async function DELETE(req: NextRequest) {
-     const user = await isAuthenticated(req);
-      
-      if (!user) {
-        return NextResponse.json(
-          { error: "Please login to access transactions" },
-          { status: 401 }
-        );
-      }
-  
+  const user = await isAuthenticated(req);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please login to access transactions" },
+      { status: 401 },
+    );
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const contractId = searchParams.get("id");
@@ -490,7 +489,7 @@ export async function DELETE(req: NextRequest) {
     if (!contractId || !userId) {
       return NextResponse.json(
         { success: false, error: "Contract ID and User ID are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -511,22 +510,22 @@ export async function DELETE(req: NextRequest) {
     console.error("Error deleting contract:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // GET endpoint for contracts/drafts
 export async function GET(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const user = await isAuthenticated(req);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please login to access transactions" },
+      { status: 401 },
+    );
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
@@ -535,7 +534,7 @@ export async function GET(req: NextRequest) {
     if (!userId) {
       return NextResponse.json(
         { success: false, error: "User ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -594,7 +593,7 @@ export async function GET(req: NextRequest) {
     console.error("Error fetching contracts:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -14,6 +14,7 @@ const ADMIN_ROLES = [
   'operations_admin',
   'support_admin',
   'legal_admin',
+  'blog_admin',
 ];
 
 export async function GET(request: NextRequest) {
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       query = query.or(
-        `email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`
+        `email.ilike.%${search}%,full_name.ilike.%${search}%`
       );
     }
 
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
       const roleInfo = ROLE_PERMISSIONS[admin.admin_role as keyof typeof ROLE_PERMISSIONS];
       return {
         ...admin,
-        full_name: `${admin.first_name} ${admin.last_name}`,
+        full_name: admin.full_name,
         role_display: roleInfo?.name || admin.admin_role,
         role_description: roleInfo?.description || '',
         is_current_user: admin.id === adminUser?.id,
@@ -199,36 +200,65 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
-    const body = await request.json();
-    const { first_name, last_name, email, role, status = 'active' } = body;
+    // Parse request body with error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      console.error('Failed to parse request body:', e);
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
 
-    if (!first_name || !last_name || !email || !role) {
+        { status: 400 }
+      );
+    }
+
+    const { full_name, email, role, status = 'active' } = body;
+
+    // Validate required fields
+    const missingFields = [];
+    if (!full_name) missingFields.push('full_name');
+    if (!email) missingFields.push('email');
+    if (!role) missingFields.push('role');
+
+    if (missingFields.length > 0) {
+      console.log('Missing fields:', missingFields);
+      
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
         action: "admin_creation_validation_failed",
         resourceType: "Admin",
-        description: `Admin creation validation failed for ${email}`,
+        description: `Admin creation validation failed for ${email || 'unknown email'}`,
         metadata: {
           providedData: body,
-          missingFields: [
-            !first_name && 'first_name',
-            !last_name && 'last_name',
-            !email && 'email',
-            !role && 'role'
-          ].filter(Boolean),
+          missingFields,
           ipAddress: clientInfo.ipAddress
         },
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent
       });
-
       return NextResponse.json(
-        { error: 'Missing required fields: first_name, last_name, email, role' },
+        { 
+          error: 'Missing required fields', 
+          missingFields,
+          receivedData: body 
+        },
         { status: 400 }
       );
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+   
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // Validate role
     if (!ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS]) {
       await createAuditLog({
         userId: adminUser?.id,
@@ -245,24 +275,57 @@ export async function POST(request: NextRequest) {
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent
       });
+      return NextResponse.json(
+        { 
+          error: 'Invalid admin role', 
+          validRoles: Object.keys(ROLE_PERMISSIONS) 
+        },
+        { status: 400 }
+      );
+    }
 
-      return NextResponse.json({ error: 'Invalid admin role' }, { status: 400 });
+    // Validate status
+    if (!['active', 'inactive'].includes(status)) {
+      return NextResponse.json(
+        { error: 'Invalid status value. Must be "active" or "inactive"' },
+        { status: 400 }
+      );
     }
 
     // Check if user already exists
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Error checking existing user:', checkError);
+      return NextResponse.json(
+        { error: 'Failed to check existing user' },
+        { status: 500 }
+      );
+    }
 
     if (existingUser) {
+      console.log('Upgrading existing user to admin:', existingUser.id);
+      
+      // Check if user is already an admin
+      if (existingUser.admin_role && ADMIN_ROLES.includes(existingUser.admin_role)) {
+
+        return NextResponse.json(
+          { error: 'User is already an admin' },
+          { status: 400 }
+        );
+      }
+
       // Update existing user to admin
       const { data: updatedUser, error: updateError } = await supabase
         .from('users')
         .update({
           admin_role: role,
           is_blocked: status === 'inactive',
+          full_name: full_name,
           updated_at: new Date().toISOString()
         })
         .eq('id', existingUser.id)
@@ -291,7 +354,10 @@ export async function POST(request: NextRequest) {
           userAgent: clientInfo.userAgent
         });
 
-        return NextResponse.json({ error: 'Failed to upgrade user to admin' }, { status: 500 });
+        return NextResponse.json(
+          { error: 'Failed to upgrade user to admin', details: updateError.message },
+          { status: 500 }
+        );
       }
 
       await createAuditLog({
@@ -322,7 +388,7 @@ export async function POST(request: NextRequest) {
         message: 'User upgraded to admin successfully',
         admin: {
           ...updatedUser,
-          full_name: `${updatedUser.first_name} ${updatedUser.last_name}`,
+          full_name: updatedUser.full_name,
           role_display: roleInfo.name,
           role_description: roleInfo.description,
           is_current_user: false,
@@ -331,11 +397,44 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create new admin user
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    // Parse full_name into first_name and last_name
+    const nameParts = full_name.trim().split(' ');
+    const first_name = nameParts[0] || full_name;
+    const last_name = nameParts.slice(1).join(' ') || '';
+
+    console.log('Creating new admin user:', { 
+      email, 
+      first_name, 
+      last_name, 
+      full_name, 
+      role,
+      status 
+    });
+
+    // Generate a secure random password
+    const generatePassword = () => {
+      const length = 12;
+      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+      let password = "";
+      for (let i = 0; i < length; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length));
+      }
+      return password;
+    };
+
+    const temporaryPassword = generatePassword();
+
+    // Create new admin user in Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
+      password: temporaryPassword,
       email_confirm: true,
-      user_metadata: { first_name, last_name, admin_role: role },
+      user_metadata: { 
+        first_name, 
+        last_name,
+        full_name,
+        admin_role: role 
+      },
     });
 
     if (authError) {
@@ -358,30 +457,49 @@ export async function POST(request: NextRequest) {
         userAgent: clientInfo.userAgent
       });
 
-      return NextResponse.json({ error: 'Failed to create admin user' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Failed to create admin user', details: authError.message },
+        { status: 500 }
+      );
     }
 
-    const { data: newAdmin, error: profileError } = await supabase
+    if (!authData?.user) {
+      return NextResponse.json(
+        { error: 'Failed to create auth user - no user returned' },
+        { status: 500 }
+      );
+    }
+
+    console.log('Auth user created:', authData.user.id);
+
+    // Prepare user data for insertion
+    const userData = {
+      id: authData.user.id,
+      email,
+      first_name,
+      last_name,
+      full_name,
+      phone: '', // Required field
+      wallet_balance: 0,
+      zidcoin_balance: 0,
+      admin_role: role,
+      is_blocked: status === 'inactive',
+      pin_set: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('Inserting user data into users table:', userData);
+
+    // Insert into users table
+    const { data: newAdmin, error: insertError } = await supabase
       .from('users')
-      .insert({
-        id: authUser.user.id,
-        email,
-        first_name,
-        last_name,
-        phone: '',
-        wallet_balance: 0,
-        admin_role: role,
-        is_blocked: status === 'inactive',
-        zidcoin_balance: 0,
-        pin_set: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert(userData)
       .select()
       .single();
 
-    if (profileError) {
-      console.error('Error creating admin profile:', profileError);
+    if (insertError) {
+      console.error('Error creating admin profile:', insertError);
       
       await createAuditLog({
         userId: adminUser?.id,
@@ -390,11 +508,14 @@ export async function POST(request: NextRequest) {
         resourceType: "Admin",
         description: `Failed to create admin profile for ${email}`,
         metadata: {
-          authUserId: authUser.user.id,
+          authUserId: authData.user.id,
           email,
           role,
           status,
-          error: profileError.message,
+          error: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          code: insertError.code,
           ipAddress: clientInfo.ipAddress
         },
         ipAddress: clientInfo.ipAddress,
@@ -402,8 +523,16 @@ export async function POST(request: NextRequest) {
       });
 
       // Clean up auth user
-      await supabase.auth.admin.deleteUser(authUser.user.id);
-      return NextResponse.json({ error: 'Failed to create admin profile' }, { status: 500 });
+      await supabase.auth.admin.deleteUser(authData.user.id);
+      
+      return NextResponse.json(
+        { 
+          error: 'Failed to create admin profile', 
+          details: insertError.message,
+          code: insertError.code
+        },
+        { status: 500 }
+      );
     }
 
     await createAuditLog({
@@ -428,16 +557,19 @@ export async function POST(request: NextRequest) {
 
     const roleInfo = ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS];
 
+    // Instead of sending password reset email, we'll return instructions
+    // The user will need to use the "Forgot Password" flow
     return NextResponse.json({
-      message: 'Admin created successfully',
+      message: 'Admin created successfully. The user will need to use the "Forgot Password" option to set their password.',
       admin: {
         ...newAdmin,
-        full_name: `${newAdmin.first_name} ${newAdmin.last_name}`,
+        full_name: newAdmin.full_name,
         role_display: roleInfo.name,
         role_description: roleInfo.description,
         is_current_user: false,
       },
-      action: 'created'
+      action: 'created',
+      note: 'A temporary password has been set. The user should reset their password on first login.'
     }, { status: 201 });
 
   } catch (error: any) {
@@ -460,6 +592,13 @@ export async function POST(request: NextRequest) {
       userAgent: clientInfo.userAgent
     });
     
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { 
+        error: 'Internal server error', 
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
+      { status: 500 }
+    );
   }
 }

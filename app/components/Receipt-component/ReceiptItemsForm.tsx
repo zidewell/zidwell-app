@@ -21,12 +21,12 @@ interface ReceiptItemsFormProps {
   onBlur?: () => void;
 }
 
-export const ReceiptItemsForm: React.FC<ReceiptItemsFormProps> = ({ 
-  items, 
-  onChange, 
-  disabled = false, 
-  onFocus, 
-  onBlur 
+export const ReceiptItemsForm: React.FC<ReceiptItemsFormProps> = ({
+  items,
+  onChange,
+  disabled = false,
+  onFocus,
+  onBlur,
 }) => {
   const itemRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -40,7 +40,7 @@ export const ReceiptItemsForm: React.FC<ReceiptItemsFormProps> = ({
       unitPrice: 0,
     };
     onChange([...items, newItem]);
-    
+
     // Focus on the new item's description field
     setTimeout(() => {
       const lastIndex = items.length;
@@ -55,14 +55,14 @@ export const ReceiptItemsForm: React.FC<ReceiptItemsFormProps> = ({
     const updatedItems = items.map((item) => {
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
-        
+
         // Calculate amount if quantity or unitPrice changes
-        if (field === 'quantity' || field === 'unitPrice') {
-          const quantity = field === 'quantity' ? value : item.quantity || 1;
-          const unitPrice = field === 'unitPrice' ? value : item.unitPrice || 0;
+        if (field === "quantity" || field === "unitPrice") {
+          const quantity = field === "quantity" ? value : item.quantity || 1;
+          const unitPrice = field === "unitPrice" ? value : item.unitPrice || 0;
           updatedItem.amount = quantity * unitPrice;
         }
-        
+
         return updatedItem;
       }
       return item;
@@ -95,7 +95,7 @@ export const ReceiptItemsForm: React.FC<ReceiptItemsFormProps> = ({
           variant="outline"
           size="sm"
           onClick={addItem}
-          className="border-[#C29307] text-[#C29307] hover:bg-[#C29307]/10"
+          className="border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b]/10"
           disabled={disabled}
         >
           Add Item
@@ -103,24 +103,33 @@ export const ReceiptItemsForm: React.FC<ReceiptItemsFormProps> = ({
       </div>
 
       {items.map((item, index) => (
-        <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 border rounded-lg">
+        <div
+          key={item.id}
+          className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 border rounded-lg"
+        >
           <div className="md:col-span-5">
             <Label htmlFor={`item-${index}-description`}>Description</Label>
             <Input
               id={`item-${index}-description`}
-              ref={el => { itemRefs.current[index] = el }}
+              ref={(el) => {
+                itemRefs.current[index] = el;
+              }}
               placeholder="Item/service description"
               value={item.description}
-              onChange={(e) => updateItem(item.id, "description", e.target.value)}
+              onChange={(e) =>
+                updateItem(item.id, "description", e.target.value)
+              }
               className="mt-1.5 bg-card"
               disabled={disabled}
               onFocus={onFocus}
               onBlur={onBlur}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter") {
                   e.preventDefault();
                   // Focus on quantity field
-                  const quantityInput = document.getElementById(`item-${index}-quantity`);
+                  const quantityInput = document.getElementById(
+                    `item-${index}-quantity`,
+                  );
                   if (quantityInput) {
                     (quantityInput as HTMLInputElement).focus();
                   }
@@ -136,16 +145,20 @@ export const ReceiptItemsForm: React.FC<ReceiptItemsFormProps> = ({
               min="1"
               placeholder="Qty"
               value={item.quantity || 1}
-              onChange={(e) => updateItem(item.id, "quantity", parseFloat(e.target.value) || 1)}
+              onChange={(e) =>
+                updateItem(item.id, "quantity", parseFloat(e.target.value) || 1)
+              }
               className="mt-1.5 bg-card"
               disabled={disabled}
               onFocus={onFocus}
               onBlur={onBlur}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter") {
                   e.preventDefault();
                   // Focus on unit price field
-                  const priceInput = document.getElementById(`item-${index}-unitPrice`);
+                  const priceInput = document.getElementById(
+                    `item-${index}-unitPrice`,
+                  );
                   if (priceInput) {
                     (priceInput as HTMLInputElement).focus();
                   }
@@ -162,13 +175,19 @@ export const ReceiptItemsForm: React.FC<ReceiptItemsFormProps> = ({
               step="0.01"
               placeholder="0.00"
               value={item.unitPrice || 0}
-              onChange={(e) => updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)}
+              onChange={(e) =>
+                updateItem(
+                  item.id,
+                  "unitPrice",
+                  parseFloat(e.target.value) || 0,
+                )
+              }
               className="mt-1.5 bg-card"
               disabled={disabled}
               onFocus={onFocus}
               onBlur={onBlur}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter") {
                   e.preventDefault();
                   // If this is not the last item, focus on next item's description
                   if (index < items.length - 1) {

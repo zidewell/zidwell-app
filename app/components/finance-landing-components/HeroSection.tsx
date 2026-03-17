@@ -17,10 +17,10 @@ const HeroSection = () => {
       <div className="absolute inset-0 bg-grid-pattern pointer-events-none" />
 
       {/* Background decorations */}
-      <div className="absolute top-40 right-10 w-20 h-20 border-2 border-[#C29307] rotate-12 opacity-30" />
-      <div className="absolute bottom-40 left-10 w-16 h-16 bg-[#C29307]/20 rotate-45" />
-      <div className="absolute top-1/2 right-1/4 w-4 h-4 bg-[#C29307] rounded-full opacity-60" />
-      <div className="absolute top-1/3 left-1/3 w-32 h-32 bg-linear-to-br from-[#C29307]/10 to-transparent rounded-full blur-2xl" />
+      <div className="absolute top-40 right-10 w-20 h-20 border-2 border-[#2b825b] rotate-12 opacity-30" />
+      <div className="absolute bottom-40 left-10 w-16 h-16 bg-[#2b825b]/20 rotate-45" />
+      <div className="absolute top-1/2 right-1/4 w-4 h-4 bg-[#2b825b] rounded-full opacity-60" />
+      <div className="absolute top-1/3 left-1/3 w-32 h-32 bg-linear-to-br from-[#2b825b]/10 to-transparent rounded-full blur-2xl" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
@@ -31,7 +31,7 @@ const HeroSection = () => {
                 Business Growth Starts with{" "}
                 <span className="relative inline-block">
                   <span className="relative z-10">Healthy Accounting</span>
-                  <span className="absolute bottom-2 left-0 w-full h-3 bg-[#C29307] z-0" />
+                  <span className="absolute bottom-2 left-0 w-full h-3 bg-[#2b825b] z-0" />
                 </span>{" "}
                 & Financial Wellness.
               </h1>
@@ -45,7 +45,7 @@ const HeroSection = () => {
             </div>
 
             {/* Highlighted text */}
-            <div className="border-l-4 border-[#C29307] pl-6 py-2 bg-linear-to-r from-[#C29307]/10 to-transparent">
+            <div className="border-l-4 border-[#2b825b] pl-6 py-2 bg-linear-to-r from-[#2b825b]/10 to-transparent">
               <p className="text-lg font-semibold">
                 Think of Zidwell as your outsourced finance team, without the
                 stress or high cost.
@@ -94,7 +94,7 @@ const HeroSection = () => {
 
           {/* Hero Image */}
           <div className="relative">
-            <div className="relative border-2 border-neutral-900 shadow-[8px_8px_0px_#C29307]">
+            <div className="relative border-2 border-neutral-900 shadow-[8px_8px_0px_#2b825b]">
               <Image
                 src="https://images.unsplash.com/photo-1653566031486-dc4ead13a35d?q=80&w=870&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                 alt="Zidwell Finance team collaborating in modern office"

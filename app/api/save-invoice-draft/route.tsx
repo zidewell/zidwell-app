@@ -6,7 +6,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Helper function to create new draft
 async function createNewDraft(body: any) {
   console.log('Creating new draft');
   
@@ -54,7 +53,6 @@ async function createNewDraft(body: any) {
     throw invoiceError;
   }
 
-  // Insert invoice items if there are any
   if (body.invoice_items && body.invoice_items.length > 0) {
     const invoiceItems = body.invoice_items.map((item: any) => ({
       invoice_id: invoiceData.id,
@@ -97,7 +95,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// NEW: PUT endpoint for updating existing draft invoices
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
@@ -107,7 +104,6 @@ export async function PUT(req: NextRequest) {
       status: body.status 
     });
 
-    // First, check if the invoice exists
     const { data: existingInvoice, error: fetchError } = await supabase
       .from('invoices')
       .select('id, invoice_id, status, is_draft')
@@ -116,7 +112,6 @@ export async function PUT(req: NextRequest) {
 
     if (fetchError || !existingInvoice) {
       console.log('Invoice not found, creating new one');
-      // Use the helper function instead of calling POST
       const invoiceData = await createNewDraft(body);
       
       return NextResponse.json({ 
@@ -128,7 +123,6 @@ export async function PUT(req: NextRequest) {
 
     console.log('Found existing invoice:', existingInvoice);
 
-    // Prepare update data
     const updateData: any = {
       business_name: body.business_name,
       business_logo: body.business_logo,
@@ -151,19 +145,16 @@ export async function PUT(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    // If this is generating the final invoice (not draft), update status and remove draft flag
     if (body.status && body.status !== 'draft') {
       updateData.status = body.status;
       updateData.is_draft = false;
       
-      // Generate proper order reference and signing link for final invoice
       if (body.status === 'unpaid') {
         updateData.order_reference = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         updateData.public_token = `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         updateData.signing_link = `/invoice/${body.invoice_id}`;
         updateData.payment_link = `/pay/${body.invoice_id}`;
         
-        // Calculate proper fees for final invoice
         if (body.fee_option === 'customer') {
           const feeAmount = Math.min(body.total_amount * 0.03, 2000);
           updateData.fee_amount = feeAmount;
@@ -172,7 +163,6 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // Update the invoice
     const { data: updatedInvoice, error: updateError } = await supabase
       .from('invoices')
       .update(updateData)
@@ -185,9 +175,7 @@ export async function PUT(req: NextRequest) {
       throw updateError;
     }
 
-    // Handle invoice items - delete existing and insert new ones
     if (body.invoice_items && body.invoice_items.length > 0) {
-      // First, delete existing items
       const { error: deleteError } = await supabase
         .from('invoice_items')
         .delete()
@@ -197,7 +185,6 @@ export async function PUT(req: NextRequest) {
         console.error('Error deleting old invoice items:', deleteError);
       }
 
-      // Then insert updated items
       const invoiceItems = body.invoice_items.map((item: any) => ({
         invoice_id: updatedInvoice.id,
         item_description: item.description,
@@ -231,7 +218,6 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// Optional: GET endpoint to check if invoice exists
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);

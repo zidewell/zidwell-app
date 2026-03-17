@@ -12,8 +12,8 @@ const CTA = () => {
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#C29307]/10 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] mb-8">
-            <Sparkles className="w-4 h-4 text-[#C29307]" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#2b825b]/10 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] mb-8">
+            <Sparkles className="w-4 h-4 text-[#2b825b]" />
             <span className="text-sm font-semibold text-gray-900 dark:text-gray-50">
               The Future of Zidwell
             </span>
@@ -23,7 +23,7 @@ const CTA = () => {
             We're building toward a future where Africans have{" "}
             <span className="relative inline-block">
               <span className="relative z-10">full visibility</span>
-              <span className="absolute bottom-2 left-0 right-0 h-4 bg-[#C29307]/40 z-0" />
+              <span className="absolute bottom-2 left-0 right-0 h-4 bg-[#2b825b]/40 z-0" />
             </span>{" "}
             and control over their money
           </h2>
@@ -47,9 +47,9 @@ const CTA = () => {
 
           {/* Decorative */}
           <div className="mt-16 flex justify-center gap-4">
-            <div className="w-4 h-4 bg-[#C29307] border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24]" />
+            <div className="w-4 h-4 bg-[#2b825b] border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24]" />
             <div className="w-4 h-4 bg-gray-900 dark:bg-gray-50" />
-            <div className="w-4 h-4 bg-[#C29307] border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24]" />
+            <div className="w-4 h-4 bg-[#2b825b] border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24]" />
           </div>
         </div>
       </div>

@@ -46,17 +46,17 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     debounce(() => {
       saveSignature();
     }, 300),
-    [saveSignature]
+    [saveSignature],
   );
 
   // Get actual canvas dimensions
   const getCanvasDimensions = useCallback(() => {
     if (!canvasRef.current) return { width: 400, height: 192 };
-    
+
     const rect = canvasRef.current.getBoundingClientRect();
     return {
       width: rect.width,
-      height: rect.height
+      height: rect.height,
     };
   }, []);
 
@@ -68,7 +68,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
 
     try {
       const SignaturePadLib = await import("signature_pad");
-      
+
       // Clear existing pad if it exists
       if (padRef.current) {
         padRef.current.off();
@@ -78,14 +78,14 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
       // Get canvas dimensions
       const dimensions = getCanvasDimensions();
       const canvas = canvasRef.current;
-      
+
       // Set canvas size
       const dpr = window.devicePixelRatio || 1;
       canvas.width = dimensions.width * dpr;
       canvas.height = dimensions.height * dpr;
       canvas.style.width = `${dimensions.width}px`;
       canvas.style.height = `${dimensions.height}px`;
-      
+
       // Scale the context
       const ctx = canvas.getContext("2d");
       if (ctx) {
@@ -96,7 +96,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
 
       padRef.current = new SignaturePadLib.default(canvas, {
         backgroundColor: "rgba(255, 255, 255, 0)",
-        penColor: "#C29307",
+        penColor: "#2b825b",
         minWidth: 1.5,
         maxWidth: 2.5,
         throttle: 16,
@@ -125,7 +125,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               callback: () => {
                 padRef.current._render();
                 saveSignature();
-              }
+              },
             });
           }
         }, 50);
@@ -136,14 +136,22 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     } catch (error) {
       console.error("Failed to initialize signature pad:", error);
     }
-  }, [isMounted, mode, disabled, value, debouncedSave, saveSignature, getCanvasDimensions]);
+  }, [
+    isMounted,
+    mode,
+    disabled,
+    value,
+    debouncedSave,
+    saveSignature,
+    getCanvasDimensions,
+  ]);
 
   // Initialize on mount and when dependencies change
   useEffect(() => {
     if (isMounted && mode === "draw" && !disabled && canvasRef.current) {
       initializeSignaturePad();
     }
-    
+
     return () => {
       // Save before unmounting
       if (padRef.current && !padRef.current.isEmpty()) {
@@ -165,20 +173,23 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
         if (padRef.current && canvasRef.current && isInitialized) {
           const canvas = canvasRef.current;
           const newDimensions = getCanvasDimensions();
-          
+
           // Only resize if dimensions actually changed
-          if (newDimensions.width !== canvasSize.width || newDimensions.height !== canvasSize.height) {
+          if (
+            newDimensions.width !== canvasSize.width ||
+            newDimensions.height !== canvasSize.height
+          ) {
             // Save current data
             const data = padRef.current.toData();
             const isEmpty = padRef.current.isEmpty();
-            
+
             // Resize canvas
             const dpr = window.devicePixelRatio || 1;
             canvas.width = newDimensions.width * dpr;
             canvas.height = newDimensions.height * dpr;
             canvas.style.width = `${newDimensions.width}px`;
             canvas.style.height = `${newDimensions.height}px`;
-            
+
             // Scale the context
             const ctx = canvas.getContext("2d");
             if (ctx) {
@@ -186,12 +197,12 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               ctx.lineCap = "round";
               ctx.lineJoin = "round";
             }
-            
+
             // Reinitialize the signature pad with new canvas
             const SignaturePadLib = require("signature_pad");
             padRef.current = new SignaturePadLib.default(canvas, {
               backgroundColor: "rgba(255, 255, 255, 0)",
-              penColor: "#C29307",
+              penColor: "#2b825b",
               minWidth: 1.5,
               maxWidth: 2.5,
               throttle: 16,
@@ -214,7 +225,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               padRef.current.fromData(data);
               padRef.current._render();
             }
-            
+
             setCanvasSize(newDimensions);
             saveSignature();
           }
@@ -227,7 +238,16 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
       clearTimeout(resizeTimeout);
       window.removeEventListener("resize", handleResize);
     };
-  }, [isMounted, mode, disabled, isInitialized, canvasSize, debouncedSave, saveSignature, getCanvasDimensions]);
+  }, [
+    isMounted,
+    mode,
+    disabled,
+    isInitialized,
+    canvasSize,
+    debouncedSave,
+    saveSignature,
+    getCanvasDimensions,
+  ]);
 
   // Clear signature
   const handleClear = useCallback(() => {
@@ -243,30 +263,33 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
   }, [mode, onChange]);
 
   // Handle file upload
-  const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith("image/")) {
-        alert("Please upload an image file (PNG, JPG, GIF)");
-        return;
-      }
+  const handleUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        if (!file.type.startsWith("image/")) {
+          alert("Please upload an image file (PNG, JPG, GIF)");
+          return;
+        }
 
-      if (file.size > 2 * 1024 * 1024) {
-        alert("File size should be less than 2MB");
-        return;
-      }
+        if (file.size > 2 * 1024 * 1024) {
+          alert("File size should be less than 2MB");
+          return;
+        }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        onChange(dataUrl);
-      };
-      reader.onerror = () => {
-        alert("Error reading file. Please try again.");
-      };
-      reader.readAsDataURL(file);
-    }
-  }, [onChange]);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target?.result as string;
+          onChange(dataUrl);
+        };
+        reader.onerror = () => {
+          alert("Error reading file. Please try again.");
+        };
+        reader.readAsDataURL(file);
+      }
+    },
+    [onChange],
+  );
 
   // Switch to draw mode
   const switchToDrawMode = useCallback(() => {
@@ -324,7 +347,11 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     if (!isMounted || mode !== "draw" || disabled) return;
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && canvasRef.current && padRef.current) {
+      if (
+        document.visibilityState === "visible" &&
+        canvasRef.current &&
+        padRef.current
+      ) {
         // Re-initialize when tab becomes visible again
         setTimeout(() => {
           initializeSignaturePad();
@@ -332,9 +359,9 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isMounted, mode, disabled, initializeSignaturePad]);
 
@@ -466,7 +493,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               </Button>
             )}
           </div>
-          
+
           {value ? (
             <div className="h-48 rounded-lg border-2 border-border bg-card p-4">
               <img
@@ -478,9 +505,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
           ) : (
             <div className="h-48 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center">
               <Upload className="h-10 w-10 text-gray-400 mb-2" />
-              <p className="text-sm text-gray-600">
-                Upload a signature image
-              </p>
+              <p className="text-sm text-gray-600">Upload a signature image</p>
               <p className="text-xs text-gray-500 mt-1">
                 PNG, JPG, GIF • Max 2MB
               </p>
@@ -495,7 +520,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
 // Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
   func: T,
-  wait: number
+  wait: number,
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout;
   return (...args: Parameters<T>) => {

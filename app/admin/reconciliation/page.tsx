@@ -56,7 +56,7 @@ export default function ReconciliationPage() {
         if (data.discrepanciesFound > 0) {
           let discrepanciesHtml = `
             <div class="text-left">
-              <div class="mb-4 p-3 bg-yellow-50 rounded-lg">
+              <div class="mb-4 p-3 bg-green-50 rounded-lg">
                 <strong class="text-yellow-800">Found ${data.discrepanciesFound} discrepancies</strong>
               </div>
               <div class="max-h-96 overflow-y-auto">
@@ -81,10 +81,10 @@ export default function ReconciliationPage() {
               <tr class="border-b hover:bg-gray-50">
                 <td class="p-2">${disc.user_email}</td>
                 <td class="p-2">₦${Number(
-                  disc.system_balance || 0
+                  disc.system_balance || 0,
                 ).toLocaleString()}</td>
                 <td class="p-2">₦${Number(
-                  disc.gateway_balance || 0
+                  disc.gateway_balance || 0,
                 ).toLocaleString()}</td>
                 <td class="p-2 font-semibold ${diffColor}">
                   ${diffSign}₦${Math.abs(disc.difference || 0).toLocaleString()}
@@ -114,7 +114,7 @@ export default function ReconciliationPage() {
         Swal.fire(
           "Error",
           err.message || "Failed to run reconciliation",
-          "error"
+          "error",
         );
       } finally {
         setIsRunning(false);
@@ -253,7 +253,7 @@ export default function ReconciliationPage() {
                   <div className="text-lg font-semibold text-green-600">
                     ₦
                     {Number(
-                      results.summary?.totalSystemBalance || 0
+                      results.summary?.totalSystemBalance || 0,
                     ).toLocaleString()}
                   </div>
                 </div>
@@ -262,7 +262,7 @@ export default function ReconciliationPage() {
                   <div className="text-lg font-semibold text-blue-600">
                     ₦
                     {Number(
-                      results.summary?.totalGatewayBalance || 0
+                      results.summary?.totalGatewayBalance || 0,
                     ).toLocaleString()}
                   </div>
                 </div>
@@ -277,7 +277,7 @@ export default function ReconciliationPage() {
                   >
                     {results.summary?.totalDifference >= 0 ? "+" : ""}₦
                     {Math.abs(
-                      results.summary?.totalDifference || 0
+                      results.summary?.totalDifference || 0,
                     ).toLocaleString()}
                   </div>
                 </div>
@@ -321,13 +321,13 @@ export default function ReconciliationPage() {
                               <td className="p-3">
                                 ₦
                                 {Number(
-                                  disc.system_balance || 0
+                                  disc.system_balance || 0,
                                 ).toLocaleString()}
                               </td>
                               <td className="p-3">
                                 ₦
                                 {Number(
-                                  disc.gateway_balance || 0
+                                  disc.gateway_balance || 0,
                                 ).toLocaleString()}
                               </td>
                               <td
@@ -339,7 +339,7 @@ export default function ReconciliationPage() {
                               >
                                 {disc.difference > 0 ? "+" : ""}₦
                                 {Math.abs(
-                                  disc.difference || 0
+                                  disc.difference || 0,
                                 ).toLocaleString()}
                               </td>
                               <td className="p-3">
@@ -354,7 +354,7 @@ export default function ReconciliationPage() {
                                 </span>
                               </td>
                             </tr>
-                          )
+                          ),
                         )}
                       </tbody>
                     </table>

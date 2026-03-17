@@ -7,13 +7,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/app/components/ui/dialog";
 import { TransferCheckout } from "@/app/components/invoice/TransferCheckout";
 import { useToast } from "@/app/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
 
-// Types
 interface PayerInfo {
   fullName: string;
   email: string;
@@ -60,7 +58,6 @@ export function PayWithTransferModal({
   const autoCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
-  // Clear interval on unmount
   useEffect(() => {
     return () => {
       if (autoCheckIntervalRef.current) {
@@ -99,17 +96,14 @@ export function PayWithTransferModal({
     }, [invoiceId, amount, payerInfo.email]);
 
   const handleStartAutoCheck = useCallback(() => {
-    // Clear any existing interval
     if (autoCheckIntervalRef.current) {
       clearInterval(autoCheckIntervalRef.current);
     }
 
-    // Start new interval to check every 30 seconds
     const interval = setInterval(async () => {
       try {
         const result = await checkPaymentStatus();
         if (result.paymentExists) {
-          // Payment found! Stop checking and show success
           clearInterval(interval);
           setPaymentStatus("verified");
           setLastCheckResult(result);
@@ -121,7 +115,7 @@ export function PayWithTransferModal({
       } catch (error) {
         console.error("Auto-check error:", error);
       }
-    }, 30000); // Check every 30 seconds
+    }, 30000);
 
     autoCheckIntervalRef.current = interval;
     setAutoCheckInterval(interval);
@@ -141,11 +135,9 @@ export function PayWithTransferModal({
     setIsSubmitting(true);
 
     try {
-      // First check if payment already exists
       const checkResult = await checkPaymentStatus();
 
       if (checkResult.paymentExists) {
-        // Payment already exists
         setPaymentStatus("verified");
         setLastCheckResult(checkResult);
         setIsSubmitting(false);
@@ -156,10 +148,8 @@ export function PayWithTransferModal({
         return;
       }
 
-      // Start automatic checking
       handleStartAutoCheck();
 
-      // Show success message
       toast({
         title: "Transfer Confirmation Started",
         description:
@@ -190,7 +180,6 @@ export function PayWithTransferModal({
           description: "Your payment has been verified successfully.",
         });
 
-        // Stop auto-checking if payment is found
         if (autoCheckIntervalRef.current) {
           clearInterval(autoCheckIntervalRef.current);
           autoCheckIntervalRef.current = null;
@@ -227,9 +216,7 @@ export function PayWithTransferModal({
     description: `Payment for invoice ${invoiceId}`,
   };
 
-  // Handle modal close
   const handleClose = () => {
-    // Clear intervals when modal closes
     if (autoCheckIntervalRef.current) {
       clearInterval(autoCheckIntervalRef.current);
       autoCheckIntervalRef.current = null;
@@ -242,23 +229,19 @@ export function PayWithTransferModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 border-border dark:border-gray-800">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            {/* <span className="text-[#C29307]">Pay via Bank Transfer</span> */}
+          <DialogTitle className="flex items-center justify-between text-foreground dark:text-gray-100">
             {paymentStatus === "verified" ? (
-              <span className="text-sm px-2 py-1 bg-green-100 text-green-800 rounded-full">
+              <span className="text-sm px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full">
                 ✅ Payment Verified
               </span>
             ) : autoCheckIntervalRef.current ? (
-              <span className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded-full animate-pulse">
+              <span className="text-sm px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded-full animate-pulse">
                 🔍 Checking...
               </span>
             ) : null}
           </DialogTitle>
-          {/* <DialogDescription>
-            Complete your payment through bank transfer
-          </DialogDescription> */}
         </DialogHeader>
 
         <div className="py-4">
@@ -274,13 +257,12 @@ export function PayWithTransferModal({
           />
         </div>
 
-        {/* Payment Verification Status */}
         {paymentStatus === "verified" && (
-          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
             <div className="flex items-center mb-2">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-2">
+              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mr-2">
                 <svg
-                  className="w-4 h-4 text-green-600"
+                  className="w-4 h-4 text-green-600 dark:text-green-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -293,12 +275,12 @@ export function PayWithTransferModal({
                   />
                 </svg>
               </div>
-              <h4 className="font-semibold text-green-800">
+              <h4 className="font-semibold text-green-800 dark:text-green-400">
                 🎉 Payment Verified!
               </h4>
             </div>
 
-            <div className="space-y-2 text-sm text-green-700">
+            <div className="space-y-2 text-sm text-green-700 dark:text-green-400">
               <p>
                 <strong>Invoice:</strong> {invoiceId}
               </p>
@@ -318,23 +300,22 @@ export function PayWithTransferModal({
           </div>
         )}
 
-        {/* Payment Checking Status */}
         {autoCheckIntervalRef.current && paymentStatus !== "verified" && (
           <div className="mt-4 space-y-4">
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <h4 className="font-semibold text-blue-800 dark:text-blue-400 mb-2 flex items-center">
                 🔍 Payment Status
               </h4>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-blue-700">
+                <span className="text-sm text-blue-700 dark:text-blue-400">
                   ⏳ Automatically checking for your payment
                 </span>
-                <span className="text-xs px-2 py-1 bg-blue-200 text-blue-800 rounded animate-pulse">
+                <span className="text-xs px-2 py-1 bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded animate-pulse">
                   Live
                 </span>
               </div>
 
-              <div className="text-sm text-blue-700 space-y-2">
+              <div className="text-sm text-blue-700 dark:text-blue-400 space-y-2">
                 <p>• We're checking for your payment every 30 seconds</p>
                 <p>• This can take 5-30 minutes depending on your bank</p>
                 <p>• You'll be notified when payment is confirmed</p>
@@ -347,7 +328,7 @@ export function PayWithTransferModal({
                 onClick={handleManualCheck}
                 disabled={isSubmitting}
                 variant="outline"
-                className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                className="border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
               >
                 🔍 Check Payment Status Now
               </Button>
@@ -355,11 +336,11 @@ export function PayWithTransferModal({
           </div>
         )}
 
-        <div className="flex justify-end gap-3 pt-4 border-t">
+        <div className="flex justify-end gap-3 pt-4 border-t border-border dark:border-gray-800">
           <Button
             variant="outline"
             onClick={handleClose}
-            className="border-gray-300"
+            className="border-gray-300 dark:border-gray-700 text-foreground dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             {paymentStatus === "verified" ? "Close" : "Cancel"}
           </Button>
@@ -368,7 +349,7 @@ export function PayWithTransferModal({
             <Button
               onClick={handleManualCheck}
               disabled={isSubmitting || !payerInfo.email}
-              className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed min-w-[140px]"
+              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed min-w-[140px]"
             >
               {isSubmitting ? (
                 <>

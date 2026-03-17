@@ -32,7 +32,7 @@ export default function FloatingHelpButton() {
 
       <Button
         onClick={() => setIsOpen(!isOpen)}
-        className="rounded-full  w-14 h-14 bg-[#C29307] shadow-lg cursor-pointer"
+        className="rounded-full  w-14 h-14 bg-[#2b825b] shadow-lg cursor-pointer"
       >
         <Headset className="text-2xl " />
       </Button>

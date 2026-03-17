@@ -51,7 +51,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         setCollapsed(true);
       }
     };
-    
+
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
@@ -76,7 +76,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       // For dashboard, check exact match
       return pathname === itemPath;
     }
-    
+
     // For other items, check if the current path starts with the item path
     // This handles nested routes like /blog/admin/post/edit, /blog/admin/categories/new, etc.
     return pathname.startsWith(itemPath);
@@ -85,7 +85,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const sidebarWidth = collapsed ? 80 : 256;
 
   return (
-    <div className={cn("min-h-screen bg-background transition-colors", darkMode && "dark")}>
+    <div
+      className={cn(
+        "min-h-screen bg-background transition-colors",
+        darkMode && "dark",
+      )}
+    >
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-card sticky top-0 z-50">
         <Button
@@ -105,7 +110,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               height={32}
               className="mr-2 w-10 object-contain"
             />
-            <h1 className="font-bold text-lg text-gray-900 dark:text-white">Zidwell</h1>
+            <h1 className="font-bold text-lg text-gray-900 dark:text-white">
+              Zidwell
+            </h1>
           </Link>
         </div>
         <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
@@ -121,23 +128,25 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         {/* Sidebar */}
         <motion.aside
           initial={false}
-          animate={{ 
+          animate={{
             width: sidebarOpen ? sidebarWidth : 0,
-            x: sidebarOpen ? 0 : -sidebarWidth
+            x: sidebarOpen ? 0 : -sidebarWidth,
           }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className={cn(
             "fixed lg:relative top-0 left-0 z-40 h-screen bg-card border-r border-border overflow-hidden",
-            "flex flex-col shadow-lg"
+            "flex flex-col shadow-lg",
           )}
           style={{ zIndex: 40 }}
         >
           <div className="flex flex-col h-full w-full">
             {/* Logo Section */}
-            <div className={cn(
-              "flex items-center justify-between p-4 border-b border-border",
-              collapsed ? "flex-col gap-2" : "flex-row"
-            )}>
+            <div
+              className={cn(
+                "flex items-center justify-between p-4 border-b border-border",
+                collapsed ? "flex-col gap-2" : "flex-row",
+              )}
+            >
               {!collapsed ? (
                 <Link href="/blog/admin" className="flex items-center">
                   <Image
@@ -147,7 +156,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     height={32}
                     className="mr-2 w-10 object-contain"
                   />
-                  <h1 className="font-bold text-lg text-gray-900 dark:text-white">Zidwell</h1>
+                  <h1 className="font-bold text-lg text-gray-900 dark:text-white">
+                    Zidwell
+                  </h1>
                 </Link>
               ) : (
                 <Link href="/blog/admin" className="flex justify-center">
@@ -173,9 +184,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                       isActive
-                        ? "bg-[#C29307]/10 text-[#C29307] border border-[#C29307]/20"
+                        ? "bg-[#2b825b]/10 text-[#2b825b] border border-[#2b825b]/20"
                         : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-                      collapsed && "justify-center"
+                      collapsed && "justify-center",
                     )}
                     onClick={() => {
                       if (isMobile) {
@@ -183,10 +194,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                       }
                     }}
                   >
-                    <item.icon className={cn(
-                      "w-5 h-5 flex-shrink-0",
-                      isActive && "text-[#C29307]"
-                    )} />
+                    <item.icon
+                      className={cn(
+                        "w-5 h-5 flex-shrink-0",
+                        isActive && "text-[#2b825b]",
+                      )}
+                    />
                     {!collapsed && (
                       <motion.span
                         initial={{ opacity: 1 }}
@@ -208,7 +221,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                 variant="ghost"
                 className={cn(
                   "w-full justify-start gap-3 hover:bg-secondary/50",
-                  collapsed && "justify-center px-2"
+                  collapsed && "justify-center px-2",
                 )}
                 onClick={toggleDarkMode}
               >
@@ -230,11 +243,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
               {/* Back to Blog */}
               <Link href="/blog">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className={cn(
                     "w-full justify-start gap-3",
-                    collapsed && "justify-center px-2"
+                    collapsed && "justify-center px-2",
                   )}
                 >
                   <Home className="w-5 h-5 flex-shrink-0" />
@@ -250,10 +263,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                 </Button>
               </Link>
 
-              <div className={cn(
-                "flex items-center gap-3 p-2 rounded-lg border border-border/50",
-                collapsed && "justify-center"
-              )}>
+              <div
+                className={cn(
+                  "flex items-center gap-3 p-2 rounded-lg border border-border/50",
+                  collapsed && "justify-center",
+                )}
+              >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center overflow-hidden">
                   {userData?.profilePicture ? (
                     <Image
@@ -274,7 +289,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     className="flex-1 min-w-0"
                   >
                     <p className="text-sm font-medium truncate">
-                      {userData?.fullName ? `${userData.fullName}""}`.trim() : "Admin User"}
+                      {userData?.fullName
+                        ? `${userData.fullName}""}`.trim()
+                        : "Admin User"}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
                       {userData?.email || "admin@example.com"}
@@ -300,10 +317,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </AnimatePresence>
 
         {/* Main Content */}
-        <main className={cn(
-          "flex-1 min-h-screen transition-all duration-300",
-          !collapsed && "lg:ml-0"
-        )}>
+        <main
+          className={cn(
+            "flex-1 min-h-screen transition-all duration-300",
+            !collapsed && "lg:ml-0",
+          )}
+        >
           {/* Desktop Header */}
           <div className="hidden lg:flex items-center justify-between p-4 border-b border-border bg-card sticky top-0 z-30">
             <div className="flex items-center gap-4">
@@ -325,13 +344,17 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     className="mr-2 w-10 object-contain"
                   />
                   <div>
-                    <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Zidwell</h1>
-                    <p className="text-xs text-muted-foreground">Content Management System</p>
+                    <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Zidwell
+                    </h1>
+                    <p className="text-xs text-muted-foreground">
+                      Content Management System
+                    </p>
                   </div>
                 </Link>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
                 {darkMode ? (

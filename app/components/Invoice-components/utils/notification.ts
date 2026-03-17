@@ -18,26 +18,26 @@ export const showCustomNotification = ({
     type === "success"
       ? "bg-green-50 border-green-200"
       : type === "error"
-      ? "bg-red-50 border-red-200"
-      : type === "warning"
-      ? "bg-yellow-50 border-yellow-200"
-      : "bg-blue-50 border-blue-200";
+        ? "bg-red-50 border-red-200"
+        : type === "warning"
+          ? "bg-green-50 border-yellow-200"
+          : "bg-blue-50 border-blue-200";
   const textColor =
     type === "success"
       ? "text-green-800"
       : type === "error"
-      ? "text-red-800"
-      : type === "warning"
-      ? "text-yellow-800"
-      : "text-blue-800";
+        ? "text-red-800"
+        : type === "warning"
+          ? "text-yellow-800"
+          : "text-blue-800";
   const icon =
     type === "success"
       ? "✅"
       : type === "error"
-      ? "❌"
-      : type === "warning"
-      ? "⚠️"
-      : "ℹ️";
+        ? "❌"
+        : type === "warning"
+          ? "⚠️"
+          : "ℹ️";
 
   notification.className = `custom-notification fixed top-4 right-4 ${bgColor} border rounded-lg shadow-lg p-4 max-w-sm z-50`;
   notification.style.cssText = `

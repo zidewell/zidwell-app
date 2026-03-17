@@ -24,14 +24,14 @@ function Loader() {
         {/* Ultra-thin progress bar */}
         <div className="bg-gray-300 rounded-full h-0.5 mb-2 overflow-hidden">
           <div
-            className="bg-[#C29307] h-full rounded-full transition-all duration-100 ease-linear"
+            className="bg-[#2b825b] h-full rounded-full transition-all duration-100 ease-linear"
             style={{ width: `${progress}%` }}
           />
         </div>
 
         {/* Centered percentage only */}
         <div className="text-center">
-          <span className="text-[#C29307] text-sm font-medium">
+          <span className="text-[#2b825b] text-sm font-medium">
             {progress}%
           </span>
         </div>

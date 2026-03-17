@@ -35,27 +35,19 @@ interface BlogCategory {
   count: number;
 }
 
-const BlogSidebar = ({ 
-  onSearch, 
-  isSearching = false,
-}: BlogSidebarProps) => {
+const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [email, setEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
-  
- 
+
   // Get data from context
-  const { 
-    recentPosts, 
-    popularPosts, 
-    categories, 
-    isLoading 
-  } = useBlog();
+  const { recentPosts, popularPosts, categories, isLoading } = useBlog();
 
   // Initialize SweetAlert
   const showAlert = Swal.mixin({
     customClass: {
-      confirmButton: "bg-[#C29307] text-white hover:bg-[#C29307]/90 px-4 py-2 rounded",
+      confirmButton:
+        "bg-[#2b825b] text-white hover:bg-[#2b825b]/90 px-4 py-2 rounded",
     },
     buttonsStyling: false,
   });
@@ -63,22 +55,22 @@ const BlogSidebar = ({
   // Calculate archive data from recent posts
   const archives = useMemo(() => {
     if (!recentPosts.length) return [];
-    
+
     const archiveMap = new Map<string, number>();
-    
-    recentPosts.forEach(post => {
+
+    recentPosts.forEach((post) => {
       if (post.published_at) {
         const date = new Date(post.published_at);
         const year = date.getFullYear();
-        const month = date.toLocaleString('default', { month: 'long' });
+        const month = date.toLocaleString("default", { month: "long" });
         const key = `${year}-${month}`;
         archiveMap.set(key, (archiveMap.get(key) || 0) + 1);
       }
     });
-    
+
     return Array.from(archiveMap.entries())
       .map(([key, count]) => {
-        const [year, month] = key.split('-');
+        const [year, month] = key.split("-");
         return {
           label: `${month} ${year}`,
           year,
@@ -90,8 +82,18 @@ const BlogSidebar = ({
         // Sort by year and month descending
         if (a.year !== b.year) return parseInt(b.year) - parseInt(a.year);
         const months = [
-          'January', 'February', 'March', 'April', 'May', 'June',
-          'July', 'August', 'September', 'October', 'November', 'December'
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
         ];
         return months.indexOf(b.month) - months.indexOf(a.month);
       })
@@ -110,21 +112,21 @@ const BlogSidebar = ({
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim()) {
       showAlert.fire({
-        title: 'Email Required',
-        text: 'Please enter your email address',
-        icon: 'warning',
+        title: "Email Required",
+        text: "Please enter your email address",
+        icon: "warning",
       });
       return;
     }
 
     if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       showAlert.fire({
-        title: 'Invalid Email',
-        text: 'Please enter a valid email address',
-        icon: 'warning',
+        title: "Invalid Email",
+        text: "Please enter a valid email address",
+        icon: "warning",
       });
       return;
     }
@@ -133,53 +135,53 @@ const BlogSidebar = ({
 
     try {
       // Simulate API call (replace with actual API)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // For now, simulate success
       await showAlert.fire({
-        title: 'Subscribed Successfully!',
-        text: 'Thank you for subscribing to our newsletter.',
-        icon: 'success',
+        title: "Subscribed Successfully!",
+        text: "Thank you for subscribing to our newsletter.",
+        icon: "success",
         timer: 3000,
         showConfirmButton: false,
       });
-      
+
       setEmail("");
-      
     } catch (error) {
-      console.error('Subscription error:', error);
+      console.error("Subscription error:", error);
       await showAlert.fire({
-        title: 'Subscription Failed',
-        text: 'An error occurred. Please try again.',
-        icon: 'error',
+        title: "Subscription Failed",
+        text: "An error occurred. Please try again.",
+        icon: "error",
       });
     } finally {
       setIsSubscribing(false);
     }
   };
 
-
   const getAuthorName = (post: any) => {
     if (post.author.name) return post.author.name;
-    return 'Unknown Author';
+    return "Unknown Author";
   };
 
   // Helper function for image error handling
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
-    img.style.display = 'none';
-    
+    img.style.display = "none";
+
     // Find or create the fallback div
     const parent = img.parentElement;
     if (parent) {
-      let fallbackDiv = parent.querySelector('.image-fallback') as HTMLElement;
+      let fallbackDiv = parent.querySelector(".image-fallback") as HTMLElement;
       if (!fallbackDiv) {
-        fallbackDiv = document.createElement('div');
-        fallbackDiv.className = 'image-fallback w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center';
-        fallbackDiv.innerHTML = '<span class="text-xs text-muted-foreground">No Image</span>';
+        fallbackDiv = document.createElement("div");
+        fallbackDiv.className =
+          "image-fallback w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center";
+        fallbackDiv.innerHTML =
+          '<span class="text-xs text-muted-foreground">No Image</span>';
         parent.appendChild(fallbackDiv);
       }
-      fallbackDiv.style.display = 'flex';
+      fallbackDiv.style.display = "flex";
     }
   };
 
@@ -191,14 +193,14 @@ const BlogSidebar = ({
           <Skeleton className="h-5 w-24" />
           <Skeleton className="h-10 w-full" />
         </div>
-        
+
         {/* Subscribe Skeleton */}
         <div className="bg-secondary/50 rounded-lg p-5 space-y-3">
           <Skeleton className="h-5 w-24" />
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-10 w-full" />
         </div>
-        
+
         {/* Popular Posts Skeleton */}
         <div className="space-y-4">
           <Skeleton className="h-5 w-32" />
@@ -212,7 +214,7 @@ const BlogSidebar = ({
             </div>
           ))}
         </div>
-        
+
         {/* Recent Posts Skeleton */}
         <div className="space-y-4">
           <Skeleton className="h-5 w-32" />
@@ -226,7 +228,7 @@ const BlogSidebar = ({
             </div>
           ))}
         </div>
-        
+
         {/* Categories Skeleton */}
         <div className="space-y-3">
           <Skeleton className="h-5 w-24" />
@@ -260,7 +262,9 @@ const BlogSidebar = ({
             disabled={isSearching}
             aria-label="Search"
           >
-            <Search className={`w-4 h-4 ${isSearching ? 'animate-spin' : ''}`} />
+            <Search
+              className={`w-4 h-4 ${isSearching ? "animate-spin" : ""}`}
+            />
           </button>
         </form>
       </div>
@@ -268,7 +272,7 @@ const BlogSidebar = ({
       {/* Subscribe */}
       <div className="bg-secondary/50 rounded-lg p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <Mail className="w-4 h-4 text-[#C29307]" />
+          <Mail className="w-4 h-4 text-[#2b825b]" />
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Get Updates
           </h3>
@@ -289,7 +293,7 @@ const BlogSidebar = ({
           />
           <Button
             type="submit"
-            className="w-full bg-[#C29307] hover:bg-[#C29307]/90 text-white"
+            className="w-full bg-[#2b825b] hover:bg-[#2b825b]/90 text-white"
             disabled={isSubscribing}
           >
             {isSubscribing ? "Subscribing..." : "Subscribe"}
@@ -300,21 +304,21 @@ const BlogSidebar = ({
       {/* Popular Posts */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-[#C29307]" />
+          <TrendingUp className="w-4 h-4 text-[#2b825b]" />
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Popular Posts
           </h3>
         </div>
         {popularPosts.length > 0 ? (
           <div className="space-y-4">
-            {popularPosts.slice(0, 5).map((post:any) => (
+            {popularPosts.slice(0, 5).map((post: any) => (
               <Link
                 key={post.id}
                 href={`/blog/post-blog/${post.slug}`}
                 className="flex gap-3 group hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
               >
                 {post.featured_image ? (
-                 <Image
+                  <Image
                     width={200}
                     height={200}
                     src={post.featured_image}
@@ -329,12 +333,11 @@ const BlogSidebar = ({
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium line-clamp-2 group-hover:text-[#C29307] transition-colors">
+                  <h4 className="text-sm font-medium line-clamp-2 group-hover:text-[#2b825b] transition-colors">
                     {post.title}
                   </h4>
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-xs text-muted-foreground">
-                   
                       {getAuthorName(post)}
                     </p>
                     <span className="text-xs text-gray-500">
@@ -346,21 +349,23 @@ const BlogSidebar = ({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground italic">No popular posts yet</p>
+          <p className="text-sm text-muted-foreground italic">
+            No popular posts yet
+          </p>
         )}
       </div>
 
       {/* Recent Posts */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-[#C29307]" />
+          <Clock className="w-4 h-4 text-[#2b825b]" />
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Recent Posts
           </h3>
         </div>
         {recentPosts.length > 0 ? (
           <div className="space-y-4">
-            {recentPosts.slice(0, 5).map((post:any) => (
+            {recentPosts.slice(0, 5).map((post: any) => (
               <Link
                 key={post.id}
                 href={`/blog/${post.slug}`}
@@ -380,7 +385,7 @@ const BlogSidebar = ({
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium line-clamp-2 group-hover:text-[#C29307] transition-colors">
+                  <h4 className="text-sm font-medium line-clamp-2 group-hover:text-[#2b825b] transition-colors">
                     {post.title}
                   </h4>
                   <div className="flex items-center justify-between mt-1">
@@ -388,9 +393,9 @@ const BlogSidebar = ({
                       {getAuthorName(post)}
                     </p>
                     <span className="text-xs text-gray-500">
-                      {new Date(post.created_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric'
+                      {new Date(post.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
                       })}
                     </span>
                   </div>
@@ -399,7 +404,9 @@ const BlogSidebar = ({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground italic">No recent posts yet</p>
+          <p className="text-sm text-muted-foreground italic">
+            No recent posts yet
+          </p>
         )}
       </div>
 
@@ -414,7 +421,7 @@ const BlogSidebar = ({
               <li key={category.name}>
                 <Link
                   href={`/blog?category=${encodeURIComponent(category.name)}`}
-                  className="flex items-center justify-between text-sm hover:text-[#C29307] transition-colors px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
+                  className="flex items-center justify-between text-sm hover:text-[#2b825b] transition-colors px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
                 >
                   <span className="capitalize">{category.name}</span>
                   <span className="text-muted-foreground text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
@@ -425,7 +432,9 @@ const BlogSidebar = ({
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground italic">No categories yet</p>
+          <p className="text-sm text-muted-foreground italic">
+            No categories yet
+          </p>
         )}
       </div>
 
@@ -440,7 +449,7 @@ const BlogSidebar = ({
               <li key={archive.label}>
                 <Link
                   href={`/blog?archive=${archive.year}-${archive.month.toLowerCase()}`}
-                  className="flex items-center justify-between text-sm hover:text-[#C29307] transition-colors px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
+                  className="flex items-center justify-between text-sm hover:text-[#2b825b] transition-colors px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
                 >
                   <span>{archive.label}</span>
                   <span className="text-muted-foreground text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
@@ -451,7 +460,9 @@ const BlogSidebar = ({
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground italic">No archives yet</p>
+          <p className="text-sm text-muted-foreground italic">
+            No archives yet
+          </p>
         )}
       </div>
 
@@ -461,8 +472,12 @@ const BlogSidebar = ({
           Advertisement
         </p>
         <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded flex flex-col items-center justify-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400 mb-2">Ad Space Available</span>
-          <span className="text-xs text-gray-400 dark:text-gray-500">300x250</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            Ad Space Available
+          </span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">
+            300x250
+          </span>
         </div>
       </div>
     </aside>

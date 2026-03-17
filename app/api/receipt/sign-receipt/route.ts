@@ -7,7 +7,7 @@ import path from "path";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 // Convert logo to base64
@@ -54,28 +54,37 @@ const svgIcons = {
   phone: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`,
   mapPin: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
   creditCard: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
-  fileText: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`
+  fileText: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
 };
 
 // Generate the Receipt HTML with new UI style
-function generateReceiptHTML(receipt: any, logo: string, signeeName: string, signatureImage: string) {
-  const receiptItems = typeof receipt.receipt_items === 'string' 
-    ? JSON.parse(receipt.receipt_items) 
-    : receipt.receipt_items || [];
-  
-  const total = receipt.total || receiptItems.reduce((sum: number, item: any) => {
-    return sum + (item.total || item.quantity * item.unit_price);
-  }, 0) || 0;
+function generateReceiptHTML(
+  receipt: any,
+  logo: string,
+  signeeName: string,
+  signatureImage: string,
+) {
+  const receiptItems =
+    typeof receipt.receipt_items === "string"
+      ? JSON.parse(receipt.receipt_items)
+      : receipt.receipt_items || [];
+
+  const total =
+    receipt.total ||
+    receiptItems.reduce((sum: number, item: any) => {
+      return sum + (item.total || item.quantity * item.unit_price);
+    }, 0) ||
+    0;
 
   const formattedTotal = formatCurrency(total);
   const formattedIssueDate = formatDate(receipt.issue_date);
   const now = new Date();
-  const formattedCurrentDate = now.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+  const formattedCurrentDate = now.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
   // Parse items for template
@@ -84,16 +93,16 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
     quantity: item.quantity,
     unit_price: item.unit_price || item.price || 0,
     amount: item.total || item.quantity * (item.unit_price || item.price || 0),
-    index: index + 1
+    index: index + 1,
   }));
 
-  const hasSellerSignature = receipt.seller_signature && 
-    receipt.seller_signature !== "null" && 
+  const hasSellerSignature =
+    receipt.seller_signature &&
+    receipt.seller_signature !== "null" &&
     receipt.seller_signature !== "";
 
-  const hasClientSignature = signatureImage && 
-    signatureImage !== "null" && 
-    signatureImage !== "";
+  const hasClientSignature =
+    signatureImage && signatureImage !== "null" && signatureImage !== "";
 
   return `
 <!DOCTYPE html>
@@ -134,7 +143,7 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
     }
     
     .gold-gradient {
-      background: linear-gradient(135deg, #C29307 0%, #b38606 100%);
+      background: linear-gradient(135deg, #2b825b 0%, #b38606 100%);
     }
     
     .gold-light-bg {
@@ -142,11 +151,11 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
     }
     
     .gold-border {
-      border-color: #C29307;
+      border-color: #2b825b;
     }
     
     .gold-text {
-      color: #C29307;
+      color: #2b825b;
     }
     
     .watermark {
@@ -156,7 +165,7 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
       left: 50%;
       transform: translate(-50%, -50%);
       font-size: 120px;
-      color: #C29307;
+      color: #2b825b;
       pointer-events: none;
       z-index: -1;
     }
@@ -210,18 +219,26 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
             <div>
               <h3 class="font-semibold text-gray-900">From</h3>
               <p class="text-gray-600">${receipt.business_name || receipt.initiator_name}</p>
-              ${receipt.initiator_email ? `
+              ${
+                receipt.initiator_email
+                  ? `
               <p class="text-sm text-gray-500 mt-1 flex items-center gap-2">
                 ${svgIcons.mail}
                 ${receipt.initiator_email}
               </p>
-              ` : ''}
-              ${receipt.initiator_phone ? `
+              `
+                  : ""
+              }
+              ${
+                receipt.initiator_phone
+                  ? `
               <p class="text-sm text-gray-500 mt-1 flex items-center gap-2">
                 ${svgIcons.phone}
                 ${receipt.initiator_phone}
               </p>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
           </div>
         </div>
@@ -235,18 +252,26 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
               <h3 class="font-semibold text-gray-900">To</h3>
               <p class="text-gray-600">${signeeName}</p>
               <div class="space-y-1 mt-1">
-                ${receipt.client_email ? `
+                ${
+                  receipt.client_email
+                    ? `
                 <p class="text-sm text-gray-500 flex items-center gap-2">
                   ${svgIcons.mail}
                   ${receipt.client_email}
                 </p>
-                ` : ''}
-                ${receipt.client_phone ? `
+                `
+                    : ""
+                }
+                ${
+                  receipt.client_phone
+                    ? `
                 <p class="text-sm text-gray-500 flex items-center gap-2">
                   ${svgIcons.phone}
                   ${receipt.client_phone}
                 </p>
-                ` : ''}
+                `
+                    : ""
+                }
               </div>
             </div>
           </div>
@@ -254,7 +279,9 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
       </div>
 
       <!-- Billing Address -->
-      ${receipt.bill_to ? `
+      ${
+        receipt.bill_to
+          ? `
       <div class="bg-gray-50 rounded-xl p-6">
         <div class="flex items-center gap-3 mb-4">
           ${svgIcons.mapPin}
@@ -262,10 +289,14 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
         </div>
         <p class="text-gray-700 whitespace-pre-line">${receipt.bill_to}</p>
       </div>
-      ` : ''}
+      `
+          : ""
+      }
 
       <!-- Items Table -->
-      ${formattedItems.length > 0 ? `
+      ${
+        formattedItems.length > 0
+          ? `
       <div class="border rounded-xl overflow-hidden">
         <div class="bg-gray-50 px-6 py-4 border-b">
           <h3 class="font-semibold text-gray-900">Items Details</h3>
@@ -280,7 +311,9 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
           </div>
           
           <!-- Items -->
-          ${formattedItems.map((item: any) => `
+          ${formattedItems
+            .map(
+              (item: any) => `
           <div class="grid grid-cols-12 px-6 py-4 hover:bg-gray-50/50 transition-colors">
             <div class="col-span-6">
               <p class="font-medium text-gray-900">${item.description}</p>
@@ -296,7 +329,9 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
               <p class="font-semibold text-gray-900">${formatCurrency(item.amount)}</p>
             </div>
           </div>
-          `).join('')}
+          `,
+            )
+            .join("")}
           
           <!-- Totals -->
           <div class="bg-gray-50 px-6 py-4">
@@ -313,7 +348,9 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
           </div>
         </div>
       </div>
-      ` : '<p class="text-gray-500 italic">No items listed</p>'}
+      `
+          : '<p class="text-gray-500 italic">No items listed</p>'
+      }
 
       <!-- Payment & Notes -->
       <div class="grid md:grid-cols-2 gap-8">
@@ -337,12 +374,16 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
               <span class="text-gray-600">Issue Date:</span>
               <span class="font-medium">${formattedIssueDate}</span>
             </div>
-            ${receipt.verification_code ? `
+            ${
+              receipt.verification_code
+                ? `
             <div class="flex justify-between">
               <span class="text-gray-600">Verification Code:</span>
               <span class="font-medium font-mono">${receipt.verification_code}</span>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
         </div>
 
@@ -368,11 +409,15 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
               <p class="text-sm text-gray-600">${receipt.business_name || receipt.initiator_name}</p>
             </div>
             <div class="h-32 border-2 border-dashed border-gray-300 rounded-lg bg-white flex items-center justify-center">
-              ${hasSellerSignature ? `
+              ${
+                hasSellerSignature
+                  ? `
               <img src="${receipt.seller_signature}" alt="Seller signature" class="max-h-20" />
-              ` : `
+              `
+                  : `
               <span class="text-gray-400">No signature provided</span>
-              `}
+              `
+              }
             </div>
           </div>
 
@@ -383,11 +428,15 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
               <p class="text-sm text-gray-600">${signeeName}</p>
             </div>
             <div class="h-32 border-2 border-dashed border-gray-300 rounded-lg bg-white flex items-center justify-center">
-              ${hasClientSignature ? `
+              ${
+                hasClientSignature
+                  ? `
               <img src="${signatureImage}" alt="Client signature" class="max-h-20" />
-              ` : `
+              `
+                  : `
               <span class="text-gray-400">Signed</span>
-              `}
+              `
+              }
             </div>
           </div>
         </div>
@@ -408,9 +457,13 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
       <!-- Footer -->
       <div class="border-t pt-8 text-center text-gray-500 text-sm">
         <p>This receipt was generated electronically by Zidwell Receipts</p>
-        ${receipt.signing_link ? `
+        ${
+          receipt.signing_link
+            ? `
         <p class="mt-1">For verification, visit: <a href="${receipt.signing_link}" class="text-blue-600 hover:underline">${receipt.signing_link}</a></p>
-        ` : ''}
+        `
+            : ""
+        }
         <div class="mt-4 text-xs text-gray-400">
           <p>Receipt ID: ${receipt.receipt_id} | Generated on: ${formattedCurrentDate}</p>
         </div>
@@ -425,19 +478,19 @@ function generateReceiptHTML(receipt: any, logo: string, signeeName: string, sig
 async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  const pdf = await page.pdf({ 
-    format: 'A4', 
+  await page.setContent(html, { waitUntil: "networkidle0" });
+  const pdf = await page.pdf({
+    format: "A4",
     printBackground: true,
     margin: {
-      top: '20px',
-      right: '20px',
-      bottom: '20px',
-      left: '20px'
-    }
+      top: "20px",
+      right: "20px",
+      bottom: "20px",
+      left: "20px",
+    },
   });
   await browser.close();
   return Buffer.from(pdf);
@@ -446,13 +499,19 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { receiptToken, signeeName, signeeEmail, signatureImage, verificationCode } = body;
+    const {
+      receiptToken,
+      signeeName,
+      signeeEmail,
+      signatureImage,
+      verificationCode,
+    } = body;
 
-    console.log("Sign request received:", { 
-      receiptToken, 
-      signeeName, 
+    console.log("Sign request received:", {
+      receiptToken,
+      signeeName,
       hasSignature: !!signatureImage,
-      verificationCode 
+      verificationCode,
     });
 
     // Validation
@@ -460,12 +519,15 @@ export async function POST(req: NextRequest) {
     if (!receiptToken) missingFields.push("receiptToken");
     if (!signeeName) missingFields.push("signeeName");
     if (!signatureImage) missingFields.push("signatureImage");
-    
+
     if (missingFields.length > 0) {
       console.error("Missing fields:", missingFields);
       return NextResponse.json(
-        { success: false, error: `Missing required fields: ${missingFields.join(", ")}` },
-        { status: 400 }
+        {
+          success: false,
+          error: `Missing required fields: ${missingFields.join(", ")}`,
+        },
+        { status: 400 },
       );
     }
 
@@ -480,16 +542,15 @@ export async function POST(req: NextRequest) {
       console.error("Receipt not found:", receiptError);
       return NextResponse.json(
         { success: false, error: "Receipt not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
-
 
     // Check if receipt is already signed
     if (receipt.status === "signed") {
       return NextResponse.json(
         { success: false, error: "Receipt already signed" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -497,18 +558,18 @@ export async function POST(req: NextRequest) {
     if (receipt.verification_code) {
       // console.log("Receipt requires verification. Code in DB:", receipt.verification_code);
       // console.log("Provided code:", verificationCode);
-      
+
       if (!verificationCode) {
         return NextResponse.json(
           { success: false, error: "Verification code is required" },
-          { status: 401 }
+          { status: 401 },
         );
       }
-      
+
       if (receipt.verification_code !== verificationCode) {
         return NextResponse.json(
           { success: false, error: "Invalid verification code" },
-          { status: 401 }
+          { status: 401 },
         );
       }
     }
@@ -539,7 +600,12 @@ export async function POST(req: NextRequest) {
 
     // Generate PDF receipt with signatures
     const logo = getLogoBase64();
-    const htmlContent = generateReceiptHTML(updatedReceipt, logo, signeeName, signatureImage);
+    const htmlContent = generateReceiptHTML(
+      updatedReceipt,
+      logo,
+      signeeName,
+      signatureImage,
+    );
     const pdfBuffer = await generatePdfBufferFromHtml(htmlContent);
 
     // Base URL for email images
@@ -566,7 +632,7 @@ export async function POST(req: NextRequest) {
         .content { padding: 40px; }
         .success-icon { color: #10b981; font-size: 48px; text-align: center; margin-bottom: 20px; }
         .receipt-details { background: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; }
-        .btn { background: linear-gradient(135deg, #C29307 0%, #b38606 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 20px; font-weight: 600; }
+        .btn { background: linear-gradient(135deg, #2b825b 0%, #b38606 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 20px; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -582,12 +648,14 @@ export async function POST(req: NextRequest) {
                 <p style="margin: 10px 0;"><strong>Receipt ID:</strong> ${updatedReceipt.receipt_id}</p>
                 <p style="margin: 10px 0;"><strong>From:</strong> ${updatedReceipt.business_name || updatedReceipt.initiator_name}</p>
                 <p style="margin: 10px 0;"><strong>Amount:</strong> ${formatCurrency(updatedReceipt.total || 0)}</p>
-                <p style="margin: 10px 0;"><strong>Signed Date:</strong> ${new Date(now).toLocaleDateString('en-NG', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
+                <p style="margin: 10px 0;"><strong>Signed Date:</strong> ${new Date(
+                  now,
+                ).toLocaleDateString("en-NG", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })}</p>
             </div>
             
@@ -615,9 +683,9 @@ export async function POST(req: NextRequest) {
           {
             filename: `receipt_${updatedReceipt.receipt_id}_signed.pdf`,
             content: pdfBuffer,
-            contentType: 'application/pdf'
-          }
-        ]
+            contentType: "application/pdf",
+          },
+        ],
       });
       emailPromises.push(clientEmailPromise);
     }
@@ -638,7 +706,7 @@ export async function POST(req: NextRequest) {
         .content { padding: 40px; }
         .success-icon { color: #10b981; font-size: 48px; text-align: center; margin-bottom: 20px; }
         .receipt-details { background: #f0f9ff; padding: 20px; border-radius: 10px; margin: 20px 0; }
-        .btn { background: linear-gradient(135deg, #C29307 0%, #b38606 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 20px; font-weight: 600; }
+        .btn { background: linear-gradient(135deg, #2b825b 0%, #b38606 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 20px; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -654,12 +722,14 @@ export async function POST(req: NextRequest) {
                 <p style="margin: 10px 0;"><strong>Client Name:</strong> ${signeeName}</p>
                 <p style="margin: 10px 0;"><strong>Client Email:</strong> ${signeeEmail || updatedReceipt.client_email}</p>
                 <p style="margin: 10px 0;"><strong>Amount:</strong> ${formatCurrency(updatedReceipt.total || 0)}</p>
-                <p style="margin: 10px 0;"><strong>Signed Date:</strong> ${new Date(now).toLocaleDateString('en-NG', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
+                <p style="margin: 10px 0;"><strong>Signed Date:</strong> ${new Date(
+                  now,
+                ).toLocaleDateString("en-NG", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })}</p>
             </div>
             
@@ -690,9 +760,9 @@ export async function POST(req: NextRequest) {
           {
             filename: `receipt_${updatedReceipt.receipt_id}_client_signed.pdf`,
             content: pdfBuffer,
-            contentType: 'application/pdf'
-          }
-        ]
+            contentType: "application/pdf",
+          },
+        ],
       });
       emailPromises.push(businessEmailPromise);
     }
@@ -710,7 +780,7 @@ export async function POST(req: NextRequest) {
     console.error("Error signing receipt:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

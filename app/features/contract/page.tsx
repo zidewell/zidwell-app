@@ -31,7 +31,7 @@ export default function SmartContractPage() {
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+          className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           <span className="hidden md:block">Back</span>
@@ -43,13 +43,13 @@ export default function SmartContractPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-[#FEF9C2] mb-6">
-            <FileText className="h-8 w-8 text-[#C29307]" />
+            <FileText className="h-8 w-8 text-[#2b825b]" />
           </div>
           <div className="flex items-center justify-center gap-4 mb-4">
             <h1 className="text-4xl md:text-5xl font-bold">
               Professional Smart Contracts
             </h1>
-            <span className="bg-[#FEF9C2] text-[#C29307] text-sm font-semibold px-3 py-1 rounded-full">
+            <span className="bg-[#FEF9C2] text-[#2b825b] text-sm font-semibold px-3 py-1 rounded-full">
               ₦1,000 Only
             </span>
           </div>
@@ -106,7 +106,7 @@ export default function SmartContractPage() {
                 title: "Choose Template",
                 description: "Select from 20+ professional contract templates",
                 icon: FileText,
-                color: "bg-[#C29307]",
+                color: "bg-[#2b825b]",
               },
               {
                 step: "2",
@@ -169,7 +169,7 @@ export default function SmartContractPage() {
                 title: "NDA Agreements",
                 description:
                   "Non-disclosure agreements to protect sensitive info",
-                icon: <Lock className="h-5 w-5 text-[#C29307]" />,
+                icon: <Lock className="h-5 w-5 text-[#2b825b]" />,
               },
               {
                 title: "Partnership Agreements",
@@ -203,7 +203,7 @@ export default function SmartContractPage() {
                       <h3 className="font-semibold text-lg">
                         {contract.title}
                       </h3>
-                      <span className="bg-[#FEF9C2] text-[#C29307] text-sm font-semibold px-2 py-1 rounded">
+                      <span className="bg-[#FEF9C2] text-[#2b825b] text-sm font-semibold px-2 py-1 rounded">
                         ₦1,000
                       </span>
                     </div>
@@ -271,23 +271,23 @@ export default function SmartContractPage() {
               </div>
 
               {/* Our Solution */}
-              <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-[#C29307] relative">
+              <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-[#2b825b] relative">
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-[#C29307] text-white text-sm font-semibold px-3 py-1 rounded-full">
+                  <span className="bg-[#2b825b] text-white text-sm font-semibold px-3 py-1 rounded-full">
                     Best Value
                   </span>
                 </div>
                 <div className="text-center mb-4">
                   <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-[#FEF9C2] mb-3">
-                    <Shield className="h-6 w-6 text-[#C29307]" />
+                    <Shield className="h-6 w-6 text-[#2b825b]" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">
                     Smart Contracts
                   </h3>
-                  <div className="text-3xl font-bold text-[#C29307]">
+                  <div className="text-3xl font-bold text-[#2b825b]">
                     ₦1,000
                   </div>
-                  <p className="text-sm text-[#C29307]">all contracts</p>
+                  <p className="text-sm text-[#2b825b]">all contracts</p>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm">
@@ -325,7 +325,7 @@ export default function SmartContractPage() {
             </div>
 
             <div className="text-center mt-8 p-4 bg-white rounded-lg border border-purple-200">
-              <p className="font-semibold text-[#C29307] text-lg">
+              <p className="font-semibold text-[#2b825b] text-lg">
                 💰 Save ₦9,000+ per contract compared to traditional legal
                 services!
               </p>
@@ -355,7 +355,7 @@ export default function SmartContractPage() {
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-semibold">Price:</span>
-                    <span className="text-2xl font-bold text-[#C29307]">
+                    <span className="text-2xl font-bold text-[#2b825b]">
                       ₦500
                     </span>
                   </div>
@@ -373,7 +373,7 @@ export default function SmartContractPage() {
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-semibold">Price:</span>
-                    <span className="text-2xl font-bold text-[#C29307]">
+                    <span className="text-2xl font-bold text-[#2b825b]">
                       ₦200/party
                     </span>
                   </div>
@@ -396,7 +396,7 @@ export default function SmartContractPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/dashboard/services/contract">
               <Button
-                className="bg-[#C29307] hover:bg-[#FEF9C2] text-white hover:text-black px-8 py-6 text-lg"
+                className="bg-[#2b825b] hover:bg-[#FEF9C2] text-white hover:text-black px-8 py-6 text-lg"
                 size="lg"
               >
                 Create Contract (₦1,000)

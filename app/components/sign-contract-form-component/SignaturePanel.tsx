@@ -74,7 +74,7 @@ export const SignaturePanel = ({
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: ["#2b825b", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
     });
 
     setTimeout(() => {
@@ -83,14 +83,14 @@ export const SignaturePanel = ({
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
       confetti({
         particleCount: 80,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
     }, 150);
 
@@ -99,7 +99,7 @@ export const SignaturePanel = ({
         particleCount: 100,
         spread: 100,
         origin: { y: 0.8 },
-        colors: ["#C29307", "#ffd700", "#ffed4e"],
+        colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
     }, 300);
   };
@@ -141,9 +141,9 @@ export const SignaturePanel = ({
       text,
       icon: "success",
       confirmButtonText: "OK",
-      confirmButtonColor: "#C29307",
+      confirmButtonColor: "#2b825b",
       background: "#fafafa",
-      iconColor: "#C29307",
+      iconColor: "#2b825b",
       timer: 3000,
       timerProgressBar: true,
     });
@@ -189,7 +189,7 @@ export const SignaturePanel = ({
     if (!verificationCode || verificationCode.length !== 6) {
       showErrorAlert(
         "Invalid Code",
-        "Please enter a valid 6-digit verification code"
+        "Please enter a valid 6-digit verification code",
       );
       setIsVerifying(false);
       return;
@@ -216,7 +216,7 @@ export const SignaturePanel = ({
       setIsVerifying(false);
       showSuccessAlert(
         "Verified!",
-        "Identity verified successfully. You can now sign the contract."
+        "Identity verified successfully. You can now sign the contract.",
       );
     } catch (error) {
       setIsVerifying(false);
@@ -226,13 +226,13 @@ export const SignaturePanel = ({
       if (newAttempts >= 3) {
         showErrorAlert(
           "Too Many Attempts",
-          "Please request a new verification code"
+          "Please request a new verification code",
         );
         setVerificationCode("");
       } else {
         showErrorAlert(
           "Verification Failed",
-          error instanceof Error ? error.message : "Invalid verification code"
+          error instanceof Error ? error.message : "Invalid verification code",
         );
       }
     }
@@ -265,12 +265,12 @@ export const SignaturePanel = ({
       setSendCooldown(60);
       showSuccessAlert(
         "Code Sent!",
-        "Check your email for the verification code"
+        "Check your email for the verification code",
       );
     } catch (error) {
       showErrorAlert(
         "Error",
-        error instanceof Error ? error.message : "Failed to send code"
+        error instanceof Error ? error.message : "Failed to send code",
       );
     } finally {
       setIsSendingCode(false);
@@ -281,7 +281,7 @@ export const SignaturePanel = ({
     if (!isBiometricEnabled) {
       showErrorAlert(
         "Biometric Not Available",
-        "Your device doesn't support biometric authentication"
+        "Your device doesn't support biometric authentication",
       );
       return;
     }
@@ -316,13 +316,13 @@ export const SignaturePanel = ({
         setStep("review");
         showSuccessAlert(
           "Biometric Verified!",
-          "Your identity has been verified with biometrics"
+          "Your identity has been verified with biometrics",
         );
       }
     } catch (error) {
       showErrorAlert(
         "Biometric Failed",
-        "Please use traditional signature method"
+        "Please use traditional signature method",
       );
     }
   };
@@ -331,7 +331,7 @@ export const SignaturePanel = ({
     if (!signatureData) {
       showErrorAlert(
         "Signature Required",
-        "Please provide your signature before proceeding"
+        "Please provide your signature before proceeding",
       );
       return;
     }
@@ -385,7 +385,7 @@ export const SignaturePanel = ({
           <div class="text-center">
             <div class="mb-4">
               <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#FEFCE8] mb-3">
-                <svg class="w-8 h-8 text-[#C29307]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-8 h-8 text-[#2b825b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
               </div>
@@ -393,19 +393,19 @@ export const SignaturePanel = ({
             </div>
             <div class="space-y-2 text-gray-600">
               <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[#C29307]" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-[#2b825b]" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
                 Digital signature recorded
               </p>
               <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[#C29307]" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-[#2b825b]" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
                 Legal certificate generated
               </p>
               <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[#C29307]" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-[#2b825b]" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
                 Email sent with signed copy
@@ -435,7 +435,7 @@ export const SignaturePanel = ({
       // Show error and reset signing state
       showErrorAlert(
         "Error",
-        error instanceof Error ? error.message : "Failed to sign contract"
+        error instanceof Error ? error.message : "Failed to sign contract",
       );
       setIsSigning(false);
     }
@@ -455,7 +455,7 @@ export const SignaturePanel = ({
                 else if (step === "review") setStep("signature");
                 else onCancel();
               }}
-              className="text-[#C29307] h-8 w-8 p-0"
+              className="text-[#2b825b] h-8 w-8 p-0"
             >
               {step === "verification" ? (
                 <X className="h-5 w-5" />
@@ -477,31 +477,31 @@ export const SignaturePanel = ({
             <div className="flex items-center">
               <div
                 className={`h-2 w-2 rounded-full ${
-                  step === "verification" ? "bg-[#C29307]" : "bg-gray-300"
+                  step === "verification" ? "bg-[#2b825b]" : "bg-gray-300"
                 }`}
               />
               <div
                 className={`h-0.5 w-8 ${
-                  step !== "verification" ? "bg-[#C29307]" : "bg-gray-300"
+                  step !== "verification" ? "bg-[#2b825b]" : "bg-gray-300"
                 }`}
               />
               <div
                 className={`h-2 w-2 rounded-full ${
                   step === "signature"
-                    ? "bg-[#C29307]"
+                    ? "bg-[#2b825b]"
                     : step === "review"
-                    ? "bg-[#C29307]"
-                    : "bg-gray-300"
+                      ? "bg-[#2b825b]"
+                      : "bg-gray-300"
                 }`}
               />
               <div
                 className={`h-0.5 w-8 ${
-                  step === "review" ? "bg-[#C29307]" : "bg-gray-300"
+                  step === "review" ? "bg-[#2b825b]" : "bg-gray-300"
                 }`}
               />
               <div
                 className={`h-2 w-2 rounded-full ${
-                  step === "review" ? "bg-[#C29307]" : "bg-gray-300"
+                  step === "review" ? "bg-[#2b825b]" : "bg-gray-300"
                 }`}
               />
             </div>
@@ -512,7 +512,7 @@ export const SignaturePanel = ({
           {/* Desktop Header */}
           <DialogHeader className="hidden sm:block">
             <DialogTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-[#C29307]" />
+              <Shield className="h-5 w-5 text-[#2b825b]" />
               Secure Signature Panel
             </DialogTitle>
           </DialogHeader>
@@ -549,7 +549,7 @@ export const SignaturePanel = ({
                       value={verificationCode}
                       onChange={(e) =>
                         setVerificationCode(
-                          e.target.value.replace(/\D/g, "").slice(0, 6)
+                          e.target.value.replace(/\D/g, "").slice(0, 6),
                         )
                       }
                       placeholder="Enter 6-digit code"
@@ -598,7 +598,7 @@ export const SignaturePanel = ({
                   </Button>
                   <Button
                     type="button"
-                    className="flex-1 h-12 sm:h-10 bg-[#C29307] hover:bg-[#b38606]"
+                    className="flex-1 h-12 sm:h-10 bg-[#2b825b] hover:bg-[#1e5d42]"
                     onClick={handleVerification}
                     disabled={
                       !verificationCode ||
@@ -718,7 +718,7 @@ export const SignaturePanel = ({
                   </Button>
                   <Button
                     type="button"
-                    className="flex-1 h-12 sm:h-10 bg-[#C29307] hover:bg-[#b38606]"
+                    className="flex-1 h-12 sm:h-10 bg-[#2b825b] hover:bg-[#1e5d42]"
                     onClick={handleProceedToSignature}
                     disabled={!signatureData || !typedName.trim()}
                   >
@@ -734,7 +734,7 @@ export const SignaturePanel = ({
           {step === "review" && (
             <div className="space-y-6 py-2 sm:py-4">
               <div className="text-center">
-                <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-[#C29307] mx-auto mb-3 sm:mb-4" />
+                <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-[#2b825b] mx-auto mb-3 sm:mb-4" />
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2">
                   Review Your Signature
                 </h3>

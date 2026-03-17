@@ -1,3 +1,4 @@
+// AirtimePurchase.tsx
 "use client";
 
 import Swal from "sweetalert2";
@@ -19,7 +20,6 @@ import { Label } from "./ui/label";
 
 import { useUserContextData } from "../context/userData";
 import Image from "next/image";
-
 import { useRouter } from "next/navigation";
 import PinPopOver from "./PinPopOver";
 
@@ -45,17 +45,7 @@ const prefixColorMap = [
     name: "MTN",
     src: "/networks-img/mtn.png",
     prefix: [
-      "0803",
-      "0806",
-      "0703",
-      "0706",
-      "0813",
-      "0816",
-      "0810",
-      "0814",
-      "0903",
-      "0906",
-      "0913",
+      "0803", "0806", "0703", "0706", "0813", "0816", "0810", "0814", "0903", "0906", "0913",
     ],
   },
   {
@@ -94,6 +84,7 @@ export default function AirtimePurchase() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [pin, setPin] = useState(Array(inputCount).fill(""));
   const [isOpen, setIsOpen] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
@@ -102,17 +93,12 @@ export default function AirtimePurchase() {
   const { userData, setUserData } = useUserContextData();
   const router = useRouter();
 
-  // New states for saved beneficiaries
-  const [savedBeneficiaries, setSavedBeneficiaries] = useState<
-    SavedBeneficiary[]
-  >([]);
+  const [savedBeneficiaries, setSavedBeneficiaries] = useState<SavedBeneficiary[]>([]);
   const [saveBeneficiary, setSaveBeneficiary] = useState(false);
-  const [selectedSavedBeneficiary, setSelectedSavedBeneficiary] =
-    useState<SavedBeneficiary | null>(null);
+  const [selectedSavedBeneficiary, setSelectedSavedBeneficiary] = useState<SavedBeneficiary | null>(null);
   const [showSavedBeneficiaries, setShowSavedBeneficiaries] = useState(false);
   const [loadingBeneficiaries, setLoadingBeneficiaries] = useState(false);
 
-  // Fetch saved beneficiaries on component mount
   useEffect(() => {
     if (!userData?.id) return;
 
@@ -120,7 +106,7 @@ export default function AirtimePurchase() {
       setLoadingBeneficiaries(true);
       try {
         const response = await fetch(
-          `/api/save-airtime-beneficiaries?userId=${userData.id}&type=airtime`
+          `/api/save-airtime-beneficiaries?userId=${userData.id}&type=airtime`,
         );
         const data = await response.json();
 
@@ -141,11 +127,7 @@ export default function AirtimePurchase() {
     const cleanValue = value.replace(/\D/g, "");
     setPhoneNumber(cleanValue);
 
-    // If user starts typing and a saved beneficiary was selected, clear it
-    if (
-      selectedSavedBeneficiary &&
-      cleanValue !== selectedSavedBeneficiary.phoneNumber
-    ) {
+    if (selectedSavedBeneficiary && cleanValue !== selectedSavedBeneficiary.phoneNumber) {
       setSelectedSavedBeneficiary(null);
     }
 
@@ -182,18 +164,15 @@ export default function AirtimePurchase() {
     if (errors.amount) setErrors((prev) => ({ ...prev, amount: "" }));
   };
 
-  // Handle saved beneficiary selection
   const handleSelectSavedBeneficiary = (beneficiary: SavedBeneficiary) => {
     setSelectedSavedBeneficiary(beneficiary);
     setPhoneNumber(beneficiary.phoneNumber);
 
-    // Find and set the corresponding provider
     const provider = prefixColorMap.find((p) => p.id === beneficiary.network);
     if (provider) {
       setSelectedProvider(provider);
     }
 
-    // Set amount if beneficiary has a saved amount
     if (beneficiary.amount) {
       setSelectedAmount(beneficiary.amount);
       setCustomAmount("");
@@ -201,10 +180,9 @@ export default function AirtimePurchase() {
     }
 
     setShowSavedBeneficiaries(false);
-    setSaveBeneficiary(false); // Don't save an already saved beneficiary
+    setSaveBeneficiary(false);
   };
 
-  // Save beneficiary function
   const saveBeneficiaryToProfile = async () => {
     if (!userData?.id || !phoneNumber || !selectedProvider) {
       return;
@@ -228,7 +206,6 @@ export default function AirtimePurchase() {
       const data = await response.json();
 
       if (data.success) {
-        // Update local state
         setSavedBeneficiaries((prev) => [...prev, data.beneficiary]);
         Swal.fire({
           icon: "success",
@@ -258,35 +235,29 @@ export default function AirtimePurchase() {
     const newErrors: { [key: string]: string } = {};
     const phoneError = validatePhoneNumber(phoneNumber);
     if (phoneError) newErrors.phoneNumber = phoneError;
-    if (!selectedProvider)
-      newErrors.provider = "Please select a network provider";
+    if (!selectedProvider) newErrors.provider = "Please select a network provider";
 
     const amount = isCustomAmount ? parseInt(customAmount) : selectedAmount;
 
-    if (!amount || amount < 100)
-      newErrors.amount = "Amount must be at least ₦100";
+    if (!amount || amount < 100) newErrors.amount = "Amount must be at least ₦100";
     else if (amount > 50000) newErrors.amount = "Maximum amount is ₦50,000";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const finalAmount = isCustomAmount
-    ? parseInt(customAmount) || 0
-    : selectedAmount || 0;
+  const finalAmount = isCustomAmount ? parseInt(customAmount) || 0 : selectedAmount || 0;
 
-  const purchaseAirtime = async () => {
+  const purchaseAirtime = async (pinCode: string) => {
     if (!validateForm()) return;
 
     const payload = {
       userId: userData?.id,
-      pin: pin,
+      pin: pinCode,
       amount: finalAmount,
       network: selectedProvider?.id,
       phoneNumber: phoneNumber.trim(),
-      merchantTxRef: `AIRTIME-${Date.now()}-${Math.floor(
-        Math.random() * 1000
-      )}`,
+      merchantTxRef: `AIRTIME-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       senderName: userData?.fullName || "Zidwell User",
     };
 
@@ -301,7 +272,9 @@ export default function AirtimePurchase() {
 
       const data = await response.json();
 
-      if (!response.ok) throw data;
+      if (!response.ok) {
+        throw new Error(data.message || "Transaction failed");
+      }
 
       if (data.zidCoinBalance !== undefined) {
         setUserData((prev: any) => {
@@ -311,21 +284,12 @@ export default function AirtimePurchase() {
         });
       }
 
-      // Save beneficiary if toggle is enabled and it's a new beneficiary
       if (saveBeneficiary && !selectedSavedBeneficiary) {
         await saveBeneficiaryToProfile();
       }
 
-      Swal.fire({
-        icon: "success",
-        title: "Airtime Purchase Successful",
-        text: `₦${payload.amount} sent to ${payload.phoneNumber}`,
-        confirmButtonColor: "#0f172a",
-      }).then(() => {
-        window.location.reload();
-      });
+      setIsOpen(false);
 
-      // Reset form
       setPhoneNumber("");
       setPin(Array(inputCount).fill(""));
       setSelectedProvider(null);
@@ -334,13 +298,18 @@ export default function AirtimePurchase() {
       setIsCustomAmount(false);
       setSaveBeneficiary(false);
       setSelectedSavedBeneficiary(null);
-    } catch (error: any) {
+
       Swal.fire({
-        icon: "error",
-        title: "Airtime Purchase Failed",
-        html: `<strong>${error.message}</strong><br/><small></small>`,
-        confirmButtonColor: "#dc2626",
+        icon: "success",
+        title: "Airtime Purchase Successful",
+        text: `₦${payload.amount} sent to ${payload.phoneNumber}`,
+        confirmButtonColor: "#0f172a",
       });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Purchase error:", error);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -351,7 +320,7 @@ export default function AirtimePurchase() {
     if (cleanNumber.length >= 4) {
       const prefix = cleanNumber.substring(0, 4);
       const matchedProvider = prefixColorMap.find((entry) =>
-        entry.prefix.includes(prefix)
+        entry.prefix.includes(prefix),
       );
       if (matchedProvider && matchedProvider?.id !== selectedProvider?.id) {
         setSelectedProvider(matchedProvider);
@@ -361,24 +330,31 @@ export default function AirtimePurchase() {
 
   return (
     <div className="space-y-6 md:max-w-5xl md:mx-auto">
-      {/* Header */}
       <PinPopOver
         setIsOpen={setIsOpen}
         isOpen={isOpen}
         pin={pin}
         setPin={setPin}
         inputCount={inputCount}
-        onConfirm={() => {
-          purchaseAirtime();
+        onConfirm={async (pinCode) => {
+          try {
+            setPinError(null);
+            await purchaseAirtime(pinCode);
+          } catch (error: any) {
+            setPinError(error.message || "Transaction failed. Please try again.");
+            throw error;
+          }
         }}
+        error={pinError}
+        onClearError={() => setPinError(null)}
       />
 
-      <div className="flex items-start  space-x-4">
+      <div className="flex items-start space-x-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+          className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 md:mr-2" />
           <span className="hidden md:block">Back</span>
@@ -386,7 +362,7 @@ export default function AirtimePurchase() {
 
         <div className="">
           <h1 className="md:text-3xl text-xl font-bold mb-2">Buy Airtime</h1>
-          <p className=" text-muted-foreground">
+          <p className="text-muted-foreground">
             Instant airtime top-up for all Nigerian networks
           </p>
         </div>
@@ -412,9 +388,9 @@ export default function AirtimePurchase() {
                     <div
                       key={provider.id}
                       onClick={() => setSelectedProvider(provider)}
-                      className={`relative p-4 border-2 rounded-md transition-all duration-200 ${
+                      className={`relative p-4 border-2 rounded-md transition-all duration-200 cursor-pointer ${
                         isSelected
-                          ? "bg-gray-100 border-[#C29307] text-gray-900 shadow-md"
+                          ? "bg-gray-100 border-[#2b825b] text-gray-900 shadow-md"
                           : "bg-white border-gray-200 hover:border-gray-300"
                       }`}
                     >
@@ -434,7 +410,7 @@ export default function AirtimePurchase() {
 
                       {isSelected && (
                         <div className="absolute -top-2 -right-2">
-                          <div className="w-6 h-6 bg-[#C29307] rounded-full flex items-center justify-center">
+                          <div className="w-6 h-6 bg-[#2b825b] rounded-full flex items-center justify-center">
                             <Check className="w-4 h-4 text-white" />
                           </div>
                         </div>
@@ -458,7 +434,6 @@ export default function AirtimePurchase() {
               <CardTitle>Enter Phone Number</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Saved Beneficiaries Section */}
               {savedBeneficiaries.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -469,9 +444,7 @@ export default function AirtimePurchase() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setShowSavedBeneficiaries(!showSavedBeneficiaries)
-                      }
+                      onClick={() => setShowSavedBeneficiaries(!showSavedBeneficiaries)}
                       className="flex items-center gap-1"
                     >
                       <Bookmark className="h-4 w-4" />
@@ -483,7 +456,7 @@ export default function AirtimePurchase() {
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
                       {loadingBeneficiaries ? (
                         <div className="flex items-center justify-center py-4">
-                          <Loader2 className="h-5 w-5 animate-spin text-[#C29307]" />
+                          <Loader2 className="h-5 w-5 animate-spin text-[#2b825b]" />
                           <span className="ml-2 text-sm">
                             Loading beneficiaries...
                           </span>
@@ -492,9 +465,7 @@ export default function AirtimePurchase() {
                         savedBeneficiaries.map((beneficiary) => (
                           <div
                             key={beneficiary.id}
-                            onClick={() =>
-                              handleSelectSavedBeneficiary(beneficiary)
-                            }
+                            onClick={() => handleSelectSavedBeneficiary(beneficiary)}
                             className={`p-3 rounded cursor-pointer transition-colors ${
                               selectedSavedBeneficiary?.id === beneficiary.id
                                 ? "bg-blue-100 border border-blue-300"
@@ -538,9 +509,7 @@ export default function AirtimePurchase() {
                     placeholder="0803 123 4567"
                     value={phoneNumber}
                     onChange={(e) => handlePhoneNumberChange(e.target.value)}
-                    className={`pl-14 ${
-                      errors.phoneNumber ? "border-red-500" : ""
-                    }`}
+                    className={`pl-14 ${errors.phoneNumber ? "border-red-500" : ""}`}
                   />
                   <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
                     <span className="text-gray-500 font-medium">+234</span>
@@ -559,31 +528,22 @@ export default function AirtimePurchase() {
                   </div>
                 )}
 
-                {/* Save Beneficiary Toggle - Only show when user manually enters phone number (not from saved beneficiaries) */}
-                {!selectedSavedBeneficiary &&
-                  phoneNumber.length === 11 &&
-                  selectedProvider && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border mt-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        Save to beneficiaries
-                      </span>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={saveBeneficiary}
-                          onChange={(e) => setSaveBeneficiary(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div
-                          className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
-                        peer-checked:after:translate-x-full peer-checked:after:border-white 
-                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 
-                        after:bg-white after:border-gray-300 after:border after:rounded-full 
-                        after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C29307]"
-                        ></div>
-                      </label>
-                    </div>
-                  )}
+                {!selectedSavedBeneficiary && phoneNumber.length === 11 && selectedProvider && (
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border mt-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      Save to beneficiaries
+                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={saveBeneficiary}
+                        onChange={(e) => setSaveBeneficiary(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b]"></div>
+                    </label>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -602,18 +562,16 @@ export default function AirtimePurchase() {
                     className={`relative p-4 border-2 rounded-lg cursor-pointer transition-all duration-200
                   ${
                     selectedAmount === amount.value && !isCustomAmount
-                      ? "border-[#C29307] bg-blue-50 text-[#C29307]"
+                      ? "border-[#2b825b] bg-blue-50 text-[#2b825b]"
                       : "border-gray-100 hover:border-gray-200"
                   }`}
                   >
                     <div className="text-center">
-                      <p className="font-bold">
-                        ₦{amount.value.toLocaleString()}
-                      </p>
+                      <p className="font-bold">₦{amount.value.toLocaleString()}</p>
                     </div>
                     {selectedAmount === amount.value && !isCustomAmount && (
                       <div className="absolute -top-2 -right-2">
-                        <div className="w-6 h-6 bg-[#C29307] rounded-full flex items-center justify-center">
+                        <div className="w-6 h-6 bg-[#2b825b] rounded-full flex items-center justify-center">
                           <Check className="w-4 h-4 text-white" />
                         </div>
                       </div>
@@ -622,7 +580,6 @@ export default function AirtimePurchase() {
                 ))}
               </div>
 
-              {/* Custom Amount */}
               <div className="border-t pt-4">
                 <Label htmlFor="customAmount">Or Enter Amount</Label>
                 <div className="relative">
@@ -663,9 +620,7 @@ export default function AirtimePurchase() {
               {selectedProvider && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium">
-                      {selectedProvider.id.toUpperCase()}
-                    </p>
+                    <p className="font-medium">{selectedProvider.id.toUpperCase()}</p>
                     <p className="text-sm text-gray-500">VTU Airtime</p>
                   </div>
                 </div>
@@ -697,10 +652,7 @@ export default function AirtimePurchase() {
                 <div className="flex justify-between text-sm">
                   <span>Wallet balance after</span>
                   <span className="text-green-600">
-                    ₦
-                    {(
-                      (userData?.walletBalance || 0) - (finalAmount || 0)
-                    ).toLocaleString()}
+                    ₦{((userData?.walletBalance || 0) - (finalAmount || 0)).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between font-bold border-t pt-2">
@@ -715,10 +667,8 @@ export default function AirtimePurchase() {
                     setIsOpen(true);
                   }
                 }}
-                disabled={
-                  !selectedProvider || !phoneNumber || !finalAmount || loading
-                }
-                className=" w-full bg-[#C29307] hover:bg-[#C29307] text-white py-3 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
+                disabled={!selectedProvider || !phoneNumber || !finalAmount || loading}
+                className="w-full bg-[#2b825b] hover:bg-[#2b825b] text-white py-3 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">

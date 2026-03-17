@@ -34,7 +34,7 @@ export default function ContractsPage() {
 
   const { data, error, isLoading, mutate } = useSWR(
     "/api/admin-apis/contracts",
-    fetcher
+    fetcher,
   );
 
   if (isLoading) {
@@ -79,7 +79,7 @@ export default function ContractsPage() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginatedData = filtered.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   return (
@@ -131,7 +131,7 @@ export default function ContractsPage() {
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-            <p className="text-2xl font-semibold text-[#C29307]">
+            <p className="text-2xl font-semibold text-[#2b825b]">
               {filtered.filter((c: any) => c.status === "pending").length}
             </p>
           </div>

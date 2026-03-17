@@ -69,7 +69,7 @@ export const ContractSuccessModal: React.FC<ContractSuccessModalProps> = ({
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-linear-to-br from-[#F9F4E5] to-[#ffed4e] rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
             <svg
-              className="w-8 h-8 text-[#C29307]"
+              className="w-8 h-8 text-[#2b825b]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -95,7 +95,7 @@ export const ContractSuccessModal: React.FC<ContractSuccessModalProps> = ({
         <div className="space-y-4 mb-6">
           {/* Share Contract Link */}
           {signingLink && (
-            <div className="rounded-lg border border-gray-200 p-4 hover:border-[#C29307] transition-colors bg-gray-50">
+            <div className="rounded-lg border border-gray-200 p-4 hover:border-[#2b825b] transition-colors bg-gray-50">
               <div className="flex items-start gap-4">
                 <div className="h-10 w-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0">
                   <svg
@@ -128,7 +128,7 @@ export const ContractSuccessModal: React.FC<ContractSuccessModalProps> = ({
                       variant="outline"
                       size="sm"
                       onClick={handleCopySigningLink}
-                      className="shrink-0 border-[#C29307] text-[#C29307] hover:bg-[#C29307] hover:text-white"
+                      className="shrink-0 border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b] hover:text-white"
                     >
                       {copied ? (
                         <Check className="h-4 w-4" />

@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export async function POST(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Failed to authenticate with Nomba" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     if (!userId || !transactionPin) {
       return NextResponse.json(
         { error: "User ID and transaction PIN are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     if (!/^\d{4}$/.test(transactionPin)) {
       return NextResponse.json(
         { error: "Transaction PIN must be exactly 4 digits" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     if (pendingError || !pendingUser) {
       return NextResponse.json(
         { error: "Pending user not found or BVN not verified" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     } = pendingUser;
 
     const generatedReferral = `${first_name.toLowerCase()}-${Date.now().toString(
-      36
+      36,
     )}`;
     const hashedPin = await bcrypt.hash(transactionPin, 10);
 
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
           p_account_name: bankAccountName || "",
           created_at: new Date().toISOString(),
         },
-        { onConflict: "id" }
+        { onConflict: "id" },
       )
       .select()
       .single();
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
       console.error("❌ Upsert user error:", userError);
       return NextResponse.json(
         { error: "Failed to create user" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -134,14 +134,14 @@ export async function POST(req: NextRequest) {
         registration_number: registrationNumber || "",
         created_at: new Date().toISOString(),
       },
-      { onConflict: "user_id" }
+      { onConflict: "user_id" },
     );
 
     if (businessError) {
       console.error("❌ Business insert error:", businessError);
       return NextResponse.json(
         { error: "Failed to save business info" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
           accountRef: auth_id,
           bvn: bvn || undefined,
         }),
-      }
+      },
     );
 
     const wallet = await nombaRes.json();
@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
       console.error("❌ Nomba wallet error:", wallet);
       return NextResponse.json(
         { error: wallet.message || "Failed to create wallet" },
-        { status: nombaRes.status }
+        { status: nombaRes.status },
       );
     }
 
@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
       console.error("❌ Wallet update error:", walletError);
       return NextResponse.json(
         { error: "Failed to update wallet info" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -255,18 +255,18 @@ export async function POST(req: NextRequest) {
         <!-- Content -->
         <tr>
           <td style="padding:24px; color:#333;">
-            <div style="background: #C29307; padding: 10px; text-align: center; border-radius: 8px 8px 0 0;">
+            <div style="background: #2b825b; padding: 10px; text-align: center; border-radius: 8px 8px 0 0;">
               <h2 style="color: white; margin: 0;">Welcome to Zidwell 🎉</h2>
             </div>
             
             <div style="padding: 20px;">
               <h2 style="color: #333; margin-top: 0;">Hi ${first_name},</h2>
               <p style="font-size: 16px; line-height: 1.6;">🎉 <b>Congratulations!</b> Your <b>Zidwell</b> account is ready.</p>
-              <p style="font-size: 16px; line-height: 1.6;">We've rewarded you with <b style="color: #C29307;">₦20 Zidcoin</b> 🎁.</p>
+              <p style="font-size: 16px; line-height: 1.6;">We've rewarded you with <b style="color: #2b825b;">₦20 Zidcoin</b> 🎁.</p>
               
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${baseUrl}/dashboard" 
-                   style="background: #C29307; color: white; padding: 14px 24px; border-radius: 8px; 
+                   style="background: #2b825b; color: white; padding: 14px 24px; border-radius: 8px; 
                           text-decoration: none; font-size: 16px; font-weight: bold; display: inline-block;">
                   🚀 Go to Dashboard
                 </a>
@@ -314,13 +314,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { success: true, user: { ...userData, ...wallet.data } },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: any) {
     console.error("❌ Unexpected Error:", error);
     return NextResponse.json(
       { error: "Failed to save user and create wallet" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

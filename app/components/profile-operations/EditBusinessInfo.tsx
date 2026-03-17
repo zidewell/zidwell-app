@@ -121,7 +121,7 @@ const EditBusinessInfo: React.FC = () => {
         Swal.fire(
           "Error",
           "Something went wrong while fetching business info.",
-          "error"
+          "error",
         );
       } finally {
         setLoading(false);
@@ -319,7 +319,7 @@ const EditBusinessInfo: React.FC = () => {
 
       <div className="mt-4">
         <Button
-          className="bg-[#C29307] hover:opacity-100 transition-smooth"
+          className="bg-[#2b825b] hover:opacity-100 transition-smooth"
           onClick={handleSave}
           disabled={loading}
         >

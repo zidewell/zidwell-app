@@ -6,7 +6,7 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { CreditCard, Banknote } from "lucide-react";
 import { useToast } from "@/app/hooks/use-toast";
-import { PayWithTransferModal } from "../Invoice-components/PayWithTransferModal"; 
+import { PayWithTransferModal } from "../Invoice-components/PayWithTransferModal";
 
 // Types
 interface PayerInfo {
@@ -213,7 +213,7 @@ export default function PaymentForm({
               <Button
                 type="button"
                 variant="outline"
-                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[#C29307] hover:bg-amber-50"
+                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[#2b825b] hover:bg-amber-50"
                 disabled={true}
                 title="Card payments are currently disabled"
               >
@@ -229,7 +229,7 @@ export default function PaymentForm({
               <Button
                 type="button"
                 variant="outline"
-                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[#C29307] hover:bg-amber-50"
+                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[#2b825b] hover:bg-amber-50"
                 onClick={() => handlePaymentMethodSelect("transfer")}
                 disabled={isGeneratingPayment}
               >
@@ -269,7 +269,7 @@ export default function PaymentForm({
         <div className="mb-6">
           <Button
             size="lg"
-            className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
+            className="w-full bg-[#2b825b] hover:bg-[#1e5d42] text-white"
             onClick={() => setShowPaymentForm(true)}
             disabled={status === "paid" && allow_multiple_payments === false}
           >

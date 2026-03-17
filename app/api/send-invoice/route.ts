@@ -1,3 +1,4 @@
+// app/api/send-invoice/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
@@ -173,7 +174,7 @@ async function sendInvoiceEmail(params: {
                 </div>`
                   : `
                 <div style="text-align:center; margin-bottom:20px;">
-                  <h2 style="color:#C29307; margin:0; font-size:24px;">New Invoice</h2>
+                  <h2 style="color:#2b825b; margin:0; font-size:24px;">New Invoice</h2>
                 </div>`
               }
               
@@ -188,7 +189,7 @@ async function sendInvoiceEmail(params: {
                 background:#f8fafc; 
                 padding:20px; 
                 border-radius:8px; 
-                border-left:4px solid #C29307; 
+                border-left:4px solid #2b825b; 
                 margin:20px 0;
               ">
                 <p style="margin:0 0 15px 0; font-weight:bold; font-size:16px; color:#1f2937;">Invoice Details:</p>
@@ -208,7 +209,7 @@ async function sendInvoiceEmail(params: {
                    target="_blank"
                    style="
                      display:inline-block;
-                     background-color:#C29307;
+                     background-color:#2b825b;
                      color:#fff;
                      padding:14px 28px;
                      border-radius:6px;
@@ -224,7 +225,7 @@ async function sendInvoiceEmail(params: {
               <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0; text-align: center;">
                 <p style="margin:0; font-size: 14px; color: #6b7280;">
                   <strong>Alternative:</strong> Copy and paste this link in your browser:<br>
-                  <a href="${params.signingLink}" style="color:#C29307; font-size:13px; word-break: break-all;">
+                  <a href="${params.signingLink}" style="color:#2b825b; font-size:13px; word-break: break-all;">
                     ${params.signingLink}
                   </a>
                 </p>
@@ -296,26 +297,24 @@ function isValidUrl(string: string) {
 }
 
 export async function POST(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const user = await isAuthenticated(req);
+  
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please login to access transactions" },
+      { status: 401 }
+    );
+  }
+
   try {
     const body: RequestBody = await req.json();
 
-    // Debug logging
     console.log("API /send-invoice received:", {
       userId: body.userId,
       signee_email: body.signee_email,
       invoice_items_count: body.invoice_items?.length,
       payment_type: body.payment_type,
       is_draft: body.is_draft,
-      allowMultiplePayments: body.payment_type === "multiple"
     });
 
     const {
@@ -345,7 +344,6 @@ export async function POST(req: NextRequest) {
       is_draft,
     } = body;
 
-    // VALIDATION: Check required fields
     if (!userId) {
       console.error("Missing userId");
       return NextResponse.json(
@@ -362,19 +360,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate each invoice item
     for (let i = 0; i < invoice_items.length; i++) {
       const item = invoice_items[i];
       if (!item.description || !item.quantity || !item.unitPrice) {
         console.error(`Invalid item at index ${i}:`, item);
         return NextResponse.json(
-          { message: `Item ${i + 1} is missing required fields (description, quantity, or price)` },
+          { message: `Item ${i + 1} is missing required fields` },
           { status: 400 }
         );
       }
     }
 
-    // Email validation only for single payments
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (payment_type === "single") {
       if (!signee_email) {
@@ -394,7 +390,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Validate target_quantity for multiple payments
     if (payment_type === "multiple") {
       if (!target_quantity || target_quantity < 1) {
         console.error("Invalid target quantity for multiple payments:", target_quantity);
@@ -404,8 +399,6 @@ export async function POST(req: NextRequest) {
         );
       }
       
-      // For multiple payments, we can accept an empty email
-      // but if provided, it should be valid
       if (signee_email && signee_email.trim() !== "" && !emailRegex.test(signee_email)) {
         console.error("Invalid optional email for multiple payments:", signee_email);
         return NextResponse.json(
@@ -429,7 +422,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // FIRST: Check if invoice already exists (could be a draft)
     const { data: existingInvoice, error: checkError } = await supabase
       .from("invoices")
       .select("id, status, is_draft, invoice_id")
@@ -454,13 +446,10 @@ export async function POST(req: NextRequest) {
     const publicToken = uuidv4();
     const signingLink = `${baseUrl}/pay-invoice/${publicToken}`;
 
-    // Calculate subtotal only (fee calculation is now handled in frontend)
     const subtotal = calculateSubtotal(invoice_items);
     
-    // Calculate fee amount based on fee_option (use the total_amount from frontend to derive fee)
     let feeAmount = 0;
     if (fee_option === "customer") {
-      // Fee is already included in the total_amount from frontend
       feeAmount = total_amount - subtotal;
     }
 
@@ -491,7 +480,6 @@ export async function POST(req: NextRequest) {
     let invoice: any;
 
     if (isUpdatingDraft && existingInvoiceId) {
-      // UPDATE existing draft to final invoice
       console.log(`Updating draft invoice ${invoice_id} to final invoice`);
       
       const { data: updatedInvoice, error: updateError } = await supabase
@@ -541,7 +529,6 @@ export async function POST(req: NextRequest) {
 
       invoice = updatedInvoice;
 
-      // Delete old invoice items and insert new ones
       const { error: deleteError } = await supabase
         .from("invoice_items")
         .delete()
@@ -552,7 +539,6 @@ export async function POST(req: NextRequest) {
       }
 
     } else {
-      // CREATE new invoice (not from draft)
       console.log(`Creating new invoice: ${invoice_id}`);
       
       const { data: newInvoice, error: invoiceError } = await supabase
@@ -616,7 +602,6 @@ export async function POST(req: NextRequest) {
       invoice = newInvoice;
     }
 
-    // Insert invoice items (same for both update and create)
     const { error: itemsError } = await supabase.from("invoice_items").insert(
       invoice_items.map((item) => ({
         invoice_id: invoice.id,
@@ -629,7 +614,6 @@ export async function POST(req: NextRequest) {
 
     if (itemsError) {
       console.error("Supabase items error:", itemsError);
-      // Only delete if we created a new invoice (not updating draft)
       if (!isUpdatingDraft) {
         await supabase.from("invoices").delete().eq("id", invoice.id);
       }
@@ -639,7 +623,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Send email notification only if we have a valid email
+    // ============ UPDATE USAGE COUNT - REMOVED TRANSACTION RECORDING ============
+    // Get current user data
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("subscription_tier, invoices_used_lifetime, invoice_lifetime_limit")
+      .eq("id", userId)
+      .single();
+
+    if (userError) {
+      console.error("Error fetching user data:", userError);
+    } else {
+      // Update lifetime usage count based on tier
+      const currentUsed = userData.invoices_used_lifetime || 0;
+      
+      await supabase
+        .from("users")
+        .update({
+          invoices_used_lifetime: currentUsed + 1,
+        })
+        .eq("id", userId);
+
+      console.log(`✅ Invoice usage updated: ${currentUsed + 1} total invoices`);
+    }
+
+    // Send email if applicable
     if (signee_email && emailRegex.test(signee_email)) {
       await sendInvoiceEmail({
         to: signee_email,
@@ -654,10 +662,6 @@ export async function POST(req: NextRequest) {
         targetQuantity: target_quantity,
       });
       console.log("Invoice email sent to:", signee_email);
-    } else if (payment_type === "multiple") {
-      console.log("No email sent for multiple payments (email not required)");
-    } else {
-      console.log("No email sent - invalid or missing email address");
     }
 
     return NextResponse.json(
@@ -682,15 +686,15 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const user = await isAuthenticated(req);
+  
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please login to access transactions" },
+      { status: 401 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");

@@ -71,7 +71,7 @@ const BillTableSection: React.FC<BillTableSectionProps> = ({
             <Button
               size="sm"
               onClick={() => handleSelectPlan(plan)}
-              className="w-full bg-[#C29307] hover:bg-[#C29307]"
+              className="w-full bg-[#2b825b] hover:bg-[#2b825b]"
             >
               Select
             </Button>
@@ -121,7 +121,7 @@ const BillTableSection: React.FC<BillTableSectionProps> = ({
                     <Button
                       size="sm"
                       onClick={() => handleSelectPlan(plan)}
-                      className="bg-[#C29307] hover:bg-[#C29307] whitespace-nowrap"
+                      className="bg-[#2b825b] hover:bg-[#2b825b] whitespace-nowrap"
                     >
                       Select
                     </Button>

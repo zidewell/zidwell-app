@@ -110,7 +110,7 @@ export default function Page() {
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     if (!form) return;
     const { name, value, type } = e.target;
@@ -143,7 +143,7 @@ export default function Page() {
     // Recalculate totals
     const subtotal = updatedItems.reduce(
       (sum, item) => sum + Number(item.total),
-      0
+      0,
     );
     const feeAmount = form.fee_option === "customer" ? subtotal * 0.035 : 0;
     const totalAmount =
@@ -183,7 +183,7 @@ export default function Page() {
     // Recalculate totals
     const subtotal = updatedItems.reduce(
       (sum, item) => sum + Number(item.total),
-      0
+      0,
     );
     const feeAmount = form.fee_option === "customer" ? subtotal * 0.035 : 0;
     const totalAmount =
@@ -244,14 +244,14 @@ export default function Page() {
         return Swal.fire(
           "Error",
           result.message || "Failed to update invoice",
-          "error"
+          "error",
         );
       }
 
       Swal.fire(
         "Success",
         result.message || "Invoice updated successfully",
-        "success"
+        "success",
       );
     } catch (error) {
       setLoading(false);
@@ -280,7 +280,7 @@ export default function Page() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+                className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 <span className="hidden md:block">Back</span>
@@ -490,7 +490,7 @@ export default function Page() {
                   name="allow_multiple_payments"
                   checked={form.allow_multiple_payments}
                   onChange={handleChange}
-                  className="w-4 h-4 text-[#C29307] border-gray-300 rounded focus:ring-[#C29307]"
+                  className="w-4 h-4 text-[#2b825b] border-gray-300 rounded focus:ring-[#2b825b]"
                 />
                 <label
                   htmlFor="allow_multiple_payments"
@@ -589,7 +589,7 @@ export default function Page() {
                   )}
                   <div className="flex justify-between font-bold mt-2 pt-2 border-t">
                     <span>Total Amount:</span>
-                    <span className="text-[#C29307]">
+                    <span className="text-[#2b825b]">
                       ₦{form.total_amount.toLocaleString()}
                     </span>
                   </div>
@@ -641,7 +641,7 @@ export default function Page() {
               </div>
 
               <Button
-                className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
+                className="w-full bg-[#2b825b] hover:bg-[#1e5d42] text-white"
                 onClick={handleUpdate}
                 disabled={loading}
                 size="lg"

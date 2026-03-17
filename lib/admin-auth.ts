@@ -74,6 +74,20 @@ export const ROLE_PERMISSIONS = {
       "approve_reject_transactions",
       "monitor_high_risk_users"
     ]
+  },
+  blog_admin: {
+    name: "Blog Manager",
+    description: "Manages blog posts, content, and publications",
+    permissions: [
+      "create_blog_posts",
+      "edit_blog_posts",
+      "delete_blog_posts",
+      "publish_blog_posts",
+      "manage_blog_categories",
+      "manage_blog_tags",
+      "view_blog_analytics",
+      "manage_blog_comments"
+    ]
   }
 };
 
@@ -128,19 +142,21 @@ export async function verifyAdmin(authToken: string, requiredPermission?: string
       .single();
 
     const allowedAdminRoles = [
-  "super_admin",
-  "finance_admin",
-  "operations_admin",
-  "support_admin",
-  "legal_admin",
-];
+      "super_admin",
+      "finance_admin",
+      "operations_admin",
+      "support_admin",
+      "legal_admin",
+      "blog_admin", // Added blog_admin here
+    ];
 
-if (!profile || !allowedAdminRoles.includes(profile.admin_role)) {
-  return {
-    isAdmin: false,
-    error: "Insufficient permissions - Admin access required",
-  };
-}
+    if (!profile || !allowedAdminRoles.includes(profile.admin_role)) {
+      return {
+        isAdmin: false,
+        error: "Insufficient permissions - Admin access required",
+      };
+    }
+    
     // Check specific permission if required
     if (requiredPermission) {
       const rolePermissions = ROLE_PERMISSIONS[profile.admin_role as keyof typeof ROLE_PERMISSIONS];

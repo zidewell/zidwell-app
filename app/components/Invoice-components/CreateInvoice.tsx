@@ -1,7 +1,9 @@
+// app/components/Invoice-components/CreateInvoice.tsx
 "use client";
 
 import React, { JSX, Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import confetti from "canvas-confetti";
 import Swal from "sweetalert2";
 
@@ -20,11 +22,15 @@ import {
   Eye,
   FileText,
   AlertCircle,
-  Wallet,
-  Coins,
+  Crown,
+  Zap,
+  Sparkles,
+  Star,
+  CheckCircle2,
+  Info,
+  Loader2,
 } from "lucide-react";
 
-import PinPopOver from "../PinPopOver";
 import InvoiceSummary from "./InvoiceSummary";
 import { InvoicePreview } from "../previews/InvoicePreview";
 import LogoUpload from "./LogoUpload";
@@ -55,15 +61,17 @@ const showSweetAlert = (
   title: string,
   message: string,
 ): Promise<any> => {
+  const isDark = document.documentElement.classList.contains("dark");
+
   return Swal.fire({
     icon: type,
     title: title,
     text: message,
     showConfirmButton: true,
     confirmButtonText: "OK",
-    confirmButtonColor: "#C29307",
-    background: "#ffffff",
-    color: "#333333",
+    confirmButtonColor: "#2b825b",
+    background: isDark ? "#1f2937" : "#ffffff",
+    color: isDark ? "#f3f4f6" : "#333333",
     customClass: {
       popup: "sweet-alert-popup",
       title: "sweet-alert-title",
@@ -73,16 +81,12 @@ const showSweetAlert = (
   });
 };
 
-const PAY_PER_USE_FEE = 100; // ₦100 per invoice after limit
-
 const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
-  const inputCount = 4;
-  const [hasShownDraftModal, setHasShownDraftModal] = useState(false);
-  const [pin, setPin] = useState(Array(inputCount).fill(""));
-  const [isPinOpen, setIsPinOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
+  const [hasShownDraftModal, setHasShownDraftModal] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showInvoiceSummary, setShowInvoiceSummary] = useState(false);
@@ -90,7 +94,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   const [generatedSigningLink, setGeneratedSigningLink] = useState<string>("");
   const [savedInvoiceId, setSavedInvoiceId] = useState<string>("");
   const [details, setDetails] = useState<any>(null);
-  const [zidcoinBalance, setZidcoinBalance] = useState<number>(0);
   const [paymentProgress, setPaymentProgress] = useState({
     totalAmount: 0,
     paidAmount: 0,
@@ -104,23 +107,42 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   const [showDraftsModal, setShowDraftsModal] = useState(false);
   const [userDrafts, setUserDrafts] = useState<Draft[]>([]);
   const [isFormLocked, setIsFormLocked] = useState(false);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [activeTab, setActiveTab] = useState<"create" | "preview">("create");
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const { userData, balance } = useUserContextData();
-  const { userTier, subscription } = useSubscription();
+  const { userTier, subscription, isPremium, isGrowth, isElite, isZidLite } =
+    useSubscription();
   const [hasLoadedFromUrl, setHasLoadedFromUrl] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Determine user tier
+  const isFree = userTier === "free";
+  const isZidLiteUser = userTier === "zidlite";
+  const isGrowthUser = userTier === "growth";
+  const isPremiumUser = userTier === "premium" || userTier === "elite";
+  const hasUnlimitedInvoices = isPremiumUser || isGrowthUser;
+
+  // Invoice limits by tier
+  const freeTierLimit = 5;
+  const zidLiteLimit = 10;
+
   const [invoiceUsage, setInvoiceUsage] = useState<InvoiceUsageInfo>({
     used: 0,
-    limit: 5,
-    remaining: 5,
+    limit: hasUnlimitedInvoices
+      ? "unlimited"
+      : isZidLiteUser
+        ? zidLiteLimit
+        : freeTierLimit,
+    remaining: hasUnlimitedInvoices
+      ? "unlimited"
+      : isZidLiteUser
+        ? zidLiteLimit
+        : freeTierLimit,
     hasAccess: true,
     isChecking: true,
-    isPayPerUse: false,
+    canCreate: true,
   });
 
   const [form, setForm] = useState<InvoiceForm>({
@@ -144,33 +166,51 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     targetQuantity: 1,
   });
 
-  // Determine if user is premium/growth
-  const isPremium = userTier === "premium" || userTier === "elite";
-  const isGrowth = userTier === "growth";
-  const hasUnlimitedInvoices = isPremium || isGrowth;
-
   // Safe balance value (handle null)
   const safeBalance = balance || 0;
 
-  // Function to determine if PIN confirmation is needed
-  const requiresPinConfirmation = (): boolean => {
-    // If user has unlimited invoices, no PIN needed
-    if (hasUnlimitedInvoices) return false;
-    
-    // If user has remaining free invoices, no PIN needed
-    if (typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining > 0) return false;
-    
-    // If user has exceeded free limit, PIN is needed for pay-per-use
-    return true;
+  // Get tier icon and color
+  const getTierInfo = () => {
+    if (isElite)
+      return {
+        icon: Sparkles,
+        color: "text-purple-600 dark:text-purple-400",
+        bg: "bg-purple-100 dark:bg-purple-900/30",
+        label: "Elite",
+      };
+    if (isPremium)
+      return {
+        icon: Crown,
+        color: "text-[#2b825b]",
+        bg: "bg-[#2b825b]/10 dark:bg-[#2b825b]/20",
+        label: "Premium",
+      };
+    if (isGrowth)
+      return {
+        icon: Zap,
+        color: "text-green-600 dark:text-green-400",
+        bg: "bg-green-100 dark:bg-green-900/30",
+        label: "Growth",
+      };
+    if (isZidLite)
+      return {
+        icon: Zap,
+        color: "text-blue-600 dark:text-blue-400",
+        bg: "bg-blue-100 dark:bg-blue-900/30",
+        label: "ZidLite",
+      };
+    return {
+      icon: Star,
+      color: "text-gray-600 dark:text-gray-400",
+      bg: "bg-gray-100 dark:bg-gray-800",
+      label: "Free Trial",
+    };
   };
 
-  // Check if user has sufficient balance for pay-per-use
-  const hasSufficientBalance = (): boolean => {
-    return safeBalance >= PAY_PER_USE_FEE;
-  };
+  const tierInfo = getTierInfo();
+  const TierIcon = tierInfo.icon;
 
   const resetAllLoadingStates = () => {
-    setIsProcessingPayment(false);
     setLoading(false);
     setIsFormLocked(false);
   };
@@ -225,13 +265,15 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         const usageRes = await fetch("/api/user/usage");
         if (usageRes.ok) {
           const data = await usageRes.json();
+          
+          // Set invoice usage from the API response
           setInvoiceUsage({
-            used: data.invoices.used,
+            used: data.invoices.used || 0,
             limit: data.invoices.limit,
             remaining: data.invoices.remaining,
             hasAccess: true,
             isChecking: false,
-            isPayPerUse: data.invoices.remaining <= 0 && !hasUnlimitedInvoices,
+            canCreate: data.invoices.canCreate,
           });
         }
 
@@ -243,7 +285,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         });
         const data = await detailsRes.json();
         setDetails(data);
-
       } catch (error) {
         console.error("Error fetching data:", error);
         setInvoiceUsage((prev) => ({ ...prev, isChecking: false }));
@@ -251,7 +292,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     };
 
     fetchData();
-  }, [userData?.id, hasUnlimitedInvoices]);
+  }, [userData?.id]);
 
   useEffect(() => {
     const draftId = searchParams?.get("draftId");
@@ -349,7 +390,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: ["#2b825b", "#1e5d42", "#fbbf24", "#ffffff", "#f3f4f6"],
     });
   };
 
@@ -419,20 +460,20 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     const draftsHTML = userDrafts
       .map(
         (draft, index) => `
-      <div class="draft-item p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer" 
+      <div class="draft-item p-3 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer" 
            data-draft-id="${draft.id}">
         <div class="flex justify-between items-center">
           <div>
-            <strong class="text-gray-900">${
+            <strong class="text-gray-900 dark:text-gray-100">${
               draft.business_name || "Untitled Invoice"
             }</strong>
-            <div class="text-sm text-gray-600 mt-1">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
               ${draft.invoice_id} • ${new Date(
                 draft.created_at,
               ).toLocaleDateString()}
             </div>
           </div>
-          <button class="load-draft-btn px-3 py-1 text-sm bg-[#C29307] text-white rounded hover:bg-[#b38606] transition-colors"
+          <button class="load-draft-btn px-3 py-1 text-sm bg-[#2b825b] text-white rounded hover:bg-[#1e5d42] transition-colors"
                   data-draft-id="${draft.id}">
             Load
           </button>
@@ -444,13 +485,13 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
     const modal = document.createElement("div");
     modal.className =
-      "fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4";
+      "fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4";
     modal.innerHTML = `
-      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-        <div class="p-6 border-b">
+      <div class="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+        <div class="p-6 border-b dark:border-gray-800">
           <div class="flex justify-between items-center">
-            <h3 class="text-xl font-bold text-gray-900">All Drafts (${userDrafts.length})</h3>
-            <button class="close-modal text-gray-400 hover:text-gray-600">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">All Drafts (${userDrafts.length})</h3>
+            <button class="close-modal text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
               ✕
             </button>
           </div>
@@ -458,8 +499,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         <div class="p-6 overflow-y-auto max-h-[60vh]">
           ${draftsHTML}
         </div>
-        <div class="p-6 border-t">
-          <button class="start-fresh-btn w-full py-2 px-4 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+        <div class="p-6 border-t dark:border-gray-800">
+          <button class="start-fresh-btn w-full py-2 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
             Start New Invoice
           </button>
         </div>
@@ -551,7 +592,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         userId: userData?.id,
         initiator_email: userData?.email || "",
         initiator_name: userData
-          ? `${userData.fullName} ${userData.lastName}`
+          ? `${userData.fullName}`
           : "",
         invoice_id: form.invoice_id,
         signee_name: form.name,
@@ -630,7 +671,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         userId: userData?.id,
         initiator_email: userData?.email || "",
         initiator_name: userData
-          ? `${userData.fullName} ${userData.lastName}`
+          ? `${userData.fullName}`
           : "",
         invoice_id: form.invoice_id,
         signee_name: form.name || "",
@@ -700,9 +741,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       };
     } catch (err) {
       console.error("Error in handleSaveInvoice:", err);
-      if (!isDraft) {
-        await handleRefund();
-      }
       showSweetAlert(
         "error",
         `Failed to ${isDraft ? "Save Draft" : "Send Invoice"}`,
@@ -775,7 +813,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   };
 
   const handleSubmit = async (isDraft: boolean = false) => {
-    if (loading || isFormLocked || draftLoading || isProcessingPayment) {
+    if (loading || isFormLocked || draftLoading) {
       return;
     }
 
@@ -785,21 +823,9 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         return;
       }
 
-      // Check if user is in pay-per-use mode and has sufficient balance
-      if (requiresPinConfirmation() && !hasSufficientBalance()) {
-        const result = await Swal.fire({
-          icon: "warning",
-          title: "Insufficient Balance",
-          text: `You need ₦${PAY_PER_USE_FEE} in your wallet for pay-per-use invoice. Would you like to fund your wallet?`,
-          showCancelButton: true,
-          confirmButtonText: "Fund Wallet",
-          cancelButtonText: "Cancel",
-          confirmButtonColor: "#C29307",
-        });
-
-        if (result.isConfirmed) {
-          router.push("/dashboard/fund-account");
-        }
+      // CHECK LIMIT FIRST - like contracts do
+      if (hasReachedLimit()) {
+        setShowUpgradePrompt(true);
         return;
       }
 
@@ -846,6 +872,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         return;
       }
 
+      // SHOW SUMMARY FIRST - like contracts do
       setShowInvoiceSummary(true);
     } catch (error) {
       console.error("Submit error:", error);
@@ -857,99 +884,17 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     }
   };
 
-  const handleDeduct = async (): Promise<boolean> => {
-    // If user has free access, no need to deduct
-    if (!requiresPinConfirmation()) {
-      return true;
-    }
-
-    const pinString = pin.join("");
-
+  const processSubmission = async () => {
     try {
-      const res = await fetch("/api/deduct-funds", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData?.id,
-          pin: pinString,
-          isInvoiceCreation: true,
-          description: "Pay-per-use invoice creation",
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 403) {
-          await showSweetAlert(
-            "warning",
-            "Limit Reached",
-            data.message || "You've reached your monthly invoice limit.",
-          );
-          router.push("/pricing?upgrade=growth");
-        } else if (res.status === 400 && data.error?.includes("Insufficient")) {
-          await showSweetAlert(
-            "error",
-            "Insufficient Balance",
-            data.message || "Please fund your wallet to continue.",
-          );
-          router.push("/dashboard/fund-account");
-        } else {
-          await showSweetAlert(
-            "error",
-            "Payment Failed",
-            data.error || "Something went wrong",
-          );
-        }
-        return false;
-      }
-
-      // Update usage info
-      setInvoiceUsage((prev) => ({
-        ...prev,
-        used: data.usedThisMonth || (typeof prev.used === 'number' ? prev.used + 1 : 1),
-        remaining: data.remaining === "unlimited" ? "unlimited" : (data.remaining || (typeof prev.remaining === 'number' ? prev.remaining - 1 : 0)),
-        isPayPerUse: data.pay_per_use || false,
-      }));
-
-      return true;
-    } catch (err: any) {
-      await showSweetAlert("error", "Error", err.message);
-      return false;
-    }
-  };
-
-  const handleRefund = async () => {
-    try {
-      await fetch("/api/refund-service", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData?.id,
-          amount: 0,
-          description: "Refund for failed invoice generation",
-        }),
-      });
-    } catch (err) {
-      console.error("Refund failed:", err);
-    }
-  };
-
-const processPaymentAndSubmit = async () => {
-  try {
-    setIsProcessingPayment(true);
-
-    const paymentSuccess = await handleDeduct();
-
-    if (paymentSuccess) {
+      setLoading(true);
+      setIsFormLocked(true);
+      
       const result = await handleSaveInvoice(false);
+      
       if (result.success) {
         triggerConfetti();
 
         resetAllLoadingStates();
-        setIsPinOpen(false);
-        setPin(Array(inputCount).fill(""));
-
         setHasUnsavedChanges(false);
 
         setGeneratedSigningLink(result.signingLink || "");
@@ -957,11 +902,18 @@ const processPaymentAndSubmit = async () => {
 
         setShowSuccessModal(true);
 
+        // Refresh usage data
+        const usageRes = await fetch("/api/user/usage");
+        if (usageRes.ok) {
+          const data = await usageRes.json();
+          setInvoiceUsage(data.invoices);
+        }
+
         // Only set up polling if we have a valid invoiceId and multiple payments are enabled
         if (form.allowMultiplePayments && result.invoiceId) {
           // Initial fetch
           fetchPaymentStatus(result.invoiceId);
-          
+
           // Set up polling
           const pollInterval = setInterval(() => {
             // Check again inside interval to ensure invoiceId still exists
@@ -969,7 +921,7 @@ const processPaymentAndSubmit = async () => {
               fetchPaymentStatus(result.invoiceId);
             }
           }, 10000);
-          
+
           // Clear polling after 10 minutes
           setTimeout(() => clearInterval(pollInterval), 10 * 60 * 1000);
         }
@@ -978,44 +930,29 @@ const processPaymentAndSubmit = async () => {
           onInvoiceCreated();
         }
       } else {
-        await handleRefund();
         resetAllLoadingStates();
-        setIsPinOpen(false);
-        setPin(Array(inputCount).fill(""));
       }
-    } else {
+    } catch (error) {
       resetAllLoadingStates();
-      setIsPinOpen(false);
-      setPin(Array(inputCount).fill(""));
+      await showSweetAlert(
+        "error",
+        "Processing Failed",
+        "Failed to process invoice. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+      setIsFormLocked(false);
     }
-  } catch (error) {
-    resetAllLoadingStates();
-    setIsPinOpen(false);
-    setPin(Array(inputCount).fill(""));
-    await showSweetAlert(
-      "error",
-      "Processing Failed",
-      "Failed to process payment. Please try again.",
-    );
-  }
-};
+  };
+
   const handleSummaryConfirm = () => {
     setShowInvoiceSummary(false);
-    
-    // Only show PIN popup if user has exceeded free limit
-    if (requiresPinConfirmation()) {
-      setIsPinOpen(true);
-    } else {
-      // For free invoices (within limit) or premium/growth, process directly
-      processPaymentAndSubmit();
-    }
+    processSubmission();
   };
 
   const handleSummaryBack = () => {
     setShowInvoiceSummary(false);
     resetAllLoadingStates();
-    setIsPinOpen(false);
-    setPin(Array(inputCount).fill(""));
   };
 
   const handleCopySigningLink = () => {
@@ -1044,9 +981,10 @@ const processPaymentAndSubmit = async () => {
     try {
       setPdfLoading(true);
 
-      const { subtotal, feeAmount, totalAmount } = totals;
+      const { subtotal, totalAmount } = totals;
 
-      const htmlContent = `...`; // Your existing PDF HTML content
+      // Your existing PDF generation logic
+      const htmlContent = `...`; 
 
       const response = await fetch("/api/generate-pdf", {
         method: "POST",
@@ -1095,27 +1033,36 @@ const processPaymentAndSubmit = async () => {
   const previewInvoice = convertToInvoicePreview(form);
 
   // Determine display text and styles
-  const getButtonConfig = (): { text: string; color: string; icon: JSX.Element | null } => {
+  const getButtonConfig = (): {
+    text: string;
+    color: string;
+    icon: JSX.Element | null;
+    disabled: boolean;
+  } => {
     if (hasUnlimitedInvoices) {
       return {
         text: "Generate Invoice",
-        color: "bg-[#C29307] hover:bg-[#b38606]",
+        color: "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]",
         icon: null,
+        disabled: false,
       };
     }
-    if (typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining > 0) {
+    if (
+      typeof invoiceUsage.remaining === "number" &&
+      invoiceUsage.remaining > 0
+    ) {
       return {
         text: `Generate Invoice (${invoiceUsage.remaining} free left)`,
-        color: "bg-[#C29307] hover:bg-[#b38606]",
+        color: "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]",
         icon: null,
+        disabled: false,
       };
     }
     return {
-      text: `Pay ₦${PAY_PER_USE_FEE} to Generate`,
-      color: hasSufficientBalance() 
-        ? "bg-blue-600 hover:bg-blue-700" 
-        : "bg-gray-400 cursor-not-allowed",
-      icon: React.createElement(Wallet, { className: "w-4 h-4 mr-2" }),
+      text: `Invoice Limit Reached - Upgrade Plan`,
+      color: "bg-gray-400 dark:bg-gray-600 cursor-not-allowed",
+      icon: React.createElement(Crown, { className: "w-4 h-4 mr-2" }),
+      disabled: true,
     };
   };
 
@@ -1124,46 +1071,68 @@ const processPaymentAndSubmit = async () => {
   // Format remaining display text safely
   const getRemainingText = (): string => {
     if (hasUnlimitedInvoices) return "UNLIMITED";
-    if (typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining > 0) {
+    if (isZidLiteUser) return "10 limit";
+    if (
+      typeof invoiceUsage.remaining === "number" &&
+      invoiceUsage.remaining > 0
+    ) {
       return `${invoiceUsage.remaining} left`;
     }
-    return "Pay per use";
+    return "Limit reached";
   };
 
   const getRemainingColor = (): string => {
-    if (hasUnlimitedInvoices) return "bg-purple-600";
-    if (typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining > 0) {
-      return "bg-[#C29307]";
+    if (hasUnlimitedInvoices) return "bg-purple-600 dark:bg-purple-500";
+    if (isZidLiteUser) return "bg-blue-600 dark:bg-blue-500";
+    if (
+      typeof invoiceUsage.remaining === "number" &&
+      invoiceUsage.remaining > 0
+    ) {
+      return "bg-[#2b825b] dark:bg-[#2b825b]";
     }
-    return "bg-blue-600";
+    return "bg-red-600 dark:bg-red-500";
+  };
+
+  // Check if user has reached their limit
+  const hasReachedLimit = (): boolean => {
+    if (hasUnlimitedInvoices) return false;
+    if (typeof invoiceUsage.remaining === "number" && invoiceUsage.remaining > 0) return false;
+    return true;
   };
 
   return (
     <>
-  
-      {requiresPinConfirmation() && (
-        <PinPopOver
-          setIsOpen={(newValue: boolean) => {
-            setIsPinOpen(newValue);
-            if (!newValue) {
-              resetAllLoadingStates();
-              setPin(Array(inputCount).fill(""));
-            }
-          }}
-          isOpen={isPinOpen}
-          pin={pin}
-          setPin={setPin}
-          inputCount={inputCount}
-          onConfirm={async () => {
-            await processPaymentAndSubmit();
-          }}
-          invoiceFeeInfo={{
-            isFree: false,
-            freeInvoicesLeft: typeof invoiceUsage.remaining === 'number' ? invoiceUsage.remaining : 0,
-            totalInvoicesCreated: typeof invoiceUsage.used === 'number' ? invoiceUsage.used : 0,
-            feeAmount: PAY_PER_USE_FEE,
-          }}
-        />
+      {/* Upgrade Prompt Modal - Like contracts have */}
+      {showUpgradePrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Crown className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-xl font-bold text-center mb-2">
+              Invoice Limit Reached
+            </h3>
+            <p className="text-gray-600 text-center mb-6">
+              {isZidLiteUser
+                ? "You've used all your ZidLite invoices. Upgrade to continue creating unlimited invoices!"
+                : "You've used all your free invoices. Upgrade to continue creating unlimited invoices!"}
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowUpgradePrompt(false)}
+              >
+                Cancel
+              </Button>
+              <Link href="/pricing?upgrade=growth" className="flex-1">
+                <Button className="w-full bg-[#2b825b] hover:bg-[#1e5d42] text-white">
+                  View Plans
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
       )}
 
       <DraftsModal
@@ -1186,7 +1155,6 @@ const processPaymentAndSubmit = async () => {
         onConfirm={handleSummaryConfirm}
         usageInfo={invoiceUsage}
         userTier={userTier || "free"}
-        payPerUseFee={requiresPinConfirmation() ? PAY_PER_USE_FEE : 0}
       />
 
       <InvoiceItemForm
@@ -1209,7 +1177,7 @@ const processPaymentAndSubmit = async () => {
         pdfLoading={pdfLoading}
       />
 
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background dark:bg-gray-950">
         <div className="container mx-auto py-8 px-4">
           <TabsNavigation
             activeTab={activeTab}
@@ -1222,154 +1190,129 @@ const processPaymentAndSubmit = async () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => router.back()}
-                      className="text-[#C29307] hover:bg-white/10"
-                      disabled={isFormLocked || isProcessingPayment}
+                      className="text-[#2b825b] dark:text-[#2b825b] hover:bg-white/10"
+                      disabled={isFormLocked}
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
                       Back
                     </Button>
 
                     <div>
-                      <h1 className="md:text-3xl text-xl font-bold mb-2 flex items-start gap-3">
-                        Create Invoice
+                      <div className="flex items-center gap-3 mb-2">
+                        <h1 className="md:text-3xl text-xl font-bold text-foreground dark:text-gray-100">
+                          Create Invoice
+                        </h1>
+                        {/* Single Tier Badge */}
+                        <div
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
+                        >
+                          <TierIcon className={`w-4 h-4 ${tierInfo.color}`} />
+                          <span
+                            className={`text-xs font-semibold ${tierInfo.color}`}
+                          >
+                            {tierInfo.label}
+                          </span>
+                        </div>
                         {!invoiceUsage.isChecking && (
                           <span
-                            className={`p-1 text-white text-sm font-bold rounded ${getRemainingColor()}`}
+                            className={`px-2 py-1 text-white text-sm font-bold rounded ${getRemainingColor()}`}
                           >
                             {getRemainingText()}
                           </span>
                         )}
-                      </h1>
-                      <p className="text-muted-foreground">
-                        Generate a professional invoice and share the link for payments
+                      </div>
+                      <p className="text-muted-foreground dark:text-gray-400">
+                        Generate a professional invoice and share the link for
+                        payments
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-4">
-                    {/* Wallet Balance Display */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-                        <Wallet className="w-4 h-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-700">
-                          ₦{safeBalance.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">
-                        <Coins className="w-4 h-4 text-yellow-600" />
-                        <span className="text-sm font-medium text-yellow-700">
-                          {zidcoinBalance} ZC
-                        </span>
-                      </div>
-                    </div>
-
-                    {isProcessingPayment && (
-                      <Badge
-                        variant="outline"
-                        className="bg-red-50 text-red-700 border-red-200"
-                      >
-                        <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                        Processing...
-                      </Badge>
-                    )}
                     {form.invoice_items.length > 0 && (
                       <Badge
                         variant="outline"
-                        className="bg-blue-50 text-blue-700 border-blue-200"
+                        className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800"
                       >
                         <FileText className="w-3 h-3 mr-1" />
                         {form.invoice_items.length} item(s)
                       </Badge>
                     )}
+                    {loading && (
+                      <Badge
+                        variant="outline"
+                        className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800"
+                      >
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        Processing...
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
-                {/* Usage/Payment Warning */}
-                {!hasUnlimitedInvoices && !invoiceUsage.isChecking && (
+                {/* Subscription Info Banner */}
+                {!invoiceUsage.isChecking && (
                   <div
                     className={`mb-6 p-4 rounded-lg border ${
-                      typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0
-                        ? hasSufficientBalance()
-                          ? "bg-blue-50 border-blue-200"
-                          : "bg-red-50 border-red-200"
-                        : typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 2
-                        ? "bg-yellow-50 border-yellow-200"
-                        : "bg-green-50 border-green-200"
+                      hasUnlimitedInvoices
+                        ? "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800"
+                        : hasReachedLimit()
+                          ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
+                          : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <AlertCircle
-                        className={`w-5 h-5 mt-0.5 ${
-                          typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0
-                            ? hasSufficientBalance()
-                              ? "text-blue-500"
-                              : "text-red-500"
-                            : typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 2
-                            ? "text-yellow-500"
-                            : "text-green-500"
-                        }`}
-                      />
+                      {hasUnlimitedInvoices ? (
+                        <Crown className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5" />
+                      ) : hasReachedLimit() ? (
+                        <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                      ) : (
+                        <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+                      )}
                       <div className="flex-1">
                         <p
                           className={`font-medium ${
-                            typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0
-                              ? hasSufficientBalance()
-                                ? "text-blue-700"
-                                : "text-red-700"
-                              : typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 2
-                              ? "text-yellow-700"
-                              : "text-green-700"
+                            hasUnlimitedInvoices
+                              ? "text-purple-700 dark:text-purple-400"
+                              : hasReachedLimit()
+                                ? "text-yellow-700 dark:text-yellow-400"
+                                : "text-green-700 dark:text-green-400"
                           }`}
                         >
-                          {typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0
-                            ? hasSufficientBalance()
-                              ? "Pay-per-use mode active"
-                              : "Insufficient balance for pay-per-use"
-                            : `You have ${invoiceUsage.remaining} free invoice${invoiceUsage.remaining !== 1 ? "s" : ""} remaining`}
+                          {hasUnlimitedInvoices
+                            ? `${tierInfo.label} Plan - Unlimited Invoices`
+                            : hasReachedLimit()
+                              ? "Invoice Limit Reached"
+                              : `${invoiceUsage.remaining} Free Invoice${invoiceUsage.remaining !== 1 ? "s" : ""} Remaining`}
                         </p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0
-                            ? hasSufficientBalance()
-                              ? `This invoice will cost ₦${PAY_PER_USE_FEE}. Click "Pay ₦${PAY_PER_USE_FEE} to Generate" to continue.`
-                              : `Please fund your wallet with at least ₦${PAY_PER_USE_FEE} to create invoices.`
-                            : `After your free limit, you can continue with pay-per-use (₦${PAY_PER_USE_FEE} per invoice).`}
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          {hasUnlimitedInvoices ? (
+                            "You have unlimited invoices as part of your subscription."
+                          ) : hasReachedLimit() ? (
+                            <>
+                              You've used all {isZidLiteUser ? "10" : "5"} free
+                              invoices.{" "}
+                              <Button
+                                variant="link"
+                                className="p-0 h-auto text-[#2b825b] font-semibold underline"
+                                onClick={() =>
+                                  router.push("/pricing?upgrade=growth")
+                                }
+                              >
+                                Upgrade to Growth
+                              </Button>{" "}
+                              for unlimited invoices.
+                            </>
+                          ) : (
+                            `Create invoices for free within your plan limit.`
+                          )}
                         </p>
-                        {typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 2 && invoiceUsage.remaining > 0 && (
-                          <Button
-                            size="sm"
-                            className="mt-2 bg-[#C29307] hover:bg-[#b38606] text-white"
-                            onClick={() => router.push("/pricing?upgrade=growth")}
-                          >
-                            Upgrade to Growth
-                          </Button>
-                        )}
-                        {typeof invoiceUsage.remaining === 'number' && invoiceUsage.remaining <= 0 && !hasSufficientBalance() && (
-                          <Button
-                            size="sm"
-                            className="mt-2 bg-blue-600 hover:bg-blue-700 text-white"
-                            onClick={() => router.push("/dashboard/fund-account")}
-                          >
-                            Fund Wallet Now
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Premium Banner */}
-                {hasUnlimitedInvoices && (
-                  <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                    <p className="text-purple-700 font-medium flex items-center gap-2">
-                      <span className="bg-purple-600 text-white px-2 py-1 rounded text-xs">
-                        {userTier === "growth" ? "GROWTH" : "PREMIUM"}
-                      </span>
-                      You have unlimited invoices! No payment required.
-                    </p>
-                  </div>
-                )}
-
-                <Card className="p-6">
+                <Card className="p-6 bg-white dark:bg-gray-900 border-border dark:border-gray-800">
                   <LogoUpload
                     logo={form.business_logo || ""}
                     onLogoChange={(logoDataUrl: string) =>
@@ -1381,7 +1324,12 @@ const processPaymentAndSubmit = async () => {
                   />
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="businessName">Business Name *</Label>
+                      <Label
+                        htmlFor="businessName"
+                        className="text-foreground dark:text-gray-200"
+                      >
+                        Business Name *
+                      </Label>
                       <Input
                         id="businessName"
                         value={form.business_name}
@@ -1392,18 +1340,23 @@ const processPaymentAndSubmit = async () => {
                           }))
                         }
                         placeholder="Your Business Name"
-                        className="mt-1"
-                        disabled={isFormLocked || isProcessingPayment}
+                        className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
+                        disabled={isFormLocked}
                       />
                       {errors.business_name && (
-                        <p className="text-red-500 text-xs mt-1">
+                        <p className="text-red-500 dark:text-red-400 text-xs mt-1">
                           {errors.business_name}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor="invoiceNumber">Invoice Number</Label>
+                      <Label
+                        htmlFor="invoiceNumber"
+                        className="text-foreground dark:text-gray-200"
+                      >
+                        Invoice Number
+                      </Label>
                       <Input
                         id="invoiceNumber"
                         value={form.invoice_id}
@@ -1413,35 +1366,45 @@ const processPaymentAndSubmit = async () => {
                             invoice_id: e.target.value,
                           }))
                         }
-                        className="mt-1"
+                        className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
                         disabled={true}
                       />
                     </div>
 
-                    <div className="border-t border-border pt-4 mt-6">
+                    <div className="border-t border-border dark:border-gray-800 pt-4 mt-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-foreground">
+                        <h3 className="font-semibold text-foreground dark:text-gray-200">
                           Bill To
                         </h3>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground dark:text-gray-400">
                           (Optional - leave blank for client to fill)
                         </span>
                       </div>
                       <div className="space-y-3">
                         <div>
-                          <Label htmlFor="clientName">Client Name</Label>
+                          <Label
+                            htmlFor="clientName"
+                            className="text-foreground dark:text-gray-200"
+                          >
+                            Client Name
+                          </Label>
                           <Input
                             id="clientName"
                             value={form.name || ""}
                             onChange={handleFormChange}
                             name="name"
                             placeholder="Leave blank for client to fill"
-                            className="mt-1"
-                            disabled={isFormLocked || isProcessingPayment}
+                            className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
+                            disabled={isFormLocked}
                           />
                         </div>
                         <div>
-                          <Label htmlFor="clientEmail">Client Email</Label>
+                          <Label
+                            htmlFor="clientEmail"
+                            className="text-foreground dark:text-gray-200"
+                          >
+                            Client Email
+                          </Label>
                           <Input
                             id="clientEmail"
                             type="email"
@@ -1449,52 +1412,60 @@ const processPaymentAndSubmit = async () => {
                             onChange={handleFormChange}
                             name="email"
                             placeholder="Leave blank for client to fill"
-                            className="mt-1"
-                            disabled={isFormLocked || isProcessingPayment}
+                            className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
+                            disabled={isFormLocked}
                           />
                           {errors.email && (
-                            <p className="text-red-500 text-xs mt-1">
+                            <p className="text-red-500 dark:text-red-400 text-xs mt-1">
                               {errors.email}
                             </p>
                           )}
                         </div>
                         <div>
-                          <Label htmlFor="clientPhone">Client Phone</Label>
+                          <Label
+                            htmlFor="clientPhone"
+                            className="text-foreground dark:text-gray-200"
+                          >
+                            Client Phone
+                          </Label>
                           <Input
                             id="clientPhone"
                             value={form.clientPhone || ""}
                             onChange={handleFormChange}
                             name="clientPhone"
                             placeholder="Leave blank for client to fill"
-                            className="mt-1"
-                            disabled={isFormLocked || isProcessingPayment}
+                            className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
+                            disabled={isFormLocked}
                           />
                         </div>
                       </div>
                     </div>
 
-                    <div className="border-t border-border pt-4 mt-6">
+                    <div className="border-t border-border dark:border-gray-800 pt-4 mt-6">
                       <div className="flex justify-between items-center mb-4">
                         <div>
-                          <h3 className="font-semibold text-foreground">
+                          <h3 className="font-semibold text-foreground dark:text-gray-200">
                             Items
                           </h3>
                           {form.invoice_items.length > 0 && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
                               {form.invoice_items.length} item
                               {form.invoice_items.length !== 1 ? "s" : ""} •
                               Total: ₦
                               {form.invoice_items
-                                .reduce((sum, item) => sum + (item.total || 0), 0)
+                                .reduce(
+                                  (sum, item) => sum + (item.total || 0),
+                                  0,
+                                )
                                 .toLocaleString()}
                             </p>
                           )}
                         </div>
                         <Button
-                          className="bg-[#C29307] hover:bg-[#b38606] text-white cursor-pointer"
+                          className="bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42] text-white cursor-pointer"
                           size="sm"
                           onClick={handleAddItem}
-                          disabled={isFormLocked || isProcessingPayment}
+                          disabled={isFormLocked}
                         >
                           <Plus className="h-4 w-4 mr-1" />
                           Add Item
@@ -1503,7 +1474,7 @@ const processPaymentAndSubmit = async () => {
 
                       {form.invoice_items.length > 0 ? (
                         <div>
-                          <div className="hidden md:grid md:grid-cols-12 gap-3 mb-2 text-xs font-semibold text-muted-foreground">
+                          <div className="hidden md:grid md:grid-cols-12 gap-3 mb-2 text-xs font-semibold text-muted-foreground dark:text-gray-400">
                             <div className="md:col-span-5">DESCRIPTION</div>
                             <div className="md:col-span-1 text-center">QTY</div>
                             <div className="md:col-span-2 text-right">
@@ -1517,7 +1488,7 @@ const processPaymentAndSubmit = async () => {
                             </div>
                           </div>
 
-                          <div className="md:hidden text-xs text-muted-foreground mb-2">
+                          <div className="md:hidden text-xs text-muted-foreground dark:text-gray-400 mb-2">
                             Tap items to see details
                           </div>
 
@@ -1533,10 +1504,10 @@ const processPaymentAndSubmit = async () => {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-md">
+                        <div className="text-center py-8 text-muted-foreground dark:text-gray-400 border border-dashed border-border dark:border-gray-700 rounded-md">
                           <div className="flex flex-col items-center gap-2">
-                            <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center">
-                              <Plus className="h-6 w-6 text-muted-foreground" />
+                            <div className="w-12 h-12 bg-accent dark:bg-gray-800 rounded-full flex items-center justify-center">
+                              <Plus className="h-6 w-6 text-muted-foreground dark:text-gray-400" />
                             </div>
                             <p className="text-sm font-medium">
                               No items added yet
@@ -1548,22 +1519,22 @@ const processPaymentAndSubmit = async () => {
                         </div>
                       )}
                       {errors.invoice_items && (
-                        <p className="text-red-500 text-sm mt-2">
+                        <p className="text-red-500 dark:text-red-400 text-sm mt-2">
                           {errors.invoice_items}
                         </p>
                       )}
                     </div>
 
-                    <div className="border-t border-border pt-4 mt-6 space-y-4">
+                    {/* <div className="border-t border-border dark:border-gray-800 pt-4 mt-6 space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <Label
                             htmlFor="multiplePayments"
-                            className="font-medium"
+                            className="font-medium text-foreground dark:text-gray-200"
                           >
                             🎫 Allow Multiple Full Payments
                           </Label>
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
                             Enable multiple people to each pay the FULL amount
                             (perfect for events, tickets, group purchases)
                           </p>
@@ -1571,7 +1542,7 @@ const processPaymentAndSubmit = async () => {
                         <div
                           className={
                             form.allowMultiplePayments
-                              ? "data-[state=checked]:bg-[#C29307]"
+                              ? "data-[state=checked]:bg-[#2b825b]"
                               : ""
                           }
                         >
@@ -1588,13 +1559,16 @@ const processPaymentAndSubmit = async () => {
                                   : 1,
                               }))
                             }
-                            disabled={isFormLocked || isProcessingPayment}
+                            disabled={isFormLocked}
                           />
                         </div>
                       </div>
 
-                      <div className="border-t border-border pt-4 mt-4">
-                        <Label htmlFor="redirectUrl">
+                      <div className="border-t border-border dark:border-gray-800 pt-4 mt-4">
+                        <Label
+                          htmlFor="redirectUrl"
+                          className="text-foreground dark:text-gray-200"
+                        >
                           Redirect URL (Optional)
                         </Label>
                         <Input
@@ -1604,26 +1578,21 @@ const processPaymentAndSubmit = async () => {
                           onChange={handleFormChange}
                           name="redirect_url"
                           placeholder="https://example.com/thankyou"
-                          className="mt-1"
-                          disabled={isFormLocked || isProcessingPayment}
+                          className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
+                          disabled={isFormLocked}
                         />
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
                           Redirect clients to this URL after successful payment
                         </p>
                       </div>
-                    </div>
+                    </div> */}
 
                     <div className="flex gap-3 pt-4">
                       <Button
                         variant="outline"
                         onClick={() => handleSubmit(true)}
-                        disabled={
-                          isProcessingPayment ||
-                          draftLoading ||
-                          isFormLocked ||
-                          loading
-                        }
-                        className="flex-1"
+                        disabled={draftLoading || isFormLocked || loading}
+                        className="flex-1 border-border dark:border-gray-700 text-foreground dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
                         <Save className="w-4 h-4 mr-2" />
                         {draftLoading ? "Saving..." : "Save Draft"}
@@ -1631,24 +1600,18 @@ const processPaymentAndSubmit = async () => {
                       <Button
                         onClick={() => handleSubmit(false)}
                         disabled={
-                          isProcessingPayment ||
                           loading ||
                           isFormLocked ||
                           draftLoading ||
                           invoiceUsage.isChecking ||
-                          (!hasSufficientBalance() && requiresPinConfirmation())
+                          buttonConfig.disabled
                         }
                         className={`flex-1 ${buttonConfig.color} text-white`}
                       >
-                        {isProcessingPayment ? (
+                        {loading ? (
                           <div className="flex items-center gap-2">
-                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             Processing...
-                          </div>
-                        ) : loading ? (
-                          <div className="flex items-center gap-2">
-                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                            Validating...
                           </div>
                         ) : invoiceUsage.isChecking ? (
                           "Checking..."
@@ -1660,6 +1623,24 @@ const processPaymentAndSubmit = async () => {
                         )}
                       </Button>
                     </div>
+
+                    {/* Upgrade Link for users at limit */}
+                    {hasReachedLimit() && !hasUnlimitedInvoices && (
+                      <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                        <p className="text-sm text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
+                          <Info className="w-4 h-4" />
+                          You've reached your invoice limit.{" "}
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto text-[#2b825b] font-semibold underline"
+                            onClick={() => router.push("/pricing?upgrade=growth")}
+                          >
+                            Upgrade your plan
+                          </Button>{" "}
+                          for unlimited invoices.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </Card>
               </>
@@ -1672,25 +1653,38 @@ const processPaymentAndSubmit = async () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => router.back()}
-                      className="text-[#C29307] hover:bg-white/10"
-                      disabled={isFormLocked || isProcessingPayment}
+                      className="text-[#2b825b] dark:text-[#2b825b] hover:bg-white/10"
+                      disabled={isFormLocked}
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
                       Back
                     </Button>
 
                     <div>
-                      <h1 className="md:text-3xl text-xl font-bold mb-2 flex items-start gap-3">
-                        Invoice Preview
+                      <div className="flex items-center gap-3 mb-2">
+                        <h1 className="md:text-3xl text-xl font-bold text-foreground dark:text-gray-100">
+                          Invoice Preview
+                        </h1>
+                        {/* Single Tier Badge */}
+                        <div
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
+                        >
+                          <TierIcon className={`w-4 h-4 ${tierInfo.color}`} />
+                          <span
+                            className={`text-xs font-semibold ${tierInfo.color}`}
+                          >
+                            {tierInfo.label}
+                          </span>
+                        </div>
                         {!invoiceUsage.isChecking && (
                           <span
-                            className={`p-1 text-white text-sm font-bold rounded ${getRemainingColor()}`}
+                            className={`px-2 py-1 text-white text-sm font-bold rounded ${getRemainingColor()}`}
                           >
                             {getRemainingText()}
                           </span>
                         )}
-                      </h1>
-                      <p className="text-muted-foreground">
+                      </div>
+                      <p className="text-muted-foreground dark:text-gray-400">
                         Live preview of your invoice as you fill out the form
                       </p>
                     </div>
@@ -1699,31 +1693,22 @@ const processPaymentAndSubmit = async () => {
                   <div className="flex items-center gap-2">
                     <Badge
                       variant="outline"
-                      className="bg-blue-50 text-blue-700 border-blue-200"
+                      className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800"
                     >
                       Live Preview
                     </Badge>
-                    {isProcessingPayment && (
-                      <Badge
-                        variant="outline"
-                        className="bg-red-50 text-red-700 border-red-200"
-                      >
-                        <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                        Processing...
-                      </Badge>
-                    )}
                   </div>
                 </div>
 
                 <div className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                     <div className="flex items-start gap-3">
-                      <Eye className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                      <Eye className="h-5 w-5 text-blue-500 dark:text-blue-400 mt-0.5 shrink-0" />
                       <div>
-                        <h3 className="font-medium text-blue-800">
+                        <h3 className="font-medium text-blue-800 dark:text-blue-400">
                           Live Preview Mode
                         </h3>
-                        <p className="text-sm text-blue-700 mt-1">
+                        <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
                           This is a real-time preview of how your invoice will
                           look. Any changes made in the "Create Invoice" tab
                           will be reflected here instantly.
@@ -1734,8 +1719,8 @@ const processPaymentAndSubmit = async () => {
 
                   <InvoicePreview invoice={previewInvoice} />
 
-                  <div className="flex justify-between items-center pt-4 border-t">
-                    <div className="text-sm text-gray-500">
+                  <div className="flex justify-between items-center pt-4 border-t border-border dark:border-gray-800">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       <p>
                         Switch to the "Create Invoice" tab to edit your invoice
                       </p>
@@ -1743,7 +1728,7 @@ const processPaymentAndSubmit = async () => {
                     <Button
                       variant="outline"
                       onClick={() => setActiveTab("create")}
-                      className="border-[#C29307] text-[#C29307] hover:bg-[#C29307]/10"
+                      className="border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b]/10 dark:border-[#2b825b] dark:text-[#2b825b] dark:hover:bg-[#2b825b]/20"
                     >
                       <Edit className="h-4 w-4 mr-2" />
                       Back to Editor
@@ -1761,7 +1746,13 @@ const processPaymentAndSubmit = async () => {
 
 function InvoicePage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="text-center p-8 text-foreground dark:text-gray-200">
+          Loading...
+        </div>
+      }
+    >
       <CreateInvoice />
     </Suspense>
   );

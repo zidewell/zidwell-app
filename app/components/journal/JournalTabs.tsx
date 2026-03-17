@@ -9,7 +9,7 @@ interface JournalTabsProps {
 
 export function JournalTabs({ activeTab, onTabChange }: JournalTabsProps) {
   return (
-    <div className="flex gap-2 p-1 rounded-xl">
+    <div className="flex gap-2 p-1 rounded-xl dark:bg-gray-700">
    
       <button
         onClick={() => onTabChange('business')}
@@ -17,9 +17,9 @@ export function JournalTabs({ activeTab, onTabChange }: JournalTabsProps) {
           'flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200'
         )}
         style={{
-          backgroundColor: activeTab === 'business' ? '#C29307' : 'transparent',
-          color: activeTab === 'business' ? '#26121c' : '#80746e',
-          boxShadow: activeTab === 'business' ? '0 4px 24px -8px rgba(38,33,28,0.1)' : 'none'
+          backgroundColor: activeTab === 'business' ? '#2b825b' : 'transparent',
+          color: activeTab === 'business' ? '#ffffff' : '#80746e',
+          boxShadow: activeTab === 'business' ? '0 4px 24px -8px rgba(43,130,91,0.2)' : 'none'
         }}
       >
         <Briefcase className="h-4 w-4" />
@@ -31,9 +31,9 @@ export function JournalTabs({ activeTab, onTabChange }: JournalTabsProps) {
           'flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200'
         )}
         style={{
-          backgroundColor: activeTab === 'personal' ? '#C29307' : 'transparent',
-          color: activeTab === 'personal' ? '#26121c' : '#80746e',
-          boxShadow: activeTab === 'personal' ? '0 4px 24px -8px rgba(38,33,28,0.1)' : 'none'
+          backgroundColor: activeTab === 'personal' ? '#2b825b' : 'transparent',
+          color: activeTab === 'personal' ? '#ffffff' : '#80746e',
+          boxShadow: activeTab === 'personal' ? '0 4px 24px -8px rgba(43,130,91,0.2)' : 'none'
         }}
       >
         <User className="h-4 w-4" />

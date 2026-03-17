@@ -1,4 +1,4 @@
-// app/api/receipt/get-receipt/route.ts
+
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,24 +7,27 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+   const receiptId = (await params).id;
 
-    if (!id) {
+
+    if (!receiptId) {
       return NextResponse.json(
         { success: false, message: "Receipt ID is required" },
         { status: 400 }
       );
     }
 
-    console.log("Fetching receipt with ID:", id);
+    console.log("Fetching receipt with receipt_id:", receiptId);
 
     const { data, error } = await supabase
       .from('receipts')
       .select('*')
-      .eq('id', id)
+      .eq('receipt_id', receiptId)
       .single();
 
     if (error) {

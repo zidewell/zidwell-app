@@ -4,18 +4,19 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { receiptToken, signeeEmail, signeeName, businessName, totalAmount } = body;
+    const { receiptToken, signeeEmail, signeeName, businessName, totalAmount } =
+      body;
 
     if (!receiptToken || !signeeEmail) {
       return NextResponse.json(
         { success: false, error: "Receipt token and email are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,19 +30,21 @@ export async function POST(req: NextRequest) {
     if (error || !receipt) {
       return NextResponse.json(
         { success: false, error: "Receipt not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Generate verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
+
     // Update receipt with verification code
     await supabase
       .from("receipts")
-      .update({ 
+      .update({
         verification_code: verificationCode,
-        sent_at: new Date().toISOString() // Update sent_at timestamp
+        sent_at: new Date().toISOString(), // Update sent_at timestamp
       })
       .eq("token", receiptToken);
 
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
             font-size: 32px; 
             font-weight: bold; 
             letter-spacing: 8px; 
-            color: #C29307;
+            color: #2b825b;
             text-align: center;
             margin: 30px 0;
             padding: 20px;
@@ -141,7 +144,7 @@ export async function POST(req: NextRequest) {
     console.error("Error sending verification code:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

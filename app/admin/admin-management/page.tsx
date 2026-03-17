@@ -31,7 +31,7 @@ const fetcher = async (url: string) => {
 
   if (!response.ok) {
     const error = new Error(
-      data.error || "An error occurred while fetching the data."
+      data.error || "An error occurred while fetching the data.",
     );
     throw error;
   }
@@ -63,6 +63,10 @@ const ROLE_PERMISSIONS = {
     name: "Legal & Compliance",
     description: "Ensures all regulatory and documentation compliance",
   },
+  blog_admin: {
+    name: "Blog post & Managment",
+    description: "Blog manager that handles everything about post",
+  },
 };
 
 const getRoleIcon = (role: string) => {
@@ -72,6 +76,7 @@ const getRoleIcon = (role: string) => {
     support_admin: "💬",
     finance_admin: "💰",
     legal_admin: "⚖️",
+    blog_admin: "📝",
   };
   return icons[role as keyof typeof icons] || "👤";
 };
@@ -83,13 +88,14 @@ const getRoleColor = (role: string) => {
     support_admin: "bg-green-100 text-green-800",
     finance_admin: "bg-purple-100 text-purple-800",
     legal_admin: "bg-orange-100 text-orange-800",
+    blog_admin: "bg-pink-100 text-pink-800",
   };
   return colors[role as keyof typeof colors] || "bg-gray-100 text-gray-800";
 };
 
 const formatDateSafe = (
   dateString: string | null,
-  options: Intl.DateTimeFormatOptions = {}
+  options: Intl.DateTimeFormatOptions = {},
 ) => {
   if (!dateString) return "Never";
 
@@ -124,13 +130,13 @@ export default function AdminManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [activityFilter, setActivityFilter] = useState("all")
+  const [activityFilter, setActivityFilter] = useState("all");
   const [isClient, setIsClient] = useState(false);
   const itemsPerPage = 10;
 
   const { data, error, isLoading, mutate } = useSWR(
     "/api/admin-apis/admins",
-    fetcher
+    fetcher,
   );
 
   useEffect(() => {
@@ -160,7 +166,10 @@ export default function AdminManagementPage() {
         ROLE_PERMISSIONS.support_admin;
       return {
         ...admin,
-        full_name: `${admin.first_name} ${admin.last_name}`,
+        // Use full_name directly from the database instead of concatenating
+        full_name:
+          admin.full_name ||
+          `${admin.first_name || ""} ${admin.last_name || ""}`.trim(),
         created_at_raw: admin.created_at,
         last_login_raw: admin.last_login,
         last_active_raw: admin.last_active,
@@ -216,6 +225,7 @@ export default function AdminManagementPage() {
       support_admin: 0,
       finance_admin: 0,
       legal_admin: 0,
+      blog_admin: 0,
     };
 
     admins.forEach((admin: any) => {
@@ -242,6 +252,7 @@ export default function AdminManagementPage() {
     support_admin: roleCounts.support_admin,
     finance_admin: roleCounts.finance_admin,
     legal_admin: roleCounts.legal_admin,
+    blog_admin: roleCounts.blog_admin,
   };
 
   const filteredAdmins = admins.filter((admin: any) => {
@@ -269,7 +280,7 @@ export default function AdminManagementPage() {
   const totalPages = Math.ceil(filteredAdmins.length / itemsPerPage);
   const paginatedAdmins = filteredAdmins.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const handleDelete = async (admin: any) => {
@@ -303,7 +314,7 @@ export default function AdminManagementPage() {
       Swal.fire(
         "Deleted",
         `${admin.email} has been removed as admin.`,
-        "success"
+        "success",
       );
       mutate();
     } catch (err: any) {
@@ -379,7 +390,7 @@ export default function AdminManagementPage() {
       Swal.fire(
         `${actionText}d`,
         `${admin.email} has been ${actionText.toLowerCase()}d.`,
-        "success"
+        "success",
       );
       mutate();
     } catch (err: any) {
@@ -392,14 +403,11 @@ export default function AdminManagementPage() {
     const { value: formValues } = await Swal.fire({
       title: `Edit ${admin.email}`,
       html:
-        `<input id="swal-first_name" class="swal2-input" placeholder="First name" value="${escapeHtml(
-          admin.first_name ?? ""
-        )}">` +
-        `<input id="swal-last_name" class="swal2-input" placeholder="Last name" value="${escapeHtml(
-          admin.last_name ?? ""
+        `<input id="swal-full_name" class="swal2-input" placeholder="Full name" value="${escapeHtml(
+          admin.full_name ?? "",
         )}">` +
         `<input id="swal-email" class="swal2-input" placeholder="Email" value="${escapeHtml(
-          admin.email ?? ""
+          admin.email ?? "",
         )}">` +
         `<select id="swal-role" class="swal2-select">
           ${Object.entries(ROLE_PERMISSIONS)
@@ -407,7 +415,7 @@ export default function AdminManagementPage() {
               ([key, role]) =>
                 `<option value="${key}" ${
                   admin.admin_role === key ? "selected" : ""
-                }>${getRoleIcon(key)} ${role.name}</option>`
+                }>${getRoleIcon(key)} ${role.name}</option>`,
             )
             .join("")}
          </select>` +
@@ -423,11 +431,8 @@ export default function AdminManagementPage() {
       showCancelButton: true,
       confirmButtonText: "Save",
       preConfirm: () => {
-        const first_name = (
-          document.getElementById("swal-first_name") as HTMLInputElement
-        )?.value?.trim();
-        const last_name = (
-          document.getElementById("swal-last_name") as HTMLInputElement
+        const full_name = (
+          document.getElementById("swal-full_name") as HTMLInputElement
         )?.value?.trim();
         const email = (
           document.getElementById("swal-email") as HTMLInputElement
@@ -438,8 +443,8 @@ export default function AdminManagementPage() {
           document.getElementById("swal-status") as HTMLSelectElement
         )?.value;
 
-        if (!first_name || !last_name) {
-          Swal.showValidationMessage("First name and last name are required");
+        if (!full_name) {
+          Swal.showValidationMessage("Full name is required");
           return null;
         }
         if (!email) {
@@ -447,7 +452,7 @@ export default function AdminManagementPage() {
           return null;
         }
 
-        return { first_name, last_name, email, role, status };
+        return { full_name, email, role, status };
       },
     });
 
@@ -477,8 +482,7 @@ export default function AdminManagementPage() {
     const { value: formValues } = await Swal.fire({
       title: "Create New Admin",
       html:
-        `<input id="swal-first_name" class="swal2-input" placeholder="First name" required>` +
-        `<input id="swal-last_name" class="swal2-input" placeholder="Last name" required>` +
+        `<input id="swal-full_name" class="swal2-input" placeholder="Full name" required>` +
         `<input id="swal-email" class="swal2-input" placeholder="Email" type="email" required>` +
         `<select id="swal-role" class="swal2-select" required>
           ${Object.entries(ROLE_PERMISSIONS)
@@ -486,7 +490,7 @@ export default function AdminManagementPage() {
               ([key, role]) =>
                 `<option value="${key}">${getRoleIcon(key)} ${
                   role.name
-                }</option>`
+                }</option>`,
             )
             .join("")}
          </select>` +
@@ -498,11 +502,8 @@ export default function AdminManagementPage() {
       showCancelButton: true,
       confirmButtonText: "Create Admin",
       preConfirm: () => {
-        const first_name = (
-          document.getElementById("swal-first_name") as HTMLInputElement
-        )?.value?.trim();
-        const last_name = (
-          document.getElementById("swal-last_name") as HTMLInputElement
+        const full_name = (
+          document.getElementById("swal-full_name") as HTMLInputElement
         )?.value?.trim();
         const email = (
           document.getElementById("swal-email") as HTMLInputElement
@@ -513,8 +514,8 @@ export default function AdminManagementPage() {
           document.getElementById("swal-status") as HTMLSelectElement
         )?.value;
 
-        if (!first_name || !last_name) {
-          Swal.showValidationMessage("First name and last name are required");
+        if (!full_name) {
+          Swal.showValidationMessage("Full name is required");
           return null;
         }
         if (!email) {
@@ -522,7 +523,7 @@ export default function AdminManagementPage() {
           return null;
         }
 
-        return { first_name, last_name, email, role, status };
+        return { full_name, email, role, status };
       },
     });
 
@@ -543,7 +544,7 @@ export default function AdminManagementPage() {
       Swal.fire(
         "Created",
         `Admin ${formValues.email} created successfully.`,
-        "success"
+        "success",
       );
       mutate();
     } catch (err) {
@@ -591,7 +592,7 @@ export default function AdminManagementPage() {
   const handleViewLoginHistory = async (admin: any) => {
     try {
       const response = await fetch(
-        `/api/admin-apis/admins/${admin.id}/login-history`
+        `/api/admin-apis/admins/${admin.id}/login-history`,
       );
       if (!response.ok) throw new Error("Failed to fetch login history");
 
@@ -640,10 +641,10 @@ export default function AdminManagementPage() {
 
     let permissionsHtml = '<div class="text-left max-h-96 overflow-y-auto">';
     permissionsHtml += `<div class="mb-4 p-3 rounded-lg ${getRoleColor(
-      admin.admin_role
+      admin.admin_role,
     )}">`;
     permissionsHtml += `<h3 class="font-bold text-lg">${getRoleIcon(
-      admin.admin_role
+      admin.admin_role,
     )} ${roleInfo.name}</h3>`;
     permissionsHtml += `<p class="text-sm mt-1">${roleInfo.description}</p>`;
     permissionsHtml += `</div>`;
@@ -838,7 +839,7 @@ export default function AdminManagementPage() {
               🔄 Refresh
             </Button>
             <Button
-              className="bg-[#C29307] text-white hover:bg-[#a87e06]"
+              className="bg-[#2b825b] text-white hover:bg-[#a87e06]"
               onClick={handleCreateAdmin}
             >
               + Add Admin
@@ -846,7 +847,7 @@ export default function AdminManagementPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Total Admins</h3>
             <p className="text-2xl font-semibold">{stats.total}</p>
@@ -885,6 +886,12 @@ export default function AdminManagementPage() {
             <h3 className="text-sm font-medium text-gray-500">Legal</h3>
             <p className="text-2xl font-semibold text-orange-600">
               {stats.legal_admin}
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-lg border shadow-sm">
+            <h3 className="text-sm font-medium text-gray-500">Blog</h3>
+            <p className="text-2xl font-semibold text-pink-600">
+              {stats.blog_admin}
             </p>
           </div>
         </div>

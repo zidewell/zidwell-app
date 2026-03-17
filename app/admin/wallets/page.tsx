@@ -163,13 +163,13 @@ export default function WalletManagementPage() {
   const totalWallets = useMemo(() => data?.total || 0, [data]);
   const totalPages = useMemo(
     () => Math.ceil(totalWallets / itemsPerPage),
-    [totalWallets, itemsPerPage]
+    [totalWallets, itemsPerPage],
   );
 
   // Use statsData for calculations
   const allFilteredWallets = useMemo(
     () => statsData?.wallets || [],
-    [statsData]
+    [statsData],
   );
 
   // Calculate stats
@@ -177,25 +177,25 @@ export default function WalletManagementPage() {
     () =>
       allFilteredWallets.reduce(
         (sum: number, w: any) => sum + Number(w.balance || 0),
-        0
+        0,
       ),
-    [allFilteredWallets]
+    [allFilteredWallets],
   );
 
   const highBalanceWallets = useMemo(
     () =>
       allFilteredWallets.filter((w: any) => Number(w.balance || 0) >= 10000),
-    [allFilteredWallets]
+    [allFilteredWallets],
   );
 
   const lowBalanceWallets = useMemo(
     () => allFilteredWallets.filter((w: any) => Number(w.balance || 0) < 1000),
-    [allFilteredWallets]
+    [allFilteredWallets],
   );
 
   const zeroBalanceWallets = useMemo(
     () => allFilteredWallets.filter((w: any) => Number(w.balance || 0) === 0),
-    [allFilteredWallets]
+    [allFilteredWallets],
   );
 
   const activeWallets = useMemo(
@@ -203,9 +203,9 @@ export default function WalletManagementPage() {
       allFilteredWallets.filter(
         (w: any) =>
           new Date(w.last_updated) >
-          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       ),
-    [allFilteredWallets]
+    [allFilteredWallets],
   );
 
   // Enhanced refresh function that clears cache
@@ -230,7 +230,7 @@ export default function WalletManagementPage() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearchTerm(e.target.value);
     },
-    []
+    [],
   );
 
   // ✅ Manual credit/debit operation
@@ -265,8 +265,8 @@ export default function WalletManagementPage() {
               id="swal-bank" 
               class="swal2-input" 
               value="${row.bank_account_name || "N/A"} - ${
-        row.bank_account_number || "N/A"
-      }" 
+                row.bank_account_number || "N/A"
+              }" 
               disabled
               style="color: #6b7280; background-color: #f9fafb;"
             >
@@ -329,7 +329,7 @@ export default function WalletManagementPage() {
 
         if (type === "debit" && parseFloat(amount) > Number(row.balance || 0)) {
           Swal.showValidationMessage(
-            "Debit amount cannot exceed current balance"
+            "Debit amount cannot exceed current balance",
           );
           return false;
         }
@@ -351,7 +351,7 @@ export default function WalletManagementPage() {
               reason: formValues.reason,
               adminNote: `Manual ${type} by admin`,
             }),
-          }
+          },
         );
 
         if (!response.ok) {
@@ -377,7 +377,7 @@ export default function WalletManagementPage() {
         Swal.fire(
           "Error",
           err.message || "Failed to process transaction",
-          "error"
+          "error",
         );
       }
     }
@@ -387,7 +387,7 @@ export default function WalletManagementPage() {
   async function handleViewLogs(row: any) {
     try {
       const response = await authFetch(
-        `/api/admin-apis/wallets/transactions?userId=${row.user_id}&limit=20`
+        `/api/admin-apis/wallets/transactions?userId=${row.user_id}&limit=20`,
       );
 
       if (!response.ok) {
@@ -402,8 +402,8 @@ export default function WalletManagementPage() {
             <div class="grid grid-cols-2 gap-2 text-sm">
               <div><strong>User:</strong> ${row.email}</div>
               <div><strong>Full Name:</strong> ${row.name || ""} ${
-        row.last_name || ""
-      }</div>
+                row.last_name || ""
+              }</div>
               <div><strong>Bank Account:</strong> ${
                 row.bank_account_name || "N/A"
               }</div>
@@ -412,7 +412,7 @@ export default function WalletManagementPage() {
               }</div>
               <div><strong>Current Balance:</strong></div>
               <div class="font-semibold">₦${Number(
-                row.balance || 0
+                row.balance || 0,
               ).toLocaleString()}</div>
             </div>
           </div>
@@ -441,15 +441,15 @@ export default function WalletManagementPage() {
             tx.status === "completed"
               ? "text-green-600"
               : tx.status === "failed"
-              ? "text-red-600"
-              : "text-[#C29307]";
+                ? "text-red-600"
+                : "text-[#2b825b]";
 
           logsHtml += `
             <tr class="border-b hover:bg-gray-50">
               <td class="p-2">${new Date(tx.created_at).toLocaleString()}</td>
               <td class="p-2 ${typeColor} font-medium">${tx.type.toUpperCase()}</td>
               <td class="p-2 font-semibold">₦${Number(
-                tx.amount || 0
+                tx.amount || 0,
               ).toLocaleString()}</td>
               <td class="p-2 text-xs">${tx.reason || "N/A"}</td>
               <td class="p-2 ${statusColor} text-xs">${tx.status}</td>
@@ -497,7 +497,7 @@ export default function WalletManagementPage() {
           
           <div><strong>Current Balance:</strong></div>
           <div class="font-bold text-lg text-green-600">₦${Number(
-            row.balance || 0
+            row.balance || 0,
           ).toLocaleString()}</div>
           
           <div><strong>Last Updated:</strong></div>
@@ -521,7 +521,7 @@ export default function WalletManagementPage() {
   async function handleViewFundingLogs() {
     try {
       const response = await authFetch(
-        "/api/admin-apis/wallets/funding-logs?limit=50"
+        "/api/admin-apis/wallets/funding-logs?limit=50",
       );
 
       if (!response.ok) {
@@ -562,15 +562,15 @@ export default function WalletManagementPage() {
             log.status === "success"
               ? "text-green-600"
               : log.status === "failed"
-              ? "text-red-600"
-              : "text-[#C29307]";
+                ? "text-red-600"
+                : "text-[#2b825b]";
 
           logsHtml += `
             <tr class="border-b hover:bg-gray-50">
               <td class="p-2 text-xs">${log.user_email}</td>
               <td class="p-2 ${typeColor} font-medium">${log.type}</td>
               <td class="p-2 font-semibold">₦${Number(
-                log.amount || 0
+                log.amount || 0,
               ).toLocaleString()}</td>
               <td class="p-2 text-xs">${log.gateway || "N/A"}</td>
               <td class="p-2 text-xs font-mono">${
@@ -578,7 +578,7 @@ export default function WalletManagementPage() {
               }</td>
               <td class="p-2 ${statusColor} text-xs">${log.status}</td>
               <td class="p-2 text-xs">${new Date(
-                log.created_at
+                log.created_at,
               ).toLocaleString()}</td>
             </tr>
           `;
@@ -631,7 +631,7 @@ export default function WalletManagementPage() {
         if (result.discrepancies && result.discrepancies.length > 0) {
           let discrepanciesHtml = `
             <div class="text-left">
-              <div class="mb-4 p-3 bg-yellow-50 rounded-lg">
+              <div class="mb-4 p-3 bg-green-50 rounded-lg">
                 <strong>Found ${result.discrepanciesFound} discrepancies</strong>
               </div>
               <div class="max-h-96 overflow-y-auto">
@@ -652,10 +652,10 @@ export default function WalletManagementPage() {
               <tr class="border-b">
                 <td class="p-2">${disc.user_email}</td>
                 <td class="p-2">₦${Number(
-                  disc.system_balance || 0
+                  disc.system_balance || 0,
                 ).toLocaleString()}</td>
                 <td class="p-2">₦${Number(
-                  disc.gateway_balance || 0
+                  disc.gateway_balance || 0,
                 ).toLocaleString()}</td>
                 <td class="p-2 font-semibold ${
                   disc.difference > 0 ? "text-green-600" : "text-red-600"
@@ -690,7 +690,7 @@ export default function WalletManagementPage() {
         Swal.fire(
           "Error",
           err.message || "Failed to run reconciliation",
-          "error"
+          "error",
         );
       }
     }

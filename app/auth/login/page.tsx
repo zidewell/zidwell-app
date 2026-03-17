@@ -210,7 +210,7 @@
 //               </div>
 //               <Button
 //                 type="submit"
-//                 className="bg-[#C29307] w-full"
+//                 className="bg-[#2b825b] w-full"
 //                 disabled={loading}
 //               >
 //                 {loading ? "Signing In..." : "Sign In"}
@@ -365,13 +365,21 @@ const LoginForm = () => {
             router.push(decodedCallbackUrl);
           }
         } else {
-          // ✅ ALL USERS GO TO DASHBOARD - REMOVED ONBOARDING REDIRECT
           router.push(decodedCallbackUrl);
         }
-
-        // ✅ Send login notification AFTER redirect (not before)
-        sendLoginNotificationWithDeviceInfo(profile);
       });
+
+      // ✅ Send login notification ONLY in production
+      if (process.env.NODE_ENV === "production") {
+        // Small delay to ensure redirect doesn't interrupt the notification
+        setTimeout(() => {
+          sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
+            console.error("Failed to send login notification:", err),
+          );
+        }, 100);
+      } else {
+        console.log("Development mode: Skipping login email notification");
+      }
     } catch (err: any) {
       Swal.fire({
         icon: "error",
@@ -380,7 +388,6 @@ const LoginForm = () => {
       });
     } finally {
       setLoading(false);
-      // Note: buttonDisabled will be automatically reset after 5 seconds by the timeout
     }
   };
 
@@ -400,7 +407,7 @@ const LoginForm = () => {
       >
         {/* Back Button - Outside Card */}
         <Button
-          onClick={() => window.history.back()}
+          onClick={() => router.push("/")}
           variant="outline"
           className="absolute top-4 left-4 md:top-8 md:left-8 hover:bg-white/20 transition-colors z-10 cursor-pointer"
           aria-label="Go back"
@@ -485,7 +492,7 @@ const LoginForm = () => {
               </div>
               <Button
                 type="submit"
-                className="bg-[#C29307] w-full"
+                className="bg-[#2b825b] w-full"
                 disabled={loading || buttonDisabled}
               >
                 {loading ? (

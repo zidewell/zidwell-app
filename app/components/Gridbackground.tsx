@@ -85,7 +85,7 @@ const GridBackground = () => {
       </svg>
 
       {/* Radial gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#C29307]/5 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#2b825b]/5 via-transparent to-transparent" />
     </div>
   );
 };

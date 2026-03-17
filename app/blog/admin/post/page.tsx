@@ -14,7 +14,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Filter, CheckCircle, Circle, RefreshCw } from "lucide-react";
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Eye,
+  Filter,
+  CheckCircle,
+  Circle,
+  RefreshCw,
+} from "lucide-react";
 import { format } from "date-fns";
 import AdminLayout from "@/app/components/blog-components/admin/AdminLayout";
 import Link from "next/link";
@@ -22,86 +33,88 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import Swal from "sweetalert2";
 import { Badge } from "@/app/components/ui/badge";
-import { useBlog } from "@/app/context/BlogContext"; 
+import { useBlog } from "@/app/context/BlogContext";
 
 // Filter types
-type FilterType = 'all' | 'published' | 'draft';
+type FilterType = "all" | "published" | "draft";
 
 const AdminPosts = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const { posts, isLoading, error, refreshPosts } = useBlog();
 
   // Filter posts based on search and active filter
   const filteredPosts = useMemo(() => {
-    return posts.filter(post => {
+    return posts.filter((post) => {
       // Apply status filter
-      if (activeFilter === 'published' && !post.is_published) return false;
-      if (activeFilter === 'draft' && post.is_published) return false;
-      
+      if (activeFilter === "published" && !post.is_published) return false;
+      if (activeFilter === "draft" && post.is_published) return false;
+
       // Apply search filter
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         return (
           post.title.toLowerCase().includes(query) ||
-          (post.author?.name && post.author.name.toLowerCase().includes(query)) ||
+          (post.author?.name &&
+            post.author.name.toLowerCase().includes(query)) ||
           (post.excerpt && post.excerpt.toLowerCase().includes(query)) ||
-          (post.categories && post.categories.some(cat => cat.toLowerCase().includes(query)))
+          (post.categories &&
+            post.categories.some((cat) => cat.toLowerCase().includes(query)))
         );
       }
-      
+
       return true;
     });
   }, [posts, activeFilter, searchQuery]);
 
   // Count stats from context posts
   const stats = useMemo(() => {
-    const publishedCount = posts.filter(p => p.is_published).length;
-    const draftCount = posts.filter(p => !p.is_published).length;
+    const publishedCount = posts.filter((p) => p.is_published).length;
+    const draftCount = posts.filter((p) => !p.is_published).length;
     const totalCount = posts.length;
-    
+
     return { publishedCount, draftCount, totalCount };
   }, [posts]);
 
   // Function to handle post deletion
   const handleDeletePost = async (postId: string, postTitle: string) => {
     const result = await Swal.fire({
-      title: 'Are you sure?',
+      title: "Are you sure?",
       text: `You are about to delete "${postTitle}". This action cannot be undone!`,
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: "Yes, delete it!",
+      cancelButtonText: "Cancel",
       reverseButtons: true,
-      confirmButtonColor: '#dc2626',
+      confirmButtonColor: "#dc2626",
     });
 
     if (result.isConfirmed) {
       try {
         const response = await fetch(`/api/blog/posts?id=${postId}`, {
-          method: 'DELETE',
+          method: "DELETE",
         });
 
         if (!response.ok) {
-          throw new Error('Failed to delete post');
+          throw new Error("Failed to delete post");
         }
 
         // Refresh posts after deletion
         await refreshPosts();
-        
+
         Swal.fire({
-          title: 'Deleted!',
-          text: 'Your post has been deleted.',
-          icon: 'success',
+          title: "Deleted!",
+          text: "Your post has been deleted.",
+          icon: "success",
           timer: 2000,
           showConfirmButton: false,
         });
       } catch (err) {
-        console.error('Error deleting post:', err);
+        console.error("Error deleting post:", err);
         Swal.fire({
-          title: 'Error!',
-          text: 'Failed to delete post. Please try again.',
-          icon: 'error',
+          title: "Error!",
+          text: "Failed to delete post. Please try again.",
+          icon: "error",
         });
       }
     }
@@ -110,25 +123,25 @@ const AdminPosts = () => {
   // Function to toggle publish status
   const handleTogglePublish = async (post: any) => {
     const newStatus = !post.is_published;
-    const action = newStatus ? 'publish' : 'unpublish';
-    
+    const action = newStatus ? "publish" : "unpublish";
+
     const result = await Swal.fire({
       title: `Are you sure?`,
       text: `You are about to ${action} "${post.title}"`,
-      icon: 'question',
+      icon: "question",
       showCancelButton: true,
       confirmButtonText: `Yes, ${action} it!`,
-      cancelButtonText: 'Cancel',
+      cancelButtonText: "Cancel",
       reverseButtons: true,
-      confirmButtonColor: '#059669',
+      confirmButtonColor: "#059669",
     });
 
     if (result.isConfirmed) {
       try {
         const response = await fetch(`/api/blog/posts?id=${post.id}`, {
-          method: 'PATCH',
+          method: "PATCH",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             is_published: newStatus,
@@ -136,33 +149,33 @@ const AdminPosts = () => {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to update post status');
+          throw new Error("Failed to update post status");
         }
 
         // Refresh posts after status change
         await refreshPosts();
-        
+
         Swal.fire({
-          title: 'Success!',
+          title: "Success!",
           text: `Post has been ${action}ed successfully.`,
-          icon: 'success',
+          icon: "success",
           timer: 2000,
           showConfirmButton: false,
         });
       } catch (err) {
-        console.error('Error updating post:', err);
+        console.error("Error updating post:", err);
         Swal.fire({
-          title: 'Error!',
+          title: "Error!",
           text: `Failed to ${action} post. Please try again.`,
-          icon: 'error',
+          icon: "error",
         });
       }
     }
   };
 
   const clearFilters = () => {
-    setSearchQuery('');
-    setActiveFilter('all');
+    setSearchQuery("");
+    setActiveFilter("all");
   };
 
   // Loading state
@@ -176,7 +189,7 @@ const AdminPosts = () => {
               <p className="text-muted-foreground">Manage your blog posts</p>
             </div>
             <Link href="/blog/admin/posts/new">
-              <Button className="bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90">
+              <Button className="bg-[#2b825b] text-accent-foreground hover:bg-[#2b825b]/90">
                 <Plus className="w-4 h-4 mr-2" />
                 New Post
               </Button>
@@ -184,7 +197,7 @@ const AdminPosts = () => {
           </div>
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C29307] mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2b825b] mx-auto mb-4"></div>
               <p className="text-muted-foreground">Loading posts...</p>
             </div>
           </div>
@@ -201,7 +214,8 @@ const AdminPosts = () => {
           <div>
             <h1 className="text-2xl font-semibold">Posts</h1>
             <p className="text-muted-foreground">
-              {stats.totalCount} total posts ({stats.publishedCount} published, {stats.draftCount} drafts)
+              {stats.totalCount} total posts ({stats.publishedCount} published,{" "}
+              {stats.draftCount} drafts)
             </p>
           </div>
           <div className="flex gap-2">
@@ -211,19 +225,19 @@ const AdminPosts = () => {
               disabled={isLoading}
               className="flex items-center gap-2"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              {isLoading ? 'Refreshing...' : 'Refresh'}
+              <RefreshCw
+                className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+              />
+              {isLoading ? "Refreshing..." : "Refresh"}
             </Button>
             <Link href="/blog/admin/posts/new">
-              <Button className="bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90">
+              <Button className="bg-[#2b825b] text-accent-foreground hover:bg-[#2b825b]/90">
                 <Plus className="w-4 h-4 mr-2" />
                 New Post
               </Button>
             </Link>
           </div>
         </div>
-
-      
 
         {/* Filters and Search */}
         <div className="flex flex-col sm:flex-row gap-4">
@@ -242,28 +256,28 @@ const AdminPosts = () => {
           {/* Filter Buttons */}
           <div className="flex gap-2">
             <Button
-              variant={activeFilter === 'all' ? "default" : "outline"}
-              onClick={() => setActiveFilter('all')}
+              variant={activeFilter === "all" ? "default" : "outline"}
+              onClick={() => setActiveFilter("all")}
               disabled={isLoading}
-              className={`flex items-center gap-2 ${activeFilter === 'all' ? 'bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90' : ''}`}
+              className={`flex items-center gap-2 ${activeFilter === "all" ? "bg-[#2b825b] text-accent-foreground hover:bg-[#2b825b]/90" : ""}`}
             >
               <Filter className="w-4 h-4" />
               All ({stats.totalCount})
             </Button>
             <Button
-              variant={activeFilter === 'published' ? "default" : "outline"}
-              onClick={() => setActiveFilter('published')}
+              variant={activeFilter === "published" ? "default" : "outline"}
+              onClick={() => setActiveFilter("published")}
               disabled={isLoading}
-              className={`flex items-center gap-2 ${activeFilter === 'published' ? 'bg-green-600 text-white hover:bg-green-700' : ''}`}
+              className={`flex items-center gap-2 ${activeFilter === "published" ? "bg-green-600 text-white hover:bg-green-700" : ""}`}
             >
               <CheckCircle className="w-4 h-4" />
               Published ({stats.publishedCount})
             </Button>
             <Button
-              variant={activeFilter === 'draft' ? "default" : "outline"}
-              onClick={() => setActiveFilter('draft')}
+              variant={activeFilter === "draft" ? "default" : "outline"}
+              onClick={() => setActiveFilter("draft")}
               disabled={isLoading}
-              className={`flex items-center gap-2 ${activeFilter === 'draft' ? 'bg-yellow-600 text-white hover:bg-yellow-700' : ''}`}
+              className={`flex items-center gap-2 ${activeFilter === "draft" ? "bg-yellow-600 text-white hover:bg-yellow-700" : ""}`}
             >
               <Circle className="w-4 h-4" />
               Drafts ({stats.draftCount})
@@ -276,7 +290,7 @@ const AdminPosts = () => {
           <div className="bg-muted/30 rounded-lg p-3">
             <p className="text-sm text-muted-foreground">
               Showing {filteredPosts.length} of {stats.totalCount} posts
-              {activeFilter !== 'all' && ` (${activeFilter} only)`}
+              {activeFilter !== "all" && ` (${activeFilter} only)`}
               {searchQuery && ` matching "${searchQuery}"`}
             </p>
           </div>
@@ -285,12 +299,12 @@ const AdminPosts = () => {
         {/* Posts Table */}
         {filteredPosts.length === 0 ? (
           <div className="border border-border rounded-lg p-8 text-center">
-            {searchQuery || activeFilter !== 'all' ? (
+            {searchQuery || activeFilter !== "all" ? (
               <>
                 <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="text-lg font-semibold mb-2">No posts found</h3>
                 <p className="text-muted-foreground mb-4">
-                  {searchQuery 
+                  {searchQuery
                     ? `No posts match your search query "${searchQuery}"`
                     : `No ${activeFilter} posts found`}
                 </p>
@@ -312,7 +326,7 @@ const AdminPosts = () => {
                   Get started by creating your first blog post
                 </p>
                 <Link href="/blog/admin/posts/new">
-                  <Button className="bg-[#C29307] text-accent-foreground hover:bg-[#C29307]/90">
+                  <Button className="bg-[#2b825b] text-accent-foreground hover:bg-[#2b825b]/90">
                     <Plus className="w-4 h-4 mr-2" />
                     Create Post
                   </Button>
@@ -351,7 +365,9 @@ const AdminPosts = () => {
                             />
                           ) : (
                             <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                              <span className="text-xs text-muted-foreground">No image</span>
+                              <span className="text-xs text-muted-foreground">
+                                No image
+                              </span>
                             </div>
                           )}
                           <div className="min-w-0 flex-1">
@@ -371,20 +387,23 @@ const AdminPosts = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span>{post.author?.name || 'Unknown Author'}</span>
+                          <span>{post.author?.name || "Unknown Author"}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1 max-w-[200px]">
-                          {post.categories && post.categories.slice(0, 2).map((category, index) => (
-                            <Badge
-                              key={`${post.id}-category-${index}`}
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              {category}
-                            </Badge>
-                          ))}
+                          {post.categories &&
+                            post.categories
+                              .slice(0, 2)
+                              .map((category, index) => (
+                                <Badge
+                                  key={`${post.id}-category-${index}`}
+                                  variant="secondary"
+                                  className="text-xs"
+                                >
+                                  {category}
+                                </Badge>
+                              ))}
                           {post.categories && post.categories.length > 2 && (
                             <Badge variant="outline" className="text-xs">
                               +{post.categories.length - 2}
@@ -434,12 +453,19 @@ const AdminPosts = () => {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" disabled={isLoading}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={isLoading}
+                            >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <Link href={`/blog/post-blog/${post.slug}`} target="_blank">
+                            <Link
+                              href={`/blog/post-blog/${post.slug}`}
+                              target="_blank"
+                            >
                               <DropdownMenuItem disabled={isLoading}>
                                 <Eye className="w-4 h-4 mr-2" />
                                 View
@@ -451,9 +477,11 @@ const AdminPosts = () => {
                                 Edit
                               </DropdownMenuItem>
                             </Link>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-destructive"
-                              onClick={() => handleDeletePost(post.id, post.title)}
+                              onClick={() =>
+                                handleDeletePost(post.id, post.title)
+                              }
                               disabled={isLoading}
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
