@@ -1,5 +1,7 @@
+// app/api/payment-callback/route.ts
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+
 const baseUrl =
   process.env.NODE_ENV === "development"
     ? "http://localhost:3000"
@@ -18,13 +20,13 @@ export async function POST(request: Request) {
     console.log('Payment callback received:', { orderReference, status });
 
     // Find the pending payment
-    const { data: payment } = await supabase
+    const { data: payment, error: paymentError } = await supabase
       .from('subscription_payments')
       .select('*')
       .eq('reference', orderReference)
       .single();
 
-    if (!payment) {
+    if (paymentError || !payment) {
       console.error('Payment not found:', orderReference);
       return NextResponse.redirect(
         new URL('/pricing?payment=error', baseUrl)
@@ -32,6 +34,20 @@ export async function POST(request: Request) {
     }
 
     if (status === 'SUCCESS') {
+      // Verify the user exists
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id, subscription_tier')
+        .eq('id', payment.user_id)
+        .single();
+
+      if (userError || !user) {
+        console.error('User not found:', payment.user_id);
+        return NextResponse.redirect(
+          new URL('/pricing?payment=user_not_found', baseUrl)
+        );
+      }
+
       // Update payment status
       await supabase
         .from('subscription_payments')
@@ -52,26 +68,73 @@ export async function POST(request: Request) {
         expiresAt.setMonth(expiresAt.getMonth() + 1);
       }
 
-      // Update user's subscription
+      // First, deactivate any existing active subscriptions for this user
       await supabase
-        .from('users')
-        .update({
-          subscription_tier: planTier,
-          subscription_expires_at: expiresAt.toISOString(),
-        })
-        .eq('id', payment.user_id);
+        .from('subscriptions')
+        .update({ status: 'cancelled' })
+        .eq('user_id', payment.user_id)
+        .eq('status', 'active');
 
-      // Create subscription record
-      await supabase
+      // Create new subscription record
+      const { data: subscription, error: subError } = await supabase
         .from('subscriptions')
         .insert({
           user_id: payment.user_id,
           tier: planTier,
           status: 'active',
           expires_at: expiresAt.toISOString(),
-          auto_renew: false, // 👈 Set to false - no auto-renewal
+          auto_renew: false,
           payment_method: 'nomba',
+          started_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (subError) {
+        console.error('Failed to create subscription:', subError);
+        
+        // Log the error details for debugging
+        console.error('Subscription insert error details:', {
+          code: subError.code,
+          message: subError.message,
+          details: subError.details,
+          userId: payment.user_id
         });
+        
+        return NextResponse.redirect(
+          new URL('/pricing?payment=error', baseUrl)
+        );
+      }
+
+      // Update the subscription_payments with the subscription_id
+      if (subscription) {
+        await supabase
+          .from('subscription_payments')
+          .update({ subscription_id: subscription.id })
+          .eq('reference', orderReference);
+      }
+
+      // Update user's subscription tier
+      const { error: userUpdateError } = await supabase
+        .from('users')
+        .update({
+          subscription_tier: planTier,
+          subscription_expires_at: expiresAt.toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', payment.user_id);
+
+      if (userUpdateError) {
+        console.error('Failed to update user subscription:', userUpdateError);
+      }
+
+      console.log('✅ Subscription activated successfully for user:', {
+        userId: payment.user_id,
+        planTier,
+        expiresAt: expiresAt.toISOString()
+      });
 
       return NextResponse.redirect(
         new URL('/pricing?payment=success', baseUrl)

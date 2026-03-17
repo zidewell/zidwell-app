@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { createClient } from "@supabase/supabase-js";
-import { getNombaToken } from "@/lib/nomba";
 import {
   sendInvoiceCreatorNotification,
   sendPaymentSuccessEmail,
@@ -86,274 +85,6 @@ async function updateInvoiceTotals(invoice: any, paidAmountNaira: number) {
   } catch (error) {
     console.error("Error in updateInvoiceTotals:", error);
     throw error;
-  }
-}
-
-async function sendSubscriptionConfirmationEmail(
-  userId: string,
-  planTier: string,
-  amount: number,
-  isYearly: boolean,
-  paymentMethod: string,
-  transactionId: string,
-) {
-  try {
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("email, first_name")
-      .eq("id", userId)
-      .single();
-
-    if (error || !user) {
-      console.error("User not found for subscription email:", error);
-      return;
-    }
-
-    const planDisplay = planTier.charAt(0).toUpperCase() + planTier.slice(1);
-    const billingPeriod = isYearly ? "Yearly" : "Monthly";
-    const expiryDate = new Date();
-    if (isYearly) {
-      expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-    } else {
-      expiryDate.setMonth(expiryDate.getMonth() + 1);
-    }
-
-    const features = {
-      zidlite: [
-        "10 Invoices",
-        "10 Receipts",
-        "2 Contracts",
-        "Unlimited transfers at N50 each",
-        "WhatsApp support",
-      ],
-      growth: [
-        "Unlimited Invoices & Receipts",
-        "5 Contracts",
-        "Bookkeeping tool",
-        "Tax Calculator",
-        "WhatsApp Community access",
-      ],
-      premium: [
-        "Everything in Growth",
-        "Unlimited Contracts",
-        "Invoice Payment Reminders",
-        "Financial Statement Preparation",
-        "Tax Filing Support",
-        "Priority support",
-      ],
-      elite: [
-        "Everything in Premium",
-        "Full Tax Filing Support",
-        "VAT, PAYE, WHT Filing",
-        "CFO-Level Guidance",
-        "Annual Audit Coordination",
-        "Direct WhatsApp Support",
-      ],
-    };
-
-    const featureList = features[planTier as keyof typeof features] || [];
-
-    await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: `🎉 Welcome to Zidwell ${planDisplay}! Your subscription is active`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
-          
-          <h2 style="color: #22c55e; text-align: center;">🎉 Subscription Activated!</h2>
-          <p style="font-size: 16px;">Hi ${user.first_name || "there"},</p>
-          <p style="font-size: 16px;">Thank you for subscribing to <strong>Zidwell ${planDisplay}</strong>! Your subscription is now active.</p>
-          
-          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #2b825b;">📋 Subscription Details</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr><td style="padding: 8px 0;"><strong>Plan:</strong></td><td>${planDisplay}</td></tr>
-              <tr><td style="padding: 8px 0;"><strong>Billing:</strong></td><td>${billingPeriod}</td></tr>
-              <tr><td style="padding: 8px 0;"><strong>Amount:</strong></td><td>₦${amount.toLocaleString()}</td></tr>
-              <tr><td style="padding: 8px 0;"><strong>Payment Method:</strong></td><td>${paymentMethod === "card" ? "💳 Card" : "🏦 Bank Transfer"}</td></tr>
-              <tr><td style="padding: 8px 0;"><strong>Status:</strong></td><td><span style="color: #22c55e;">Active</span></td></tr>
-              <tr><td style="padding: 8px 0;"><strong>Renewal Date:</strong></td><td>${expiryDate.toLocaleDateString()}</td></tr>
-            </table>
-          </div>
-          
-          <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
-            <h3 style="margin-top: 0; color: #2563eb;">✨ Your ${planDisplay} Features:</h3>
-            <ul style="list-style-type: none; padding: 0;">
-              ${featureList.map((feature) => `<li style="padding: 5px 0;">✅ ${feature}</li>`).join("")}
-            </ul>
-          </div>
-          
-          <p style="font-size: 16px;">We're excited to help you grow your business!</p>
-          
-          <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px; margin-bottom: 20px;" />
-          
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-          <p style="color: #64748b; font-size: 14px; text-align: center;">
-            Best regards,<br>
-            <strong>The Zidwell Team</strong>
-          </p>
-        </div>
-      `,
-    });
-
-    console.log(`✅ Subscription email sent to ${user.email}`);
-  } catch (error) {
-    console.error("Failed to send subscription email:", error);
-  }
-}
-
-async function handleSubscriptionPayment(
-  payload: any,
-  transactionAmount: number,
-  nombaTransactionId: string,
-  paymentMethod: string,
-) {
-  console.log("💰 Processing subscription payment...");
-
-  try {
-    // Extract metadata from various possible locations
-    const metadata =
-      payload.data?.order?.metadata ||
-      payload.data?.metadata ||
-      payload.data?.order ||
-      {};
-
-    const userId =
-      metadata.userId ||
-      payload.data?.customer?.userId ||
-      payload.data?.merchant?.userId;
-    const planTier = metadata.planTier || "growth";
-    const isYearly = metadata.isYearly || false;
-    const orderReference = payload.data?.order?.orderReference;
-
-    console.log("📦 Subscription details:", {
-      userId,
-      planTier,
-      isYearly,
-      paymentMethod,
-      amount: transactionAmount,
-    });
-
-    if (!userId) {
-      console.error("❌ No userId found for subscription");
-      return { success: false, error: "No userId found" };
-    }
-
-    // Check for duplicate processing
-    const { data: existingPayment } = await supabase
-      .from("subscription_payments")
-      .select("*")
-      .eq("reference", nombaTransactionId)
-      .maybeSingle();
-
-    if (existingPayment) {
-      console.log("⚠️ Duplicate subscription payment detected");
-      return { success: true, message: "Already processed" };
-    }
-
-    // Calculate expiration date
-    const expiresAt = new Date();
-    if (isYearly) {
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-    } else {
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-    }
-
-    // Deactivate any existing active subscriptions
-    await supabase
-      .from("subscriptions")
-      .update({ status: "cancelled" })
-      .eq("user_id", userId)
-      .eq("status", "active");
-
-    // Create new subscription
-    const { data: subscription, error: subError } = await supabase
-      .from("subscriptions")
-      .insert({
-        user_id: userId,
-        tier: planTier,
-        status: "active",
-        expires_at: expiresAt.toISOString(),
-        auto_renew: true,
-        payment_method: paymentMethod,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (subError) {
-      console.error("❌ Failed to create subscription:", subError);
-      return { success: false, error: subError.message };
-    }
-
-    console.log(`✅ Subscription created: ${subscription.id}`);
-
-    // Update user's subscription tier
-    const { error: userError } = await supabase
-      .from("users")
-      .update({
-        subscription_tier: planTier,
-        subscription_expires_at: expiresAt.toISOString(),
-      })
-      .eq("id", userId);
-
-    if (userError) {
-      console.error("❌ Failed to update user subscription tier:", userError);
-    }
-
-    // Record the payment
-    const { error: paymentError } = await supabase
-      .from("subscription_payments")
-      .insert({
-        user_id: userId,
-        subscription_id: subscription.id,
-        amount: transactionAmount,
-        payment_method: paymentMethod,
-        status: "completed",
-        reference: nombaTransactionId || orderReference,
-        metadata: {
-          tier: planTier,
-          isYearly,
-          orderReference,
-          ...metadata,
-        },
-        paid_at: new Date().toISOString(),
-      });
-
-    if (paymentError) {
-      console.error("❌ Failed to record subscription payment:", paymentError);
-    }
-
-    // Create notification for user
-    await supabase.from("notifications").insert({
-      user_id: userId,
-      title: "🎉 Subscription Activated",
-      message: `Your ${planTier} plan has been activated! You now have access to all premium features.`,
-      type: "success",
-      channels: ["email", "in_app"],
-    });
-
-    // Send confirmation email (non-blocking)
-    sendSubscriptionConfirmationEmail(
-      userId,
-      planTier,
-      transactionAmount,
-      isYearly,
-      paymentMethod,
-      nombaTransactionId || orderReference,
-    ).catch(console.error);
-
-    return {
-      success: true,
-      subscriptionId: subscription.id,
-      planTier,
-      expiresAt: expiresAt.toISOString(),
-    };
-  } catch (error: any) {
-    console.error("❌ Error in subscription payment handling:", error);
-    return { success: false, error: error.message };
   }
 }
 
@@ -565,7 +296,7 @@ export async function POST(req: NextRequest) {
       reference: nombaTransactionId,
     });
 
-    // ========== 1. SUBSCRIPTION PAYMENTS (Highest Priority) ==========
+    // SKIP SUBSCRIPTION PAYMENTS - They are handled by callback
     const isSubscription =
       orderReference?.startsWith("SUB_") ||
       orderReference?.includes("SUB-") ||
@@ -576,54 +307,14 @@ export async function POST(req: NextRequest) {
       tx.narration?.includes("SUB-");
 
     if (isSubscription) {
-      console.log("📱 Subscription payment detected");
-
-      if (eventType === "payment_success" || txStatus === "success") {
-        const paymentMethod =
-          transactionType.includes("vact") ||
-          transactionType.includes("transfer") ||
-          order.paymentMethod === "Transfer"
-            ? "bank_transfer"
-            : "card";
-
-        const result = await handleSubscriptionPayment(
-          payload,
-          transactionAmount,
-          nombaTransactionId || orderReference,
-          paymentMethod,
-        );
-        if (result.success) {
-          console.log("✅ Subscription activated:", result);
-          // Don't add duplicate success property - just return the result
-          return NextResponse.json(result, { status: 200 });
-        } else {
-          console.error("❌ Subscription failed:", result.error);
-          return NextResponse.json({ error: result.error }, { status: 500 });
-        }
-      } else if (eventType === "payment_failed" || txStatus === "failed") {
-        console.log("❌ Subscription payment failed");
-
-        // Notify user if we have userId
-        const userId =
-          payload.data?.order?.metadata?.userId ||
-          payload.data?.metadata?.userId;
-        if (userId) {
-          await supabase.from("notifications").insert({
-            user_id: userId,
-            title: "❌ Subscription Payment Failed",
-            message: "Your subscription payment failed. Please try again.",
-            type: "error",
-          });
-        }
-
-        return NextResponse.json(
-          { success: false, message: "Payment failed" },
-          { status: 200 },
-        );
-      }
+      console.log("📱 Subscription payment detected - skipping (handled by callback)");
+      return NextResponse.json({ 
+        success: true, 
+        message: "Subscription payment handled by callback" 
+      });
     }
 
-    // ========== 2. INVOICE PAYMENTS ==========
+    // ========== 1. INVOICE PAYMENTS ==========
     const isInvoicePayment =
       orderReference ||
       payload.data?.order?.callbackUrl?.includes(
@@ -769,7 +460,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // ========== 3. VIRTUAL ACCOUNT DEPOSITS ==========
+    // ========== 2. VIRTUAL ACCOUNT DEPOSITS ==========
     if (
       aliasAccountReference &&
       (eventType === "payment_success" || txStatus === "success")
@@ -904,7 +595,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // ========== 4. WITHDRAWALS/TRANSFERS ==========
+    // ========== 3. WITHDRAWALS/TRANSFERS ==========
     const isPayout =
       eventType?.toLowerCase().includes("payout") ||
       transactionType.includes("transfer") ||

@@ -1,3 +1,4 @@
+// app/api/create-checkout/route.ts
 import { NextResponse } from 'next/server';
 import { getNombaToken } from '@/lib/nomba'; 
 import { createClient } from '@supabase/supabase-js';
@@ -11,6 +12,26 @@ export async function POST(request: Request) {
   try {
     const { planTier, amount, billingPeriod, userEmail, userId, orderReference } = await request.json();
     
+    // Verify user exists in database before proceeding
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, email, subscription_tier')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      console.error('User not found in database:', userId);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'User account not found. Please ensure you are logged in correctly.' 
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log('Creating checkout for user:', { userId: user.id, planTier });
+
     // Get Nomba access token
     const accessToken = await getNombaToken();
 
@@ -31,7 +52,7 @@ export async function POST(request: Request) {
           userId,
         }
       }, 
-      tokenizeCard: true
+      tokenizeCard: false
     };
 
     // Create checkout with Nomba
@@ -52,7 +73,7 @@ export async function POST(request: Request) {
     }
 
     // Store the order in database
-    await supabase
+    const { error: insertError } = await supabase
       .from('subscription_payments')
       .insert({
         user_id: userId,
@@ -66,6 +87,11 @@ export async function POST(request: Request) {
           checkoutLink: data.data.checkoutLink,
         }
       });
+
+    if (insertError) {
+      console.error('Failed to store subscription payment:', insertError);
+      // Continue anyway - payment can still proceed
+    }
 
     return NextResponse.json({
       success: true,
