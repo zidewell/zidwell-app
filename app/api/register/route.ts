@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ 5. Generate referral code
-    const namePart = name.split(" ")[0].toLowerCase();
+    const namePart = name.split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, '');
     const generatedReferral = `${namePart}-${Date.now().toString(36)}`;
 
     // ✅ 6. Create user in Supabase Auth
@@ -77,68 +77,161 @@ export async function POST(req: NextRequest) {
 
     const userId = authData.user.id;
 
-    // ✅ 7. Create user profile in users table
+    // ✅ 7. Create user profile in users table with ALL fields properly set
     const { data: userData, error: userError } = await supabase
       .from("users")
       .insert({
+        // Core required fields
         id: userId,
         full_name: name,
         email: email.toLowerCase(),
         phone: phone,
+        
+        // Authentication fields
         transaction_pin: hashedPin,
         pin_set: !!hashedPin,
+        
+        // Balance fields (defaults)
         wallet_balance: 0,
         zidcoin_balance: 20,
+        
+        // Referral fields
         referral_code: generatedReferral,
+        referred_by: null, // Explicitly null
+        
+        // BVN verification
         bvn_verification: bvn ? "pending" : "not_submitted",
+        
+        // Timestamps
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        
+        // Personal information - all null for new user
+        first_name: null,
+        last_name: null,
+        date_of_birth: null,
+        city: null,
+        state: null,
+        address: null,
+        country: null,
+        profile_picture: null,
+        
+        // Bank information - all null initially
+        bank_name: null,
+        bank_account_name: null,
+        bank_account_number: null,
+        p_bank_name: null,
+        p_bank_code: null,
+        p_account_number: null,
+        p_account_name: null,
+        
+        // Wallet information
+        wallet_id: null,
+        wallet_updated_at: null,
+        
+        // Admin fields
+        admin_role: null, // Regular users have null admin_role
+        
+        // Block status
+        is_blocked: false,
+        blocked_at: null,
+        block_reason: null,
+        
+        // Session tracking
+        last_login: null,
+        last_logout: null,
+        current_login_session: null,
+        
+        // Subscription defaults
+        subscription_tier: 'free',
+        subscription_expires_at: null,
+        
+        // Notification preferences (default JSON)
+        notification_preferences: {
+          sms: false,
+          push: true,
+          email: true,
+          in_app: true
+        },
+        
+        // Usage tracking - all zero initially
+        total_invoices_created: 0,
+        invoices_used_monthly: 0,
+        receipts_used_monthly: 0,
+        contracts_used_monthly: 0,
+        invoices_used_lifetime: 0,
+        receipts_used_lifetime: 0,
+        contracts_used_lifetime: 0,
+        
+        // Limits (default values from schema)
+        invoice_lifetime_limit: 5,
+        receipt_lifetime_limit: 5,
+        contract_lifetime_limit: 1,
+        
+        // Last usage reset
+        last_usage_reset: new Date().toISOString().split('T')[0], // Current date
+        
+        // Referral source
+        referral_source: null,
       })
       .select()
       .single();
 
     if (userError) {
       console.error("❌ User insert error:", userError);
+      // Rollback auth user creation
       await supabase.auth.admin.deleteUser(userId);
       return NextResponse.json(
-        { error: "Failed to create user profile" },
+        { error: "Failed to create user profile: " + userError.message },
         { status: 500 },
       );
     }
 
+    // ✅ 8. Handle BVN and virtual account creation if provided
     if (bvn && transactionPin) {
-      const token = await getNombaToken();
-      if (token) {
-        const nombaRes = await fetch(
-          `${process.env.NOMBA_URL}/v1/accounts/virtual`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              accountId: process.env.NOMBA_ACCOUNT_ID!,
-              "Content-Type": "application/json",
+      try {
+        const token = await getNombaToken();
+        if (token) {
+          const nombaRes = await fetch(
+            `${process.env.NOMBA_URL}/v1/accounts/virtual`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                accountId: process.env.NOMBA_ACCOUNT_ID!,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                accountName: name,
+                accountRef: userId,
+                bvn: bvn,
+              }),
             },
-            body: JSON.stringify({
-              accountName: name,
-              accountRef: userId,
-              bvn: bvn,
-            }),
-          },
-        );
+          );
 
-        const wallet = await nombaRes.json();
+          const wallet = await nombaRes.json();
 
-        if (nombaRes.ok && wallet?.data) {
-          await supabase
-            .from("users")
-            .update({
-              bank_name: wallet.data.bankName,
-              bank_account_name: wallet.data.bankAccountName,
-              bank_account_number: wallet.data.bankAccountNumber,
-              wallet_id: wallet.data.accountRef,
-              bvn_verification: "verified",
-            })
-            .eq("id", userId);
+          if (nombaRes.ok && wallet?.data) {
+            // Update user with wallet information
+            await supabase
+              .from("users")
+              .update({
+                bank_name: wallet.data.bankName,
+                bank_account_name: wallet.data.bankAccountName,
+                bank_account_number: wallet.data.bankAccountNumber,
+                wallet_id: wallet.data.accountRef,
+                bvn_verification: "verified",
+                wallet_updated_at: new Date().toISOString(),
+              })
+              .eq("id", userId);
+          } else {
+            console.warn("⚠️ Nomba wallet creation failed:", wallet);
+            // Don't fail registration if wallet creation fails
+          }
         }
+      } catch (nombaError) {
+        console.error("⚠️ Nomba API error:", nombaError);
+        // Continue registration even if wallet creation fails
       }
     }
 
@@ -155,22 +248,25 @@ export async function POST(req: NextRequest) {
           to: email,
           subject: "🎉 Welcome to Zidwell!",
           html: `
-            <div style="background: #f3f4f6; padding: 20px;">
-              <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px;">
-                <div style="background: #2b825b; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+            <div style="background: #f3f4f6; padding: 20px; font-family: Arial, sans-serif;">
+              <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden;">
+                <div style="background: #2b825b; padding: 20px; text-align: center;">
                   <h2 style="color: white; margin: 0;">Welcome to Zidwell 🎉</h2>
                 </div>
                 <div style="padding: 30px;">
-                  <h2>Hi ${name},</h2>
-                  <p>Congratulations! Your Zidwell account is ready.</p>
-                  <p>We've rewarded you with <strong style="color: #2b825b;">₦20 Zidcoin</strong> 🎁.</p>
+                  <h2 style="color: #333;">Hi ${name},</h2>
+                  <p style="color: #666; line-height: 1.6;">Congratulations! Your Zidwell account is ready.</p>
+                  <p style="color: #666; line-height: 1.6;">We've rewarded you with <strong style="color: #2b825b;">₦20 Zidcoin</strong> 🎁 to get you started.</p>
                   <div style="text-align: center; margin: 30px 0;">
                     <a href="${baseUrl}/dashboard" 
                        style="background: #2b825b; color: white; padding: 12px 24px; border-radius: 8px; 
-                              text-decoration: none; display: inline-block;">
+                              text-decoration: none; display: inline-block; font-weight: bold;">
                       Go to Dashboard
                     </a>
                   </div>
+                  <p style="color: #999; font-size: 12px; margin-top: 20px;">
+                    If you didn't create this account, please ignore this email.
+                  </p>
                 </div>
               </div>
             </div>
@@ -178,6 +274,7 @@ export async function POST(req: NextRequest) {
         });
       } catch (mailError) {
         console.error("❌ Email error:", mailError);
+        // Don't fail registration if email fails
       }
     })();
 
@@ -185,6 +282,12 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         message: "Registration successful",
+        user: {
+          id: userId,
+          email: email.toLowerCase(),
+          full_name: name,
+          phone: phone,
+        }
       },
       { status: 201 },
     );
