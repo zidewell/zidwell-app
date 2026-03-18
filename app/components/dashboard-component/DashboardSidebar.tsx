@@ -242,14 +242,14 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             isActive={pathname === "/dashboard/services/tax-filing"}
           />
 
-          <NavItem
+          {/* <NavItem
             item={{
               name: "Reports",
               href: "/dashboard/reports",
               icon: BarChart3,
             }}
             isActive={pathname === "/dashboard/reports"}
-          />
+          /> */}
         </div>
       </div>
 
