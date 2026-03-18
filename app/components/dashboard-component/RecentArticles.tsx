@@ -288,7 +288,7 @@ const RecentArticles = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 mt-5">
         <h3 className="text-xl font-bold text-[#141414] dark:text-[#f5f5f5] uppercase tracking-wide">
           Recent Articles
           {/* {isFromCache && (

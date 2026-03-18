@@ -284,7 +284,7 @@ export default function DashboardPage() {
             </section> */}
 
             {/* Articles */}
-            <section className="mt-5">
+            <section className="mt-6">
               <RecentArticles />
             </section>
           </div>
