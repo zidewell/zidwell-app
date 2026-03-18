@@ -126,12 +126,11 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ Deduct wallet balance using the simple deduction function
+    // Note: Using the correct parameter names from your function: user_id and amt
     const { data: deductResult, error: deductError } = await supabase
       .rpc("deduct_wallet_balance_only", {
-        p_user_id: userId,
-        p_amount: totalDeduction,
-        p_description: `Transfer of ₦${amount} to ${accountName} (${bankName})`,
-        p_reference: merchantTxRef
+        user_id: userId,        // Match your function parameter name
+        amt: totalDeduction     // Match your function parameter name
       });
 
     if (deductError) {
@@ -147,7 +146,7 @@ export async function POST(req: NextRequest) {
         .eq("id", pendingTx.id);
       
       return NextResponse.json(
-        { error: "Failed to deduct wallet balance" },
+        { error: "Failed to deduct wallet balance: " + deductError.message },
         { status: 500 }
       );
     }
