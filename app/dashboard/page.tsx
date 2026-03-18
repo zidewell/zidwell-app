@@ -16,14 +16,27 @@ import TransactionHistory from "../components/transaction-history";
 import UsageSummary from "../components/UsageSummary";
 import { useSubscription } from "../hooks/useSubscripion";
 import { UpgradeBanner } from "../components/subscription-components/UpgradeBanner";
+import { SubscriptionModal } from "../components/dashboard-component/SubscriptionModal"; 
 import { CheckCircle, X } from "lucide-react";
+
+// Define the Usage interface
+interface UsageData {
+  invoices_used: number;
+  invoices_limit: number;
+  receipts_used: number;
+  receipts_limit: number;
+  contracts_used: number;
+  contracts_limit: number;
+  // Add other usage fields as needed
+}
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successPlan, setSuccessPlan] = useState("");
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const { userTier, userId, loading: subscriptionLoading } = useSubscription();
-  const [usage, setUsage] = useState(null);
+  const [usage, setUsage] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   
@@ -52,6 +65,16 @@ export default function DashboardPage() {
       return () => clearTimeout(timer);
     }
   }, [searchParams, userTier]);
+
+  // Check if we should show subscription modal (when user hits limits)
+  useEffect(() => {
+    if (userTier === 'free' && usage) {
+      const invoiceUsage = (usage.invoices_used / 5) * 100; // 5 is free tier limit
+      if (invoiceUsage >= 80) {
+        setShowSubscriptionModal(true);
+      }
+    }
+  }, [userTier, usage]);
 
   // Fetch usage data
   const fetchUsage = async () => {
@@ -104,8 +127,34 @@ export default function DashboardPage() {
     return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
 
+  // Get free tier limits
+  const getFreeTierLimits = () => {
+    return {
+      invoices: 5,
+      receipts: 5,
+      contracts: 1
+    };
+  };
+
+  // Check if user is near limits
+  const isNearLimit = () => {
+    if (!usage || userTier !== 'free') return false;
+    const limits = getFreeTierLimits();
+    return (
+      usage.invoices_used / limits.invoices >= 0.8 ||
+      usage.receipts_used / limits.receipts >= 0.8 ||
+      usage.contracts_used / limits.contracts >= 0.8
+    );
+  };
+
   return (
     <div className="flex min-h-screen w-full bg-[#f7f7f7] dark:bg-[#0e0e0e]">
+      {/* Subscription Modal */}
+      <SubscriptionModal 
+        isOpen={showSubscriptionModal} 
+        onClose={() => setShowSubscriptionModal(false)} 
+      />
+
       {/* Success Toast/Notification */}
       {showSuccess && (
         <div className="fixed top-20 right-4 z-50 animate-slideIn">
@@ -180,13 +229,28 @@ export default function DashboardPage() {
               <BalanceCard />
             </section> */}
 
-            {/* Usage Summary for Free Tier */}
-            {/* {userTier === 'free' && !loading && usage && (
+            {/* Usage Summary for Free Tier
+            {userTier === 'free' && !loading && usage && (
               <section>
                 <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
-                  Your Usage
+                  Your Usage {isNearLimit() && <span className="ml-2 text-yellow-600">⚠️ Near limit</span>}
                 </h3>
                 <UsageSummary usage={usage} onRefresh={refreshUsage} />
+                
+          
+                {isNearLimit() && (
+                  <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      You're approaching your free tier limits. 
+                      <button 
+                        onClick={() => setShowSubscriptionModal(true)}
+                        className="ml-2 font-semibold text-[#2b825b] hover:underline"
+                      >
+                        Upgrade now →
+                      </button>
+                    </p>
+                  </div>
+                )}
               </section>
             )} */}
 
@@ -229,6 +293,16 @@ export default function DashboardPage() {
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
+
+      {/* Manual trigger button for testing - remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <button
+          onClick={() => setShowSubscriptionModal(true)}
+          className="fixed bottom-4 left-4 z-50 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg"
+        >
+          Test Modal
+        </button>
+      )}
     </div>
   );
 }

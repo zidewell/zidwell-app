@@ -1,7 +1,11 @@
-// app/api/create-checkout/route.ts
 import { NextResponse } from 'next/server';
 import { getNombaToken } from '@/lib/nomba'; 
 import { createClient } from '@supabase/supabase-js';
+
+const baseUrl =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:3000"
+    : "https://zidwell.com";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -12,7 +16,7 @@ export async function POST(request: Request) {
   try {
     const { planTier, amount, billingPeriod, userEmail, userId, orderReference } = await request.json();
     
-    // Verify user exists in database before proceeding
+    // Verify user exists
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, email, subscription_tier')
@@ -24,13 +28,20 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'User account not found. Please ensure you are logged in correctly.' 
+          error: 'User account not found.' 
         },
         { status: 400 }
       );
     }
 
-    console.log('Creating checkout for user:', { userId: user.id, planTier });
+    // ✅ Validate tier - now accepts zidlite
+    const validTiers = ['free', 'zidlite', 'growth', 'premium', 'elite'];
+    if (!validTiers.includes(planTier)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid plan tier' },
+        { status: 400 }
+      );
+    }
 
     // Get Nomba access token
     const accessToken = await getNombaToken();
@@ -38,16 +49,16 @@ export async function POST(request: Request) {
     // Prepare checkout payload
     const checkoutPayload = {
       order: {
-        callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/payment-callback`,
+        callbackUrl: `${baseUrl}/api/payment-callback`,
         customerEmail: userEmail,
         amount: amount.toString(),
         currency: 'NGN',
         orderReference: orderReference,
         customerId: userId,
         accountId: process.env.NOMBA_ACCOUNT_ID,
-        allowedPaymentMethods: ['Card', 'Transfer'],
+        allowedPaymentMethods: ['Card'],
         metadata: {
-          planTier,
+          planTier, 
           billingPeriod,
           userId,
         }
@@ -73,7 +84,7 @@ export async function POST(request: Request) {
     }
 
     // Store the order in database
-    const { error: insertError } = await supabase
+    await supabase
       .from('subscription_payments')
       .insert({
         user_id: userId,
@@ -82,16 +93,11 @@ export async function POST(request: Request) {
         status: 'pending',
         reference: orderReference,
         metadata: {
-          planTier,
+          planTier, // ✅ 'zidlite' stored in metadata
           billingPeriod,
           checkoutLink: data.data.checkoutLink,
         }
       });
-
-    if (insertError) {
-      console.error('Failed to store subscription payment:', insertError);
-      // Continue anyway - payment can still proceed
-    }
 
     return NextResponse.json({
       success: true,
