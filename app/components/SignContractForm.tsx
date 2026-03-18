@@ -111,7 +111,7 @@ export default function SignContractForm({
 
       <Button
         disabled={loading}
-        className="bg-[#2b825b] hover:bg-[#b28a06] text-white flex items-center"
+        className="bg-[#2b825b] hover:bg-[#2b825b]/90 text-white flex items-center"
         onClick={handleSubmit}
       >
         {loading ? (

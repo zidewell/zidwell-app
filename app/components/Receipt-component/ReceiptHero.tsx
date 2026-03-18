@@ -21,7 +21,7 @@ function ReceiptHero() {
 
           <p className="text-lg text-muted-foreground mb-8 max-w-lg mx-auto">
             Generate professional receipts for your business transactions.
-            Sellers declare delivery, receivers confirm — simple, clear, legally
+            Sellers declare delivery, receivers confirm, simple, clear, legally
             sound.
           </p>
 
