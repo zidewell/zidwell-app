@@ -1,20 +1,20 @@
+// app/api/withdraw/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { isAuthenticated } from "@/lib/auth-check-api";
 
-
 export async function POST(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const user = await isAuthenticated(req);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please login to access transactions" },
+      { status: 401 }
+    );
+  }
+
   const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -37,7 +37,6 @@ export async function POST(req: NextRequest) {
       totalDebit,
     } = await req.json();
 
-   
     if (
       !userId ||
       !pin ||
@@ -93,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     const merchantTxRef = `WD_${Date.now()}`;
 
-    // ✅ Insert pending transaction
+    // ✅ Insert pending transaction FIRST
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
@@ -126,22 +125,53 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Deduct wallet balance first
-    const { error: rpcError } = await supabase.rpc("deduct_wallet_balance", {
-      user_id: pendingTx.user_id,
-      amt: totalDeduction,
-      transaction_type: "withdrawal",
-      reference: merchantTxRef,
-      description: `Transfer of ₦${amount}`,
-    });
+    // ✅ Deduct wallet balance using the simple deduction function
+    const { data: deductResult, error: deductError } = await supabase
+      .rpc("deduct_wallet_balance_only", {
+        p_user_id: userId,
+        p_amount: totalDeduction,
+        p_description: `Transfer of ₦${amount} to ${accountName} (${bankName})`,
+        p_reference: merchantTxRef
+      });
 
-    if (rpcError) {
+    if (deductError) {
+      console.error("Deduction error:", deductError);
+      
+      // If deduction fails, update transaction to failed
+      await supabase
+        .from("transactions")
+        .update({
+          status: "failed",
+          external_response: { error: deductError.message }
+        })
+        .eq("id", pendingTx.id);
+      
       return NextResponse.json(
         { error: "Failed to deduct wallet balance" },
         { status: 500 }
       );
     }
 
+    // Check if deduction was successful (returns new balance or -1 for insufficient funds)
+    if (deductResult === -1) {
+      // Insufficient funds (should have been caught earlier, but just in case)
+      await supabase
+        .from("transactions")
+        .update({
+          status: "failed",
+          external_response: { error: "Insufficient funds during deduction" }
+        })
+        .eq("id", pendingTx.id);
+      
+      return NextResponse.json(
+        { message: "Insufficient wallet balance" },
+        { status: 400 }
+      );
+    }
+
+    console.log(`✅ Deducted ₦${totalDeduction} from user ${userId}. New balance: ₦${deductResult}`);
+
+    // ✅ Call Nomba API
     const res = await fetch(`${process.env.NOMBA_URL}/v1/transfers/bank`, {
       method: "POST",
       headers: {
@@ -161,16 +191,27 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await res.json();
-    // console.log("transfer data", data);
+    console.log("📤 Nomba transfer response:", {
+      status: res.status,
+      data,
+      merchantTxRef,
+      nombaReference: data?.data?.reference,
+    });
 
-
+    // ✅ Update transaction with Nomba response
     await supabase
       .from("transactions")
       .update({
         status: "processing",
-        description: `Transfer of ₦${amount}`,
+        description: `Transfer of ₦${amount} to ${accountName}`,
         reference: data?.data?.reference || null,
-        external_response: data,
+        external_response: {
+          ...data,
+          merchant_tx_ref: merchantTxRef,
+          deducted_at: new Date().toISOString(),
+          deducted_amount: totalDeduction,
+          new_balance: deductResult
+        },
       })
       .eq("id", pendingTx.id);
 
@@ -179,7 +220,9 @@ export async function POST(req: NextRequest) {
       transactionId: pendingTx.id,
       merchantTxRef,
       nombaResponse: data,
+      newBalance: deductResult
     });
+
   } catch (error: any) {
     console.error("Withdraw API error:", error);
     return NextResponse.json(
@@ -188,4 +231,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
