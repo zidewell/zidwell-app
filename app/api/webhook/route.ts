@@ -485,271 +485,169 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // ========== 2. VIRTUAL ACCOUNT DEPOSITS ==========
-    if (
-      aliasAccountReference &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log("🏦 Processing virtual account deposit...");
-      console.log("🔍 Virtual Account Details:", {
-        userId: aliasAccountReference,
-        amount: transactionAmount,
-        nombaFee,
-        narration: tx.narration,
+
+  // ========== 2. VIRTUAL ACCOUNT DEPOSITS ==========
+if (
+  aliasAccountReference &&
+  (eventType === "payment_success" || txStatus === "success")
+) {
+  console.log("🏦 Processing virtual account deposit...");
+  console.log("🔍 Virtual Account Details:", {
+    userId: aliasAccountReference,
+    amount: transactionAmount,
+    nombaFee,
+    narration: tx.narration,
+  });
+
+  const userId = aliasAccountReference;
+  const narration = tx.narration || "";
+  const senderName =
+    customer.senderName || customer.name || "Bank Transfer";
+
+  // Calculate net amount after Nomba fee (for wallet credit)
+  const netAmount = transactionAmount - nombaFee;
+
+  // Check if narration contains invoice reference (e.g., INV-1234)
+  const invoiceMatch = narration.match(/INV[-_][A-Z0-9]{4,}/i);
+
+  if (invoiceMatch) {
+    // ===== INVOICE PAYMENT VIA VIRTUAL ACCOUNT =====
+    const invoiceRef = invoiceMatch[0].toUpperCase();
+    console.log("🧾 Found invoice reference in narration:", invoiceRef);
+
+    const { data: invoice } = await supabase
+      .from("invoices")
+      .select("*")
+      .eq("invoice_id", invoiceRef)
+      .single();
+
+    if (invoice) {
+      console.log("✅ Found invoice for VA payment:", {
+        invoice_id: invoice.invoice_id,
+        owner_id: invoice.user_id,
+        depositor_id: userId,
       });
 
-      const userId = aliasAccountReference;
-      const narration = tx.narration || "";
-      const senderName =
-        customer.senderName || customer.name || "Bank Transfer";
-
-      // Calculate net amount after Nomba fee
-      const netAmount = transactionAmount - nombaFee;
-
-      // Check if narration contains invoice reference (e.g., INV-1234)
-      const invoiceMatch = narration.match(/INV[-_][A-Z0-9]{4,}/i);
-
-      if (invoiceMatch) {
-        // ===== INVOICE PAYMENT VIA VIRTUAL ACCOUNT =====
-        const invoiceRef = invoiceMatch[0].toUpperCase();
-        console.log("🧾 Found invoice reference in narration:", invoiceRef);
-
-        const { data: invoice } = await supabase
-          .from("invoices")
-          .select("*")
-          .eq("invoice_id", invoiceRef)
-          .single();
-
-        if (invoice) {
-          console.log("✅ Found invoice for VA payment:", {
-            invoice_id: invoice.invoice_id,
-            owner_id: invoice.user_id,
-            depositor_id: userId,
-          });
-
-          // Check for duplicate
-          const { data: existingPayment } = await supabase
-            .from("invoice_payments")
-            .select("*")
-            .eq("nomba_transaction_id", nombaTransactionId)
-            .maybeSingle();
-
-          if (existingPayment) {
-            console.log(
-              "⚠️ Duplicate VA invoice payment, updating totals only",
-            );
-            await updateInvoiceTotals(invoice, transactionAmount);
-            return NextResponse.json({ success: true });
-          }
-
-          // Create invoice payment record with fee details
-          const { error: paymentError } = await supabase
-            .from("invoice_payments")
-            .insert({
-              invoice_id: invoice.id,
-              user_id: invoice.user_id,
-              order_reference: nombaTransactionId,
-              payer_name: senderName,
-              amount: transactionAmount,
-              paid_amount: transactionAmount,
-              nomba_fee: nombaFee,
-              net_amount: netAmount,
-              status: "completed",
-              nomba_transaction_id: nombaTransactionId,
-              payment_method: "virtual_account",
-              narration,
-              paid_at: new Date().toISOString(),
-            });
-
-          if (paymentError) {
-            console.error(
-              "❌ Failed to create VA invoice payment:",
-              paymentError,
-            );
-            return NextResponse.json(
-              { error: "Payment record failed" },
-              { status: 500 },
-            );
-          }
-
-          // Determine who gets credited
-          const creditUserId = invoice.user_id; // Always credit the invoice owner
-          const isCrossUser = invoice.user_id !== userId;
-
-          if (isCrossUser) {
-            console.log("💰 Cross-user invoice payment via VA");
-          }
-
-          // Create transaction record
-          await supabase.from("transactions").insert({
-            user_id: creditUserId,
-            type: "credit",
-            amount: netAmount,
-            gross_amount: transactionAmount,
-            fee: nombaFee,
-            status: "success",
-            reference: `VA-INV-${invoice.invoice_id}-${nombaTransactionId}`,
-            description: `Payment received for invoice ${invoice.invoice_id} via virtual account from ${senderName}`,
-            channel: "virtual_account",
-            sender: {
-              name: senderName,
-              bank: customer.bankName,
-              user_id: isCrossUser ? userId : null,
-            },
-            receiver: {
-              name: invoice.from_name,
-              email: invoice.from_email,
-            },
-            external_response: {
-              nomba_transaction_id: nombaTransactionId,
-              nomba_fee: nombaFee,
-              is_cross_user: isCrossUser,
-            },
-          });
-
-          // Credit invoice owner's wallet - NET AMOUNT
-          const { error: creditError } = await supabase.rpc(
-            "increment_wallet_balance",
-            {
-              user_id: creditUserId,
-              amt: netAmount,
-            },
-          );
-
-          if (creditError) {
-            console.error("❌ Failed to credit invoice owner:", creditError);
-          } else {
-            console.log(
-              `✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to invoice owner ${creditUserId}`,
-            );
-          }
-
-          // Update invoice totals
-          await updateInvoiceTotals(invoice, transactionAmount);
-
-          // Send notification to invoice creator
-          const { data: creator } = await supabase
-            .from("users")
-            .select("email")
-            .eq("id", invoice.user_id)
-            .single();
-
-          if (creator?.email) {
-            sendInvoiceCreatorNotificationEmail(
-              creator.email,
-              invoice.invoice_id,
-              netAmount,
-              senderName,
-              invoice,
-              nombaFee,
-            ).catch(console.error);
-          }
-
-          // Send deposit confirmation to depositor if it's a different user
-          if (isCrossUser) {
-            sendVirtualAccountDepositEmail(
-              userId,
-              transactionAmount,
-              nombaTransactionId,
-              customer.bankName || "N/A",
-              tx.aliasAccountNumber || "N/A",
-              tx.aliasAccountName || "N/A",
-              senderName,
-              narration,
-              nombaFee,
-            ).catch(console.error);
-          }
-
-          return NextResponse.json({
-            success: true,
-            message: "Invoice payment via virtual account processed",
-            net_credit: netAmount,
-            fee_deducted: nombaFee,
-          });
-        }
-      }
-
-      // ===== REGULAR DEPOSIT (NO INVOICE) =====
-      console.log("💰 Regular wallet deposit via virtual account");
-
       // Check for duplicate
-      const { data: existingTx } = await supabase
-        .from("transactions")
+      const { data: existingPayment } = await supabase
+        .from("invoice_payments")
         .select("*")
-        .eq("merchant_tx_ref", nombaTransactionId)
+        .eq("nomba_transaction_id", nombaTransactionId)
         .maybeSingle();
 
-      if (!existingTx) {
-        // Create transaction record with fee deduction
-        const { error: txError } = await supabase.from("transactions").insert({
-          user_id: userId,
-          type: "virtual_account_deposit",
-          amount: netAmount,
-          gross_amount: transactionAmount,
-          fee: nombaFee,
-          status: "success",
-          reference: nombaTransactionId,
-          merchant_tx_ref: nombaTransactionId,
-          description: "Virtual account deposit",
-          narration: narration,
-          channel: "virtual_account",
-          sender: {
-            name: senderName,
-            bank: customer.bankName,
-            account_number: customer.accountNumber,
-          },
-          external_response: {
-            nomba_transaction_id: nombaTransactionId,
-            nomba_fee: nombaFee,
-            original_amount: transactionAmount,
-            net_amount: netAmount,
-          },
+      if (existingPayment) {
+        console.log("⚠️ Duplicate VA invoice payment, updating totals only");
+        await updateInvoiceTotals(invoice, transactionAmount);
+        return NextResponse.json({ success: true });
+      }
+
+      // Create invoice payment record with TOTAL amount (fee separate)
+      const { error: paymentError } = await supabase
+        .from("invoice_payments")
+        .insert({
+          invoice_id: invoice.id,
+          user_id: invoice.user_id,
+          order_reference: nombaTransactionId,
+          payer_name: senderName,
+          amount: transactionAmount,           // TOTAL amount received
+          paid_amount: transactionAmount,      // TOTAL amount received
+          fee: nombaFee,                        // Nomba fee deducted
+          net_amount: netAmount,                // Amount after fee (for reference)
+          status: "completed",
+          nomba_transaction_id: nombaTransactionId,
+          payment_method: "virtual_account",
+          narration,
+          paid_at: new Date().toISOString(),
         });
 
-        if (txError) {
-          console.error("❌ Failed to create VA transaction:", txError);
-          return NextResponse.json(
-            { error: "Failed to create transaction" },
-            { status: 500 },
-          );
-        }
-
-        // Credit wallet - NET AMOUNT (after Nomba fee)
-        const { error: creditError } = await supabase.rpc(
-          "increment_wallet_balance",
-          {
-            user_id: userId,
-            amt: netAmount,
-          },
+      if (paymentError) {
+        console.error("❌ Failed to create VA invoice payment:", paymentError);
+        return NextResponse.json(
+          { error: "Payment record failed" },
+          { status: 500 },
         );
+      }
 
-        if (creditError) {
-          console.error("❌ Failed to credit wallet:", creditError);
+      // Determine who gets credited
+      const creditUserId = invoice.user_id; // Always credit the invoice owner
+      const isCrossUser = invoice.user_id !== userId;
 
-          // Attempt manual credit as fallback
-          const { data: user } = await supabase
-            .from("users")
-            .select("wallet_balance")
-            .eq("id", userId)
-            .single();
+      if (isCrossUser) {
+        console.log("💰 Cross-user invoice payment via VA");
+      }
 
-          if (user) {
-            const newBalance = Number(user.wallet_balance) + netAmount;
-            await supabase
-              .from("users")
-              .update({ wallet_balance: newBalance })
-              .eq("id", userId);
-          }
-        } else {
-          console.log(
-            `✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to wallet ${userId}`,
-          );
-        }
+      // Create transaction record with TOTAL amount
+      await supabase.from("transactions").insert({
+        user_id: creditUserId,
+        type: "credit",
+        amount: transactionAmount,              // TOTAL amount received
+        fee: nombaFee,                           // Fee deducted
+        net_amount: netAmount,                   // Net after fee (for reference)
+        status: "success",
+        reference: `VA-INV-${invoice.invoice_id}-${nombaTransactionId}`,
+        description: `Payment received for invoice ${invoice.invoice_id} via virtual account from ${senderName}`,
+        channel: "virtual_account",
+        sender: { 
+          name: senderName, 
+          bank: customer.bankName,
+          user_id: isCrossUser ? userId : null 
+        },
+        receiver: { 
+          name: invoice.from_name, 
+          email: invoice.from_email 
+        },
+        external_response: { 
+          nomba_transaction_id: nombaTransactionId,
+          nomba_fee: nombaFee,
+          gross_amount: transactionAmount,
+          net_amount: netAmount,
+          is_cross_user: isCrossUser 
+        },
+      });
 
-        // Send email notification
+      // Credit invoice owner's wallet - NET AMOUNT (what they actually get)
+      const { error: creditError } = await supabase.rpc(
+        "increment_wallet_balance",
+        {
+          user_id: creditUserId,
+          amt: netAmount,                        // Credit NET amount after fee
+        },
+      );
+
+      if (creditError) {
+        console.error("❌ Failed to credit invoice owner:", creditError);
+      } else {
+        console.log(
+          `✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to invoice owner ${creditUserId}`,
+        );
+      }
+
+      // Update invoice totals with TOTAL amount
+      await updateInvoiceTotals(invoice, transactionAmount);
+
+      // Send notification to invoice creator
+      const { data: creator } = await supabase
+        .from("users")
+        .select("email")
+        .eq("id", invoice.user_id)
+        .single();
+
+      if (creator?.email) {
+        sendInvoiceCreatorNotificationEmail(
+          creator.email,
+          invoice.invoice_id,
+          netAmount,                              // Show them what they actually received
+          senderName,
+          invoice,
+          nombaFee,
+        ).catch(console.error);
+      }
+
+      // Send deposit confirmation to depositor if it's a different user
+      if (isCrossUser) {
         sendVirtualAccountDepositEmail(
           userId,
-          transactionAmount,
+          transactionAmount,                      // Show them the full amount they sent
           nombaTransactionId,
           customer.bankName || "N/A",
           tx.aliasAccountNumber || "N/A",
@@ -758,17 +656,121 @@ export async function POST(req: NextRequest) {
           narration,
           nombaFee,
         ).catch(console.error);
-      } else {
-        console.log("⚠️ Duplicate VA deposit detected, skipping");
       }
 
-      return NextResponse.json({
+      return NextResponse.json({ 
         success: true,
-        message: "Virtual account deposit processed",
-        net_credit: netAmount,
+        message: "Invoice payment via virtual account processed",
+        gross_amount: transactionAmount,
         fee_deducted: nombaFee,
+        net_credit: netAmount,
       });
     }
+  }
+
+  // ===== REGULAR DEPOSIT (NO INVOICE) =====
+  console.log("💰 Regular wallet deposit via virtual account");
+
+  // Check for duplicate
+  const { data: existingTx } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("merchant_tx_ref", nombaTransactionId)
+    .maybeSingle();
+
+  if (!existingTx) {
+    // Create transaction record with TOTAL amount
+    const { error: txError } = await supabase
+      .from("transactions")
+      .insert({
+        user_id: userId,
+        type: "virtual_account_deposit",
+        amount: transactionAmount,                // TOTAL amount received
+        fee: nombaFee,                             // Nomba fee deducted
+        net_amount: netAmount,                     // Net after fee
+        status: "success",
+        reference: nombaTransactionId,
+        merchant_tx_ref: nombaTransactionId,
+        description: "Virtual account deposit",
+        narration: narration,
+        channel: "virtual_account",
+        sender: { 
+          name: senderName, 
+          bank: customer.bankName,
+          account_number: customer.accountNumber 
+        },
+        external_response: { 
+          nomba_transaction_id: nombaTransactionId,
+          nomba_fee: nombaFee,
+          gross_amount: transactionAmount,
+          net_amount: netAmount,
+        },
+      });
+
+    if (txError) {
+      console.error("❌ Failed to create VA transaction:", txError);
+      return NextResponse.json(
+        { error: "Failed to create transaction" },
+        { status: 500 },
+      );
+    }
+
+    // Credit wallet - NET AMOUNT (after Nomba fee)
+    const { error: creditError } = await supabase.rpc(
+      "increment_wallet_balance",
+      {
+        user_id: userId,
+        amt: netAmount,                            // Credit NET amount after fee
+      },
+    );
+
+    if (creditError) {
+      console.error("❌ Failed to credit wallet:", creditError);
+      
+      // Attempt manual credit as fallback
+      const { data: user } = await supabase
+        .from("users")
+        .select("wallet_balance")
+        .eq("id", userId)
+        .single();
+
+      if (user) {
+        const newBalance = Number(user.wallet_balance) + netAmount;
+        await supabase
+          .from("users")
+          .update({ wallet_balance: newBalance })
+          .eq("id", userId);
+      }
+    } else {
+      console.log(
+        `✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to wallet ${userId}`,
+      );
+    }
+
+    // Send email notification
+    sendVirtualAccountDepositEmail(
+      userId,
+      transactionAmount,                          // Show them the full amount they sent
+      nombaTransactionId,
+      customer.bankName || "N/A",
+      tx.aliasAccountNumber || "N/A",
+      tx.aliasAccountName || "N/A",
+      senderName,
+      narration,
+      nombaFee,
+    ).catch(console.error);
+  } else {
+    console.log("⚠️ Duplicate VA deposit detected, skipping");
+  }
+
+  return NextResponse.json({ 
+    success: true,
+    message: "Virtual account deposit processed",
+    gross_amount: transactionAmount,
+    fee_deducted: nombaFee,
+    net_credit: netAmount,
+  });
+}
 
     // ========== 3. WITHDRAWALS/TRANSFERS ==========
     const isPayout =

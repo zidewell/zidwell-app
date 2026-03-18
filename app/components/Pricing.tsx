@@ -53,8 +53,8 @@ const plans = [
     tier: "zidlite",
     priceId: "price_zidlite_monthly",
     yearlyPriceId: "price_zidlite_yearly",
-    // amount: 4900,
-    amount: 100,
+    amount: 4900,
+    // amount: 100,
     yearlyAmount: 49000,
   },
   {
@@ -78,8 +78,8 @@ const plans = [
     tier: "growth",
     priceId: "price_growth_monthly",
     yearlyPriceId: "price_growth_yearly",
-    // amount: 9900,
-    amount: 100,
+    amount: 9900,
+    // amount: 100,
     yearlyAmount: 99000,
   },
   {
@@ -102,8 +102,8 @@ const plans = [
     tier: "premium",
     priceId: "price_premium_monthly",
     yearlyPriceId: "price_premium_yearly",
-    // amount: 49900,
-    amount: 100,
+    amount: 49900,
+    // amount: 100,
     yearlyAmount: 499000,
   },
   {
@@ -129,8 +129,8 @@ const plans = [
     highlight: false,
     tier: "elite",
     priceId: "elite",
-    // amount: 100000,
-     amount: 100,
+    amount: 100000,
+    //  amount: 100,
   },
 ];
 
