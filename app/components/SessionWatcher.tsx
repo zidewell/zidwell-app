@@ -132,7 +132,6 @@
 
 //   return <>{children}</>;
 // }
-
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -154,32 +153,35 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
   // Check if user is logged in based on your context
   const isUserLoggedIn = !loading && !!userData;
 
+  // Clear payment success cookie on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Clear the payment success cookie if it exists
+      document.cookie = 'payment_success=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
+  }, []);
+
   // Function to perform logout without refresh
   const performLogout = useCallback(async (reason: string = 'inactivity') => {
-    // Prevent multiple logout attempts
     if (logoutInProgressRef.current) return;
     logoutInProgressRef.current = true;
 
     console.log(`Logging out due to: ${reason}`);
 
     try {
-      // Call logout API (fire and forget - don't wait)
       fetch("/api/logout", { 
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
         },
-        // Keepalive ensures the request completes even if page unloads
         keepalive: true
       }).catch(err => console.error("Logout API error:", err));
 
-      // Clear all client-side storage immediately
       if (typeof window !== "undefined") {
         localStorage.removeItem("userData");
         localStorage.removeItem("supabase.auth.token");
         sessionStorage.clear();
         
-        // Clear any other app-specific items
         const keysToRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
@@ -190,29 +192,24 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
         keysToRemove.forEach(key => localStorage.removeItem(key));
       }
 
-      // Update context state (this will trigger UI updates immediately)
       setUserData(null);
 
-      // Small delay to ensure state updates are processed
       setTimeout(() => {
-        // Use replace to prevent going back to protected page
         router.replace("/auth/login?reason=session_expired");
       }, 100);
 
     } catch (error) {
       console.error("Logout error:", error);
-      // Still try to redirect even if API fails
       setUserData(null);
       router.replace("/auth/login?reason=error");
     } finally {
-      // Reset flag after a delay
       setTimeout(() => {
         logoutInProgressRef.current = false;
       }, 2000);
     }
   }, [router, setUserData]);
 
-  // Activity tracking effect
+  // Activity tracking effect (rest of your existing code)
   useEffect(() => {
     if (!isUserLoggedIn) return;
 
@@ -222,13 +219,11 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       setLastActivityTime(Date.now());
     };
 
-    // Debounced activity handler
     const handleActivity = () => {
       clearTimeout(activityTimer);
       activityTimer = setTimeout(updateActivity, 500);
     };
 
-    // Track all user interactions
     const events = [
       "mousedown", "click", "scroll", "keydown", 
       "touchstart", "focus", "mousemove"
@@ -238,7 +233,6 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       document.addEventListener(event, handleActivity, { passive: true });
     });
 
-    // Track route changes via Next.js router
     const originalPush = router.push;
     const originalReplace = router.replace;
     
@@ -252,7 +246,6 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       return originalReplace.apply(router, args);
     };
 
-    // Initial activity
     handleActivity();
 
     return () => {
@@ -261,7 +254,6 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       });
       clearTimeout(activityTimer);
       
-      // Restore original router methods
       router.push = originalPush;
       router.replace = originalReplace;
     };
@@ -274,26 +266,21 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
     let logoutTimer: NodeJS.Timeout;
     let checkInterval: NodeJS.Timeout;
 
-    // Check more frequently (every 5 seconds) for more responsive logout
     const checkInactivity = () => {
-      // Double-check if user is still logged in
       if (!userData || logoutInProgressRef.current) {
         return;
       }
 
       const timeSinceLastActivity = Date.now() - lastActivityTime;
       
-      // If inactive for too long, log out immediately
       if (timeSinceLastActivity > INACTIVITY_LIMIT) {
         console.log(`Inactive for ${Math.round(timeSinceLastActivity / 1000)}s, logging out`);
         performLogout('inactivity');
       }
     };
 
-    // Check every 5 seconds for better responsiveness
     checkInterval = setInterval(checkInactivity, 5000);
     
-    // Also set a precise timer for the exact timeout
     logoutTimer = setTimeout(() => {
       checkInactivity();
     }, INACTIVITY_LIMIT + 1000);
@@ -310,7 +297,6 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        // User returned to tab, check if session should still be valid
         const timeAway = Date.now() - lastActivityTime;
         if (timeAway > INACTIVITY_LIMIT) {
           performLogout('tab_return_timeout');
@@ -327,18 +313,6 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
     };
   }, [isUserLoggedIn, lastActivityTime, performLogout, INACTIVITY_LIMIT]);
 
-  // Handle before unload to clean up
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      // Clean up if needed
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
-
   // Reset activity time when user logs in
   useEffect(() => {
     if (isUserLoggedIn) {
@@ -352,7 +326,6 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
     setIsMounted(true);
   }, []);
 
-  // Don't render anything until mounted
   if (!isMounted) {
     return null;
   }

@@ -270,7 +270,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
-  
+  const [paymentProcessed, setPaymentProcessed] = useState(false);
   // Subscription states
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
@@ -305,6 +305,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const clearNotificationCache = () => {
     notificationCache.clear();
   };
+
+
+  useEffect(() => {
+  if (typeof window !== 'undefined') {
+    const hasPaymentCookie = document.cookie.includes('payment_processed=true');
+    if (hasPaymentCookie) {
+      setPaymentProcessed(true);
+      // Clear the cookie
+      document.cookie = 'payment_processed=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
+  }
+}, []);
 
   // Fetch notifications
   const fetchNotifications = async (filter: string = 'all', limit: number = 50) => {
@@ -795,27 +807,34 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   // Initialize user from localStorage
   useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        const storedUser = localStorage.getItem("userData");
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-          setUserData(parsedUser);
-          
-          const isPublic = isPublicPage();
-          setShouldFetchData(!isPublic);
+  const initializeUser = async () => {
+    try {
+      const storedUser = localStorage.getItem("userData");
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setUserData(parsedUser);
+        
+        const isPublic = isPublicPage();
+        setShouldFetchData(!isPublic);
+        
+        // If payment was processed, refresh subscription data
+        if (paymentProcessed) {
+          setTimeout(() => {
+            refreshSubscription();
+          }, 1000);
         }
-      } catch (error) {
-        console.error("Failed to parse localStorage user:", error);
-      } finally {
-        setInitialCheckDone(true);
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Failed to parse localStorage user:", error);
+    } finally {
+      setInitialCheckDone(true);
+      setLoading(false);
+    }
+  };
 
-    initializeUser();
-  }, []);
+  initializeUser();
+}, [paymentProcessed]);
 
   // Watch for pathname changes
   useEffect(() => {

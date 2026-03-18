@@ -1,4 +1,3 @@
-// lib/auth-check-api.ts
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -10,7 +9,7 @@ const supabase = createClient(
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  subscription_tier?: 'free' | 'growth' | 'premium' | 'elite';
+  subscription_tier?: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite';
   subscription_expires_at?: string | null;
   is_subscription_active?: boolean;
 }
@@ -20,18 +19,17 @@ export async function isAuthenticated(req: NextRequest): Promise<AuthenticatedUs
     const token = req.cookies.get("sb-access-token")?.value;
     
     if (!token) {
+      console.log("🔴 No access token found");
       return null;
     }
     
-    // Get user from Supabase Auth
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
-      console.error("Auth error:", authError);
+      console.error("🔴 Auth error:", authError);
       return null;
     }
 
-    // Get additional user data from database including subscription info
     const { data: userData, error: dbError } = await supabase
       .from("users")
       .select("subscription_tier, subscription_expires_at")
@@ -39,8 +37,7 @@ export async function isAuthenticated(req: NextRequest): Promise<AuthenticatedUs
       .single();
 
     if (dbError) {
-      console.error("Error fetching user data:", dbError);
-      // Return basic user even if DB fetch fails
+      console.error("🔴 Error fetching user data:", dbError);
       return {
         id: user.id,
         email: user.email!,
@@ -49,7 +46,6 @@ export async function isAuthenticated(req: NextRequest): Promise<AuthenticatedUs
       };
     }
 
-    // Check if subscription is active
     let isSubscriptionActive = true;
     if (userData.subscription_tier && userData.subscription_tier !== 'free') {
       if (userData.subscription_expires_at) {
@@ -57,6 +53,12 @@ export async function isAuthenticated(req: NextRequest): Promise<AuthenticatedUs
         isSubscriptionActive = expiresAt > new Date();
       }
     }
+
+    console.log("✅ User authenticated:", { 
+      id: user.id, 
+      tier: userData.subscription_tier || 'free',
+      isActive: isSubscriptionActive 
+    });
 
     return {
       id: user.id,
@@ -66,15 +68,14 @@ export async function isAuthenticated(req: NextRequest): Promise<AuthenticatedUs
       is_subscription_active: isSubscriptionActive,
     };
   } catch (error) {
-    console.error("Auth error:", error);
+    console.error("🔴 Auth error:", error);
     return null;
   }
 }
 
-// Helper function to check if user has required subscription tier
 export async function hasRequiredTier(
   req: NextRequest,
-  requiredTier: 'free' | 'growth' | 'premium' | 'elite'
+  requiredTier: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite'
 ): Promise<{ hasAccess: boolean; user: AuthenticatedUser | null; error?: string }> {
   const user = await isAuthenticated(req);
   
@@ -86,12 +87,10 @@ export async function hasRequiredTier(
     };
   }
 
-  // Define tier hierarchy
-  const tierHierarchy = ['free', 'growth', 'premium', 'elite'];
+  const tierHierarchy = ['free', 'zidlite', 'growth', 'premium', 'elite'];
   const userTierIndex = tierHierarchy.indexOf(user.subscription_tier || 'free');
   const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
 
-  // Check if user's tier meets requirement
   if (userTierIndex < requiredTierIndex) {
     return {
       hasAccess: false,
@@ -100,7 +99,6 @@ export async function hasRequiredTier(
     };
   }
 
-  // For paid tiers, check if subscription is active
   if (requiredTier !== 'free' && !user.is_subscription_active) {
     return {
       hasAccess: false,
@@ -127,14 +125,12 @@ export async function checkFeatureAccess(
     };
   }
 
-  // Utility services (identified by featureKey) are always accessible
-  const utilityFeatures = ['transfer_fee']; // These are just for fee calculation, not access control
+  const utilityFeatures = ['transfer_fee'];
   if (utilityFeatures.includes(featureKey)) {
     return { hasAccess: true, user };
   }
 
   try {
-    // For core business features, check subscription
     const { data: features, error: featuresError } = await supabase
       .from("subscription_features")
       .select("feature_key, feature_value, feature_limit")
@@ -155,17 +151,10 @@ export async function checkFeatureAccess(
       };
     }
 
-    // Check if feature value is "true" (boolean feature)
-    if (feature.feature_value === 'true') {
+    if (feature.feature_value === 'true' || feature.feature_value === 'unlimited') {
       return { hasAccess: true, user };
     }
 
-    // Check if feature is unlimited
-    if (feature.feature_value === 'unlimited') {
-      return { hasAccess: true, user };
-    }
-
-    // Check numeric limits
     if (feature.feature_limit && currentCount !== undefined) {
       if (currentCount >= feature.feature_limit) {
         return {
@@ -185,10 +174,8 @@ export async function checkFeatureAccess(
   }
 }
 
-// Helper to get user's subscription details
 export async function getUserSubscriptionDetails(userId: string) {
   try {
-    // Get user's subscription from subscriptions table
     const { data: subscription, error: subError } = await supabase
       .from("subscriptions")
       .select("*")
@@ -198,11 +185,10 @@ export async function getUserSubscriptionDetails(userId: string) {
       .limit(1)
       .single();
 
-    if (subError && subError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+    if (subError && subError.code !== 'PGRST116') {
       console.error("Error fetching subscription:", subError);
     }
 
-    // Get user's tier from users table
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("subscription_tier, subscription_expires_at")
@@ -214,7 +200,6 @@ export async function getUserSubscriptionDetails(userId: string) {
       return null;
     }
 
-    // Get features for the tier
     const { data: features, error: featuresError } = await supabase
       .from("subscription_features")
       .select("feature_key, feature_value, feature_limit")
@@ -245,7 +230,6 @@ export async function getUserSubscriptionDetails(userId: string) {
   }
 }
 
-// Helper to check if user has exceeded their limit
 export async function checkUsageLimit(
   userId: string,
   featureKey: string,
@@ -260,7 +244,7 @@ export async function checkUsageLimit(
       .single();
 
     if (error || !features) {
-      return { withinLimit: true }; // If no limit defined, assume within limit
+      return { withinLimit: true };
     }
 
     const limit = features.feature_limit;
@@ -275,21 +259,33 @@ export async function checkUsageLimit(
     return { withinLimit: true, limit };
   } catch (error) {
     console.error("Error checking usage limit:", error);
-    return { withinLimit: true }; // Fail open on error
+    return { withinLimit: true };
   }
 }
 
-// Helper to increment usage counter
 export async function incrementUsage(
   userId: string,
   featureKey: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-
     console.log(`Incrementing usage for user ${userId}, feature ${featureKey}`);
     return { success: true };
   } catch (error) {
     console.error("Error incrementing usage:", error);
     return { success: false, error: "Failed to increment usage" };
   }
+}
+
+export function redirectToLogin(req: NextRequest, customMessage?: string) {
+  const { pathname, search } = req.nextUrl;
+  const fullUrl = `${pathname}${search}`;
+  
+  const loginUrl = new URL("/auth/login", req.url);
+  loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
+  
+  if (customMessage) {
+    loginUrl.searchParams.set("message", encodeURIComponent(customMessage));
+  }
+  
+  return loginUrl.toString();
 }

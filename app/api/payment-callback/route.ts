@@ -6,6 +6,7 @@ const baseUrl =
     ? "http://localhost:3000"
     : "https://zidwell.com";
 
+// Use service role for database operations
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -36,8 +37,6 @@ async function handleCallback(request: Request) {
       allParams: Object.fromEntries(url.searchParams)
     });
 
-    console.log('🔵 Processing callback with orderReference:', orderReference);
-
     if (!orderReference) {
       console.error('🔴 No order reference found');
       return NextResponse.redirect(
@@ -53,12 +52,8 @@ async function handleCallback(request: Request) {
       .eq('reference', orderReference)
       .single();
 
-    if (paymentError) {
-      console.error("🔴 Payment lookup error:", paymentError);
-    }
-    
-    if (!payment) {
-      console.error("🔴 Payment not found for reference:", orderReference);
+    if (paymentError || !payment) {
+      console.error("🔴 Payment not found:", orderReference);
       return NextResponse.redirect(
         new URL('/pricing?payment=error&reason=not_found', baseUrl)
       );
@@ -67,7 +62,6 @@ async function handleCallback(request: Request) {
     console.log("🔵 Found payment:", {
       id: payment.id,
       user_id: payment.user_id,
-      amount: payment.amount,
       status: payment.status,
       metadata: payment.metadata
     });
@@ -76,30 +70,30 @@ async function handleCallback(request: Request) {
     if (payment.status === 'completed') {
       console.log("🟡 Payment already completed, redirecting to dashboard");
       const { planTier } = payment.metadata || {};
+      
+      // Get user email for session
+      const { data: userData } = await supabase
+        .from('users')
+        .select('email')
+        .eq('id', payment.user_id)
+        .single();
+
+      if (userData?.email) {
+        return NextResponse.redirect(
+          new URL(`/api/auth/auto-login?userId=${payment.user_id}&email=${encodeURIComponent(userData.email)}&plan=${planTier || ''}`, baseUrl)
+        );
+      }
+      
       return NextResponse.redirect(
         new URL(`/dashboard?subscription=success&plan=${planTier || ''}`, baseUrl)
       );
     }
 
-    // SINCE NOMBA REDIRECTS WITHOUT STATUS, WE ASSUME SUCCESS
-    console.log("✅ Assuming payment successful - processing subscription...");
+    // Process the subscription
+    console.log("✅ Processing successful payment...");
 
-    // Verify the user exists
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id, subscription_tier, email')
-      .eq('id', payment.user_id)
-      .single();
-
-    if (userError || !user) {
-      console.error('🔴 User not found:', payment.user_id);
-      return NextResponse.redirect(
-        new URL('/pricing?payment=user_not_found', baseUrl)
-      );
-    }
-
-    // Update payment status to completed
-    const { error: updateError } = await supabase
+    // Update payment status
+    await supabase
       .from('subscription_payments')
       .update({ 
         status: 'completed',
@@ -107,16 +101,12 @@ async function handleCallback(request: Request) {
       })
       .eq('reference', orderReference);
 
-    if (updateError) {
-      console.error("🔴 Failed to update payment:", updateError);
-    }
-
-    // Get plan details from metadata
+    // Get plan details
     const { planTier, billingPeriod } = payment.metadata;
     
     console.log('🔵 Processing subscription for tier:', planTier);
 
-    // Calculate expiration date
+    // Calculate expiration
     const expiresAt = new Date();
     if (billingPeriod === 'yearly') {
       expiresAt.setFullYear(expiresAt.getFullYear() + 1);
@@ -162,7 +152,7 @@ async function handleCallback(request: Request) {
       .eq('reference', orderReference);
 
     // Update user
-    const { error: userUpdateError } = await supabase
+    await supabase
       .from('users')
       .update({
         subscription_tier: planTier,
@@ -171,19 +161,29 @@ async function handleCallback(request: Request) {
       })
       .eq('id', payment.user_id);
 
-    if (userUpdateError) {
-      console.error('🔴 Failed to update user:', userUpdateError);
-    }
-
     console.log('✅✅✅ SUBSCRIPTION ACTIVATED:', { 
       userId: payment.user_id, 
-      tier: planTier,
-      expiresAt: expiresAt.toISOString() 
+      tier: planTier
     });
 
-    // Redirect to dashboard with success
+    // Get user email for auto-login
+    const { data: userData } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', payment.user_id)
+      .single();
+
+    if (!userData?.email) {
+      console.error('🔴 Could not find user email');
+      return NextResponse.redirect(
+        new URL('/auth/login?reason=user_not_found', baseUrl)
+      );
+    }
+
+    // Redirect to auto-login endpoint to set session cookies
+    console.log('✅ Redirecting to auto-login');
     return NextResponse.redirect(
-      new URL(`/dashboard?subscription=success&plan=${planTier}`, baseUrl)
+      new URL(`/api/auth/auto-login?userId=${payment.user_id}&email=${encodeURIComponent(userData.email)}&plan=${planTier}`, baseUrl)
     );
     
   } catch (error) {

@@ -290,7 +290,6 @@
 //   ],
 // };
 
-
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -317,8 +316,8 @@ async function checkSubscriptionAccess(userId: string, requiredTier: string = 'f
 
     const userTier = user.subscription_tier || 'free';
     
-    // Define tier hierarchy
-    const tierHierarchy = ['free', 'growth', 'premium', 'elite'];
+    // Define tier hierarchy - updated to include zidlite
+    const tierHierarchy = ['free', 'zidlite', 'growth', 'premium', 'elite'];
     const userTierIndex = tierHierarchy.indexOf(userTier);
     const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
 
@@ -386,13 +385,27 @@ async function checkUserVerification(userId: string): Promise<boolean> {
 }
 
 export async function middleware(req: NextRequest) {
+  const currentPath = req.nextUrl.pathname;
+
+  // ✅ ALLOW PAYMENT CALLBACK AND AUTO-LOGIN TO PASS THROUGH WITHOUT AUTH
+  if (currentPath === '/api/payment-callback' || currentPath === '/api/auth/auto-login') {
+    console.log("🔵 Payment callback/auto-login bypassing middleware auth");
+    return NextResponse.next();
+  }
+
   let accessToken = req.cookies.get("sb-access-token")?.value;
   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
   const verified = req.cookies.get("verified")?.value;
-  
-  const currentPath = req.nextUrl.pathname;
 
-  // Define premium routes that require specific subscription tiers
+  // ✅ Allow dashboard access with payment_processed cookie
+  if (currentPath.startsWith('/dashboard') && req.cookies.get('payment_processed')) {
+    console.log("🟡 Post-payment access granted");
+    const response = NextResponse.next();
+    response.cookies.delete('payment_processed');
+    return response;
+  }
+
+  // Define premium routes that require specific subscription tiers - updated to include zidlite
   const premiumRoutes = [
     { path: '/dashboard/bookkeeping', requiredTier: 'growth' },
     { path: '/dashboard/tax-calculator', requiredTier: 'growth' },
@@ -403,7 +416,7 @@ export async function middleware(req: NextRequest) {
     { path: '/dashboard/cfo-guidance', requiredTier: 'elite' },
   ];
 
-  // Define routes that require BVN verification (excluding My Transaction)
+  // Define routes that require BVN verification
   const bvnRequiredRoutes = [
     '/dashboard/fund-account',
     '/dashboard/fund-account/transfer-page',
@@ -466,17 +479,17 @@ export async function middleware(req: NextRequest) {
         res.cookies.set("sb-access-token", data.session.access_token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
+          sameSite: "lax",
           path: "/",
-          maxAge: 60 * 60 * 24 * 7, // 7 days
+          maxAge: 60 * 60 * 24 * 7,
         });
         
         res.cookies.set("sb-refresh-token", data.session.refresh_token!, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
+          sameSite: "lax",
           path: "/",
-          maxAge: 60 * 60 * 24 * 7, // 7 days
+          maxAge: 60 * 60 * 24 * 7,
         });
         
         // Update access token for further checks in this request
@@ -495,7 +508,6 @@ export async function middleware(req: NextRequest) {
           process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
 
-        // Get user ID from token
         const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(accessToken);
 
         if (userError || !user) {
@@ -508,16 +520,15 @@ export async function middleware(req: NextRequest) {
         if (!isVerified) {
           console.log(`User lacks BVN verification for ${currentPath}`);
           
-          // Store the intended URL to redirect back after verification
           const response = NextResponse.redirect(
             new URL(`/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`, req.url)
           );
           
-          // Add a flash message cookie
           response.cookies.set('verification_message', 'Please verify your BVN to access this feature', {
             httpOnly: true,
-            maxAge: 5, // 5 seconds
+            maxAge: 5,
             path: '/',
+            sameSite: 'lax',
           });
           
           return response;
@@ -535,7 +546,6 @@ export async function middleware(req: NextRequest) {
           process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
 
-        // Get user ID from token
         const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(accessToken);
 
         if (userError || !user) {
@@ -551,16 +561,15 @@ export async function middleware(req: NextRequest) {
         if (!hasAccess) {
           console.log(`User lacks ${matchedPremiumRoute.requiredTier} access for ${currentPath}`);
           
-          // Store the intended URL to redirect back after upgrade
           const response = NextResponse.redirect(
             new URL(`/pricing?upgrade=${matchedPremiumRoute.requiredTier}&redirect=${encodeURIComponent(currentPath)}`, req.url)
           );
           
-          // Add a flash message cookie
           response.cookies.set('subscription_message', `This feature requires the ${matchedPremiumRoute.requiredTier} plan`, {
             httpOnly: true,
-            maxAge: 5, // 5 seconds
+            maxAge: 5,
             path: '/',
+            sameSite: 'lax',
           });
           
           return response;
@@ -570,11 +579,10 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    // ✅ Admin protection (for both /admin and /blog/admin)
+    // ✅ Admin protection
     if (currentPath.startsWith("/admin") || currentPath.startsWith("/blog/admin")) {
       console.log("Admin route detected, checking admin permissions");
       
-      // Make sure we have an access token at this point
       if (!accessToken) {
         console.log("No access token for admin check, redirecting to login");
         return redirectToLogin(req);
@@ -608,7 +616,6 @@ export async function middleware(req: NextRequest) {
 
         console.log(`User admin role: ${profile?.admin_role}`);
 
-
         const allowedAdminRoles = [
           "super_admin", 
           "finance_admin", 
@@ -638,13 +645,11 @@ function redirectToLogin(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const fullUrl = `${pathname}${search}`;
   
-  // Create login URL with callback parameter
   const loginUrl = new URL("/auth/login", req.url);
   loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
   
   const res = NextResponse.redirect(loginUrl);
   
-  // Clear all auth cookies
   res.cookies.delete("sb-access-token");
   res.cookies.delete("sb-refresh-token");
   res.cookies.delete("verified");
@@ -657,6 +662,8 @@ export const config = {
     "/app", 
     "/dashboard/:path*",
     "/admin/:path*",
-    "/blog/admin/:path*", 
+    "/blog/admin/:path*",
+    "/api/payment-callback",
+    "/api/auth/auto-login",
   ],
 };
