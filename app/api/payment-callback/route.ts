@@ -1,4 +1,3 @@
-// app/api/payment-callback/route.ts
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
@@ -94,15 +93,6 @@ export async function POST(request: Request) {
 
       if (subError) {
         console.error('Failed to create subscription:', subError);
-        
-        // Log the error details for debugging
-        console.error('Subscription insert error details:', {
-          code: subError.code,
-          message: subError.message,
-          details: subError.details,
-          userId: payment.user_id
-        });
-        
         return NextResponse.redirect(
           new URL('/pricing?payment=error', baseUrl)
         );
@@ -136,9 +126,11 @@ export async function POST(request: Request) {
         expiresAt: expiresAt.toISOString()
       });
 
+      // 🎉 REDIRECT TO DASHBOARD ON SUCCESS with plan name
       return NextResponse.redirect(
-        new URL('/pricing?payment=success', baseUrl)
+        new URL(`/dashboard?subscription=success&plan=${planTier}`, baseUrl)
       );
+      
     } else {
       // Update payment status to failed
       await supabase
@@ -149,6 +141,7 @@ export async function POST(request: Request) {
         })
         .eq('reference', orderReference);
 
+      // Redirect to pricing with failure
       return NextResponse.redirect(
         new URL('/pricing?payment=failed', baseUrl)
       );
@@ -165,10 +158,12 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const status = url.searchParams.get('status');
   const orderReference = url.searchParams.get('orderReference');
+  const planTier = url.searchParams.get('plan');
   
   if (status === 'SUCCESS') {
+    // Also redirect to dashboard for GET requests
     return NextResponse.redirect(
-      new URL(`/pricing?payment=success&order=${orderReference}`, baseUrl)
+      new URL(`/dashboard?subscription=success&plan=${planTier || ''}`, baseUrl)
     );
   }
   return NextResponse.redirect(new URL('/pricing?payment=failed', baseUrl));
