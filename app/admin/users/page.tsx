@@ -45,6 +45,7 @@ export default function UsersPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("active");
   const [exportLoading, setExportLoading] = useState(false);
+  const [exportAllLoading, setExportAllLoading] = useState(false);
   const [totalCounts, setTotalCounts] = useState({
     active: 0,
     pending: 0
@@ -287,6 +288,37 @@ export default function UsersPage() {
     }
   };
 
+  // New function to export all users (active + pending) in one CSV
+  const handleExportAllUsers = async () => {
+    setExportAllLoading(true);
+    try {
+      const response = await fetch(`/api/admin-apis/users/export-all`);
+      if (!response.ok) throw new Error("Export failed");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `all_users_${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      Swal.fire({
+        icon: "success",
+        title: "Export Successful",
+        text: `Exported all ${totalCounts.active + totalCounts.pending} users to CSV`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (error: any) {
+      Swal.fire({ icon: "error", title: "Export Failed", text: error.message });
+    } finally {
+      setExportAllLoading(false);
+    }
+  };
+
   const handleApprovePendingUser = async (user: any) => {
     const result = await Swal.fire({
       title: "Approve User?",
@@ -465,6 +497,14 @@ export default function UsersPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Users Management</h2>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleExportAllUsers} 
+              disabled={exportAllLoading}
+              className="bg-blue-50 hover:bg-blue-100"
+            >
+              {exportAllLoading ? "Exporting..." : "📊 Export All Users"}
+            </Button>
             <Button variant="outline" onClick={handleExportCSV} disabled={exportLoading}>
               {exportLoading ? "Exporting..." : "📥 Export CSV"}
             </Button>
