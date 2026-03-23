@@ -1,61 +1,32 @@
+// app/api/admin-apis/users/route.ts
+
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAuditLog, getClientInfo } from "@/lib/audit-log";
+import { clearAdminUsersCache, getCachedAdminUsers, setCachedAdminUsers } from "./cache";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const adminUsersCache = new Map();
-const ADMIN_USERS_CACHE_TTL = 2 * 60 * 1000;
-
-interface AdminUsersQuery {
-  q: string | null;
-  page: number;
-  limit: number;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
-}
-
-export function clearAdminUsersCache(filters?: Partial<AdminUsersQuery>) {
-  if (filters && (filters.q !== undefined || filters.page || filters.limit || filters.sortBy || filters.sortOrder)) {
-    const cacheKey = `admin_users_${filters.q || "all"}_${filters.page || 1}_${
-      filters.limit || 20
-    }_${filters.sortBy || "created_at"}_${filters.sortOrder || "desc"}`;
-    const existed = adminUsersCache.delete(cacheKey);
-    if (existed) console.log(`🧹 Cleared specific admin users cache: ${cacheKey}`);
-    return existed;
-  } else {
-    const count = adminUsersCache.size;
-    adminUsersCache.clear();
-    console.log(`🧹 Cleared all admin users cache (${count} entries)`);
-    return count;
-  }
-}
-
-async function getCachedAdminUsers({
+async function fetchAdminUsers({
   q,
   page,
   limit = 20,
   sortBy = "created_at",
   sortOrder = "desc",
-}: AdminUsersQuery) {
-  const cacheKey = `admin_users_${q || "all"}_${page}_${limit}_${sortBy}_${sortOrder}`;
-  const cached = adminUsersCache.get(cacheKey);
-
-  if (cached && Date.now() - cached.timestamp < ADMIN_USERS_CACHE_TTL) {
-    console.log("✅ Using cached admin users data");
-    return { ...cached.data, _fromCache: true };
-  }
-
-  console.log("🔄 Fetching fresh admin users data from database");
-
+}: {
+  q: string | null;
+  page: number;
+  limit: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}) {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  // Fetch verified users (active users with completed KYC)
   let usersQuery = supabaseAdmin
     .from("users")
     .select("*", { count: "exact" })
@@ -78,12 +49,10 @@ async function getCachedAdminUsers({
     throw new Error(`Users fetch error: ${usersError.message}`);
   }
 
-  // Get count of pending users from two sources
   let pendingFromTableCount = 0;
   let pendingFromUsersCount = 0;
   
   try {
-    // Count users in pending_users table
     const { count: pendingTableCount, error: pendingTableError } = await supabaseAdmin
       .from("pending_users")
       .select("*", { count: "exact", head: true });
@@ -92,7 +61,6 @@ async function getCachedAdminUsers({
       pendingFromTableCount = pendingTableCount || 0;
     }
 
-    // Count users in users table with bvn_verification = 'not_submitted'
     const { count: pendingUsersCount, error: pendingUsersError } = await supabaseAdmin
       .from("users")
       .select("*", { count: "exact", head: true })
@@ -107,7 +75,7 @@ async function getCachedAdminUsers({
 
   const totalPendingUsers = pendingFromTableCount + pendingFromUsersCount;
 
-  const responseData = {
+  return {
     users: usersData || [],
     total: usersCount || 0,
     page,
@@ -122,17 +90,7 @@ async function getCachedAdminUsers({
       by: sortBy,
       order: sortOrder,
     },
-    _fromCache: false,
   };
-
-  adminUsersCache.set(cacheKey, {
-    data: responseData,
-    timestamp: Date.now(),
-  });
-
-  console.log(`✅ Cached ${usersData?.length || 0} admin users for page ${page}`);
-
-  return responseData;
 }
 
 export async function GET(req: NextRequest) {
@@ -158,12 +116,20 @@ export async function GET(req: NextRequest) {
       console.log(`🔄 Force refreshing admin users data`);
     }
 
-    const result = await getCachedAdminUsers({ q, page, limit, sortBy, sortOrder });
-    const { _fromCache, ...cleanResponse } = result;
+    let result = await getCachedAdminUsers({ q, page, limit, sortBy, sortOrder });
+    let fromCache = true;
+
+    if (!result) {
+      result = await fetchAdminUsers({ q, page, limit, sortBy, sortOrder });
+      fromCache = false;
+      
+      const cacheKey = `admin_users_${q || "all"}_${page}_${limit}_${sortBy}_${sortOrder}`;
+      setCachedAdminUsers(cacheKey, result);
+    }
 
     return NextResponse.json({
-      ...cleanResponse,
-      _cache: { cached: _fromCache, timestamp: Date.now() },
+      ...result,
+      _cache: { cached: fromCache, timestamp: Date.now() },
       _admin: {
         performedBy: adminUser?.email,
         performedAt: new Date().toISOString(),
@@ -172,5 +138,194 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     console.error("❌ GET /api/admin-apis/users error:", err.message);
     return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
+
+    const allowedRoles = ["super_admin", "operations_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    }
+    const clientInfo = getClientInfo(req.headers);
+
+    const userData = await req.json();
+
+    if (!userData.email || !userData.full_name) {
+      return NextResponse.json(
+        { error: "Email and full name are required" },
+        { status: 400 }
+      );
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("users")
+      .insert({
+        ...userData,
+        created_by: adminUser?.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "create_user",
+      resourceType: "User",
+      resourceId: data.id,
+      description: `Created user: ${data.email}`,
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent,
+    });
+
+    clearAdminUsersCache();
+
+    return NextResponse.json({
+      user: data,
+      message: "User created successfully",
+    });
+  } catch (err: any) {
+    console.error("❌ POST /api/admin-apis/users error:", err.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
+
+    const allowedRoles = ["super_admin", "operations_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    }
+    const clientInfo = getClientInfo(req.headers);
+
+    const url = new URL(req.url);
+    const userId = url.searchParams.get("id");
+    const updates = await req.json();
+
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    if (!updates || Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "Update data is required" }, { status: 400 });
+    }
+
+    const { data: user, error: fetchError } = await supabaseAdmin
+      .from("users")
+      .select("email")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("users")
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+        updated_by: adminUser?.id,
+      })
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "update_user",
+      resourceType: "User",
+      resourceId: userId,
+      description: `Updated user: ${user?.email}`,
+      metadata: { updatedFields: Object.keys(updates) },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent,
+    });
+
+    clearAdminUsersCache();
+
+    return NextResponse.json({
+      user: data,
+      message: "User updated successfully",
+    });
+  } catch (err: any) {
+    console.error("❌ PATCH /api/admin-apis/users error:", err.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
+
+    const allowedRoles = ["super_admin", "operations_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    }
+    const clientInfo = getClientInfo(req.headers);
+
+    const url = new URL(req.url);
+    const userId = url.searchParams.get("id");
+
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    const { data: user, error: fetchError } = await supabaseAdmin
+      .from("users")
+      .select("email")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const { error } = await supabaseAdmin
+      .from("users")
+      .delete()
+      .eq("id", userId);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "delete_user",
+      resourceType: "User",
+      resourceId: userId,
+      description: `Deleted user: ${user?.email}`,
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent,
+    });
+
+    clearAdminUsersCache();
+
+    return NextResponse.json({
+      message: "User deleted successfully",
+    });
+  } catch (err: any) {
+    console.error("❌ DELETE /api/admin-apis/users error:", err.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

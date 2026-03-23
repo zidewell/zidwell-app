@@ -1,7 +1,10 @@
+// app/api/admin-apis/users/pending-users/route.ts
+
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAuditLog, getClientInfo } from "@/lib/audit-log";
+import { clearAdminUsersCache } from "../cache";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -49,24 +52,36 @@ async function getCachedPendingUsers({
     console.log("✅ Using cached pending users data");
     return { ...cached.data, _fromCache: true };
   }
+  return null;
+}
 
-  console.log("🔄 Fetching fresh pending users data from database");
+function setCachedPendingUsers(cacheKey: string, data: any) {
+  pendingUsersCache.set(cacheKey, {
+    data,
+    timestamp: Date.now(),
+  });
+}
 
+async function fetchPendingUsers({
+  q,
+  page,
+  limit = 20,
+  sortBy = "created_at",
+  sortOrder = "desc",
+}: PendingUsersQuery) {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  // Fetch from pending_users table
   let pendingTableQuery = supabaseAdmin
     .from("pending_users")
     .select("*", { count: "exact" })
     .order(sortBy, { ascending: sortOrder === "asc" })
     .range(from, to);
 
-  // Fetch from users table with bvn_verification = 'not_submitted'
   let usersQuery = supabaseAdmin
     .from("users")
     .select("*", { count: "exact" })
-    .eq("bvn_verification", "not_submitted")
+    .in("bvn_verification", ["not_submitted", "pending", null])
     .order(sortBy, { ascending: sortOrder === "asc" })
     .range(from, to);
 
@@ -91,7 +106,6 @@ async function getCachedPendingUsers({
     throw new Error(`Users fetch error: ${usersResult.error.message}`);
   }
 
-  // Combine and format users
   const pendingTableUsers = (pendingTableResult.data || []).map((user: any) => ({
     ...user,
     full_name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
@@ -105,18 +119,16 @@ async function getCachedPendingUsers({
     ...user,
     full_name: user.full_name || '',
     source: 'users_table',
-    kyc_status: 'not_submitted',
+    kyc_status: user.bvn_verification || 'not_submitted',
     status: 'pending',
     is_blocked: user.is_blocked || false,
   }));
 
   const allPendingUsers = [...pendingTableUsers, ...usersWithPendingKYC];
   const totalCount = (pendingTableResult.count || 0) + (usersResult.count || 0);
-  
-  // Apply pagination manually since we combined two sources
   const paginatedUsers = allPendingUsers.slice(from, to);
 
-  const responseData = {
+  return {
     users: paginatedUsers,
     total: totalCount,
     page,
@@ -131,17 +143,7 @@ async function getCachedPendingUsers({
       by: sortBy,
       order: sortOrder,
     },
-    _fromCache: false,
   };
-
-  pendingUsersCache.set(cacheKey, {
-    data: responseData,
-    timestamp: Date.now(),
-  });
-
-  console.log(`✅ Cached ${paginatedUsers.length} pending users for page ${page}`);
-
-  return responseData;
 }
 
 export async function GET(req: NextRequest) {
@@ -164,18 +166,22 @@ export async function GET(req: NextRequest) {
 
     if (nocache) {
       clearPendingUsersCache({ q, page, limit, sortBy, sortOrder });
-      console.log(`🔄 Force refreshing pending users data`);
     }
 
-    const result = await getCachedPendingUsers({ q, page, limit, sortBy, sortOrder });
-    const { _fromCache, ...cleanResponse } = result;
+    let result = await getCachedPendingUsers({ q, page, limit, sortBy, sortOrder });
+    let fromCache = true;
+
+    if (!result) {
+      result = await fetchPendingUsers({ q, page, limit, sortBy, sortOrder });
+      fromCache = false;
+      
+      const cacheKey = `pending_users_${q || "all"}_${page}_${limit}_${sortBy}_${sortOrder}`;
+      setCachedPendingUsers(cacheKey, result);
+    }
 
     return NextResponse.json({
-      ...cleanResponse,
-      _cache: {
-        cached: _fromCache,
-        timestamp: Date.now(),
-      },
+      ...result,
+      _cache: { cached: fromCache, timestamp: Date.now() },
       _admin: {
         performedBy: adminUser?.email,
         performedAt: new Date().toISOString(),
@@ -190,7 +196,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Approve a pending user (for users in pending_users table)
 export async function POST(req: NextRequest) {
   try {
     const adminUser = await requireAdmin(req);
@@ -209,7 +214,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    // Check if user is in pending_users table
     const { data: pendingUser, error: fetchError } = await supabaseAdmin
       .from("pending_users")
       .select("*")
@@ -220,7 +224,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Pending user not found" }, { status: 404 });
     }
 
-    // Insert into users table
     const { data: newUser, error: insertError } = await supabaseAdmin
       .from("users")
       .insert({
@@ -235,7 +238,7 @@ export async function POST(req: NextRequest) {
         role: "user",
         referral_code: pendingUser.referred_by || null,
         referral_source: pendingUser.referral_source || null,
-        bvn_verification: "pending", // Set to pending for KYC
+        bvn_verification: "pending",
       })
       .select()
       .single();
@@ -245,20 +248,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to approve user" }, { status: 500 });
     }
 
-    // Delete from pending_users
     await supabaseAdmin.from("pending_users").delete().eq("id", userId);
 
     clearPendingUsersCache();
-    
-    // Clear main users cache
-    try {
-      const { clearAdminUsersCache } = await import('../route');
-      if (clearAdminUsersCache && typeof clearAdminUsersCache === 'function') {
-        clearAdminUsersCache();
-      }
-    } catch (importError) {
-      console.error("Failed to clear main users cache:", importError);
-    }
+    clearAdminUsersCache();
 
     await createAuditLog({
       userId: adminUser?.id,
@@ -281,7 +274,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE: Reject/Delete a pending user
 export async function DELETE(req: NextRequest) {
   try {
     const adminUser = await requireAdmin(req);
@@ -307,12 +299,9 @@ export async function DELETE(req: NextRequest) {
     try {
       const body = await req.json();
       rejectionReason = body.reason || "";
-    } catch (e) {
-      // No body or invalid JSON
-    }
+    } catch (e) {}
 
     if (source === "users_table") {
-      // Delete from users table (for users with incomplete KYC)
       const { data: user, error: fetchError } = await supabaseAdmin
         .from("users")
         .select("email")
@@ -334,7 +323,6 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ error: "Failed to reject user" }, { status: 500 });
       }
     } else {
-      // Delete from pending_users table
       const { data: pendingUser, error: fetchError } = await supabaseAdmin
         .from("pending_users")
         .select("email")
@@ -358,16 +346,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     clearPendingUsersCache();
-
-    // Clear main users cache
-    try {
-      const { clearAdminUsersCache } = await import('../route');
-      if (clearAdminUsersCache && typeof clearAdminUsersCache === 'function') {
-        clearAdminUsersCache();
-      }
-    } catch (importError) {
-      console.error("Failed to clear main users cache:", importError);
-    }
+    clearAdminUsersCache();
 
     await createAuditLog({
       userId: adminUser?.id,
