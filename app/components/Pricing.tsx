@@ -518,7 +518,7 @@ export default function Pricing() {
                   </p>
                 </div>
 
-                <ul className="space-y-2 mb-8 flex-grow">
+                <ul className="space-y-2 mb-8 grow">
                   {plan.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
                       {feature.startsWith("Everything in") ? (

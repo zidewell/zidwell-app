@@ -302,7 +302,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
               border-2 border-[#242424] dark:border-[#474747] rounded-md
               shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] 
               hover:shadow-[6px_6px_0px_#242424] dark:hover:shadow-[6px_6px_0px_rgba(43,130,91,0.4)] 
-              hover:-translate-x-[1px] hover:-translate-y-[1px]
+              hover:-translate-x-px hover:-translate-y-px
               active:shadow-none active:translate-x-0.5 active:translate-y-0.5
               transition-all duration-150 text-center
               ${isDisabled ? "opacity-75 cursor-not-allowed" : "cursor-pointer"}
@@ -377,7 +377,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
             </span>
 
             {/* Description */}
-            <span className="text-xs text-[#6b6b6b] dark:text-[#a6a6a6] leading-tight hidden sm:block font-['Be_Vietnam_Pro']">
+            <span className="text-xs text-[#6b6b6b] dark:text-[#a6a6a6] leading-tight hidden sm:block font-sans">
               {feature.desc}
             </span>
 

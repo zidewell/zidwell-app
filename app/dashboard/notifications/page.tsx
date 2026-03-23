@@ -12,8 +12,8 @@ import {
 import { Badge } from "@/app/components/ui/badge";
 import { useUserContextData } from "../../context/userData";
 import Loader from "../../components/Loader";
-import DashboardSidebar from "../../components/dashboard-sidebar";
-import DashboardHeader from "../../components/dashboard-hearder";
+import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
+import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 
 // EXACT COPY of the Markdown parser from NotificationBell component
 const parseMarkdown = (text: string) => {
@@ -64,6 +64,7 @@ export default function UserNotificationsPage() {
   } = useUserContextData();
 
   const [filter, setFilter] = useState("all");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const filteredNotifications = notifications.filter((notification) => {
     if (filter === "unread") return !notification.read_at;
@@ -133,40 +134,60 @@ export default function UserNotificationsPage() {
 
   if (!userData) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6">
-            <p className="text-center">Please sign in to view notifications.</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
+        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="lg:pl-72 min-h-screen flex flex-col">
+          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+          <main className="flex-1 p-4 md:p-6 lg:p-8">
+            <div className="flex justify-center items-center h-full">
+              <Card className="w-full max-w-md">
+                <CardContent className="p-6">
+                  <p className="text-center">Please sign in to view notifications.</p>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
+        </div>
       </div>
     );
   }
 
   if (notificationsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
+        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="lg:pl-72 min-h-screen flex flex-col">
+          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+          <main className="flex-1 p-4 md:p-6 lg:p-8">
+            <div className="flex justify-center items-center h-full">
+              <Loader />
+            </div>
+          </main>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 fade-in overflow-x-hidden">
-      <DashboardSidebar />
-      <div className="lg:ml-64">
-        <DashboardHeader />
-        <main className="p-5">
-          <div className="md:max-w-6xl md:mx-auto space-y-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
+      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      
+      <div className="lg:pl-72 min-h-screen flex flex-col">
+        <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+        
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
+          <div className="max-w-6xl mx-auto space-y-8">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h1 className="text-3xl font-bold">🔔 Notifications</h1>
-                <p className="text-gray-600">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  🔔 Notifications
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400">
                   {unreadCount > 0
                     ? `${unreadCount} unread notifications`
                     : "All caught up!"}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
                   {notifications.length} total notifications
                 </p>
               </div>
@@ -175,11 +196,16 @@ export default function UserNotificationsPage() {
                   variant="outline"
                   onClick={handleRefresh}
                   disabled={notificationsLoading}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                 >
                   {notificationsLoading ? "Refreshing..." : "Refresh"}
                 </Button>
                 {unreadCount > 0 && (
-                  <Button variant="outline" onClick={markAllAsRead}>
+                  <Button 
+                    variant="outline" 
+                    onClick={markAllAsRead}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                  >
                     Mark All as Read
                   </Button>
                 )}
@@ -188,14 +214,14 @@ export default function UserNotificationsPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               <div className="lg:col-span-3">
-                <Card>
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
                   <CardHeader>
                     <div className="flex justify-between items-center">
-                      <CardTitle>Your Notifications</CardTitle>
+                      <CardTitle className="dark:text-gray-100">Your Notifications</CardTitle>
                       <select
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
-                        className="border rounded px-3 py-2 text-sm"
+                        className="border rounded px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
                       >
                         <option value="all">
                           All ({displayNotifications.length})
@@ -207,7 +233,7 @@ export default function UserNotificationsPage() {
                         <option value="info">Info</option>
                       </select>
                     </div>
-                    <CardDescription>
+                    <CardDescription className="dark:text-gray-400">
                       Showing {displayNotifications.length} notifications
                     </CardDescription>
                   </CardHeader>
@@ -218,10 +244,10 @@ export default function UserNotificationsPage() {
                           key={notification.id}
                           className={`p-4 border rounded-lg transition-colors ${
                             !notification.read_at
-                              ? "bg-blue-50 border-blue-200 shadow-sm"
+                              ? "bg-blue-50 border-blue-200 shadow-sm dark:bg-blue-900/20 dark:border-blue-800"
                               : notification.isPlaceholder
-                              ? "bg-gray-50 border-gray-200"
-                              : "bg-white hover:bg-gray-50"
+                              ? "bg-gray-50 border-gray-200 dark:bg-gray-700/50 dark:border-gray-600"
+                              : "bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-700"
                           } ${notification.isPlaceholder ? "opacity-75" : ""}`}
                         >
                           <div className="flex justify-between items-start gap-4">
@@ -236,23 +262,23 @@ export default function UserNotificationsPage() {
                                 {notification.isPlaceholder && (
                                   <Badge
                                     variant="outline"
-                                    className="text-gray-500"
+                                    className="text-gray-500 dark:text-gray-400"
                                   >
                                     Placeholder
                                   </Badge>
                                 )}
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
                                   {formatDate(notification.created_at)}
                                 </span>
                               </div>
 
-                              <h3 className="font-semibold text-lg mb-2 wrap-break-word">
+                              <h3 className="font-semibold text-lg mb-2 wrap-break-word dark:text-gray-100">
                                 {notification.displayTitle}
                               </h3>
 
                               {/* UPDATED: Use formatted Markdown instead of plain text */}
                               <div
-                                className="text-gray-600 mb-3 wrap-break-word prose prose-sm max-w-none"
+                                className="text-gray-600 dark:text-gray-300 mb-3 wrap-break-word prose prose-sm max-w-none"
                                 dangerouslySetInnerHTML={{
                                   __html: parseMarkdown(
                                     notification.displayMessage
@@ -260,7 +286,7 @@ export default function UserNotificationsPage() {
                                 }}
                               />
 
-                              <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                                 <span className="flex items-center gap-1">
                                   {notification.channels?.includes("email") &&
                                     "📧"}
@@ -286,7 +312,7 @@ export default function UserNotificationsPage() {
                                 onClick={() =>
                                   handleMarkAsRead(notification.id)
                                 }
-                                className="shrink-0"
+                                className="shrink-0 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                               >
                                 Mark Read
                               </Button>
@@ -298,17 +324,21 @@ export default function UserNotificationsPage() {
                       {displayNotifications.length === 0 && (
                         <div className="text-center py-12">
                           <div className="text-6xl mb-4">🔔</div>
-                          <h3 className="text-lg font-semibold mb-2">
+                          <h3 className="text-lg font-semibold mb-2 dark:text-gray-100">
                             {filter === "unread"
                               ? "No unread notifications"
                               : "No notifications found"}
                           </h3>
-                          <p className="text-gray-600 mb-4">
+                          <p className="text-gray-600 dark:text-gray-400 mb-4">
                             {filter === "unread"
                               ? "You're all caught up!"
                               : "No notifications available for this filter"}
                           </p>
-                          <Button variant="outline" onClick={handleRefresh}>
+                          <Button 
+                            variant="outline" 
+                            onClick={handleRefresh}
+                            className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                          >
                             Check for New Notifications
                           </Button>
                         </div>
@@ -319,53 +349,53 @@ export default function UserNotificationsPage() {
               </div>
 
               <div className="space-y-6">
-                <Card>
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
                   <CardHeader>
-                    <CardTitle>Notification Stats</CardTitle>
+                    <CardTitle className="dark:text-gray-100">Notification Stats</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Total:</span>
-                      <span className="font-medium">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Total:</span>
+                      <span className="font-medium dark:text-gray-300">
                         {notifications.length}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Unread:</span>
-                      <span className="font-medium text-blue-600">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Unread:</span>
+                      <span className="font-medium text-blue-600 dark:text-blue-400">
                         {unreadCount}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Showing:</span>
-                      <span className="font-medium text-green-600">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Showing:</span>
+                      <span className="font-medium text-green-600 dark:text-green-400">
                         {displayNotifications.length}
                       </span>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
                   <CardHeader>
-                    <CardTitle>Debug Info</CardTitle>
+                    <CardTitle className="dark:text-gray-100">Debug Info</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-xs">
                     <div className="flex justify-between">
-                      <span>User ID:</span>
-                      <span className="font-mono">
+                      <span className="dark:text-gray-400">User ID:</span>
+                      <span className="font-mono dark:text-gray-300">
                         {userData?.id?.slice(0, 8)}...
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Last Fetch:</span>
-                      <span>
+                      <span className="dark:text-gray-400">Last Fetch:</span>
+                      <span className="dark:text-gray-300">
                         {notificationsLoading ? "Loading..." : "Ready"}
                       </span>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full mt-2"
+                      className="w-full mt-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                       onClick={handleRefresh}
                     >
                       Force Refresh

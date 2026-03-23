@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/app/components/ui/button";
-import Header from "@/app/components/Header";
-import Footer from "@/app/components/Footer";
+import Header from "@/app/components/home-component/Header"; 
+import Footer from "@/app/components/home-component/Footer"; 
 import { useRouter } from "next/navigation";
 
 export default function ReceiptPage() {

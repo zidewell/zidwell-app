@@ -15,8 +15,8 @@ import {
 import { useUserContextData } from "../context/userData";
 import { useEffect, useState } from "react";
 import Loader from "./Loader";
-import DashboardSidebar from "./dashboard-sidebar";
-import DashboardHeader from "./dashboard-hearder";
+import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
+import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 
 // Define transaction types that should show as positive amounts (incoming money)
 const inflowTypes = [
@@ -47,6 +47,7 @@ export default function TransactionDetailsPage() {
   const [transaction, setTransaction] = useState<any>(null);
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchTransactionDetails = async () => {
@@ -508,8 +509,7 @@ export default function TransactionDetailsPage() {
           <p style="margin-top:8px;">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
         </div>
       </div>
-    </body>
-  </html>
+    </html>
 `;
 
     try {
@@ -557,19 +557,27 @@ export default function TransactionDetailsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
+        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="lg:pl-72 min-h-screen flex flex-col">
+          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+          <main className="flex-1 p-4 md:p-6 lg:p-8">
+            <div className="flex justify-center items-center h-full">
+              <Loader />
+            </div>
+          </main>
+        </div>
       </div>
     );
   }
 
   if (!transaction) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <DashboardSidebar />
-        <div className="lg:ml-64">
-          <DashboardHeader />
-          <main className="p-4 sm:p-5">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
+        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="lg:pl-72 min-h-screen flex flex-col">
+          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+          <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="max-w-4xl mx-auto">
               <div className="text-center py-8 sm:py-12">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
@@ -647,15 +655,14 @@ export default function TransactionDetailsPage() {
 
   const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
 
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <DashboardSidebar />
-
-      <div className="lg:ml-64">
-        <DashboardHeader />
-
-        <main className="p-4 sm:p-5">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
+      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      
+      <div className="lg:pl-72 min-h-screen flex flex-col">
+        <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+        
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto">
             {/* Header Section */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -664,7 +671,7 @@ export default function TransactionDetailsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => router.back()}
-                  className="text-[#2b825b] hover:bg-white/10 dark:text-[#3aa873] dark:hover:bg-gray-800 text-sm md:text-base"
+                  className="text-[#2b825b] hover:bg-[#f0efe7] dark:hover:bg-gray-800 text-sm md:text-base"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   <span className="hidden md:block">Back</span>

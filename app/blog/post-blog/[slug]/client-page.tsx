@@ -4,14 +4,23 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ArrowLeft, Share2, Bookmark, Heart, Eye, Clock, Menu, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Share2,
+  Bookmark,
+  Heart,
+  Eye,
+  Clock,
+  Menu,
+  X,
+} from "lucide-react";
 import Swal from "sweetalert2";
 // Components
 import BlogHeader from "@/app/components/blog-components/blog/BlogHeader";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import AudioPlayer from "@/app/components/blog-components/blog/AudioPlayer";
-import ArticleContent from "@/app/components/blog-components/blog/AticleContent"; 
+import ArticleContent from "@/app/components/blog-components/blog/AticleContent";
 import CommentSection from "@/app/components/blog-components/blog/CommentSection";
 import BlogCard from "@/app/components/blog-components/blog/BlogCard";
 import BlogSidebar from "@/app/components/blog-components/blog/BlogSideBar";
@@ -60,7 +69,7 @@ export default function ClientPostPage() {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
   const router = useRouter();
-  
+
   const [post, setPost] = useState<BlogPost | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
@@ -82,7 +91,8 @@ export default function ClientPostPage() {
 
   const showAlert = Swal.mixin({
     customClass: {
-      confirmButton: "bg-[#242424] text-white hover:bg-[#242424]/90 px-4 py-2 rounded",
+      confirmButton:
+        "bg-[#242424] text-white hover:bg-[#242424]/90 px-4 py-2 rounded",
     },
     buttonsStyling: false,
   });
@@ -95,49 +105,50 @@ export default function ClientPostPage() {
       try {
         setIsLoading(true);
         setError(null);
-        
+
         const response = await fetch(`/api/blog/posts/slug/${slug}`);
-        
+
         if (!response.ok) {
           if (response.status === 404) {
             throw new Error("Post not found");
           }
           throw new Error(`Failed to fetch post: ${response.statusText}`);
         }
-        
+
         const postData = await response.json();
-        
+
         if (!postData.is_published) {
           setError("This post is not published yet. It may be in draft mode.");
           setPost(null);
           setIsLoading(false);
           return;
         }
-        
+
         setPost(postData);
         setViewCount(postData.view_count || 0);
         setLikeCount(postData.likes_count || 0);
-        
-        const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+
+        const likedPosts = JSON.parse(
+          localStorage.getItem("likedPosts") || "[]",
+        );
         setIsLiked(likedPosts.includes(postData.id));
-        
+
         // Update view count
         try {
           await fetch(`/api/blog/posts?id=${postData.id}`, {
-            method: 'PATCH',
+            method: "PATCH",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              view_count: (postData.view_count || 0) + 1
+              view_count: (postData.view_count || 0) + 1,
             }),
           });
         } catch (err) {
           // Silently fail view count update
         }
-
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load post');
+        setError(err instanceof Error ? err.message : "Failed to load post");
         setPost(null);
       } finally {
         setIsLoading(false);
@@ -154,9 +165,11 @@ export default function ClientPostPage() {
     const fetchRelatedPosts = async () => {
       try {
         setIsLoadingRelated(true);
-        
+
         // Fetch recent posts
-        const recentResponse = await fetch('/api/blog/posts?limit=6&sort_by=created_at&sort_order=desc');
+        const recentResponse = await fetch(
+          "/api/blog/posts?limit=6&sort_by=created_at&sort_order=desc",
+        );
         if (recentResponse.ok) {
           const recentData = await recentResponse.json();
           const recentPostsList = recentData.posts || recentData;
@@ -172,7 +185,7 @@ export default function ClientPostPage() {
         if (post.categories && post.categories.length > 0) {
           const category = post.categories[0];
           const relatedResponse = await fetch(
-            `/api/blog/posts?category=${encodeURIComponent(category)}&limit=4`
+            `/api/blog/posts?category=${encodeURIComponent(category)}&limit=4`,
           );
           if (relatedResponse.ok) {
             const relatedData = await relatedResponse.json();
@@ -202,10 +215,10 @@ export default function ClientPostPage() {
 
   const handleShare = async () => {
     if (!post) return;
-    
+
     try {
       setIsSharing(true);
-      
+
       if (navigator.share) {
         await navigator.share({
           title: post.title,
@@ -215,9 +228,9 @@ export default function ClientPostPage() {
       } else {
         await navigator.clipboard.writeText(window.location.href);
         await showAlert.fire({
-          title: 'Link Copied!',
-          text: 'Post link has been copied to clipboard.',
-          icon: 'success',
+          title: "Link Copied!",
+          text: "Post link has been copied to clipboard.",
+          icon: "success",
           timer: 1500,
           showConfirmButton: false,
         });
@@ -231,16 +244,16 @@ export default function ClientPostPage() {
 
   const handleBookmark = () => {
     if (!post) return;
-    
+
     setIsBookmarked(!isBookmarked);
-    
-    const bookmarks = JSON.parse(localStorage.getItem('blogBookmarks') || '[]');
+
+    const bookmarks = JSON.parse(localStorage.getItem("blogBookmarks") || "[]");
     if (!isBookmarked) {
       bookmarks.push(post.id);
       showAlert.fire({
-        title: 'Bookmarked!',
-        text: 'Post added to your bookmarks.',
-        icon: 'success',
+        title: "Bookmarked!",
+        text: "Post added to your bookmarks.",
+        icon: "success",
         timer: 1500,
         showConfirmButton: false,
       });
@@ -250,29 +263,29 @@ export default function ClientPostPage() {
         bookmarks.splice(index, 1);
       }
       showAlert.fire({
-        title: 'Removed!',
-        text: 'Post removed from bookmarks.',
-        icon: 'info',
+        title: "Removed!",
+        text: "Post removed from bookmarks.",
+        icon: "info",
         timer: 1500,
         showConfirmButton: false,
       });
     }
-    localStorage.setItem('blogBookmarks', JSON.stringify(bookmarks));
+    localStorage.setItem("blogBookmarks", JSON.stringify(bookmarks));
   };
 
   const handleLike = async () => {
     if (!post) return;
-    
+
     try {
       const newLikeCount = isLiked ? likeCount - 1 : likeCount + 1;
       const newIsLiked = !isLiked;
-      
+
       // Optimistic update
       setLikeCount(newLikeCount);
       setIsLiked(newIsLiked);
-      
+
       // Update localStorage
-      const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+      const likedPosts = JSON.parse(localStorage.getItem("likedPosts") || "[]");
       if (newIsLiked) {
         likedPosts.push(post.id);
       } else {
@@ -281,50 +294,51 @@ export default function ClientPostPage() {
           likedPosts.splice(index, 1);
         }
       }
-      localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
-      
+      localStorage.setItem("likedPosts", JSON.stringify(likedPosts));
+
       // Send update to server
       const response = await fetch(`/api/blog/posts?id=${post.id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          likes_count: newLikeCount
+          likes_count: newLikeCount,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update likes');
+        throw new Error(errorData.error || "Failed to update likes");
       }
 
       showAlert.fire({
-        title: newIsLiked ? 'Liked!' : 'Unliked!',
-        text: newIsLiked ? 'You liked this post' : 'You unliked this post',
-        icon: 'success',
+        title: newIsLiked ? "Liked!" : "Unliked!",
+        text: newIsLiked ? "You liked this post" : "You unliked this post",
+        icon: "success",
         timer: 1500,
         showConfirmButton: false,
       });
-
     } catch (err) {
-      console.error('Error updating like:', err);
-      
+      console.error("Error updating like:", err);
+
       // Rollback optimistic update
       setLikeCount(isLiked ? likeCount + 1 : likeCount - 1);
       setIsLiked(!isLiked);
-      
+
       showAlert.fire({
-        title: 'Error!',
-        text: 'Failed to update like. Please try again.',
-        icon: 'error',
+        title: "Error!",
+        text: "Failed to update like. Please try again.",
+        icon: "error",
       });
     }
   };
 
   useEffect(() => {
     if (post) {
-      const bookmarks = JSON.parse(localStorage.getItem('blogBookmarks') || '[]');
+      const bookmarks = JSON.parse(
+        localStorage.getItem("blogBookmarks") || "[]",
+      );
       setIsBookmarked(bookmarks.includes(post.id));
     }
   }, [post]);
@@ -332,27 +346,29 @@ export default function ClientPostPage() {
   // Close mobile sidebar on escape key
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showMobileSidebar) {
+      if (e.key === "Escape" && showMobileSidebar) {
         setShowMobileSidebar(false);
       }
     };
 
-    document.addEventListener('keydown', handleEscKey);
-    return () => document.removeEventListener('keydown', handleEscKey);
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
   }, [showMobileSidebar]);
 
   // Add font links to head
   useEffect(() => {
     // Add Be Vietnam font
-    const beVietnamLink = document.createElement('link');
-    beVietnamLink.href = 'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap';
-    beVietnamLink.rel = 'stylesheet';
+    const beVietnamLink = document.createElement("link");
+    beVietnamLink.href =
+      "https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap";
+    beVietnamLink.rel = "stylesheet";
     document.head.appendChild(beVietnamLink);
 
     // Add Neue Machina from Fontshare (free alternative)
-    const neueMachinaLink = document.createElement('link');
-    neueMachinaLink.href = 'https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap';
-    neueMachinaLink.rel = 'stylesheet';
+    const neueMachinaLink = document.createElement("link");
+    neueMachinaLink.href =
+      "https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap";
+    neueMachinaLink.rel = "stylesheet";
     document.head.appendChild(neueMachinaLink);
 
     return () => {
@@ -374,27 +390,44 @@ export default function ClientPostPage() {
         <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-16 text-center">
           <div className="max-w-md mx-auto">
             <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 bg-[#E6E6E6] rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 sm:w-12 sm:h-12 text-[#6B6B6B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-10 h-10 sm:w-12 sm:h-12 text-[#6B6B6B]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
-            <h1 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4 text-[#242424]" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            <h1
+              className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4 text-[#242424]"
+              style={{ fontFamily: "'Clash Display', sans-serif" }}
+            >
               Article Not Found
             </h1>
-            <p className="text-[#6B6B6B] mb-4 sm:mb-6 px-4 sm:px-0 text-sm sm:text-base" style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}>
-              {error || "The article you're looking for doesn't exist or hasn't been published yet."}
+            <p
+              className="text-[#6B6B6B] mb-4 sm:mb-6 px-4 sm:px-0 text-sm sm:text-base"
+              style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+            >
+              {error ||
+                "The article you're looking for doesn't exist or hasn't been published yet."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center px-4 sm:px-0">
-              <Button 
-                variant="outline" 
-                onClick={() => router.push('/blog')}
-                className="gap-2 w-full sm:w-auto border-[#E6E6E6] text-[#242424] hover:bg-[#E6E6E6]" 
+              <Button
+                variant="outline"
+                onClick={() => router.push("/blog")}
+                className="gap-2 w-full sm:w-auto border-[#E6E6E6] text-[#242424] hover:bg-[#E6E6E6]"
                 style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Blog
               </Button>
-              <Button 
+              <Button
                 onClick={() => window.location.reload()}
                 className="bg-[#242424] hover:bg-[#242424]/90 text-white gap-2 w-full sm:w-auto"
                 style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
@@ -410,7 +443,7 @@ export default function ClientPostPage() {
 
   const readTime = calculateReadTime(post.content);
   const publishDate = post.published_at || post.created_at;
-  
+
   return (
     <div className="min-h-screen bg-[#FFFFFF]">
       <BlogHeader />
@@ -420,7 +453,7 @@ export default function ClientPostPage() {
         <div className="lg:hidden mb-6 flex justify-between items-center">
           <Button
             variant="ghost"
-            onClick={() => router.push('/blog')}
+            onClick={() => router.push("/blog")}
             className="gap-2 hover:bg-[#E6E6E6] text-[#242424]"
             size="sm"
             style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
@@ -428,7 +461,7 @@ export default function ClientPostPage() {
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden xs:inline">Back to Blog</span>
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -436,7 +469,11 @@ export default function ClientPostPage() {
             className="gap-2 border-[#E6E6E6] text-[#242424]"
             style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
           >
-            {showMobileSidebar ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            {showMobileSidebar ? (
+              <X className="w-4 h-4" />
+            ) : (
+              <Menu className="w-4 h-4" />
+            )}
             <span className="hidden xs:inline">Sidebar</span>
           </Button>
         </div>
@@ -447,7 +484,7 @@ export default function ClientPostPage() {
               <div className="hidden lg:block">
                 <Button
                   variant="ghost"
-                  onClick={() => router.push('/blog')}
+                  onClick={() => router.push("/blog")}
                   className="mb-6 gap-2 hover:bg-[#E6E6E6] text-[#242424]"
                   style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                 >
@@ -470,7 +507,7 @@ export default function ClientPostPage() {
                   ))}
                 </div>
 
-                <h1 
+                <h1
                   className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight mb-4 sm:mb-6 text-[#242424]"
                   style={{ fontFamily: "'Clash Display', sans-serif" }}
                 >
@@ -478,7 +515,7 @@ export default function ClientPostPage() {
                 </h1>
 
                 {post.excerpt && (
-                  <p 
+                  <p
                     className="text-lg sm:text-xl text-[#6B6B6B] mb-4 sm:mb-6 italic border-l-2 sm:border-l-4 border-[#E6E6E6] pl-3 sm:pl-4 py-1 sm:py-2"
                     style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                   >
@@ -488,9 +525,12 @@ export default function ClientPostPage() {
 
                 <div className="flex flex-col gap-4 sm:gap-6 mb-4 sm:mb-6">
                   <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="relative flex-shrink-0">
+                    <div className="relative shrink-0">
                       <Image
-                        src={post.author?.avatar || "https://images.unsplash.com/photo-1463453091185-61582044d556?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHVzZXIlMjBwcm9maWxlfGVufDB8fDB8fHww"}
+                        src={
+                          post.author?.avatar ||
+                          "https://images.unsplash.com/photo-1463453091185-61582044d556?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHVzZXIlMjBwcm9maWxlfGVufDB8fDB8fHww"
+                        }
                         alt={post.author?.name || "Author"}
                         className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-[#E6E6E6]"
                         onError={handleImageError}
@@ -501,13 +541,13 @@ export default function ClientPostPage() {
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-[#242424] rounded-full border-2 border-[#FFFFFF]"></div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 
+                      <h3
                         className="font-semibold text-[#242424] text-sm sm:text-base truncate"
                         style={{ fontFamily: "'Clash Display', sans-serif" }}
                       >
                         {post.author?.name || "Unknown Author"}
                       </h3>
-                      <div 
+                      <div
                         className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-[#6B6B6B] mt-1"
                         style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                       >
@@ -521,15 +561,18 @@ export default function ClientPostPage() {
                           {viewCount} views
                         </span>
                         <span>•</span>
-                        <time dateTime={publishDate} className="whitespace-nowrap">
+                        <time
+                          dateTime={publishDate}
+                          className="whitespace-nowrap"
+                        >
                           {format(new Date(publishDate), "MMM d, yyyy")}
                         </time>
                       </div>
                     </div>
                   </div>
-                  
+
                   {post.author?.bio && (
-                    <div 
+                    <div
                       className="hidden lg:block text-sm text-[#6B6B6B] border-l border-[#E6E6E6] pl-6"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
@@ -548,29 +591,39 @@ export default function ClientPostPage() {
                     style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                   >
                     <Share2 className="w-4 h-4" />
-                    <span className="hidden xs:inline">{isSharing ? "Sharing..." : "Share"}</span>
+                    <span className="hidden xs:inline">
+                      {isSharing ? "Sharing..." : "Share"}
+                    </span>
                   </Button>
-                  
+
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleBookmark}
-                    className={`gap-2 hover:bg-[#E6E6E6] text-[#242424] border-[#E6E6E6] flex-1 sm:flex-none ${isBookmarked ? 'bg-[#E6E6E6]' : ''}`}
+                    className={`gap-2 hover:bg-[#E6E6E6] text-[#242424] border-[#E6E6E6] flex-1 sm:flex-none ${isBookmarked ? "bg-[#E6E6E6]" : ""}`}
                     style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                   >
-                    <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-[#242424] text-[#242424]' : ''}`} />
-                    <span className="hidden xs:inline">{isBookmarked ? "Bookmarked" : "Bookmark"}</span>
+                    <Bookmark
+                      className={`w-4 h-4 ${isBookmarked ? "fill-[#242424] text-[#242424]" : ""}`}
+                    />
+                    <span className="hidden xs:inline">
+                      {isBookmarked ? "Bookmarked" : "Bookmark"}
+                    </span>
                   </Button>
-                  
+
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleLike}
-                    className={`gap-2 hover:bg-[#E6E6E6] text-[#242424] border-[#E6E6E6] flex-1 sm:flex-none ${isLiked ? 'bg-[#E6E6E6]' : ''}`}
+                    className={`gap-2 hover:bg-[#E6E6E6] text-[#242424] border-[#E6E6E6] flex-1 sm:flex-none ${isLiked ? "bg-[#E6E6E6]" : ""}`}
                     style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                   >
-                    <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#242424] text-[#242424]' : ''}`} />
-                    <span className="hidden xs:inline">{likeCount} {isLiked ? 'Liked' : 'Like'}</span>
+                    <Heart
+                      className={`w-4 h-4 ${isLiked ? "fill-[#242424] text-[#242424]" : ""}`}
+                    />
+                    <span className="hidden xs:inline">
+                      {likeCount} {isLiked ? "Liked" : "Like"}
+                    </span>
                   </Button>
                 </div>
 
@@ -597,7 +650,7 @@ export default function ClientPostPage() {
               )}
 
               {/* RENDER FULL CONTENT HERE */}
-              <div 
+              <div
                 className="mb-6 sm:mb-8 text-[#242424]"
                 style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
               >
@@ -614,7 +667,7 @@ export default function ClientPostPage() {
 
               {post.tags && post.tags.length > 0 && (
                 <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-[#E6E6E6]">
-                  <h4 
+                  <h4
                     className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[#242424]"
                     style={{ fontFamily: "'Clash Display', sans-serif" }}
                   >
@@ -622,12 +675,16 @@ export default function ClientPostPage() {
                   </h4>
                   <div className="flex flex-wrap gap-2">
                     {post.tags.map((tag, index) => (
-                      <Badge 
-                        key={index} 
-                        variant="outline" 
+                      <Badge
+                        key={index}
+                        variant="outline"
                         className="text-xs sm:text-sm px-3 py-1 hover:bg-[#E6E6E6] cursor-pointer transition-colors border-[#E6E6E6] text-[#242424]"
                         style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
-                        onClick={() => router.push(`/blog/tag/${tag.toLowerCase().replace(/\s+/g, '-')}`)}
+                        onClick={() =>
+                          router.push(
+                            `/blog/tag/${tag.toLowerCase().replace(/\s+/g, "-")}`,
+                          )
+                        }
                       >
                         #{tag}
                       </Badge>
@@ -639,13 +696,13 @@ export default function ClientPostPage() {
               <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-[#E6E6E6]">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-center">
                   <div className="p-3 sm:p-4 bg-[#E6E6E6] rounded-lg">
-                    <div 
+                    <div
                       className="text-xl sm:text-2xl font-bold text-[#242424]"
                       style={{ fontFamily: "'Clash Display', sans-serif" }}
                     >
                       {viewCount}
                     </div>
-                    <div 
+                    <div
                       className="text-xs sm:text-sm text-[#6B6B6B] mt-1"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
@@ -653,13 +710,13 @@ export default function ClientPostPage() {
                     </div>
                   </div>
                   <div className="p-3 sm:p-4 bg-[#E6E6E6] rounded-lg">
-                    <div 
+                    <div
                       className="text-xl sm:text-2xl font-bold text-[#242424]"
                       style={{ fontFamily: "'Clash Display', sans-serif" }}
                     >
                       {likeCount}
                     </div>
-                    <div 
+                    <div
                       className="text-xs sm:text-sm text-[#6B6B6B] mt-1"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
@@ -667,13 +724,13 @@ export default function ClientPostPage() {
                     </div>
                   </div>
                   <div className="p-3 sm:p-4 bg-[#E6E6E6] rounded-lg">
-                    <div 
+                    <div
                       className="text-xl sm:text-2xl font-bold text-[#242424]"
                       style={{ fontFamily: "'Clash Display', sans-serif" }}
                     >
                       {post.comments_count || 0}
                     </div>
-                    <div 
+                    <div
                       className="text-xs sm:text-sm text-[#6B6B6B] mt-1"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
@@ -681,13 +738,13 @@ export default function ClientPostPage() {
                     </div>
                   </div>
                   <div className="p-3 sm:p-4 bg-[#E6E6E6] rounded-lg">
-                    <div 
+                    <div
                       className="text-xl sm:text-2xl font-bold text-[#242424]"
                       style={{ fontFamily: "'Clash Display', sans-serif" }}
                     >
                       {readTime}
                     </div>
-                    <div 
+                    <div
                       className="text-xs sm:text-sm text-[#6B6B6B] mt-1"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
@@ -695,13 +752,18 @@ export default function ClientPostPage() {
                     </div>
                   </div>
                 </div>
-                <div 
+                <div
                   className="text-center text-xs sm:text-sm text-[#6B6B6B] mt-3 sm:mt-4 px-2"
                   style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                 >
-                  Published on {format(new Date(publishDate), "MMMM d, yyyy 'at' h:mm a")}
+                  Published on{" "}
+                  {format(new Date(publishDate), "MMMM d, yyyy 'at' h:mm a")}
                   {post.updated_at && post.updated_at !== post.created_at && (
-                    <span className="block sm:inline"> • Updated {format(new Date(post.updated_at), "MMMM d, yyyy")}</span>
+                    <span className="block sm:inline">
+                      {" "}
+                      • Updated{" "}
+                      {format(new Date(post.updated_at), "MMMM d, yyyy")}
+                    </span>
                   )}
                 </div>
               </div>
@@ -714,14 +776,14 @@ export default function ClientPostPage() {
             {relatedPosts.length > 0 && (
               <section className="mt-12 sm:mt-16 pt-6 sm:pt-8 border-t border-[#E6E6E6]">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-3">
-                  <h3 
+                  <h3
                     className="text-xl sm:text-2xl font-semibold text-[#242424]"
                     style={{ fontFamily: "'Clash Display', sans-serif" }}
                   >
                     Related Articles
                   </h3>
                 </div>
-                
+
                 {isLoadingRelated ? (
                   <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
                     {[1, 2].map((i) => (
@@ -735,35 +797,42 @@ export default function ClientPostPage() {
                 ) : (
                   <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
                     {relatedPosts.map((relatedPost) => (
-                      <BlogCard 
-                        key={relatedPost.id} 
+                      <BlogCard
+                        key={relatedPost.id}
                         post={{
                           id: relatedPost.id,
                           title: relatedPost.title,
                           slug: relatedPost.slug,
-                          excerpt: relatedPost.excerpt || relatedPost.content.substring(0, 150) + '...',
-                          featuredImage: relatedPost.featured_image || '/images/placeholder.jpg',
-                          categories: relatedPost.categories.map(cat => ({ 
-                            id: cat.toLowerCase().replace(/\s+/g, '-'), 
+                          excerpt:
+                            relatedPost.excerpt ||
+                            relatedPost.content.substring(0, 150) + "...",
+                          featuredImage:
+                            relatedPost.featured_image ||
+                            "/images/placeholder.jpg",
+                          categories: relatedPost.categories.map((cat) => ({
+                            id: cat.toLowerCase().replace(/\s+/g, "-"),
                             name: cat,
-                            slug: cat.toLowerCase().replace(/\s+/g, '-'),
-                            postCount: 0
+                            slug: cat.toLowerCase().replace(/\s+/g, "-"),
+                            postCount: 0,
                           })),
                           tags: relatedPost.tags,
                           author: {
                             id: relatedPost.author?.id || relatedPost.author_id,
-                            name: relatedPost.author?.name || relatedPost.author_name || "Unknown Author",
-                            avatar: relatedPost.author?.avatar || '',
-                            bio: relatedPost.author?.bio || '',
-                            isZidwellUser: false
+                            name:
+                              relatedPost.author?.name ||
+                              relatedPost.author_name ||
+                              "Unknown Author",
+                            avatar: relatedPost.author?.avatar || "",
+                            bio: relatedPost.author?.bio || "",
+                            isZidwellUser: false,
                           },
                           createdAt: relatedPost.created_at,
                           updatedAt: relatedPost.updated_at,
                           readTime: calculateReadTime(relatedPost.content),
                           isPublished: relatedPost.is_published,
                           content: relatedPost.content,
-                          comments: []
-                        }} 
+                          comments: [],
+                        }}
                       />
                     ))}
                   </div>
@@ -782,13 +851,13 @@ export default function ClientPostPage() {
           {/* Mobile Sidebar Overlay */}
           {showMobileSidebar && (
             <>
-              <div 
+              <div
                 className="fixed inset-0 bg-black/50 z-40 lg:hidden"
                 onClick={() => setShowMobileSidebar(false)}
               />
               <div className="fixed inset-y-0 right-0 w-[300px] max-w-[85vw] bg-[#FFFFFF] z-50 lg:hidden overflow-y-auto shadow-2xl p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 
+                  <h3
                     className="text-lg font-semibold text-[#242424]"
                     style={{ fontFamily: "'Clash Display', sans-serif" }}
                   >

@@ -18,7 +18,7 @@ import {
   CommandGroup,
   CommandItem,
 } from "./ui/command";
-import { Check, ChevronsUpDown, Loader2, Bookmark, User } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Bookmark, User, Eye, EyeOff, Landmark, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -82,7 +82,7 @@ export default function Transfer() {
   const [p2pDetails, setP2pDetails] = useState<P2PDetails | null>(null);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const { userData } = useUserContextData();
+  const { userData, balance, lifetimeBalance } = useUserContextData();
   const [pin, setPin] = useState(Array(inputCount).fill(""));
   // Popover state for searchable bank select
   const [open, setOpen] = useState(false);
@@ -107,6 +107,17 @@ export default function Transfer() {
     useState<SavedP2PBeneficiary | null>(null);
   const [showSavedP2PBeneficiaries, setShowSavedP2PBeneficiaries] =
     useState(false);
+
+  // Balance visibility states
+  const [showAlltime, setShowAlltime] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+
+  const formatNumber = (value: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "decimal",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
 
   // Confetti function
   const triggerConfetti = () => {
@@ -739,6 +750,95 @@ export default function Transfer() {
           }
         }}
       />
+
+      {/* 💳 Balance Cards */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        {/* Alltime Balance */}
+        <Card className="bg-linear-to-r from-[#2b825b] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#1e5f43] dark:to-[#b37f1a]">
+          <CardHeader className="p-0">
+            <CardTitle className="text-base md:text-lg font-medium">
+              Alltime Balance
+              <span className="block font-semibold text-xl mt-1">
+                {showAlltime ? `₦${formatNumber(lifetimeBalance)}` : "*****"}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <button
+              onClick={() => setShowAlltime((prev) => !prev)}
+              className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
+            >
+              {showAlltime ? (
+                <EyeOff className="text-white md:text-2xl" />
+              ) : (
+                <Eye className="text-white md:text-2xl" />
+              )}
+            </button>
+          </CardContent>
+        </Card>
+
+        {/* Current Balance */}
+        <Card className="bg-linear-to-r from-gray-600 to-gray-800 text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-gray-700 dark:to-gray-900">
+          <CardHeader className="p-0">
+            <CardTitle className="text-base md:text-lg font-medium">
+              Current Balance
+              <span className="block font-semibold text-xl mt-1">
+                {showCurrent ? `₦${formatNumber(balance ?? 0)}` : "*****"}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <button
+              onClick={() => setShowCurrent((prev) => !prev)}
+              className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
+            >
+              {showCurrent ? (
+                <EyeOff className="text-white md:text-2xl" />
+              ) : (
+                <Eye className="text-white md:text-2xl" />
+              )}
+            </button>
+          </CardContent>
+        </Card>
+
+        {/* Account Number Card */}
+        <Card className="flex items-center justify-between bg-white border shadow-md rounded-xl p-4 dark:bg-gray-800 dark:border-gray-700">
+          <CardHeader className="p-0">
+            <CardTitle className="text-base md:text-lg font-medium text-gray-900 dark:text-gray-100">
+              Your Account Number
+              <div className="font-semibold flex items-center gap-4 mt-1 text-gray-900 dark:text-gray-100">
+                {userDetails?.bank_details?.bank_account_number || "N/A"}
+                <button
+                  className="text-sm border px-3 py-2 rounded-md cursor-pointer hover:bg-gray-100 transition dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300"
+                  onClick={async () => {
+                    if (userDetails?.bank_details?.bank_account_number) {
+                      await navigator.clipboard.writeText(userDetails.bank_details.bank_account_number);
+                      Swal.fire({
+                        icon: "success",
+                        title: "Copied!",
+                        text: "Account number copied to clipboard",
+                        timer: 1500,
+                        showConfirmButton: false,
+                      });
+                    }
+                  }}
+                >
+                  <CopyIcon className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {userDetails?.bank_details?.bank_name || "Loading..."}
+              </p>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="bg-gray-100 p-3 rounded-full dark:bg-gray-700">
+              <Landmark className="md:text-2xl text-gray-700 dark:text-gray-300" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card className="shadow-xl border rounded-2xl dark:bg-gray-800 dark:border-gray-700">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-gray-800 dark:text-gray-100">
@@ -768,24 +868,9 @@ export default function Transfer() {
                   <SelectValue placeholder="Select transfer type" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
-                  <SelectItem
-                    value="my-account"
-                    className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700"
-                  >
-                    My Bank Account
-                  </SelectItem>
-                  <SelectItem
-                    value="other-bank"
-                    className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700"
-                  >
-                    Other Bank Account
-                  </SelectItem>
-                  <SelectItem
-                    value="p2p"
-                    className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700"
-                  >
-                    Zidwell User (P2P)
-                  </SelectItem>
+                  <SelectItem value="my-account" className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700">My Bank Account</SelectItem>
+                  <SelectItem value="other-bank" className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700">Other Bank Account</SelectItem>
+                  <SelectItem value="p2p" className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700">Zidwell User (P2P)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -813,9 +898,7 @@ export default function Transfer() {
               )}
 
               {errors.amount && (
-                <p className="text-red-600 text-sm dark:text-red-400">
-                  {errors.amount}
-                </p>
+                <p className="text-red-600 text-sm dark:text-red-400">{errors.amount}</p>
               )}
             </div>
 
@@ -834,15 +917,11 @@ export default function Transfer() {
                       {userDetails.payment_details.p_bank_name}
                     </p>
                     <p className="dark:text-gray-300">
-                      <strong className="dark:text-gray-200">
-                        Account Number:
-                      </strong>{" "}
+                      <strong className="dark:text-gray-200">Account Number:</strong>{" "}
                       {userDetails.payment_details.p_account_number}
                     </p>
                     <p className="dark:text-gray-300">
-                      <strong className="dark:text-gray-200">
-                        Account Name:
-                      </strong>{" "}
+                      <strong className="dark:text-gray-200">Account Name:</strong>{" "}
                       {userDetails.payment_details.p_account_name}
                     </p>
                   </div>
@@ -857,9 +936,7 @@ export default function Transfer() {
                     </Link>{" "}
                     to add them.
                     {errors.myAccount && (
-                      <p className="text-red-600 text-sm dark:text-red-400">
-                        {errors.myAccount}
-                      </p>
+                      <p className="text-red-600 text-sm dark:text-red-400">{errors.myAccount}</p>
                     )}
                   </div>
                 )}
@@ -939,17 +1016,15 @@ export default function Transfer() {
 
                     <PopoverContent className="w-full p-0 dark:bg-gray-800 dark:border-gray-700">
                       <Command className="dark:bg-gray-800">
-                        <CommandInput
-                          placeholder="Search bank..."
-                          value={search}
-                          onValueChange={setSearch}
+                        <CommandInput 
+                          placeholder="Search bank..." 
+                          value={search} 
+                          onValueChange={setSearch} 
                           autoFocus
                           className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                         />
                         <CommandList>
-                          <CommandEmpty className="dark:text-gray-400">
-                            No bank found.
-                          </CommandEmpty>
+                          <CommandEmpty className="dark:text-gray-400">No bank found.</CommandEmpty>
                           <CommandGroup>
                             {filteredBanks.map((bank) => (
                               <CommandItem
@@ -975,9 +1050,7 @@ export default function Transfer() {
                   </Popover>
 
                   {errors.otherBank && (
-                    <p className="text-red-600 text-sm dark:text-red-400">
-                      {errors.otherBank}
-                    </p>
+                    <p className="text-red-600 text-sm dark:text-red-400">{errors.otherBank}</p>
                   )}
                 </div>
 
@@ -1102,9 +1175,7 @@ export default function Transfer() {
                 )}
 
                 <div className="space-y-1">
-                  <Label className="dark:text-gray-300">
-                    Account Number (Zidwell User)
-                  </Label>
+                  <Label className="dark:text-gray-300">Account Number (Zidwell User)</Label>
                   <Input
                     type="number"
                     value={recepientAcc}
@@ -1165,9 +1236,7 @@ export default function Transfer() {
             <div className="space-y-1">
               <Label className="dark:text-gray-300">
                 Narration{" "}
-                <span className="text-sm dark:text-gray-400">
-                  (purpose of transaction)
-                </span>
+                <span className="text-sm dark:text-gray-400">(purpose of transaction)</span>
               </Label>
               <Input
                 type="text"
@@ -1179,15 +1248,13 @@ export default function Transfer() {
               />
             </div>
             {errors.narration && (
-              <p className="text-red-600 text-sm dark:text-red-400">
-                {errors.narration}
-              </p>
+              <p className="text-red-600 text-sm dark:text-red-400">{errors.narration}</p>
             )}
 
             <Button
               type="submit"
               disabled={isDisabled}
-              className="w-full bg-[#2b825b] hover:bg-[#2b825b]/90 text-white md:w-[200px] dark:bg-[#236b49] dark:hover:bg-[#174c36]"
+              className="w-full bg-[#2b825b] hover:bg-[#174c36] text-white md:w-[200px] dark:bg-[#236b49] dark:hover:bg-[#174c36]"
             >
               {loading ? "Processing..." : "Transfer Now"}
             </Button>

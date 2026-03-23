@@ -1,3 +1,4 @@
+// app/api/profile/update-business-info/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticated } from "@/lib/auth-check-api";
@@ -11,15 +12,15 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const user = await isAuthenticated(req);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please login to access transactions" },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await req.json();
     const {
@@ -30,11 +31,7 @@ export async function POST(req: NextRequest) {
       taxId,
       businessAddress,
       businessDescription,
-      // bankName,
-      // bankCode,
-      // accountNumber,
-      // accountName,
-      cacFileBase64, 
+      cacFileBase64,
     } = body;
 
     if (!userId) {
@@ -45,19 +42,27 @@ export async function POST(req: NextRequest) {
 
     // ✅ Upload CAC file to Supabase Storage if provided
     if (cacFileBase64) {
+      // Determine file type from base64 header
+      const matches = cacFileBase64.match(/^data:([A-Za-z-+\/]+);base64,/);
+      const mimeType = matches ? matches[1] : '';
+      
+      let fileExt = 'pdf';
+      if (mimeType.includes('image')) {
+        fileExt = mimeType.includes('png') ? 'png' : 'jpg';
+      }
+
       const fileBuffer = Buffer.from(cacFileBase64.split(",")[1], "base64");
-      const fileExt = cacFileBase64.startsWith("data:image") ? "png" : "pdf";
       const filePath = `cac/${userId}-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("kyc")
         .upload(filePath, fileBuffer, {
-          contentType: fileExt === "pdf" ? "application/pdf" : "image/png",
+          contentType: mimeType || (fileExt === "pdf" ? "application/pdf" : "image/jpeg"),
           upsert: true,
         });
 
       if (uploadError) {
-        console.error(uploadError);
+        console.error("Upload error:", uploadError);
         return NextResponse.json(
           { error: "Failed to upload CAC document" },
           { status: 500 }
@@ -78,10 +83,14 @@ export async function POST(req: NextRequest) {
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error("Fetch error:", fetchError);
+      throw fetchError;
+    }
 
     let result;
     if (existing) {
+      // Update existing business
       result = await supabase
         .from("businesses")
         .update({
@@ -91,18 +100,12 @@ export async function POST(req: NextRequest) {
           tax_id: taxId,
           business_address: businessAddress,
           business_description: businessDescription,
-          // bank_name: bankName,
-          // bank_code: bankCode,
-          // bank_account_number: accountNumber,
-          // bank_account_name: accountName,
-          cac_file_url: cacFileUrl ?? undefined, // ✅ Save CAC URL
+          cac_file_url: cacFileUrl || undefined,
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", userId);
-
-       
     } else {
-      // ✅ Insert new business
+      // Insert new business
       result = await supabase.from("businesses").insert([
         {
           user_id: userId,
@@ -112,26 +115,31 @@ export async function POST(req: NextRequest) {
           tax_id: taxId,
           business_address: businessAddress,
           business_description: businessDescription,
-          // bank_name: bankName,
-          // bank_code: bankCode,
-          // bank_account_number: accountNumber,
-          // bank_account_name: accountName,
-          cac_file_url: cacFileUrl ?? null, // ✅ Save CAC URL
+          cac_file_url: cacFileUrl,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
       ]);
     }
 
-    if (result.error) throw result.error;
+    if (result.error) {
+      console.error("Insert/Update error:", result.error);
+      throw result.error;
+    }
 
-    //  clearBusinessDataCache(userId)
-    //   clearWalletBalanceCache(userId);
-    //       clearTransactionsCache(userId);
+    // Clear caches
+    // clearBusinessDataCache(userId);
+    // clearWalletBalanceCache(userId);
+    // clearTransactionsCache(userId);
 
-    return NextResponse.json({ success: true, cacFileUrl });
+    return NextResponse.json({ 
+      success: true, 
+      cacFileUrl,
+      message: "Business information updated successfully" 
+    });
+    
   } catch (error: any) {
-    console.error(error);
+    console.error("Business update error:", error);
     return NextResponse.json(
       { error: "Failed to update business info", details: error.message },
       { status: 500 }

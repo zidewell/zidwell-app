@@ -2,8 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Check, Zap, Star, Crown, Rocket, Target, Gem } from "lucide-react";
-import { Button } from "../ui/button"; 
+import {
+  X,
+  Sparkles,
+  Check,
+  Zap,
+  Star,
+  Crown,
+  Rocket,
+  Target,
+  Gem,
+} from "lucide-react";
+import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
 import { useSubscription } from "@/app/hooks/useSubscripion";
 
@@ -14,11 +24,13 @@ interface SubscriptionModalProps {
 
 export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   const navigate = useRouter();
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('monthly');
+  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">(
+    "monthly",
+  );
   const { userTier } = useSubscription();
 
   // Don't render if user tier is elite
-  if (userTier === 'elite') {
+  if (userTier === "elite") {
     return null;
   }
 
@@ -29,20 +41,25 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
   const getNextTier = () => {
     switch (userTier) {
-      case 'free': return 'zidlite';
-      case 'zidlite': return 'growth';
-      case 'growth': return 'premium';
-      case 'premium': return 'elite';
-      default: return 'zidlite';
+      case "free":
+        return "zidlite";
+      case "zidlite":
+        return "growth";
+      case "growth":
+        return "premium";
+      case "premium":
+        return "elite";
+      default:
+        return "zidlite";
     }
   };
 
   const getNextTierInfo = () => {
     switch (userTier) {
-      case 'free':
+      case "free":
         return {
-          currentTier: 'Free Trial',
-          nextTier: 'ZidLite',
+          currentTier: "Free Trial",
+          nextTier: "ZidLite",
           title: "Upgrade to ZidLite",
           description: "Test what finance automation looks like",
           icon: <Zap className="h-6 w-6 text-white" />,
@@ -58,10 +75,10 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             "Unlimited transfers at ₦50 each",
           ],
         };
-      case 'zidlite':
+      case "zidlite":
         return {
-          currentTier: 'ZidLite',
-          nextTier: 'Growth',
+          currentTier: "ZidLite",
+          nextTier: "Growth",
           title: "Upgrade to Growth",
           description: "Structure without stress",
           icon: <Rocket className="h-6 w-6 text-white" />,
@@ -77,10 +94,10 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             "WhatsApp Community + Support",
           ],
         };
-      case 'growth':
+      case "growth":
         return {
-          currentTier: 'Growth',
-          nextTier: 'Premium',
+          currentTier: "Growth",
+          nextTier: "Premium",
           title: "Upgrade to Premium",
           description: "For founders who want hands-on help",
           icon: <Crown className="h-6 w-6 text-white" />,
@@ -96,10 +113,10 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             "Tax Filing Support • Priority Support",
           ],
         };
-      case 'premium':
+      case "premium":
         return {
-          currentTier: 'Premium',
-          nextTier: 'Elite',
+          currentTier: "Premium",
+          nextTier: "Elite",
           title: "Upgrade to Elite",
           description: "For businesses that need tax support",
           icon: <Gem className="h-6 w-6 text-white" />,
@@ -117,8 +134,8 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
         };
       default:
         return {
-          currentTier: 'Free Trial',
-          nextTier: 'ZidLite',
+          currentTier: "Free Trial",
+          nextTier: "ZidLite",
           title: "Upgrade to ZidLite",
           description: "Test what finance automation looks like",
           icon: <Zap className="h-6 w-6 text-white" />,
@@ -176,10 +193,10 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             </button>
 
             {/* Left Column - Gradient Header */}
-            <div className="relative md:w-2/5 bg-gradient-to-br from-[#2b825b] to-[#1e5f43] p-6 text-white flex flex-col justify-between">
+            <div className="relative md:w-2/5 bg-linear-to-br from-[#2b825b] to-[#1e5f43] p-6 text-white flex flex-col justify-between">
               <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16" />
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/5 rounded-full blur-2xl -ml-12 -mb-12" />
-              
+
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
@@ -192,18 +209,18 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     </span>
                   </div>
                 </div>
-                
+
                 <h2 className="text-2xl font-bold tracking-tight mb-2">
                   {tierInfo.title}
                 </h2>
-                <p className="text-white/80 text-sm">
-                  {tierInfo.description}
-                </p>
+                <p className="text-white/80 text-sm">{tierInfo.description}</p>
               </div>
 
               {/* Features in left column - compact */}
               <div className="relative z-10 mt-4">
-                <p className="text-white/70 text-xs uppercase tracking-wider mb-2">Key benefits:</p>
+                <p className="text-white/70 text-xs uppercase tracking-wider mb-2">
+                  Key benefits:
+                </p>
                 <ul className="space-y-2">
                   {tierInfo.features.slice(0, 4).map((benefit, index) => (
                     <li key={index} className="flex items-center gap-2 text-xs">
@@ -229,30 +246,33 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
               {/* Current Tier Indicator */}
               <div className="mb-3 text-center">
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Current: <span className="font-semibold text-gray-900 dark:text-gray-50">{tierInfo.currentTier}</span>
+                  Current:{" "}
+                  <span className="font-semibold text-gray-900 dark:text-gray-50">
+                    {tierInfo.currentTier}
+                  </span>
                 </span>
               </div>
 
               {/* Pricing Toggle - Hide for Elite */}
-              {userTier !== 'premium' && (
+              {userTier !== "premium" && (
                 <div className="mb-4">
                   <div className="flex items-center justify-center gap-2">
                     <button
-                      onClick={() => setSelectedPlan('monthly')}
+                      onClick={() => setSelectedPlan("monthly")}
                       className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                        selectedPlan === 'monthly'
-                          ? 'bg-[#2b825b] text-white shadow-lg shadow-[#2b825b]/25'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        selectedPlan === "monthly"
+                          ? "bg-[#2b825b] text-white shadow-lg shadow-[#2b825b]/25"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                       }`}
                     >
                       Monthly
                     </button>
                     <button
-                      onClick={() => setSelectedPlan('annual')}
+                      onClick={() => setSelectedPlan("annual")}
                       className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                        selectedPlan === 'annual'
-                          ? 'bg-[#2b825b] text-white shadow-lg shadow-[#2b825b]/25'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        selectedPlan === "annual"
+                          ? "bg-[#2b825b] text-white shadow-lg shadow-[#2b825b]/25"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                       }`}
                     >
                       Annual
@@ -265,61 +285,75 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
               )}
 
               {/* Single Pricing Card */}
-              <div className={`relative rounded-xl ${
-                userTier === 'premium' 
-                  ? 'bg-gradient-to-br from-purple-50 to-transparent border-2 border-purple-500' 
-                  : 'bg-gradient-to-br from-[#2b825b]/5 to-transparent border-2 border-[#2b825b]'
-              } p-4 shadow-lg mb-4`}>
-                {userTier !== 'premium' && (
+              <div
+                className={`relative rounded-xl ${
+                  userTier === "premium"
+                    ? "bg-linear-to-br from-purple-50 to-transparent border-2 border-purple-500"
+                    : "bg-linear-to-br from-[#2b825b]/5 to-transparent border-2 border-[#2b825b]"
+                } p-4 shadow-lg mb-4`}
+              >
+                {userTier !== "premium" && (
                   <div className="absolute -top-2 left-4 bg-[#2b825b] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                     RECOMMENDED
                   </div>
                 )}
-                
+
                 <div className="flex items-center gap-2 mb-2">
                   {tierInfo.icon}
-                  <h3 className="font-semibold text-base">{tierInfo.nextTier} Plan</h3>
+                  <h3 className="font-semibold text-base">
+                    {tierInfo.nextTier} Plan
+                  </h3>
                 </div>
-                
+
                 <div className="mb-2">
                   <span className="text-2xl font-bold">
-                    {userTier === 'premium' 
-                      ? tierInfo.monthlyPrice 
-                      : selectedPlan === 'annual' 
-                        ? tierInfo.annualPrice 
+                    {userTier === "premium"
+                      ? tierInfo.monthlyPrice
+                      : selectedPlan === "annual"
+                        ? tierInfo.annualPrice
                         : tierInfo.monthlyPrice}
                   </span>
                   <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">
-                    {userTier === 'premium' 
-                      ? '/mo' 
-                      : selectedPlan === 'annual' 
-                        ? '/yr' 
-                        : '/mo'}
+                    {userTier === "premium"
+                      ? "/mo"
+                      : selectedPlan === "annual"
+                        ? "/yr"
+                        : "/mo"}
                   </span>
-                  {selectedPlan === 'annual' && userTier !== 'premium' && (
+                  {selectedPlan === "annual" && userTier !== "premium" && (
                     <p className="text-[10px] text-[#2b825b]">
                       {tierInfo.annualSavings}
                     </p>
                   )}
                 </div>
-                
+
                 {/* Features List - compact */}
                 <ul className="space-y-1 mb-3">
                   {tierInfo.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-1.5 text-xs">
-                      <Check className={`h-3 w-3 shrink-0 mt-0.5 ${
-                        userTier === 'premium' ? 'text-purple-500' : 'text-[#2b825b]'
-                      }`} />
+                    <li
+                      key={index}
+                      className="flex items-start gap-1.5 text-xs"
+                    >
+                      <Check
+                        className={`h-3 w-3 shrink-0 mt-0.5 ${
+                          userTier === "premium"
+                            ? "text-purple-500"
+                            : "text-[#2b825b]"
+                        }`}
+                      />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
 
                 {/* Price Comparison */}
-                {userTier !== 'free' && userTier !== 'premium' && (
+                {userTier !== "free" && userTier !== "premium" && (
                   <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                      vs {tierInfo.currentTier}: {selectedPlan === 'annual' ? tierInfo.annualSavings : 'More features'}
+                      vs {tierInfo.currentTier}:{" "}
+                      {selectedPlan === "annual"
+                        ? tierInfo.annualSavings
+                        : "More features"}
                     </p>
                   </div>
                 )}
@@ -330,9 +364,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 <Button
                   onClick={handleViewPricing}
                   className={`w-full rounded-lg py-3 text-sm font-semibold shadow-lg transition-all hover:scale-[1.02] ${
-                    userTier === 'premium'
-                      ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/25'
-                      : 'bg-[#2b825b] hover:bg-[#1e5f43] text-white shadow-[#2b825b]/25'
+                    userTier === "premium"
+                      ? "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/25"
+                      : "bg-[#2b825b] hover:bg-[#1e5f43] text-white shadow-[#2b825b]/25"
                   }`}
                 >
                   {tierInfo.primaryCta}
@@ -345,7 +379,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   Maybe later
                 </button>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500">
-                  {userTier === 'premium' 
+                  {userTier === "premium"
                     ? "Contact sales for custom pricing"
                     : "14-day trials available on select features"}
                 </p>

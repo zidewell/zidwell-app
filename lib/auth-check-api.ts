@@ -1,4 +1,5 @@
-import { NextRequest } from "next/server";
+// lib/check-auth.ts
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -73,6 +74,28 @@ export async function isAuthenticated(req: NextRequest): Promise<AuthenticatedUs
   }
 }
 
+// ✅ NEW FUNCTION - Add this to check-auth.ts
+export async function requireAuth(req: NextRequest) {
+  const user = await isAuthenticated(req);
+  
+  if (!user) {
+    return {
+      authenticated: false,
+      response: NextResponse.json(
+        { 
+          error: 'Unauthorized', 
+          message: 'Session expired',
+          logout: true 
+        },
+        { status: 401 }
+      )
+    };
+  }
+
+  return { authenticated: true, user };
+}
+
+// Rest of your existing functions (hasRequiredTier, checkFeatureAccess, etc.)...
 export async function hasRequiredTier(
   req: NextRequest,
   requiredTier: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite'

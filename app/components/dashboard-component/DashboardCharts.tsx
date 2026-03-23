@@ -167,7 +167,7 @@ const DashboardCharts = () => {
                   <ResponsiveContainer
                     width="100%"
                     height={200}
-                    className="max-w-[240px]"
+                    className="max-w-60"
                   >
                     <PieChart>
                       <Pie

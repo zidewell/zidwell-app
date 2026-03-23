@@ -176,8 +176,8 @@ const GlobalVerificationModal = () => {
             )}
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-            <p className="text-xs text-amber-800">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-xs text-green-800">
               <strong>CBN Regulation:</strong> BVN verification is required
               before we can issue your virtual account number. Your information
               is encrypted and secure.
@@ -192,7 +192,7 @@ const GlobalVerificationModal = () => {
           <Button
             onClick={handleSubmit}
             disabled={loading}
-            className="bg-[#2b825b] hover:bg-[#a67905]"
+            className="flex-1 bg-[#2b825b] hover:bg-[#2b825b]/90 text-white dark:bg-[#236b49] dark:hover:bg-[#174c36] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>

@@ -60,7 +60,7 @@ export function InstallPrompt() {
   if (!showInstallButton && !isIOS) return null;
 
   return (
-    <div className="relative bg-gradient-to-r from-[#2b825b] to-[#d4a414] rounded-lg p-4 max-w-sm text-white shadow-lg">
+    <div className="relative bg-linear-to-r from-[#2b825b] to-[#d4a414] rounded-lg p-4 max-w-sm text-white shadow-lg">
       {/* 🔥 Close Button */}
       <button
         onClick={handleClose}

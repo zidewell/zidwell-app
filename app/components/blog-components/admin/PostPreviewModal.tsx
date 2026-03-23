@@ -478,7 +478,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
                       className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#2b825b]/20 to-[#2b825b]/40 flex items-center justify-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-linear-to-br from-[#2b825b]/20 to-[#2b825b]/40 flex items-center justify-center">
                       <User className="w-6 h-6 text-[#2b825b]" />
                     </div>
                   )}

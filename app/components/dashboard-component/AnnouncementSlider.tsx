@@ -49,7 +49,7 @@ const AnnouncementSlider = () => {
   return (
     <div className="relative bg-[#ffffff] dark:bg-[#171717] border-2 border-[#242424] dark:border-[#474747] rounded-md p-5 md:p-6 shadow-[4px_4px_0px_#242424] dark:shadow-[4px_4px_0px_#000000]">
       <div className="flex items-center gap-5">
-        <div className="hidden sm:flex items-center justify-center w-12 h-12 rounded-md bg-[#2b825b] dark:bg-[#2b825b] text-white border-2 border-[#242424] dark:border-[#474747] shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] flex-shrink-0">
+        <div className="hidden sm:flex items-center justify-center w-12 h-12 rounded-md bg-[#2b825b] dark:bg-[#2b825b] text-white border-2 border-[#242424] dark:border-[#474747] shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] shrink-0">
           <Megaphone className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
@@ -60,7 +60,7 @@ const AnnouncementSlider = () => {
             {a.text}
           </p>
         </div>
-        <button className="hidden sm:inline-flex text-sm  font-bold text-[#2b825b] dark:text-[#2b825b] hover:underline flex-shrink-0 uppercase tracking-wide">
+        <button className="hidden sm:inline-flex text-sm  font-bold text-[#2b825b] dark:text-[#2b825b] hover:underline shrink-0 uppercase tracking-wide">
           {a.cta}
         </button>
       </div>

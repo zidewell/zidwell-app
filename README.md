@@ -1,343 +1,169 @@
-# Zidwell Next.js Project
-## Description
+# Zidwell - All-in-One Fintech Platform for Nigerian SMEs
 
-**Zidwell** is a modern web application built with Next.js, designed to provide a seamless platform for managing podcasts, digital signatures, and user authentication. The app integrates with third-party services such as Paybeta and Supabase to offer secure wallet management, password resets, and real-time data handling. Users can sign up, manage their profiles, reset wallet PINs, and access a dashboard for podcasts and platform services—all within a responsive and user-friendly interface.
+## 🚀 Overview
 
+**Zidwell** is a comprehensive Next.js-based SaaS platform designed for Nigerian small businesses, accountants, and freelancers. It provides professional tools for:
 
-## Project Structure
+- **Invoicing & Billing**: Create, send, sign, and track invoices with payments
+- **Receipts & Contracts**: Digital receipts/contracts with e-signatures & PDF export
+- **Bill Payments**: Airtime, data, electricity, cable TV (DSTV, GOtv, etc.)
+- **Wallet & Transfers**: P2P transfers, funding, virtual accounts
+- **Admin Dashboard**: Full CRUD for users/transactions/audits/KYC/disputes
+- **Tax/Journaling**: Tax filings, journal entries, statements
+- **Notifications**: Multi-channel (email/push/in-app) alerts
+- **Subscriptions**: Usage tracking, tiers, trials
+
+Built with **Supabase** backend, **PWA support**, SEO-optimized, Nigeria-focused (banks, discos, networks).
+
+Live: [zidwell.com](https://zidwell.com)
+
+## 🛠️ Tech Stack
+
+| Category | Technologies |
+|----------|--------------|
+| **Framework** | Next.js 15 (App Router), React 19, TypeScript |
+| **Styling** | Tailwind CSS 4, shadcn/ui, framer-motion |
+| **State/Data** | Supabase, SWR, React Context, React Hook Form |
+| **UI/Charts** | Radix UI, Lucide React, Recharts, Sonner (toasts) |
+| **PDF/Sign** | jsPDF, html2canvas, Puppeteer, SignaturePad |
+| **Notifications** | Nodemailer, Resend, Web-push |
+| **Other** | Next-PWA, Next-Themes, Quill (RTE), UUID |
+| **Backend** | Supabase Auth/DB, Nomba/Paystack? (inferred) |
+
+## 📁 Full Project Structure
+
 ```
-.
-├── .env
+zidwell/
 ├── .gitignore
-├── components.json
-├── logo.txt
-├── netlify.toml
-├── next-env.d.ts
-├── next.config.ts
-├── package.json
-├── postcss.config.mjs
-├── README.md
-├── tsconfig.json
-├── .next/
-├── app/
-│   ├── favicon.ico
-│   ├── globals.css
-│   ├── layout.tsx
-│   ├── page.tsx
-│   ├── api/
-│   │   ├── reset-password/
-│   │   │   └── route.ts
-│   │   ├── reset-password-code/
-│   │   │   └── route.ts
-│   │   └── ...other API routes
-│   ├── auth/
-│   │   └── signup/
-│   │       └── page.tsx
-│   ├── components/
-│   │   ├── ui/
-│   │   │   ├── Button.tsx
-│   │   │   ├── Input.tsx
-│   │   │   └── ...other UI components
-│   │   ├── Navbar.tsx
-│   │   ├── Footer.tsx
-│   │   ├── Sidebar.tsx
-│   │   └── Form.tsx
-│   ├── context/
-│   │   ├── AuthContext.tsx
-│   │   └── ThemeContext.tsx
-│   ├── dashboard/
-│   │   └── index.tsx
-│   ├── hook/
-│   │   └── useLegacy.ts
-│   ├── hooks/
-│   │   ├── useAuth.ts
-│   │   ├── useFetch.ts
-│   │   └── usePodcast.ts
-│   ├── platform-services/
-│   │   ├── paybeta.ts
-│   │   └── supabase.ts
-│   ├── podcasts/
-│   │   ├── [id]/
-│   │   │   └── page.tsx
-│   │   ├── create/
-│   │   │   └── page.tsx
-│   │   └── edit/
-│   │       └── [id]/
-│   │           └── page.tsx
-
-│   ├── sign/
-│   │   └── sign-document/
-│   │       └── page.tsx
-│   ├── signee-page/
-│   │   └── signee-dashboard/
-│   │       └── page.tsx
-│   └── supabase/
-│       ├── client.ts
-│       └── auth.ts
-├── lib/
-│   ├── middleware.ts
-│   ├── utils.ts
-│   └── constants.ts
-├── public/
-│   ├── images/
-│   │   ├── logo.png
-│   │   └── ...other images
-│   └── robots.txt
+├── components.json          # shadcn/ui config
+├── middleware.ts           # Auth/middleware logic
+├── netlify.toml            # Netlify deploy
+├── next.config.ts          # Next.js + PWA config
+├── package.json            # Dependencies/scripts
+├── postcss.config.mjs      # Tailwind/PostCSS
+├── tailwind.config.js      # Tailwind themes
+├── tsconfig.json           # TypeScript config
+├── TODO.md                 # Task progress
+├── constants/              # App constants
+│   └── dashboard.ts
+├── lib/                    # Core utils/services
+│   ├── admin-auth.ts       # Supabase admin token verify
+│   ├── audit-log.ts        # Action auditing
+│   ├── emailNotification.ts, notification-service.ts # Multi-channel notifs
+│   ├── node-mailer.ts      # Email transport
+│   ├── fee.ts, banks.ts    # Business logic
+│   └── utils.ts, fetcher.ts
+│   └── email/
+│       └── pin-reset.ts
+├── public/                 # Static assets (PWA icons, images)
+│   ├── logo.png, zidwell-logo.svg
+│   ├── hero-*.jpg          # Marketing images
+│   ├── cable-img/, disco-img/ # Bill providers
+│   ├── manifest.json, sw.js
+│   └── networks-img/       # Telcos (MTN, Airtel)
+├── types/                  # TypeScript types
+│   └── admin-dashboard.ts
+├── app/                    # Next.js App Router
+│   ├── globals.css         # Tailwind base
+│   ├── layout.tsx          # Root layout + SEO schemas/providers
+│   ├── page.tsx            # Landing page
+│   ├── accountants/page.tsx
+│   ├── admin/*             # Admin dashboards (invoices, users, wallets...)
+│   ├── auth/*              # login/signup (confirm-email, reset)
+│   ├── blog/*              # Blog pages
+│   ├── dashboard/*         # User dashboard
+│   ├── pricing/, privacy/  # Static pages
+│   ├── support/, tax-filing/
+│   ├── reset-pin/, sign-contract/
+│   └── components/         # ~100 UI components
+│       ├── AuthChecker.tsx, NotificationToast.tsx
+│       ├── SignaturePad.tsx # E-sign
+│       ├── Airtime.tsx, Electricity.tsx # Bill components
+│       ├── admin-components/
+│       ├── invoice/, Receipt-component/
+│       └── profile-operations/
+└── app/api/                # 100+ API routes
+    ├── auth/login|register/
+    ├── profile/ (KYC, pin-reset)
+    ├── invoice|receipt|contract/ (CRUD, sign, PDF, email)
+    ├── buy-airtime|data-bundle|electricity|cable-tv/
+    ├── p2p-transfer/, wallet-balance/
+    ├── admin-apis/* (users, transactions, audits)
+    └── notifications/, cron/
 ```
 
-## Key Configuration
+*(Tree compiled from recursive list_files; truncated dirs contain route.tsx files/pages.)*
 
-- **TypeScript:** Strict mode enabled, paths aliasing (see `tsconfig.json`).
-- **UI Library:** [shadcn/ui](https://ui.shadcn.com/) with Tailwind CSS.
-- **API Routes:** Located in `app/api/`, using Next.js Route Handlers.
-- **Environment Variables:** Managed in `.env` (e.g., `PAYBETA_API_KEY`).
-- **Deployment:** Configured for Netlify via `netlify.toml`.
+## 🔍 Key Modules Explained
 
-## Scripts
+### 1. **Frontend (app/)**
+- **layout.tsx**: Rich metadata (SEO/OG/Twitter/PWA), Providers (User/Auth/Session/Verification), Google Analytics
+- **Pages**: App router with dynamic segments e.g. `admin/transactions/[userId]/page.tsx`
+- **Components**: shadcn-based (modals, tables, forms), bill pay UIs, previews (InvoicePreview.tsx), admin tables/charts
 
-Run the development server:
+### 2. **API Routes (app/api/)**
+Serverless handlers for:
+- **Core Business**: Invoices/receipts/contracts (drafts/sign/send/PDF/callbacks)
+- **Bills**: Nigeria-specific (providers, validate meter/smartcard, buy/pay)
+- **Finance**: Wallet ops, P2P, funding (debit card/virtual), journals/tax
+- **Admin**: Secure CRUD (admin-apis/ subroutes)
+- **Auth/Notifs**: Login/register, multi-channel notifs (Supabase tables)
 
-```sh
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### 3. **Lib/Services**
+- **Auth**: `admin-auth.ts` - Bearer/cookie token verify w/ Supabase admin client
+- **Notifications**: `notification-service.ts` - Create/log notifs (in_app/email/push/SMS), user prefs from DB
+- **Email**: Nodemailer templates (PIN reset, invoice confirm, login alerts)
+- **Audit**: Log user actions/emails
+- **Utils**: Fees, banks list, fetcher (SWR?), dashboard metrics
+
+### 4. **Database (Supabase inferred)**
+Tables: `users` (prefs), `notifications|notification_logs`, `invoices|receipts|contracts`, `transactions`, `wallets`, `audit_logs`
+
+### 5. **Admin Features**
+- Dashboards for reconciliation, KYC, disputes, funding logs
+- Usage/trials/subscriptions tracking
+
+## 🚀 Quick Start
+
+```bash
+# Install
+npm install
+
+# Dev server
+npm run dev  # http://localhost:3000
+
+# Build/Start
+npm run build && npm start
+
+# Lint
+npm run lint
 ```
 
+**Env Vars**: NEXT_PUBLIC_GA_*, Supabase keys, SITE_URL=zidwell.com, EMAIL_USER, NOMBA_URL
+
+## 🌐 Deployment
+- **Netlify**: `netlify.toml` (build: next build)
+- **PWA**: next-pwa enabled (sw.js, manifest)
+- **SEO**: Sitemap/robot.txt, schemas in layout
+
+## 🏗️ Architecture Flow
+1. User auth → Supabase + middleware
+2. Dashboard → API calls → Supabase CRUD
+3. Bills/Payments → Provider APIs (Nomba?)
+4. Sign/Send → SignaturePad → PDF gen → Email/DB
+5. Admin → Token verify → Full access
+
+## 📈 Features Map
+| Feature | API Routes | Components |
+|---------|------------|------------|
+| Invoices | invoice/* | InvoiceGen, previews |
+| Bills | buy-*/* | Airtime, CableBills |
+| Wallet | p2p-transfer, wallet-balance | Balance-card |
+
+## 🤝 Contributing
+- Add components: `app/components/`
+- New API: `app/api/[feature]/route.ts`
+- See TODO.md for progress.
+
+Built with ❤️ for Nigerian businesses!
 
-
-## Project Structure Explained
-
-### Root Files
-
-- **.env**  
-  Stores environment variables (API keys, secrets, etc.) used throughout the app.
-
-- **.gitignore**  
-  Specifies files and folders Git should ignore (e.g., `node_modules`, build output).
-
-- **components.json**  
-  Configuration for UI components and path aliases (used by shadcn/ui).
-
-- **logo.txt**  
-  ASCII or text logo for the project (optional, for branding or fun).
-
-- **netlify.toml**  
-  Configuration for deploying the app on Netlify (build settings, redirects, etc.).
-
-- **next-env.d.ts**  
-  TypeScript definitions required by Next.js.
-
-- **next.config.ts**  
-  Next.js configuration file (custom settings, plugins, etc.).
-
-- **package.json**  
-  Lists dependencies, scripts, and project metadata.
-
-- **postcss.config.mjs**  
-  Configuration for PostCSS (used with Tailwind CSS).
-
-- **README.md**  
-  Project documentation (what you’re reading now).
-
-- **tsconfig.json**  
-  TypeScript configuration (compiler options, path aliases).
-
-- **middleware.ts**  
-  Custom middleware for request handling, authentication, or logging.
-
-
----
-
-### Folders
-
-#### app/
-
-Main source folder for your Next.js application.
-
-- **favicon.ico**  
-  App icon shown in browser tabs.
-
-- **globals.css**  
-  Global CSS styles for the entire app.
-
-- **layout.tsx**  
-  Root layout component (wraps all pages, sets up providers, etc.).
-
-- **page.tsx**  
-  Main landing page of the application.
-
-- **api/**  
-  Contains API route handlers (serverless functions).  
-  - **reset-password/route.ts**: Handles wallet PIN reset requests.  
-  - **reset-password-code/route.ts**: Handles reset code verification.  
-  - *(other API routes as needed)*
-
-- **auth/**  
-  Authentication-related pages.  
-  - **signup/page.tsx**: Signup form and logic.
-
-- **components/**  
-  Reusable React components (buttons, forms, modals, etc.).
-
-- **context/**  
-  React context providers for global state management (e.g., authentication, theme).
-
-- **dashboard/**  
-  Dashboard pages for logged-in users (analytics, user info, etc.).
-
-- **hook/**  
-  (Legacy) Custom React hooks. Consider merging with `hooks/`.
-
-- **hooks/**  
-  Custom React hooks for shared logic (API calls, state, etc.).
-
-- **platform-services/**  
-  Integrations with external or internal platform services.
-
-- **podcasts/**  
-  Pages and components related to podcast management.
-
-- **sign/**  
-  Pages for digital signature features.
-
-- **signee-page/**  
-  Pages for users who are signees (e.g., signing documents).
-
-- **supabase/**  
-  Integration with Supabase (database, authentication, etc.).
-
----
-
-
----
-
-#### public/
-
-- Static assets (images, fonts, etc.) served directly by Next.js.
-
----
-
-### Aliases
-
-- `@/components` → `app/components`
-- `@/lib` → `lib`
-- `@/hooks` → `app/hooks`
-- `@/app/components/ui` → UI components
-
-
-Defined in [`components.json`](components.json) and `tsconfig.json`:
-
----
-
-## How to Use
-
-- **Add new pages:** Create a new folder or file in `app/`.
-- **Add new API routes:** Create a new folder in `app/api/` with a `route.ts` file.
-- **Add shared logic:** Place reusable hooks in `app/hooks/`.
-- **Add UI components:** Place them in `app/components/`.
-
-
-#### app/components/
-
-- **ui/**  
-  Contains UI primitives and components (buttons, inputs, modals) often imported from or styled with shadcn/ui.
-- **Navbar.tsx, Footer.tsx, Sidebar.tsx**  
-  Common layout/navigation components used across pages.
-- **Form.tsx**  
-  Reusable form component for handling user input.
-
-#### app/context/
-
-- **UserData.tsx**  
-  Provides authentication fucnction to be reuse and states.
-
-
-#### app/platform-services/
-
-
-#### app/podcasts/
-
-- **[id]/page.tsx**  
-  Dynamic route for viewing a specific podcast.
-- **create/page.tsx**  
-  Page for creating a new podcast.
-- **edit/[id]/page.tsx**  
-  Page for editing an existing podcast.
-
-#### app/sign/ and app/signee-page/
-
-- **sign-document/page.tsx**  
-  Page for signing documents.
-- **signee-dashboard/page.tsx**  
-  Dashboard for signees to view and manage documents.
-
-#### app/supabase/
-
-- **supabase.ts**  
-  Functions for interacting with Supabase (database, auth).
-
-
-#### lib/
-
-- **utils.ts**  
-  Utility functions used across the app (formatting, validation, etc.).
-- **constants.ts**  
-  Shared constants (API endpoints, config values).
-
-#### public/
-
-- **images/**  
-  Stores static images (logos, banners, avatars).
-- **robots.txt**  
-  SEO file for search engine crawling rules.
-
----
-
-### Development & Contribution
-
-- **Install dependencies:**  
-  ```sh
-  npm install
-  ```
-- **Run the development server:**  
-  ```sh
-  npm run dev
-  ```
-- **Build for production:**  
-  ```sh
-  npm run build
-  ```
-- **Run tests:**  
-  ```sh
-  npm test
-  ```
-
----
-
-### Best Practices
-
-- **Component Reusability:**  
-  Place shared UI elements in `app/components/` for easy reuse.
-- **Separation of Concerns:**  
-  Keep API logic in `app/api/`, UI in `app/components/`, and business logic in hooks or services.
-- **Environment Variables:**  
-  Store sensitive keys in `.env` and never commit them to version control.
-- **Type Safety:**  
-  Use TypeScript interfaces and types for props, API responses, and context values.
-
----
-
-### Getting Help
-
-- **Code comments:**  
-  Most files include comments explaining their purpose and usage.
-- **Ask teammates:**  
-  If something is unclear, reach out to the team or check the documentation in this README.
-
----
-
-This documentation should help any developer quickly understand the structure and purpose of each part of the codebase.

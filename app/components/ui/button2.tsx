@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -10,19 +11,17 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[#2b825b] text-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1",
+          "bg-[#f4c600] text-[#01402e] border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] hover:shadow-[6px_6px_0px_#01402e] dark:hover:shadow-[6px_6px_0px_#f4c600] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1",
         destructive:
-          "bg-red-500 text-white border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1",
+          "bg-red-500 text-white border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] hover:shadow-[6px_6px_0px_#01402e] dark:hover:shadow-[6px_6px_0px_#f4c600] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1",
         outline:
-          "border-2 border-gray-900 dark:border-gray-50 bg-gray-50 dark:bg-gray-950 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1",
+          "border-2 border-[#01402e] dark:border-[#f7f0e5] bg-[#f7f0e5] dark:bg-[#01402e] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] hover:shadow-[6px_6px_0px_#01402e] dark:hover:shadow-[6px_6px_0px_#f4c600] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1",
         secondary:
-          "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-50 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1",
-        ghost:
-          "hover:bg-[#2b825b]/10 hover:text-amber-600 dark:hover:text-amber-400",
-        link: "text-[#2b825b] underline-offset-4 hover:underline",
-        hero: "bg-[#2b825b] text-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1 text-base",
-        heroOutline:
-          "bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-50 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1 text-base",
+          "bg-[#f7f0e5] dark:bg-[#01402e] text-[#01402e] dark:text-[#f7f0e5] border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] hover:shadow-[6px_6px_0px_#01402e] dark:hover:shadow-[6px_6px_0px_#f4c600] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1",
+        ghost: "hover:bg-[#f4c600]/10 hover:text-[#01402e] dark:hover:text-[#f4c600]",
+        link: "text-[#f4c600] underline-offset-4 hover:underline",
+        hero: "bg-[#f4c600] text-[#01402e] border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] hover:shadow-[6px_6px_0px_#01402e] dark:hover:shadow-[6px_6px_0px_#f4c600] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1 text-base",
+        heroOutline: "bg-[#f7f0e5] dark:bg-[#01402e] text-[#01402e] dark:text-[#f7f0e5] border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] hover:shadow-[6px_6px_0px_#01402e] dark:hover:shadow-[6px_6px_0px_#f4c600] hover:-translate-x-0.5 hover:-translate-y-0.5 active:shadow-none active:translate-x-1 active:translate-y-1 text-base",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -36,12 +35,11 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  },
+  }
 );
 
 export interface ButtonProps
-  extends
-    React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
@@ -56,7 +54,7 @@ const Button2 = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       />
     );
-  },
+  }
 );
 Button2.displayName = "Button";
 

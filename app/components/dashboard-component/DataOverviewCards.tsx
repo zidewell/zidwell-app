@@ -197,7 +197,7 @@ const SectionGrid = ({ section }: { section: (typeof primarySections)[0] }) => (
           key={s.title}
           className="relative bg-[#ffffff] dark:bg-[#171717] border-2 border-[#242424] dark:border-[#474747] rounded-md p-6 overflow-hidden
                      shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] cursor-pointer transition-all duration-150
-                     hover:shadow-[6px_6px_0px_#242424] dark:hover:shadow-[6px_6px_0px_rgba(43,130,91,0.4)] hover:-translate-x-[1px] hover:-translate-y-[1px]
+                     hover:shadow-[6px_6px_0px_#242424] dark:hover:shadow-[6px_6px_0px_rgba(43,130,91,0.4)] hover:-translate-x-px hover:-translate-y-px
                      active:shadow-none active:translate-x-0.5 active:translate-y-0.5"
         >
           <div
@@ -252,7 +252,7 @@ const DataOverviewCards = () => {
       <button
         onClick={() => setShowMore(!showMore)}
         className="flex items-center gap-2 px-5 py-3 bg-[#ffffff] dark:bg-[#171717] border-2 border-[#242424] dark:border-[#474747] rounded-md  font-bold text-sm text-[#141414] dark:text-[#f5f5f5] uppercase tracking-wide
-                   shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] hover:shadow-[6px_6px_0px_#242424] dark:hover:shadow-[6px_6px_0px_rgba(43,130,91,0.4)] hover:-translate-x-[1px] hover:-translate-y-[1px]
+                   shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] hover:shadow-[6px_6px_0px_#242424] dark:hover:shadow-[6px_6px_0px_rgba(43,130,91,0.4)] hover:-translate-x-px hover:-translate-y-px
                    active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all"
       >
         {showMore ? (

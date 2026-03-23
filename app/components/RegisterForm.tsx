@@ -27,6 +27,7 @@ import {
 import Swal from "sweetalert2";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Button2 } from "./ui/button2";
 
 // Validation schemas per step
 const step1Schema = z.object({
@@ -567,20 +568,20 @@ const RegisterForm = () => {
       {/* Navigation */}
       <div className="flex justify-between mt-8">
         {step > 1 ? (
-          <Button
+          <Button2
             variant="outline"
             onClick={handleBack}
             className="font-sans gap-2"
             disabled={isLoading}
           >
             <ArrowLeft className="h-4 w-4" /> Back
-          </Button>
+          </Button2>
         ) : (
           <div />
         )}
-        <Button
+        <Button2
           onClick={handleNext}
-          className="font-sans gap-2 bg-[#2b825b] hover:bg-[#1e5d42]"
+          className="font-sans gap-2"
           disabled={isLoading}
         >
           {isLoading ? (
@@ -592,7 +593,7 @@ const RegisterForm = () => {
           ) : (
             "Create Account"
           )}
-        </Button>
+        </Button2>
       </div>
 
       {/* Login link */}

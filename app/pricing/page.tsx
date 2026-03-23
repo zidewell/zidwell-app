@@ -15,9 +15,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSubscription } from "../hooks/useSubscripion";
 import { useUserContextData } from "../context/userData";
 import { SubscriptionBadge } from "../components/subscription-components/subscriptionBadges";
-import Footer from "../components/Footer";
+import Footer from "../components/home-component/Footer"; 
 import { Button2 } from "../components/ui/button2";
-import Header from "../components/Header";
+import Header from "../components/home-component/Header"; 
 
 const plans = [
   {
@@ -522,7 +522,7 @@ export default function PricingPage() {
                     </p>
                   </div>
 
-                  <ul className="space-y-2 mb-8 flex-grow">
+                  <ul className="space-y-2 mb-8 grow">
                     {plan.features.map((feature, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">
                         {feature.startsWith("Everything in") ? (

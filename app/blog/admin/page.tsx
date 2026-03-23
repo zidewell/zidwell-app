@@ -330,13 +330,13 @@ const AdminDashboard = () => {
                           <img
                             src={post.featured_image}
                             alt={post.title}
-                            className="w-12 h-12 rounded object-cover flex-shrink-0"
+                            className="w-12 h-12 rounded object-cover shrink-0"
                             onError={(e) => {
                               e.currentTarget.style.display = "none";
                             }}
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                          <div className="w-12 h-12 rounded bg-muted flex items-center justify-center shrink-0">
                             <FileText className="w-6 h-6 text-muted-foreground" />
                           </div>
                         )}
@@ -358,7 +358,7 @@ const AdminDashboard = () => {
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <span
-                          className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
+                          className={`px-2 py-1 text-xs rounded-full shrink-0 ${
                             post.is_published
                               ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
                               : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
@@ -447,7 +447,7 @@ const AdminDashboard = () => {
                           </span>
                         </div>
                       </div>
-                      <TrendingUpIcon className="w-4 h-4 text-green-600 flex-shrink-0" />
+                      <TrendingUpIcon className="w-4 h-4 text-green-600 shrink-0" />
                     </div>
                   ))}
                 </div>

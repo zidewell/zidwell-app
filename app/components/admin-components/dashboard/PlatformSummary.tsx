@@ -8,7 +8,7 @@ interface PlatformSummaryProps {
   contractFees: number;
   invoiceRevenue: number;
   transactionRevenue: number;
-  nombaBalance: number;  
+  nombaBalance: number;
   mainWalletBalance: number;
   contractSignRate: string;
   invoicePaymentRate: string;
@@ -28,12 +28,13 @@ export const PlatformSummary = ({
   invoicePaymentRate,
   range,
 }: PlatformSummaryProps) => {
-  const successRate = totalTransactions > 0
-    ? ((successfulTransactions / totalTransactions) * 100).toFixed(1)
-    : "0";
+  const successRate =
+    totalTransactions > 0
+      ? ((successfulTransactions / totalTransactions) * 100).toFixed(1)
+      : "0";
 
   return (
-    <div className="bg-gradient-to-r from-gray-50 to-white p-6 rounded-2xl shadow-sm border">
+    <div className="bg-linear-to-r from-gray-50 to-white p-6 rounded-2xl shadow-sm border">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
         Platform Performance Summary
       </h3>
@@ -46,9 +47,7 @@ export const PlatformSummary = ({
         </div>
         <div className="bg-white p-4 rounded-xl border">
           <div className="text-sm text-gray-500">Success Rate</div>
-          <div className="text-2xl font-bold text-gray-900">
-            {successRate}%
-          </div>
+          <div className="text-2xl font-bold text-gray-900">{successRate}%</div>
         </div>
         <div className="bg-white p-4 rounded-xl border">
           <div className="text-sm text-gray-500">Contract Revenue</div>
@@ -72,7 +71,8 @@ export const PlatformSummary = ({
       <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="text-sm text-gray-600">
           <span className="font-medium">Total App Revenue:</span>{" "}
-          {formatCurrency(nombaBalance - mainWalletBalance)}  {/* Using nombaBalance */}
+          {formatCurrency(nombaBalance - mainWalletBalance)}{" "}
+          {/* Using nombaBalance */}
         </div>
         <div className="text-sm text-gray-600">
           <span className="font-medium">Contract Sign Rate:</span>{" "}

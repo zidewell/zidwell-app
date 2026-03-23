@@ -6,9 +6,12 @@ interface TrafficInsightsProps {
   topSource?: string;
 }
 
-export const TrafficInsights = ({ topPage = "/dashboard", topSource = "Direct" }: TrafficInsightsProps) => {
+export const TrafficInsights = ({
+  topPage = "/dashboard",
+  topSource = "Direct",
+}: TrafficInsightsProps) => {
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-100">
+    <div className="bg-linear-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-100">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">
           Traffic Insights
@@ -39,9 +42,7 @@ export const TrafficInsights = ({ topPage = "/dashboard", topSource = "Direct" }
         </div>
         <div>
           <div className="text-sm text-gray-600">Top Source</div>
-          <div className="text-sm font-medium text-gray-900">
-            {topSource}
-          </div>
+          <div className="text-sm font-medium text-gray-900">{topSource}</div>
         </div>
       </div>
     </div>

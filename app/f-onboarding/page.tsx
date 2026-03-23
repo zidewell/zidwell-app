@@ -59,7 +59,7 @@ const OnboardingPage = () => {
         }
       `}</style>
 
-      <div className="min-h-screen relative bg-gradient-to-br from-[#FDF8ED] to-white">
+      <div className="min-h-screen relative bg-linear-to-br from-[#FDF8ED] to-white">
         {/* Background pattern */}
         <div
           className="fixed inset-0 opacity-10 pointer-events-none"

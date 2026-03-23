@@ -28,8 +28,8 @@ import {
   Captions,
 } from "lucide-react";
 import Image from "next/image";
-import { useUserContextData } from "@/app/context/userData"; 
-import { ProtectedLink } from "../ProtectedLink"; 
+import { useUserContextData } from "@/app/context/userData";
+import { ProtectedLink } from "../ProtectedLink";
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -51,7 +51,7 @@ interface DashboardSidebarProps {
 const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   const [showBalance, setShowBalance] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  
+
   const pathname = usePathname();
   const { userData, balance } = useUserContextData();
 
@@ -60,11 +60,11 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024);
     };
-    
+
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   // Prevent body scroll when sidebar is open on mobile
@@ -93,7 +93,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     ];
 
     const isProtected = protectedLinks.includes(item.href);
-    
+
     // Common className for both protected and regular links
     const commonClassName = `flex items-center gap-4 p-3 rounded-md text-sm font-bold uppercase tracking-wide border-2 transition-all duration-150 ${
       isActive
@@ -109,7 +109,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           onClick={onClose}
           className={commonClassName}
         >
-          <item.icon className="w-5 h-5 flex-shrink-0" />
+          <item.icon className="w-5 h-5 shrink-0" />
           <span className="font-medium">{item.name}</span>
         </ProtectedLink>
       );
@@ -117,12 +117,8 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
 
     // Regular link
     return (
-      <Link
-        href={item.href}
-        onClick={onClose}
-        className={commonClassName}
-      >
-        <item.icon className="w-5 h-5 flex-shrink-0" />
+      <Link href={item.href} onClick={onClose} className={commonClassName}>
+        <item.icon className="w-5 h-5 shrink-0" />
         <span className="font-medium">{item.name}</span>
       </Link>
     );
@@ -162,7 +158,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           }}
           isActive={pathname === "/dashboard/fund-account"}
         />
-        
+
         <NavItem
           item={{
             name: "Transfer",
@@ -221,7 +217,10 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
               href: "/dashboard/services/contract",
               icon: FileSignature,
             }}
-            isActive={pathname === "/dashboard/services/contract" || pathname === "/dashboard/services/contract/create-contract-form"}
+            isActive={
+              pathname === "/dashboard/services/contract" ||
+              pathname === "/dashboard/services/contract/create-contract-form"
+            }
           />
 
           {/* <NavItem
@@ -410,7 +409,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
                 {balance != null && (
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[#6b6b6b] dark:text-[#a6a6a6] text-xs">Wallet Balance</p>
+                      <p className="text-[#6b6b6b] dark:text-[#a6a6a6] text-xs">
+                        Wallet Balance
+                      </p>
                       <div className="flex items-center gap-1">
                         <span className="text-[#141414] dark:text-[#f5f5f5] text-sm font-bold">
                           ₦{formatBalance()}
@@ -418,7 +419,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
                         <button
                           onClick={() => setShowBalance(!showBalance)}
                           className="p-1 hover:bg-[#f0efe7] dark:hover:bg-[#242424] rounded-md transition-colors duration-200"
-                          aria-label={showBalance ? "Hide balance" : "Show balance"}
+                          aria-label={
+                            showBalance ? "Hide balance" : "Show balance"
+                          }
                         >
                           {showBalance ? (
                             <Eye className="w-4 h-4 text-[#6b6b6b] dark:text-[#a6a6a6]" />
@@ -481,7 +484,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
               {balance != null && (
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[#6b6b6b] dark:text-[#a6a6a6] text-xs">Wallet Balance</p>
+                    <p className="text-[#6b6b6b] dark:text-[#a6a6a6] text-xs">
+                      Wallet Balance
+                    </p>
                     <div className="flex items-center gap-1">
                       <span className="text-[#141414] dark:text-[#f5f5f5] text-sm font-bold">
                         ₦{formatBalance()}
@@ -489,7 +494,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
                       <button
                         onClick={() => setShowBalance(!showBalance)}
                         className="p-1 hover:bg-[#f0efe7] dark:hover:bg-[#242424] rounded-md transition-colors duration-200"
-                        aria-label={showBalance ? "Hide balance" : "Show balance"}
+                        aria-label={
+                          showBalance ? "Hide balance" : "Show balance"
+                        }
                       >
                         {showBalance ? (
                           <Eye className="w-4 h-4 text-[#6b6b6b] dark:text-[#a6a6a6]" />

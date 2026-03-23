@@ -3,7 +3,7 @@ import React from 'react';
 import { Shield, Smartphone, Tv, Zap } from 'lucide-react';
 import BillTableSection from '../components/BillTableSrction';
 import { billPlans } from '../components/bills-data/billProviders';
-import Header from '../components/Header';
+import Header from '../components/home-component/Header'; 
 
 const page = () => {
   return (

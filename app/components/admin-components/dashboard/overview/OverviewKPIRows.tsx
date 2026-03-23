@@ -58,7 +58,7 @@ export const OverviewKPIRows = ({
   const totalContracts = Number(summaryData?.totalContractsIssued ?? 0);
   const totalInvoices = Number(summaryData?.totalInvoicesIssued ?? 0);
   const totalUsers = Number(summaryData?.totalUsers ?? 0);
-  
+
   // Get revenue breakdown for current range
   const revenueData = metricsData?.revenue_breakdown?.[range] || {
     total: 0,
@@ -68,10 +68,11 @@ export const OverviewKPIRows = ({
     invoice: 0,
     contract: 0,
   };
-  
-  const netMargin = revenueData.total > 0 
-    ? ((revenueData.app_fees / revenueData.total) * 100).toFixed(1)
-    : "0";
+
+  const netMargin =
+    revenueData.total > 0
+      ? ((revenueData.app_fees / revenueData.total) * 100).toFixed(1)
+      : "0";
 
   return (
     <>
@@ -148,14 +149,14 @@ export const OverviewKPIRows = ({
           value={formatCurrency(revenueData.app_fees)}
           growth={<GrowthIndicator value={appRevenueGrowth} />}
           icon={<DollarSign className="w-5 h-5 text-green-600" />}
-          className="border-l-4 border-l-green-500 bg-gradient-to-r from-green-50 to-white"
+          className="border-l-4 border-l-green-500 bg-linear-to-r from-green-50 to-white"
           subtitle={`Net platform earnings (${netMargin}% margin)`}
         />
         <KPICard
           title="Nomba Fees (Provider)"
           value={formatCurrency(revenueData.nomba_fees)}
           icon={<CreditCard className="w-5 h-5 text-orange-600" />}
-          className="border-l-4 border-l-orange-500 bg-gradient-to-r from-orange-50 to-white"
+          className="border-l-4 border-l-orange-500 bg-linear-to-r from-orange-50 to-white"
           subtitle="API provider costs"
         />
         <KPICard
@@ -163,14 +164,14 @@ export const OverviewKPIRows = ({
           value={formatCurrency(revenueData.contract)}
           growth={<GrowthIndicator value={calculateContractRevenueGrowth()} />}
           icon={<FileSignature className="w-5 h-5 text-indigo-600" />}
-          className="border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-50 to-white"
+          className="border-l-4 border-l-indigo-500 bg-linear-to-r from-indigo-50 to-white"
           subtitle={`Revenue from contracts (${range === "total" ? "all time" : range})`}
         />
         <KPICard
           title="Invoice Revenue"
           value={formatCurrency(revenueData.invoice)}
           icon={<File className="w-5 h-5 text-purple-600" />}
-          className="border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50 to-white"
+          className="border-l-4 border-l-purple-500 bg-linear-to-r from-purple-50 to-white"
           subtitle={`Revenue from invoices (${range === "total" ? "all time" : range})`}
         />
       </div>
@@ -213,7 +214,9 @@ export const OverviewKPIRows = ({
       {revenueData.breakdown && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
           <div className="col-span-4 bg-gray-50 p-4 rounded-lg border">
-            <h4 className="text-sm font-medium text-gray-700 mb-3">App Fee Sources</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-3">
+              App Fee Sources
+            </h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-xs text-gray-500">Transactions</p>
@@ -224,7 +227,9 @@ export const OverviewKPIRows = ({
               <div>
                 <p className="text-xs text-gray-500">Invoice Creation</p>
                 <p className="text-sm font-semibold text-gray-900">
-                  {formatCurrency(revenueData.breakdown.app_fees.invoice_creation)}
+                  {formatCurrency(
+                    revenueData.breakdown.app_fees.invoice_creation,
+                  )}
                 </p>
               </div>
               <div>

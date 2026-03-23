@@ -604,77 +604,205 @@ export default function TransactionHistory() {
     router.push(`/dashboard/transactions/${transaction.id}`);
   };
 
-  const handleDownloadReceipt = async (transaction: any) => {
-    const transactionId = transaction.id;
-    setDownloadingReceipts((prev) => new Set(prev).add(transactionId));
+const handleDownloadReceipt = async (transaction: any) => {
+  const transactionId = transaction.id;
+  setDownloadingReceipts((prev) => new Set(prev).add(transactionId));
 
-    const amountInfo = formatAmount(transaction);
-    const description = getDescription(transaction);
+  const amountInfo = formatAmount(transaction);
+  
+  // IMPROVED: Function to get narration from multiple locations
+  const getNarration = (tx: any) => {
+    // Check direct narration field
+    if (tx.narration) {
+      return tx.narration;
+    }
+    
+    // Check description field
+    if (tx.description) {
+      return tx.description;
+    }
+    
+    // Check external_response structure
+    if (tx.external_response?.data?.transaction?.narration) {
+      return tx.external_response.data.transaction.narration;
+    }
+    
+    if (tx.external_response?.narration) {
+      return tx.external_response.narration;
+    }
+    
+    if (tx.external_response?.withdrawal_details?.narration) {
+      return tx.external_response.withdrawal_details.narration;
+    }
+    
+    // Check for specific withdrawal narration
+    if (tx.external_response?.withdrawal_details?.narration) {
+      return tx.external_response.withdrawal_details.narration;
+    }
+    
+    if (tx.external_response?.data?.transaction?.narration) {
+      return tx.external_response.data.transaction.narration;
+    }
+    
+    // Check for other common patterns
+    if (tx.external_response?.data?.narration) {
+      return tx.external_response.data.narration;
+    }
+    
+    // Fallback to "Transaction" if no narration found
+    return "Transaction";
+  };
+  
+  const narration = getNarration(transaction);
 
-    // Extract sender and receiver info with fallback
-    const senderData = transaction.sender || {};
-    const receiverData = transaction.receiver || {};
-    const externalData = transaction.external_response || {};
+  // Extract sender and receiver info with fallback
+  const senderData = transaction.sender || {};
+  const receiverData = transaction.receiver || {};
+  const externalData = transaction.external_response || {};
 
-    const displaySender = {
-      name: senderData.name || 
-            externalData?.withdrawal_details?.account_name || 
-            externalData?.data?.customer?.senderName || 
-            externalData?.metadata?.sender_name ||
-            "N/A",
-      accountNumber: senderData.accountNumber || 
-                    externalData?.withdrawal_details?.account_number || 
-                    externalData?.data?.customer?.accountNumber || 
-                    "N/A",
-      bankName: senderData.bankName || 
-               externalData?.withdrawal_details?.bank_name || 
-               externalData?.data?.customer?.bankName || 
-               "N/A",
-    };
+  const displaySender = {
+    name: senderData.name || 
+          externalData?.withdrawal_details?.account_name || 
+          externalData?.data?.customer?.senderName || 
+          externalData?.metadata?.sender_name ||
+          "N/A",
+    accountNumber: senderData.accountNumber || 
+                  externalData?.withdrawal_details?.account_number || 
+                  externalData?.data?.customer?.accountNumber || 
+                  "N/A",
+    bankName: senderData.bankName || 
+             externalData?.withdrawal_details?.bank_name || 
+             externalData?.data?.customer?.bankName || 
+             "N/A",
+  };
 
-    const displayReceiver = {
-      name: receiverData.name || 
-            externalData?.receiver_details?.account_name || 
-            externalData?.data?.customer?.recipientName || 
-            externalData?.data?.transaction?.aliasAccountName ||
-            externalData?.data?.meta?.recipientName ||
-            "N/A",
-      accountNumber: receiverData.accountNumber || 
-                    externalData?.receiver_details?.account_number || 
-                    externalData?.data?.customer?.accountNumber || 
-                    externalData?.data?.transaction?.aliasAccountNumber ||
-                    "N/A",
-      bankName: receiverData.bankName || 
-               externalData?.receiver_details?.bank_name || 
-               externalData?.data?.customer?.bankName || 
-               "N/A",
-    };
+  const displayReceiver = {
+    name: receiverData.name || 
+          externalData?.receiver_details?.account_name || 
+          externalData?.data?.customer?.recipientName || 
+          externalData?.data?.transaction?.aliasAccountName ||
+          externalData?.data?.meta?.recipientName ||
+          "N/A",
+    accountNumber: receiverData.accountNumber || 
+                  externalData?.receiver_details?.account_number || 
+                  externalData?.data?.customer?.accountNumber || 
+                  externalData?.data?.transaction?.aliasAccountNumber ||
+                  "N/A",
+    bankName: receiverData.bankName || 
+             externalData?.receiver_details?.bank_name || 
+             externalData?.data?.customer?.bankName || 
+             "N/A",
+  };
 
-    const receiptHTML = `
+  const receiptHTML = `
 <!DOCTYPE html>
 <html>
   <head>
     <title>Transaction Receipt - ${transaction.reference || transaction.id}</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: white; color: #333; }
-      .receipt-container { max-width: 500px; margin: 0 auto; border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; background: white; }
-      .header { text-align: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 20px; }
-      .header h1 { color: #111827; margin: 8px 0 4px 0; font-size: 24px; }
-      .amount-section { text-align: center; margin: 20px 0; }
-      .amount { font-size: 28px; font-weight: bold; }
-      .section { margin: 20px 0; }
-      .section-title { color: #374151; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
-      .details-card { background: #f9fafb; border-radius: 8px; padding: 16px; }
-      .detail-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-      .detail-label { color: #6b7280; }
-      .detail-value { color: #111827; font-weight: 500; }
-      .footer { text-align: center; border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 20px; color: #6b7280; font-size: 12px; }
+      body { 
+        font-family: Arial, sans-serif; 
+        margin: 0; 
+        padding: 20px; 
+        background: white; 
+        color: #333; 
+      }
+      .receipt-container { 
+        max-width: 500px; 
+        margin: 0 auto; 
+        border: 2px solid #e5e7eb; 
+        border-radius: 12px; 
+        padding: 20px; 
+        background: white; 
+      }
+      .header { 
+        text-align: center; 
+        border-bottom: 2px solid #e5e7eb; 
+        padding-bottom: 16px; 
+        margin-bottom: 20px; 
+      }
+      .header h1 { 
+        color: #111827; 
+        margin: 8px 0 4px 0; 
+        font-size: 24px; 
+      }
+      .amount-section { 
+        text-align: center; 
+        margin: 20px 0; 
+      }
+      .amount { 
+        font-size: 28px; 
+        font-weight: bold; 
+      }
+      .section { 
+        margin: 20px 0; 
+      }
+      .section-title { 
+        color: #374151; 
+        font-weight: 600; 
+        margin-bottom: 8px; 
+        font-size: 14px; 
+      }
+      .details-card { 
+        background: #f9fafb; 
+        border-radius: 8px; 
+        padding: 16px; 
+      }
+      .detail-row { 
+        display: flex; 
+        justify-content: space-between; 
+        margin-bottom: 8px; 
+        font-size: 14px; 
+      }
+      .detail-label { 
+        color: #6b7280; 
+      }
+      .detail-value { 
+        color: #111827; 
+        font-weight: 500; 
+      }
+      .narration-section {
+        background: #f0f9ff;
+        border-left: 4px solid #0ea5e9;
+        padding: 12px 16px;
+        margin: 16px 0;
+        border-radius: 4px;
+      }
+      .narration-text {
+        font-style: italic;
+        color: #0369a1;
+        font-weight: 500;
+      }
+      .footer { 
+        text-align: center; 
+        border-top: 1px solid #e5e7eb; 
+        padding-top: 16px; 
+        margin-top: 20px; 
+        color: #6b7280; 
+        font-size: 12px; 
+      }
+      @media (max-width: 640px) {
+        body { padding: 10px; }
+        .receipt-container { padding: 16px; }
+        .amount { font-size: 24px; }
+        .header h1 { font-size: 20px; }
+        .detail-row { flex-direction: column; gap: 4px; }
+        .detail-label, .detail-value { width: 100%; }
+      }
     </style>
   </head>
   <body>
     <div class="receipt-container">
       <div class="header">
-        <h1>Transaction Receipt</h1>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14,2 14,8 20,8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          <h1>Transaction Receipt</h1>
+        </div>
         <p style="color:#6b7280;margin:4px 0;font-size:14px;">Reference: ${transaction.reference || transaction.id}</p>
         <p style="color:#9ca3af;margin:0;font-size:12px;">${new Date(transaction.created_at).toLocaleDateString()} • ${new Date(transaction.created_at).toLocaleTimeString()}</p>
       </div>
@@ -686,18 +814,30 @@ export default function TransactionHistory() {
         </div>
       </div>
 
+      ${narration ? `
+      <div class="narration-section">
+        <div class="section-title">Transaction Narration</div>
+        <div class="narration-text">"${narration}"</div>
+      </div>
+      ` : ''}
+
       <div class="section">
         <div class="section-title">Transaction Details</div>
         <div class="details-card">
           <div class="detail-row">
+            <span class="detail-label">Type</span>
+            <span class="detail-value">${transaction.type || "N/A"}</span>
+          </div>
+          <div class="detail-row">
             <span class="detail-label">Description</span>
-            <span class="detail-value">${description}</span>
+            <span class="detail-value">${transaction.description || narration || "N/A"}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Status</span>
             <span class="detail-value" style="color:${transaction.status?.toLowerCase() === "success" ? "#059669" : transaction.status?.toLowerCase() === "pending" ? "#2563eb" : "#dc2626"}">${transaction.status}</span>
           </div>
           ${transaction.fee > 0 ? `<div class="detail-row"><span class="detail-label">Transaction Fee</span><span class="detail-value">₦${Number(transaction.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}</span></div>` : ""}
+          ${transaction.total_deduction > 0 && transaction.total_deduction !== transaction.amount ? `<div class="detail-row"><span class="detail-label">Total Deduction</span><span class="detail-value">₦${Number(transaction.total_deduction).toLocaleString("en-NG", { minimumFractionDigits: 2 })}</span></div>` : ""}
         </div>
       </div>
 
@@ -726,51 +866,52 @@ export default function TransactionHistory() {
       </div>
 
       <div class="footer">
-        <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+        <p>This is an automated receipt. Please keep it for your records.</p>
+        <p style="margin-top:8px;">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
       </div>
     </div>
   </body>
 </html>
 `;
 
-    try {
-      const response = await fetch("/api/generate-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: receiptHTML }),
-      });
+  try {
+    const response = await fetch("/api/generate-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ html: receiptHTML }),
+    });
 
-      if (!response.ok) throw new Error("Failed to generate PDF");
+    if (!response.ok) throw new Error("Failed to generate PDF");
 
-      const pdfBlob = await response.blob();
-      const url = URL.createObjectURL(pdfBlob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `transaction-receipt-${transaction.reference || transaction.id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      const blob = new Blob([receiptHTML], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `transaction-receipt-${transaction.reference || transaction.id}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      alert("PDF generation failed. Downloading as HTML instead.");
-    } finally {
-      setDownloadingReceipts((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(transactionId);
-        return newSet;
-      });
-    }
-  };
+    const pdfBlob = await response.blob();
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transaction-receipt-${transaction.reference || transaction.id}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    const blob = new Blob([receiptHTML], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transaction-receipt-${transaction.reference || transaction.id}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert("PDF generation failed. Downloading as HTML instead.");
+  } finally {
+    setDownloadingReceipts((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(transactionId);
+      return newSet;
+    });
+  }
+};
 
   const formatAmount = (transaction: any) => {
     const isOutflowTransaction = isOutflow(transaction.type);

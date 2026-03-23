@@ -51,7 +51,7 @@ import Link from "next/link";
 
 // Import separated components
 import { ReceiptSummary } from "./ReceiptSummary";
-import { SignaturePad } from "../SignaturePad";
+import { SignaturePad } from "./SignaturePanel"; 
 import { ReceiptItemsForm } from "./ReceiptItemsForm";
 import { ReceiptTypeSelector } from "./ReceiptTypeSelector";
 
@@ -1894,6 +1894,7 @@ function CreateReceiptPage({
                       onChange={handleSignatureChange}
                       label="Seller Signature (Optional)"
                       disabled={isFormLocked || isProcessing}
+                      onLoadSaved={loadSignatureManually}
                     />
 
                     {/* Toggle Button for Saving Signature */}

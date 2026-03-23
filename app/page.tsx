@@ -1,19 +1,19 @@
 "use client";
-import CTA from "./components/CTA";
-import Features from "./components/Features";
-import Footer from "./components/Footer";
-import Header from "./components/Header";
-import Hero from "./components/Hero";
-import Testimonials from "./components/Testimonials";
+import CTA from "./components/home-component/CTA";
+import Features from "./components/home-component/Features";
+import Footer from "./components/home-component/Footer";
+import Header from "./components/home-component/Header";
+import Hero from "./components/home-component/Hero";
+import Testimonials from "./components/home-component/Testimonials";
 import AOS from 'aos';
 import { useEffect, useMemo } from "react";
 import 'aos/dist/aos.css'; 
-import Pricing from "./components/Pricing";
-import WhyDifferent from "./components/WhyDifferent";
-import HowItWorks from "./components/HowItWorks";
-import WhyChoose from "./components/WhyChoose";
-import ZidCoin from "./components/ZisCoin";
-import FAQ from "./components/Faq";
+import Pricing from "./components/home-component/Pricing";
+import WhyDifferent from "./components/home-component/WhyDifferent";
+import HowItWorks from "./components/home-component/HowItWork"; 
+import WhyChoose from "./components/home-component/WhyChoose";
+import ZidCoin from "./components/home-component/Zidcoin"; 
+import FAQ from "./components/home-component/FAQ"; 
 
 const animations = [
   "fade-up",
@@ -51,8 +51,8 @@ const page = () => {
     return components.map(component => ({
       ...component,
       animation: animations[Math.floor(Math.random() * animations.length)],
-      delay: Math.floor(Math.random() * 300), // 0-300ms delay
-      duration: 600 + Math.floor(Math.random() * 600), // 600-1200ms duration
+      delay: Math.floor(Math.random() * 300), 
+      duration: 600 + Math.floor(Math.random() * 600), 
     }));
   }, []);
 
@@ -86,3 +86,5 @@ const page = () => {
 };
 
 export default page;
+
+

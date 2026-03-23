@@ -196,7 +196,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   >
                     <item.icon
                       className={cn(
-                        "w-5 h-5 flex-shrink-0",
+                        "w-5 h-5 shrink-0",
                         isActive && "text-[#2b825b]",
                       )}
                     />
@@ -226,9 +226,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                 onClick={toggleDarkMode}
               >
                 {darkMode ? (
-                  <Sun className="w-5 h-5 flex-shrink-0" />
+                  <Sun className="w-5 h-5 shrink-0" />
                 ) : (
-                  <Moon className="w-5 h-5 flex-shrink-0" />
+                  <Moon className="w-5 h-5 shrink-0" />
                 )}
                 {!collapsed && (
                   <motion.span
@@ -250,7 +250,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     collapsed && "justify-center px-2",
                   )}
                 >
-                  <Home className="w-5 h-5 flex-shrink-0" />
+                  <Home className="w-5 h-5 shrink-0" />
                   {!collapsed && (
                     <motion.span
                       initial={{ opacity: 1 }}
@@ -269,7 +269,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   collapsed && "justify-center",
                 )}
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center overflow-hidden">
+                <div className="w-8 h-8 rounded-full bg-linear-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center overflow-hidden">
                   {userData?.profilePicture ? (
                     <Image
                       src={userData.profilePicture}

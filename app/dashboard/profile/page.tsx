@@ -1,15 +1,71 @@
+// app/profile/page.tsx
 "use client";
+
+import React, { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/app/components/ui/button";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
-import ProfileSettings from "@/app/components/Profile-settings";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import ProfileHeader from "@/app/components/profile-operations/ProfileHeader";
+import PersonalKYCTab from "@/app/components/profile-operations/PersonalKYCTab";
+import BusinessKYCTab from "@/app/components/profile-operations/BusinessKYCTab";
+import SecurityTab from "@/app/components/profile-operations/SecurityTab";
+import SubscriptionSection from "@/app/components/profile-operations/SubscriptionSection";
+import WalletCard from "@/app/components/profile-operations/WalletCard";
+import { useUserContextData } from "@/app/context/userData";
+import { useSubscription } from "@/app/hooks/useSubscripion";
 
-export default function ProfilePage() {
+export default function NewProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<
+    "personal" | "business" | "security"
+  >("personal");
+  const { userData, balance, lifetimeBalance, totalTransactions } =
+    useUserContextData();
+  const { userTier } = useSubscription();
+
+  // Handle URL parameters on mount
+  useEffect(() => {
+    const tab = searchParams?.get("tab");
+    const verify = searchParams?.get("verify");
+
+    if (tab === "personal") {
+      setActiveTab("personal");
+
+      if (verify === "bvn") {
+        setTimeout(() => {
+          const bvnSection = document.getElementById(
+            "bvn-verification-section",
+          );
+          if (bvnSection) {
+            bvnSection.scrollIntoView({ behavior: "smooth", block: "center" });
+            bvnSection.classList.add(
+              "ring-2",
+              "ring-[#2b825b]",
+              "ring-offset-2",
+              "transition-all",
+              "duration-500",
+            );
+            setTimeout(() => {
+              bvnSection.classList.remove(
+                "ring-2",
+                "ring-[#2b825b]",
+                "ring-offset-2",
+              );
+            }, 2000);
+          }
+        }, 500);
+      }
+    }
+  }, [searchParams]);
+
+  const handleWalletActivate = () => {
+    setActiveTab("personal");
+    // router.push('/profile?tab=personal&verify=bvn');
+  };
 
   return (
     <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] fade-in relative">
@@ -22,8 +78,9 @@ export default function ProfilePage() {
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-start gap-4 mb-6 md:mb-8">
+          <div className="max-w-6xl mx-auto space-y-6">
+            {/* Header with Back Button */}
+            <div className="flex items-start gap-4">
               <Button
                 variant="ghost"
                 size="sm"
@@ -31,7 +88,9 @@ export default function ProfilePage() {
                 className="text-[#2b825b] hover:text-[#1e5d42] hover:bg-[#f0efe7] dark:hover:bg-[#242424] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[#242424] dark:hover:border-[#474747] transition-all"
               >
                 <ArrowLeft className="w-5 h-5 md:mr-2" />
-                <span className="hidden md:inline text-sm font-medium">Back</span>
+                <span className="hidden md:inline text-sm font-medium">
+                  Back
+                </span>
               </Button>
 
               <div className="flex-1">
@@ -44,7 +103,67 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <ProfileSettings />
+            {/* Profile Header */}
+            <ProfileHeader
+              name={userData?.fullName || userData?.first_name || "User"}
+              email={userData?.email || ""}
+              subscription={(userTier as any) || "free"}
+              walletActivated={!!userData?.transaction_pin}
+              avatarUrl={userData?.profile_picture || userData?.profilePicture}
+            />
+
+            {/* Wallet Card */}
+            <WalletCard
+              allTimeBalance={lifetimeBalance}
+              currentBalance={balance || 0}
+              totalTransactions={totalTransactions}
+              activated={!!userData?.transaction_pin}
+              onActivate={handleWalletActivate}
+            />
+
+            {/* Tabs Navigation */}
+            <div className="neo-card bg-card p-1 flex gap-1">
+              <button
+                onClick={() => setActiveTab("personal")}
+                className={`flex-1 py-3 text-sm  transition-colors ${
+                  activeTab === "personal"
+                    ? "bg-[#2b825b] text-white dark:bg-[#236b49]"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                PERSONAL KYC
+              </button>
+              <button
+                onClick={() => setActiveTab("business")}
+                className={`flex-1 py-3 text-sm  transition-colors ${
+                  activeTab === "business"
+                    ? "bg-[#2b825b] text-white dark:bg-[#236b49]"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                BUSINESS KYC
+              </button>
+              <button
+                onClick={() => setActiveTab("security")}
+                className={`flex-1 py-3 text-sm  transition-colors ${
+                  activeTab === "security"
+                    ? "bg-[#2b825b] text-white dark:bg-[#236b49]"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                SECURITY
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="space-y-6">
+              {activeTab === "personal" && <PersonalKYCTab />}
+              {activeTab === "business" && <BusinessKYCTab />}
+              {activeTab === "security" && <SecurityTab />}
+            </div>
+
+            {/* Subscription Section - Now using the hook internally */}
+            <SubscriptionSection />
           </div>
         </main>
       </div>

@@ -267,6 +267,7 @@ import { useUserContextData } from "@/app/context/userData";
 import Carousel from "@/app/components/Carousel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
+import { Button2 } from "@/app/components/ui/button2";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -490,9 +491,9 @@ const LoginForm = () => {
                   Forgot password?
                 </Link>
               </div>
-              <Button
+              <Button2
                 type="submit"
-                className="bg-[#2b825b] w-full"
+                className=" w-full"
                 disabled={loading || buttonDisabled}
               >
                 {loading ? (
@@ -546,7 +547,7 @@ const LoginForm = () => {
                 ) : (
                   "Sign In"
                 )}
-              </Button>
+              </Button2>
             </form>
 
             <div className="mt-6 text-center">

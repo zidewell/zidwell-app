@@ -256,7 +256,7 @@ export function TaxCard({
               key={doc}
               className="text-xs text-[#6b6b6b] dark:text-[#b3b3b3] flex items-start gap-1.5"
             >
-              <span className="mt-0.5 w-1 h-1 rounded-full bg-[#6b6b6b] dark:bg-[#b3b3b3] flex-shrink-0" />
+              <span className="mt-0.5 w-1 h-1 rounded-full bg-[#6b6b6b] dark:bg-[#b3b3b3] shrink-0" />
               {doc}
             </li>
           ))}

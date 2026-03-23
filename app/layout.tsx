@@ -11,6 +11,7 @@ import DashboardFooter from "./components/dashboardFooter";
 import { InstallPrompt } from "./components/PushNotificationManager";
 import GlobalVerificationModal from "./components/GlobalVerificationModal";
 import { VerificationModalProvider } from "./context/verificationModalContext";
+import AuthChecker from "./components/AuthChecker";
 
 export const viewport: Viewport = {
   themeColor: "#2b825b",
@@ -508,6 +509,8 @@ export default function RootLayout({
         </Script>
 
         <UserProvider>
+           <AuthChecker>
+          
           <SessionWatcher>
             <VerificationModalProvider>
               {children}
@@ -522,6 +525,8 @@ export default function RootLayout({
               {/* <DashboardFooter /> */}
             </VerificationModalProvider>
           </SessionWatcher>
+        
+          </AuthChecker>
         </UserProvider>
       </body>
     </html>

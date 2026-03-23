@@ -26,29 +26,29 @@ export default function DashboardPage() {
   const [usage, setUsage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
-  
+
   const searchParams = useSearchParams();
 
   // Check for subscription success on mount
   useEffect(() => {
-    const subscriptionSuccess = searchParams?.get('subscription');
-    const plan = searchParams?.get('plan');
-    
-    if (subscriptionSuccess === 'success') {
-      setSuccessPlan(plan || userTier || '');
+    const subscriptionSuccess = searchParams?.get("subscription");
+    const plan = searchParams?.get("plan");
+
+    if (subscriptionSuccess === "success") {
+      setSuccessPlan(plan || userTier || "");
       setShowSuccess(true);
-      
+
       // Auto-hide after 5 seconds
       const timer = setTimeout(() => {
         setShowSuccess(false);
       }, 5000);
-      
+
       // Clean up URL without refreshing
       const url = new URL(window.location.href);
-      url.searchParams.delete('subscription');
-      url.searchParams.delete('plan');
-      window.history.replaceState({}, '', url.toString());
-      
+      url.searchParams.delete("subscription");
+      url.searchParams.delete("plan");
+      window.history.replaceState({}, "", url.toString());
+
       return () => clearTimeout(timer);
     }
   }, [searchParams, userTier]);
@@ -56,13 +56,13 @@ export default function DashboardPage() {
   // Fetch usage data
   const fetchUsage = async () => {
     try {
-      const res = await fetch('/api/user/usage');
+      const res = await fetch("/api/user/usage");
       if (res.ok) {
         const data = await res.json();
         setUsage(data);
       }
     } catch (error) {
-      console.error('Failed to fetch usage:', error);
+      console.error("Failed to fetch usage:", error);
     } finally {
       setLoading(false);
     }
@@ -70,12 +70,12 @@ export default function DashboardPage() {
 
   // Refresh usage after actions
   const refreshUsage = () => {
-    setRefreshKey(prev => prev + 1);
+    setRefreshKey((prev) => prev + 1);
   };
 
   // Fetch usage on mount and when refreshKey changes
   useEffect(() => {
-    if (userTier === 'free') {
+    if (userTier === "free") {
       fetchUsage();
     }
   }, [userTier, refreshKey]);
@@ -83,23 +83,23 @@ export default function DashboardPage() {
   // Listen for focus events to refresh data when returning to dashboard
   useEffect(() => {
     const handleFocus = () => {
-      if (userTier === 'free') {
+      if (userTier === "free") {
         fetchUsage();
       }
     };
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [userTier]);
 
   // Format plan name for display
   const formatPlanName = (plan: string) => {
-    if (!plan) return '';
+    if (!plan) return "";
     const planMap: Record<string, string> = {
-      'zidlite': 'ZidLite',
-      'growth': 'Growth',
-      'premium': 'Premium',
-      'elite': 'Elite'
+      zidlite: "ZidLite",
+      growth: "Growth",
+      premium: "Premium",
+      elite: "Elite",
     };
     return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
@@ -111,13 +111,15 @@ export default function DashboardPage() {
         <div className="fixed top-20 right-4 z-50 animate-slideIn">
           <div className="bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg border-l-4 border-green-700 max-w-md">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <CheckCircle className="w-6 h-6" />
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <p className="font-bold text-lg">🎉 Subscription Activated!</p>
-                  <button 
+                  <p className="font-bold text-lg">
+                    🎉 Subscription Activated!
+                  </p>
+                  <button
                     onClick={() => setShowSuccess(false)}
                     className="text-white/80 hover:text-white"
                   >
@@ -126,13 +128,22 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-sm text-green-100 mt-1">
                   {successPlan ? (
-                    <>Your <span className="font-bold">{formatPlanName(successPlan)}</span> plan is now active. Welcome to the new features!</>
+                    <>
+                      Your{" "}
+                      <span className="font-bold">
+                        {formatPlanName(successPlan)}
+                      </span>{" "}
+                      plan is now active. Welcome to the new features!
+                    </>
                   ) : (
-                    <>Your account has been upgraded. Welcome to the new features!</>
+                    <>
+                      Your account has been upgraded. Welcome to the new
+                      features!
+                    </>
                   )}
                 </p>
                 <div className="mt-3 flex gap-2">
-                  <button 
+                  <button
                     onClick={() => setShowSuccess(false)}
                     className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-full transition-colors"
                   >

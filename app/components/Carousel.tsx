@@ -71,7 +71,7 @@ const Carousel: React.FC = () => {
         style={{ transform: `translateX(-${current * 100}%)` }}
       >
         {slides.map((slide, index) => (
-          <div key={index} className="relative w-full h-full flex-shrink-0">
+          <div key={index} className="relative w-full h-full shrink-0">
             {/* Loading placeholder */}
             {!imagesLoaded[index] && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-200">

@@ -8,8 +8,8 @@ import { Textarea } from "@/app/components/ui/textarea";
 import { ArrowLeft } from "lucide-react";
 import Swal from "sweetalert2";
 import Loader from "@/app/components/Loader";
-import DashboardSidebar from "@/app/components/dashboard-sidebar";
-import DashboardHeader from "@/app/components/dashboard-hearder";
+import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
+import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 
 interface InvoiceItem {
   id: string;
@@ -49,6 +49,7 @@ export default function Page() {
   const router = useRouter();
   const [form, setForm] = useState<InvoiceForm | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const firstErrorRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -260,19 +261,30 @@ export default function Page() {
     }
   };
 
-  if (!form)
+  if (!form) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
+        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="lg:pl-72 min-h-screen flex flex-col">
+          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+          <main className="flex-1 p-4 md:p-6 lg:p-8">
+            <div className="flex justify-center items-center h-full">
+              <Loader />
+            </div>
+          </main>
+        </div>
       </div>
     );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 fade-in">
-      <DashboardSidebar />
-      <div className="lg:ml-64">
-        <DashboardHeader />
-        <main className="p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
+      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      
+      <div className="lg:pl-72 min-h-screen flex flex-col">
+        <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+        
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-4xl mx-auto">
             {/* Header with Back Button */}
             <div className="flex items-center justify-between mb-6">
@@ -280,24 +292,24 @@ export default function Page() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
+                className="text-[#2b825b] hover:bg-[#f0efe7] dark:hover:bg-gray-800 text-sm md:text-base"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 <span className="hidden md:block">Back</span>
               </Button>
-              <h1 className="text-3xl font-bold text-center flex-1">
+              <h1 className="text-2xl md:text-3xl font-bold text-center flex-1 text-gray-900 dark:text-gray-100">
                 Edit Invoice
               </h1>
               <div className="w-20"></div> {/* Spacer for balance */}
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border p-6 space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-4 md:p-6 space-y-6">
               {/* Business Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label
                     htmlFor="business_name"
-                    className="block font-medium mb-2"
+                    className="block font-medium mb-2 dark:text-gray-300"
                   >
                     Business Name
                   </label>
@@ -306,13 +318,14 @@ export default function Page() {
                     name="business_name"
                     value={form.business_name}
                     onChange={handleChange}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="invoice_id"
-                    className="block font-medium mb-2"
+                    className="block font-medium mb-2 dark:text-gray-300"
                   >
                     Invoice ID
                   </label>
@@ -321,6 +334,7 @@ export default function Page() {
                     name="invoice_id"
                     value={form.invoice_id}
                     disabled
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400"
                   />
                 </div>
               </div>
@@ -330,7 +344,7 @@ export default function Page() {
                 <div>
                   <label
                     htmlFor="client_name"
-                    className="block font-medium mb-2"
+                    className="block font-medium mb-2 dark:text-gray-300"
                   >
                     Client Name
                   </label>
@@ -339,13 +353,14 @@ export default function Page() {
                     name="client_name"
                     value={form.client_name}
                     onChange={handleChange}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="client_email"
-                    className="block font-medium mb-2"
+                    className="block font-medium mb-2 dark:text-gray-300"
                   >
                     Client Email
                   </label>
@@ -355,6 +370,7 @@ export default function Page() {
                     type="email"
                     value={form.client_email}
                     onChange={handleChange}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   />
                 </div>
               </div>
@@ -363,7 +379,7 @@ export default function Page() {
                 <div>
                   <label
                     htmlFor="client_phone"
-                    className="block font-medium mb-2"
+                    className="block font-medium mb-2 dark:text-gray-300"
                   >
                     Client Phone
                   </label>
@@ -372,11 +388,12 @@ export default function Page() {
                     name="client_phone"
                     value={form.client_phone || ""}
                     onChange={handleChange}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="bill_to" className="block font-medium mb-2">
+                  <label htmlFor="bill_to" className="block font-medium mb-2 dark:text-gray-300">
                     Bill To
                   </label>
                   <Input
@@ -384,6 +401,7 @@ export default function Page() {
                     name="bill_to"
                     value={form.bill_to}
                     onChange={handleChange}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   />
                 </div>
               </div>
@@ -393,7 +411,7 @@ export default function Page() {
                 <div>
                   <label
                     htmlFor="issue_date"
-                    className="block font-medium mb-2"
+                    className="block font-medium mb-2 dark:text-gray-300"
                   >
                     Issue Date
                   </label>
@@ -403,11 +421,12 @@ export default function Page() {
                     type="date"
                     value={form.issue_date}
                     onChange={handleChange}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="due_date" className="block font-medium mb-2">
+                  <label htmlFor="due_date" className="block font-medium mb-2 dark:text-gray-300">
                     Due Date
                   </label>
                   <Input
@@ -416,16 +435,17 @@ export default function Page() {
                     type="date"
                     value={form.due_date}
                     onChange={handleChange}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   />
                 </div>
               </div>
 
               {/* Payment Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <div>
                   <label
                     htmlFor="payment_type"
-                    className="block font-medium mb-2"
+                    className="block font-medium mb-2 dark:text-gray-300"
                   >
                     Payment Type
                   </label>
@@ -434,7 +454,7 @@ export default function Page() {
                     name="payment_type"
                     value={form.payment_type}
                     onChange={handleChange}
-                    className="w-full p-2 border rounded-md"
+                    className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
                   >
                     <option value="single">Single Payment</option>
                     <option value="multiple">Multiple Payments</option>
@@ -444,7 +464,7 @@ export default function Page() {
                 <div>
                   <label
                     htmlFor="fee_option"
-                    className="block font-medium mb-2"
+                    className="block font-medium mb-2 dark:text-gray-300"
                   >
                     Fee Option
                   </label>
@@ -453,7 +473,7 @@ export default function Page() {
                     name="fee_option"
                     value={form.fee_option}
                     onChange={handleChange}
-                    className="w-full p-2 border rounded-md"
+                    className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
                   >
                     <option value="customer">Customer Pays Fee</option>
                     <option value="absorbed">Absorb Fee</option>
@@ -463,7 +483,7 @@ export default function Page() {
                 <div>
                   <label
                     htmlFor="target_quantity"
-                    className="block font-medium mb-2"
+                    className="block font-medium mb-2 dark:text-gray-300"
                   >
                     Target Quantity
                   </label>
@@ -475,26 +495,27 @@ export default function Page() {
                     value={form.target_quantity}
                     onChange={handleChange}
                     placeholder="1"
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Number of times this invoice should be paid
                   </p>
                 </div>
               </div>
 
               {/* Multiple Payments Toggle */}
-              <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center space-x-2 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <input
                   type="checkbox"
                   id="allow_multiple_payments"
                   name="allow_multiple_payments"
                   checked={form.allow_multiple_payments}
                   onChange={handleChange}
-                  className="w-4 h-4 text-[#2b825b] border-gray-300 rounded focus:ring-[#2b825b]"
+                  className="w-4 h-4 text-[#2b825b] border-gray-300 rounded focus:ring-[#2b825b] dark:bg-gray-700 dark:border-gray-600"
                 />
                 <label
                   htmlFor="allow_multiple_payments"
-                  className="font-medium"
+                  className="font-medium dark:text-gray-300"
                 >
                   Allow Multiple Payments
                 </label>
@@ -503,12 +524,13 @@ export default function Page() {
               {/* Invoice Items */}
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <label className="block font-medium">Invoice Items</label>
+                  <label className="block font-medium dark:text-gray-300">Invoice Items</label>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={addItem}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                   >
                     + Add Item
                   </Button>
@@ -526,6 +548,7 @@ export default function Page() {
                           updateItem(index, "description", e.target.value)
                         }
                         placeholder="Item description"
+                        className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                       />
                     </div>
                     <div className="col-span-2">
@@ -537,6 +560,7 @@ export default function Page() {
                         }
                         placeholder="Qty"
                         min="1"
+                        className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                       />
                     </div>
                     <div className="col-span-2">
@@ -549,6 +573,7 @@ export default function Page() {
                         placeholder="Price"
                         min="0"
                         step="0.01"
+                        className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                       />
                     </div>
                     <div className="col-span-2">
@@ -556,6 +581,7 @@ export default function Page() {
                         value={`₦${item.total.toLocaleString()}`}
                         disabled
                         placeholder="Total"
+                        className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400"
                       />
                     </div>
                     <div className="col-span-1">
@@ -564,7 +590,7 @@ export default function Page() {
                         variant="outline"
                         size="sm"
                         onClick={() => removeItem(index)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-red-600 hover:text-red-800 dark:bg-gray-700 dark:border-gray-600 dark:text-red-400 dark:hover:text-red-300"
                       >
                         ×
                       </Button>
@@ -573,30 +599,30 @@ export default function Page() {
                 ))}
 
                 {/* Totals Summary */}
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                   <div className="flex justify-between text-sm">
-                    <span>Subtotal:</span>
-                    <span>₦{form.subtotal.toLocaleString()}</span>
+                    <span className="dark:text-gray-300">Subtotal:</span>
+                    <span className="dark:text-gray-100">₦{form.subtotal.toLocaleString()}</span>
                   </div>
                   {form.fee_amount > 0 && (
                     <div className="flex justify-between text-sm mt-1">
-                      <span>
+                      <span className="dark:text-gray-300">
                         Processing Fee (
                         {form.fee_option === "customer" ? "2%" : "Absorbed"}):
                       </span>
-                      <span>₦{form.fee_amount.toLocaleString()}</span>
+                      <span className="dark:text-gray-100">₦{form.fee_amount.toLocaleString()}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-bold mt-2 pt-2 border-t">
-                    <span>Total Amount:</span>
-                    <span className="text-[#2b825b]">
+                  <div className="flex justify-between font-bold mt-2 pt-2 border-t dark:border-gray-600">
+                    <span className="dark:text-gray-300">Total Amount:</span>
+                    <span className="text-[#2b825b] dark:text-[#3aa873]">
                       ₦{form.total_amount.toLocaleString()}
                     </span>
                   </div>
                   {form.allow_multiple_payments && (
-                    <div className="flex justify-between text-sm mt-2 pt-2 border-t">
-                      <span>Target Quantity:</span>
-                      <span className="font-medium">
+                    <div className="flex justify-between text-sm mt-2 pt-2 border-t dark:border-gray-600">
+                      <span className="dark:text-gray-300">Target Quantity:</span>
+                      <span className="font-medium dark:text-gray-100">
                         {form.target_quantity}
                       </span>
                     </div>
@@ -606,7 +632,7 @@ export default function Page() {
 
               {/* Message */}
               <div>
-                <label htmlFor="message" className="block font-medium mb-2">
+                <label htmlFor="message" className="block font-medium mb-2 dark:text-gray-300">
                   Message
                 </label>
                 <Textarea
@@ -616,6 +642,7 @@ export default function Page() {
                   onChange={handleChange}
                   placeholder="Message to client"
                   rows={3}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                 />
               </div>
 
@@ -623,7 +650,7 @@ export default function Page() {
               <div>
                 <label
                   htmlFor="redirect_url"
-                  className="block font-medium mb-2"
+                  className="block font-medium mb-2 dark:text-gray-300"
                 >
                   Redirect URL (Optional)
                 </label>
@@ -634,14 +661,15 @@ export default function Page() {
                   value={form.redirect_url || ""}
                   onChange={handleChange}
                   placeholder="https://example.com/thankyou"
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Redirect clients to this URL after successful payment
                 </p>
               </div>
 
               <Button
-                className="w-full bg-[#2b825b] hover:bg-[#1e5d42] text-white"
+                className="w-full bg-[#2b825b] hover:bg-[#1e5d42] text-white dark:bg-[#2b825b] dark:hover:bg-[#1e5f43]"
                 onClick={handleUpdate}
                 disabled={loading}
                 size="lg"
