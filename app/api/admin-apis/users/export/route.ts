@@ -22,7 +22,6 @@ export async function GET(req: NextRequest) {
     const clientInfo = getClientInfo(req.headers);
     const url = new URL(req.url);
     
-    // Get all filter parameters
     const type = url.searchParams.get("type") || "active";
     const search = url.searchParams.get("search");
     const status = url.searchParams.get("status");
@@ -32,116 +31,150 @@ export async function GET(req: NextRequest) {
     const lowThreshold = Number(url.searchParams.get("low_threshold")) || 1000;
     const highThreshold = Number(url.searchParams.get("high_threshold")) || 100000;
 
-    let query;
-    let tableName = type === "pending" ? "pending_users" : "users";
+    let allData: any[] = [];
 
-    console.log('Export filters:', { type, search, status, role, activity, balance });
-
-    // Build the query based on type
     if (type === "pending") {
-      query = supabaseAdmin
-        .from(tableName)
-        .select("*")
-        .order("created_at", { ascending: false });
-    } else {
-      query = supabaseAdmin
-        .from(tableName)
-        .select("*")
-        .order("created_at", { ascending: false });
-    }
-
-    // Apply text search filter
-    if (search) {
-      if (type === "pending") {
-        query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
-      } else {
-        query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
-      }
-    }
-
-    // Apply status filter (active/blocked)
-    if (status && status !== "all") {
-      if (status === "blocked") {
-        query = query.eq("is_blocked", true);
-      } else if (status === "active") {
-        query = query.eq("is_blocked", false).eq("status", "active");
-      }
-    }
-
-    // Apply role filter
-    if (role && role !== "all") {
-      query = query.eq("role", role);
-    }
-
-    // Apply activity filter (for active users only)
-    if (type === "active" && activity && activity !== "all") {
-      const now = new Date();
+      // Get pending users from both sources
       
-      if (activity === "active") {
-        // Active in last 30 days
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        query = query.gte("last_login", thirtyDaysAgo.toISOString());
-      } else if (activity === "today") {
-        // Active today
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        query = query.gte("last_login", today.toISOString());
-      } else if (activity === "week") {
-        // Active this week
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        query = query.gte("last_login", weekAgo.toISOString());
-      } else if (activity === "inactive") {
-        // Inactive for 30+ days
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        query = query.lt("last_login", thirtyDaysAgo.toISOString()).or(`last_login.is.null`);
+      // From pending_users table
+      let pendingTableQuery = supabaseAdmin
+        .from("pending_users")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (search) {
+        pendingTableQuery = pendingTableQuery.or(
+          `email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
+        );
       }
-    }
 
-    // Apply balance filter (for active users only)
-    if (type === "active" && balance && balance !== "all") {
-      if (balance === "high") {
-        query = query.gte("wallet_balance", highThreshold);
-      } else if (balance === "low") {
-        query = query.lte("wallet_balance", lowThreshold).gte("wallet_balance", 0);
-      } else if (balance === "negative") {
-        query = query.lt("wallet_balance", 0);
-      } else if (balance === "zero") {
-        query = query.eq("wallet_balance", 0);
+      const { data: pendingTableData, error: pendingTableError } = await pendingTableQuery;
+      
+      if (!pendingTableError && pendingTableData) {
+        const formattedPendingTableData = pendingTableData.map((user: any) => ({
+          ...user,
+          full_name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+          source: 'pending_table',
+          kyc_status: 'pending',
+          bvn_verification: 'pending',
+          status: 'pending',
+          is_blocked: false,
+        }));
+        allData.push(...formattedPendingTableData);
       }
-    }
 
-    const { data, error } = await query;
+      // From users table with bvn_verification = 'not_submitted' OR users who are not verified
+      let usersQuery = supabaseAdmin
+        .from("users")
+        .select("*")
+        .in("bvn_verification", ["not_submitted", "pending", null])
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error('Supabase query error:', error);
-      throw new Error(`Database error: ${error.message}`);
+      if (search) {
+        usersQuery = usersQuery.or(
+          `full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`
+        );
+      }
+
+      const { data: usersData, error: usersError } = await usersQuery;
+      
+      if (!usersError && usersData) {
+        const formattedUsersData = usersData.map((user: any) => ({
+          ...user,
+          source: 'users_table',
+          kyc_status: user.bvn_verification || 'not_submitted',
+          first_name: user.full_name?.split(' ')[0] || '',
+          last_name: user.full_name?.split(' ').slice(1).join(' ') || '',
+          status: 'pending',
+        }));
+        allData.push(...formattedUsersData);
+      }
+
+    } else {
+      // ACTIVE USERS - Include ALL approved users (not in pending state)
+      // These are users who are in the users table and have bvn_verification not in pending states
+      let query = supabaseAdmin
+        .from("users")
+        .select("*")
+        // Exclude users with pending KYC status - use not in
+        .not("bvn_verification", "in", "('not_submitted','pending')")
+        .order("created_at", { ascending: false });
+
+      if (search) {
+        query = query.or(
+          `full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`
+        );
+      }
+
+      if (status && status !== "all") {
+        if (status === "blocked") {
+          query = query.eq("is_blocked", true);
+        } else if (status === "active") {
+          query = query.eq("is_blocked", false);
+        }
+      }
+
+      if (role && role !== "all") {
+        query = query.eq("role", role);
+      }
+
+      if (activity && activity !== "all") {
+        const now = new Date();
+        if (activity === "active") {
+          const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          query = query.gte("last_login", thirtyDaysAgo.toISOString());
+        } else if (activity === "today") {
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          query = query.gte("last_login", today.toISOString());
+        } else if (activity === "week") {
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          query = query.gte("last_login", weekAgo.toISOString());
+        } else if (activity === "inactive") {
+          const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          query = query.lt("last_login", thirtyDaysAgo.toISOString()).or(`last_login.is.null`);
+        }
+      }
+
+      if (balance && balance !== "all") {
+        if (balance === "high") {
+          query = query.gte("wallet_balance", highThreshold);
+        } else if (balance === "low") {
+          query = query.lte("wallet_balance", lowThreshold).gte("wallet_balance", 0);
+        } else if (balance === "negative") {
+          query = query.lt("wallet_balance", 0);
+        } else if (balance === "zero") {
+          query = query.eq("wallet_balance", 0);
+        }
+      }
+
+      const { data, error } = await query;
+      if (!error && data) {
+        allData = data;
+      } else if (error) {
+        console.error("Error fetching active users:", error);
+      }
     }
 
     // Format data for CSV
-    const formattedData = data.map((user: any) => {
-      // Common fields for both types
-      const baseData: any = {
-        "User ID": user.id,
-        "Email": user.email,
-        "First Name": user.first_name || "",
-        "Last Name": user.last_name || "",
-        "Full Name": `${user.first_name || ""} ${user.last_name || ""}`.trim(),
-        "Phone": user.phone || "",
-        "Registration Date": user.created_at ? new Date(user.created_at).toLocaleDateString() : "",
-        "Registration DateTime": user.created_at ? new Date(user.created_at).toISOString() : "",
-      };
-
+    const formattedData = allData.map((user: any) => {
       if (type === "pending") {
-        // Pending user specific fields
         return {
-          ...baseData,
-          "KYC Status": user.kyc_status || "not_started",
-          "Status": user.status || "pending",
-          "Rejection Reason": user.rejected_reason || "",
-          "Rejected By": user.rejected_by || "",
-          "Rejected At": user.rejected_at ? new Date(user.rejected_at).toLocaleString() : "",
+          "User ID": user.id,
+          "Email": user.email || "",
+          "First Name": user.first_name || "",
+          "Last Name": user.last_name || "",
+          "Full Name": user.full_name || "",
+          "Phone": user.phone || "",
+          "Registration Date": user.created_at ? new Date(user.created_at).toLocaleDateString() : "",
+          "Registration DateTime": user.created_at ? new Date(user.created_at).toISOString() : "",
+          "KYC Status": user.kyc_status || user.bvn_verification || "pending",
+          "Status": user.status || "Pending",
+          "Source": user.source === 'pending_table' ? 'Awaiting Approval' : 'Incomplete KYC',
+          "BVN Verification": user.bvn_verification || "not_submitted",
+          "Referred By": user.referred_by || "",
+          "Referral Source": user.referral_source || "",
         };
       } else {
-        // Active user specific fields
         const walletBalance = Number(user.wallet_balance) || 0;
         let balanceCategory = "Normal";
         
@@ -150,76 +183,63 @@ export async function GET(req: NextRequest) {
         else if (walletBalance < 0) balanceCategory = "Negative";
         else if (walletBalance === 0) balanceCategory = "Zero";
 
+        const nameParts = (user.full_name || "").split(" ");
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
         return {
-          ...baseData,
+          "User ID": user.id,
+          "Email": user.email || "",
+          "First Name": firstName,
+          "Last Name": lastName,
+          "Full Name": user.full_name || "",
+          "Phone": user.phone || "",
           "Role": user.role || "user",
-          "Status": user.is_blocked ? "Blocked" : (user.status || "Active"),
-          "KYC Status": user.kyc_status || "not_started",
+          "Status": user.is_blocked ? "Blocked" : "Active",
+          "KYC Status": user.bvn_verification || "not_started",
           "Wallet Balance": walletBalance,
           "Balance Category": balanceCategory,
           "Last Login": user.last_login ? new Date(user.last_login).toLocaleString() : "Never",
           "Last Logout": user.last_logout ? new Date(user.last_logout).toLocaleString() : "Never",
           "Blocked": user.is_blocked ? "Yes" : "No",
           "Blocked At": user.blocked_at ? new Date(user.blocked_at).toLocaleString() : "",
-          "Blocked Reason": user.blocked_reason || "",
+          "Blocked Reason": user.block_reason || "",
+          "Registration Date": user.created_at ? new Date(user.created_at).toLocaleDateString() : "",
+          "Registration DateTime": user.created_at ? new Date(user.created_at).toISOString() : "",
           "Updated At": user.updated_at ? new Date(user.updated_at).toLocaleString() : "",
           "Account Age (Days)": user.created_at ? 
             Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0,
+          "Subscription Tier": user.subscription_tier || "free",
+          "BVN Verification": user.bvn_verification || "not_submitted",
+          "Referral Code": user.referral_code || "",
+          "Referred By": user.referred_by || "",
         };
       }
     });
 
-    // Define CSV fields based on user type
     let fields: string[];
     if (type === "pending") {
       fields = [
-        "User ID",
-        "Email",
-        "First Name", 
-        "Last Name",
-        "Full Name",
-        "Phone",
-        "Registration Date",
-        "Registration DateTime",
-        "KYC Status",
-        "Status",
-        "Rejection Reason",
-        "Rejected By",
-        "Rejected At"
+        "User ID", "Email", "First Name", "Last Name", "Full Name", "Phone",
+        "Registration Date", "Registration DateTime", "KYC Status", "Status",
+        "Source", "BVN Verification", "Referred By", "Referral Source"
       ];
     } else {
       fields = [
-        "User ID",
-        "Email",
-        "First Name",
-        "Last Name",
-        "Full Name",
-        "Phone",
-        "Role",
-        "Status",
-        "KYC Status",
-        "Wallet Balance",
-        "Balance Category",
-        "Last Login",
-        "Last Logout",
-        "Blocked",
-        "Blocked At",
-        "Blocked Reason",
-        "Registration Date",
-        "Registration DateTime",
-        "Updated At",
-        "Account Age (Days)"
+        "User ID", "Email", "First Name", "Last Name", "Full Name", "Phone",
+        "Role", "Status", "KYC Status", "Wallet Balance", "Balance Category",
+        "Last Login", "Last Logout", "Blocked", "Blocked At", "Blocked Reason",
+        "Registration Date", "Registration DateTime", "Updated At", "Account Age (Days)",
+        "Subscription Tier", "BVN Verification", "Referral Code", "Referred By"
       ];
     }
 
-    // Convert to CSV
     const json2csvParser = new Parser({ fields });
     const csv = json2csvParser.parse(formattedData);
 
-    // Create filename with filter details
-    let filename = `${type}_users_${new Date().toISOString().split('T')[0]}`;
+    let filename = `${type}_users_${new Date().toISOString().split('T')[0]}.csv`;
     
-    // Add filter info to filename if any filters are applied
+    // Add filter info to filename
     const filterParts = [];
     if (search) filterParts.push(`search-${search.substring(0, 10)}`);
     if (status && status !== 'all') filterParts.push(status);
@@ -227,32 +247,19 @@ export async function GET(req: NextRequest) {
     if (balance && balance !== 'all') filterParts.push(`${balance}-balance`);
     
     if (filterParts.length > 0) {
-      filename += `_${filterParts.join('_')}`;
+      filename = filename.replace('.csv', `_${filterParts.join('_')}.csv`);
     }
-    filename += '.csv';
 
-    // 🕵️ AUDIT LOG
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
       action: "export_users_csv",
       resourceType: "User",
-      description: `Exported ${data.length} ${type} users to CSV with filters`,
+      description: `Exported ${formattedData.length} ${type} users to CSV`,
       metadata: {
         type,
-        count: data.length,
-        filters: { 
-          search, 
-          status, 
-          role, 
-          activity, 
-          balance,
-          low_threshold: lowThreshold,
-          high_threshold: highThreshold
-        },
-        exportedBy: adminUser?.email,
-        exportTime: new Date().toISOString(),
-        filename,
+        count: formattedData.length,
+        filters: { search, status, role, activity, balance }
       },
       ipAddress: clientInfo.ipAddress,
       userAgent: clientInfo.userAgent,
@@ -263,14 +270,14 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": "text/csv",
         "Content-Disposition": `attachment; filename="${filename}"`,
-        "X-Export-Count": data.length.toString(),
+        "X-Export-Count": formattedData.length.toString(),
         "X-Export-Type": type,
       },
     });
   } catch (err: any) {
     console.error("❌ GET /api/admin-apis/users/export error:", err.message);
     
-    // 🕵️ AUDIT LOG for export failure
+    // Audit log for failure
     try {
       const adminUser = await requireAdmin(req);
       if (!(adminUser instanceof NextResponse)) {
@@ -281,10 +288,6 @@ export async function GET(req: NextRequest) {
           action: "export_users_csv_failed",
           resourceType: "User",
           description: `Failed to export users CSV: ${err.message}`,
-          metadata: {
-            error: err.message,
-            attemptedBy: adminUser?.email,
-          },
           ipAddress: clientInfo.ipAddress,
           userAgent: clientInfo.userAgent,
         });
