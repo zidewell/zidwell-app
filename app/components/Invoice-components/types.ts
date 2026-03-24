@@ -28,6 +28,7 @@ export interface InvoiceForm {
   allowMultiplePayments: boolean;
   clientPhone?: string;
   targetQuantity: number | "";
+  sendEmailAutomatically: boolean;
 }
 
 // NEW: Subscription-based invoice usage tracking
@@ -104,6 +105,7 @@ export interface Draft {
   redirect_url?: string;
   allow_multiple_payments?: boolean;
   client_phone?: string;
+    send_email_automatically?: boolean;
   target_quantity?: number;
 }
 

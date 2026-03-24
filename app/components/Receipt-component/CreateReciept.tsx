@@ -138,8 +138,8 @@ function CreateReceiptPage({
   // Receipt usage tracking
   const [receiptUsage, setReceiptUsage] = useState<ReceiptUsageInfo>({
     used: 0,
-    limit: hasUnlimitedReceipts ? "unlimited" : isZidLiteUser ? 10 : 5,
-    remaining: hasUnlimitedReceipts ? "unlimited" : isZidLiteUser ? 10 : 5,
+    limit: hasUnlimitedReceipts ? "unlimited" : isZidLiteUser ? 20 : 5,
+    remaining: hasUnlimitedReceipts ? "unlimited" : isZidLiteUser ? 20 : 5,
     hasAccess: true,
     isChecking: true,
     requiresUpgrade: false,
@@ -188,20 +188,20 @@ function CreateReceiptPage({
             used: data.receipts.used || 0,
             limit: hasUnlimitedReceipts
               ? "unlimited"
-              : data.receipts.limit || (isZidLiteUser ? 10 : 5),
+              : data.receipts.limit || (isZidLiteUser ? 20 : 5),
             remaining: hasUnlimitedReceipts
               ? "unlimited"
               : data.receipts.remaining ||
                 Math.max(
                   0,
-                  (isZidLiteUser ? 10 : 5) - (data.receipts.used || 0),
+                  (isZidLiteUser ? 20 : 5) - (data.receipts.used || 0),
                 ),
             hasAccess: true,
             isChecking: false,
             requiresUpgrade:
               !hasUnlimitedReceipts &&
               (data.receipts.remaining <= 0 ||
-                (data.receipts.used || 0) >= (isZidLiteUser ? 10 : 5)),
+                (data.receipts.used || 0) >= (isZidLiteUser ? 20 : 5)),
           });
         }
       } catch (error) {

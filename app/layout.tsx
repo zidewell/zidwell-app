@@ -509,24 +509,22 @@ export default function RootLayout({
         </Script>
 
         <UserProvider>
-           <AuthChecker>
-          
           <SessionWatcher>
-            <VerificationModalProvider>
-              {children}
-              <GlobalVerificationModal />
-              <div className="fixed bottom-4 right-4 z-50">
-                {/* <PushNotificationManager /> */}
-                <InstallPrompt />
-              </div>
-              <FloatingWhatsApp />
-              {/* <FloatingHelpButton /> */}
-              <NotificationToast />
-              {/* <DashboardFooter /> */}
-            </VerificationModalProvider>
+            <AuthChecker>
+              <VerificationModalProvider>
+                {children}
+                <GlobalVerificationModal />
+                <div className="fixed bottom-4 right-4 z-50">
+                  {/* <PushNotificationManager /> */}
+                  <InstallPrompt />
+                </div>
+                <FloatingWhatsApp />
+                {/* <FloatingHelpButton /> */}
+                <NotificationToast />
+                {/* <DashboardFooter /> */}
+              </VerificationModalProvider>
+            </AuthChecker>
           </SessionWatcher>
-        
-          </AuthChecker>
         </UserProvider>
       </body>
     </html>

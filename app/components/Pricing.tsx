@@ -1,11 +1,11 @@
 // app/components/Pricing.tsx
 "use client";
 
-import { Check, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles } from "lucide-react";
 import { Button2 } from "./ui/button2";
 import { useSubscription } from "../hooks/useSubscripion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { SubscriptionBadge } from "./subscription-components/subscriptionBadges";
 import { useUserContextData } from "../context/userData";
 
@@ -42,8 +42,8 @@ const plans = [
       "Unlimited money transfers at N50 per transfer",
       "Bookkeeping - 2 weeks free trial",
       "Tax Calculator - 2 weeks free trial",
-      "10 Invoices total",
-      "10 Receipts total",
+      "20 Invoices total",
+      "20 Receipts total",
       "2 Contracts total",
       "Access to WhatsApp Business Community",
       "WhatsApp support",
@@ -134,7 +134,7 @@ const plans = [
   },
 ];
 
-export default function Pricing() {
+function Pricing() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const {
@@ -658,5 +658,20 @@ export default function Pricing() {
         </div>
       </div>
     </section>
+  );
+}
+
+
+export default function pricingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#f7f7f5] dark:bg-[#0e0e0e]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#2b825b]" />
+        </div>
+      }
+    >
+      <Pricing />
+    </Suspense>
   );
 }

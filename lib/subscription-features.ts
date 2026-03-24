@@ -10,8 +10,8 @@ export const SUBSCRIPTION_FEATURES = {
     support_type: { value: 'basic', limit: null },
   },
   zidlite: {
-    invoices_total: { value: '10', limit: 10 },
-    receipts_total: { value: '10', limit: 10 },
+    invoices_total: { value: '20', limit: 20 },
+    receipts_total: { value: '20', limit: 20 },
     contracts_total: { value: '2', limit: 2 },
     bookkeeping_trial_days: { value: '14', limit: 14 },
     tax_calculator_trial_days: { value: '14', limit: 14 },

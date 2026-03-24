@@ -25,8 +25,8 @@
 
 //     const userTier = user.subscription_tier || 'free';
     
-//     // Define tier hierarchy
-//     const tierHierarchy = ['free', 'growth', 'premium', 'elite'];
+//     // Define tier hierarchy - updated to include zidlite
+//     const tierHierarchy = ['free', 'zidlite', 'growth', 'premium', 'elite'];
 //     const userTierIndex = tierHierarchy.indexOf(userTier);
 //     const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
 
@@ -67,14 +67,54 @@
 //   }
 // }
 
+// // Function to check if user is verified (BVN verification)
+// async function checkUserVerification(userId: string): Promise<boolean> {
+//   try {
+//     const supabaseAdmin = createClient(
+//       process.env.SUPABASE_URL!,
+//       process.env.SUPABASE_SERVICE_ROLE_KEY!
+//     );
+
+//     const { data: user, error } = await supabaseAdmin
+//       .from('users')
+//       .select('bvn_verification')
+//       .eq('id', userId)
+//       .single();
+
+//     if (error || !user) {
+//       console.log('User not found for verification check');
+//       return false;
+//     }
+
+//     return user.bvn_verification === 'verified';
+//   } catch (error) {
+//     console.error('Error checking user verification:', error);
+//     return false;
+//   }
+// }
+
 // export async function middleware(req: NextRequest) {
+//   const currentPath = req.nextUrl.pathname;
+
+//   // ✅ ALLOW PAYMENT CALLBACK AND AUTO-LOGIN TO PASS THROUGH WITHOUT AUTH
+//   if (currentPath === '/api/payment-callback' || currentPath === '/api/auth/auto-login') {
+//     console.log("🔵 Payment callback/auto-login bypassing middleware auth");
+//     return NextResponse.next();
+//   }
+
 //   let accessToken = req.cookies.get("sb-access-token")?.value;
 //   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
 //   const verified = req.cookies.get("verified")?.value;
-  
-//   const currentPath = req.nextUrl.pathname;
 
-//   // Define premium routes that require specific subscription tiers
+//   // ✅ Allow dashboard access with payment_processed cookie
+//   if (currentPath.startsWith('/dashboard') && req.cookies.get('payment_processed')) {
+//     console.log("🟡 Post-payment access granted");
+//     const response = NextResponse.next();
+//     response.cookies.delete('payment_processed');
+//     return response;
+//   }
+
+//   // Define premium routes that require specific subscription tiers - updated to include zidlite
 //   const premiumRoutes = [
 //     { path: '/dashboard/bookkeeping', requiredTier: 'growth' },
 //     { path: '/dashboard/tax-calculator', requiredTier: 'growth' },
@@ -84,6 +124,21 @@
 //     { path: '/dashboard/paye-filing', requiredTier: 'elite' },
 //     { path: '/dashboard/cfo-guidance', requiredTier: 'elite' },
 //   ];
+
+//   // Define routes that require BVN verification
+//   const bvnRequiredRoutes = [
+//     '/dashboard/fund-account',
+//     '/dashboard/fund-account/transfer-page',
+//     '/dashboard/services/buy-airtime',
+//     '/dashboard/services/buy-data',
+//     '/dashboard/services/buy-power',
+//     '/dashboard/services/buy-cable-tv',
+//   ];
+
+//   // Check if current path is a BVN required route
+//   const requiresBVN = bvnRequiredRoutes.some(route => 
+//     currentPath.startsWith(route)
+//   );
 
 //   // Check if current path is a premium route
 //   const matchedPremiumRoute = premiumRoutes.find(route => 
@@ -133,17 +188,17 @@
 //         res.cookies.set("sb-access-token", data.session.access_token, {
 //           httpOnly: true,
 //           secure: process.env.NODE_ENV === "production",
-//           sameSite: "strict",
+//           sameSite: "lax",
 //           path: "/",
-//           maxAge: 60 * 60 * 24 * 7, // 7 days
+//           maxAge: 60 * 60 * 24 * 7,
 //         });
         
 //         res.cookies.set("sb-refresh-token", data.session.refresh_token!, {
 //           httpOnly: true,
 //           secure: process.env.NODE_ENV === "production",
-//           sameSite: "strict",
+//           sameSite: "lax",
 //           path: "/",
-//           maxAge: 60 * 60 * 24 * 7, // 7 days
+//           maxAge: 60 * 60 * 24 * 7,
 //         });
         
 //         // Update access token for further checks in this request
@@ -154,7 +209,43 @@
 //       }
 //     }
 
+//     // ✅ Check BVN verification for protected routes
+//     if (requiresBVN && accessToken) {
+//       try {
+//         const supabaseAdmin = createClient(
+//           process.env.SUPABASE_URL!,
+//           process.env.SUPABASE_SERVICE_ROLE_KEY!
+//         );
 
+//         const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(accessToken);
+
+//         if (userError || !user) {
+//           console.log("User not found for BVN check");
+//           return redirectToLogin(req);
+//         }
+
+//         const isVerified = await checkUserVerification(user.id);
+
+//         if (!isVerified) {
+//           console.log(`User lacks BVN verification for ${currentPath}`);
+          
+//           const response = NextResponse.redirect(
+//             new URL(`/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`, req.url)
+//           );
+          
+//           response.cookies.set('verification_message', 'Please verify your BVN to access this feature', {
+//             httpOnly: true,
+//             maxAge: 5,
+//             path: '/',
+//             sameSite: 'lax',
+//           });
+          
+//           return response;
+//         }
+//       } catch (error) {
+//         console.error('Error checking BVN verification:', error);
+//       }
+//     }
 
 //     // ✅ Check subscription access for premium routes
 //     if (matchedPremiumRoute && accessToken) {
@@ -164,7 +255,6 @@
 //           process.env.SUPABASE_SERVICE_ROLE_KEY!
 //         );
 
-//         // Get user ID from token
 //         const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(accessToken);
 
 //         if (userError || !user) {
@@ -180,16 +270,15 @@
 //         if (!hasAccess) {
 //           console.log(`User lacks ${matchedPremiumRoute.requiredTier} access for ${currentPath}`);
           
-//           // Store the intended URL to redirect back after upgrade
 //           const response = NextResponse.redirect(
 //             new URL(`/pricing?upgrade=${matchedPremiumRoute.requiredTier}&redirect=${encodeURIComponent(currentPath)}`, req.url)
 //           );
           
-//           // Add a flash message cookie
 //           response.cookies.set('subscription_message', `This feature requires the ${matchedPremiumRoute.requiredTier} plan`, {
 //             httpOnly: true,
-//             maxAge: 5, // 5 seconds
+//             maxAge: 5,
 //             path: '/',
+//             sameSite: 'lax',
 //           });
           
 //           return response;
@@ -199,11 +288,10 @@
 //       }
 //     }
 
-//     // ✅ Admin protection (for both /admin and /blog/admin)
+//     // ✅ Admin protection
 //     if (currentPath.startsWith("/admin") || currentPath.startsWith("/blog/admin")) {
 //       console.log("Admin route detected, checking admin permissions");
       
-//       // Make sure we have an access token at this point
 //       if (!accessToken) {
 //         console.log("No access token for admin check, redirecting to login");
 //         return redirectToLogin(req);
@@ -237,7 +325,6 @@
 
 //         console.log(`User admin role: ${profile?.admin_role}`);
 
-//         // Define allowed admin roles
 //         const allowedAdminRoles = [
 //           "super_admin", 
 //           "finance_admin", 
@@ -267,13 +354,11 @@
 //   const { pathname, search } = req.nextUrl;
 //   const fullUrl = `${pathname}${search}`;
   
-//   // Create login URL with callback parameter
 //   const loginUrl = new URL("/auth/login", req.url);
 //   loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
   
 //   const res = NextResponse.redirect(loginUrl);
   
-//   // Clear all auth cookies
 //   res.cookies.delete("sb-access-token");
 //   res.cookies.delete("sb-refresh-token");
 //   res.cookies.delete("verified");
@@ -286,15 +371,19 @@
 //     "/app", 
 //     "/dashboard/:path*",
 //     "/admin/:path*",
-//     "/blog/admin/:path*", 
+//     "/blog/admin/:path*",
+//     "/api/payment-callback",
+//     "/api/auth/auto-login",
 //   ],
 // };
+
+
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Add this function to check subscription access
+// Function to check subscription access
 async function checkSubscriptionAccess(userId: string, requiredTier: string = 'free'): Promise<boolean> {
   try {
     const supabaseAdmin = createClient(
@@ -384,6 +473,27 @@ async function checkUserVerification(userId: string): Promise<boolean> {
   }
 }
 
+// Function to validate token and get user
+async function validateTokenAndGetUser(token: string) {
+  try {
+    const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    
+    if (error || !user) {
+      return null;
+    }
+    
+    return user;
+  } catch (error) {
+    console.error('Token validation error:', error);
+    return null;
+  }
+}
+
 export async function middleware(req: NextRequest) {
   const currentPath = req.nextUrl.pathname;
 
@@ -395,7 +505,6 @@ export async function middleware(req: NextRequest) {
 
   let accessToken = req.cookies.get("sb-access-token")?.value;
   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
-  const verified = req.cookies.get("verified")?.value;
 
   // ✅ Allow dashboard access with payment_processed cookie
   if (currentPath.startsWith('/dashboard') && req.cookies.get('payment_processed')) {
@@ -441,7 +550,58 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // Protected routes check
+  // ============ API ROUTE HANDLING ============
+  if (currentPath.startsWith('/api/')) {
+    // Skip auth check for public APIs
+    const publicApis = [
+      '/api/login', 
+      '/api/register', 
+      '/api/payment-callback', 
+      '/api/auth/auto-login',
+      '/api/auth/check',
+      '/api/logout',
+      '/api/forgot-password',
+      '/api/reset-password',
+    ];
+    
+    if (!publicApis.some(api => currentPath.startsWith(api))) {
+      const token = req.cookies.get("sb-access-token")?.value;
+      
+      if (!token) {
+        console.log('🔴 API access: No token found');
+        return NextResponse.json(
+          { error: 'Unauthorized', message: 'No session found', logout: true },
+          { status: 401 }
+        );
+      }
+      
+      // Validate token for API routes
+      try {
+        const supabase = createClient(
+          process.env.SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        
+        if (error || !user) {
+          console.log('🔴 API access: Invalid token');
+          return NextResponse.json(
+            { error: 'Unauthorized', message: 'Invalid session', logout: true },
+            { status: 401 }
+          );
+        }
+      } catch (error) {
+        console.error('API auth error:', error);
+        return NextResponse.json(
+          { error: 'Unauthorized', message: 'Session validation failed', logout: true },
+          { status: 401 }
+        );
+      }
+    }
+  }
+
+  // ============ PROTECTED ROUTES HANDLING ============
   if (
     currentPath.startsWith("/dashboard") ||
     currentPath.startsWith("/admin") ||
@@ -496,6 +656,15 @@ export async function middleware(req: NextRequest) {
         accessToken = data.session.access_token;
       } catch (refreshError) {
         console.log("Token refresh exception:", refreshError);
+        return redirectToLogin(req);
+      }
+    }
+
+    // Validate the access token is still valid
+    if (accessToken) {
+      const user = await validateTokenAndGetUser(accessToken);
+      if (!user) {
+        console.log("🔴 Invalid access token, redirecting to login");
         return redirectToLogin(req);
       }
     }
@@ -650,6 +819,7 @@ function redirectToLogin(req: NextRequest) {
   
   const res = NextResponse.redirect(loginUrl);
   
+  // Clear all auth cookies
   res.cookies.delete("sb-access-token");
   res.cookies.delete("sb-refresh-token");
   res.cookies.delete("verified");
@@ -663,6 +833,7 @@ export const config = {
     "/dashboard/:path*",
     "/admin/:path*",
     "/blog/admin/:path*",
+    "/api/:path*",
     "/api/payment-callback",
     "/api/auth/auto-login",
   ],

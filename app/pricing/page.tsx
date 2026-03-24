@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import {
   Check,
   Sparkles,
@@ -142,7 +142,7 @@ const plans = [
   },
 ];
 
-export default function PricingPage() {
+ function PricingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { subscription, loading, checkTrialStatus, activateTrial } =
@@ -666,5 +666,21 @@ export default function PricingPage() {
       </section>
       <Footer />
     </>
+  );
+}
+
+
+
+export default function price() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#f7f0e5] dark:bg-[#01402e]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#f4c600]" />
+        </div>
+      }
+    >
+      <PricingPage />
+    </Suspense>
   );
 }

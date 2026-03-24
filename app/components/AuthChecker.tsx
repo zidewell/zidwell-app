@@ -1,65 +1,52 @@
-// components/AuthChecker.tsx
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserContextData } from '@/app/context/userData';
 
 export default function AuthChecker({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { userData, setUserData } = useUserContextData();
+  const logoutInProgress = useRef(false);
+
+  const handleLogout = async () => {
+    if (logoutInProgress.current) return;
+    logoutInProgress.current = true;
+
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+      localStorage.removeItem('userData');
+      setUserData(null);
+      router.replace('/auth/login?reason=session_expired');
+    } catch (error) {
+      console.error('Logout error:', error);
+      router.replace('/auth/login');
+    } finally {
+      setTimeout(() => {
+        logoutInProgress.current = false;
+      }, 1000);
+    }
+  };
 
   useEffect(() => {
-    // Save original fetch
     const originalFetch = window.fetch;
     
-    // Override fetch to catch 401 responses
     window.fetch = async (...args) => {
       const response = await originalFetch(...args);
       
-      // Check if it's a 401 with logout flag
       if (response.status === 401) {
-        try {
-          const data = await response.clone().json();
-          
-          if (data.logout) {
-            console.log('🔴 Session expired, logging out...');
-            
-            // Call logout API
-            await fetch('/api/logout', { method: 'POST' });
-            
-            // Clear local data
-            localStorage.removeItem('userData');
-            localStorage.removeItem('supabase.auth.token');
-            setUserData(null);
-            
-            // Clear all supabase cookies
-            document.cookie.split(";").forEach(function(c) {
-              document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-            });
-            
-            // Redirect to login
-            router.push('/auth/login?reason=session_expired');
-            
-            // Throw to stop execution
-            throw new Error('Session expired');
-          }
-        } catch (e) {
-          if (e instanceof Error && e.message === 'Session expired') {
-            throw e;
-          }
-          // Ignore other errors
-        }
+        console.log('🔴 Received 401, logging out...');
+        await handleLogout();
+        throw new Error('Session expired');
       }
       
       return response;
     };
 
-    // Cleanup
     return () => {
       window.fetch = originalFetch;
     };
-  }, [router, setUserData]);
+  }, []);
 
   return <>{children}</>;
 }

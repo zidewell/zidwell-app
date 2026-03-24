@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import DashboardSidebar from "../components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "../components/dashboard-component/DashboardHeader";
@@ -16,9 +16,9 @@ import TransactionHistory from "../components/transaction-history";
 import UsageSummary from "../components/UsageSummary";
 import { useSubscription } from "../hooks/useSubscripion";
 import { UpgradeBanner } from "../components/subscription-components/UpgradeBanner";
-import { CheckCircle, X } from "lucide-react";
+import { CheckCircle, Loader2, X } from "lucide-react";
 
-export default function DashboardPage() {
+function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successPlan, setSuccessPlan] = useState("");
@@ -241,5 +241,20 @@ export default function DashboardPage() {
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
     </div>
+  );
+}
+
+
+export default function UsageCom() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#f7f7f5] dark:bg-[#0e0e0e]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#2b825b]" />
+        </div>
+      }
+    >
+      <DashboardPage />
+    </Suspense>
   );
 }

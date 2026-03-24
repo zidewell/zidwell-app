@@ -1,4 +1,3 @@
-// app/components/Invoice-components/CreateInvoice.tsx
 "use client";
 
 import React, { JSX, Suspense, useEffect, useState } from "react";
@@ -16,7 +15,6 @@ import { Badge } from "../ui/badge";
 import {
   Plus,
   ArrowLeft,
-  RefreshCw,
   Save,
   Edit,
   Eye,
@@ -29,6 +27,7 @@ import {
   CheckCircle2,
   Info,
   Loader2,
+  Mail
 } from "lucide-react";
 
 import InvoiceSummary from "./InvoiceSummary";
@@ -126,7 +125,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   // Invoice limits by tier
   const freeTierLimit = 5;
-  const zidLiteLimit = 10;
+  const zidLiteLimit = 20;
 
   const [invoiceUsage, setInvoiceUsage] = useState<InvoiceUsageInfo>({
     used: 0,
@@ -164,6 +163,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     allowMultiplePayments: false,
     clientPhone: "",
     targetQuantity: 1,
+    sendEmailAutomatically: true, // Default to true
   });
 
   // Safe balance value (handle null)
@@ -265,7 +265,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         const usageRes = await fetch("/api/user/usage");
         if (usageRes.ok) {
           const data = await usageRes.json();
-          
+
           // Set invoice usage from the API response
           setInvoiceUsage({
             used: data.invoices.used || 0,
@@ -354,6 +354,16 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       }));
     }
 
+    // Construct business name from user's full name for fallback
+    let businessName = "";
+    if (userData?.fullName) {
+      businessName = userData.fullName;
+    } else if (userData?.firstName && userData?.lastName) {
+      businessName = `${userData.firstName} ${userData.lastName}`.trim();
+    } else {
+      businessName = userData?.email || "";
+    }
+
     const formData = {
       name: draft.client_name || draft.signee_name || "",
       email: draft.client_email || draft.signee_email || "",
@@ -369,12 +379,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       status: "draft" as const,
       business_logo: draft.business_logo || "",
       redirect_url: draft.redirect_url || "",
-      business_name:
-        draft.business_name ||
-        (userData?.fullName ? `${userData.fullName}` : userData?.email || ""),
+      business_name: draft.business_name || businessName,
       allowMultiplePayments: draft.allow_multiple_payments || false,
       clientPhone: draft.client_phone || "",
       targetQuantity: draft.target_quantity || 1,
+      sendEmailAutomatically: draft.send_email_automatically !== undefined ? draft.send_email_automatically : true,
     };
 
     setForm(formData);
@@ -416,15 +425,22 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     if (userData) {
       const today = new Date().toISOString().slice(0, 10);
 
+      // Construct business name from user's full name
+      let businessName = "";
+      if (userData.fullName) {
+        businessName = userData.fullName;
+      } else if (userData.firstName && userData.lastName) {
+        businessName = `${userData.firstName} ${userData.lastName}`.trim();
+      } else {
+        businessName = userData.email || "";
+      }
+
       setForm((prev) => ({
         ...prev,
         invoice_id: generateInvoiceId(),
         issue_date: today,
         from: userData.email || "",
-        business_name:
-          userData.fullName && userData.lastName
-            ? `${userData.fullName}`
-            : userData.email || "",
+        business_name: businessName,
       }));
     }
   }, [userData]);
@@ -588,12 +604,17 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
       const { totalAmount } = totals;
 
+      // Construct initiator name from user's full name
+      const initiatorName = userData?.fullName 
+        ? userData.fullName 
+        : userData?.firstName && userData?.lastName 
+          ? `${userData.firstName} ${userData.lastName}`.trim()
+          : userData?.email || "";
+
       const payload = {
         userId: userData?.id,
         initiator_email: userData?.email || "",
-        initiator_name: userData
-          ? `${userData.fullName}`
-          : "",
+        initiator_name: initiatorName,
         invoice_id: form.invoice_id,
         signee_name: form.name,
         signee_email: form.email,
@@ -612,6 +633,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         target_quantity: form.allowMultiplePayments ? form.targetQuantity : 1,
         is_draft: true,
         clientPhone: form.clientPhone,
+        send_email_automatically: form.sendEmailAutomatically,
       };
 
       const res = await fetch("/api/save-invoice-draft", {
@@ -667,12 +689,17 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
       const { totalAmount } = totals;
 
+      // Construct initiator name from user's full name
+      const initiatorName = userData?.fullName 
+        ? userData.fullName 
+        : userData?.firstName && userData?.lastName 
+          ? `${userData.firstName} ${userData.lastName}`.trim()
+          : userData?.email || "";
+
       const payload = {
         userId: userData?.id,
         initiator_email: userData?.email || "",
-        initiator_name: userData
-          ? `${userData.fullName}`
-          : "",
+        initiator_name: initiatorName,
         invoice_id: form.invoice_id,
         signee_name: form.name || "",
         signee_email: form.email || "",
@@ -698,6 +725,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
           details?.bank_details?.bank_account_number || "",
         initiator_account_name: details?.bank_details?.bank_account_name || "",
         initiator_bank_name: details?.bank_details?.bank_name || "",
+        send_email_automatically: form.sendEmailAutomatically, // Add this field
       };
 
       const endpoint = isDraft
@@ -888,9 +916,9 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     try {
       setLoading(true);
       setIsFormLocked(true);
-      
+
       const result = await handleSaveInvoice(false);
-      
+
       if (result.success) {
         triggerConfetti();
 
@@ -978,58 +1006,365 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   };
 
   const handleDownloadPDF = async () => {
-    try {
-      setPdfLoading(true);
+  try {
+    setPdfLoading(true);
 
-      const { subtotal, totalAmount } = totals;
+    const { subtotal, totalAmount } = totals;
+    
+    // Calculate fee amount
+    const feeAmount = form.fee_option === "customer" 
+      ? totalAmount - subtotal 
+      : 0;
 
-      // Your existing PDF generation logic
-      const htmlContent = `...`; 
-
-      const response = await fetch("/api/generate-pdf", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          html: htmlContent,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate PDF");
+    // Format dates safely
+    const formatDate = (dateString: string): string => {
+      try {
+        const date = new Date(dateString);
+        return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-NG', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      } catch {
+        return dateString;
       }
+    };
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.style.display = "none";
-      a.href = url;
-      a.download = `invoice-${form.invoice_id}.pdf`;
+    // Generate HTML content for PDF (using your existing invoice template)
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice ${form.invoice_id}</title>
+        <meta charset="UTF-8">
+        <style>
+          body { 
+            font-family: 'Arial', sans-serif; 
+            margin: 0;
+            padding: 40px;
+            color: #333;
+            line-height: 1.6;
+          }
+          .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #2b825b;
+          }
+          .business-info {
+            flex: 1;
+          }
+          .invoice-info {
+            text-align: right;
+          }
+          .logo {
+            max-height: 80px;
+            max-width: 200px;
+            margin-bottom: 15px;
+          }
+          .account-details {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+          }
+          .account-details h2 {
+            color: #2b825b;
+            font-size: 18px;
+            margin: 0 0 5px 0;
+          }
+          .account-details h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: normal;
+          }
+          h1 {
+            color: #2b825b;
+            margin: 0 0 10px 0;
+            font-size: 32px;
+            font-weight: bold;
+          }
+          h2 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            color: #333;
+          }
+          h3 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #333;
+          }
+          .section {
+            margin: 30px 0;
+          }
+          .billing-info {
+            display: flex;
+            justify-content: space-between;
+            gap: 40px;
+          }
+          .billing-section {
+            flex: 1;
+          }
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+            font-size: 14px;
+          }
+          .items-table th {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: bold;
+            color: #333;
+          }
+          .items-table td {
+            border: 1px solid #ddd;
+            padding: 12px 15px;
+            text-align: left;
+          }
+          .items-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+          }
+          .totals {
+            margin-top: 30px;
+            text-align: right;
+            font-size: 16px;
+          }
+          .total-row {
+            margin: 8px 0;
+          }
+          .grand-total {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2b825b;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #ddd;
+          }
+          .message-box {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #2b825b;
+            margin: 20px 0;
+          }
+          .payment-info {
+            background-color: #e8f4fd;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+            margin: 20px 0;
+          }
+          .invoice-narration {
+            margin-left: 30px;
+            font-size: 12px;
+            color: #666;
+          }
+          .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+          }
+          .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background-color: #2b825b;
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+          }
+          .note-box {
+            background-color: #f0f9ff;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #0ea5e9;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="business-info">
+              ${form.business_logo ? `
+                <img src="${form.business_logo}" alt="${form.business_name}" class="logo">
+              ` : ''}
+              <h2>${form.business_name}</h2>
+              <p>${userData?.email || ''}</p>
+              ${form.bill_to ? `<p>${form.bill_to}</p>` : ''}
 
-      document.body.appendChild(a);
-      a.click();
+              ${details?.bank_details?.bank_account_name && details?.bank_details?.bank_account_number ? `
+                <div class="account-details">
+                  <h2>Account Details</h2>
+                  <h3>${details.bank_details.bank_account_name}</h3>
+                  <h3>${details.bank_details.bank_account_number}</h3>
+                  <h3>${details.bank_details.bank_name || ''}</h3>
+                </div>
+              ` : ''}
+            </div>
+            <div class="invoice-info">
+              <h1>INVOICE</h1>
+              <p><strong>Invoice #:</strong> ${form.invoice_id}</p>
+              <p><strong>Issue Date:</strong> ${formatDate(form.issue_date)}</p>
+              <p><strong>Status:</strong> Unpaid <span class="status-badge">UNPAID</span></p>
 
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+              <small class="invoice-narration">
+                Ensure this invoice number <strong>${form.invoice_id}</strong> is used as the narration when you transfer to make payment valid.
+              </small>
+            </div>
+          </div>
 
-      showSweetAlert(
-        "success",
-        "PDF Downloaded!",
-        "Your invoice has been downloaded as PDF",
-      );
-    } catch (error) {
-      console.error("PDF download error:", error);
-      showSweetAlert(
-        "error",
-        "Download Failed",
-        "Failed to download PDF. Please try again.",
-      );
-    } finally {
-      setPdfLoading(false);
+          <div class="section">
+            <div class="billing-info">
+              <div class="billing-section">
+                <h3>Bill To:</h3>
+                <p><strong>${form.name || "Client Information"}</strong></p>
+                ${form.email ? `<p>📧 ${form.email}</p>` : ''}
+                ${form.clientPhone ? `<p>📞 ${form.clientPhone}</p>` : ''}
+              </div>
+              <div class="billing-section">
+                <h3>From:</h3>
+                <p><strong>${userData?.fullName || userData?.email || ''}</strong></p>
+                <p>📧 ${userData?.email || ''}</p>
+              </div>
+            </div>
+          </div>
+
+          ${form.message ? `
+            <div class="section">
+              <div class="message-box">
+                <h3>Message from ${form.business_name}:</h3>
+                <p>${form.message}</p>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="section">
+            <h3>Invoice Items</h3>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th width="100">Qty</th>
+                  <th width="120">Unit Price</th>
+                  <th width="120">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${form.invoice_items.map((item) => `
+                  <tr>
+                    <td>${item.description || ''}</td>
+                    <td>${item.quantity || 0}</td>
+                    <td>₦${Number(item.unitPrice || 0).toLocaleString()}</td>
+                    <td>₦${Number((item.quantity || 0) * (item.unitPrice || 0)).toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="totals">
+            <div class="total-row">
+              <strong>Subtotal:</strong> ₦${Number(subtotal).toLocaleString()}
+            </div>
+            ${feeAmount > 0 ? `
+              <div class="total-row">
+                <strong>Processing Fee:</strong> ₦${Number(feeAmount).toLocaleString()}
+              </div>
+            ` : ''}
+            <div class="total-row grand-total">
+              <strong>TOTAL AMOUNT:</strong> ₦${Number(totalAmount).toLocaleString()}
+            </div>
+            ${form.fee_option === "absorbed" ? `
+              <div class="total-row" style="font-size: 12px; color: #666;">
+                *Processing fees absorbed by merchant
+              </div>
+            ` : form.fee_option === "customer" && feeAmount > 0 ? `
+              <div class="total-row" style="font-size: 12px; color: #666;">
+                *2% processing fee added
+              </div>
+            ` : ''}
+          </div>
+
+          ${form.customer_note ? `
+            <div class="section">
+              <div class="note-box">
+                <h3>Note to Customer:</h3>
+                <p>${form.customer_note}</p>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="footer">
+            <p><strong>Thank you for your business!</strong></p>
+            <p>If you have any questions about this invoice, please contact ${userData?.email || ''}</p>
+            <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const response = await fetch("/api/generate-pdf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        html: htmlContent,
+        filename: `invoice-${form.invoice_id}.pdf`,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to generate PDF: ${response.status} - ${errorText}`);
     }
-  };
 
+    // Create blob and download
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = url;
+    a.download = `invoice-${form.invoice_id}.pdf`;
+
+    document.body.appendChild(a);
+    a.click();
+
+    // Clean up
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    showSweetAlert(
+      "success",
+      "PDF Downloaded!",
+      "Your invoice has been downloaded as PDF",
+    );
+  } catch (error) {
+    console.error("PDF download error:", error);
+    showSweetAlert(
+      "error",
+      "Download Failed",
+      error instanceof Error ? error.message : "Failed to download PDF. Please try again.",
+    );
+  } finally {
+    setPdfLoading(false);
+  }
+};
   const previewInvoice = convertToInvoicePreview(form);
 
   // Determine display text and styles
@@ -1042,7 +1377,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     if (hasUnlimitedInvoices) {
       return {
         text: "Generate Invoice",
-        color: "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]",
+        color:
+          "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]",
         icon: null,
         disabled: false,
       };
@@ -1053,7 +1389,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     ) {
       return {
         text: `Generate Invoice (${invoiceUsage.remaining} free left)`,
-        color: "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]",
+        color:
+          "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]",
         icon: null,
         disabled: false,
       };
@@ -1071,7 +1408,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   // Format remaining display text safely
   const getRemainingText = (): string => {
     if (hasUnlimitedInvoices) return "UNLIMITED";
-    if (isZidLiteUser) return "10 limit";
+    if (isZidLiteUser) return "20 limit";
     if (
       typeof invoiceUsage.remaining === "number" &&
       invoiceUsage.remaining > 0
@@ -1096,7 +1433,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   // Check if user has reached their limit
   const hasReachedLimit = (): boolean => {
     if (hasUnlimitedInvoices) return false;
-    if (typeof invoiceUsage.remaining === "number" && invoiceUsage.remaining > 0) return false;
+    if (
+      typeof invoiceUsage.remaining === "number" &&
+      invoiceUsage.remaining > 0
+    )
+      return false;
     return true;
   };
 
@@ -1321,6 +1662,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                         business_logo: logoDataUrl,
                       }))
                     }
+                    userProfilePicture={userData?.profilePicture}
                   />
                   <div className="space-y-4">
                     <div>
@@ -1525,67 +1867,52 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                       )}
                     </div>
 
-                    {/* <div className="border-t border-border dark:border-gray-800 pt-4 mt-6 space-y-4">
+                    {/* Email Automation Toggle */}
+                    <div className="border-t border-border dark:border-gray-800 pt-4 mt-6">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <Label
-                            htmlFor="multiplePayments"
-                            className="font-medium text-foreground dark:text-gray-200"
+                            htmlFor="sendEmailAutomatically"
+                            className="font-medium text-foreground dark:text-gray-200 flex items-center gap-2"
                           >
-                            🎫 Allow Multiple Full Payments
+                            {form.sendEmailAutomatically ? (
+                              <Mail className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Mail className="w-4 h-4 text-gray-500" />
+                            )}
+                            Send invoice automatically to client
                           </Label>
                           <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
-                            Enable multiple people to each pay the FULL amount
-                            (perfect for events, tickets, group purchases)
+                            {form.sendEmailAutomatically 
+                              ? "An email will be sent to the client with the invoice link" 
+                              : "You'll need to share the invoice link manually with the client"}
                           </p>
+                          {form.sendEmailAutomatically && !form.email && !form.allowMultiplePayments && (
+                            <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+                              ⚠️ Client email is required for automatic email sending
+                            </p>
+                          )}
+                          {form.sendEmailAutomatically && form.allowMultiplePayments && !form.email && (
+                            <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+                              ℹ️ No email will be sent since no client email was provided
+                            </p>
+                          )}
                         </div>
-                        <div
-                          className={
-                            form.allowMultiplePayments
-                              ? "data-[state=checked]:bg-[#2b825b]"
-                              : ""
-                          }
-                        >
+                        <div>
                           <Switch
-                            id="multiplePayments"
-                            checked={form.allowMultiplePayments}
+                            id="sendEmailAutomatically"
+                            checked={form.sendEmailAutomatically}
                             onCheckedChange={(checked) =>
                               setForm((prev) => ({
                                 ...prev,
-                                allowMultiplePayments: checked,
-                                payment_type: checked ? "multiple" : "single",
-                                targetQuantity: checked
-                                  ? prev.targetQuantity || 1
-                                  : 1,
+                                sendEmailAutomatically: checked,
                               }))
                             }
                             disabled={isFormLocked}
                           />
                         </div>
                       </div>
-
-                      <div className="border-t border-border dark:border-gray-800 pt-4 mt-4">
-                        <Label
-                          htmlFor="redirectUrl"
-                          className="text-foreground dark:text-gray-200"
-                        >
-                          Redirect URL (Optional)
-                        </Label>
-                        <Input
-                          id="redirectUrl"
-                          type="url"
-                          value={form.redirect_url || ""}
-                          onChange={handleFormChange}
-                          name="redirect_url"
-                          placeholder="https://example.com/thankyou"
-                          className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
-                          disabled={isFormLocked}
-                        />
-                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
-                          Redirect clients to this URL after successful payment
-                        </p>
-                      </div>
-                    </div> */}
+                    </div>
 
                     <div className="flex gap-3 pt-4">
                       <Button
@@ -1633,7 +1960,9 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           <Button
                             variant="link"
                             className="p-0 h-auto text-[#2b825b] font-semibold underline"
-                            onClick={() => router.push("/pricing?upgrade=growth")}
+                            onClick={() =>
+                              router.push("/pricing?upgrade=growth")
+                            }
                           >
                             Upgrade your plan
                           </Button>{" "}
@@ -1744,12 +2073,14 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   );
 };
 
-function InvoicePage() {
+// Wrap the component with Suspense
+export default function CreateInvoiceWithSuspense() {
   return (
     <Suspense
       fallback={
         <div className="text-center p-8 text-foreground dark:text-gray-200">
-          Loading...
+          <Loader2 className="w-8 h-8 animate-spin text-[#2b825b] mx-auto mb-4" />
+          <p>Loading invoice form...</p>
         </div>
       }
     >
@@ -1757,5 +2088,3 @@ function InvoicePage() {
     </Suspense>
   );
 }
-
-export default CreateInvoice;

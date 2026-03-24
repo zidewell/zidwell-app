@@ -1,4 +1,3 @@
-// app/api/send-invoice/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
@@ -43,6 +42,7 @@ interface RequestBody {
   initiator_bank_name: string;
   target_quantity?: number;
   is_draft?: boolean;
+  send_email_automatically?: boolean; // Add this field
 }
 
 function generateInvoiceId(): string {
@@ -145,7 +145,7 @@ async function sendInvoiceEmail(params: {
 <body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial, sans-serif;">
 
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;">
-  <tr>
+   <tr>
     <td align="center">
 
       <table width="600" cellpadding="0" cellspacing="0"
@@ -258,7 +258,7 @@ async function sendInvoiceEmail(params: {
               </div>
             </div>
 
-          </td>
+           </td>
         </tr>
 
         <!-- Footer -->
@@ -282,6 +282,7 @@ async function sendInvoiceEmail(params: {
 </html>
 `,
     });
+    console.log(`✅ Email sent to ${params.to}`);
   } catch (error) {
     console.error("Email send error:", error);
   }
@@ -315,6 +316,7 @@ export async function POST(req: NextRequest) {
       invoice_items_count: body.invoice_items?.length,
       payment_type: body.payment_type,
       is_draft: body.is_draft,
+      send_email_automatically: body.send_email_automatically,
     });
 
     const {
@@ -342,6 +344,7 @@ export async function POST(req: NextRequest) {
       initiator_bank_name,
       target_quantity,
       is_draft,
+      send_email_automatically = true, 
     } = body;
 
     if (!userId) {
@@ -373,15 +376,15 @@ export async function POST(req: NextRequest) {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (payment_type === "single") {
-      if (!signee_email) {
-        console.error("Missing email for single payment");
+      if (!signee_email && send_email_automatically) {
+        console.error("Missing email for single payment with auto-send enabled");
         return NextResponse.json(
-          { message: "Email is required for single payment invoices" },
+          { message: "Email is required for single payment invoices when auto-send is enabled" },
           { status: 400 }
         );
       }
       
-      if (!emailRegex.test(signee_email)) {
+      if (signee_email && !emailRegex.test(signee_email)) {
         console.error("Invalid email format:", signee_email);
         return NextResponse.json(
           { message: "Invalid email format for single payment invoice" },
@@ -623,8 +626,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ============ UPDATE USAGE COUNT - REMOVED TRANSACTION RECORDING ============
-    // Get current user data
+    // Update usage count
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("subscription_tier, invoices_used_lifetime, invoice_lifetime_limit")
@@ -634,7 +636,6 @@ export async function POST(req: NextRequest) {
     if (userError) {
       console.error("Error fetching user data:", userError);
     } else {
-      // Update lifetime usage count based on tier
       const currentUsed = userData.invoices_used_lifetime || 0;
       
       await supabase
@@ -647,8 +648,9 @@ export async function POST(req: NextRequest) {
       console.log(`✅ Invoice usage updated: ${currentUsed + 1} total invoices`);
     }
 
-    // Send email if applicable
-    if (signee_email && emailRegex.test(signee_email)) {
+    // Send email ONLY if send_email_automatically is true AND we have a valid email
+    let emailSent = false;
+    if (send_email_automatically && signee_email && emailRegex.test(signee_email)) {
       await sendInvoiceEmail({
         to: signee_email,
         subject: `New Invoice from ${initiator_name}`,
@@ -661,7 +663,12 @@ export async function POST(req: NextRequest) {
         isMultiplePayments: payment_type === "multiple",
         targetQuantity: target_quantity,
       });
-      console.log("Invoice email sent to:", signee_email);
+      emailSent = true;
+      console.log(`✅ Invoice email sent to: ${signee_email}`);
+    } else if (!send_email_automatically) {
+      console.log(`ℹ️ Email sending disabled by user preference`);
+    } else if (!signee_email) {
+      console.log(`ℹ️ No client email provided, skipping email send`);
     }
 
     return NextResponse.json(
@@ -673,6 +680,7 @@ export async function POST(req: NextRequest) {
         invoiceId: invoice.invoice_id,
         targetQuantity: target_quantity,
         paymentType: payment_type,
+        emailSent, 
       },
       { status: 200 }
     );

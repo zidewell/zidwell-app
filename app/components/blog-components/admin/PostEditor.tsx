@@ -10,6 +10,7 @@ import {
   useMemo,
 } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import AdminLayout from "./AdminLayout";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -39,22 +40,19 @@ import {
   Send,
   Upload,
   Volume2,
-  Calendar,
-  Clock,
-  User,
-  ChevronLeft,
-  Maximize2,
-  Minimize2,
-  ExternalLink,
 } from "lucide-react";
 import { useDebouncedCallback } from "use-debounce";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import Loader from "../../Loader";
-import { Badge } from "@/app/components/ui/badge";
-import BlogRichTextEditor from "../RichTextEditor";
 import { useUserContextData } from "@/app/context/userData";
 import PostPreviewModal from "./PostPreviewModal";
+
+// Dynamically import BlogRichTextEditor to prevent SSR issues
+const BlogRichTextEditor = dynamic(
+  () => import("../RichTextEditor"),
+  { ssr: false }
+);
 
 const MySwal = withReactContent(Swal);
 
@@ -131,7 +129,6 @@ const validateUrl = (
 ): { isValid: boolean; error?: string } => {
   if (!url.trim()) return { isValid: true };
 
-  // Allow blob URLs for local file previews
   if (url.startsWith("blob:")) {
     return { isValid: true };
   }
@@ -156,55 +153,63 @@ const validateUrl = (
 // Custom hook for alert functions
 const useAlerts = () => {
   const showErrorAlert = useCallback((title: string, text: string) => {
-    MySwal.fire({
-      title,
-      text,
-      icon: "error",
-      confirmButtonText: "OK",
-      confirmButtonColor: swalTheme.confirmButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.error,
-    });
+    if (typeof window !== "undefined") {
+      MySwal.fire({
+        title,
+        text,
+        icon: "error",
+        confirmButtonText: "OK",
+        confirmButtonColor: swalTheme.confirmButtonColor,
+        background: swalTheme.background,
+        color: swalTheme.color,
+        iconColor: swalTheme.iconColor.error,
+      });
+    }
   }, []);
 
   const showSuccessAlert = useCallback((title: string, text: string) => {
-    MySwal.fire({
-      title,
-      text,
-      icon: "success",
-      confirmButtonText: "OK",
-      confirmButtonColor: swalTheme.confirmButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.success,
-    });
+    if (typeof window !== "undefined") {
+      MySwal.fire({
+        title,
+        text,
+        icon: "success",
+        confirmButtonText: "OK",
+        confirmButtonColor: swalTheme.confirmButtonColor,
+        background: swalTheme.background,
+        color: swalTheme.color,
+        iconColor: swalTheme.iconColor.success,
+      });
+    }
   }, []);
 
   const showInfoAlert = useCallback((title: string, text: string) => {
-    MySwal.fire({
-      title,
-      text,
-      icon: "info",
-      confirmButtonText: "OK",
-      confirmButtonColor: swalTheme.confirmButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.info,
-    });
+    if (typeof window !== "undefined") {
+      MySwal.fire({
+        title,
+        text,
+        icon: "info",
+        confirmButtonText: "OK",
+        confirmButtonColor: swalTheme.confirmButtonColor,
+        background: swalTheme.background,
+        color: swalTheme.color,
+        iconColor: swalTheme.iconColor.info,
+      });
+    }
   }, []);
 
   const showWarningAlert = useCallback((title: string, text: string) => {
-    MySwal.fire({
-      title,
-      text,
-      icon: "warning",
-      confirmButtonText: "OK",
-      confirmButtonColor: swalTheme.confirmButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.warning,
-    });
+    if (typeof window !== "undefined") {
+      MySwal.fire({
+        title,
+        text,
+        icon: "warning",
+        confirmButtonText: "OK",
+        confirmButtonColor: swalTheme.confirmButtonColor,
+        background: swalTheme.background,
+        color: swalTheme.color,
+        iconColor: swalTheme.iconColor.warning,
+      });
+    }
   }, []);
 
   const showConfirmDialog = useCallback(
@@ -213,6 +218,8 @@ const useAlerts = () => {
       text: string,
       confirmButtonText = "Yes, proceed",
     ): Promise<boolean> => {
+      if (typeof window === "undefined") return false;
+      
       const result = await MySwal.fire({
         title,
         text,
@@ -279,12 +286,11 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
-  const previewModalRef = useRef<HTMLDivElement>(null);
 
-  // Use memoized alert functions
   const {
     showErrorAlert,
     showSuccessAlert,
@@ -293,10 +299,12 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     showConfirmDialog,
   } = useAlerts();
 
-  // Categories memoized
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const categories = useMemo(() => DEFAULT_CATEGORIES, []);
 
-  // Get API key from localStorage - memoized
   const getApiKey = useCallback(() => {
     if (typeof window !== "undefined") {
       return (
@@ -308,25 +316,21 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
   }, []);
 
-  // Set author data from user context on component mount
   useEffect(() => {
-    if (userData) {
+    if (userData && isMounted) {
       const name = userData.fullName || userData.username || "Author";
       setAuthorName(name);
-
       if (userData.profilePicture) {
         setAuthorAvatar(userData.profilePicture);
       }
-
       if (userData.bio) {
         setAuthorBio(userData.bio);
       }
     }
-  }, [userData]);
+  }, [userData, isMounted]);
 
-  // Auto-save to localStorage for new posts
   const saveToLocalDraft = useDebouncedCallback(() => {
-    if (!postId && autoSaveEnabled && (title || content)) {
+    if (!postId && autoSaveEnabled && (title || content) && typeof window !== "undefined") {
       const draft = {
         title,
         content,
@@ -340,14 +344,14 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         authorBio,
         lastSaved: new Date().toISOString(),
       };
-
       localStorage.setItem("post_draft", JSON.stringify(draft));
       setLastSaved(new Date());
     }
   }, 3000);
 
-  // Load post data if editing
   useEffect(() => {
+    if (!isMounted) return;
+    
     if (postId) {
       const fetchPost = async () => {
         setIsLoading(true);
@@ -383,50 +387,47 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       };
 
       fetchPost();
-    } else {
+    } else if (typeof window !== "undefined") {
       const loadFromLocalDraft = () => {
-        if (typeof window !== "undefined") {
-          const draft = localStorage.getItem("post_draft");
-          if (draft) {
-            try {
-              const parsed = JSON.parse(draft);
-              setTitle(parsed.title || "");
-              setContent(parsed.content || "");
-              setExcerpt(parsed.excerpt || "");
-              setSelectedCategories(parsed.categories || []);
-              setFeaturedImage(parsed.featuredImage || "");
-              setAudioFile(parsed.audioFile || "");
-              setTags(parsed.tags || "");
-              setAuthorName(
-                parsed.authorName ||
-                  userData?.fullName ||
-                  userData?.username ||
-                  "Author",
-              );
-              setAuthorAvatar(
-                parsed.authorAvatar || userData?.profilePicture || "",
-              );
-              setAuthorBio(parsed.authorBio || userData?.bio || "");
-              showInfoAlert(
-                "Draft Loaded",
-                "Loaded unsaved draft from local storage",
-              );
-            } catch (e) {
-              console.error("Error loading draft from localStorage:", e);
-            }
-          } else if (userData) {
-            setAuthorName(userData.fullName || userData.username || "Author");
-            setAuthorAvatar(userData.profilePicture || "");
-            setAuthorBio(userData.bio || "");
+        const draft = localStorage.getItem("post_draft");
+        if (draft) {
+          try {
+            const parsed = JSON.parse(draft);
+            setTitle(parsed.title || "");
+            setContent(parsed.content || "");
+            setExcerpt(parsed.excerpt || "");
+            setSelectedCategories(parsed.categories || []);
+            setFeaturedImage(parsed.featuredImage || "");
+            setAudioFile(parsed.audioFile || "");
+            setTags(parsed.tags || "");
+            setAuthorName(
+              parsed.authorName ||
+                userData?.fullName ||
+                userData?.username ||
+                "Author",
+            );
+            setAuthorAvatar(
+              parsed.authorAvatar || userData?.profilePicture || "",
+            );
+            setAuthorBio(parsed.authorBio || userData?.bio || "");
+            showInfoAlert(
+              "Draft Loaded",
+              "Loaded unsaved draft from local storage",
+            );
+          } catch (e) {
+            console.error("Error loading draft from localStorage:", e);
           }
+        } else if (userData) {
+          setAuthorName(userData.fullName || userData.username || "Author");
+          setAuthorAvatar(userData.profilePicture || "");
+          setAuthorBio(userData.bio || "");
         }
       };
 
       loadFromLocalDraft();
     }
-  }, [postId, showErrorAlert, showInfoAlert, userData]);
+  }, [postId, showErrorAlert, showInfoAlert, userData, isMounted]);
 
-  // Validate form before saving
   const validateForm = useCallback((): boolean => {
     const errors: Record<string, string> = {};
 
@@ -482,17 +483,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     showErrorAlert,
   ]);
 
-  // Handle featured image upload
   const handleImageUpload = useCallback(
     async (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-
-      console.log("Image file selected:", {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-      });
 
       const validImageTypes = [
         "image/jpeg",
@@ -516,23 +510,14 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
       try {
         setUploadingImage(true);
-
-        // Create preview URL
         const previewUrl = URL.createObjectURL(file);
-        console.log("Created preview URL:", previewUrl);
-
-        // Store both the file and preview URL
         setFeaturedImage(previewUrl);
         setFeaturedImageFile(file);
-
         setValidationErrors((prev) => ({ ...prev, featuredImage: "" }));
-
         showInfoAlert(
           "Image Ready",
           "Image will be uploaded when you save the post.",
         );
-
-        // Clear the input
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -549,17 +534,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     [showErrorAlert, showInfoAlert],
   );
 
-  // Handle audio file upload
   const handleAudioUpload = useCallback(
     async (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-
-      console.log("Audio file selected:", {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-      });
 
       const validAudioTypes = [
         "audio/mpeg",
@@ -583,18 +561,14 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
       try {
         setUploadingAudio(true);
-
         const previewUrl = URL.createObjectURL(file);
         setAudioFile(previewUrl);
         setAudioFileObj(file);
-
         setValidationErrors((prev) => ({ ...prev, audioFile: "" }));
-
         showInfoAlert(
           "Audio Ready",
           "Audio will be uploaded when you save the post.",
         );
-
         if (audioInputRef.current) {
           audioInputRef.current.value = "";
         }
@@ -613,12 +587,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     [showErrorAlert, showInfoAlert],
   );
 
-  // Handle drag and drop for featured image
   const handleImageDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
-
       const file = e.dataTransfer.files?.[0];
       if (!file) return;
 
@@ -641,7 +613,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(file);
         fileInputRef.current.files = dataTransfer.files;
-
         const event = new Event("change", { bubbles: true });
         fileInputRef.current.dispatchEvent(event);
       }
@@ -649,12 +620,10 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     [showErrorAlert],
   );
 
-  // Handle drag and drop for audio
   const handleAudioDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
-
       const file = e.dataTransfer.files?.[0];
       if (!file) return;
 
@@ -677,7 +646,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(file);
         audioInputRef.current.files = dataTransfer.files;
-
         const event = new Event("change", { bubbles: true });
         audioInputRef.current.dispatchEvent(event);
       }
@@ -697,12 +665,9 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     e.currentTarget.classList.remove("border-accent", "bg-[#2b825b]/10");
   }, []);
 
-  // Save draft to server
   const saveDraft = useCallback(
     async (silent = false): Promise<string | null> => {
-      if (!validateForm()) {
-        return null;
-      }
+      if (!validateForm()) return null;
 
       const formData = new FormData();
       formData.append("title", title.trim() || "Untitled Draft");
@@ -724,75 +689,18 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       formData.append("authorBio", authorBio.trim() || "");
       formData.append("isPublished", isPublished ? "true" : "false");
 
-      // Debug log
-      console.log("Saving draft with:", {
-        title,
-        hasFeaturedImageFile: !!featuredImageFile,
-        featuredImageFileDetails: featuredImageFile
-          ? {
-              name: featuredImageFile.name,
-              type: featuredImageFile.type,
-              size: featuredImageFile.size,
-            }
-          : null,
-        featuredImage: featuredImage
-          ? {
-              startsWithBlob: featuredImage.startsWith("blob:"),
-              startsWithHttp: featuredImage.startsWith("http"),
-              value: featuredImage.substring(0, 50) + "...", // Truncate for logging
-            }
-          : null,
-        hasAudioFileObj: !!audioFileObj,
-      });
-
-      // Handle featured image - THREE CASES:
-      // 1. User uploaded a file from their device (has featuredImageFile)
       if (featuredImageFile) {
-        console.log(
-          "CASE 1: Appending featuredImage FILE:",
-          featuredImageFile.name,
-        );
         formData.append("featuredImage", featuredImageFile);
-      }
-      // 2. User provided an HTTPS URL (featuredImage is a non-blob HTTP URL)
-      else if (
+      } else if (
         featuredImage &&
         featuredImage.startsWith("http") &&
         !featuredImage.includes("blob:")
       ) {
-        console.log("CASE 2: Appending featuredImageUrl:", featuredImage);
         formData.append("featuredImageUrl", featuredImage);
       }
-      // 3. No image (don't append anything)
 
-      // Handle audio file
       if (audioFileObj) {
-        console.log("Appending audioFile:", audioFileObj.name);
         formData.append("audioFile", audioFileObj);
-      }
-
-      // Log all form data entries for debugging
-      console.log("FormData entries:");
-      for (let pair of formData.entries()) {
-        if (pair[0] === "featuredImage") {
-          console.log(
-            pair[0],
-            ":",
-            pair[1] instanceof File
-              ? `File: ${pair[1].name} (${pair[1].size} bytes)`
-              : pair[1],
-          );
-        } else if (pair[0] === "featuredImageUrl") {
-          console.log(pair[0], ":", pair[1]);
-        } else if (pair[0] === "audioFile") {
-          console.log(
-            pair[0],
-            ":",
-            pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1],
-          );
-        } else {
-          console.log(pair[0], ":", pair[1]);
-        }
       }
 
       try {
@@ -803,9 +711,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         if (postId) {
           const response = await fetch(`/api/blog/posts?id=${postId}`, {
             method: "PUT",
-            headers: {
-              "x-api-key": apiKey,
-            },
+            headers: { "x-api-key": apiKey },
             body: formData,
           });
 
@@ -825,9 +731,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         } else {
           const response = await fetch("/api/blog/posts", {
             method: "POST",
-            headers: {
-              "x-api-key": apiKey,
-            },
+            headers: { "x-api-key": apiKey },
             body: formData,
           });
 
@@ -850,7 +754,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
           localStorage.removeItem("post_draft");
         }
 
-        // Clean up blob URLs
         if (featuredImage && featuredImage.startsWith("blob:")) {
           URL.revokeObjectURL(featuredImage);
         }
@@ -907,11 +810,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     ],
   );
 
-  // Publish post
   const publishPost = useCallback(async () => {
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     const confirmed = await showConfirmDialog(
       "Publish Post",
@@ -941,37 +841,17 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     formData.append("authorBio", authorBio.trim() || "");
     formData.append("isPublished", "true");
 
-    // Debug log
-    console.log("Publishing post with:", {
-      title,
-      hasFeaturedImageFile: !!featuredImageFile,
-      featuredImage: featuredImage
-        ? {
-            startsWithBlob: featuredImage.startsWith("blob:"),
-            startsWithHttp: featuredImage.startsWith("http"),
-          }
-        : null,
-    });
-
-    // Handle featured image
     if (featuredImageFile) {
-      console.log(
-        "Publish - Appending featuredImage FILE:",
-        featuredImageFile.name,
-      );
       formData.append("featuredImage", featuredImageFile);
     } else if (
       featuredImage &&
       featuredImage.startsWith("http") &&
       !featuredImage.startsWith("blob:")
     ) {
-      console.log("Publish - Appending featuredImageUrl:", featuredImage);
       formData.append("featuredImageUrl", featuredImage);
     }
 
-    // Handle audio file
     if (audioFileObj) {
-      console.log("Publish - Appending audioFile:", audioFileObj.name);
       formData.append("audioFile", audioFileObj);
     }
 
@@ -983,9 +863,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       if (postId) {
         const response = await fetch(`/api/blog/posts?id=${postId}`, {
           method: "PUT",
-          headers: {
-            "x-api-key": apiKey,
-          },
+          headers: { "x-api-key": apiKey },
           body: formData,
         });
 
@@ -1002,9 +880,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       } else {
         const response = await fetch("/api/blog/posts", {
           method: "POST",
-          headers: {
-            "x-api-key": apiKey,
-          },
+          headers: { "x-api-key": apiKey },
           body: formData,
         });
 
@@ -1024,7 +900,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         localStorage.removeItem("post_draft");
       }
 
-      // Clean up blob URLs
       if (featuredImage && featuredImage.startsWith("blob:")) {
         URL.revokeObjectURL(featuredImage);
       }
@@ -1109,9 +984,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
       const response = await fetch(`/api/blog/posts?id=${postId}`, {
         method: "DELETE",
-        headers: {
-          "x-api-key": apiKey,
-        },
+        headers: { "x-api-key": apiKey },
       });
 
       if (!response.ok) {
@@ -1286,13 +1159,11 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       "Yes, clear it",
     );
 
-    if (confirmed) {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("post_draft");
-        setLastSaved(null);
-        setHasUnsavedChanges(false);
-        showSuccessAlert("Draft Cleared", "Local draft has been cleared");
-      }
+    if (confirmed && typeof window !== "undefined") {
+      localStorage.removeItem("post_draft");
+      setLastSaved(null);
+      setHasUnsavedChanges(false);
+      showSuccessAlert("Draft Cleared", "Local draft has been cleared");
     }
   }, [showConfirmDialog, showSuccessAlert]);
 
@@ -1315,7 +1186,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       window.removeEventListener("keydown", handleKeyDown as EventListener);
   }, [showPreview, isFullscreen]);
 
-  // Prevent body scroll when preview is open
   useEffect(() => {
     if (showPreview) {
       document.body.style.overflow = "hidden";
@@ -1327,7 +1197,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     };
   }, [showPreview]);
 
-  // Auto-save effect
   useEffect(() => {
     if (!postId && autoSaveEnabled && (title || content)) {
       saveToLocalDraft();
@@ -1349,7 +1218,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     saveToLocalDraft,
   ]);
 
-  // Handle unsaved changes before leaving
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges && !postId) {
@@ -1360,19 +1228,17 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
-
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [hasUnsavedChanges, postId]);
 
-  // Clean up blob URLs on unmount
   useEffect(() => {
     return () => {
-      if (featuredImage.startsWith("blob:")) {
+      if (featuredImage?.startsWith("blob:")) {
         URL.revokeObjectURL(featuredImage);
       }
-      if (audioFile.startsWith("blob:")) {
+      if (audioFile?.startsWith("blob:")) {
         URL.revokeObjectURL(audioFile);
       }
     };
@@ -1380,14 +1246,11 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
   const readTime = calculateReadTime(content);
 
-  if (isLoading && postId) {
+  if (!isMounted || (isLoading && postId)) {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
-            <Loader />
-          </div>
+          <Loader2 className="w-8 h-8 animate-spin text-[#2b825b]" />
         </div>
       </AdminLayout>
     );
@@ -1541,7 +1404,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
               <div className="w-full min-h-[400px]">
                 <BlogRichTextEditor
                   value={content}
-                  onChange={(value) => {
+                  onChange={(value: string) => {
                     setContent(value);
                     if (validationErrors.content) {
                       setValidationErrors((prev) => ({ ...prev, content: "" }));
@@ -1672,17 +1535,11 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                       <SelectValue placeholder="Select categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.length > 0 ? (
-                        categories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.name}>
-                            {cat.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                          No categories found
-                        </div>
-                      )}
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1800,7 +1657,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                   </div>
                 )}
 
-                {/* Hidden file input */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1939,7 +1795,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                   </div>
                 )}
 
-                {/* Hidden audio file input */}
                 <input
                   ref={audioInputRef}
                   type="file"

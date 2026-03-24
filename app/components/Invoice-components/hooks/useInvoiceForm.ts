@@ -36,6 +36,7 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     allowMultiplePayments: false,
     clientPhone: "",
     targetQuantity: 1,
+    sendEmailAutomatically: true,
   });
 
   // NEW: Usage tracking with the subscription system
@@ -237,3 +238,5 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     userTier,
   };
 };
+
+

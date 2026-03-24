@@ -86,19 +86,19 @@ export default function ReceiptPage() {
 
   const receiptLimit = useMemo(() => {
     if (hasUnlimitedReceipts) return 'unlimited';
-    if (isZidLiteUser) return 10;
+    if (isZidLiteUser) return 20;
     return 5; // free tier
   }, [userTier, isZidLiteUser, hasUnlimitedReceipts]);
 
   const hasReachedLimit = useMemo(() => {
     if (hasUnlimitedReceipts) return false;
-    if (isZidLiteUser) return receiptCount >= 10;
+    if (isZidLiteUser) return receiptCount >= 20;
     return receiptCount >= 5; // free tier
   }, [userTier, isZidLiteUser, hasUnlimitedReceipts, receiptCount]);
 
   const remainingReceipts = useMemo(() => {
     if (hasUnlimitedReceipts) return 'unlimited';
-    if (isZidLiteUser) return Math.max(0, 10 - receiptCount);
+    if (isZidLiteUser) return Math.max(0, 20 - receiptCount);
     return Math.max(0, 5 - receiptCount);
   }, [userTier, isZidLiteUser, hasUnlimitedReceipts, receiptCount]);
 
@@ -295,7 +295,7 @@ export default function ReceiptPage() {
                   <div className="mt-4">
                     <div className="flex justify-between items-center mb-1 text-xs text-gray-600 dark:text-gray-400">
                       <span>Usage</span>
-                      <span>{receiptCount}/{isZidLiteUser ? 10 : 5} receipts used</span>
+                      <span>{receiptCount}/{isZidLiteUser ? 20 : 5} receipts used</span>
                     </div>
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div 
@@ -307,7 +307,7 @@ export default function ReceiptPage() {
                               : 'bg-green-500'
                         }`}
                         style={{ 
-                          width: `${(receiptCount / (isZidLiteUser ? 10 : 5)) * 100}%` 
+                          width: `${(receiptCount / (isZidLiteUser ? 20 : 5)) * 100}%` 
                         }}
                       />
                     </div>

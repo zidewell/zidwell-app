@@ -116,10 +116,10 @@ export async function POST(req: NextRequest) {
         }
       } 
       
-      // ZidLite tier - 10 lifetime invoices
+      // ZidLite tier - 20 lifetime invoices
       else if (isZidLite) {
         const lifetimeUsed = userData.invoices_used_lifetime || 0;
-        const lifetimeLimit = 10;
+        const lifetimeLimit = 20;
         
         if (lifetimeUsed < lifetimeLimit) {
           // ZidLite invoice (within limit)
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
       // ZidLite tier - 10 lifetime receipts
       else if (isZidLite) {
         const lifetimeUsed = userData.receipts_used_lifetime || 0;
-        const lifetimeLimit = 10;
+        const lifetimeLimit = 20;
         
         if (lifetimeUsed < lifetimeLimit) {
           await supabase

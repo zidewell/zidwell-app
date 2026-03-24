@@ -1,17 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
-import { Upload, X } from "lucide-react";
+import { Upload, X, User } from "lucide-react";
 
 interface LogoUploadProps {
   logo: string;
   onLogoChange: (logoUrl: string) => void;
+  userProfilePicture?: string; // Add this prop
+  userFullName?: string; // Optional: for alt text
 }
 
-const LogoUpload: React.FC<LogoUploadProps> = ({ logo, onLogoChange }) => {
+const LogoUpload: React.FC<LogoUploadProps> = ({ 
+  logo, 
+  onLogoChange, 
+  userProfilePicture
+}) => {
   const [uploading, setUploading] = useState(false);
+  const [displayLogo, setDisplayLogo] = useState<string>("");
+
+  // Determine which logo to display
+  useEffect(() => {
+    if (logo) {
+      // User has uploaded a custom logo
+      setDisplayLogo(logo);
+    } else if (userProfilePicture) {
+      // Show user's profile picture as default
+      setDisplayLogo(userProfilePicture);
+    } else {
+      // No logo available
+      setDisplayLogo("");
+    }
+  }, [logo, userProfilePicture]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -57,32 +78,51 @@ const LogoUpload: React.FC<LogoUploadProps> = ({ logo, onLogoChange }) => {
   };
 
   const handleRemoveLogo = () => {
-    // Simply remove from form state - no server call needed
+    // Clear the custom logo, but keep the profile picture if available
     onLogoChange("");
   };
+
+  // Check if the current display logo is from user profile
+  const isProfilePicture = !logo && userProfilePicture;
 
   return (
     <div className="mb-6">
       <Label htmlFor="logo" className="block mb-2">
-        Business Logo
+        Business Logo / Profile Picture
       </Label>
       <div className="flex items-center gap-4">
-        {logo && (
+        {displayLogo && (
           <div className="relative">
             <img
-              src={logo}
-              alt="Business Logo"
-              className="h-16 w-16 rounded-lg object-cover"
+              src={displayLogo}
+              alt={isProfilePicture ? `Profile picture` : "Business Logo"}
+              className={`h-16 w-16 rounded-lg object-cover ${isProfilePicture ? 'rounded-full' : ''}`}
             />
-            <button
-              type="button"
-              onClick={handleRemoveLogo}
-              className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-xs"
-            >
-              <X className="h-3 w-3" />
-            </button>
+            {/* Only show remove button if there's a custom logo */}
+            {logo && (
+              <button
+                type="button"
+                onClick={handleRemoveLogo}
+                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-xs"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            {/* Show badge if it's profile picture */}
+            {isProfilePicture && (
+              <div className="absolute -bottom-2 -right-2 h-5 w-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">
+                <User className="h-3 w-3" />
+              </div>
+            )}
           </div>
         )}
+        
+        {!displayLogo && (
+          <div className="h-16 w-16 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+            <User className="h-8 w-8 text-gray-400" />
+          </div>
+        )}
+        
         <div className="flex-1">
           <Input
             id="logo"
@@ -99,7 +139,7 @@ const LogoUpload: React.FC<LogoUploadProps> = ({ logo, onLogoChange }) => {
               ${
                 uploading
                   ? "bg-gray-100 cursor-not-allowed"
-                  : "hover:bg-gray-50"
+                  : "hover:bg-gray-50 dark:hover:bg-gray-800"
               }
             `}
           >
@@ -111,14 +151,20 @@ const LogoUpload: React.FC<LogoUploadProps> = ({ logo, onLogoChange }) => {
             ) : (
               <>
                 <Upload className="h-4 w-4" />
-                {logo ? "Change Logo" : "Upload Logo"}
+                {logo ? "Change Logo" : userProfilePicture ? "Upload Custom Logo" : "Upload Logo"}
               </>
             )}
           </Label>
           <p className="text-xs text-muted-foreground mt-1">
-            PNG, JPG, GIF up to 5MB. Logo will be saved when invoice is
-            generated.
+            {userProfilePicture && !logo 
+              ? "Currently using your profile picture. Upload a custom logo to replace it." 
+              : "PNG, JPG, GIF up to 5MB. Logo will be saved when invoice is generated."}
           </p>
+          {isProfilePicture && (
+            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+              ✓ Using your profile picture as the business logo
+            </p>
+          )}
         </div>
       </div>
     </div>

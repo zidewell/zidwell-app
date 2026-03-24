@@ -83,7 +83,7 @@ export default function ReceiptGen({
 
   const hasUnlimitedReceipts = isPremium || isGrowth;
   const receiptCount = receipts.length;
-  const receiptLimit = isFree ? 5 : isZidLite ? 10 : Infinity;
+  const receiptLimit = isFree ? 5 : isZidLite ? 20 : Infinity;
   const hasReachedLimit = !hasUnlimitedReceipts && receiptCount >= receiptLimit;
 
   const totalAmount = receipts.reduce((sum, receipt) => {
@@ -122,7 +122,7 @@ export default function ReceiptGen({
 
   const getRemainingText = () => {
     if (hasUnlimitedReceipts) return "Unlimited";
-    if (isZidLite) return `${Math.max(0, 10 - receiptCount)} remaining`;
+    if (isZidLite) return `${Math.max(0, 20 - receiptCount)} remaining`;
     return `${Math.max(0, 5 - receiptCount)} remaining`;
   };
 
@@ -130,7 +130,7 @@ export default function ReceiptGen({
     if (hasUnlimitedReceipts)
       return "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400";
     if (isZidLite) {
-      if (receiptCount >= 10)
+      if (receiptCount >= 20)
         return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
       if (receiptCount >= 8)
         return "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400";
@@ -246,7 +246,7 @@ export default function ReceiptGen({
               <span
                 className={`px-2 py-0.5 rounded-full text-xs font-bold ${getUsageColor()}`}
               >
-                {receiptCount}/{isZidLite ? 10 : 5} used
+                {receiptCount}/{isZidLite ? 20 : 5} used
               </span>
             </div>
 

@@ -21,6 +21,7 @@ export async function isAuthenticated(req: NextRequest): Promise<AuthenticatedUs
     
     if (!token) {
       console.log("🔴 No access token found");
+      
       return null;
     }
     

@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     let invoiceData;
     if (isFree || isZidLite) {
       const used = userData.invoices_used_lifetime || 0;
-      const limit = isFree ? 5 : 10; // Free: 5, ZidLite: 10
+      const limit = isFree ? 5 : 20; // Free: 5, ZidLite: 10
       invoiceData = {
         used,
         limit,
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
     let receiptData;
     if (isFree || isZidLite) {
       const used = userData.receipts_used_lifetime || 0;
-      const limit = isFree ? 5 : 10;
+      const limit = isFree ? 5 : 20;
       receiptData = {
         used,
         limit,

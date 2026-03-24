@@ -34,6 +34,8 @@ const WalletCard: React.FC<WalletCardProps> = ({
     onActivate();
   };
 
+
+
   if (!activated) {
     return (
       <div className="neo-card bg-card p-6 md:p-8">

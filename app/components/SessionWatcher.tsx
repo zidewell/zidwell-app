@@ -131,204 +131,164 @@
 //   }, []);
 
 //   return <>{children}</>;
-// }
-"use client";
+// }'use client';
+'use client';
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { useUserContextData } from "../context/userData"; 
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useUserContextData } from '@/app/context/userData';
+import { useAuth } from '../hooks/useAuth'; 
+
+// Public routes that don't need auth
+const PUBLIC_ROUTES = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/',
+  '/pricing',
+  '/blog',
+  '/about',
+  '/contact',
+  '/privacy',
+  '/terms',
+];
 
 export default function SessionWatcher({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const router = useRouter();
+  const { userData, loading } = useUserContextData();
+  const { checkAuth, logout } = useAuth();
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
-  const [isMounted, setIsMounted] = useState(false);
-  const logoutInProgressRef = useRef(false);
-  
-  const INACTIVITY_LIMIT = process.env.NODE_ENV === 'development' 
-    ? 60 * 60 * 1000 
-    : 15 * 60 * 1000; 
+  const checkedRef = useRef(false);
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const authCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { userData, setUserData, loading } = useUserContextData();
-  
-  // Check if user is logged in based on your context
-  const isUserLoggedIn = !loading && !!userData;
+  // Set inactivity limit based on environment
+  const INACTIVITY_LIMIT = process.env.NODE_ENV === 'production' 
+    ? 15 * 60 * 1000  // 15 minutes in production
+    : 60 * 60 * 1000; // 1 hour in development
 
-  // Clear payment success cookie on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Clear the payment success cookie if it exists
-      document.cookie = 'payment_success=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    }
-  }, []);
+  // Check if current route is public
+  const isPublicRoute = useCallback(() => {
+    if (!pathname) return false;
+    return PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+  }, [pathname]);
 
-  // Function to perform logout without refresh
-  const performLogout = useCallback(async (reason: string = 'inactivity') => {
-    if (logoutInProgressRef.current) return;
-    logoutInProgressRef.current = true;
-
-    console.log(`Logging out due to: ${reason}`);
-
-    try {
-      fetch("/api/logout", { 
-        method: "POST",
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        keepalive: true
-      }).catch(err => console.error("Logout API error:", err));
-
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("userData");
-        localStorage.removeItem("supabase.auth.token");
-        sessionStorage.clear();
-        
-        const keysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key?.includes('supabase') || key?.includes('sb-') || key?.includes('user')) {
-            keysToRemove.push(key);
-          }
-        }
-        keysToRemove.forEach(key => localStorage.removeItem(key));
-      }
-
-      setUserData(null);
-
-      setTimeout(() => {
-        router.replace("/auth/login?reason=session_expired");
-      }, 100);
-
-    } catch (error) {
-      console.error("Logout error:", error);
-      setUserData(null);
-      router.replace("/auth/login?reason=error");
-    } finally {
-      setTimeout(() => {
-        logoutInProgressRef.current = false;
-      }, 2000);
-    }
-  }, [router, setUserData]);
-
-  // Activity tracking effect (rest of your existing code)
-  useEffect(() => {
-    if (!isUserLoggedIn) return;
-
-    let activityTimer: NodeJS.Timeout;
+  // Reset activity timer
+  const resetActivityTimer = useCallback(() => {
+    setLastActivityTime(Date.now());
     
-    const updateActivity = () => {
-      setLastActivityTime(Date.now());
-    };
+    // Clear existing timer
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    
+    // Set new timer
+    inactivityTimerRef.current = setTimeout(() => {
+      const timeSinceLastActivity = Date.now() - lastActivityTime;
+      if (timeSinceLastActivity >= INACTIVITY_LIMIT && userData && !isPublicRoute()) {
+        console.log(`🕐 Inactive for ${Math.round(timeSinceLastActivity / 1000)}s, logging out...`);
+        logout();
+      }
+    }, INACTIVITY_LIMIT);
+  }, [INACTIVITY_LIMIT, lastActivityTime, userData, isPublicRoute, logout]);
 
-    const handleActivity = () => {
-      clearTimeout(activityTimer);
-      activityTimer = setTimeout(updateActivity, 500);
-    };
+  // Track user activity
+  useEffect(() => {
+    if (!userData || isPublicRoute()) return;
 
     const events = [
-      "mousedown", "click", "scroll", "keydown", 
-      "touchstart", "focus", "mousemove"
+      'mousedown', 'click', 'scroll', 'keydown', 
+      'touchstart', 'focus', 'mousemove', 'wheel'
     ];
 
+    const handleActivity = () => {
+      resetActivityTimer();
+    };
+
+    // Add event listeners
     events.forEach(event => {
-      document.addEventListener(event, handleActivity, { passive: true });
+      window.addEventListener(event, handleActivity, { passive: true });
     });
 
-    const originalPush = router.push;
-    const originalReplace = router.replace;
-    
-    router.push = (...args) => {
-      handleActivity();
-      return originalPush.apply(router, args);
-    };
-    
-    router.replace = (...args) => {
-      handleActivity();
-      return originalReplace.apply(router, args);
-    };
+    // Initial timer
+    resetActivityTimer();
 
-    handleActivity();
-
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, handleActivity);
-      });
-      clearTimeout(activityTimer);
-      
-      router.push = originalPush;
-      router.replace = originalReplace;
-    };
-  }, [isUserLoggedIn, router]);
-
-  // Auto logout timer effect
-  useEffect(() => {
-    if (!isUserLoggedIn || logoutInProgressRef.current) return;
-
-    let logoutTimer: NodeJS.Timeout;
-    let checkInterval: NodeJS.Timeout;
-
-    const checkInactivity = () => {
-      if (!userData || logoutInProgressRef.current) {
-        return;
-      }
-
-      const timeSinceLastActivity = Date.now() - lastActivityTime;
-      
-      if (timeSinceLastActivity > INACTIVITY_LIMIT) {
-        console.log(`Inactive for ${Math.round(timeSinceLastActivity / 1000)}s, logging out`);
-        performLogout('inactivity');
-      }
-    };
-
-    checkInterval = setInterval(checkInactivity, 5000);
-    
-    logoutTimer = setTimeout(() => {
-      checkInactivity();
-    }, INACTIVITY_LIMIT + 1000);
-
-    return () => {
-      clearInterval(checkInterval);
-      clearTimeout(logoutTimer);
-    };
-  }, [lastActivityTime, isUserLoggedIn, userData, performLogout, INACTIVITY_LIMIT]);
-
-  // Handle page visibility changes
-  useEffect(() => {
-    if (!isUserLoggedIn) return;
-
+    // Handle visibility change (tab focus)
     const handleVisibilityChange = () => {
       if (!document.hidden) {
+        // User came back to tab, check if they were away too long
         const timeAway = Date.now() - lastActivityTime;
         if (timeAway > INACTIVITY_LIMIT) {
-          performLogout('tab_return_timeout');
+          console.log('🕐 Tab inactive too long, logging out...');
+          logout();
         } else {
-          setLastActivityTime(Date.now());
+          resetActivityTimer();
         }
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      events.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
     };
-  }, [isUserLoggedIn, lastActivityTime, performLogout, INACTIVITY_LIMIT]);
+  }, [userData, isPublicRoute, resetActivityTimer, INACTIVITY_LIMIT, lastActivityTime, logout]);
 
-  // Reset activity time when user logs in
+  // Periodic auth check (every 5 minutes)
   useEffect(() => {
-    if (isUserLoggedIn) {
-      setLastActivityTime(Date.now());
-      logoutInProgressRef.current = false;
-    }
-  }, [isUserLoggedIn]);
+    if (!userData || isPublicRoute()) return;
 
-  // Set mounted state
+    const performAuthCheck = async () => {
+      const isValid = await checkAuth();
+      if (!isValid) {
+        // Auth check will trigger logout
+        if (authCheckIntervalRef.current) {
+          clearInterval(authCheckIntervalRef.current);
+        }
+      }
+    };
+
+    // Check immediately on mount
+    performAuthCheck();
+
+    // Set up interval
+    authCheckIntervalRef.current = setInterval(performAuthCheck, 5 * 60 * 1000);
+
+    return () => {
+      if (authCheckIntervalRef.current) {
+        clearInterval(authCheckIntervalRef.current);
+      }
+    };
+  }, [userData, isPublicRoute, checkAuth]);
+
+  // Check auth on route change
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    if (!userData || isPublicRoute() || checkedRef.current) return;
 
-  if (!isMounted) {
-    return null;
-  }
+    checkedRef.current = true;
+    
+    const validateOnRouteChange = async () => {
+      const isValid = await checkAuth();
+      if (!isValid) {
+        checkedRef.current = false;
+      }
+    };
+    
+    validateOnRouteChange();
+    
+    // Reset check after 5 minutes
+    setTimeout(() => {
+      checkedRef.current = false;
+    }, 5 * 60 * 1000);
+  }, [pathname, userData, isPublicRoute, checkAuth]);
 
   return <>{children}</>;
 }

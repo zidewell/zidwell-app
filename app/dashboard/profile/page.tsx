@@ -1,8 +1,8 @@
 // app/profile/page.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import React, { Suspense, useEffect, useState } from "react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
@@ -16,16 +16,15 @@ import WalletCard from "@/app/components/profile-operations/WalletCard";
 import { useUserContextData } from "@/app/context/userData";
 import { useSubscription } from "@/app/hooks/useSubscripion";
 
-export default function NewProfilePage() {
+function NewProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "personal" | "business" | "security"
   >("personal");
-  const { userData, balance, lifetimeBalance, totalTransactions } =
-    useUserContextData();
-  const { userTier } = useSubscription();
+  const { userData, balance, lifetimeBalance, totalTransactions, loading: userLoading } = useUserContextData();
+  const { userTier, loading: subscriptionLoading } = useSubscription();
 
   // Handle URL parameters on mount
   useEffect(() => {
@@ -59,13 +58,27 @@ export default function NewProfilePage() {
           }
         }, 500);
       }
+    } else if (tab === "business") {
+      setActiveTab("business");
+    } else if (tab === "security") {
+      setActiveTab("security");
     }
   }, [searchParams]);
 
   const handleWalletActivate = () => {
     setActiveTab("personal");
-    // router.push('/profile?tab=personal&verify=bvn');
+    // Optional: Add query param to scroll to BVN section
+    router.push('/profile?tab=personal&verify=bvn');
   };
+
+  // Show loading state while data is being fetched
+  if (userLoading || subscriptionLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f7f7] dark:bg-[#0e0e0e]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#2b825b]" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] fade-in relative">
@@ -114,41 +127,41 @@ export default function NewProfilePage() {
 
             {/* Wallet Card */}
             <WalletCard
-              allTimeBalance={lifetimeBalance}
+              allTimeBalance={lifetimeBalance || 0}
               currentBalance={balance || 0}
-              totalTransactions={totalTransactions}
-              activated={!!userData?.transaction_pin}
+              totalTransactions={totalTransactions || 0}
+              activated={!!userData?.bvnVerification}
               onActivate={handleWalletActivate}
             />
 
             {/* Tabs Navigation */}
-            <div className="neo-card bg-card p-1 flex gap-1">
+            <div className="neo-card bg-card p-1 flex gap-1 rounded-lg">
               <button
                 onClick={() => setActiveTab("personal")}
-                className={`flex-1 py-3 text-sm  transition-colors ${
+                className={`flex-1 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === "personal"
                     ? "bg-[#2b825b] text-white dark:bg-[#236b49]"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
                 PERSONAL KYC
               </button>
               <button
                 onClick={() => setActiveTab("business")}
-                className={`flex-1 py-3 text-sm  transition-colors ${
+                className={`flex-1 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === "business"
                     ? "bg-[#2b825b] text-white dark:bg-[#236b49]"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
                 BUSINESS KYC
               </button>
               <button
                 onClick={() => setActiveTab("security")}
-                className={`flex-1 py-3 text-sm  transition-colors ${
+                className={`flex-1 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === "security"
                     ? "bg-[#2b825b] text-white dark:bg-[#236b49]"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
                 SECURITY
@@ -168,5 +181,19 @@ export default function NewProfilePage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function Profile() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#f7f7f5] dark:bg-[#0e0e0e]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#2b825b]" />
+        </div>
+      }
+    >
+      <NewProfilePage />
+    </Suspense>
   );
 }
