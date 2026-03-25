@@ -473,8 +473,9 @@ async function checkUserVerification(userId: string): Promise<boolean> {
   }
 }
 
-// Function to validate token and get user
 async function validateTokenAndGetUser(token: string) {
+  if (!token) return null;
+  
   try {
     const supabaseAdmin = createClient(
       process.env.SUPABASE_URL!,
@@ -483,7 +484,13 @@ async function validateTokenAndGetUser(token: string) {
 
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
     
-    if (error || !user) {
+    if (error) {
+      // Check if it's a token expiration error
+      if (error.message?.includes('JWT expired')) {
+        console.log('Token expired, needs refresh');
+        return { error: 'expired' };
+      }
+      console.error('Token validation error:', error.message);
       return null;
     }
     
@@ -493,7 +500,6 @@ async function validateTokenAndGetUser(token: string) {
     return null;
   }
 }
-
 export async function middleware(req: NextRequest) {
   const currentPath = req.nextUrl.pathname;
 

@@ -28,25 +28,43 @@ export default function AuthChecker({ children }: { children: React.ReactNode })
     }
   };
 
-  useEffect(() => {
-    const originalFetch = window.fetch;
-    
-    window.fetch = async (...args) => {
+// Update your fetch interceptor in AuthChecker
+useEffect(() => {
+  const originalFetch = window.fetch;
+  
+  window.fetch = async (...args) => {
+    try {
       const response = await originalFetch(...args);
       
+      // Handle 401 responses
       if (response.status === 401) {
-        console.log('🔴 Received 401, logging out...');
-        await handleLogout();
-        throw new Error('Session expired');
+        const data = await response.clone().json();
+        
+        // Check if we need to retry with refreshed token
+        if (data.retry) {
+          console.log('🔄 Token expired, retrying request...');
+          // Retry the original request
+          return originalFetch(...args);
+        }
+        
+        if (data.logout || data.error?.includes('session')) {
+          console.log('🔴 Session invalid, logging out...');
+          await handleLogout();
+          throw new Error('Session expired');
+        }
       }
       
       return response;
-    };
+    } catch (error) {
+      console.error('Fetch error:', error);
+      throw error;
+    }
+  };
 
-    return () => {
-      window.fetch = originalFetch;
-    };
-  }, []);
+  return () => {
+    window.fetch = originalFetch;
+  };
+}, [handleLogout]);
 
   return <>{children}</>;
 }

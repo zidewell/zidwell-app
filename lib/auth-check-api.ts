@@ -2,11 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export interface AuthenticatedUser {
   id: string;
   email: string;
@@ -15,24 +10,106 @@ export interface AuthenticatedUser {
   is_subscription_active?: boolean;
 }
 
+export interface AuthResult {
+  user: AuthenticatedUser | null;
+  newTokens?: {
+    accessToken: string;
+    refreshToken: string;
+  };
+}
+
+// Create Supabase admin client (bypasses RLS)
+const getSupabaseAdmin = () => {
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      }
+    }
+  );
+};
+
+// Create Supabase anon client for refresh operations
+const getSupabaseAnon = () => {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      }
+    }
+  );
+};
+
 export async function isAuthenticated(req: NextRequest): Promise<AuthenticatedUser | null> {
+  const result = await isAuthenticatedWithRefresh(req);
+  return result.user;
+}
+
+export async function isAuthenticatedWithRefresh(req: NextRequest): Promise<AuthResult> {
   try {
-    const token = req.cookies.get("sb-access-token")?.value;
-    
-    if (!token) {
-      console.log("🔴 No access token found");
+    const accessToken = req.cookies.get("sb-access-token")?.value;
+    const refreshToken = req.cookies.get("sb-refresh-token")?.value;
+
+    if (!accessToken && !refreshToken) {
+      console.log("🔴 No auth tokens found");
+      return { user: null };
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
+    let user = null;
+    let newTokens = undefined;
+
+    // Try to validate the access token
+    if (accessToken) {
+      const { data: { user: userData }, error: tokenError } = await supabaseAdmin.auth.getUser(accessToken);
       
-      return null;
+      if (!tokenError && userData) {
+        user = userData;
+      } else if (tokenError?.message?.includes('JWT expired') && refreshToken) {
+        console.log("🔄 Access token expired, attempting refresh...");
+        
+        // Try to refresh the session
+        const supabaseAnon = getSupabaseAnon();
+        const { data: refreshData, error: refreshError } = await supabaseAnon.auth.refreshSession({
+          refresh_token: refreshToken,
+        });
+        
+        if (!refreshError && refreshData.session) {
+          console.log("✅ Token refreshed successfully");
+          
+          // Get user from refreshed session
+          const { data: { user: refreshedUser } } = await supabaseAdmin.auth.getUser(
+            refreshData.session.access_token
+          );
+          
+          if (refreshedUser) {
+            user = refreshedUser;
+            newTokens = {
+              accessToken: refreshData.session.access_token,
+              refreshToken: refreshData.session.refresh_token!,
+            };
+          }
+        } else {
+          console.log("❌ Token refresh failed:", refreshError?.message);
+        }
+      } else if (tokenError) {
+        console.log("🔴 Token validation error:", tokenError.message);
+      }
     }
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
-    if (authError || !user) {
-      console.error("🔴 Auth error:", authError);
-      return null;
+    if (!user) {
+      console.log("🔴 No valid user found");
+      return { user: null };
     }
 
-    const { data: userData, error: dbError } = await supabase
+    // Fetch user data from database
+    const { data: userData, error: dbError } = await supabaseAdmin
       .from("users")
       .select("subscription_tier, subscription_expires_at")
       .eq("id", user.id)
@@ -40,14 +117,17 @@ export async function isAuthenticated(req: NextRequest): Promise<AuthenticatedUs
 
     if (dbError) {
       console.error("🔴 Error fetching user data:", dbError);
-      return {
+      // Return basic user info even if DB fetch fails
+      const basicUser: AuthenticatedUser = {
         id: user.id,
         email: user.email!,
         subscription_tier: 'free',
         is_subscription_active: true,
       };
+      return { user: basicUser, newTokens };
     }
 
+    // Check subscription status
     let isSubscriptionActive = true;
     if (userData.subscription_tier && userData.subscription_tier !== 'free') {
       if (userData.subscription_expires_at) {
@@ -56,28 +136,61 @@ export async function isAuthenticated(req: NextRequest): Promise<AuthenticatedUs
       }
     }
 
-    console.log("✅ User authenticated:", { 
-      id: user.id, 
-      tier: userData.subscription_tier || 'free',
-      isActive: isSubscriptionActive 
-    });
-
-    return {
+    const authenticatedUser: AuthenticatedUser = {
       id: user.id,
       email: user.email!,
       subscription_tier: userData.subscription_tier || 'free',
       subscription_expires_at: userData.subscription_expires_at,
       is_subscription_active: isSubscriptionActive,
     };
+
+    console.log("✅ User authenticated:", { 
+      id: user.id, 
+      tier: authenticatedUser.subscription_tier,
+      isActive: isSubscriptionActive,
+      refreshed: !!newTokens
+    });
+
+    return { user: authenticatedUser, newTokens };
   } catch (error) {
     console.error("🔴 Auth error:", error);
-    return null;
+    return { user: null };
   }
 }
 
-// ✅ NEW FUNCTION - Add this to check-auth.ts
+// Helper function to create response with new tokens
+export function createAuthResponse(
+  data: any, 
+  newTokens?: { accessToken: string; refreshToken: string }
+) {
+  const response = NextResponse.json(data);
+  
+  if (newTokens) {
+    response.cookies.set("sb-access-token", newTokens.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    
+    response.cookies.set("sb-refresh-token", newTokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    
+    console.log("🔄 New tokens set in response");
+  }
+  
+  return response;
+}
+
+// Enhanced requireAuth that handles token refresh
 export async function requireAuth(req: NextRequest) {
-  const user = await isAuthenticated(req);
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
   
   if (!user) {
     return {
@@ -93,15 +206,15 @@ export async function requireAuth(req: NextRequest) {
     };
   }
 
-  return { authenticated: true, user };
+  return { authenticated: true, user, newTokens };
 }
 
-// Rest of your existing functions (hasRequiredTier, checkFeatureAccess, etc.)...
+// Check if user has required subscription tier
 export async function hasRequiredTier(
   req: NextRequest,
   requiredTier: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite'
-): Promise<{ hasAccess: boolean; user: AuthenticatedUser | null; error?: string }> {
-  const user = await isAuthenticated(req);
+): Promise<{ hasAccess: boolean; user: AuthenticatedUser | null; newTokens?: any; error?: string }> {
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
   
   if (!user) {
     return { 
@@ -119,6 +232,7 @@ export async function hasRequiredTier(
     return {
       hasAccess: false,
       user,
+      newTokens,
       error: `This feature requires the ${requiredTier} plan or higher. Current plan: ${user.subscription_tier || 'free'}`,
     };
   }
@@ -127,19 +241,21 @@ export async function hasRequiredTier(
     return {
       hasAccess: false,
       user,
+      newTokens,
       error: "Your subscription is not active. Please renew to continue accessing this feature.",
     };
   }
 
-  return { hasAccess: true, user };
+  return { hasAccess: true, user, newTokens };
 }
 
+// Check feature access based on subscription
 export async function checkFeatureAccess(
   req: NextRequest,
   featureKey: string,
   currentCount?: number
-): Promise<{ hasAccess: boolean; user: AuthenticatedUser | null; limit?: number; error?: string }> {
-  const user = await isAuthenticated(req);
+): Promise<{ hasAccess: boolean; user: AuthenticatedUser | null; newTokens?: any; limit?: number; error?: string }> {
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
   
   if (!user) {
     return { 
@@ -149,20 +265,22 @@ export async function checkFeatureAccess(
     };
   }
 
+  const supabaseAdmin = getSupabaseAdmin();
+  
   const utilityFeatures = ['transfer_fee'];
   if (utilityFeatures.includes(featureKey)) {
-    return { hasAccess: true, user };
+    return { hasAccess: true, user, newTokens };
   }
 
   try {
-    const { data: features, error: featuresError } = await supabase
+    const { data: features, error: featuresError } = await supabaseAdmin
       .from("subscription_features")
       .select("feature_key, feature_value, feature_limit")
       .eq("tier", user.subscription_tier || 'free');
 
     if (featuresError) {
       console.error("Error fetching features:", featuresError);
-      return { hasAccess: false, user, error: "Error checking feature access" };
+      return { hasAccess: false, user, newTokens, error: "Error checking feature access" };
     }
 
     const feature = features.find(f => f.feature_key === featureKey);
@@ -171,12 +289,13 @@ export async function checkFeatureAccess(
       return { 
         hasAccess: false, 
         user, 
+        newTokens,
         error: `Feature ${featureKey} not available in your plan` 
       };
     }
 
     if (feature.feature_value === 'true' || feature.feature_value === 'unlimited') {
-      return { hasAccess: true, user };
+      return { hasAccess: true, user, newTokens };
     }
 
     if (feature.feature_limit && currentCount !== undefined) {
@@ -184,23 +303,27 @@ export async function checkFeatureAccess(
         return {
           hasAccess: false,
           user,
+          newTokens,
           limit: feature.feature_limit,
           error: `You've reached your ${featureKey.replace(/_/g, ' ')} limit of ${feature.feature_limit} for the ${user.subscription_tier} plan`,
         };
       }
-      return { hasAccess: true, user, limit: feature.feature_limit };
+      return { hasAccess: true, user, newTokens, limit: feature.feature_limit };
     }
 
-    return { hasAccess: true, user };
+    return { hasAccess: true, user, newTokens };
   } catch (error) {
     console.error("Error in checkFeatureAccess:", error);
-    return { hasAccess: false, user, error: "Error checking feature access" };
+    return { hasAccess: false, user, newTokens, error: "Error checking feature access" };
   }
 }
 
+// Get user subscription details
 export async function getUserSubscriptionDetails(userId: string) {
   try {
-    const { data: subscription, error: subError } = await supabase
+    const supabaseAdmin = getSupabaseAdmin();
+    
+    const { data: subscription, error: subError } = await supabaseAdmin
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
@@ -213,7 +336,7 @@ export async function getUserSubscriptionDetails(userId: string) {
       console.error("Error fetching subscription:", subError);
     }
 
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await supabaseAdmin
       .from("users")
       .select("subscription_tier, subscription_expires_at")
       .eq("id", userId)
@@ -224,7 +347,7 @@ export async function getUserSubscriptionDetails(userId: string) {
       return null;
     }
 
-    const { data: features, error: featuresError } = await supabase
+    const { data: features, error: featuresError } = await supabaseAdmin
       .from("subscription_features")
       .select("feature_key, feature_value, feature_limit")
       .eq("tier", user.subscription_tier || 'free');
@@ -254,13 +377,16 @@ export async function getUserSubscriptionDetails(userId: string) {
   }
 }
 
+// Check usage limits
 export async function checkUsageLimit(
   userId: string,
   featureKey: string,
   currentCount: number
 ): Promise<{ withinLimit: boolean; limit?: number; error?: string }> {
   try {
-    const { data: features, error } = await supabase
+    const supabaseAdmin = getSupabaseAdmin();
+    
+    const { data: features, error } = await supabaseAdmin
       .from("subscription_features")
       .select("feature_limit")
       .eq("tier", (await getUserSubscriptionDetails(userId))?.tier || 'free')
@@ -287,12 +413,14 @@ export async function checkUsageLimit(
   }
 }
 
+// Increment usage (placeholder - implement actual logic)
 export async function incrementUsage(
   userId: string,
   featureKey: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     console.log(`Incrementing usage for user ${userId}, feature ${featureKey}`);
+    // Add your actual increment logic here
     return { success: true };
   } catch (error) {
     console.error("Error incrementing usage:", error);
@@ -300,6 +428,7 @@ export async function incrementUsage(
   }
 }
 
+// Redirect to login with callback URL
 export function redirectToLogin(req: NextRequest, customMessage?: string) {
   const { pathname, search } = req.nextUrl;
   const fullUrl = `${pathname}${search}`;
@@ -312,4 +441,12 @@ export function redirectToLogin(req: NextRequest, customMessage?: string) {
   }
   
   return loginUrl.toString();
+}
+
+// Clear all auth cookies
+export function clearAuthCookies(response: NextResponse) {
+  response.cookies.delete("sb-access-token");
+  response.cookies.delete("sb-refresh-token");
+  response.cookies.delete("verified");
+  return response;
 }

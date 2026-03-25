@@ -1,6 +1,7 @@
+// app/api/get-user-by-account/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -8,15 +9,17 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+  
+  if (!user) {
+    const response = NextResponse.json(
+      { error: "Please login to access transactions", logout: true },
+      { status: 401 }
+    );
+    if (newTokens) return createAuthResponse(await response.json(), newTokens);
+    return response;
+  }
+
   try {
     const { accNumber } = await req.json();
 
@@ -24,23 +27,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Account Number is required" }, { status: 400 });
     }
 
-    const { data: user, error } = await supabase
+    const { data: foundUser, error } = await supabase
       .from("users")
-      .select("id, first_name, last_name, wallet_id")
+      .select("id, first_name, last_name, wallet_id, full_name")
       .eq("bank_account_number", accNumber)
       .single();
 
-      console.log(user, error);
-
-    if (error || !user) {
+    if (error || !foundUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({
-      receiverId: user.id,
-      receiverName: `${user.first_name} ${user.last_name}`,
-      walletId: user.wallet_id,
-    });
+    // Fixed: Properly construct receiver name with proper fallback
+    const receiverName = foundUser.full_name 
+      ? foundUser.full_name 
+      : `${foundUser.first_name || ''} ${foundUser.last_name || ''}`.trim() || "Unknown User";
+
+    const responseData = {
+      receiverId: foundUser.id,
+      receiverName: receiverName,
+      walletId: foundUser.wallet_id,
+    };
+    
+    if (newTokens) return createAuthResponse(responseData, newTokens);
+    return NextResponse.json(responseData);
   } catch (err: any) {
     console.error("❌ API error:", err);
     return NextResponse.json(
@@ -50,8 +59,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-
 export function GET() {
-
   return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }

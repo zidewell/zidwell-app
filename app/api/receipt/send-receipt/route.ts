@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { NextRequest, NextResponse } from "next/server";
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import { isAuthenticatedWithRefresh, createAuthResponse  } from "@/lib/auth-check-api"; 
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -10,13 +10,19 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const user = await isAuthenticated(req);
+  // ✅ Updated to use enhanced auth with refresh
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
 
   if (!user) {
-    return NextResponse.json(
-      { error: "Please login to access transactions" },
-      { status: 401 },
+    const response = NextResponse.json(
+      { error: "Please login to access this resource", logout: true },
+      { status: 401 }
     );
+    
+    if (newTokens) {
+      return createAuthResponse(await response.json(), newTokens);
+    }
+    return response;
   }
 
   try {
@@ -35,6 +41,19 @@ export async function POST(req: NextRequest) {
     const userId = body.userId || body.user_id;
     const isDraft = body.is_draft || body.isDraft || false;
     const pin = body.pin;
+
+    // Validate userId matches authenticated user
+    if (userId && userId !== user.id) {
+      const response = NextResponse.json(
+        { success: false, error: "Unauthorized: User ID mismatch" },
+        { status: 403 }
+      );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
+    }
 
     // Get receipt data - handle both formats
     let receiptData = body.data || body;
@@ -92,13 +111,18 @@ export async function POST(req: NextRequest) {
     const total = receiptData.total || 0;
 
     if (!userId) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         {
           success: false,
           error: "User ID is required",
         },
         { status: 400 },
       );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     const token = uuidv4();
@@ -150,7 +174,7 @@ export async function POST(req: NextRequest) {
         .from("receipts")
         .select("*")
         .eq("receipt_id", receiptId)
-        .eq("user_id", userId)
+        .eq("user_id", user.id)
         .eq("status", "draft")
         .single();
 
@@ -162,7 +186,7 @@ export async function POST(req: NextRequest) {
         const { data: draftsWithReceiptId } = await supabase
           .from("receipts")
           .select("*")
-          .eq("user_id", userId)
+          .eq("user_id", user.id)
           .eq("status", "draft")
           .contains("metadata", { receipt_id: receiptId })
           .single();
@@ -178,7 +202,7 @@ export async function POST(req: NextRequest) {
       const { data: draftData } = await supabase
         .from("receipts")
         .select("*")
-        .eq("user_id", userId)
+        .eq("user_id", user.id)
         .eq("client_email", clientEmail)
         .eq("business_name", businessName)
         .eq("status", "draft")
@@ -244,7 +268,7 @@ export async function POST(req: NextRequest) {
       const receiptDataToInsert: any = {
         token: token,
         receipt_id: receiptId,
-        user_id: userId,
+        user_id: user.id,
         business_name: businessName,
         client_name: clientName,
         client_email: clientEmail,
@@ -532,7 +556,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const responseData = {
       success: true,
       message: isDraft
         ? "Draft saved successfully"
@@ -543,28 +567,48 @@ export async function POST(req: NextRequest) {
       verificationCode: result.verification_code,
       isDraft,
       isUpdate: !!existingDraft,
-    });
+    };
+
+    // Include new tokens if available
+    if (newTokens) {
+      return createAuthResponse(responseData, newTokens);
+    }
+
+    return NextResponse.json(responseData);
   } catch (error: any) {
     console.error("Error processing receipt:", error);
-    return NextResponse.json(
+    
+    const errorResponse = NextResponse.json(
       {
         success: false,
         error: error.message,
       },
       { status: 500 },
     );
+    
+    if (newTokens) {
+      return createAuthResponse(await errorResponse.json(), newTokens);
+    }
+    
+    return errorResponse;
   }
 }
 
 // DELETE endpoint for drafts/receipts
 export async function DELETE(req: NextRequest) {
-  const user = await isAuthenticated(req);
+  // ✅ Updated to use enhanced auth with refresh
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
 
   if (!user) {
-    return NextResponse.json(
-      { error: "Please login to access transactions" },
-      { status: 401 },
+    const response = NextResponse.json(
+      { error: "Please login to access this resource", logout: true },
+      { status: 401 }
     );
+    
+    if (newTokens) {
+      return createAuthResponse(await response.json(), newTokens);
+    }
+    return response;
   }
 
   try {
@@ -573,10 +617,28 @@ export async function DELETE(req: NextRequest) {
     const userId = searchParams.get("userId");
 
     if (!receiptId || !userId) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { success: false, error: "Receipt ID and User ID are required" },
         { status: 400 },
       );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
+    }
+
+    // Validate userId matches authenticated user
+    if (userId !== user.id) {
+      const response = NextResponse.json(
+        { success: false, error: "Unauthorized: User ID mismatch" },
+        { status: 403 },
+      );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     // Delete the receipt
@@ -584,32 +646,51 @@ export async function DELETE(req: NextRequest) {
       .from("receipts")
       .delete()
       .eq("id", receiptId)
-      .eq("user_id", userId);
+      .eq("user_id", user.id);
 
     if (error) throw error;
 
-    return NextResponse.json({
+    const responseData = {
       success: true,
       message: "Receipt deleted successfully",
-    });
+    };
+
+    if (newTokens) {
+      return createAuthResponse(responseData, newTokens);
+    }
+
+    return NextResponse.json(responseData);
   } catch (error: any) {
     console.error("Error deleting receipt:", error);
-    return NextResponse.json(
+    
+    const errorResponse = NextResponse.json(
       { success: false, error: error.message || "Internal server error" },
       { status: 500 },
     );
+    
+    if (newTokens) {
+      return createAuthResponse(await errorResponse.json(), newTokens);
+    }
+    
+    return errorResponse;
   }
 }
 
 // GET endpoint for receipts/drafts
 export async function GET(req: NextRequest) {
-  const user = await isAuthenticated(req);
+  // ✅ Updated to use enhanced auth with refresh
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
 
   if (!user) {
-    return NextResponse.json(
-      { error: "Please login to access transactions" },
-      { status: 401 },
+    const response = NextResponse.json(
+      { error: "Please login to access this resource", logout: true },
+      { status: 401 }
     );
+    
+    if (newTokens) {
+      return createAuthResponse(await response.json(), newTokens);
+    }
+    return response;
   }
 
   try {
@@ -619,11 +700,30 @@ export async function GET(req: NextRequest) {
     const token = searchParams.get("token");
     const receiptId = searchParams.get("receiptId");
 
-    if (!userId && !token && !receiptId) {
-      return NextResponse.json(
+    // For token or receiptId queries, we don't need userId
+    if (!token && !receiptId && !userId) {
+      const response = NextResponse.json(
         { success: false, error: "User ID, Token, or Receipt ID is required" },
         { status: 400 },
       );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
+    }
+
+    // For userId queries, validate it matches authenticated user
+    if (userId && userId !== user.id) {
+      const response = NextResponse.json(
+        { success: false, error: "Unauthorized: User ID mismatch" },
+        { status: 403 },
+      );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     // Build query
@@ -634,7 +734,7 @@ export async function GET(req: NextRequest) {
     } else if (receiptId) {
       query = query.eq("receipt_id", receiptId);
     } else if (userId) {
-      query = query.eq("user_id", userId);
+      query = query.eq("user_id", user.id);
 
       // Filter drafts if requested
       if (draftOnly) {
@@ -683,29 +783,44 @@ export async function GET(req: NextRequest) {
         is_signed: receipt.status === "signed",
       })) || [];
 
+    let responseData;
+
     // If token or receiptId is provided, return single receipt
     if (token || receiptId) {
-      return NextResponse.json({
+      responseData = {
         success: true,
         receipt: receipts[0] || null,
-      });
+      };
+    } else {
+      responseData = {
+        success: true,
+        receipts: receipts,
+        drafts: draftOnly
+          ? receipts
+          : receipts.filter((r) => r.status === "draft"),
+        signed: receipts.filter((r) => r.status === "signed"),
+        pending: receipts.filter((r) => r.status === "pending"),
+        count: receipts.length,
+      };
     }
 
-    return NextResponse.json({
-      success: true,
-      receipts: receipts,
-      drafts: draftOnly
-        ? receipts
-        : receipts.filter((r) => r.status === "draft"),
-      signed: receipts.filter((r) => r.status === "signed"),
-      pending: receipts.filter((r) => r.status === "pending"),
-      count: receipts.length,
-    });
+    if (newTokens) {
+      return createAuthResponse(responseData, newTokens);
+    }
+
+    return NextResponse.json(responseData);
   } catch (error: any) {
     console.error("Error fetching receipts:", error);
-    return NextResponse.json(
+    
+    const errorResponse = NextResponse.json(
       { success: false, error: error.message || "Internal server error" },
       { status: 500 },
     );
+    
+    if (newTokens) {
+      return createAuthResponse(await errorResponse.json(), newTokens);
+    }
+    
+    return errorResponse;
   }
 }

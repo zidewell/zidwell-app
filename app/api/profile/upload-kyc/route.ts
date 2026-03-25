@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"; 
+// app/api/kyc/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -8,56 +9,53 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+  
+  if (!user) {
+    const response = NextResponse.json(
+      { error: "Please login to access transactions", logout: true },
+      { status: 401 }
+    );
+    if (newTokens) return createAuthResponse(await response.json(), newTokens);
+    return response;
+  }
+
   try {
     const formData = await req.formData();
     const userId = formData.get("userId") as string;
     const nin = formData.get("nin") as string;
 
+    if (!userId || userId !== user.id) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 403 });
+    }
+
     const idCard = formData.get("idCard") as File | null;
     const utilityBill = formData.get("utilityBill") as File | null;
 
-    if (!userId) {
-      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
-    }
-
-    // ✅ Upload ID Card
     let idCardUrl = null;
     if (idCard) {
       const { data, error } = await supabase.storage
-        .from("kyc-files") // ✅ Correct bucket
+        .from("kyc-files")
         .upload(`id-cards/${userId}-${idCard.name}`, idCard, {
           upsert: true,
           contentType: idCard.type,
         });
       if (error) throw error;
-
       idCardUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/kyc-files/${data.path}`;
     }
 
-    // ✅ Upload Utility Bill
     let utilityBillUrl = null;
     if (utilityBill) {
       const { data, error } = await supabase.storage
-        .from("kyc-files") // ✅ Correct bucket
+        .from("kyc-files")
         .upload(`utility-bills/${userId}-${utilityBill.name}`, utilityBill, {
           upsert: true,
           contentType: utilityBill.type,
         });
       if (error) throw error;
-
       utilityBillUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/kyc-files/${data.path}`;
     }
 
-    // ✅ Insert into kyc table
     const { error: kycError } = await supabase.from("kyc").upsert(
       {
         user_id: userId,
@@ -71,7 +69,9 @@ export async function POST(req: NextRequest) {
 
     if (kycError) throw kycError;
 
-    return NextResponse.json({ success: true, message: "KYC submitted successfully ✅" });
+    const responseData = { success: true, message: "KYC submitted successfully ✅" };
+    if (newTokens) return createAuthResponse(responseData, newTokens);
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error("KYC upload error:", error);
     return NextResponse.json({ error: "Failed to upload KYC" }, { status: 500 });

@@ -1,10 +1,7 @@
 // app/api/profile/update-business-info/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isAuthenticated } from "@/lib/auth-check-api";
-// import { clearBusinessDataCache } from "../../get-business-account-details/route";
-// import { clearWalletBalanceCache } from "../../wallet-balance/route";
-// import { clearTransactionsCache } from "../../bill-transactions/route";
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -12,13 +9,15 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const user = await isAuthenticated(req);
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
 
   if (!user) {
-    return NextResponse.json(
-      { error: "Please login to access transactions" },
+    const response = NextResponse.json(
+      { error: "Please login to access transactions", logout: true },
       { status: 401 }
     );
+    if (newTokens) return createAuthResponse(await response.json(), newTokens);
+    return response;
   }
 
   try {
@@ -34,18 +33,15 @@ export async function POST(req: NextRequest) {
       cacFileBase64,
     } = body;
 
-    if (!userId) {
-      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    if (!userId || userId !== user.id) {
+      return NextResponse.json({ error: "Unauthorized: User ID mismatch" }, { status: 403 });
     }
 
     let cacFileUrl: string | null = null;
 
-    // ✅ Upload CAC file to Supabase Storage if provided
     if (cacFileBase64) {
-      // Determine file type from base64 header
       const matches = cacFileBase64.match(/^data:([A-Za-z-+\/]+);base64,/);
       const mimeType = matches ? matches[1] : '';
-      
       let fileExt = 'pdf';
       if (mimeType.includes('image')) {
         fileExt = mimeType.includes('png') ? 'png' : 'jpg';
@@ -76,22 +72,16 @@ export async function POST(req: NextRequest) {
       cacFileUrl = publicUrlData?.publicUrl ?? null;
     }
 
-    // Check if business already exists
     const { data: existing, error: fetchError } = await supabase
       .from("businesses")
       .select("id")
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (fetchError) {
-      console.error("Fetch error:", fetchError);
-      throw fetchError;
-    }
+    if (fetchError) throw fetchError;
 
-    let result;
     if (existing) {
-      // Update existing business
-      result = await supabase
+      await supabase
         .from("businesses")
         .update({
           business_name: businessName,
@@ -105,8 +95,7 @@ export async function POST(req: NextRequest) {
         })
         .eq("user_id", userId);
     } else {
-      // Insert new business
-      result = await supabase.from("businesses").insert([
+      await supabase.from("businesses").insert([
         {
           user_id: userId,
           business_name: businessName,
@@ -122,22 +111,13 @@ export async function POST(req: NextRequest) {
       ]);
     }
 
-    if (result.error) {
-      console.error("Insert/Update error:", result.error);
-      throw result.error;
-    }
-
-    // Clear caches
-    // clearBusinessDataCache(userId);
-    // clearWalletBalanceCache(userId);
-    // clearTransactionsCache(userId);
-
-    return NextResponse.json({ 
-      success: true, 
+    const responseData = {
+      success: true,
       cacFileUrl,
-      message: "Business information updated successfully" 
-    });
-    
+      message: "Business information updated successfully",
+    };
+    if (newTokens) return createAuthResponse(responseData, newTokens);
+    return NextResponse.json(responseData);
   } catch (error: any) {
     console.error("Business update error:", error);
     return NextResponse.json(

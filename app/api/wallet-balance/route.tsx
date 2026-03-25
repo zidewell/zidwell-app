@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -61,7 +61,7 @@ async function getCachedWalletBalance(userId: string): Promise<number & { _fromC
   return Object.assign(balance, { _fromCache: false });
 }
 
- function clearWalletBalanceCache(userId: string) {
+function clearWalletBalanceCache(userId: string) {
   const cacheKey = `wallet_balance_${userId}`;
   const existed = walletBalanceCache.delete(cacheKey);
   
@@ -72,14 +72,14 @@ async function getCachedWalletBalance(userId: string): Promise<number & { _fromC
   return existed;
 }
 
- function clearAllWalletBalanceCache() {
+function clearAllWalletBalanceCache() {
   const count = walletBalanceCache.size;
   walletBalanceCache.clear();
   console.log(`🧹 Cleared all wallet balance cache (${count} entries)`);
 }
 
 // Force update balance in cache (useful after transactions)
- function updateWalletBalanceCache(userId: string, newBalance: number) {
+function updateWalletBalanceCache(userId: string, newBalance: number) {
   const cacheKey = `wallet_balance_${userId}`;
   walletBalanceCache.set(cacheKey, {
     data: newBalance,
@@ -90,30 +90,56 @@ async function getCachedWalletBalance(userId: string): Promise<number & { _fromC
 }
 
 // Export for use in other files
- async function getWalletBalance(userId: string): Promise<number> {
+async function getWalletBalance(userId: string): Promise<number> {
   const balance = await getCachedWalletBalance(userId);
   // Remove the cache flag before returning
   return typeof balance === 'number' ? balance : (balance as any).valueOf();
 }
 
 export async function POST(req: NextRequest) {
-     const user = await isAuthenticated(req);
+  // ✅ Updated to use enhanced auth with refresh
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
         
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
+  if (!user) {
+    console.log("🔴 Unauthorized - No valid user");
+    const response = NextResponse.json(
+      { error: "Please login to access transactions", logout: true },
+      { status: 401 }
+    );
     
+    if (newTokens) {
+      return createAuthResponse(await response.json(), newTokens);
+    }
+    return response;
+  }
+
   try {
     const { userId, nocache, forceBalance } = await req.json();
 
     if (!userId) {
-      return NextResponse.json({ 
+      const response = NextResponse.json({ 
         success: false,
         error: "userId is required" 
       }, { status: 400 });
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
+    }
+
+    // ✅ Validate that userId matches authenticated user
+    if (userId !== user.id) {
+      console.error(`User ID mismatch: ${userId} vs ${user.id}`);
+      const response = NextResponse.json(
+        { success: false, error: "Unauthorized: User ID mismatch" },
+        { status: 403 }
+      );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     let wallet_balance: number;
@@ -136,7 +162,7 @@ export async function POST(req: NextRequest) {
     // Remove cache flag if present
     const cleanBalance = typeof wallet_balance === 'number' ? wallet_balance : (wallet_balance as any).valueOf();
 
-    return NextResponse.json({
+    const responseData = {
       success: true,
       wallet_balance: cleanBalance,
       currency: "NGN",
@@ -147,27 +173,41 @@ export async function POST(req: NextRequest) {
         ttl_seconds: 30,
         expires_in: Math.max(0, 30 - Math.floor((Date.now() - (walletBalanceCache.get(`wallet_balance_${userId}`)?.timestamp || 0)) / 1000))
       }
-    });
+    };
+
+    // Include new tokens if available
+    if (newTokens) {
+      return createAuthResponse(responseData, newTokens);
+    }
+
+    return NextResponse.json(responseData);
   } catch (err: any) {
     console.error("❌ Wallet balance error:", err.message);
     
+    let errorResponse;
+    
     if (err.message === "User not found") {
-      return NextResponse.json({ 
+      errorResponse = NextResponse.json({ 
         success: false,
         error: "User not found" 
       }, { status: 404 });
-    }
-    
-    if (err.message === "Database query failed") {
-      return NextResponse.json({ 
+    } else if (err.message === "Database query failed") {
+      errorResponse = NextResponse.json({ 
         success: false,
         error: "Database query failed" 
       }, { status: 500 });
+    } else {
+      errorResponse = NextResponse.json({
+        success: false,
+        error: "Internal server error"
+      }, { status: 500 });
     }
     
-    return NextResponse.json({
-      success: false,
-      error: "Internal server error"
-    }, { status: 500 });
+    // Include new tokens in error response if available
+    if (newTokens) {
+      return createAuthResponse(await errorResponse.json(), newTokens);
+    }
+    
+    return errorResponse;
   }
 }

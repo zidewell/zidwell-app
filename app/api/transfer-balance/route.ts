@@ -236,15 +236,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api"; 
 import { sendPinResetEmail } from "@/lib/email/pin-reset";
 
 export async function POST(req: NextRequest) {
-  const user = await isAuthenticated(req);
+  // Get user with potential new tokens from refresh
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
 
   if (!user) {
     return NextResponse.json(
-      { error: "Please login to access transactions" },
+      { error: "Please login to access transactions", logout: true },
       { status: 401 }
     );
   }
@@ -270,6 +271,15 @@ export async function POST(req: NextRequest) {
       fee,
       totalDebit,
     } = await req.json();
+
+    // Validate that the userId matches the authenticated user
+    if (userId !== user.id) {
+      console.error(`User ID mismatch: ${userId} vs ${user.id}`);
+      return NextResponse.json(
+        { error: "Unauthorized: User ID mismatch" },
+        { status: 403 }
+      );
+    }
 
     if (
       !userId ||
@@ -303,7 +313,7 @@ export async function POST(req: NextRequest) {
       const lockedUntil = new Date(userData.pin_locked_until);
       const minutesLeft = Math.ceil((lockedUntil.getTime() - Date.now()) / 60000);
       
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           message: `PIN is locked due to multiple failed attempts. Please try again in ${minutesLeft} minutes or reset your PIN via email.`,
           locked: true,
@@ -311,6 +321,12 @@ export async function POST(req: NextRequest) {
         },
         { status: 401 }
       );
+      
+      // If we have new tokens from refresh, include them
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
@@ -355,7 +371,7 @@ export async function POST(req: NextRequest) {
           userName
         );
         
-        return NextResponse.json(
+        const response = NextResponse.json(
           { 
             message: `PIN locked due to ${newAttempts} failed attempts. A reset link has been sent to your email.`,
             locked: true,
@@ -364,10 +380,15 @@ export async function POST(req: NextRequest) {
           },
           { status: 401 }
         );
+        
+        if (newTokens) {
+          return createAuthResponse(await response.json(), newTokens);
+        }
+        return response;
       }
       
       const remainingAttempts = 3 - newAttempts;
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           message: `Invalid transaction PIN. ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining before PIN is locked.`,
           remainingAttempts,
@@ -375,6 +396,11 @@ export async function POST(req: NextRequest) {
         },
         { status: 401 }
       );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
     
     // ✅ PIN is valid - reset attempts on success
@@ -390,19 +416,29 @@ export async function POST(req: NextRequest) {
 
     const totalDeduction = totalDebit || amount + fee;
     if (userData.wallet_balance < totalDeduction) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { message: "Insufficient wallet balance (including fees)" },
         { status: 400 }
       );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     // ✅ Get Nomba token
     const token = await getNombaToken();
     if (!token) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { message: "Unauthorized: Nomba token missing" },
         { status: 401 }
       );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     const merchantTxRef = `WD_${Date.now()}`;
@@ -434,10 +470,15 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (txError || !pendingTx) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: "Could not create transaction record" },
         { status: 500 }
       );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     // ✅ Deduct wallet balance
@@ -459,10 +500,15 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", pendingTx.id);
       
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: "Failed to deduct wallet balance: " + deductError.message },
         { status: 500 }
       );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     // Check if deduction was successful
@@ -475,10 +521,15 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", pendingTx.id);
       
-      return NextResponse.json(
+      const response = NextResponse.json(
         { message: "Insufficient wallet balance" },
         { status: 400 }
       );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     console.log(`✅ Deducted ₦${totalDeduction} from user ${userId}. New balance: ₦${deductResult}`);
@@ -527,19 +578,34 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", pendingTx.id);
 
-    return NextResponse.json({
+    const responseData = {
       message: "Transfer initiated successfully.",
       transactionId: pendingTx.id,
       merchantTxRef,
       nombaResponse: data,
       newBalance: deductResult
-    });
+    };
+
+    // If we have new tokens from refresh, include them in the response
+    if (newTokens) {
+      return createAuthResponse(responseData, newTokens);
+    }
+
+    return NextResponse.json(responseData);
 
   } catch (error: any) {
     console.error("Withdraw API error:", error);
-    return NextResponse.json(
+    
+    const response = NextResponse.json(
       { error: "Server error: " + (error.message || error.description) },
       { status: 500 }
     );
+    
+    // If we have new tokens from refresh, include them even in error response
+    if ((error as any).newTokens) {
+      return createAuthResponse(await response.json(), (error as any).newTokens);
+    }
+    
+    return response;
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, Sun, Moon, LogOut, Settings, Bell } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { useUserContextData } from "@/app/context/userData";
@@ -13,8 +13,10 @@ interface DashboardHeaderProps {
 
 const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
   const [dark, setDark] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
   const { userData, setUserData } = useUserContextData();
+  const logoutInProgress = useRef(false); 
 
   // Theme toggle effect
   useEffect(() => {
@@ -36,28 +38,53 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
   }, [setUserData]);
 
   const handleLogout = async () => {
-    try {
-      await fetch("/api/logout", { method: "POST" });
+    // Prevent multiple logout attempts
+    if (logoutInProgress.current || isLoggingOut) return;
+    
+    logoutInProgress.current = true;
+    setIsLoggingOut(true);
 
+    try {
+      console.log("🔵 Attempting logout...");
+      
+      // Call logout API
+      const response = await fetch("/api/logout", { method: "POST" });
+      const data = await response.json();
+      
+      console.log("🔵 Logout response:", data);
+
+      // Track last logout activity if user data exists
       if (userData) {
-        await fetch("/api/activity/last-logout", {
-          method: "POST",
-          body: JSON.stringify({
-            user_id: userData.id,
-            email: userData.email,
-            login_history_id: userData.currentLoginSession 
-          }),
-        });
+        try {
+          await fetch("/api/activity/last-logout", {
+            method: "POST",
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              user_id: userData.id,
+              email: userData.email,
+              login_history_id: userData.currentLoginSession 
+            }),
+          });
+        } catch (activityError) {
+          console.error("Error tracking logout activity:", activityError);
+          // Don't fail the logout if this fails
+        }
       }
 
+      // Clear client-side storage
       if (typeof window !== "undefined") {
         localStorage.removeItem("userData");
-        localStorage.clear();
+        // Only clear specific items, not everything
+        // localStorage.clear(); // Remove this line - it's too aggressive
       }
 
+      // Clear context
       setUserData(null);
 
-      Swal.fire({
+      // Show success message
+      await Swal.fire({
         icon: "success",
         title: "Logged Out",
         text: "You have been signed out successfully.",
@@ -65,13 +92,36 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
         showConfirmButton: false,
       });
 
-      router.push("/auth/login");
+      // Redirect after a short delay to show the success message
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 1500);
+      
     } catch (error: any) {
-      Swal.fire({
+      console.error("Logout error:", error);
+      
+      // Even if API fails, clear local state
+      localStorage.removeItem("userData");
+      setUserData(null);
+      
+      await Swal.fire({
         icon: "error",
         title: "Logout Failed",
-        text: error?.message || "An error occurred during logout.",
+        text: error?.message || "An error occurred during logout. You have been logged out locally.",
+        timer: 2000,
+        showConfirmButton: false,
       });
+      
+      // Still redirect after error
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 2000);
+    } finally {
+      // Reset logout flags after delay
+      setTimeout(() => {
+        logoutInProgress.current = false;
+        setIsLoggingOut(false);
+      }, 2000);
     }
   };
 
@@ -114,11 +164,16 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-md border-2 border-[#242424] dark:border-[#474747] bg-[#db3a34] text-white hover:bg-[#c12e28] shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all"
+            disabled={isLoggingOut}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-md border-2 border-[#242424] dark:border-[#474747] bg-[#db3a34] text-white hover:bg-[#c12e28] shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all ${
+              isLoggingOut ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
             aria-label="Logout"
           >
             <LogOut className="w-4 h-4" />
-            <span className="hidden md:inline text-sm font-bold uppercase tracking-wide">Logout</span>
+            <span className="hidden md:inline text-sm font-bold uppercase tracking-wide">
+              {isLoggingOut ? "Logging out..." : "Logout"}
+            </span>
           </button>
         </div>
       </div>

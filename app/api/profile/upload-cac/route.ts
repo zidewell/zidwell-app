@@ -1,40 +1,40 @@
-// pages/api/profile/upload-cac.ts
+// app/api/profile/upload-cac/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 
-// Initialize Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export async function POST(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+  
+  if (!user) {
+    const response = NextResponse.json(
+      { error: "Please login to access transactions", logout: true },
+      { status: 401 }
+    );
+    if (newTokens) return createAuthResponse(await response.json(), newTokens);
+    return response;
+  }
+
   try {
     const formData = await req.formData();
     const userId = formData.get("userId") as string;
     const cacFile = formData.get("cacFile") as File | null;
 
-    if (!userId) {
-      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    if (!userId || userId !== user.id) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 403 });
     }
 
     if (!cacFile) {
       return NextResponse.json({ error: "No CAC file uploaded" }, { status: 400 });
     }
 
-    // Upload CAC file
     const { data, error: uploadError } = await supabase.storage
-      .from("kyc-files") 
+      .from("kyc-files")
       .upload(`cac/${userId}-${cacFile.name}`, cacFile, {
         upsert: true,
         contentType: cacFile.type,
@@ -42,14 +42,12 @@ export async function POST(req: NextRequest) {
 
     if (uploadError) throw uploadError;
 
-    // Generate public URL
     const { data: publicData } = supabase.storage
       .from("kyc-files")
       .getPublicUrl(data.path);
 
     const cacUrl = publicData.publicUrl;
 
-    // Optional: Save the URL in the business table
     const { error: dbError } = await supabase
       .from("businesses")
       .update({ cac_file_url: cacUrl, updated_at: new Date().toISOString() })
@@ -57,7 +55,9 @@ export async function POST(req: NextRequest) {
 
     if (dbError) throw dbError;
 
-    return NextResponse.json({ success: true, cacUrl });
+    const responseData = { success: true, cacUrl };
+    if (newTokens) return createAuthResponse(responseData, newTokens);
+    return NextResponse.json(responseData);
   } catch (error: any) {
     console.error("CAC upload error:", error);
     return NextResponse.json(

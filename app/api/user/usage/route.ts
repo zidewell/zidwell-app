@@ -1,7 +1,7 @@
 // app/api/user/usage/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api"; 
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -9,14 +9,20 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
-  const user = await isAuthenticated(req);
+  // ✅ Updated to use enhanced auth with refresh
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
   
   if (!user) {
-    console.log("Unauthorized")
-    return NextResponse.json(
-      { error: "Unauthorized" },
+    console.log("🔴 Unauthorized - No valid user");
+    const response = NextResponse.json(
+      { error: "Unauthorized", logout: true },
       { status: 401 }
     );
+    
+    if (newTokens) {
+      return createAuthResponse(await response.json(), newTokens);
+    }
+    return response;
   }
 
   try {
@@ -38,10 +44,15 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error("Error fetching user data:", error);
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: "Failed to fetch usage data" },
         { status: 500 }
       );
+      
+      if (newTokens) {
+        return createAuthResponse(await response.json(), newTokens);
+      }
+      return response;
     }
 
     const tier = userData.subscription_tier || 'free';
@@ -58,7 +69,7 @@ export async function GET(req: NextRequest) {
     let invoiceData;
     if (isFree || isZidLite) {
       const used = userData.invoices_used_lifetime || 0;
-      const limit = isFree ? 5 : 20; // Free: 5, ZidLite: 10
+      const limit = isFree ? 5 : 20; // Free: 5, ZidLite: 20
       invoiceData = {
         used,
         limit,
@@ -171,7 +182,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const responseData = {
       invoices: invoiceData,
       receipts: receiptData,
       contracts: contractData,
@@ -181,21 +192,35 @@ export async function GET(req: NextRequest) {
       summary: {
         invoices: {
           used: userData.invoices_used_lifetime || 0,
-          limit: isFree ? 5 : isZidLite ? 10 : 'unlimited',
+          limit: isFree ? 5 : isZidLite ? 20 : 'unlimited',
           remaining: isFree 
             ? Math.max(0, 5 - (userData.invoices_used_lifetime || 0))
             : isZidLite
-            ? Math.max(0, 10 - (userData.invoices_used_lifetime || 0))
+            ? Math.max(0, 20 - (userData.invoices_used_lifetime || 0))
             : 'unlimited'
         }
       }
-    });
+    };
+
+    // Include new tokens if available
+    if (newTokens) {
+      return createAuthResponse(responseData, newTokens);
+    }
+
+    return NextResponse.json(responseData);
 
   } catch (error: any) {
     console.error("Error fetching usage:", error);
-    return NextResponse.json(
+    
+    const errorResponse = NextResponse.json(
       { error: error.message || "Failed to fetch usage" },
       { status: 500 }
     );
+    
+    if (newTokens) {
+      return createAuthResponse(await errorResponse.json(), newTokens);
+    }
+    
+    return errorResponse;
   }
 }
