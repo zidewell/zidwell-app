@@ -1,7 +1,10 @@
 // app/components/new-profile/WalletCard.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
+import { Eye, EyeOff, Landmark, CopyIcon } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { useUserContextData } from "@/app/context/userData";
 
 interface WalletCardProps {
   allTimeBalance: number;
@@ -16,6 +19,13 @@ const formatNaira = (amount: number) =>
     amount,
   );
 
+const formatNumber = (value: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "decimal",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
 const WalletCard: React.FC<WalletCardProps> = ({
   allTimeBalance,
   currentBalance,
@@ -25,6 +35,14 @@ const WalletCard: React.FC<WalletCardProps> = ({
 }) => {
   const router = useRouter();
   const { openVerificationModal } = useVerificationModal();
+  const { userData } = useUserContextData();
+  const [showAlltime, setShowAlltime] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showAccountNumber, setShowAccountNumber] = useState(false);
+  const [showTotalTransactions, setShowTotalTransactions] = useState(false);
+  const [copyText, setCopyText] = useState(false);
+  const [details, setDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleActivate = () => {
     // Open the global verification modal
@@ -34,7 +52,35 @@ const WalletCard: React.FC<WalletCardProps> = ({
     onActivate();
   };
 
+  useEffect(() => {
+    const fetchAccountDetails = async () => {
+      if (!userData?.id) return;
+      setLoading(true);
+      try {
+        const res = await fetch("/api/get-wallet-account-details", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: userData.id }),
+        });
+        const data = await res.json();
+        setDetails(data);
+      } catch (error) {
+        console.error("Error fetching account details:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchAccountDetails();
+  }, [userData?.id]);
+
+  const handleCopyAccountNumber = async () => {
+    if (details?.bank_details?.bank_account_number) {
+      setCopyText(true);
+      await navigator.clipboard.writeText(details.bank_details.bank_account_number);
+      setTimeout(() => setCopyText(false), 3000);
+    }
+  };
 
   if (!activated) {
     return (
@@ -57,33 +103,119 @@ const WalletCard: React.FC<WalletCardProps> = ({
   }
 
   return (
-    <div className="neo-card bg-card p-6 md:p-8">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div>
-          <span className="text-xs  text-muted-foreground block mb-1">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Card 1: All-time Balance */}
+      <Card className="bg-linear-to-r from-[#2b825b] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#1e5f43] dark:to-[#b37f1a]">
+        <CardHeader className="p-0">
+          <CardTitle className="text-base  font-medium">
             All-time Balance
-          </span>
-          <span className="text-xl md:text-2xl font-heading text-foreground">
-            {formatNaira(allTimeBalance)}
-          </span>
-        </div>
-        <div>
-          <span className="text-xs  text-muted-foreground block mb-1">
+            <span className="block font-semibold text-xl mt-1">
+              {showAlltime ? formatNaira(allTimeBalance) : "*****"}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <button
+            onClick={() => setShowAlltime((prev) => !prev)}
+            className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
+          >
+            {showAlltime ? (
+              <EyeOff className="text-white " />
+            ) : (
+              <Eye className="text-white " />
+            )}
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* Card 2: Current Balance */}
+      <Card className="bg-linear-to-r from-gray-600 to-gray-800 text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-gray-700 dark:to-gray-900">
+        <CardHeader className="p-0">
+          <CardTitle className="text-base font-medium">
             Current Balance
-          </span>
-          <span className="text-xl md:text-2xl font-heading text-foreground">
-            {formatNaira(currentBalance)}
-          </span>
-        </div>
-        <div>
-          <span className="text-xs  text-muted-foreground block mb-1">
+            <span className="block font-semibold text-xl mt-1">
+              {showCurrent ? formatNaira(currentBalance) : "*****"}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <button
+            onClick={() => setShowCurrent((prev) => !prev)}
+            className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
+          >
+            {showCurrent ? (
+              <EyeOff className="text-white " />
+            ) : (
+              <Eye className="text-white " />
+            )}
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* Card 3: Account Number */}
+      <Card className="flex items-center justify-between bg-white border shadow-md rounded-xl p-4 dark:bg-gray-800 dark:border-gray-700">
+        <CardHeader className="p-0">
+          <CardTitle className="text-base font-medium text-gray-900 dark:text-gray-100">
+            Your Account Number
+            <div className="font-semibold flex items-center gap-4 mt-1 text-gray-900 dark:text-gray-100">
+              {showAccountNumber ? (
+                details?.bank_details?.bank_account_number || "Not available"
+              ) : (
+                "*****"
+              )}
+              {showAccountNumber && details?.bank_details?.bank_account_number && (
+                <button
+                  className="text-sm border px-3 py-2 rounded-md cursor-pointer hover:bg-gray-100 transition dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300"
+                  onClick={handleCopyAccountNumber}
+                >
+                  {copyText ? "Copied" : <CopyIcon className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
+            {showAccountNumber && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {details?.bank_details?.bank_name || "Providus Bank"}
+              </p>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <button
+            onClick={() => setShowAccountNumber((prev) => !prev)}
+            className="bg-gray-100 p-3 rounded-full hover:bg-gray-200 transition dark:bg-gray-700 dark:hover:bg-gray-600"
+          >
+            {showAccountNumber ? (
+              <EyeOff className=" text-gray-700 dark:text-gray-300" />
+            ) : (
+              <Eye className=" text-gray-700 dark:text-gray-300" />
+            )}
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* Card 4: Total Transactions */}
+      <Card className="bg-linear-to-r from-blue-600 to-cyan-600 text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-blue-700 dark:to-cyan-700">
+        <CardHeader className="p-0">
+          <CardTitle className="text-base font-medium">
             Total Transactions
-          </span>
-          <span className="text-xl md:text-2xl font-heading text-foreground">
-            {totalTransactions.toLocaleString()}
-          </span>
-        </div>
-      </div>
+            <span className="block font-semibold text-xl mt-1">
+              {showTotalTransactions ? totalTransactions.toLocaleString() : "*****"}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <button
+            onClick={() => setShowTotalTransactions((prev) => !prev)}
+            className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
+          >
+            {showTotalTransactions ? (
+              <EyeOff className="text-white " />
+            ) : (
+              <Eye className="text-white " />
+            )}
+          </button>
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { NextRequest, NextResponse } from "next/server";
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
-import { isAuthenticatedWithRefresh, createAuthResponse  } from "@/lib/auth-check-api"; 
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -41,6 +41,11 @@ export async function POST(req: NextRequest) {
     const userId = body.userId || body.user_id;
     const isDraft = body.is_draft || body.isDraft || false;
     const pin = body.pin;
+    
+    // Extract send_email_automatically flag (default to true for backward compatibility)
+    const sendEmailAutomatically = body.send_email_automatically !== undefined 
+      ? body.send_email_automatically 
+      : true;
 
     // Validate userId matches authenticated user
     if (userId && userId !== user.id) {
@@ -148,6 +153,7 @@ export async function POST(req: NextRequest) {
       payment_for: paymentFor,
       payment_method: paymentMethod,
       customer_note: customerNote,
+      send_email_automatically: sendEmailAutomatically, // Add to metadata for tracking
     };
 
     if (body.metadata?.attachments) {
@@ -317,8 +323,8 @@ export async function POST(req: NextRequest) {
     const headerImageUrl = `${baseUrl}/zidwell-header.png`;
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
-    // Send email notification for non-drafts
-    if (!isDraft && clientEmail) {
+    // Send email notification for non-drafts ONLY if sendEmailAutomatically is true
+    if (!isDraft && clientEmail && sendEmailAutomatically) {
       try {
         const mailOptions = {
           from: process.env.EMAIL_FROM,
@@ -554,6 +560,10 @@ export async function POST(req: NextRequest) {
         console.error("Failed to send email:", emailError);
         // Don't fail the whole request if email fails
       }
+    } else if (!isDraft && !sendEmailAutomatically) {
+      console.log("Email sending disabled by user preference for receipt:", receiptId);
+    } else if (!isDraft && !clientEmail) {
+      console.log("No client email provided, skipping email send for receipt:", receiptId);
     }
 
     const responseData = {
@@ -567,6 +577,7 @@ export async function POST(req: NextRequest) {
       verificationCode: result.verification_code,
       isDraft,
       isUpdate: !!existingDraft,
+      emailSent: !isDraft && clientEmail && sendEmailAutomatically, // Add email sent status
     };
 
     // Include new tokens if available

@@ -1,10 +1,11 @@
+// app/api/buy-electricity/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
 import bcrypt from "bcryptjs";
 import { transporter } from "@/lib/node-mailer";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -18,18 +19,14 @@ async function getCachedUser(userId: string) {
   const cacheKey = `user_${userId}`;
   const cached = userCache.get(cacheKey);
 
-  // Check if cache exists and is less than 2 minutes old
   if (cached && Date.now() - cached.timestamp < 2 * 60 * 1000) {
     console.log("✅ Using cached user data");
     return cached.data;
   }
 
-  // Fetch fresh data
   const { data: user, error } = await supabase
     .from("users")
-    .select(
-      "transaction_pin, wallet_balance,zidcoin_balance, email, first_name"
-    )
+    .select("transaction_pin, wallet_balance, zidcoin_balance, email, first_name")
     .eq("id", userId)
     .single();
 
@@ -43,7 +40,6 @@ async function getCachedUser(userId: string) {
   return user;
 }
 
-// Email notification function for electricity purchases
 async function sendElectricityEmailNotification(
   userId: string,
   status: "success" | "failed",
@@ -56,15 +52,11 @@ async function sendElectricityEmailNotification(
   tokenData?: any
 ) {
   try {
-    // Check if email is configured
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      console.warn(
-        "Email notifications are disabled. Please set EMAIL_USER and EMAIL_PASSWORD environment variables."
-      );
+      console.warn("Email notifications are disabled");
       return;
     }
 
-    // Fetch user email
     const { data: user, error } = await supabase
       .from("users")
       .select("email, first_name")
@@ -82,53 +74,6 @@ async function sendElectricityEmailNotification(
         : `Electricity Purchase Failed - ₦${amount} ${disco}`;
 
     const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
-
-    const successBody = `
-${greeting}
-
-Your electricity purchase was successful!
-
-⚡ Transaction Details:
-• Amount: ₦${amount}
-• Disco: ${disco}
-• Meter Number: ${meterNumber}
-• Meter Type: ${meterType}
-• Transaction ID: ${transactionId || "N/A"}
-• Date: ${new Date().toLocaleString()}
-${tokenData ? `• Token: ${tokenData.token || "N/A"}` : ""}
-${tokenData && tokenData.units ? `• Units: ${tokenData.units}` : ""}
-
-Thank you for using Zidwell!
-
-Best regards,
-Zidwell Team
-    `;
-
-    const failedBody = `
-${greeting}
-
-Your electricity purchase failed.
-
-⚡ Transaction Details:
-• Amount: ₦${amount}
-• Disco: ${disco}
-• Meter Number: ${meterNumber}
-• Meter Type: ${meterType}
-• Transaction ID: ${transactionId || "N/A"}
-• Date: ${new Date().toLocaleString()}
-• Status: ${errorDetail || "Transaction failed"}
-
-${
-  errorDetail?.includes("refunded")
-    ? "✅ Your wallet has been refunded successfully."
-    : "Please contact support if you have any questions."
-}
-
-Best regards,
-Zidwell Team
-    `;
-
-    const emailBody = status === "success" ? successBody : failedBody;
     
     const baseUrl =
       process.env.NODE_ENV === "development"
@@ -138,49 +83,27 @@ Zidwell Team
     const headerImageUrl = `${baseUrl}/zidwell-header.png`;
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
-
-  await transporter.sendMail({
-  from: `"Zidwell" <${process.env.EMAIL_USER}>`,
-  to: user.email,
-  subject,
-  text: emailBody,
-  html: `
+    await transporter.sendMail({
+      from: `"Zidwell" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject,
+      html: `
 <!DOCTYPE html>
 <html>
 <body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial, sans-serif;">
-
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;">
-  <tr>
+   <tr>
     <td align="center">
-
-      <table width="600" cellpadding="0" cellspacing="0"
-        style="background:#ffffff; border-radius:8px; overflow:hidden;">
-
-        <!-- Header -->
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; overflow:hidden;">
         <tr>
-          <td>
-            <img
-              src="${headerImageUrl}"
-              alt="Zidwell Header"
-              style="width:100%; max-width:600px; display:block;"
-            />
-          </td>
+          <td><img src="${headerImageUrl}" alt="Zidwell Header" style="width:100%; max-width:600px; display:block;" /></td>
         </tr>
-
-        <!-- Content -->
         <tr>
           <td style="padding:24px; color:#333;">
-
             <p>${greeting}</p>
-          
             <h3 style="color: ${status === "success" ? "#22c55e" : "#ef4444"};">
-              ${
-                status === "success"
-                  ? "✅ Electricity Purchase Successful"
-                  : "❌ Electricity Purchase Failed"
-              }
+              ${status === "success" ? "✅ Electricity Purchase Successful" : "❌ Electricity Purchase Failed"}
             </h3>
-            
             <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
               <h4 style="margin-top: 0;">Transaction Details:</h4>
               <p><strong>Amount:</strong> ₦${amount}</p>
@@ -189,92 +112,50 @@ Zidwell Team
               <p><strong>Meter Type:</strong> ${meterType}</p>
               <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
               <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-              ${
-                status === "success" && tokenData
-                  ? `
-                <p><strong>Token:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${
-                  tokenData.token || "N/A"
-                }</code></p>
-                ${
-                  tokenData.units
-                    ? `<p><strong>Units:</strong> ${tokenData.units}</p>`
-                    : ""
-                }
-              `
-                  : ""
-              }
-              ${
-                status === "failed"
-                  ? `<p><strong>Status:</strong> ${
-                      errorDetail || "Transaction failed"
-                    }</p>`
-                  : ""
-              }
+              ${status === "success" && tokenData ? `<p><strong>Token:</strong> <code style="background:#f1f5f9; padding:4px 8px; border-radius:4px;">${tokenData.token || "N/A"}</code></p>` : ""}
+              ${status === "failed" ? `<p><strong>Status:</strong> ${errorDetail || "Transaction failed"}</p>` : ""}
             </div>
-            
-            ${
-              status === "failed" && errorDetail?.includes("refunded")
-                ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
-                : ""
-            }
-            
             <p>Thank you for using Zidwell!</p>
-            
-            <p style="color: #64748b; font-size: 14px;">
-              Best regards,<br>
-              <strong>Zidwell Team</strong>
-            </p>
-
+            <p style="color: #64748b; font-size: 14px;">Best regards,<br /><strong>Zidwell Team</strong></p>
           </td>
         </tr>
-
-        <!-- Footer -->
         <tr>
-          <td>
-            <img
-              src="${footerImageUrl}"
-              alt="Zidwell Footer"
-              style="width:100%; max-width:600px; display:block;"
-            />
-          </td>
+          <td><img src="${footerImageUrl}" alt="Zidwell Footer" style="width:100%; max-width:600px; display:block;" /></td>
         </tr>
-
       </table>
-
     </td>
-  </tr>
+   </tr>
 </table>
-
 </body>
-</html>
-`,
-});
-
-    console.log(
-      `Email notification sent to ${user.email} for ${status} electricity purchase`
-    );
+</html>`,
+    });
+    console.log(`Email notification sent to ${user.email} for ${status} electricity purchase`);
   } catch (emailError) {
     console.error("Failed to send email notification:", emailError);
-    // Don't throw error to avoid affecting the main transaction flow
   }
 }
 
 export async function POST(req: NextRequest) {
-     const user = await isAuthenticated(req);
-        
-        if (!user) {
-          return NextResponse.json(
-            { error: "Please login to access transactions" },
-            { status: 401 }
-          );
-        }
-    
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+  
+  if (!user) {
+    const response = NextResponse.json(
+      { error: "Please login to access transactions", logout: true },
+      { status: 401 }
+    );
+    if (newTokens) return createAuthResponse(await response.json(), newTokens);
+    return response;
+  }
+
   let transactionId: string | null = null;
 
   try {
     const token = await getNombaToken();
-    if (!token)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!token) {
+      const response = NextResponse.json({ error: "Unauthorized", logout: true }, { status: 401 });
+      if (newTokens) return createAuthResponse(await response.json(), newTokens);
+      return response;
+    }
 
     const body = await req.json();
     const {
@@ -288,62 +169,38 @@ export async function POST(req: NextRequest) {
       merchantTxRef,
     } = body;
 
-    if (
-      !userId ||
-      !pin ||
-      !disco ||
-      !meterNumber ||
-      !meterType ||
-      !amount ||
-      !payerName ||
-      !merchantTxRef
-    ) {
-      return NextResponse.json(
-        { error: "All required fields must be provided" },
-        { status: 400 }
-      );
+    if (!userId || !pin || !disco || !meterNumber || !meterType || !amount || !payerName || !merchantTxRef) {
+      return NextResponse.json({ error: "All required fields must be provided" }, { status: 400 });
+    }
+
+    if (userId !== user.id) {
+      return NextResponse.json({ error: "Unauthorized: User ID mismatch" }, { status: 403 });
     }
 
     const parsedAmount = Number(amount);
 
-    // REPLACED: Fetch user with cached version
-    const user = await getCachedUser(userId);
-    if (!user)
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    const cachedUser = await getCachedUser(userId);
+    if (!cachedUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
-    const isValid = await bcrypt.compare(plainPin, user.transaction_pin);
-    if (!isValid)
-      return NextResponse.json(
-        { message: "Invalid transaction PIN" },
-        { status: 401 }
-      );
+    const isValid = await bcrypt.compare(plainPin, cachedUser.transaction_pin);
+    if (!isValid) return NextResponse.json({ message: "Invalid transaction PIN" }, { status: 401 });
 
-    // 2️⃣ Deduct wallet and create transaction via RPC
-    const { data: rpcResult, error: rpcError } = await supabase.rpc(
-      "deduct_wallet_balance",
-      {
-        user_id: userId,
-        amt: parsedAmount,
-        transaction_type: "electricity",
-        reference: merchantTxRef,
-        description: `Electricity purchase for ${meterNumber} (${meterType})`,
-      }
-    );
+    const { data: rpcResult, error: rpcError } = await supabase.rpc("deduct_wallet_balance", {
+      user_id: userId,
+      amt: parsedAmount,
+      transaction_type: "electricity",
+      reference: merchantTxRef,
+      description: `Electricity purchase for ${meterNumber} (${meterType})`,
+    });
 
     if (rpcError) {
       console.error("RPC Error:", rpcError);
-      return NextResponse.json(
-        { error: "Wallet deduction failed", detail: rpcError.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Wallet deduction failed", detail: rpcError.message }, { status: 500 });
     }
 
     if (rpcResult[0].status !== "OK") {
-      return NextResponse.json(
-        { message: "Insufficient wallet balance" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Insufficient wallet balance" }, { status: 400 });
     }
 
     transactionId = rpcResult[0].tx_id;
@@ -368,7 +225,6 @@ export async function POST(req: NextRequest) {
         }
       );
 
-      // 4️⃣ Update transaction status → success
       await supabase
         .from("transactions")
         .update({
@@ -409,27 +265,15 @@ export async function POST(req: NextRequest) {
         console.log("✅ Nomba API response:", nombaData);
       } catch (nombaError: any) {
         console.error("❌ Nomba API call failed:", nombaError.message);
-        // Don't fail the main transaction if this fails
       }
 
-      const { data: cashbackResult, error: cashbackError } = await supabase.rpc(
-        "award_zidcoin_cashback",
-        {
-          p_user_id: userId,
-          p_transaction_id: transactionId,
-          p_transaction_type: "electricity",
-          p_amount: amount,
-        }
-      );
+      await supabase.rpc("award_zidcoin_cashback", {
+        p_user_id: userId,
+        p_transaction_id: transactionId,
+        p_transaction_type: "electricity",
+        p_amount: amount,
+      });
 
-      if (cashbackResult && cashbackResult.success) {
-        console.log(
-          "🎉 Zidcoin cashback awarded:",
-          cashbackResult.zidcoins_earned
-        );
-      }
-
-      // Send success email notification with token information
       await sendElectricityEmailNotification(
         userId,
         "success",
@@ -442,20 +286,18 @@ export async function POST(req: NextRequest) {
         apiResponse.data
       );
 
-      return NextResponse.json({
+      const responseData = {
         success: true,
-        zidCoinBalance: user?.zidcoin_balance,
+        zidCoinBalance: cachedUser?.zidcoin_balance,
         token: apiResponse.data,
-      });
+      };
+      if (newTokens) return createAuthResponse(responseData, newTokens);
+      return NextResponse.json(responseData);
     } catch (apiError: any) {
-      console.error(
-        "⚠️ Electricity API error:",
-        apiError.response?.data || apiError.message
-      );
+      console.error("⚠️ Electricity API error:", apiError.response?.data || apiError.message);
 
       const errorDetail = apiError.response?.data?.message || apiError.message;
 
-      // Refund wallet via RPC
       try {
         await supabase.rpc("refund_wallet_balance", {
           user_id: userId,
@@ -470,7 +312,6 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", transactionId);
 
-        // Send failure email notification with refund info
         await sendElectricityEmailNotification(
           userId,
           "failed",
@@ -492,7 +333,6 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", transactionId);
 
-        // Send failure email notification with pending refund info
         await sendElectricityEmailNotification(
           userId,
           "failed",

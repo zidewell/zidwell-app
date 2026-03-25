@@ -1,12 +1,16 @@
+// app/api/send-invoice/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
 import { transporter } from "@/lib/node-mailer";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import {
+  isAuthenticatedWithRefresh,
+  createAuthResponse,
+} from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 interface InvoiceItem {
@@ -17,58 +21,22 @@ interface InvoiceItem {
   total: number;
 }
 
-interface RequestBody {
-  userId: string;
-  initiator_email: string;
-  initiator_name: string;
-  invoice_id: string;
-  signee_name: string;
-  signee_email: string;
-  message: string;
-  bill_to: string;
-  issue_date: string;
-  customer_note: string;
-  invoice_items: InvoiceItem[];
-  total_amount: number;
-  payment_type: "single" | "multiple";
-  fee_option: "absorbed" | "customer";
-  status: "unpaid" | "paid" | "draft";
-  business_logo?: string;
-  redirect_url?: string;
-  business_name: string;
-  clientPhone?: string;
-  initiator_account_number: string;
-  initiator_account_name: string;
-  initiator_bank_name: string;
-  target_quantity?: number;
-  is_draft?: boolean;
-  send_email_automatically?: boolean; // Add this field
-}
-
-function generateInvoiceId(): string {
-  const randomToken = uuidv4().replace(/-/g, "").substring(0, 4).toUpperCase();
-  return `INV_${randomToken}`;
-}
-
 function calculateSubtotal(invoiceItems: InvoiceItem[]): number {
   return invoiceItems.reduce(
     (sum, item) => sum + Number(item.quantity) * Number(item.unitPrice),
-    0
+    0,
   );
 }
 
 async function uploadLogoToStorage(
   userId: string,
-  base64Image: string
+  base64Image: string,
 ): Promise<string | null> {
   try {
     const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
     const buffer = Buffer.from(base64Data, "base64");
     const fileType = base64Image.split(";")[0].split("/")[1];
-    const fileName = `${userId}/${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2, 9)}.${fileType}`;
-
+    const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileType}`;
     const { data, error } = await supabase.storage
       .from("business-logos")
       .upload(fileName, buffer, {
@@ -76,19 +44,12 @@ async function uploadLogoToStorage(
         upsert: false,
         contentType: `image/${fileType}`,
       });
-
-    if (error) {
-      console.error("Logo upload error:", error);
-      return null;
-    }
-
+    if (error) return null;
     const {
       data: { publicUrl },
     } = supabase.storage.from("business-logos").getPublicUrl(data.path);
-
     return publicUrl;
   } catch (error) {
-    console.error("Logo upload error:", error);
     return null;
   }
 }
@@ -105,220 +66,44 @@ async function sendInvoiceEmail(params: {
   isMultiplePayments?: boolean;
   targetQuantity?: number;
 }) {
-  try {
-    const multiplePaymentsInfo = params.isMultiplePayments
-      ? `
-      <div style="background:#e8f4fd; padding:15px; border-radius:6px; border-left:4px solid #2196F3; margin:15px 0;">
-        <p style="margin:0; font-weight:bold; color:#1976d2;">Multiple Payments Enabled</p>
-        <p style="margin:5px 0; color:#1976d2;">
-          This invoice allows multiple people to pay. Each person pays the full amount of ₦${Number(
-            params.amount
-          ).toLocaleString()}.
-          ${
-            params.targetQuantity
-              ? `Target: ${params.targetQuantity} people`
-              : ""
-          }
-        </p>
-        <p style="margin:5px 0; color:#1976d2; font-size:14px;">
-          <strong>How it works:</strong> Click "View Invoice" below, then "Pay Now" to provide your information and make payment.
-        </p>
-      </div>
-    `
-      : "";
+  const baseUrl =
+    process.env.NODE_ENV === "development"
+      ? process.env.NEXT_PUBLIC_DEV_URL
+      : process.env.NEXT_PUBLIC_BASE_URL;
+  const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+  const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
-    const baseUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.NEXT_PUBLIC_DEV_URL
-        : process.env.NEXT_PUBLIC_BASE_URL;
-
-    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
-    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
-
-    await transporter.sendMail({
-      from: `Zidwell Invoice <${process.env.EMAIL_USER}>`,
-      to: params.to,
-      subject: params.subject,
-      html: `
-<!DOCTYPE html>
-<html>
-<body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial, sans-serif;">
-
-<table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;">
-   <tr>
-    <td align="center">
-
-      <table width="600" cellpadding="0" cellspacing="0"
-        style="background:#ffffff; border-radius:8px; overflow:hidden;">
-
-        <!-- Header -->
-        <tr>
-          <td>
-            <img
-              src="${headerImageUrl}"
-              alt="Zidwell Header"
-              style="width:100%; max-width:600px; display:block;"
-            />
-          </td>
-        </tr>
-
-        <!-- Content -->
-        <tr>
-          <td style="padding:24px; color:#333; line-height:1.6;">
-            <div style="max-width: 600px; margin: 0 auto;">
-              ${
-                params.businessLogo
-                  ? `
-                <div style="text-align:center; margin-bottom:20px;">
-                  <img src="${params.businessLogo}" alt="Business Logo" style="max-height:60px; max-width:200px;" />
-                </div>`
-                  : `
-                <div style="text-align:center; margin-bottom:20px;">
-                  <h2 style="color:#2b825b; margin:0; font-size:24px;">New Invoice</h2>
-                </div>`
-              }
-              
-              <p>Hello <strong>Valued Customer</strong>,</p>
-              <p>You have received an invoice from <strong>${
-                params.senderName
-              }</strong>.</p>
-              
-              ${multiplePaymentsInfo}
-
-              <div style="
-                background:#f8fafc; 
-                padding:20px; 
-                border-radius:8px; 
-                border-left:4px solid #2b825b; 
-                margin:20px 0;
-              ">
-                <p style="margin:0 0 15px 0; font-weight:bold; font-size:16px; color:#1f2937;">Invoice Details:</p>
-                <div style="display: grid; gap: 10px;">
-                  <p style="margin:0;"><strong>Invoice ID:</strong> ${params.invoiceId}</p>
-                  <p style="margin:0;"><strong>Amount:</strong> ₦${Number(
-                    params.amount
-                  ).toLocaleString()}</p>
-                  <p style="margin:0;"><strong>From:</strong> ${params.senderName}</p>
-                </div>
-              </div>
-              
-              <p style="margin-bottom: 15px; font-size: 15px;">Click the button below to view invoice details and make payment:</p>
-              
-              <div style="text-align:center; margin:25px 0;">
-                <a href="${params.signingLink}" 
-                   target="_blank"
-                   style="
-                     display:inline-block;
-                     background-color:#2b825b;
-                     color:#fff;
-                     padding:14px 28px;
-                     border-radius:6px;
-                     text-decoration:none;
-                     font-weight:bold;
-                     font-size:16px;
-                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                   ">
-                  📄 View Invoice & Pay
-                </a>
-              </div>
-              
-              <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0; text-align: center;">
-                <p style="margin:0; font-size: 14px; color: #6b7280;">
-                  <strong>Alternative:</strong> Copy and paste this link in your browser:<br>
-                  <a href="${params.signingLink}" style="color:#2b825b; font-size:13px; word-break: break-all;">
-                    ${params.signingLink}
-                  </a>
-                </p>
-              </div>
-              
-              ${
-                params.message
-                  ? `
-                <div style="
-                  background:#f0f8ff; 
-                  padding:20px; 
-                  border-radius:6px; 
-                  margin:20px 0;
-                  border-left: 4px solid #3b82f6;
-                ">
-                  <p style="margin:0 0 10px 0; font-weight:bold; color:#1e40af;">Message from ${params.senderName}:</p>
-                  <p style="margin:0; color:#374151;">${params.message}</p>
-                </div>`
-                  : ""
-              }
-              
-              <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 20px;">
-                <p style="color:#6b7280; font-size:14px; margin:0;">
-                  <strong>Note:</strong> You'll be able to provide your payment information and complete the payment on the invoice page.
-                </p>
-              </div>
-              
-              <div style="margin-top:32px; padding-top:20px; border-top:1px solid #e5e7eb; text-align:center;">
-                <p style="font-size:13px; color:#888; margin:0;">– Zidwell Invoice Team</p>
-              </div>
-            </div>
-
-           </td>
-        </tr>
-
-        <!-- Footer -->
-        <tr>
-          <td>
-            <img
-              src="${footerImageUrl}"
-              alt="Zidwell Footer"
-              style="width:100%; max-width:600px; display:block;"
-            />
-          </td>
-        </tr>
-
-      </table>
-
-    </td>
-  </tr>
-</table>
-
-</body>
-</html>
-`,
-    });
-    console.log(`✅ Email sent to ${params.to}`);
-  } catch (error) {
-    console.error("Email send error:", error);
-  }
+  await transporter.sendMail({
+    from: `Zidwell Invoice <${process.env.EMAIL_USER}>`,
+    to: params.to,
+    subject: params.subject,
+    html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><h2>New Invoice</h2><p>Hello,</p><p>You have received an invoice from <strong>${params.senderName}</strong>.</p><div><p><strong>Invoice ID:</strong> ${params.invoiceId}</p><p><strong>Amount:</strong> ₦${Number(params.amount).toLocaleString()}</p></div><a href="${params.signingLink}" style="background:#2b825b; color:#fff; padding:12px 24px; text-decoration:none;">View Invoice & Pay</a></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
+  });
 }
 
 function isValidUrl(string: string) {
   try {
     new URL(string);
     return true;
-  } catch (_) {
+  } catch {
     return false;
   }
 }
 
 export async function POST(req: NextRequest) {
-  const user = await isAuthenticated(req);
-  
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+
   if (!user) {
-    return NextResponse.json(
-      { error: "Please login to access transactions" },
-      { status: 401 }
+    const response = NextResponse.json(
+      { error: "Please login to access transactions", logout: true },
+      { status: 401 },
     );
+    if (newTokens) return createAuthResponse(await response.json(), newTokens);
+    return response;
   }
 
   try {
-    const body: RequestBody = await req.json();
-
-    console.log("API /send-invoice received:", {
-      userId: body.userId,
-      signee_email: body.signee_email,
-      invoice_items_count: body.invoice_items?.length,
-      payment_type: body.payment_type,
-      is_draft: body.is_draft,
-      send_email_automatically: body.send_email_automatically,
-    });
-
+    const body = await req.json();
     const {
       userId,
       initiator_email,
@@ -344,171 +129,100 @@ export async function POST(req: NextRequest) {
       initiator_bank_name,
       target_quantity,
       is_draft,
-      send_email_automatically = true, 
+      send_email_automatically = true,
     } = body;
 
-    if (!userId) {
-      console.error("Missing userId");
+    if (!userId || userId !== user.id)
       return NextResponse.json(
-        { message: "Missing required field: userId" },
-        { status: 400 }
+        { error: "Unauthorized: User ID mismatch" },
+        { status: 403 },
       );
-    }
-
-    if (!invoice_items || invoice_items.length === 0) {
-      console.error("No invoice items provided");
+    if (!invoice_items?.length)
       return NextResponse.json(
         { message: "Invoice must have at least one item" },
-        { status: 400 }
+        { status: 400 },
       );
-    }
-
-    for (let i = 0; i < invoice_items.length; i++) {
-      const item = invoice_items[i];
-      if (!item.description || !item.quantity || !item.unitPrice) {
-        console.error(`Invalid item at index ${i}:`, item);
-        return NextResponse.json(
-          { message: `Item ${i + 1} is missing required fields` },
-          { status: 400 }
-        );
-      }
-    }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (payment_type === "single") {
-      if (!signee_email && send_email_automatically) {
-        console.error("Missing email for single payment with auto-send enabled");
-        return NextResponse.json(
-          { message: "Email is required for single payment invoices when auto-send is enabled" },
-          { status: 400 }
-        );
-      }
-      
-      if (signee_email && !emailRegex.test(signee_email)) {
-        console.error("Invalid email format:", signee_email);
-        return NextResponse.json(
-          { message: "Invalid email format for single payment invoice" },
-          { status: 400 }
-        );
-      }
-    }
+    if (payment_type === "single" && send_email_automatically && !signee_email)
+      return NextResponse.json(
+        { message: "Email is required for single payment invoices" },
+        { status: 400 },
+      );
+    if (
+      payment_type === "multiple" &&
+      (!target_quantity || target_quantity < 1)
+    )
+      return NextResponse.json(
+        { message: "Target quantity must be at least 1" },
+        { status: 400 },
+      );
 
-    if (payment_type === "multiple") {
-      if (!target_quantity || target_quantity < 1) {
-        console.error("Invalid target quantity for multiple payments:", target_quantity);
-        return NextResponse.json(
-          { message: "Target quantity must be at least 1 for multiple payments" },
-          { status: 400 }
-        );
-      }
-      
-      if (signee_email && signee_email.trim() !== "" && !emailRegex.test(signee_email)) {
-        console.error("Invalid optional email for multiple payments:", signee_email);
-        return NextResponse.json(
-          { message: "If email is provided for multiple payments, it must be valid" },
-          { status: 400 }
-        );
-      }
-    }
-
-    const invoiceId = invoice_id;
     const baseUrl =
       process.env.NODE_ENV === "development"
         ? process.env.NEXT_PUBLIC_DEV_URL
         : process.env.NEXT_PUBLIC_BASE_URL;
-
-    if (!baseUrl) {
-      console.error("Base URL not configured");
+    const publicToken = uuidv4();
+    const signingLink = `${baseUrl}/pay-invoice/${publicToken}`;
+    const subtotal = calculateSubtotal(invoice_items);
+    const feeAmount = fee_option === "customer" ? total_amount - subtotal : 0;
+    const issueDate = new Date(issue_date);
+    if (isNaN(issueDate.getTime()))
       return NextResponse.json(
-        { message: "Base URL not configured" },
-        { status: 500 }
+        { message: "Invalid date format" },
+        { status: 400 },
       );
-    }
 
-    const { data: existingInvoice, error: checkError } = await supabase
+    let finalLogoUrl: string | undefined;
+    if (business_logo?.startsWith("data:image/"))
+      finalLogoUrl =
+        (await uploadLogoToStorage(userId, business_logo)) || undefined;
+    else if (business_logo && isValidUrl(business_logo))
+      finalLogoUrl = business_logo;
+
+    const { data: existingInvoice } = await supabase
       .from("invoices")
       .select("id, status, is_draft, invoice_id")
       .eq("invoice_id", invoice_id)
       .single();
-
     let isUpdatingDraft = false;
     let existingInvoiceId: string | null = null;
 
-    if (existingInvoice && existingInvoice.is_draft) {
-      console.log(`Found existing draft invoice: ${invoice_id}, ID: ${existingInvoice.id}`);
+    if (existingInvoice?.is_draft) {
       isUpdatingDraft = true;
       existingInvoiceId = existingInvoice.id;
-    } else if (existingInvoice && !existingInvoice.is_draft) {
-      console.error(`Invoice ${invoice_id} already exists and is not a draft`);
+    } else if (existingInvoice && !existingInvoice.is_draft)
       return NextResponse.json(
-        { message: "Invoice with this ID already exists as a final invoice. Please use a different invoice ID." },
-        { status: 409 }
+        { message: "Invoice with this ID already exists" },
+        { status: 409 },
       );
-    }
-
-    const publicToken = uuidv4();
-    const signingLink = `${baseUrl}/pay-invoice/${publicToken}`;
-
-    const subtotal = calculateSubtotal(invoice_items);
-    
-    let feeAmount = 0;
-    if (fee_option === "customer") {
-      feeAmount = total_amount - subtotal;
-    }
-
-    const issueDate = new Date(issue_date);
-
-    if (isNaN(issueDate.getTime())) {
-      console.error("Invalid date format:", issue_date);
-      return NextResponse.json(
-        { message: "Invalid date format" },
-        { status: 400 }
-      );
-    }
-
-    let finalLogoUrl: string | undefined = undefined;
-
-    if (business_logo && business_logo.startsWith("data:image/")) {
-      finalLogoUrl =
-        (await uploadLogoToStorage(userId, business_logo)) || undefined;
-      if (!finalLogoUrl) {
-        console.warn("Failed to upload logo, proceeding without it");
-      }
-    } else if (business_logo && isValidUrl(business_logo)) {
-      finalLogoUrl = business_logo;
-    } else if (business_logo) {
-      console.warn("Invalid logo format provided, proceeding without logo");
-    }
 
     let invoice: any;
-
     if (isUpdatingDraft && existingInvoiceId) {
-      console.log(`Updating draft invoice ${invoice_id} to final invoice`);
-      
       const { data: updatedInvoice, error: updateError } = await supabase
         .from("invoices")
         .update({
-          business_name: business_name,
+          business_name,
           business_logo: finalLogoUrl,
           from_email: initiator_email,
           from_name: initiator_name,
           client_name: signee_name || null,
           client_email: signee_email || null,
           client_phone: clientPhone,
-          bill_to: bill_to,
+          bill_to,
           issue_date: issueDate.toISOString().split("T")[0],
           status: status || "unpaid",
-          payment_type: payment_type,
-          fee_option: fee_option,
+          payment_type,
+          fee_option,
           allow_multiple_payments: payment_type === "multiple",
           target_quantity:
             payment_type === "multiple" ? target_quantity || 1 : 1,
-          subtotal: subtotal,
+          subtotal,
           fee_amount: feeAmount,
-          total_amount: total_amount,
-          message: message,
-          customer_note: customer_note,
-          redirect_url: redirect_url,
+          total_amount,
+          message,
+          customer_note,
+          redirect_url,
           payment_link: signingLink,
           signing_link: signingLink,
           public_token: publicToken,
@@ -521,59 +235,43 @@ export async function POST(req: NextRequest) {
         .eq("id", existingInvoiceId)
         .select()
         .single();
-
-      if (updateError) {
-        console.error("Supabase update error:", updateError);
-        return NextResponse.json(
-          { message: "Failed to update draft invoice", error: updateError.message },
-          { status: 500 }
-        );
-      }
-
+      if (updateError) throw updateError;
       invoice = updatedInvoice;
-
-      const { error: deleteError } = await supabase
+      await supabase
         .from("invoice_items")
         .delete()
         .eq("invoice_id", existingInvoiceId);
-
-      if (deleteError) {
-        console.error("Error deleting old invoice items:", deleteError);
-      }
-
     } else {
-      console.log(`Creating new invoice: ${invoice_id}`);
-      
       const { data: newInvoice, error: invoiceError } = await supabase
         .from("invoices")
         .insert([
           {
             user_id: userId,
-            invoice_id: invoiceId,
+            invoice_id,
             order_reference: uuidv4(),
-            business_name: business_name,
+            business_name,
             business_logo: finalLogoUrl,
             from_email: initiator_email,
             from_name: initiator_name,
             client_name: signee_name || null,
             client_email: signee_email || null,
             client_phone: clientPhone,
-            bill_to: bill_to,
+            bill_to,
             issue_date: issueDate.toISOString().split("T")[0],
             status: status || "unpaid",
-            payment_type: payment_type,
-            fee_option: fee_option,
+            payment_type,
+            fee_option,
             allow_multiple_payments: payment_type === "multiple",
             target_quantity:
               payment_type === "multiple" ? target_quantity || 1 : 1,
             paid_quantity: 0,
-            subtotal: subtotal,
+            subtotal,
             fee_amount: feeAmount,
-            total_amount: total_amount,
+            total_amount,
             paid_amount: 0,
-            message: message,
-            customer_note: customer_note,
-            redirect_url: redirect_url,
+            message,
+            customer_note,
+            redirect_url,
             payment_link: signingLink,
             signing_link: signingLink,
             public_token: publicToken,
@@ -585,76 +283,46 @@ export async function POST(req: NextRequest) {
         ])
         .select()
         .single();
-
-      if (invoiceError) {
-        console.error("Supabase invoice error:", invoiceError);
-
-        if (invoiceError.code === "23505") {
-          return NextResponse.json(
-            { message: "Invoice with this ID already exists" },
-            { status: 409 }
-          );
-        }
-
-        return NextResponse.json(
-          { message: "Failed to save invoice", error: invoiceError.message },
-          { status: 500 }
-        );
-      }
-
+      if (invoiceError) throw invoiceError;
       invoice = newInvoice;
     }
 
-    const { error: itemsError } = await supabase.from("invoice_items").insert(
-      invoice_items.map((item) => ({
-        invoice_id: invoice.id,
-        item_description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        total_amount: item.total,
-      }))
-    );
-
-    if (itemsError) {
-      console.error("Supabase items error:", itemsError);
-      if (!isUpdatingDraft) {
-        await supabase.from("invoices").delete().eq("id", invoice.id);
-      }
-      return NextResponse.json(
-        { message: "Failed to save invoice items", error: itemsError.message },
-        { status: 500 }
+    await supabase
+      .from("invoice_items")
+      .insert(
+        invoice_items.map((item:any) => ({
+          invoice_id: invoice.id,
+          item_description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          total_amount: item.total,
+        })),
       );
-    }
 
-    // Update usage count
-    const { data: userData, error: userError } = await supabase
+    await supabase
       .from("users")
-      .select("subscription_tier, invoices_used_lifetime, invoice_lifetime_limit")
-      .eq("id", userId)
-      .single();
+      .update({
+        invoices_used_lifetime:
+          (
+            await supabase
+              .from("users")
+              .select("invoices_used_lifetime")
+              .eq("id", userId)
+              .single()
+          ).data?.invoices_used_lifetime + 1,
+      })
+      .eq("id", userId);
 
-    if (userError) {
-      console.error("Error fetching user data:", userError);
-    } else {
-      const currentUsed = userData.invoices_used_lifetime || 0;
-      
-      await supabase
-        .from("users")
-        .update({
-          invoices_used_lifetime: currentUsed + 1,
-        })
-        .eq("id", userId);
-
-      console.log(`✅ Invoice usage updated: ${currentUsed + 1} total invoices`);
-    }
-
-    // Send email ONLY if send_email_automatically is true AND we have a valid email
     let emailSent = false;
-    if (send_email_automatically && signee_email && emailRegex.test(signee_email)) {
+    if (
+      send_email_automatically &&
+      signee_email &&
+      emailRegex.test(signee_email)
+    ) {
       await sendInvoiceEmail({
         to: signee_email,
         subject: `New Invoice from ${initiator_name}`,
-        invoiceId,
+        invoiceId: invoice_id,
         amount: total_amount,
         signingLink,
         senderName: initiator_name,
@@ -664,81 +332,63 @@ export async function POST(req: NextRequest) {
         targetQuantity: target_quantity,
       });
       emailSent = true;
-      console.log(`✅ Invoice email sent to: ${signee_email}`);
-    } else if (!send_email_automatically) {
-      console.log(`ℹ️ Email sending disabled by user preference`);
-    } else if (!signee_email) {
-      console.log(`ℹ️ No client email provided, skipping email send`);
     }
 
-    return NextResponse.json(
-      {
-        message: isUpdatingDraft 
-          ? "Draft updated and invoice sent successfully" 
-          : "Invoice created successfully",
-        signingLink,
-        invoiceId: invoice.invoice_id,
-        targetQuantity: target_quantity,
-        paymentType: payment_type,
-        emailSent, 
-      },
-      { status: 200 }
-    );
+    const responseData = {
+      message: isUpdatingDraft
+        ? "Draft updated and invoice sent successfully"
+        : "Invoice created successfully",
+      signingLink,
+      invoiceId: invoice.invoice_id,
+      emailSent,
+    };
+    if (newTokens) return createAuthResponse(responseData, newTokens);
+    return NextResponse.json(responseData);
   } catch (error: any) {
     console.error("Invoice creation error:", error);
     return NextResponse.json(
       { message: "Failed to create invoice", error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function GET(req: NextRequest) {
-  const user = await isAuthenticated(req);
-  
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+
   if (!user) {
-    return NextResponse.json(
-      { error: "Please login to access transactions" },
-      { status: 401 }
+    const response = NextResponse.json(
+      { error: "Please login to access transactions", logout: true },
+      { status: 401 },
     );
+    if (newTokens) return createAuthResponse(await response.json(), newTokens);
+    return response;
   }
 
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
-
-    if (!userId) {
+    if (!userId || userId !== user.id)
       return NextResponse.json(
         { message: "User ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
-    }
 
     const { data: invoices, error } = await supabase
       .from("invoices")
-      .select(
-        `
-        *,
-        invoice_items (*)
-      `
-      )
+      .select(`*, invoice_items (*)`)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
+    if (error) throw error;
 
-    if (error) {
-      console.error("Supabase fetch error:", error);
-      return NextResponse.json(
-        { message: "Failed to fetch invoices", error: error.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ invoices }, { status: 200 });
+    const responseData = { invoices };
+    if (newTokens) return createAuthResponse(responseData, newTokens);
+    return NextResponse.json(responseData);
   } catch (error: any) {
     console.error("Fetch invoices error:", error);
     return NextResponse.json(
       { message: "Internal server error", error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

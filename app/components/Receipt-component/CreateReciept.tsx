@@ -16,6 +16,7 @@ import {
   Loader2,
   Eye,
   Mail,
+  MailX,
   Phone,
   Trash2,
   EyeOff,
@@ -111,6 +112,7 @@ function CreateReceiptPage({
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedReceiptData, setSavedReceiptData] = useState<any>(null);
+  const [sendEmailAutomatically, setSendEmailAutomatically] = useState(true); // Add this state
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -680,7 +682,7 @@ function CreateReceiptPage({
     Swal.fire({
       title: "Select a Draft to Load",
       html: `
-        <div style="text-align: left; max-height: 300px; overflow-y auto; padding-right: 4px;" class="dark:bg-gray-900">
+        <div style="text-align: left; max-height: 300px; overflow-y: auto; padding-right: 4px;" class="dark:bg-gray-900">
           ${draftListHTML}
         </div>
       `,
@@ -847,6 +849,7 @@ function CreateReceiptPage({
         status: "draft",
         receipt_items: receipt_items,
         seller_signature: sellerSignature || null,
+        send_email_automatically: sendEmailAutomatically, // Add this field
       };
 
       // Determine if we're creating new or updating existing
@@ -980,6 +983,7 @@ function CreateReceiptPage({
         status: isDraft ? "draft" : "pending",
         receipt_items: items,
         seller_signature: sellerSignature || null,
+        send_email_automatically: sendEmailAutomatically, // Add this field
       };
 
       const endpoint = "/api/receipt/send-receipt";
@@ -1293,6 +1297,7 @@ function CreateReceiptPage({
         setCurrentDraftId(null);
         setHasUnsavedChanges(false);
         setSaveSignatureForFuture(false);
+        setSendEmailAutomatically(true); // Reset email toggle
 
         toast.success("Form has been cleared successfully.");
 
@@ -1916,6 +1921,45 @@ function CreateReceiptPage({
                         checked={saveSignatureForFuture}
                         onCheckedChange={handleSaveSignatureToggle}
                         disabled={!sellerSignature || isProcessing}
+                        className="data-[state=checked]:bg-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email Automation Toggle */}
+                  <div
+                    className="space-y-4 animate-fade-in border-t border-gray-200 dark:border-gray-700 pt-6"
+                    style={{ animationDelay: "0.3s" }}
+                  >
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                          {sendEmailAutomatically ? (
+                            <Mail className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <Mail className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            Send receipt automatically to client
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {sendEmailAutomatically
+                              ? "An email will be sent to the client with the receipt link"
+                              : "You'll need to share the receipt link manually with the client"}
+                          </p>
+                          {sendEmailAutomatically && !receiver.email && (
+                            <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+                              ⚠️ Client email is required for automatic email sending
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Switch
+                        checked={sendEmailAutomatically}
+                        onCheckedChange={setSendEmailAutomatically}
+                        disabled={isProcessing}
                         className="data-[state=checked]:bg-primary"
                       />
                     </div>
