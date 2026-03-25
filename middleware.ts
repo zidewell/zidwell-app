@@ -562,6 +562,7 @@ export async function middleware(req: NextRequest) {
       '/api/logout',
       '/api/forgot-password',
       '/api/reset-password',
+      '/api/webhook',
     ];
     
     if (!publicApis.some(api => currentPath.startsWith(api))) {
