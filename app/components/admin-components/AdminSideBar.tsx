@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -95,6 +95,9 @@ const navSections = [
 ];
 
 export default function AdminSidebar() {
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+    const logoutInProgress = useRef(false); 
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
@@ -117,49 +120,94 @@ export default function AdminSidebar() {
     }
   }, [pathname]);
 
-  const handleLogout = async () => {
-    try {
-      await fetch("/api/logout", { method: "POST" });
+   const handleLogout = async () => {
+     // Prevent multiple logout attempts
+     if (logoutInProgress.current || isLoggingOut) return;
+     
+     logoutInProgress.current = true;
+     setIsLoggingOut(true);
+ 
+     try {
+       console.log("🔵 Attempting logout...");
+       
+       // Call logout API
+       const response = await fetch("/api/logout", { method: "POST" });
+       const data = await response.json();
+       
+       console.log("🔵 Logout response:", data);
+ 
+       // Track last logout activity if user data exists
+       if (userData) {
+         try {
+           await fetch("/api/activity/last-logout", {
+             method: "POST",
+             headers: {
+               'Content-Type': 'application/json',
+             },
+             body: JSON.stringify({
+               user_id: userData.id,
+               email: userData.email,
+               login_history_id: userData.currentLoginSession 
+             }),
+           });
+         } catch (activityError) {
+           console.error("Error tracking logout activity:", activityError);
+           // Don't fail the logout if this fails
+         }
+       }
+ 
+       // Clear client-side storage
+       if (typeof window !== "undefined") {
+         localStorage.removeItem("userData");
+         // Only clear specific items, not everything
+         // localStorage.clear(); // Remove this line - it's too aggressive
+       }
+ 
+       // Clear context
+       setUserData(null);
+ 
+       // Show success message
+       await Swal.fire({
+         icon: "success",
+         title: "Logged Out",
+         text: "You have been signed out successfully.",
+         timer: 1500,
+         showConfirmButton: false,
+       });
+ 
+       // Redirect after a short delay to show the success message
+       setTimeout(() => {
+         router.push("/auth/login");
+       }, 1500);
+       
+     } catch (error: any) {
+       console.error("Logout error:", error);
+       
+       // Even if API fails, clear local state
+       localStorage.removeItem("userData");
+       setUserData(null);
+       
+       await Swal.fire({
+         icon: "error",
+         title: "Logout Failed",
+         text: error?.message || "An error occurred during logout. You have been logged out locally.",
+         timer: 2000,
+         showConfirmButton: false,
+       });
+       
+       // Still redirect after error
+       setTimeout(() => {
+         router.push("/auth/login");
+       }, 2000);
+     } finally {
+       // Reset logout flags after delay
+       setTimeout(() => {
+         logoutInProgress.current = false;
+         setIsLoggingOut(false);
+       }, 2000);
+     }
+   };
 
-      if (userData) {
-        await fetch("/api/activity/last-logout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            user_id: userData.id,
-            email: userData.email,
-            login_history_id: userData.currentLoginSession,
-          }),
-        });
-      }
-
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("userData");
-        localStorage.clear();
-      }
-
-      setUserData(null);
-
-      Swal.fire({
-        icon: "success",
-        title: "Logged Out",
-        text: "You have been signed out successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
-
-      router.push("/auth/login");
-    } catch (error: any) {
-      console.error("Logout error:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Logout Failed",
-        text: error?.message || "An error occurred during logout.",
-      });
-    }
-  };
 
   const handleBackToUserDashboard = () => {
     setIsMobileMenuOpen(false);
