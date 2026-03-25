@@ -71,7 +71,7 @@ const Header = () => {
             href={pathname === "/app" ? "/app" : "/"}
             className="flex items-center gap-2"
           >
-            <div className="w-10 h-10 bg-[#f4c600] border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] flex items-center justify-center">
+            <div className="w-10 h-10 border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] flex items-center justify-center">
               <span className="text-[#01402e] font-black text-xl">Z</span>
             </div>
             <span className="font-black text-xl tracking-tight text-[#01402e] dark:text-[#f7f0e5]">
@@ -96,12 +96,12 @@ const Header = () => {
           {/* Auth Buttons */}
           {user ? (
             <div className="hidden md:flex items-center gap-3">
-              <Button
+              <Button2
                 onClick={() => router.push("/dashboard")}
                 size="sm"
               >
                 Dashboard
-              </Button>
+              </Button2>
             </div>
           ) : (
             <div className="hidden md:flex items-center gap-3">
