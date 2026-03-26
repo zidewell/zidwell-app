@@ -4,7 +4,6 @@ import { Loader2 } from "lucide-react";
 import CTA from "./components/home-component/CTA";
 import Features from "./components/home-component/Features";
 import Footer from "./components/home-component/Footer";
-import Header from "./components/home-component/Header";
 import Hero from "./components/home-component/Hero";
 import Testimonials from "./components/home-component/Testimonials";
 import { useEffect, useMemo, useState } from "react";
@@ -14,6 +13,7 @@ import HowItWorks from "./components/home-component/HowItWork";
 import WhyChoose from "./components/home-component/WhyChoose";
 import ZidCoin from "./components/home-component/Zidcoin";
 import FAQ from "./components/home-component/FAQ";
+import Header from "./components/home-component/Header";
 
 const animations = [
   "fade-up",

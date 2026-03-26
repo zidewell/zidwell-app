@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useUserContextData } from "@/app/context/userData";
 import { Button } from "../ui/button";
@@ -93,13 +93,12 @@ const Header = () => {
             ))}
           </nav>
 
+          
+
           {/* Auth Buttons */}
           {user ? (
             <div className="hidden md:flex items-center gap-3">
-              <Button2
-                onClick={() => router.push("/dashboard")}
-                size="sm"
-              >
+              <Button2 onClick={() => router.push("/dashboard")} size="sm">
                 Dashboard
               </Button2>
             </div>
@@ -119,6 +118,7 @@ const Header = () => {
               >
                 Get Started Free
               </Button2>
+             
             </div>
           )}
 
