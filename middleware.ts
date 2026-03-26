@@ -378,7 +378,6 @@
 // };
 
 
-
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -500,6 +499,7 @@ async function validateTokenAndGetUser(token: string) {
     return null;
   }
 }
+
 export async function middleware(req: NextRequest) {
   const currentPath = req.nextUrl.pathname;
 
@@ -556,56 +556,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // ============ API ROUTE HANDLING ============
+  // ============ API ROUTE HANDLING - ALL APIs ARE NOW PUBLIC ============
   if (currentPath.startsWith('/api/')) {
-    // Skip auth check for public APIs
-    const publicApis = [
-      '/api/login', 
-      '/api/register', 
-      '/api/payment-callback', 
-      '/api/auth/auto-login',
-      '/api/auth/check',
-      '/api/logout',
-      '/api/forgot-password',
-      '/api/reset-password',
-      '/api/webhook',
-    ];
-    
-    if (!publicApis.some(api => currentPath.startsWith(api))) {
-      const token = req.cookies.get("sb-access-token")?.value;
-      
-      if (!token) {
-        console.log('🔴 API access: No token found');
-        return NextResponse.json(
-          { error: 'Unauthorized', message: 'No session found', logout: true },
-          { status: 401 }
-        );
-      }
-      
-      // Validate token for API routes
-      try {
-        const supabase = createClient(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
-        
-        const { data: { user }, error } = await supabase.auth.getUser(token);
-        
-        if (error || !user) {
-          console.log('🔴 API access: Invalid token');
-          return NextResponse.json(
-            { error: 'Unauthorized', message: 'Invalid session', logout: true },
-            { status: 401 }
-          );
-        }
-      } catch (error) {
-        console.error('API auth error:', error);
-        return NextResponse.json(
-          { error: 'Unauthorized', message: 'Session validation failed', logout: true },
-          { status: 401 }
-        );
-      }
-    }
+    // All API routes are now public - no authentication required
+    console.log(`🔓 Public API access: ${currentPath}`);
+    return NextResponse.next();
   }
 
   // ============ PROTECTED ROUTES HANDLING ============

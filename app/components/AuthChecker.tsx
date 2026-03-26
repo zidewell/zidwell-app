@@ -1,13 +1,17 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useUserContextData } from '@/app/context/userData';
+import { isPublicRoute } from '@/lib/publicRoutes';
 
 export default function AuthChecker({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname(); // You need to add this line
   const { userData, setUserData } = useUserContextData();
   const logoutInProgress = useRef(false);
+  
+  const isPublic = isPublicRoute(pathname);
 
   const handleLogout = async () => {
     if (logoutInProgress.current) return;
@@ -17,10 +21,16 @@ export default function AuthChecker({ children }: { children: React.ReactNode })
       await fetch('/api/logout', { method: 'POST' });
       localStorage.removeItem('userData');
       setUserData(null);
-      router.replace('/auth/login?reason=session_expired');
+      
+      
+      if (!isPublic) {
+        router.replace('/auth/login?reason=session_expired');
+      }
     } catch (error) {
       console.error('Logout error:', error);
-      router.replace('/auth/login');
+      if (!isPublic) {
+        router.replace('/auth/login');
+      }
     } finally {
       setTimeout(() => {
         logoutInProgress.current = false;
@@ -28,43 +38,52 @@ export default function AuthChecker({ children }: { children: React.ReactNode })
     }
   };
 
-// Update your fetch interceptor in AuthChecker
-useEffect(() => {
-  const originalFetch = window.fetch;
-  
-  window.fetch = async (...args) => {
-    try {
-      const response = await originalFetch(...args);
-      
-      // Handle 401 responses
-      if (response.status === 401) {
-        const data = await response.clone().json();
+  // Update your fetch interceptor in AuthChecker
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    
+    window.fetch = async (...args) => {
+      try {
+        const response = await originalFetch(...args);
         
-        // Check if we need to retry with refreshed token
-        if (data.retry) {
-          console.log('🔄 Token expired, retrying request...');
-          // Retry the original request
-          return originalFetch(...args);
+        // Handle 401 responses
+        if (response.status === 401) {
+          const data = await response.clone().json().catch(() => ({}));
+          
+          // Check if we need to retry with refreshed token
+          if (data.retry) {
+            console.log('🔄 Token expired, retrying request...');
+            // Retry the original request
+            return originalFetch(...args);
+          }
+          
+          if (data.logout || data.error?.includes('session')) {
+            console.log('🔴 Session invalid, logging out...');
+            
+            // Don't redirect if on a public route
+            if (!isPublic) {
+              await handleLogout();
+            } else {
+              // Just clear the invalid data without redirecting
+              localStorage.removeItem('userData');
+              setUserData(null);
+            }
+            
+            throw new Error('Session expired');
+          }
         }
         
-        if (data.logout || data.error?.includes('session')) {
-          console.log('🔴 Session invalid, logging out...');
-          await handleLogout();
-          throw new Error('Session expired');
-        }
+        return response;
+      } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
       }
-      
-      return response;
-    } catch (error) {
-      console.error('Fetch error:', error);
-      throw error;
-    }
-  };
+    };
 
-  return () => {
-    window.fetch = originalFetch;
-  };
-}, [handleLogout]);
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [handleLogout, isPublic, setUserData]); // Add dependencies
 
   return <>{children}</>;
 }

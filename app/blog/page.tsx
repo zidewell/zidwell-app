@@ -41,6 +41,9 @@ const BlogPage = () => {
   const [isClient, setIsClient] = useState(false);
   const hasInitializedRef = useRef(false);
 
+
+  
+
   // Add font links to head
   useEffect(() => {
     // Add Be Vietnam font

@@ -301,6 +301,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
+  
+
   // Clear notification cache
   const clearNotificationCache = () => {
     notificationCache.clear();
