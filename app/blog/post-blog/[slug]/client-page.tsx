@@ -354,6 +354,7 @@ export default function ClientPostPage() {
     document.addEventListener("keydown", handleEscKey);
     return () => document.removeEventListener("keydown", handleEscKey);
   }, [showMobileSidebar]);
+  
 
   // Add font links to head
   useEffect(() => {
@@ -533,7 +534,7 @@ export default function ClientPostPage() {
                         }
                         alt={post.author?.name || "Author"}
                         className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-[#E6E6E6]"
-                        onError={handleImageError}
+                        // onError={handleImageError}
                         loading="lazy"
                         width={40}
                         height={40}
@@ -640,7 +641,7 @@ export default function ClientPostPage() {
                     src={post.featured_image}
                     alt={post.title}
                     className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                    onError={handleImageError}
+                    // onError={handleImageError}
                     loading="lazy"
                     width={800}
                     height={450}

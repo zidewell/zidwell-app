@@ -46,11 +46,6 @@ const CommentSection = ({
 
   const COMMENTS_PER_PAGE = 10;
 
-  // Debug: Log postId on mount
-  useEffect(() => {
-    console.log("CommentSection mounted with postId:", postId);
-    console.log("Initial comments:", initialComments);
-  }, [postId]);
 
   // Fetch comments from the database
   useEffect(() => {

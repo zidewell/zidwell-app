@@ -45,20 +45,17 @@ function isBase64Image(str: string): boolean {
   return str.startsWith('data:image/');
 }
 
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-
   const post = await getPostForMetadata(slug);
-
-  const baseUrl =
-    process.env.NODE_ENV === "development"
-      ? process.env.NEXT_PUBLIC_DEV_URL || "http://localhost:3000"
-      : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
-
+  
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
+  
   if (!post || !post.is_published) {
     return {
       title: "Post Not Found | Zidwell Blog",
@@ -66,53 +63,23 @@ export async function generateMetadata({
       openGraph: {
         title: "Post Not Found | Zidwell Blog",
         description: "The requested blog post could not be found.",
-        images: [
-          {
-            url: `${baseUrl}/images/og-image.png`,
-            width: 1200,
-            height: 630,
-            alt: "Zidwell Blog",
-          },
-        ],
-      },
-      twitter: {
-        card: "summary_large_image",
-        title: "Post Not Found | Zidwell Blog",
-        description: "The requested blog post could not be found.",
         images: [`${baseUrl}/images/og-image.png`],
       },
     };
   }
 
-  // Check if featured_image is Base64
-  let imageUrl = `${baseUrl}/images/og-image.png`; // Default fallback
+  const imageUrl = `${baseUrl}/api/blog/image/${post.slug}`; 
   
-  if (post.featured_image) {
-    if (post.featured_image.startsWith('http')) {
-      // It's already a URL
-      imageUrl = post.featured_image;
-    } else if (isBase64Image(post.featured_image)) {
-      // It's Base64 - we need to serve it through an API endpoint
-      // We'll create a proxy endpoint to serve Base64 images
-      imageUrl = `${baseUrl}/api/blog/images/${post.id}`;
-      console.log("Base64 image detected, using proxy URL:", imageUrl);
-    } else {
-      // It might be a relative path
-      const imagePath = post.featured_image.startsWith('/') 
-        ? post.featured_image 
-        : `/${post.featured_image}`;
-      imageUrl = `${baseUrl}${imagePath}`;
-    }
-  }
-
+  console.log('Generated OG image URL:', imageUrl);
+  
   return {
     title: `${post.title} | Zidwell Blog`,
-    description: post.excerpt || "Read this blog post on Zidwell",
+    description: post.excerpt || `Read "${post.title}" on Zidwell Blog`,
     
     openGraph: {
       title: post.title,
-      description: post.excerpt || "Read this blog post on Zidwell",
-      url: `${baseUrl}/blog/${post.slug}`,
+      description: post.excerpt || `Read this insightful article on Zidwell Blog`,
+      url: `${baseUrl}/blog/${slug}`,
       siteName: "Zidwell",
       type: "article",
       images: [
@@ -124,26 +91,16 @@ export async function generateMetadata({
         },
       ],
       publishedTime: post.published_at || post.created_at,
-      modifiedTime: post.updated_at,
-      authors: post.author?.name ? [post.author.name] : undefined,
-      tags: post.categories || [],
+      authors: [post.author?.name || "Zidwell"],
     },
-
+    
     twitter: {
       card: "summary_large_image",
       title: post.title,
-      description: post.excerpt || "Read this blog post on Zidwell",
+      description: post.excerpt || `Read this insightful article on Zidwell Blog`,
       images: [imageUrl],
+      creator: "@zidwell",
     },
-
-    alternates: {
-      canonical: `${baseUrl}/blog/${post.slug}`,
-    },
-
-    keywords: [...(post.categories || []), ...(post.tags || [])],
-    
-    authors: post.author?.name ? [{ name: post.author.name }] : undefined,
-    category: post.categories?.[0],
   };
 }
 
