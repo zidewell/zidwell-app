@@ -51,6 +51,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   // Format the author name
   const authorName = post.author_name || "Zidwell";
+  
+  // IMPORTANT: Fix the URL to match your actual route structure
+  const canonicalUrl = `${baseUrl}/blog/post-blog/${slug}`;
 
   return {
     title: `${post.title} | Zidwell Blog`,
@@ -59,7 +62,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: post.title,
       description: post.excerpt || `Read this insightful article on Zidwell Blog`,
-      url: `${baseUrl}/blog/post-blog/${slug}`,
+      url: canonicalUrl, // Use the correct URL
       siteName: "Zidwell",
       type: "article",
       images: [
@@ -93,7 +96,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     
     alternates: {
-      canonical: `${baseUrl}/blog/post-blog/${slug}`,
+      canonical: canonicalUrl,
     },
   };
 }

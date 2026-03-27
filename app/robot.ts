@@ -44,7 +44,7 @@ export async function GET() {
           has_featured_image: !!post.featured_image,
           featured_image: post.featured_image,
           image_endpoint_status: imageStatus,
-          post_url: `${baseUrl}/blog/${post.slug}`,
+          post_url: `${baseUrl}/blog/post-blog/${post.slug}`,
           og_image_url: `${baseUrl}/api/og-image/${post.slug}`,
         };
       })
