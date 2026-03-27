@@ -26,11 +26,11 @@ export async function GET(
       is_absolute_url: post.featured_image?.startsWith('http'),
       is_base64: post.featured_image?.startsWith('data:image'),
       suggested_og_url: `${baseUrl}/api/og-image/${slug}`,
-      suggested_image_proxy: `${baseUrl}/api/blog/image/${slug}`,
+      suggested_image_proxy: `${baseUrl}/api/blog/images/${slug}`,
       // Test both endpoints
       endpoints: {
         og_image: `${baseUrl}/api/og-image/${slug}`,
-        image_proxy: `${baseUrl}/api/blog/image/${slug}`,
+        image_proxy: `${baseUrl}/api/blog/images/${slug}`,
         direct_image: post.featured_image
       }
     });

@@ -30,7 +30,7 @@ export async function GET() {
         if (post.featured_image) {
           // Try to fetch the image
           try {
-            const imageRes = await fetch(`${baseUrl}/api/blog/image/${post.slug}`);
+            const imageRes = await fetch(`${baseUrl}/api/blog/images/${post.slug}`);
             imageStatus = imageRes.status;
             imageUrl = post.featured_image;
           } catch (err) {

@@ -42,9 +42,9 @@ export default async function TestImagePage({ params }: Props) {
       
       <div style={{ margin: '20px 0' }}>
         <h3>Image Proxy URL:</h3>
-        <code>{`${baseUrl}/api/blog/image/${slug}`}</code>
+        <code>{`${baseUrl}/api/blog/images/${slug}`}</code>
         <div style={{ marginTop: '10px' }}>
-          <a href={`${baseUrl}/api/blog/image/${slug}`} target="_blank">
+          <a href={`${baseUrl}/api/blog/images/${slug}`} target="_blank">
             View Image Proxy Endpoint
           </a>
         </div>

@@ -13,7 +13,7 @@ export async function GET(
     console.log('OG Image request for slug:', slug);
     
     // Just redirect to the image proxy
-    return NextResponse.redirect(`${baseUrl}/api/blog/image/${slug}`);
+    return NextResponse.redirect(`${baseUrl}/api/blog/images/${slug}`);
     
   } catch (error) {
     console.error('Error in OG image route:', error);
