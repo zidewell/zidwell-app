@@ -270,14 +270,14 @@ export const metadata: Metadata = {
     siteName: "Zidwell",
     locale: "en_NG",
     type: "website",
-    // images: [
-    //   {
-    //     url: "/images/og-image.png",
-    //     width: 1200,
-    //     height: 630,
-    //     alt: "Zidwell - Business Finance & Management Platform",
-    //   },
-    // ],
+    images: [
+      {
+        url: "/images/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Zidwell - Business Finance & Management Platform",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",

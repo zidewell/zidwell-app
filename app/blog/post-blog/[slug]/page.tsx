@@ -57,10 +57,13 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+
   console.log('Generating metadata for slug:', slug);
   
   const post = await getPostForMetadata(slug);
-  
+
+
+
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
   
   if (!post || !post.is_published) {
@@ -87,8 +90,6 @@ export async function generateMetadata({
     imageUrl = `${baseUrl}/images/og-image.png`;
   }
   
-  console.log('OG Image URL:', imageUrl);
-  console.log('OG Title:', post.title);
   
   return {
     title: `${post.title} | Zidwell Blog`,

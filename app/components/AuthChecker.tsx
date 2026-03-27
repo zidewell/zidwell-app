@@ -7,7 +7,7 @@ import { isPublicRoute } from '@/lib/publicRoutes';
 
 export default function AuthChecker({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname(); // You need to add this line
+  const pathname = usePathname(); 
   const { userData, setUserData } = useUserContextData();
   const logoutInProgress = useRef(false);
   
@@ -83,7 +83,7 @@ export default function AuthChecker({ children }: { children: React.ReactNode })
     return () => {
       window.fetch = originalFetch;
     };
-  }, [handleLogout, isPublic, setUserData]); // Add dependencies
+  }, [handleLogout, isPublic, setUserData]);
 
   return <>{children}</>;
 }
