@@ -1,4 +1,3 @@
-// app/blog/[slug]/page.tsx
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ClientPostPage from "./client-page";
@@ -8,7 +7,7 @@ interface BlogPost {
   title: string;
   slug: string;
   excerpt?: string | null;
-  featured_image?: string | null; 
+  featured_image?: string | null;
   is_published: boolean;
   published_at?: string | null;
   created_at: string;
@@ -23,11 +22,26 @@ interface BlogPost {
 
 async function getPostForMetadata(slug: string): Promise<BlogPost | null> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
+    // Determine the base URL for API calls
+    // In production, use the production URL with HTTPS
+    // In development, use localhost
+    const isProduction = process.env.NODE_ENV === 'production';
     
-    // Use absolute URL with the correct domain
+    let baseUrl: string;
+    
+    if (isProduction) {
+      // Use HTTPS for production
+      baseUrl = 'https://zidwell.com';
+    } else {
+      // Use localhost for development
+      baseUrl = process.env.NEXT_PUBLIC_DEV_URL || 'http://localhost:3000';
+    }
+    
+    // Construct the full URL
     const url = `${baseUrl}/api/blog/posts/slug/${slug}`;
+    
     console.log('Fetching metadata from:', url);
+    console.log('Environment:', process.env.NODE_ENV);
     
     const res = await fetch(url, {
       next: { revalidate: 3600 },
@@ -62,9 +76,11 @@ export async function generateMetadata({
   
   const post = await getPostForMetadata(slug);
 
-
-
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
+  // Determine the base URL for OG images
+  const isProduction = process.env.NODE_ENV === 'production';
+  const baseUrl = isProduction 
+    ? 'https://zidwell.com' 
+    : (process.env.NEXT_PUBLIC_DEV_URL || 'http://localhost:3000');
   
   if (!post || !post.is_published) {
     console.log('Post not found or not published');
@@ -79,17 +95,34 @@ export async function generateMetadata({
     };
   }
 
-  // Determine the correct image URL
+  // Determine the correct image URL for social sharing
   let imageUrl: string;
   
-  if (post.featured_image && post.featured_image.startsWith('http')) {
-    imageUrl = post.featured_image;
-  } else if (post.featured_image) {
-    imageUrl = `${baseUrl}/api/og-image/${slug}`;
+  if (post.featured_image) {
+    // If it's already a full URL, use it directly
+    if (post.featured_image.startsWith('http://') || post.featured_image.startsWith('https://')) {
+      imageUrl = post.featured_image;
+    } 
+    // If it's a relative path starting with /, prepend base URL
+    else if (post.featured_image.startsWith('/')) {
+      imageUrl = `${baseUrl}${post.featured_image}`;
+    }
+    // If it's just a filename or path without leading slash
+    else {
+      imageUrl = `${baseUrl}/${post.featured_image}`;
+    }
   } else {
+    // Fallback to default OG image if no featured image
     imageUrl = `${baseUrl}/images/og-image.png`;
   }
   
+  // Ensure we're using HTTPS in production
+  if (isProduction && imageUrl.startsWith('http://')) {
+    imageUrl = imageUrl.replace('http://', 'https://');
+  }
+  
+  console.log('Final OG image URL:', imageUrl);
+  console.log('Base URL used:', baseUrl);
   
   return {
     title: `${post.title} | Zidwell Blog`,
@@ -121,7 +154,6 @@ export async function generateMetadata({
       creator: "@zidwell",
     },
     
-    // Add these to ensure proper indexing
     robots: {
       index: true,
       follow: true,
