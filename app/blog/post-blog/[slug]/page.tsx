@@ -45,7 +45,6 @@ function isBase64Image(str: string): boolean {
   return str.startsWith('data:image/');
 }
 
-
 export async function generateMetadata({
   params,
 }: {
@@ -68,7 +67,19 @@ export async function generateMetadata({
     };
   }
 
-  const imageUrl = `${baseUrl}/api/blog/image/${post.slug}`; 
+  // Determine the correct image URL for Open Graph
+  let imageUrl: string;
+  
+  if (post.featured_image && post.featured_image.startsWith('http')) {
+    // If it's already a full URL (CDN, external, etc.), use it directly
+    imageUrl = post.featured_image;
+  } else if (post.featured_image) {
+    // If it's a relative path or stored in Supabase, use the dedicated OG image route
+    imageUrl = `${baseUrl}/api/og-image/${slug}`;
+  } else {
+    // Fallback to default image
+    imageUrl = `${baseUrl}/images/og-image.png`;
+  }
   
   console.log('Generated OG image URL:', imageUrl);
   
@@ -103,6 +114,7 @@ export async function generateMetadata({
     },
   };
 }
+
 
 export default async function PostPage({
   params,
