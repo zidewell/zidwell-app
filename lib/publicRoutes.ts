@@ -3,7 +3,6 @@ export const isPublicRoute = (pathname: string): boolean => {
   const publicPaths = [
     "/",
     "/blog",
-    "/blog/",
     "/features",
     "/pricing",
     "/auth/login",

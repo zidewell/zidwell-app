@@ -1,89 +1,58 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
+import { createClient } from "@supabase/supabase-js";
 import ClientPostPage from "./client-page";
 
-interface BlogPost {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt?: string | null;
-  featured_image?: string | null;
-  is_published: boolean;
-  published_at?: string | null;
-  created_at: string;
-  updated_at?: string;
-  categories?: string[];
-  tags?: string[];
-  author?: {
-    name?: string;
-    avatar?: string | null;
-  };
-}
-
-async function getPostForMetadata(slug: string): Promise<BlogPost | null> {
+// Cache the post fetching function to avoid duplicate requests
+export const getPostBySlug = cache(async (slug: string) => {
   try {
-    // Determine the base URL for API calls
-    // In production, use the production URL with HTTPS
-    // In development, use localhost
-    const isProduction = process.env.NODE_ENV === 'production';
+    const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
     
-    let baseUrl: string;
-    
-    if (isProduction) {
-      // Use HTTPS for production
-      baseUrl = 'https://zidwell.com';
-    } else {
-      // Use localhost for development
-      baseUrl = process.env.NEXT_PUBLIC_DEV_URL || 'http://localhost:3000';
-    }
-    
-    // Construct the full URL
-    const url = `${baseUrl}/api/blog/posts/slug/${slug}`;
-    
-    console.log('Fetching metadata from:', url);
-    console.log('Environment:', process.env.NODE_ENV);
-    
-    const res = await fetch(url, {
-      next: { revalidate: 3600 },
-      headers: {
-        'Accept': 'application/json',
-      }
-    });
+    const { data: post, error } = await supabase
+      .from('blog_posts')
+      .select('*')
+      .eq('slug', slug)
+      .single();
 
-    if (!res.ok) {
-      console.log('Failed to fetch post:', res.status);
+    if (error || !post) {
+      console.error('Error fetching post:', error);
       return null;
     }
 
-    const post = await res.json();
-    console.log('Post fetched:', post.title);
-    console.log('Featured image:', post.featured_image);
+    // Only return if published
+    if (!post.is_published) {
+      return null;
+    }
+
     return post;
   } catch (error) {
-    console.error("Metadata fetch error:", error);
+    console.error('Error in getPostBySlug:', error);
     return null;
   }
-}
+});
 
-export async function generateMetadata({
-  params,
-}: {
+type Props = {
   params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export async function generateMetadata(
+  { params }: Props
+): Promise<Metadata> {
   const { slug } = await params;
-
-  console.log('Generating metadata for slug:', slug);
   
-  const post = await getPostForMetadata(slug);
-
-  // Determine the base URL for OG images
-  const isProduction = process.env.NODE_ENV === 'production';
-  const baseUrl = isProduction 
+  // Fetch post directly from database (server-side)
+  const post = await getPostBySlug(slug);
+  
+  const baseUrl = process.env.NODE_ENV === 'production' 
     ? 'https://zidwell.com' 
-    : (process.env.NEXT_PUBLIC_DEV_URL || 'http://localhost:3000');
+    : process.env.NEXT_PUBLIC_DEV_URL || 'http://localhost:3000';
   
-  if (!post || !post.is_published) {
-    console.log('Post not found or not published');
+  if (!post) {
     return {
       title: "Post Not Found | Zidwell Blog",
       description: "The requested blog post could not be found.",
@@ -95,35 +64,26 @@ export async function generateMetadata({
     };
   }
 
-  // Determine the correct image URL for social sharing
+  // Determine the image URL for social sharing
   let imageUrl: string;
   
   if (post.featured_image) {
-    // If it's already a full URL, use it directly
     if (post.featured_image.startsWith('http://') || post.featured_image.startsWith('https://')) {
       imageUrl = post.featured_image;
-    } 
-    // If it's a relative path starting with /, prepend base URL
-    else if (post.featured_image.startsWith('/')) {
+    } else if (post.featured_image.startsWith('/')) {
       imageUrl = `${baseUrl}${post.featured_image}`;
-    }
-    // If it's just a filename or path without leading slash
-    else {
+    } else {
       imageUrl = `${baseUrl}/${post.featured_image}`;
     }
   } else {
-    // Fallback to default OG image if no featured image
     imageUrl = `${baseUrl}/images/og-image.png`;
   }
-  
-  // Ensure we're using HTTPS in production
-  if (isProduction && imageUrl.startsWith('http://')) {
+
+  // Force HTTPS in production
+  if (process.env.NODE_ENV === 'production' && imageUrl.startsWith('http://')) {
     imageUrl = imageUrl.replace('http://', 'https://');
   }
-  
-  console.log('Final OG image URL:', imageUrl);
-  console.log('Base URL used:', baseUrl);
-  
+
   return {
     title: `${post.title} | Zidwell Blog`,
     description: post.excerpt || `Read "${post.title}" on Zidwell Blog`,
@@ -143,7 +103,7 @@ export async function generateMetadata({
         },
       ],
       publishedTime: post.published_at || post.created_at,
-      authors: [post.author?.name || "Zidwell"],
+      authors: [post.author_name || "Zidwell"],
     },
     
     twitter: {
@@ -170,14 +130,18 @@ export async function generateMetadata({
   };
 }
 
-export default async function PostPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function Page({ params }: Props) {
   const { slug } = await params;
   
   if (!slug) return notFound();
+  
+  // Verify post exists and is published
+  const post = await getPostBySlug(slug);
+  
+  if (!post) {
+    return notFound();
+  }
 
+  // Pass the post data to the client component if needed
   return <ClientPostPage />;
 }
