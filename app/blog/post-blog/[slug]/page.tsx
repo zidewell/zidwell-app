@@ -7,7 +7,7 @@ interface BlogPost {
   title: string;
   slug: string;
   excerpt?: string | null;
-  featured_image?: string | null; // This contains Base64 data
+  featured_image?: string | null; 
   is_published: boolean;
   published_at?: string | null;
   created_at: string;
