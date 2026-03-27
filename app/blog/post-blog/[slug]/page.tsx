@@ -1,48 +1,13 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { cache } from "react";
-import { createClient } from "@supabase/supabase-js";
 import ClientPostPage from "./client-page";
-
-// Cache the post fetching function to avoid duplicate requests
-export const getPostBySlug = cache(async (slug: string) => {
-  try {
-    const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-    
-    const { data: post, error } = await supabase
-      .from('blog_posts')
-      .select('*')
-      .eq('slug', slug)
-      .single();
-
-    if (error || !post) {
-      console.error('Error fetching post:', error);
-      return null;
-    }
-
-    // Only return if published
-    if (!post.is_published) {
-      return null;
-    }
-
-    return post;
-  } catch (error) {
-    console.error('Error in getPostBySlug:', error);
-    return null;
-  }
-});
+import { getPostBySlug } from "./post-data";
 
 type Props = {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-export async function generateMetadata(
-  { params }: Props
-): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   
   // Fetch post directly from database (server-side)
@@ -84,6 +49,9 @@ export async function generateMetadata(
     imageUrl = imageUrl.replace('http://', 'https://');
   }
 
+  // Format the author name
+  const authorName = post.author_name || "Zidwell";
+
   return {
     title: `${post.title} | Zidwell Blog`,
     description: post.excerpt || `Read "${post.title}" on Zidwell Blog`,
@@ -91,7 +59,7 @@ export async function generateMetadata(
     openGraph: {
       title: post.title,
       description: post.excerpt || `Read this insightful article on Zidwell Blog`,
-      url: `${baseUrl}/blog/${slug}`,
+      url: `${baseUrl}/blog/post-blog/${slug}`,
       siteName: "Zidwell",
       type: "article",
       images: [
@@ -103,7 +71,7 @@ export async function generateMetadata(
         },
       ],
       publishedTime: post.published_at || post.created_at,
-      authors: [post.author_name || "Zidwell"],
+      authors: [authorName],
     },
     
     twitter: {
@@ -125,7 +93,7 @@ export async function generateMetadata(
     },
     
     alternates: {
-      canonical: `${baseUrl}/blog/${slug}`,
+      canonical: `${baseUrl}/blog/post-blog/${slug}`,
     },
   };
 }
@@ -142,6 +110,5 @@ export default async function Page({ params }: Props) {
     return notFound();
   }
 
-  // Pass the post data to the client component if needed
   return <ClientPostPage />;
 }

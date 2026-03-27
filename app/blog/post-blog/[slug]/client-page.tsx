@@ -29,7 +29,7 @@ import AdPlaceholder from "@/app/components/blog-components/blog/Adpaceholder";
 import Image from "next/image";
 import BlogPostSkeleton from "@/app/components/blog-components/blog/BlogPostSkeleton";
 
-// Types
+// Types matching your database schema
 interface BlogPost {
   id: string;
   title: string;
@@ -41,21 +41,47 @@ interface BlogPost {
   tags: string[];
   is_published: boolean;
   author_id: string;
-  author: {
-    id: string;
-    name: string;
-    avatar: string | null;
-    bio: string | null;
-  };
+  author_name: string | null;
+  author_avatar: string | null;
+  author_bio: string | null;
   published_at: string | null;
   created_at: string;
   updated_at: string;
   view_count: number;
   likes_count: number;
   comments_count: number;
-  author_name?: string;
   audio_file?: string | null;
-  comment_count?: number;
+}
+
+// For related posts and BlogCard compatibility
+interface FormattedAuthor {
+  id: string;
+  name: string;
+  avatar: string;
+  bio: string;
+  isZidwellUser: boolean;
+}
+
+interface FormattedPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  featuredImage: string;
+  categories: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    postCount: number;
+  }>;
+  tags: string[];
+  author: FormattedAuthor;
+  createdAt: string;
+  updatedAt: string;
+  readTime: number;
+  isPublished: boolean;
+  content: string;
+  comments: any[];
 }
 
 const calculateReadTime = (content: string): number => {
@@ -208,11 +234,6 @@ export default function ClientPostPage() {
     fetchRelatedPosts();
   }, [post]);
 
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    e.currentTarget.src = "/images/placeholder.jpg";
-    e.currentTarget.onerror = null;
-  };
-
   const handleShare = async () => {
     if (!post) return;
 
@@ -354,7 +375,6 @@ export default function ClientPostPage() {
     document.addEventListener("keydown", handleEscKey);
     return () => document.removeEventListener("keydown", handleEscKey);
   }, [showMobileSidebar]);
-  
 
   // Add font links to head
   useEffect(() => {
@@ -365,19 +385,50 @@ export default function ClientPostPage() {
     beVietnamLink.rel = "stylesheet";
     document.head.appendChild(beVietnamLink);
 
-    // Add Neue Machina from Fontshare (free alternative)
-    const neueMachinaLink = document.createElement("link");
-    neueMachinaLink.href =
+    // Add Clash Display from Fontshare
+    const clashDisplayLink = document.createElement("link");
+    clashDisplayLink.href =
       "https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap";
-    neueMachinaLink.rel = "stylesheet";
-    document.head.appendChild(neueMachinaLink);
+    clashDisplayLink.rel = "stylesheet";
+    document.head.appendChild(clashDisplayLink);
 
     return () => {
       // Clean up if needed
       document.head.removeChild(beVietnamLink);
-      document.head.removeChild(neueMachinaLink);
+      document.head.removeChild(clashDisplayLink);
     };
   }, []);
+
+  // Format post for BlogCard component
+  const formatPostForCard = (post: BlogPost): FormattedPost => {
+    return {
+      id: post.id,
+      title: post.title,
+      slug: post.slug,
+      excerpt: post.excerpt || post.content.substring(0, 150) + "...",
+      featuredImage: post.featured_image || "/images/placeholder.jpg",
+      categories: post.categories.map((cat) => ({
+        id: cat.toLowerCase().replace(/\s+/g, "-"),
+        name: cat,
+        slug: cat.toLowerCase().replace(/\s+/g, "-"),
+        postCount: 0,
+      })),
+      tags: post.tags,
+      author: {
+        id: post.author_id,
+        name: post.author_name || "Unknown Author",
+        avatar: post.author_avatar || "",
+        bio: post.author_bio || "",
+        isZidwellUser: false,
+      },
+      createdAt: post.created_at,
+      updatedAt: post.updated_at,
+      readTime: calculateReadTime(post.content),
+      isPublished: post.is_published,
+      content: post.content,
+      comments: [],
+    };
+  };
 
   // Show skeleton while loading
   if (isLoading) {
@@ -529,15 +580,17 @@ export default function ClientPostPage() {
                     <div className="relative shrink-0">
                       <Image
                         src={
-                          post.author?.avatar ||
+                          post.author_avatar ||
                           "https://images.unsplash.com/photo-1463453091185-61582044d556?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHVzZXIlMjBwcm9maWxlfGVufDB8fDB8fHww"
                         }
-                        alt={post.author?.name || "Author"}
+                        alt={post.author_name || "Author"}
                         className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-[#E6E6E6]"
-                        // onError={handleImageError}
                         loading="lazy"
                         width={40}
                         height={40}
+                        onError={(e) => {
+                          e.currentTarget.src = "https://images.unsplash.com/photo-1463453091185-61582044d556?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHVzZXIlMjBwcm9maWxlfGVufDB8fDB8fHww";
+                        }}
                       />
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-[#242424] rounded-full border-2 border-[#FFFFFF]"></div>
                     </div>
@@ -546,7 +599,7 @@ export default function ClientPostPage() {
                         className="font-semibold text-[#242424] text-sm sm:text-base truncate"
                         style={{ fontFamily: "'Clash Display', sans-serif" }}
                       >
-                        {post.author?.name || "Unknown Author"}
+                        {post.author_name || "Unknown Author"}
                       </h3>
                       <div
                         className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-[#6B6B6B] mt-1"
@@ -572,12 +625,12 @@ export default function ClientPostPage() {
                     </div>
                   </div>
 
-                  {post.author?.bio && (
+                  {post.author_bio && (
                     <div
                       className="hidden lg:block text-sm text-[#6B6B6B] border-l border-[#E6E6E6] pl-6"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
-                      {post.author.bio}
+                      {post.author_bio}
                     </div>
                   )}
                 </div>
@@ -628,9 +681,9 @@ export default function ClientPostPage() {
                   </Button>
                 </div>
 
-                {post.content && (
+                {post.audio_file && (
                   <div className="mb-6 sm:mb-8">
-                    <AudioPlayer content={post.content} />
+                    <AudioPlayer content={post.audio_file} />
                   </div>
                 )}
               </header>
@@ -641,11 +694,13 @@ export default function ClientPostPage() {
                     src={post.featured_image}
                     alt={post.title}
                     className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                    // onError={handleImageError}
                     loading="lazy"
                     width={800}
                     height={450}
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 800px, 1000px"
+                    onError={(e) => {
+                      e.currentTarget.src = "/images/placeholder.jpg";
+                    }}
                   />
                 </div>
               )}
@@ -800,40 +855,7 @@ export default function ClientPostPage() {
                     {relatedPosts.map((relatedPost) => (
                       <BlogCard
                         key={relatedPost.id}
-                        post={{
-                          id: relatedPost.id,
-                          title: relatedPost.title,
-                          slug: relatedPost.slug,
-                          excerpt:
-                            relatedPost.excerpt ||
-                            relatedPost.content.substring(0, 150) + "...",
-                          featuredImage:
-                            relatedPost.featured_image ||
-                            "/images/placeholder.jpg",
-                          categories: relatedPost.categories.map((cat) => ({
-                            id: cat.toLowerCase().replace(/\s+/g, "-"),
-                            name: cat,
-                            slug: cat.toLowerCase().replace(/\s+/g, "-"),
-                            postCount: 0,
-                          })),
-                          tags: relatedPost.tags,
-                          author: {
-                            id: relatedPost.author?.id || relatedPost.author_id,
-                            name:
-                              relatedPost.author?.name ||
-                              relatedPost.author_name ||
-                              "Unknown Author",
-                            avatar: relatedPost.author?.avatar || "",
-                            bio: relatedPost.author?.bio || "",
-                            isZidwellUser: false,
-                          },
-                          createdAt: relatedPost.created_at,
-                          updatedAt: relatedPost.updated_at,
-                          readTime: calculateReadTime(relatedPost.content),
-                          isPublished: relatedPost.is_published,
-                          content: relatedPost.content,
-                          comments: [],
-                        }}
+                        post={formatPostForCard(relatedPost)}
                       />
                     ))}
                   </div>
