@@ -53,19 +53,14 @@ export default async function TestImagePage({ params }: Props) {
       <div style={{ margin: '20px 0' }}>
         <h3>Direct Image Test:</h3>
         {post.featured_image && (
-          <div>
-            <img 
-              src={post.featured_image} 
-              alt={post.title}
-              style={{ maxWidth: '100%', maxHeight: '300px', border: '1px solid #ccc' }}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                console.error('Image failed to load');
-              }}
-            />
-            <p>If image doesn't load above, the URL is invalid or not accessible</p>
-          </div>
+          // Remove onError - it doesn't work in Server Components
+          <img 
+            src={post.featured_image} 
+            alt={post.title}
+            style={{ maxWidth: '100%', maxHeight: '300px', border: '1px solid #ccc' }}
+          />
         )}
+        <p>If image doesn't load above, the URL is invalid or not accessible</p>
       </div>
       
       <div style={{ margin: '20px 0' }}>
@@ -74,10 +69,6 @@ export default async function TestImagePage({ params }: Props) {
           src={`${baseUrl}/api/og-image/${slug}`}
           alt="OG Image"
           style={{ maxWidth: '100%', maxHeight: '300px', border: '1px solid #ccc' }}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-            console.error('OG image failed to load');
-          }}
         />
       </div>
       

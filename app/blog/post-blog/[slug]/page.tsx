@@ -1,3 +1,4 @@
+// app/blog/[slug]/page.tsx
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ClientPostPage from "./client-page";
@@ -22,27 +23,32 @@ interface BlogPost {
 
 async function getPostForMetadata(slug: string): Promise<BlogPost | null> {
   try {
-    const baseUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.NEXT_PUBLIC_DEV_URL || "http://localhost:3000"
-        : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
-
-    const res = await fetch(`${baseUrl}/api/blog/posts/slug/${slug}`, {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
+    
+    // Use absolute URL with the correct domain
+    const url = `${baseUrl}/api/blog/posts/slug/${slug}`;
+    console.log('Fetching metadata from:', url);
+    
+    const res = await fetch(url, {
       next: { revalidate: 3600 },
+      headers: {
+        'Accept': 'application/json',
+      }
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log('Failed to fetch post:', res.status);
+      return null;
+    }
 
-    return await res.json();
+    const post = await res.json();
+    console.log('Post fetched:', post.title);
+    console.log('Featured image:', post.featured_image);
+    return post;
   } catch (error) {
     console.error("Metadata fetch error:", error);
     return null;
   }
-}
-
-// Helper function to check if string is Base64 image
-function isBase64Image(str: string): boolean {
-  return str.startsWith('data:image/');
 }
 
 export async function generateMetadata({
@@ -51,11 +57,14 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  console.log('Generating metadata for slug:', slug);
+  
   const post = await getPostForMetadata(slug);
   
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
   
   if (!post || !post.is_published) {
+    console.log('Post not found or not published');
     return {
       title: "Post Not Found | Zidwell Blog",
       description: "The requested blog post could not be found.",
@@ -67,21 +76,19 @@ export async function generateMetadata({
     };
   }
 
-  // Determine the correct image URL for Open Graph
+  // Determine the correct image URL
   let imageUrl: string;
   
   if (post.featured_image && post.featured_image.startsWith('http')) {
-    // If it's already a full URL (CDN, external, etc.), use it directly
     imageUrl = post.featured_image;
   } else if (post.featured_image) {
-    // If it's a relative path or stored in Supabase, use the dedicated OG image route
     imageUrl = `${baseUrl}/api/og-image/${slug}`;
   } else {
-    // Fallback to default image
     imageUrl = `${baseUrl}/images/og-image.png`;
   }
   
-  console.log('Generated OG image URL:', imageUrl);
+  console.log('OG Image URL:', imageUrl);
+  console.log('OG Title:', post.title);
   
   return {
     title: `${post.title} | Zidwell Blog`,
@@ -112,9 +119,23 @@ export async function generateMetadata({
       images: [imageUrl],
       creator: "@zidwell",
     },
+    
+    // Add these to ensure proper indexing
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+      },
+    },
+    
+    alternates: {
+      canonical: `${baseUrl}/blog/${slug}`,
+    },
   };
 }
-
 
 export default async function PostPage({
   params,
