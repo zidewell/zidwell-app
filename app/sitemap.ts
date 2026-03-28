@@ -1,7 +1,6 @@
 // app/sitemap.ts
 import { MetadataRoute } from "next";
 
-// Define the BlogPost type
 interface BlogPost {
   id: string;
   slug: string;
@@ -13,16 +12,17 @@ interface BlogPost {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://zidwell.com";
   
-  // Fetch all published blog posts
   let blogPosts: BlogPost[] = [];
   try {
+    // Use your blog API endpoint
     const response = await fetch(`${baseUrl}/api/blog/posts?published=true&limit=100`, {
-      next: { revalidate: 3600 } // Cache for 1 hour
+      next: { revalidate: 3600 }
     });
     
     if (response.ok) {
       const data = await response.json();
-      blogPosts = data.posts || [];
+      // Handle different response structures
+      blogPosts = data.posts || data || [];
       console.log(`Fetched ${blogPosts.length} blog posts for sitemap`);
     } else {
       console.error('Failed to fetch blog posts for sitemap:', response.status);
@@ -31,7 +31,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Error fetching blog posts for sitemap:', error);
   }
   
-  // Static pages
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
@@ -46,38 +45,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/auth/signup`,
+      url: `${baseUrl}/pricing`,
       lastModified: new Date(),
-      changeFrequency: "monthly",
+      changeFrequency: "weekly",
       priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/auth/login`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/privacy`,
-      lastModified: new Date(),
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/sitemap`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.2,
     },
   ];
   
-  // Dynamic blog posts
-  const blogPages: MetadataRoute.Sitemap = blogPosts.map((post) => ({
-    url: `${baseUrl}/blog/post-blog/${post.slug}`,
-    lastModified: post.updated_at ? new Date(post.updated_at) : new Date(post.created_at),
-    changeFrequency: "weekly" as const,
-    priority: 0.7,
-  }));
+  const blogPages: MetadataRoute.Sitemap = blogPosts
+    .filter(post => post.is_published)
+    .map((post) => ({
+      url: `${baseUrl}/blog/post-blog/${post.slug}`,
+      lastModified: post.updated_at ? new Date(post.updated_at) : new Date(post.created_at),
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    }));
   
   return [...staticPages, ...blogPages];
 }
