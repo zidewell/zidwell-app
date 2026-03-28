@@ -10,33 +10,23 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const { slug } = await params;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
     
-    // Default base URL
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.zidwell.com";
+    const post = await getPostBySlug(slug);
     
-    // Try to fetch the post
-    let post = null;
-    try {
-      post = await getPostBySlug(slug);
-    } catch (fetchError) {
-      console.error('Error fetching post for metadata:', fetchError);
-    }
-    
-    // If post doesn't exist or isn't published, return default metadata
     if (!post || !post.is_published) {
-      console.log('Post not found or not published for metadata:', slug);
       return {
         title: "Zidwell | Finance & Business Tools for Nigerian SMEs",
-        description: "Create invoices, receipts, contracts, manage finances, and grow your business with Zidwell. All-in-one platform for Nigerian entrepreneurs.",
+        description: "Create invoices, receipts, contracts, manage finances, and grow your business with Zidwell.",
         openGraph: {
-          title: "Zidwell | Finance & Business Tools for Nigerian SMEs",
-          description: "Create invoices, receipts, contracts, manage finances, and grow your business with Zidwell. All-in-one platform for Nigerian entrepreneurs.",
+          title: "Zidwell",
+          description: "Finance & Business Tools for Nigerian SMEs",
           url: `${baseUrl}/blog/post-blog/${slug}`,
           siteName: "Zidwell",
-          type: "article",
+          type: "website",
           images: [
             {
-              url: `${baseUrl}/images/og-image.png`,
+              url: `${baseUrl}/api/og/default`,
               width: 1200,
               height: 630,
               alt: "Zidwell Blog",
@@ -45,33 +35,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         },
         twitter: {
           card: "summary_large_image",
-          title: "Zidwell | Business Finance Platform Nigeria",
-          description: "Invoicing, contracts, receipts, accounting & financial tools for Nigerian businesses.",
-          images: [`${baseUrl}/images/twitter-card.jpg`],
-          creator: "@zidwellapp",
-          site: "@zidwellapp",
+          title: "Zidwell",
+          description: "Finance & Business Tools for Nigerian SMEs",
+          images: [`${baseUrl}/api/og/default`],
         },
       };
     }
 
-    // Determine the image URL - use your OG image API route
-    let imageUrl: string;
+    // Use the new OG endpoint
+    const ogImageUrl = `${baseUrl}/api/og/${slug}`;
     
-    if (post.featured_image) {
-      // Use your OG image API route to generate the social card
-      imageUrl = `${baseUrl}/api/og-image/${slug}`;
-    } else {
-      // Fallback to default image
-      imageUrl = `${baseUrl}/images/og-image.png`;
+    // Try to fetch the image to verify it exists (optional, for debugging)
+    let imageExists = true;
+    try {
+      const imageCheck = await fetch(ogImageUrl, { method: 'HEAD' });
+      imageExists = imageCheck.ok;
+    } catch (error) {
+      imageExists = false;
     }
+    
+    console.log(`OG Image URL: ${ogImageUrl}, Exists: ${imageExists}`);
 
-    console.log('Generating metadata for:', post.title);
-    console.log('Image URL:', imageUrl);
-
-    // Return blog post specific metadata
     return {
       title: `${post.title} | Zidwell Blog`,
       description: post.excerpt || `Read "${post.title}" on Zidwell Blog`,
+      
+      metadataBase: new URL(baseUrl),
+      alternates: {
+        canonical: `${baseUrl}/blog/post-blog/${slug}`,
+      },
       
       openGraph: {
         title: post.title,
@@ -79,44 +71,56 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         url: `${baseUrl}/blog/post-blog/${slug}`,
         siteName: "Zidwell",
         type: "article",
+        publishedTime: post.published_at || post.created_at,
+        authors: [post.author_name || "Zidwell"],
         images: [
           {
-            url: imageUrl,
+            url: ogImageUrl,
             width: 1200,
             height: 630,
             alt: post.title,
+            type: 'image/png',
           },
         ],
-        publishedTime: post.published_at || post.created_at,
-        authors: [post.author_name || "Zidwell"],
       },
       
       twitter: {
         card: "summary_large_image",
         title: post.title,
         description: post.excerpt || `Read this insightful article on Zidwell Blog`,
-        images: [imageUrl],
+        images: [ogImageUrl],
         creator: "@zidwellapp",
         site: "@zidwellapp",
       },
       
-      alternates: {
-        canonical: `${baseUrl}/blog/post-blog/${slug}`,
+      robots: {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          'max-image-preview': 'large',
+          'max-snippet': -1,
+        },
+      },
+      
+      // Add verification for social media
+      verification: {
+        google: process.env.GOOGLE_SITE_VERIFICATION,
       },
     };
     
   } catch (error) {
-    // Catch any unexpected errors and return default metadata
     console.error('Unexpected error in generateMetadata:', error);
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.zidwell.com";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
     
     return {
-      title: "Zidwell | Finance & Business Tools for Nigerian SMEs",
-      description: "Create invoices, receipts, contracts, manage finances, and grow your business with Zidwell.",
+      title: "Zidwell Blog",
+      description: "Finance & Business Tools for Nigerian SMEs",
       openGraph: {
-        title: "Zidwell | Finance & Business Tools for Nigerian SMEs",
-        description: "Create invoices, receipts, contracts, manage finances, and grow your business with Zidwell.",
-        images: [`${baseUrl}/images/og-image.png`],
+        title: "Zidwell Blog",
+        description: "Finance & Business Tools for Nigerian SMEs",
+        images: [`${baseUrl}/api/og/default`],
       },
     };
   }
