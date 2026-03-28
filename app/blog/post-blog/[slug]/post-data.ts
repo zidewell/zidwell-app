@@ -28,9 +28,15 @@ export interface BlogPost {
 export const getPostBySlug = cache(async (slug: string): Promise<BlogPost | null> => {
   try {
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+     process.env.BLOG_SUPABASE_URL!,
+     process.env.BLOG_SUPABASE_SERVICE_ROLE_KEY!,
+     {
+       auth: {
+         autoRefreshToken: false,
+         persistSession: false
+       }
+     }
+   );
     
     const { data: post, error } = await supabase
       .from('blog_posts')
