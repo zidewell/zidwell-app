@@ -1,3 +1,7 @@
+
+
+
+
 import { cache } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -27,7 +31,7 @@ export interface BlogPost {
 // Cache the post fetching function to avoid duplicate requests
 export const getPostBySlug = cache(async (slug: string): Promise<BlogPost | null> => {
   try {
-    const supabase = createClient(
+  const supabase = createClient(
      process.env.BLOG_SUPABASE_URL!,
      process.env.BLOG_SUPABASE_SERVICE_ROLE_KEY!,
      {
@@ -37,24 +41,30 @@ export const getPostBySlug = cache(async (slug: string): Promise<BlogPost | null
        }
      }
    );
-    
+ 
+    // Use maybeSingle to avoid 406 errors when no record is found
     const { data: post, error } = await supabase
       .from('blog_posts')
       .select('*')
       .eq('slug', slug)
-      .single();
+      .maybeSingle();
 
-    if (error || !post) {
-      console.error('Error fetching post:', error);
+    if (error) {
+      console.error('Supabase error fetching post:', error);
       return null;
     }
 
-    // Only return if published
-    if (!post.is_published) {
+    if (!post) {
+      console.log('No post found with slug:', slug);
       return null;
     }
 
+    // Log success
+    console.log('Post fetched successfully:', post.title);
+    console.log('Featured image:', post.featured_image);
+    
     return post as BlogPost;
+    
   } catch (error) {
     console.error('Error in getPostBySlug:', error);
     return null;
