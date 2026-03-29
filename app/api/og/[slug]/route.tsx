@@ -29,7 +29,29 @@ export async function GET(
       console.error('Error fetching post:', error);
     }
 
-    // Generate OG image with text (always generate, don't redirect)
+    // If there's a featured image, use it
+    if (post?.featured_image && post.featured_image.startsWith('http')) {
+      try {
+        // Fetch the image to ensure it exists
+        const imageResponse = await fetch(post.featured_image);
+        if (imageResponse.ok) {
+          const imageBuffer = await imageResponse.arrayBuffer();
+          
+          // Return the actual image
+          return new Response(imageBuffer, {
+            headers: {
+              'Content-Type': imageResponse.headers.get('content-type') || 'image/jpeg',
+              'Cache-Control': 'public, max-age=86400',
+              'Content-Length': imageBuffer.byteLength.toString(),
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching featured image:', error);
+      }
+    }
+
+    // Fallback: Generate text-based OG image
     const title = post?.title || "Zidwell Blog";
     const description = post?.excerpt || "Finance & Business Tools for Nigerian SMEs";
     
