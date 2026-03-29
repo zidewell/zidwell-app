@@ -3,6 +3,7 @@ import { ImageResponse } from 'next/og';
 import { getPostBySlug } from './post-data';
 
 export const runtime = 'edge';
+export const alt = 'Zidwell Blog Post';
 export const size = {
   width: 1200,
   height: 630,
@@ -13,33 +14,8 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const { slug } = await params;
   const post = await getPostBySlug(slug);
 
-  // Fallback for missing post
-  if (!post || !post.is_published) {
-    return new ImageResponse(
-      (
-        <div
-          style={{
-            height: '100%',
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, #2b825b 0%, #1e5e43 100%)',
-          }}
-        >
-          <div style={{ fontSize: 72, fontWeight: 'bold', color: 'white' }}>Zidwell</div>
-          <div style={{ fontSize: 36, marginTop: 20, color: '#E6E6E6' }}>
-            Business & Finance Tools
-          </div>
-        </div>
-      ),
-      size
-    );
-  }
-
   // If post has featured image, use it
-  if (post.featured_image && post.featured_image.startsWith('http')) {
+  if (post?.featured_image && post.featured_image.startsWith('http')) {
     try {
       const imageResponse = await fetch(post.featured_image);
       if (imageResponse.ok) {
@@ -56,7 +32,10 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     }
   }
 
-  // Generate custom OG image with title
+  // Fallback: Generate custom OG image with title
+  const title = post?.title || "Zidwell Blog";
+  const description = post?.excerpt || "Finance & Business Tools for Nigerian SMEs";
+  
   return new ImageResponse(
     (
       <div
@@ -68,69 +47,103 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#FFFFFF',
-          position: 'relative',
+          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
         }}
       >
-        {/* Background pattern */}
+        {/* Decorative background */}
         <div
           style={{
             position: 'absolute',
-            inset: 0,
-            backgroundImage: 'radial-gradient(circle at 25px 25px, #E6E6E6 2px, transparent 2px)',
-            backgroundSize: '50px 50px',
-            opacity: 0.3,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%)',
           }}
         />
         
-        {/* Content */}
+        {/* Main content */}
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '60px 80px',
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: '30px',
+            padding: '60px',
             maxWidth: '90%',
+            zIndex: 1,
           }}
         >
-          <div style={{ fontSize: 48, fontWeight: 'bold', color: '#2b825b', marginBottom: 40 }}>
-            📝 Zidwell
-          </div>
-          
+          {/* Logo/Badge */}
           <div
             style={{
-              fontSize: 56,
+              fontSize: 32,
               fontWeight: 'bold',
-              color: '#242424',
-              textAlign: 'center',
-              marginBottom: 30,
-              lineHeight: 1.2,
+              color: '#2b825b',
+              marginBottom: 40,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
             }}
           >
-            {post.title.length > 70 ? `${post.title.substring(0, 67)}...` : post.title}
+            <span>📝</span>
+            <span>Zidwell</span>
           </div>
           
-          {post.excerpt && (
+          {/* Title */}
+          <div
+            style={{
+              fontSize: 64,
+              fontWeight: 'bold',
+              color: '#1a1a1a',
+              textAlign: 'center',
+              marginBottom: 24,
+              lineHeight: 1.2,
+              maxWidth: '1000px',
+            }}
+          >
+            {title}
+          </div>
+          
+          {/* Description */}
+          {description && (
             <div
               style={{
                 fontSize: 28,
-                color: '#6B6B6B',
+                color: '#666666',
                 textAlign: 'center',
-                marginBottom: 40,
+                marginBottom: 48,
+                maxWidth: '900px',
+                lineHeight: 1.3,
               }}
             >
-              {post.excerpt.length > 100 ? `${post.excerpt.substring(0, 97)}...` : post.excerpt}
+              {description}
             </div>
           )}
           
-          <div style={{ fontSize: 22, color: '#2b825b', borderTop: '2px solid #E6E6E6', paddingTop: 30 }}>
-            Business Tools for Nigerian SMEs
+          {/* Footer */}
+          <div
+            style={{
+              fontSize: 20,
+              color: '#2b825b',
+              borderTop: '2px solid #e0e0e0',
+              paddingTop: 32,
+              display: 'flex',
+              gap: 24,
+            }}
+          >
+            <span>💼 Business Tools</span>
+            <span>📊 Financial Management</span>
+            <span>🚀 Nigerian SMEs</span>
           </div>
         </div>
       </div>
     ),
-    size
+    {
+      ...size,
+      headers: {
+        'Cache-Control': 'public, max-age=86400',
+      },
+    }
   );
 }
