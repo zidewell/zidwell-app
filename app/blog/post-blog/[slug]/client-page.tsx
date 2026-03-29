@@ -91,15 +91,16 @@ const calculateReadTime = (content: string): number => {
   return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
 };
 
-export default function ClientPostPage() {
+// Fixed: Added props to accept post data from server component
+export default function ClientPostPage({ post: initialPost }: { post?: BlogPost }) {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
   const router = useRouter();
 
-  const [post, setPost] = useState<BlogPost | null>(null);
+  const [post, setPost] = useState<BlogPost | null>(initialPost || null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialPost);
   const [isLoadingRelated, setIsLoadingRelated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -123,8 +124,27 @@ export default function ClientPostPage() {
     buttonsStyling: false,
   });
 
-  // Fetch post data
+  // Fetch post data only if initialPost wasn't provided
   useEffect(() => {
+    // If we already have the post from server props, no need to fetch
+    if (initialPost) {
+      setViewCount(initialPost.view_count || 0);
+      setLikeCount(initialPost.likes_count || 0);
+      
+      // Check local storage for likes/bookmarks
+      const likedPosts = JSON.parse(
+        localStorage.getItem("likedPosts") || "[]",
+      );
+      setIsLiked(likedPosts.includes(initialPost.id));
+      
+      const bookmarks = JSON.parse(
+        localStorage.getItem("blogBookmarks") || "[]",
+      );
+      setIsBookmarked(bookmarks.includes(initialPost.id));
+      
+      return;
+    }
+    
     if (!slug) return;
 
     const fetchPost = async () => {
@@ -172,6 +192,7 @@ export default function ClientPostPage() {
           });
         } catch (err) {
           // Silently fail view count update
+          console.error("Failed to update view count:", err);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load post");
@@ -182,7 +203,7 @@ export default function ClientPostPage() {
     };
 
     fetchPost();
-  }, [slug]);
+  }, [slug, initialPost]);
 
   // Fetch related posts
   useEffect(() => {
@@ -225,7 +246,7 @@ export default function ClientPostPage() {
           }
         }
       } catch (err) {
-        // Silently fail related posts fetch
+        console.error("Failed to fetch related posts:", err);
       } finally {
         setIsLoadingRelated(false);
       }
@@ -258,6 +279,9 @@ export default function ClientPostPage() {
       }
     } catch (err) {
       // Ignore abort errors
+      if (err instanceof Error && err.name !== "AbortError") {
+        console.error("Share failed:", err);
+      }
     } finally {
       setIsSharing(false);
     }
@@ -333,13 +357,16 @@ export default function ClientPostPage() {
         throw new Error(errorData.error || "Failed to update likes");
       }
 
-      showAlert.fire({
-        title: newIsLiked ? "Liked!" : "Unliked!",
-        text: newIsLiked ? "You liked this post" : "You unliked this post",
-        icon: "success",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      // Optional: Show success message only on first like
+      if (newIsLiked) {
+        showAlert.fire({
+          title: "Liked!",
+          text: "You liked this post",
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      }
     } catch (err) {
       console.error("Error updating like:", err);
 
@@ -376,27 +403,27 @@ export default function ClientPostPage() {
     return () => document.removeEventListener("keydown", handleEscKey);
   }, [showMobileSidebar]);
 
-  // Add font links to head
+  // Add font links to head (with cleanup)
   useEffect(() => {
-    // Add Be Vietnam font
-    const beVietnamLink = document.createElement("link");
-    beVietnamLink.href =
-      "https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap";
-    beVietnamLink.rel = "stylesheet";
-    document.head.appendChild(beVietnamLink);
+    // Check if fonts are already added to avoid duplicates
+    const existingBeVietnam = document.querySelector('link[href*="Be+Vietnam"]');
+    const existingClash = document.querySelector('link[href*="clash-display"]');
+    
+    if (!existingBeVietnam) {
+      const beVietnamLink = document.createElement("link");
+      beVietnamLink.href =
+        "https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap";
+      beVietnamLink.rel = "stylesheet";
+      document.head.appendChild(beVietnamLink);
+    }
 
-    // Add Clash Display from Fontshare
-    const clashDisplayLink = document.createElement("link");
-    clashDisplayLink.href =
-      "https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap";
-    clashDisplayLink.rel = "stylesheet";
-    document.head.appendChild(clashDisplayLink);
-
-    return () => {
-      // Clean up if needed
-      document.head.removeChild(beVietnamLink);
-      document.head.removeChild(clashDisplayLink);
-    };
+    if (!existingClash) {
+      const clashDisplayLink = document.createElement("link");
+      clashDisplayLink.href =
+        "https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap";
+      clashDisplayLink.rel = "stylesheet";
+      document.head.appendChild(clashDisplayLink);
+    }
   }, []);
 
   // Format post for BlogCard component

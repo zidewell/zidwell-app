@@ -10,9 +10,10 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const { slug } = await params;
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
+    const baseUrl = "https://zidwell.com";
     
     const post = await getPostBySlug(slug);
+
     
     if (!post || !post.is_published) {
       return {
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           type: "website",
           images: [
             {
-              url: `${baseUrl}/api/og/default`,
+              url: `${baseUrl}/api/og/${slug}`,
               width: 1200,
               height: 630,
               alt: "Zidwell Blog",
@@ -37,24 +38,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           card: "summary_large_image",
           title: "Zidwell",
           description: "Finance & Business Tools for Nigerian SMEs",
-          images: [`${baseUrl}/api/og/default`],
+          images: [`${baseUrl}/api/og/${slug}`],
         },
       };
     }
 
-    // Use the new OG endpoint
     const ogImageUrl = `${baseUrl}/api/og/${slug}`;
     
-    // Try to fetch the image to verify it exists (optional, for debugging)
+    // Optional: Remove the image existence check to improve performance
+    // or keep it with a timeout to prevent hanging
     let imageExists = true;
     try {
-      const imageCheck = await fetch(ogImageUrl, { method: 'HEAD' });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      
+      const imageCheck = await fetch(ogImageUrl, { 
+        method: 'HEAD',
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
       imageExists = imageCheck.ok;
     } catch (error) {
+      console.warn('Image check failed:', error);
       imageExists = false;
     }
     
-    console.log(`OG Image URL: ${ogImageUrl}, Exists: ${imageExists}`);
+    // You might want to use a fallback image if the OG image doesn't exist
+    const finalOgImage = imageExists ? ogImageUrl : `${baseUrl}/default-og-image.png`;
 
     return {
       title: `${post.title} | Zidwell Blog`,
@@ -72,10 +82,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         siteName: "Zidwell",
         type: "article",
         publishedTime: post.published_at || post.created_at,
-        authors: [post.author_name || "Zidwell"],
+        authors: post.author_name ? [post.author_name] : ["Zidwell"],
         images: [
           {
-            url: ogImageUrl,
+            url: finalOgImage,
             width: 1200,
             height: 630,
             alt: post.title,
@@ -88,7 +98,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         card: "summary_large_image",
         title: post.title,
         description: post.excerpt || `Read this insightful article on Zidwell Blog`,
-        images: [ogImageUrl],
+        images: [finalOgImage],
         creator: "@zidwellapp",
         site: "@zidwellapp",
       },
@@ -104,7 +114,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         },
       },
       
-      // Add verification for social media
       verification: {
         google: process.env.GOOGLE_SITE_VERIFICATION,
       },
@@ -120,7 +129,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       openGraph: {
         title: "Zidwell Blog",
         description: "Finance & Business Tools for Nigerian SMEs",
-        images: [`${baseUrl}/api/og/default`],
+        // Fixed: removed reference to undefined 'slug' variable in catch block
+        images: [`${baseUrl}/default-og-image.png`],
       },
     };
   }
@@ -148,8 +158,9 @@ export default async function Page({ params }: Props) {
       return notFound();
     }
 
-    // Return the client component
-    return <ClientPostPage />;
+    // Return the client component with the post data
+    // Fixed: You were not passing the post data to ClientPostPage
+    return <ClientPostPage post={post} />;
     
   } catch (error) {
     console.error('Error in Page component:', error);
