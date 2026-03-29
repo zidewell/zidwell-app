@@ -1,3 +1,4 @@
+// app/blog/post-blog/[slug]/page.tsx
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ClientPostPage from "./client-page";
@@ -8,26 +9,26 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const baseUrl = "https://zidwell.com";
+  
   try {
     const { slug } = await params;
-    const baseUrl = "https://zidwell.com";
-    
     const post = await getPostBySlug(slug);
 
-    
+    // Default metadata for unpublished or missing posts
     if (!post || !post.is_published) {
       return {
         title: "Zidwell | Finance & Business Tools for Nigerian SMEs",
         description: "Create invoices, receipts, contracts, manage finances, and grow your business with Zidwell.",
         openGraph: {
-          title: "Zidwell",
+          title: "Zidwell Blog",
           description: "Finance & Business Tools for Nigerian SMEs",
           url: `${baseUrl}/blog/post-blog/${slug}`,
           siteName: "Zidwell",
-          type: "website",
+          type: "article",
           images: [
             {
-              url: `${baseUrl}/api/og/${slug}`,
+              url: `${baseUrl}/images/og-image.png`,
               width: 1200,
               height: 630,
               alt: "Zidwell Blog",
@@ -36,45 +37,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         },
         twitter: {
           card: "summary_large_image",
-          title: "Zidwell",
+          title: "Zidwell Blog",
           description: "Finance & Business Tools for Nigerian SMEs",
-          images: [`${baseUrl}/api/og/${slug}`],
+          images: [`${baseUrl}/images/og-image.png`],
         },
       };
     }
 
+    // Use the dynamic OG image generator
     const ogImageUrl = `${baseUrl}/api/og/${slug}`;
-    
-    // Optional: Remove the image existence check to improve performance
-    // or keep it with a timeout to prevent hanging
-    let imageExists = true;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-      
-      const imageCheck = await fetch(ogImageUrl, { 
-        method: 'HEAD',
-        signal: controller.signal 
-      });
-      clearTimeout(timeoutId);
-      imageExists = imageCheck.ok;
-    } catch (error) {
-      console.warn('Image check failed:', error);
-      imageExists = false;
-    }
-    
-    // You might want to use a fallback image if the OG image doesn't exist
-    const finalOgImage = imageExists ? ogImageUrl : `${baseUrl}/default-og-image.png`;
 
     return {
       title: `${post.title} | Zidwell Blog`,
       description: post.excerpt || `Read "${post.title}" on Zidwell Blog`,
-      
       metadataBase: new URL(baseUrl),
       alternates: {
         canonical: `${baseUrl}/blog/post-blog/${slug}`,
       },
-      
       openGraph: {
         title: post.title,
         description: post.excerpt || `Read this insightful article on Zidwell Blog`,
@@ -85,52 +64,50 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         authors: post.author_name ? [post.author_name] : ["Zidwell"],
         images: [
           {
-            url: finalOgImage,
+            url: ogImageUrl,
             width: 1200,
             height: 630,
             alt: post.title,
-            type: 'image/png',
           },
         ],
       },
-      
       twitter: {
         card: "summary_large_image",
         title: post.title,
         description: post.excerpt || `Read this insightful article on Zidwell Blog`,
-        images: [finalOgImage],
+        images: [ogImageUrl],
         creator: "@zidwellapp",
         site: "@zidwellapp",
-      },
-      
-      robots: {
-        index: true,
-        follow: true,
-        googleBot: {
-          index: true,
-          follow: true,
-          'max-image-preview': 'large',
-          'max-snippet': -1,
-        },
-      },
-      
-      verification: {
-        google: process.env.GOOGLE_SITE_VERIFICATION,
       },
     };
     
   } catch (error) {
-    console.error('Unexpected error in generateMetadata:', error);
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
+    console.error('Error generating metadata:', error);
     
+    // Fallback metadata
     return {
       title: "Zidwell Blog",
       description: "Finance & Business Tools for Nigerian SMEs",
       openGraph: {
         title: "Zidwell Blog",
         description: "Finance & Business Tools for Nigerian SMEs",
-        // Fixed: removed reference to undefined 'slug' variable in catch block
-        images: [`${baseUrl}/default-og-image.png`],
+        url: `${baseUrl}/blog`,
+        siteName: "Zidwell",
+        type: "website",
+        images: [
+          {
+            url: `${baseUrl}/images/og-image.png`,
+            width: 1200,
+            height: 630,
+            alt: "Zidwell Blog",
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: "Zidwell Blog",
+        description: "Finance & Business Tools for Nigerian SMEs",
+        images: [`${baseUrl}/images/og-image.png`],
       },
     };
   }
@@ -144,22 +121,12 @@ export default async function Page({ params }: Props) {
       return notFound();
     }
     
-    // Try to fetch the post
-    let post = null;
-    try {
-      post = await getPostBySlug(slug);
-    } catch (fetchError) {
-      console.error('Error fetching post for page:', fetchError);
-      return notFound();
-    }
+    const post = await getPostBySlug(slug);
     
-    // If post doesn't exist or isn't published, return 404
     if (!post || !post.is_published) {
       return notFound();
     }
 
-    // Return the client component with the post data
-    // Fixed: You were not passing the post data to ClientPostPage
     return <ClientPostPage post={post} />;
     
   } catch (error) {
