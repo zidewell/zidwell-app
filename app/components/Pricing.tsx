@@ -37,15 +37,15 @@ const plans = [
     yearlyPrice: "₦49,000/year (save ₦9,800)",
     description:
       "For businesses that want to test what finance automation looks like",
-    features: [
+   features: [
       "Everything in Free, plus:",
-      "Unlimited money transfers at N50 per transfer",
-      "Bookkeeping - 2 weeks free trial",
-      "Tax Calculator - 2 weeks free trial",
-      "20 Invoices total",
-      "20 Receipts total",
-      "2 Contracts total",
-      "Access to WhatsApp Business Community",
+      "Transfers fee at N50",
+      "Bookkeeping free trial",
+      "Tax Calculator free trial",
+      "20 Invoices",
+      "20 Receipts",
+      "2 Contracts",
+      "WhatsApp Business Community",
       "WhatsApp support",
     ],
     cta: "Go ZidLite",
