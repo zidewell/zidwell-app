@@ -13,6 +13,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
 
+  
+console.log(post, "post from page.tsx");
+
+
   if (!post || !post.is_published) {
     return {
       title: "Zidwell Blog | Finance & Business Tools for Nigerian SMEs",
@@ -75,6 +79,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
   };
 }
+
 
 export default async function Page({ params }: Props) {
   const { slug } = await params;

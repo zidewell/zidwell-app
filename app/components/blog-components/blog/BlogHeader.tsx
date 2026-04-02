@@ -61,7 +61,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
     <header className="border-b border-border bg-background sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+       
           <Link href="/" className="flex items-center">
             <Image
               src="/logo.png"
@@ -72,7 +72,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
             />
             <h1 className="font-bold text-lg text-white">Zidwell</h1>
           </Link>
-          {/* Desktop Navigation */}
+       
           <nav className="hidden md:flex items-center gap-6">
             <Link
               href="/blog"

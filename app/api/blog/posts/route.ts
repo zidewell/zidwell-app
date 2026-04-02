@@ -373,7 +373,7 @@ export async function PUT(request: NextRequest) {
     const formData = await request.formData();
     
     // Log all form data keys for debugging
-    console.log("PUT - Form data keys received:", Array.from(formData.keys()));
+    // console.log("PUT - Form data keys received:", Array.from(formData.keys()));
     
     const title = formData.get("title") as string;
     const content = formData.get("content") as string;

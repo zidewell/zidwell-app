@@ -368,7 +368,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             {recentPosts.slice(0, 5).map((post: any) => (
               <Link
                 key={post.id}
-                href={`/blog/${post.slug}`}
+                href={`/blog/post-blog/${post.slug}`}
                 className="flex gap-3 group hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
               >
                 {post.featured_image ? (
