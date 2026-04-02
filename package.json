@@ -77,7 +77,6 @@
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.60.0",
     "react-is": "^19.2.0",
-    "react-quill": "^2.0.0",
     "react-resizable-panels": "^3.0.3",
     "recharts": "^3.2.1",
     "resend": "^6.5.2",

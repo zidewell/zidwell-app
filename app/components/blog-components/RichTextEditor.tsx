@@ -275,7 +275,7 @@
 
 import React, { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import Quill from "quill";
-require("quill/dist/quill.snow.css");
+import "quill/dist/quill.snow.css";
 import { Trash2, Eraser } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 
