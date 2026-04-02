@@ -1102,30 +1102,67 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     setShowPreview(true);
   }, [title, content, selectedCategories, showErrorAlert]);
 
-  const handleClearFeaturedImage = useCallback(async () => {
-    const confirmed = await MySwal.fire({
-      title: "Remove Featured Image",
-      text: "Are you sure you want to remove the featured image?",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Yes, remove it",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: swalTheme.cancelButtonColor,
-      background: swalTheme.background,
-      color: swalTheme.color,
-      iconColor: swalTheme.iconColor.question,
-    });
+ const handleClearFeaturedImage = useCallback(async () => {
+  const confirmed = await MySwal.fire({
+    title: "Remove Featured Image",
+    text: "Are you sure you want to remove the featured image?",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: "Yes, remove it",
+    cancelButtonText: "Cancel",
+    confirmButtonColor: "#ef4444",
+    cancelButtonColor: swalTheme.cancelButtonColor,
+  });
 
-    if (confirmed.isConfirmed) {
-      if (featuredImage.startsWith("blob:")) {
-        URL.revokeObjectURL(featuredImage);
+  if (!confirmed.isConfirmed) return;
+
+  // If it's a local blob URL (not uploaded yet)
+  if (featuredImage.startsWith("blob:")) {
+    URL.revokeObjectURL(featuredImage);
+    setFeaturedImage("");
+    setFeaturedImageFile(null);
+    showInfoAlert("Image Removed", "Featured image has been removed");
+    return;
+  }
+
+  // If it's an uploaded image, delete from storage
+  if (featuredImage && postId) {
+    try {
+      setIsLoading(true);
+      const apiKey = getApiKey();
+      
+      const response = await fetch(`/api/blog/delete-image`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          imageUrl: featuredImage,
+          postId: postId,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to delete image");
       }
+      
       setFeaturedImage("");
       setFeaturedImageFile(null);
-      showInfoAlert("Image Removed", "Featured image has been removed");
+      showSuccessAlert("Image Removed", "Featured image has been deleted from storage");
+    } catch (error) {
+      console.error("Error deleting image:", error);
+      showErrorAlert("Delete Failed", "Failed to delete image");
+    } finally {
+      setIsLoading(false);
     }
-  }, [featuredImage, showInfoAlert]);
+  } else {
+    // External URL or new post
+    setFeaturedImage("");
+    setFeaturedImageFile(null);
+    showInfoAlert("Image Removed", "Featured image has been removed");
+  }
+}, [featuredImage, postId, getApiKey, showErrorAlert, showSuccessAlert, showInfoAlert]);
 
   const handleClearAudioFile = useCallback(async () => {
     const confirmed = await MySwal.fire({
