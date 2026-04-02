@@ -416,6 +416,10 @@ export default function RootLayout({
           href="https://zidwell.com/accountants"
           hrefLang="en-NG"
         />
+          <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        />
         <link
           rel="alternate"
           href="https://zidwell.com/features/invoice"

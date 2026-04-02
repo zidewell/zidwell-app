@@ -3,8 +3,10 @@
 import useSWR from "swr";
 import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
-import "sweetalert2/dist/sweetalert2.min.css";
-import AdminTable from "@/app/components/admin-components/AdminTable";
+// @ts-ignore - CSS import
+import 'sweetalert2/dist/sweetalert2.min.css'
+
+import AdminTable from "../../components/admin-components/AdminTable"; 
 import AdminLayout from "@/app/components/admin-components/layout";
 import Loader from "@/app/components/Loader";
 import { Input } from "@/app/components/ui/input";
@@ -901,7 +903,7 @@ export default function AdminManagementPage() {
             <Input
               placeholder="Search by email, name, or role..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e:any) => setSearchTerm(e.target.value)}
             />
           </div>
 

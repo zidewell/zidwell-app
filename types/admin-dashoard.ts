@@ -14,22 +14,31 @@ export interface FeeBreakdownDetail {
   contracts: number;
   total: number;
 }
-
 export interface RevenueBreakdown {
   total: number;
-  app_fees: number;      // Platform revenue
-  nomba_fees: number;    // Provider costs
+  app_fees: number;
+  nomba_fees: number;
   transfers: number;
-  bill_payment: number;
   invoice: number;
   contract: number;
-  platform: number;
-  breakdown?: {
-    app_fees: FeeBreakdownDetail;
-    nomba_fees: FeeBreakdownDetail;
+  platform?: number;
+  bill_payment?: number;
+  breakdown?: {  
+    app_fees: {
+      transactions: number;
+      invoice_creation: number;
+      invoices: number;
+      contracts: number;
+      total?: number;
+    };
+    nomba_fees: {
+      transactions: number;
+      invoices: number;
+      contracts: number;
+      total?: number;
+    };
   };
 }
-
 export interface RevenueDailyData {
   date: string;
   total: number;
