@@ -90,6 +90,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       "/dashboard/services/buy-data",
       "/dashboard/services/buy-power",
       "/dashboard/services/buy-cable-tv",
+      "/dashboard/services/payment",
     ];
 
     const isProtected = protectedLinks.includes(item.href);
@@ -223,14 +224,14 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             }
           />
 
-          {/* <NavItem
+          <NavItem
             item={{
               name: "Payment Pages",
-              href: "/dashboard/payment-pages",
+              href: "/dashboard/services/payment",
               icon: CreditCard,
             }}
-            isActive={pathname === "/dashboard/payment-pages"}
-          /> */}
+            isActive={pathname === "/dashboard/services/payment"}
+          />
 
           <NavItem
             item={{

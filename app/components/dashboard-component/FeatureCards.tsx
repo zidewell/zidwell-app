@@ -88,17 +88,17 @@ const features = [
   },
 
   // Payment & Wallet
-  // {
-  //   id: 6,
-  //   title: "Payment Page",
-  //   desc: "Accept payments online",
-  //   icon: CreditCard,
-  //   color: "bg-[#3b82f6] text-white",
-  //   link: "/dashboard/payment-pages",
-  //   requiredTier: "growth",
-  //   featureKey: "payment_pages",
-  //   type: "payment",
-  // },
+  {
+    id: 6,
+    title: "Payment Page",
+    desc: "Accept payments online",
+    icon: CreditCard,
+    color: "bg-[#3b82f6] text-white",
+    link: "/dashboard/services/payment",
+    requiredTier: "growth",
+    featureKey: "payment_pages",
+    type: "payment",
+  },
   {
     id: 7,
     title: "Fund Wallet",

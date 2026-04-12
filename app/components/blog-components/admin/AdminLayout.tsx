@@ -290,7 +290,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   >
                     <p className="text-sm font-medium truncate">
                       {userData?.fullName
-                        ? `${userData.fullName}""}`.trim()
+                        ? `${userData.fullName}`.trim()
                         : "Admin User"}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
