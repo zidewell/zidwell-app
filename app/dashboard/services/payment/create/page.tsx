@@ -1,10 +1,17 @@
-// app/create/page.tsx
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Upload, X, ImagePlus, Link2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Upload,
+  X,
+  ImagePlus,
+  Link2,
+  User,
+  Building,
+} from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
@@ -29,6 +36,7 @@ import InvestmentFields from "@/app/components/payment-page-components/Investmen
 import TrustSignals from "@/app/components/payment-page-components/TrustSignals";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
+import { useUserContextData } from "@/app/context/userData";
 
 const typeLabels: Record<PageType, string> = {
   school: "School Fees",
@@ -50,6 +58,8 @@ const CreatePage = () => {
   const [pageType, setPageType] = useState<PageType | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const { userData } = useUserContextData();
+
   const [form, setForm] = useState({
     title: "",
     slug: "",
@@ -61,6 +71,7 @@ const CreatePage = () => {
     price: "",
     installmentCount: "3",
     feeMode: "bearer" as "bearer" | "customer",
+    entityName: "", // New field for school/organization name
   });
 
   // School
@@ -140,13 +151,38 @@ const CreatePage = () => {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
+  // Generate slug from entity name and title
+  const generateSlug = (entityName: string, title: string) => {
+    const entityPart = slugify(entityName);
+    const titlePart = slugify(title);
+    if (entityPart && titlePart) {
+      return `${entityPart}-${titlePart}`;
+    } else if (entityPart) {
+      return entityPart;
+    } else if (titlePart) {
+      return titlePart;
+    }
+    return "";
+  };
+
   const handleTitleChange = (title: string) => {
     setForm((f) => ({
       ...f,
       title,
-      slug:
-        f.slug === slugify(f.title) || f.slug === "" ? slugify(title) : f.slug,
+      slug: generateSlug(f.entityName, title),
     }));
+  };
+
+  const handleEntityNameChange = (entityName: string) => {
+    setForm((f) => ({
+      ...f,
+      entityName,
+      slug: generateSlug(entityName, f.title),
+    }));
+  };
+
+  const handleManualSlugChange = (slug: string) => {
+    setForm((f) => ({ ...f, slug: slugify(slug) }));
   };
 
   const isInvestment = pageType ? isInvestmentType(pageType) : false;
@@ -164,7 +200,7 @@ const CreatePage = () => {
   const handleCreate = () => {
     if (!canCreate() || !pageType) return;
     const id = crypto.randomUUID();
-    const slug = form.slug || slugify(form.title);
+    const slug = form.slug || generateSlug(form.entityName, form.title);
 
     const page: PaymentPage = {
       id,
@@ -191,6 +227,11 @@ const CreatePage = () => {
       pageViews: 0,
       createdAt: new Date().toISOString(),
       pageType,
+      pageBalance: 0,
+      isPublished: true,
+      metadata: {
+        entityName: form.entityName, // Store entity name in metadata
+      },
       ...(pageType === "school" && {
         students,
         className: schoolClass,
@@ -235,13 +276,48 @@ const CreatePage = () => {
     });
   };
 
-  const pageUrl = `zidwell.com/pay/${createdSlug}`;
+  const pageUrl = `zidwell.com/payment/${createdSlug}`;
   const copyUrl = () => navigator.clipboard.writeText(pageUrl);
+
+  // Get the placeholder text for entity name based on page type
+  const getEntityNamePlaceholder = () => {
+    switch (pageType) {
+      case "school":
+        return "e.g. Edward High School";
+      case "donation":
+        return "e.g. Hope Foundation";
+      case "physical":
+        return "e.g. Tech Store";
+      case "digital":
+        return "e.g. Digital Creators";
+      case "services":
+        return "e.g. Elite Consulting";
+      default:
+        if (isInvestment) {
+          return "e.g. Lagos Investment Group";
+        }
+        return "Your business/organization name";
+    }
+  };
+
+  const getEntityNameLabel = () => {
+    switch (pageType) {
+      case "school":
+        return "School Name *";
+      case "donation":
+        return "Organization Name *";
+      default:
+        return "Business/Organization Name *";
+    }
+  };
 
   if (!pageType) {
     return (
-      <div className="min-h-screen  dark:bg-[#0e0e0e]">
-        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="min-h-screen dark:bg-[#0e0e0e]">
+        <DashboardSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
         <div className="lg:pl-72 min-h-screen flex flex-col">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -261,12 +337,15 @@ const CreatePage = () => {
   }
 
   return (
-    <div className="min-h-screen  dark:bg-[#0e0e0e]">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
+    <div className="min-h-screen dark:bg-[#0e0e0e]">
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-        
+
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-2xl mx-auto">
             <button
@@ -282,10 +361,34 @@ const CreatePage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-8"
               >
-                {/* Cover Image */}
+                {/* Entity/School Name */}
                 <div>
                   <Label className="text-sm font-semibold mb-2 block text-[#141414] dark:text-[#f5f5f5]">
-                    Cover Image
+                    {getEntityNameLabel()}
+                  </Label>
+                  <div className="relative">
+                    <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6b6b6b] dark:text-[#a6a6a6]" />
+                    <Input
+                      placeholder={getEntityNamePlaceholder()}
+                      value={form.entityName}
+                      onChange={(e) => handleEntityNameChange(e.target.value)}
+                      className="pl-10 h-12 text-base bg-[#ffffff] dark:bg-[#121212] border-[#ded4c3] dark:border-[#474747] text-[#141414] dark:text-[#f5f5f5]"
+                    />
+                  </div>
+                  <p className="text-xs text-[#6b6b6b] dark:text-[#a6a6a6] mt-1">
+                    This will be used in your page URL:{" "}
+                    {form.entityName ? slugify(form.entityName) : "your-name"}
+                    -...
+                  </p>
+                </div>
+
+                {/* Cover Image - Optional */}
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block text-[#141414] dark:text-[#f5f5f5]">
+                    Cover Image{" "}
+                    <span className="text-xs font-normal text-[#6b6b6b]">
+                      (Optional)
+                    </span>
                   </Label>
                   <input
                     type="file"
@@ -302,7 +405,9 @@ const CreatePage = () => {
                         alt="Cover"
                       />
                       <button
-                        onClick={() => setForm((f) => ({ ...f, coverImage: null }))}
+                        onClick={() =>
+                          setForm((f) => ({ ...f, coverImage: null }))
+                        }
                         className="absolute top-3 right-3 h-8 w-8 rounded-full bg-[#023528]/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <X className="h-4 w-4 text-[#f7f0e2]" />
@@ -315,50 +420,78 @@ const CreatePage = () => {
                     >
                       <Upload className="h-6 w-6 text-[#6b6b6b] dark:text-[#a6a6a6]" />
                       <span className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">
-                        Upload cover image
+                        Upload cover image (optional)
                       </span>
                     </button>
                   )}
                 </div>
 
-                {/* Logo */}
+                {/* Logo - Enhanced Design like LogoUpload component */}
                 <div>
                   <Label className="text-sm font-semibold mb-2 block text-[#141414] dark:text-[#f5f5f5]">
-                    Profile / Logo
+                    Business Logo / Profile Picture
                   </Label>
-                  <input
-                    type="file"
-                    ref={logoRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => handleImageUpload(e, "logo")}
-                  />
                   <div className="flex items-center gap-4">
-                    {form.logo ? (
-                      <div className="relative h-20 w-20 rounded-2xl overflow-hidden group">
+                    {form.logo || userData?.profilePicture ? (
+                      <div className="relative group">
                         <img
-                          src={form.logo}
-                          className="w-full h-full object-cover"
-                          alt="Logo"
+                          src={form.logo || userData?.profilePicture}
+                          alt="Business Logo"
+                          className={`h-20 w-20 object-cover ${
+                            !form.logo && userData?.profilePicture
+                              ? "rounded-full"
+                              : "rounded-2xl"
+                          }`}
                         />
-                        <button
-                          onClick={() => setForm((f) => ({ ...f, logo: null }))}
-                          className="absolute inset-0 bg-[#023528]/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-4 w-4 text-[#f7f0e2]" />
-                        </button>
+                        {form.logo && (
+                          <button
+                            onClick={() =>
+                              setForm((f) => ({ ...f, logo: null }))
+                            }
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                        {!form.logo && userData?.profilePicture && (
+                          <div className="absolute -bottom-2 -right-2 h-5 w-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">
+                            <User className="h-3 w-3" />
+                          </div>
+                        )}
                       </div>
                     ) : (
+                      <div className="h-20 w-20 rounded-2xl bg-[#e9e2d7] dark:bg-[#242424] border-2 border-dashed border-[#ded4c3] dark:border-[#474747] flex items-center justify-center">
+                        <Upload className="h-6 w-6 text-[#6b6b6b] dark:text-[#a6a6a6]" />
+                      </div>
+                    )}
+
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        ref={logoRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(e, "logo")}
+                      />
                       <button
                         onClick={() => logoRef.current?.click()}
-                        className="h-20 w-20 rounded-2xl border-2 border-dashed border-[#ded4c3] dark:border-[#474747] bg-[#e9e2d7]/50 dark:bg-[#242424]/50 flex items-center justify-center hover:border-[#e1bf46] transition-colors"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-[#ded4c3] dark:border-[#474747] rounded-xl bg-[#e9e2d7]/50 dark:bg-[#242424]/50 hover:border-[#e1bf46] hover:bg-[#e1bf46]/5 transition-colors"
                       >
-                        <ImagePlus className="h-6 w-6 text-[#6b6b6b] dark:text-[#a6a6a6]" />
+                        <Upload className="h-4 w-4 text-[#6b6b6b] dark:text-[#a6a6a6]" />
+                        <span className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">
+                          {form.logo
+                            ? "Change Logo"
+                            : userData?.profilePicture
+                              ? "Upload Custom Logo"
+                              : "Upload Logo"}
+                        </span>
                       </button>
-                    )}
-                    <span className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">
-                      Recommended: 200×200px
-                    </span>
+                      <p className="text-xs text-[#6b6b6b] dark:text-[#a6a6a6] mt-2">
+                        {userData?.profilePicture && !form.logo
+                          ? "Currently using your profile picture. Upload a custom logo to replace it."
+                          : "Recommended: 200×200px. PNG, JPG, GIF up to 5MB"}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -383,24 +516,31 @@ const CreatePage = () => {
                   />
                 </div>
 
-                {/* URL Slug */}
+                {/* URL Slug - Now showing combined preview */}
                 <div>
                   <Label className="text-sm font-semibold mb-2 block text-[#141414] dark:text-[#f5f5f5]">
                     Page URL
                   </Label>
                   <div className="flex items-center gap-0 rounded-lg border border-[#ded4c3] dark:border-[#474747] overflow-hidden bg-[#e9e2d7]/50 dark:bg-[#242424]/50">
                     <span className="px-3 text-sm text-[#6b6b6b] dark:text-[#a6a6a6] whitespace-nowrap bg-[#e9e2d7] dark:bg-[#242424] border-r border-[#ded4c3] dark:border-[#474747]">
-                      zidwell.com/pay/
+                      zidwell.com/payment/
                     </span>
                     <Input
                       value={form.slug}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, slug: slugify(e.target.value) }))
+                      onChange={(e) => handleManualSlugChange(e.target.value)}
+                      placeholder={
+                        generateSlug(form.entityName, form.title) ||
+                        "school-name-page-title"
                       }
-                      placeholder="your-page-name"
                       className="border-0 h-11 rounded-none focus-visible:ring-0 bg-transparent text-[#141414] dark:text-[#f5f5f5]"
                     />
                   </div>
+                  <p className="text-xs text-[#6b6b6b] dark:text-[#a6a6a6] mt-1">
+                    URL will be: zidwell.com/payment/
+                    {form.slug ||
+                      generateSlug(form.entityName, form.title) ||
+                      "your-school-name-page-title"}
+                  </p>
                 </div>
 
                 {/* Description */}
@@ -427,7 +567,9 @@ const CreatePage = () => {
                 {pageType !== "school" && (
                   <div>
                     <Label className="text-sm font-semibold mb-2 block text-[#141414] dark:text-[#f5f5f5]">
-                      {isInvestment ? "Property / Project Images" : "Product Images"}
+                      {isInvestment
+                        ? "Property / Project Images"
+                        : "Product Images"}
                     </Label>
                     <input
                       type="file"
@@ -583,7 +725,9 @@ const CreatePage = () => {
                         ).map(([val, label]) => (
                           <button
                             key={val}
-                            onClick={() => setForm((f) => ({ ...f, priceType: val }))}
+                            onClick={() =>
+                              setForm((f) => ({ ...f, priceType: val }))
+                            }
                             className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${form.priceType === val ? "border-[#e1bf46] bg-[#e1bf46]/10 text-[#023528] dark:text-[#f5f5f5]" : "border-[#ded4c3] dark:border-[#474747] bg-[#f9f6ef] dark:bg-[#121212] text-[#6b6b6b] dark:text-[#a6a6a6] hover:border-[#e1bf46]/50"}`}
                           >
                             {label}
@@ -676,7 +820,9 @@ const CreatePage = () => {
                       </p>
                     )}
                     {!riskExplanation.trim() && (
-                      <p className="text-[#ee4343]">• Risk explanation is required</p>
+                      <p className="text-[#ee4343]">
+                        • Risk explanation is required
+                      </p>
                     )}
                   </div>
                 )}
@@ -717,14 +863,18 @@ const CreatePage = () => {
               className="bg-[#f9f6ef] dark:bg-[#121212] rounded-3xl p-8 max-w-md w-full text-center shadow-2xl"
             >
               <div className="text-6xl mb-4">🎉</div>
-              <h2 className="text-2xl font-bold mb-2 text-[#141414] dark:text-[#f5f5f5]">Congratulations!</h2>
+              <h2 className="text-2xl font-bold mb-2 text-[#141414] dark:text-[#f5f5f5]">
+                Congratulations!
+              </h2>
               <p className="text-[#6b6b6b] dark:text-[#a6a6a6] mb-6">
                 Your {typeLabels[pageType].toLowerCase()} page is now live and
                 ready to collect payments.
               </p>
               <div className="flex items-center gap-2 p-3 rounded-xl bg-[#e9e2d7] dark:bg-[#242424] mb-6">
                 <Link2 className="h-4 w-4 text-[#6b6b6b] dark:text-[#a6a6a6] shrink-0" />
-                <span className="text-sm truncate flex-1 text-[#141414] dark:text-[#f5f5f5]">{pageUrl}</span>
+                <span className="text-sm truncate flex-1 text-[#141414] dark:text-[#f5f5f5]">
+                  {pageUrl}
+                </span>
                 <Button
                   variant="secondary"
                   size="sm"
@@ -745,7 +895,9 @@ const CreatePage = () => {
                 <Button
                   variant="default"
                   className="flex-1"
-                  onClick={() => router.push("/dashboard/services/payment/dashboard")}
+                  onClick={() =>
+                    router.push("/dashboard/services/payment/dashboard")
+                  }
                 >
                   Go to Dashboard
                 </Button>

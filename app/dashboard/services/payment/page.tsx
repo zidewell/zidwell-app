@@ -1,5 +1,5 @@
 // app/page.tsx
-'use client';
+"use client";
 
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -40,7 +40,7 @@ const features = [
   { icon: Zap, title: "Instant Setup", desc: "Create a payment page in under 2 minutes" },
   { icon: Link2, title: "Shareable Links", desc: "WhatsApp-friendly URLs for easy sharing" },
   { icon: BarChart3, title: "Sales Dashboard", desc: "Track views, payments, and revenue" },
-  { icon: Shield, title: "Dedicated Accounts", desc: "Each page gets its own virtual account" },
+  { icon: Shield, title: "Secure Payments", desc: "All transactions are encrypted and secure" },
 ];
 
 const Landing = () => {
@@ -81,7 +81,9 @@ const Landing = () => {
                   Create Payment Page
                   <ArrowRight className="h-5 w-5 ml-1" />
                 </Button>
-                <Button variant="outline" size="lg" className="text-base px-8 py-6">
+                <Button variant="outline" size="lg" className="text-base px-8 py-6" onClick={() => {
+                  document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+                }}>
                   See How It Works
                 </Button>
               </div>
@@ -169,7 +171,7 @@ const Landing = () => {
                 variant="default"
                 size="lg"
                 className="text-base px-10 py-6 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90"
-                onClick={() => router.push("/dashboard/services/payment/dashboard")}
+                onClick={() => router.push("/dashboard/services/payment/create")}
               >
                 Create Your First Page
                 <ArrowRight className="h-5 w-5 ml-1" />
