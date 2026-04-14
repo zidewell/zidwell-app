@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -91,7 +91,6 @@ const calculateReadTime = (content: string): number => {
   return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
 };
 
-// Fixed: Added props to accept post data from server component
 export default function ClientPostPage({ post: initialPost }: { post?: BlogPost }) {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
@@ -124,9 +123,44 @@ export default function ClientPostPage({ post: initialPost }: { post?: BlogPost 
     buttonsStyling: false,
   });
 
-  // Fetch post data only if initialPost wasn't provided
+  // Function to increment view count - MOVED OUTSIDE useEffect
+  const incrementViewCountForPost = useCallback(async (postId: string, currentViewCount: number) => {
+    // Check if we've already counted this view in this session
+    const sessionKey = `viewed_post_${postId}`;
+    const hasViewed = sessionStorage.getItem(sessionKey);
+    
+    if (!hasViewed) {
+      try {
+        const response = await fetch(`/api/blog/posts?id=${postId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            increment_view: true
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setViewCount(data.view_count);
+          // Mark as viewed in this session
+          sessionStorage.setItem(sessionKey, 'true');
+          console.log('View count incremented successfully');
+        } else {
+          console.error('Failed to increment view count:', await response.text());
+        }
+      } catch (err) {
+        console.error("Failed to update view count:", err);
+      }
+    } else {
+      console.log('View already counted in this session');
+    }
+  }, []);
+
+  // Fetch post data
   useEffect(() => {
-    // If we already have the post from server props, no need to fetch
+    // If we already have the post from server props
     if (initialPost) {
       setViewCount(initialPost.view_count || 0);
       setLikeCount(initialPost.likes_count || 0);
@@ -141,6 +175,9 @@ export default function ClientPostPage({ post: initialPost }: { post?: BlogPost 
         localStorage.getItem("blogBookmarks") || "[]",
       );
       setIsBookmarked(bookmarks.includes(initialPost.id));
+      
+      // Increment view count for initial post
+      incrementViewCountForPost(initialPost.id, initialPost.view_count || 0);
       
       return;
     }
@@ -179,21 +216,9 @@ export default function ClientPostPage({ post: initialPost }: { post?: BlogPost 
         );
         setIsLiked(likedPosts.includes(postData.id));
 
-        // Update view count
-        try {
-          await fetch(`/api/blog/posts?id=${postData.id}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              view_count: (postData.view_count || 0) + 1,
-            }),
-          });
-        } catch (err) {
-          // Silently fail view count update
-          console.error("Failed to update view count:", err);
-        }
+        // Increment view count
+        await incrementViewCountForPost(postData.id, postData.view_count || 0);
+        
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load post");
         setPost(null);
@@ -203,7 +228,7 @@ export default function ClientPostPage({ post: initialPost }: { post?: BlogPost 
     };
 
     fetchPost();
-  }, [slug, initialPost]);
+  }, [slug, initialPost, incrementViewCountForPost]);
 
   // Fetch related posts
   useEffect(() => {
@@ -215,7 +240,7 @@ export default function ClientPostPage({ post: initialPost }: { post?: BlogPost 
 
         // Fetch recent posts
         const recentResponse = await fetch(
-          "/api/blog/posts?limit=6&sort_by=created_at&sort_order=desc",
+          "/api/blog/posts?limit=6&sort_by=created_at&sort_order=desc&published=true",
         );
         if (recentResponse.ok) {
           const recentData = await recentResponse.json();
@@ -232,7 +257,7 @@ export default function ClientPostPage({ post: initialPost }: { post?: BlogPost 
         if (post.categories && post.categories.length > 0) {
           const category = post.categories[0];
           const relatedResponse = await fetch(
-            `/api/blog/posts?category=${encodeURIComponent(category)}&limit=4`,
+            `/api/blog/posts?category=${encodeURIComponent(category)}&limit=4&published=true`,
           );
           if (relatedResponse.ok) {
             const relatedData = await relatedResponse.json();

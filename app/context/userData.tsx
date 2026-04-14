@@ -212,10 +212,10 @@ class SubscriptionCache {
 
 const subscriptionCache = new SubscriptionCache();
 
-// Feature access mapping with zidlite
+
 const FEATURE_TIER_MAP: Record<string, string> = {
-  'invoices_total': 'free',
-  'receipts_total': 'free',
+  'invoices_total': 'free', 
+  'receipts_total': 'free',  
   'contracts_total': 'free',
   'transfer_fee': 'free',
   'bookkeeping_trial_days': 'free',
@@ -709,8 +709,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     const benefitsMap: Record<string, Record<string, string[]>> = {
       free: {
         zidlite: [
-          "10 invoices total",
-          "10 receipts total",
+          "20 invoices total",
+          "20 receipts total",
           "2 contracts total",
           "Access to WhatsApp Business Community",
           "WhatsApp support",

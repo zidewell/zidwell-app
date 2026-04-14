@@ -1,4 +1,3 @@
-// app/blog/post-blog/[slug]/opengraph-image.tsx
 import { ImageResponse } from 'next/og';
 import { getPostBySlug } from './post-data';
 
@@ -14,15 +13,19 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const { slug } = await params;
   const post = await getPostBySlug(slug);
 
-  // If post has featured image, use it
-  if (post?.featured_image && post.featured_image.startsWith('http')) {
+  // Use the post's featured image if available
+  const imageUrl = post?.featured_image || null;
+  
+  // If there's a featured image, try to use it
+  if (imageUrl && imageUrl.startsWith('http')) {
     try {
-      const imageResponse = await fetch(post.featured_image);
-      if (imageResponse.ok) {
-        const imageBuffer = await imageResponse.arrayBuffer();
+      // Fetch the image
+      const response = await fetch(imageUrl);
+      if (response.ok) {
+        const imageBuffer = await response.arrayBuffer();
         return new Response(imageBuffer, {
           headers: {
-            'Content-Type': imageResponse.headers.get('content-type') || 'image/jpeg',
+            'Content-Type': response.headers.get('content-type') || 'image/jpeg',
             'Cache-Control': 'public, max-age=86400',
           },
         });
@@ -32,7 +35,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     }
   }
 
-  // Fallback: Generate custom OG image with title
+  // Fallback: Generate dynamic OG image with text
   const title = post?.title || "Zidwell Blog";
   const description = post?.excerpt || "Finance & Business Tools for Nigerian SMEs";
   
@@ -46,11 +49,12 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: '#0A0A0A',
           fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+          position: 'relative',
         }}
       >
-        {/* Decorative background */}
+        {/* Background gradient */}
         <div
           style={{
             position: 'absolute',
@@ -58,7 +62,31 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%)',
+            background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
+          }}
+        />
+        
+        {/* Decorative elements */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '10%',
+            left: '5%',
+            width: '200px',
+            height: '200px',
+            background: 'radial-gradient(circle, rgba(43,130,91,0.1) 0%, transparent 70%)',
+            borderRadius: '50%',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '10%',
+            right: '5%',
+            width: '300px',
+            height: '300px',
+            background: 'radial-gradient(circle, rgba(43,130,91,0.08) 0%, transparent 70%)',
+            borderRadius: '50%',
           }}
         />
         
@@ -72,64 +100,68 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             padding: '60px',
             maxWidth: '90%',
             zIndex: 1,
+            backgroundColor: 'rgba(10,10,10,0.8)',
+            borderRadius: '20px',
+            border: '1px solid rgba(255,255,255,0.1)',
           }}
         >
           {/* Logo/Badge */}
           <div
             style={{
-              fontSize: 32,
+              fontSize: '36px',
               fontWeight: 'bold',
               color: '#2b825b',
-              marginBottom: 40,
+              marginBottom: '40px',
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: '12px',
             }}
           >
             <span>📝</span>
-            <span>Zidwell</span>
+            <span>Zidwell Blog</span>
           </div>
           
           {/* Title */}
           <div
             style={{
-              fontSize: 64,
+              fontSize: '64px',
               fontWeight: 'bold',
-              color: '#1a1a1a',
+              color: '#ffffff',
               textAlign: 'center',
-              marginBottom: 24,
+              marginBottom: '24px',
               lineHeight: 1.2,
-              maxWidth: '1000px',
+              maxWidth: '900px',
+              textShadow: '0 2px 4px rgba(0,0,0,0.3)',
             }}
           >
-            {title}
+            {title.length > 80 ? title.substring(0, 80) + '...' : title}
           </div>
           
           {/* Description */}
           {description && (
             <div
               style={{
-                fontSize: 28,
-                color: '#666666',
+                fontSize: '28px',
+                color: '#b0b0b0',
                 textAlign: 'center',
-                marginBottom: 48,
-                maxWidth: '900px',
+                marginBottom: '48px',
+                maxWidth: '800px',
                 lineHeight: 1.3,
               }}
             >
-              {description}
+              {description.length > 120 ? description.substring(0, 120) + '...' : description}
             </div>
           )}
           
           {/* Footer */}
           <div
             style={{
-              fontSize: 20,
+              fontSize: '20px',
               color: '#2b825b',
-              borderTop: '2px solid #e0e0e0',
-              paddingTop: 32,
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              paddingTop: '32px',
               display: 'flex',
-              gap: 24,
+              gap: '32px',
             }}
           >
             <span>💼 Business Tools</span>

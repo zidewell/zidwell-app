@@ -14,8 +14,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await getPostBySlug(slug);
 
   
-console.log(post, "post from page.tsx");
-
 
   if (!post || !post.is_published) {
     return {

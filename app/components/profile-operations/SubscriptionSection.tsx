@@ -21,21 +21,21 @@ const tiers: {
   features: string[];
   icon?: any;
 }[] = [
-  {
-    id: "free",
-    name: "Free Trial",
-    price: "₦0/mo",
-    features: [
-      "Unlimited money transfers at N50 per transfer",
-      "Bookkeeping - 2 weeks free trial",
-      "Tax Calculator - 2 weeks free trial",
-      "5 Invoices total",
-      "5 Receipts total",
-      "1 Contract total",
-      "Basic support",
-    ],
-    icon: Star,
-  },
+{
+  id: "free",
+  name: "Free Trial",
+  price: "₦0/mo",
+  features: [
+    "Unlimited money transfers at N50 per transfer",
+    "1 month free trial of Bookkeeping",
+    "1 month free trial of Tax Calculator",
+    "10 Invoices total",
+    "10 Receipts total",
+    "1 Contract total",
+    "Basic support",
+  ],
+  icon: Star,
+},
   {
     id: "zidlite",
     name: "ZidLite",
@@ -46,8 +46,8 @@ const tiers: {
       "Unlimited money transfers at N50 per transfer",
       "Bookkeeping - 2 weeks free trial",
       "Tax Calculator - 2 weeks free trial",
-      "10 Invoices total",
-      "10 Receipts total",
+      "20 Invoices total",
+      "20 Receipts total",
       "2 Contracts total",
       "Access to WhatsApp Business Community",
       "WhatsApp support",
