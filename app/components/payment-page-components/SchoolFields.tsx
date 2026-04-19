@@ -1,5 +1,6 @@
-import { useRef } from "react";
-import { Upload, Plus, X } from "lucide-react";
+// app/components/payment-page-components/SchoolFields.tsx
+import { useRef, useEffect } from "react";
+import { Upload, Plus, X, HelpCircle } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
@@ -16,6 +17,8 @@ interface Props {
   setFeeBreakdown: (f: FeeItem[]) => void;
   requiredFields: string[];
   setRequiredFields: (f: string[]) => void;
+  price?: number;
+  onPriceChange?: (price: number) => void;
 }
 
 const SchoolFields = ({
@@ -27,8 +30,23 @@ const SchoolFields = ({
   setFeeBreakdown,
   requiredFields,
   setRequiredFields,
+  price,
+  onPriceChange
 }: Props) => {
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Calculate total from fee breakdown
+  const calculateTotal = () => {
+    return feeBreakdown.reduce((sum, item) => sum + (item.amount || 0), 0);
+  };
+
+  // Update price whenever fee breakdown changes
+  useEffect(() => {
+    const total = calculateTotal();
+    if (onPriceChange && total > 0) {
+      onPriceChange(total);
+    }
+  }, [feeBreakdown]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -85,15 +103,19 @@ const SchoolFields = ({
   const removeStudent = (i: number) =>
     setStudents(students.filter((_, idx) => idx !== i));
 
-  const addFeeItem = () =>
+  const addFeeItem = () => {
     setFeeBreakdown([...feeBreakdown, { label: "", amount: 0 }]);
+  };
+  
   const updateFeeItem = (i: number, field: keyof FeeItem, val: string) => {
     const updated = [...feeBreakdown];
     (updated[i] as any)[field] = field === "amount" ? Number(val) || 0 : val;
     setFeeBreakdown(updated);
   };
-  const removeFeeItem = (i: number) =>
+  
+  const removeFeeItem = (i: number) => {
     setFeeBreakdown(feeBreakdown.filter((_, idx) => idx !== i));
+  };
 
   const addField = () => setRequiredFields([...requiredFields, ""]);
   const updateField = (i: number, val: string) => {
@@ -121,21 +143,30 @@ const SchoolFields = ({
 
       {/* Fee Breakdown */}
       <div>
-        <Label className="text-sm font-semibold mb-2 block">
-          Fee Breakdown
-        </Label>
+        <div className="flex items-center gap-2 mb-2">
+          <Label className="text-sm font-semibold">Fee Breakdown</Label>
+          <div className="group relative">
+            <HelpCircle className="h-4 w-4 text-[#3e7465] cursor-help" />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+              For instance: Tuition, uniform, textbooks, sports, exam fee etc.
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-[#3e7465] mb-3">
+          Add all fee items that make up the total amount (e.g., Tuition, uniform, textbooks, sports, exam fee)
+        </p>
         <div className="space-y-2">
           {feeBreakdown.map((item, i) => (
             <div key={i} className="flex gap-2 items-center">
               <Input
-                placeholder="Fee label (e.g. Tuition)"
+                placeholder="e.g. Tuition, Uniform, Textbooks"
                 value={item.label}
                 onChange={(e) => updateFeeItem(i, "label", e.target.value)}
                 className="flex-1 h-10"
               />
               <Input
                 type="number"
-                placeholder="Amount"
+                placeholder="Amount (₦)"
                 value={item.amount || ""}
                 onChange={(e) => updateFeeItem(i, "amount", e.target.value)}
                 className="w-28 h-10"
@@ -158,6 +189,15 @@ const SchoolFields = ({
             <Plus className="h-3.5 w-3.5 mr-1" /> Add Fee Item
           </Button>
         </div>
+        {calculateTotal() > 0 && (
+          <div className="mt-3 p-3 bg-[#e1bf46]/10 rounded-lg">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-semibold text-[#023528]">Total Amount:</span>
+              <span className="text-lg font-bold text-[#e1bf46]">₦{calculateTotal().toLocaleString()}</span>
+            </div>
+            <p className="text-xs text-[#3e7465] mt-1">This total will be automatically set as your page price</p>
+          </div>
+        )}
       </div>
 
       {/* Student List */}
@@ -216,16 +256,19 @@ const SchoolFields = ({
         </Button>
       </div>
 
-      {/* Custom Required Fields */}
+      {/* Additional Questions for the customer */}
       <div>
         <Label className="text-sm font-semibold mb-2 block">
-          Custom Required Fields (for parents)
+          Additional Questions for the customer
         </Label>
+        <p className="text-xs text-[#3e7465] mb-3">
+          Ask customers to provide additional information during checkout (e.g., House/Hostel, Sport choice, Medical info)
+        </p>
         <div className="space-y-2">
           {requiredFields.map((f, i) => (
             <div key={i} className="flex gap-2 items-center">
               <Input
-                placeholder="e.g. House/Hostel, Sport choice"
+                placeholder="e.g. House/Hostel, Sport choice, Medical condition"
                 value={f}
                 onChange={(e) => updateField(i, e.target.value)}
                 className="flex-1 h-9 text-sm"
@@ -239,7 +282,7 @@ const SchoolFields = ({
             </div>
           ))}
           <Button type="button" variant="outline" size="sm" onClick={addField}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add Field
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Question
           </Button>
         </div>
       </div>

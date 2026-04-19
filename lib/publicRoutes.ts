@@ -28,6 +28,7 @@ export const isPublicRoute = (pathname: string): boolean => {
     /^\/sign-contract\/[^\/]+$/,
     /^\/sign-receipt\/[^\/]+$/,
     /^\/pay-invoice\/[^\/]+$/,
+    /^\/pay\/[^\/]+$/,
     /^\/verify-email\/[^\/]+$/,
     /^\/reset-password\/[^\/]+$/,
     /^\/invite\/[^\/]+$/,

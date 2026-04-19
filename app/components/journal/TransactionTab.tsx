@@ -1,7 +1,6 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
-  Plus,
   ArrowUpRight,
   ArrowDownLeft,
   Wallet,
@@ -9,6 +8,7 @@ import {
   Loader2,
   CheckCircle2,
   ChevronDown,
+  Edit2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
@@ -27,6 +27,9 @@ interface Transaction {
   status: string;
   reference?: string;
   fee?: number;
+  synced_to_journal?: boolean;
+  journal_entry_id?: string;
+  synced_at?: string;
 }
 
 const inflowTypes = [
@@ -52,43 +55,32 @@ const outflowTypes = [
 const TRANSACTIONS_PER_PAGE = 10;
 
 export function TransactionsTab() {
-  const { categories, addEntry, activeJournalType, refetch } = useJournal();
+  const { categories, activeJournalType, refetch, entries, updateEntry } = useJournal();
   const { userData } = useUserContextData();
 
-  // Transaction state
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Add to journal state
-  const [selectedTransaction, setSelectedTransaction] =
-    useState<Transaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [editingEntry, setEditingEntry] = useState<{ transactionId: string; entryId: string } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [addingToJournal, setAddingToJournal] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [addedAmount, setAddedAmount] = useState<number>(0);
-  const [addedType, setAddedType] = useState<string>("");
-
-  // Load more state
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Fetch transactions
   const fetchTransactions = async (page: number = 1) => {
     if (!userData?.id) return null;
-
     try {
       const params = new URLSearchParams({
         userId: userData.id,
         page: page.toString(),
         limit: TRANSACTIONS_PER_PAGE.toString(),
       });
-
-      const response = await fetch(
-        `/api/bill-transactions?${params.toString()}`,
-      );
+      const response = await fetch(`/api/bill-transactions?${params.toString()}`);
       const data = await response.json();
       return data;
     } catch (err) {
@@ -97,16 +89,13 @@ export function TransactionsTab() {
     }
   };
 
-  // Load initial transactions
   useEffect(() => {
     if (!userData?.id) return;
-
     const loadInitialTransactions = async () => {
       setLoading(true);
       try {
         const data = await fetchTransactions(1);
         if (data?.transactions && data.transactions.length > 0) {
-          // Only show successful transactions
           const completedTransactions = data.transactions.filter(
             (tx: Transaction) => tx.status?.toLowerCase() === "success",
           );
@@ -119,26 +108,20 @@ export function TransactionsTab() {
         }
         setError(null);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load transactions",
-        );
+        setError(err instanceof Error ? err.message : "Failed to load transactions");
       } finally {
         setLoading(false);
       }
     };
-
     loadInitialTransactions();
   }, [userData?.id]);
 
-  // Handle Load More
   const handleLoadMore = async () => {
     if (!hasMore || isLoadingMore || !userData?.id) return;
-
     setIsLoadingMore(true);
     try {
       const nextPage = currentPage + 1;
       const data = await fetchTransactions(nextPage);
-
       if (data?.transactions && data.transactions.length > 0) {
         const completedTransactions = data.transactions.filter(
           (tx: Transaction) => tx.status?.toLowerCase() === "success",
@@ -164,76 +147,45 @@ export function TransactionsTab() {
     }).format(Math.abs(value));
   };
 
-  const openAddDialog = (transaction: Transaction) => {
-    setSelectedTransaction(transaction);
-    setSelectedCategory("");
-    setShowAddDialog(true);
+  const getJournalEntryForTransaction = (transactionId: string) => {
+    return entries.find(entry => entry.note?.includes(transactionId));
   };
 
-  const handleAddToJournal = async () => {
-    if (!selectedTransaction || !selectedCategory) return;
+  const openEditDialog = (transaction: Transaction) => {
+    const entry = getJournalEntryForTransaction(transaction.id);
+    if (entry) {
+      setEditingEntry({ transactionId: transaction.id, entryId: entry.id });
+      setSelectedCategory(entry.categoryId);
+      setSelectedTransaction(transaction);
+      setShowEditDialog(true);
+    }
+  };
 
-    setAddingToJournal(true);
-    setSuccessMessage(null);
-
-    const isCredit = inflowTypes.includes(
-      selectedTransaction.type?.toLowerCase(),
-    );
-    const entryType: EntryType = isCredit ? "income" : "expense";
-    const amount = Math.abs(selectedTransaction.amount);
-
+  const handleUpdateCategory = async () => {
+    if (!editingEntry || !selectedCategory) return;
+    
+    setUpdating(true);
     try {
-      await addEntry({
-        date: new Date(selectedTransaction.created_at).toISOString(),
-        type: entryType,
-        amount: amount,
+      await updateEntry(editingEntry.entryId, {
         categoryId: selectedCategory,
-        note:
-          selectedTransaction.description ||
-          selectedTransaction.reference ||
-          "Wallet transaction",
-        journalType: activeJournalType,
       });
-
-      setShowAddDialog(false);
-      setSelectedTransaction(null);
-      setSelectedCategory("");
-
-      setAddedAmount(amount);
-      setAddedType(entryType);
-
-      setSuccessMessage(`Added ${formatCurrency(amount)} to ${entryType}`);
-
-      // Remove the transaction from the list
-      setAllTransactions((prev) =>
-        prev.filter((tx) => tx.id !== selectedTransaction.id),
-      );
-
       await refetch();
-
-      setTimeout(() => setSuccessMessage(null), 5000);
+      setSuccessMessage("Journal entry updated successfully!");
+      setShowEditDialog(false);
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
-      console.error("Failed to add entry:", err);
-      alert("Failed to add transaction to journal");
+      console.error("Failed to update entry:", err);
+      alert("Failed to update journal entry");
     } finally {
-      setAddingToJournal(false);
+      setUpdating(false);
     }
   };
 
   const getFilteredCategories = () => {
     if (!selectedTransaction) return [];
-
-    const isCredit = inflowTypes.includes(
-      selectedTransaction.type?.toLowerCase(),
-    );
+    const isCredit = inflowTypes.includes(selectedTransaction.type?.toLowerCase());
     const type = isCredit ? "income" : "expense";
-
     return categories.filter((cat) => cat.type === type || cat.type === "both");
-  };
-
-  // Get today's date in YYYY-MM-DD format
-  const getToday = () => {
-    return new Date().toISOString().split("T")[0];
   };
 
   if (error) {
@@ -245,26 +197,14 @@ export function TransactionsTab() {
               <Wallet className="h-5 w-5 text-[#2b825b]" />
             </div>
             <div>
-              <h3
-                className="font-medium dark:text-gray-100"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-              >
+              <h3 className="font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
                 Wallet Transactions
               </h3>
-              <p className="text-sm text-[#e11d48] dark:text-red-400">
-                Error loading transactions
-              </p>
+              <p className="text-sm text-[#e11d48] dark:text-red-400">Error loading transactions</p>
             </div>
           </div>
-          <Button
-            onClick={() => window.location.reload()}
-            size="sm"
-            className="dark:bg-[#2b825b] dark:hover:bg-[#1e5f43]"
-            style={{
-              backgroundColor: "#2b825b",
-              color: "#ffffff",
-            }}
-          >
+          <Button onClick={() => window.location.reload()} size="sm" className="dark:bg-[#2b825b]"
+            style={{ backgroundColor: "#2b825b", color: "#ffffff" }}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Retry
           </Button>
@@ -277,55 +217,33 @@ export function TransactionsTab() {
     <div className="space-y-6">
       {/* Success Message */}
       {successMessage && (
-        <div
-          className="p-4 rounded-xl border animate-in fade-in slide-in-from-top-2 dark:bg-gray-800"
-          style={{
-            backgroundColor:
-              addedType === "income"
-                ? "rgba(22, 163, 74, 0.1)"
-                : "rgba(225, 29, 72, 0.1)",
-            borderColor: addedType === "income" ? "#16a34a" : "#e11d48",
-            color: addedType === "income" ? "#16a34a" : "#e11d48",
-          }}
-        >
+        <div className="p-4 rounded-xl border animate-in fade-in slide-in-from-top-2 bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5" />
             <span className="font-medium">{successMessage}</span>
           </div>
-          <p className="text-xs mt-1 text-gray-600 dark:text-gray-400">
-            Added to your {activeJournalType} journal
-          </p>
         </div>
       )}
 
-      {/* Header - Exact match from mock */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-[#2b825b]/10">
             <Wallet className="h-5 w-5 text-[#2b825b]" />
           </div>
           <div>
-            <h3
-              className="font-medium dark:text-gray-100"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-            >
+            <h3 className="font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
               Wallet Transactions
             </h3>
-            <p
-              className="text-sm dark:text-gray-400"
-              style={{ color: "#80746e" }}
-            >
-              Add transactions to your {activeJournalType} journal
+            <p className="text-sm dark:text-gray-400" style={{ color: "#80746e" }}>
+              Transactions are automatically synced to your journal
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-[#f5f1ea] dark:bg-gray-700">
             <span className="text-xs font-medium text-[#80746e] dark:text-gray-400">
-              Journal:{" "}
-              <span className="text-[#2b825b] dark:text-[#3aa873]">
-                {activeJournalType}
-              </span>
+              Journal: <span className="text-[#2b825b] dark:text-[#3aa873]">{activeJournalType}</span>
             </span>
           </div>
           <Button
@@ -335,22 +253,18 @@ export function TransactionsTab() {
               if (userData?.id) {
                 setLoading(true);
                 const data = await fetchTransactions(1);
-                const completedTransactions =
-                  data?.transactions?.filter(
-                    (tx: Transaction) => tx.status?.toLowerCase() === "success",
-                  ) || [];
+                const completedTransactions = data?.transactions?.filter(
+                  (tx: Transaction) => tx.status?.toLowerCase() === "success",
+                ) || [];
                 setAllTransactions(completedTransactions);
                 setHasMore(data?.hasMore || false);
                 setCurrentPage(1);
                 setLoading(false);
+                await refetch();
               }
             }}
-            className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
-            style={{
-              borderColor: "#e6dfd6",
-              color: "#80746e",
-              backgroundColor: "#f5f1ea",
-            }}
+            className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+            style={{ borderColor: "#e6dfd6", color: "#80746e", backgroundColor: "#f5f1ea" }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -361,152 +275,95 @@ export function TransactionsTab() {
       {/* Loading State */}
       {loading ? (
         <div className="h-64 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#2b825b] dark:text-[#3aa873]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#2b825b]" />
         </div>
       ) : allTransactions.length === 0 ? (
-        <div
-          className="p-8 rounded-2xl text-center border dark:bg-gray-800 dark:border-gray-700"
-          style={{
-            backgroundColor: "#fcfbf9",
-            borderColor: "#e6dfd6",
-          }}
-        >
-          <Wallet
-            className="h-12 w-12 mx-auto mb-4"
-            style={{ color: "#e6dfd6" }}
-          />
-          <h4
-            className="font-medium mb-2 dark:text-gray-300"
-            style={{ color: "#26121c" }}
-          >
-            No Completed Transactions
-          </h4>
-          <p className="dark:text-gray-400" style={{ color: "#80746e" }}>
-            Your successful wallet transactions will appear here.
-          </p>
+        <div className="p-8 rounded-2xl text-center border" style={{ backgroundColor: "#fcfbf9", borderColor: "#e6dfd6" }}>
+          <Wallet className="h-12 w-12 mx-auto mb-4" style={{ color: "#e6dfd6" }} />
+          <h4 className="font-medium mb-2" style={{ color: "#26121c" }}>No Transactions Yet</h4>
+          <p className="text-sm" style={{ color: "#80746e" }}>Your wallet transactions will appear here automatically</p>
         </div>
       ) : (
         <>
-          {/* Transactions List - Exact match from mock */}
-          <div
-            className="rounded-2xl border overflow-hidden dark:bg-gray-800 dark:border-gray-700"
-            style={{
-              backgroundColor: "rgba(252, 251, 249, 0.5)",
-              borderColor: "#e6dfd6",
-            }}
-          >
-            <div
-              className="divide-y dark:divide-gray-700"
-              style={{ borderColor: "#e6dfd6" }}
-            >
+          <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: "rgba(252, 251, 249, 0.5)", borderColor: "#e6dfd6" }}>
+            <div className="divide-y" style={{ borderColor: "#e6dfd6" }}>
               {allTransactions.map((transaction) => {
-                const isCredit = inflowTypes.includes(
-                  transaction.type?.toLowerCase(),
-                );
+                const isCredit = inflowTypes.includes(transaction.type?.toLowerCase());
+                const isSynced = transaction.synced_to_journal === true;
+                const journalEntry = getJournalEntryForTransaction(transaction.id);
 
                 return (
                   <div
                     key={transaction.id}
-                    className="flex items-center gap-4 p-4 hover:bg-[#f5f1ea]/50 dark:hover:bg-gray-700 transition-colors group"
+                    className="flex items-center gap-4 p-4 hover:bg-[#f5f1ea]/50 transition-colors group"
                   >
                     <div
-                      className={cn(
-                        "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center",
-                      )}
+                      className={cn("shrink-0 w-10 h-10 rounded-xl flex items-center justify-center")}
                       style={{
-                        backgroundColor: isCredit
-                          ? "rgba(22, 163, 74, 0.1)"
-                          : "rgba(225, 29, 72, 0.1)",
+                        backgroundColor: isCredit ? "rgba(22, 163, 74, 0.1)" : "rgba(225, 29, 72, 0.1)",
                       }}
                     >
                       {isCredit ? (
-                        <ArrowDownLeft
-                          className="h-5 w-5"
-                          style={{ color: "#16a34a" }}
-                        />
+                        <ArrowDownLeft className="h-5 w-5" style={{ color: "#16a34a" }} />
                       ) : (
-                        <ArrowUpRight
-                          className="h-5 w-5"
-                          style={{ color: "#e11d48" }}
-                        />
+                        <ArrowUpRight className="h-5 w-5" style={{ color: "#e11d48" }} />
                       )}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <p
-                        className="font-medium truncate dark:text-gray-300"
-                        style={{ color: "#26121c" }}
-                      >
-                        {transaction.description ||
-                          `${transaction.type} transaction`}
+                      <p className="font-medium truncate" style={{ color: "#26121c" }}>
+                        {transaction.description || `${transaction.type} transaction`}
                       </p>
-                      <div
-                        className="flex items-center gap-2 text-xs dark:text-gray-400"
-                        style={{ color: "#80746e" }}
-                      >
-                        <span>
-                          {format(
-                            new Date(transaction.created_at),
-                            "MMM d, yyyy",
-                          )}
-                        </span>
+                      <div className="flex items-center gap-2 text-xs" style={{ color: "#80746e" }}>
+                        <span>{format(new Date(transaction.created_at), "MMM d, yyyy, h:mm a")}</span>
                         {transaction.reference && (
                           <>
                             <span>•</span>
-                            <span className="truncate max-w-[100px]">
-                              {transaction.reference}
-                            </span>
+                            <span className="truncate max-w-[100px]">{transaction.reference}</span>
                           </>
                         )}
-                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700">
                           {transaction.status}
                         </span>
+                        {isSynced && journalEntry && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">
+                            Synced to {journalEntry.type}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    <p
-                      className={cn("font-semibold tabular-nums")}
-                      style={{
-                        color: isCredit ? "#16a34a" : "#e11d48",
-                      }}
-                    >
+                    <p className={cn("font-semibold tabular-nums")} style={{ color: isCredit ? "#16a34a" : "#e11d48" }}>
                       {isCredit ? "+" : "-"}
                       {formatCurrency(transaction.amount)}
                     </p>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openAddDialog(transaction)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
-                      style={{
-                        borderColor: "#e6dfd6",
-                        backgroundColor: "#fcfbf9",
-                        color: isCredit ? "#16a34a" : "#e11d48",
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add to Journal
-                    </Button>
+                    {isSynced && journalEntry && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditDialog(transaction)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ borderColor: "#e6dfd6", backgroundColor: "#fcfbf9", color: "#2b825b" }}
+                      >
+                        <Edit2 className="h-4 w-4 mr-1" />
+                        Edit Category
+                      </Button>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Load More Button */}
           {hasMore && (
             <div className="text-center mt-6">
               <Button
                 variant="outline"
                 onClick={handleLoadMore}
                 disabled={isLoadingMore}
-                className="px-8 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
-                style={{
-                  borderColor: "#e6dfd6",
-                  color: "#80746e",
-                  backgroundColor: "#f5f1ea",
-                }}
+                className="px-8"
+                style={{ borderColor: "#e6dfd6", color: "#80746e", backgroundColor: "#f5f1ea" }}
               >
                 {isLoadingMore ? (
                   <>
@@ -520,110 +377,37 @@ export function TransactionsTab() {
                   </>
                 )}
               </Button>
-              <p
-                className="text-sm mt-2 dark:text-gray-400"
-                style={{ color: "#80746e" }}
-              >
-                Showing {allTransactions.length} transactions
-                {hasMore && " (More available)"}
-              </p>
-            </div>
-          )}
-
-          {/* No More Transactions Message */}
-          {!hasMore && allTransactions.length > 0 && (
-            <div
-              className="text-center mt-6 pt-6 border-t dark:border-gray-700"
-              style={{ borderColor: "#e6dfd6" }}
-            >
-              <p
-                className="text-sm dark:text-gray-400"
-                style={{ color: "#80746e" }}
-              >
-                You've reached the end of your transaction history
-              </p>
-              <p
-                className="text-xs mt-1 dark:text-gray-400"
-                style={{ color: "#80746e" }}
-              >
-                Total loaded: {allTransactions.length} transactions
-              </p>
             </div>
           )}
         </>
       )}
 
-      {/* Add to Journal Dialog - Exact match from mock */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent
-          className="sm:max-w-md dark:bg-gray-800 dark:border-gray-700"
-          style={{
-            backgroundColor: "#fcfbf9",
-            borderColor: "#e6dfd6",
-          }}
-        >
+      {/* Edit Category Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-md" style={{ backgroundColor: "#fcfbf9", borderColor: "#e6dfd6" }}>
           <DialogHeader>
-            <DialogTitle
-              className="text-xl dark:text-gray-100"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-            >
-              Add to{" "}
-              {selectedTransaction &&
-                (() => {
-                  const isCredit = inflowTypes.includes(
-                    selectedTransaction.type?.toLowerCase(),
-                  );
-                  return isCredit ? "Income" : "Expense";
-                })()}
+            <DialogTitle className="text-xl" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              Edit Journal Category
             </DialogTitle>
           </DialogHeader>
 
           {selectedTransaction && (
             <div className="space-y-5 mt-4">
-              {/* Transaction Summary */}
-              <div
-                className="p-4 rounded-xl dark:bg-gray-700"
-                style={{ backgroundColor: "#f5f1ea" }}
-              >
-                <p
-                  className="font-medium dark:text-gray-300"
-                  style={{ color: "#26121c" }}
-                >
+              <div className="p-4 rounded-xl" style={{ backgroundColor: "#f5f1ea" }}>
+                <p className="font-medium" style={{ color: "#26121c" }}>
                   {selectedTransaction.description || "Wallet Transaction"}
                 </p>
-                <p
-                  className="text-xl font-semibold mt-1"
-                  style={{
-                    color: inflowTypes.includes(
-                      selectedTransaction.type?.toLowerCase(),
-                    )
-                      ? "#16a34a"
-                      : "#e11d48",
-                  }}
-                >
-                  {inflowTypes.includes(selectedTransaction.type?.toLowerCase())
-                    ? "+"
-                    : "-"}
+                <p className="text-xl font-semibold mt-1" style={{ color: inflowTypes.includes(selectedTransaction.type?.toLowerCase()) ? "#16a34a" : "#e11d48" }}>
                   {formatCurrency(selectedTransaction.amount)}
                 </p>
-                <p
-                  className="text-sm mt-1 dark:text-gray-400"
-                  style={{ color: "#80746e" }}
-                >
-                  {format(
-                    new Date(selectedTransaction.created_at),
-                    "MMMM d, yyyy",
-                  )}
+                <p className="text-sm mt-1" style={{ color: "#80746e" }}>
+                  {format(new Date(selectedTransaction.created_at), "MMMM d, yyyy, h:mm a")}
                 </p>
               </div>
 
-              {/* Category Selection */}
               <div className="space-y-2">
-                <label
-                  className="text-sm font-medium dark:text-gray-300"
-                  style={{ color: "#80746e" }}
-                >
-                  Select Category
+                <label className="text-sm font-medium" style={{ color: "#80746e" }}>
+                  Select New Category
                 </label>
                 <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
                   {getFilteredCategories().map((cat) => (
@@ -635,68 +419,35 @@ export function TransactionsTab() {
                         "flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center",
                       )}
                       style={{
-                        borderColor:
-                          selectedCategory === cat.id ? "#2b825b" : "#e6dfd6",
-                        backgroundColor:
-                          selectedCategory === cat.id
-                            ? "rgba(43, 130, 91, 0.1)"
-                            : "#fcfbf9",
-                        boxShadow:
-                          selectedCategory === cat.id
-                            ? "0 2px 20px -4px rgba(38,33,28,0.08)"
-                            : "none",
+                        borderColor: selectedCategory === cat.id ? "#2b825b" : "#e6dfd6",
+                        backgroundColor: selectedCategory === cat.id ? "rgba(43, 130, 91, 0.1)" : "#fcfbf9",
                       }}
                     >
-                      <span className="text-2xl dark:text-gray-300">
-                        {cat.icon}
-                      </span>
-                      <span
-                        className="text-xs font-medium truncate w-full dark:text-gray-300"
-                        style={{ color: "#26121c" }}
-                      >
+                      <span className="text-2xl">{cat.icon}</span>
+                      <span className="text-xs font-medium truncate w-full" style={{ color: "#26121c" }}>
                         {cat.name}
                       </span>
                     </button>
                   ))}
                 </div>
-                {getFilteredCategories().length === 0 && (
-                  <p
-                    className="text-sm text-center py-4"
-                    style={{ color: "#e11d48" }}
-                  >
-                    No categories available for this transaction type.
-                  </p>
-                )}
               </div>
 
-              {/* Submit Button */}
               <Button
-                onClick={handleAddToJournal}
-                disabled={!selectedCategory || addingToJournal}
+                onClick={handleUpdateCategory}
+                disabled={!selectedCategory || updating}
                 className="w-full font-semibold h-12"
                 style={{
-                  background:
-                    !selectedCategory || addingToJournal
-                      ? "#e6dfd6"
-                      : "#2b825b",
-                  color:
-                    !selectedCategory || addingToJournal
-                      ? "#80746e"
-                      : "#ffffff",
-                  boxShadow:
-                    !selectedCategory || addingToJournal
-                      ? "none"
-                      : "0 4px 20px -4px rgba(43, 130, 91, 0.3)",
-                  border: "none",
+                  background: !selectedCategory || updating ? "#e6dfd6" : "#2b825b",
+                  color: !selectedCategory || updating ? "#80746e" : "#ffffff",
                 }}
               >
-                {addingToJournal ? (
+                {updating ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Adding to Journal...
+                    Updating...
                   </>
                 ) : (
-                  "Add to Journal"
+                  "Update Category"
                 )}
               </Button>
             </div>

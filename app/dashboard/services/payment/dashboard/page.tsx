@@ -1,9 +1,15 @@
-// app/payment/dashboard/page.tsx
 "use client";
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Eye, CreditCard, TrendingUp, Wallet } from "lucide-react";
+import {
+  Plus,
+  Eye,
+  CreditCard,
+  TrendingUp,
+  Wallet,
+  ArrowLeft,
+} from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore } from "@/app/hooks/useStore";
 import { useRouter } from "next/navigation";
@@ -12,34 +18,64 @@ import DashboardHeader from "@/app/components/dashboard-component/DashboardHeade
 
 const Dashboard = () => {
   const router = useRouter();
-  const { pages, user } = useStore();
+  const { pages } = useStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const totalBalance = pages.reduce((sum, page) => sum + (page.pageBalance || 0), 0);
-  const totalRevenue = pages.reduce((sum, page) => sum + (page.totalRevenue || 0), 0);
-  const totalPayments = pages.reduce((sum, page) => sum + (page.totalPayments || 0), 0);
-  const totalViews = pages.reduce((sum, page) => sum + (page.pageViews || 0), 0);
+  const totalBalance = pages.reduce(
+    (sum, page) => sum + (page.pageBalance || 0),
+    0,
+  );
+  const totalRevenue = pages.reduce(
+    (sum, page) => sum + (page.totalRevenue || 0),
+    0,
+  );
+  const totalPayments = pages.reduce(
+    (sum, page) => sum + (page.totalPayments || 0),
+    0,
+  );
+  const totalViews = pages.reduce(
+    (sum, page) => sum + (page.pageViews || 0),
+    0,
+  );
 
   return (
     <div className="min-h-screen dark:bg-[#0e0e0e]">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-        
+
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto">
+            {/* Back Button */}
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-sm text-[#6b6b6b] dark:text-[#a6a6a6] hover:text-[#023528] dark:hover:text-[#f5f5f5] transition-colors mb-4"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
+
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold">Payment Pages</h1>
+                <h1 className="text-2xl md:text-3xl font-bold">
+                  Payment Pages
+                </h1>
                 <p className="text-gray-500 text-sm mt-1">
                   {pages.length === 0
                     ? "Create your first payment page to start collecting money"
                     : `${pages.length} page${pages.length > 1 ? "s" : ""} created`}
                 </p>
               </div>
-              <Button variant="default" onClick={() => router.push("/dashboard/services/payment/create")}>
+              <Button
+                variant="default"
+                onClick={() =>
+                  router.push("/dashboard/services/payment/create")
+                }
+              >
                 <Plus className="h-4 w-4 mr-1" /> New Page
               </Button>
             </div>
@@ -49,12 +85,16 @@ const Dashboard = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div className="p-4 rounded-2xl bg-white dark:bg-[#121212] border">
                   <Wallet className="h-5 w-5 text-[#e1bf46] mb-2" />
-                  <div className="text-2xl font-bold">₦{totalBalance.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">
+                    ₦{totalBalance.toLocaleString()}
+                  </div>
                   <div className="text-xs text-gray-500">Total Balance</div>
                 </div>
                 <div className="p-4 rounded-2xl bg-white dark:bg-[#121212] border">
                   <TrendingUp className="h-5 w-5 text-[#28a36a] mb-2" />
-                  <div className="text-2xl font-bold">₦{totalRevenue.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">
+                    ₦{totalRevenue.toLocaleString()}
+                  </div>
                   <div className="text-xs text-gray-500">Total Revenue</div>
                 </div>
                 <div className="p-4 rounded-2xl bg-white dark:bg-[#121212] border">
@@ -64,7 +104,9 @@ const Dashboard = () => {
                 </div>
                 <div className="p-4 rounded-2xl bg-white dark:bg-[#121212] border">
                   <Eye className="h-5 w-5 text-[#e1bf46] mb-2" />
-                  <div className="text-2xl font-bold">{totalViews.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">
+                    {totalViews.toLocaleString()}
+                  </div>
                   <div className="text-xs text-gray-500">Total Views</div>
                 </div>
               </div>
@@ -72,7 +114,11 @@ const Dashboard = () => {
 
             {/* Page Grid or Empty State */}
             {pages.length === 0 ? (
-              <EmptyState onCreateClick={() => router.push("/dashboard/services/payment/create")} />
+              <EmptyState
+                onCreateClick={() =>
+                  router.push("/dashboard/services/payment/create")
+                }
+              />
             ) : (
               <PageGrid pages={pages} />
             )}
@@ -117,7 +163,9 @@ const PageGrid = ({ pages }: { pages: any[] }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05 }}
-          onClick={() => router.push(`/page/${page.id}`)}
+          onClick={() =>
+            router.push(`/dashboard/services/payment/page/${page.id}`)
+          }
           className="cursor-pointer group p-5 rounded-2xl bg-white dark:bg-[#121212] border hover:border-[#e1bf46] hover:shadow-lg transition-all duration-300"
         >
           {page.coverImage ? (
@@ -141,7 +189,8 @@ const PageGrid = ({ pages }: { pages: any[] }) => {
           </p>
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <span className="flex items-center gap-1">
-              <Wallet className="h-3 w-3" />₦{(page.pageBalance || 0).toLocaleString()}
+              <Wallet className="h-3 w-3" />₦
+              {(page.pageBalance || 0).toLocaleString()}
             </span>
             <span className="flex items-center gap-1">
               <CreditCard className="h-3 w-3" />

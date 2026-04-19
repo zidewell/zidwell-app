@@ -12,6 +12,7 @@ import { InstallPrompt } from "./components/PushNotificationManager";
 import GlobalVerificationModal from "./components/GlobalVerificationModal";
 import { VerificationModalProvider } from "./context/verificationModalContext";
 import AuthChecker from "./components/AuthChecker";
+import { StoreProvider } from "./hooks/useStore";
 
 export const viewport: Viewport = {
   themeColor: "#2b825b",
@@ -516,6 +517,7 @@ export default function RootLayout({
           <SessionWatcher>
             <AuthChecker>
               <VerificationModalProvider>
+                  <StoreProvider>
                 {children}
                 <GlobalVerificationModal />
                 <div className="fixed bottom-4 right-4 z-50">
@@ -526,6 +528,7 @@ export default function RootLayout({
                 {/* <FloatingHelpButton /> */}
                 <NotificationToast />
                 {/* <DashboardFooter /> */}
+                </StoreProvider>
               </VerificationModalProvider>
             </AuthChecker>
           </SessionWatcher>

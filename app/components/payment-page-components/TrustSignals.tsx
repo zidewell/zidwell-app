@@ -1,3 +1,4 @@
+// app/components/payment-page-components/TrustSignals.tsx
 import { useRef } from "react";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";

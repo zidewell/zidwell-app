@@ -1,4 +1,3 @@
-// app/api/payment-page/list/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
@@ -8,7 +7,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// AUTHENTICATED API - Requires login
 export async function GET(request: Request) {
   try {
     // Check authentication

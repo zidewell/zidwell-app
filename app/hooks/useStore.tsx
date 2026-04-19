@@ -1,11 +1,8 @@
-// app/hooks/useStore.ts (updated with user profile data)
+"use client"
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { User } from "@supabase/supabase-js";
 
 export type PageType = "school" | "donation" | "physical" | "digital" | "services" | "real_estate" | "stock" | "savings" | "crypto";
 
-// Export these types for use in components
 export interface Student {
   name: string;
   className: string;
@@ -23,7 +20,6 @@ export interface Variant {
   options: string[];
 }
 
-// Export this function to check if a page type is investment-related
 export const isInvestmentType = (t: PageType) => {
   return ["real_estate", "stock", "savings", "crypto"].includes(t);
 };
@@ -48,7 +44,6 @@ export interface PaymentPage {
   pageType: PageType;
   isPublished: boolean;
   metadata: any;
-  // Legacy fields for backward compatibility with create page
   virtualAccount?: string;
   bankName?: string;
   students?: Student[];
@@ -82,30 +77,24 @@ export interface PaymentPage {
   totalParticipants?: number;
 }
 
-// Extended user type with profile data
-export interface AppUser extends User {
-  profile_picture?: string;
-  full_name?: string;
-}
-
 interface StoreContextType {
   pages: PaymentPage[];
-  user: AppUser | null;
   loading: boolean;
   fetchPages: () => Promise<void>;
   createPage: (pageData: any) => Promise<any>;
   getPageDetails: (id: string) => Promise<any>;
+  getPageStats: (id: string) => Promise<{ payments: any[], totalAmount: number, totalCount: number }>;
   withdrawFromPage: (pageId: string, amount: number) => Promise<any>;
   addPage: (page: PaymentPage) => void;
 }
 
 const StoreContext = createContext<StoreContextType>({
   pages: [],
-  user: null,
   loading: true,
   fetchPages: async () => {},
   createPage: async () => {},
   getPageDetails: async () => {},
+  getPageStats: async () => ({ payments: [], totalAmount: 0, totalCount: 0 }),
   withdrawFromPage: async () => {},
   addPage: () => {},
 });
@@ -114,72 +103,75 @@ export const useStore = () => useContext(StoreContext);
 
 export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [pages, setPages] = useState<PaymentPage[]>([]);
-  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClientComponentClient();
-
-  const getToken = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token;
-  };
 
   const fetchPages = async () => {
     try {
-      const token = await getToken();
-      if (!token) return;
-
-      const response = await fetch("/api/payment-page/list", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      const response = await fetch("/api/payment-page/list");
       if (!response.ok) throw new Error("Failed to fetch pages");
-      
       const data = await response.json();
       setPages(data.pages || []);
     } catch (error) {
       console.error("Error fetching pages:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const createPage = async (pageData: any) => {
+ const createPage = async (pageData: any) => {
+  console.log("Creating page with data:", pageData);
+
+  try {
+    const response = await fetch("/api/payment-page/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(pageData),
+    });
+
+    console.log("Response status:", response.status);
+    console.log("Response OK?", response.ok);
+    
+    // First get the raw text to see what's coming back
+    const rawResponse = await response.text();
+    console.log("Raw response:", rawResponse);
+    
+    // Try to parse as JSON
+    let data;
     try {
-      const token = await getToken();
-      if (!token) throw new Error("Not authenticated");
-
-      const response = await fetch("/api/payment-page/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(pageData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create page");
-      }
-
-      const data = await response.json();
-      await fetchPages();
-      return data.page;
-    } catch (error) {
-      console.error("Error creating page:", error);
-      throw error;
+      data = JSON.parse(rawResponse);
+    } catch (e) {
+      console.error("Failed to parse JSON:", e);
+      throw new Error("Invalid response from server");
     }
-  };
+    
+    console.log("Parsed data:", data);
 
+    if (!response.ok) {
+      throw new Error(data.error || `Failed to create page: ${response.status}`);
+    }
+
+    if (!data || (!data.page && !data.slug)) {
+      console.error("Missing page/slug property in response:", data);
+      throw new Error("Server returned invalid response - missing page data");
+    }
+
+    console.log("Page created successfully:", data);
+    
+    // Return the data directly
+    return data;
+    
+  } catch (error) {
+    console.error("Error in createPage:", error);
+    throw error;
+  }
+};
+  
   const getPageDetails = async (id: string) => {
     try {
-      const token = await getToken();
-      if (!token) throw new Error("Not authenticated");
-
-      const response = await fetch(`/api/payment-page/details/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      const response = await fetch(`/api/payment-page/details/${id}`);
       if (!response.ok) throw new Error("Failed to fetch page details");
-
       const data = await response.json();
       return data.page;
     } catch (error) {
@@ -188,16 +180,26 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const getPageStats = async (id: string) => {
+    try {
+      const pageDetails = await getPageDetails(id);
+      return {
+        payments: pageDetails?.recentPayments || [],
+        totalAmount: pageDetails?.paymentStats?.totalAmount || 0,
+        totalCount: pageDetails?.paymentStats?.totalCount || 0,
+      };
+    } catch (error) {
+      console.error("Error fetching page stats:", error);
+      return { payments: [], totalAmount: 0, totalCount: 0 };
+    }
+  };
+
   const withdrawFromPage = async (pageId: string, amount: number) => {
     try {
-      const token = await getToken();
-      if (!token) throw new Error("Not authenticated");
-
       const response = await fetch("/api/payment-page/withdraw", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ pageId, amount }),
       });
@@ -221,42 +223,18 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    const init = async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      
-      if (authUser) {
-        // Fetch user profile data from users table
-        const { data: userData } = await supabase
-          .from("users")
-          .select("profile_picture, full_name")
-          .eq("id", authUser.id)
-          .single();
-
-        // Merge auth user with profile data
-        const appUser: AppUser = {
-          ...authUser,
-          profile_picture: userData?.profile_picture || authUser.user_metadata?.avatar_url,
-          full_name: userData?.full_name || authUser.user_metadata?.full_name || authUser.email,
-        };
-        
-        setUser(appUser);
-        await fetchPages();
-      }
-      
-      setLoading(false);
-    };
-    init();
+    fetchPages();
   }, []);
 
   return (
     <StoreContext.Provider
       value={{
         pages,
-        user,
         loading,
         fetchPages,
         createPage,
         getPageDetails,
+        getPageStats,
         withdrawFromPage,
         addPage,
       }}

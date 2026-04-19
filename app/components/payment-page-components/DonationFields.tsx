@@ -1,3 +1,4 @@
+// app/components/payment-page-components/DonationFields.tsx
 import { X, Plus } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -11,16 +12,38 @@ interface Props {
   setShowDonorList: (v: boolean) => void;
   allowDonorMessage: boolean;
   setAllowDonorMessage: (v: boolean) => void;
+  price?: number;
+  onPriceChange?: (price: number) => void;
 }
 
-const DonationFields = ({ suggestedAmounts, setSuggestedAmounts, showDonorList, setShowDonorList, allowDonorMessage, setAllowDonorMessage }: Props) => {
+const DonationFields = ({ 
+  suggestedAmounts, 
+  setSuggestedAmounts, 
+  showDonorList, 
+  setShowDonorList, 
+  allowDonorMessage, 
+  setAllowDonorMessage,
+  price,
+  onPriceChange 
+}: Props) => {
   const addAmount = () => setSuggestedAmounts([...suggestedAmounts, 0]);
   const updateAmount = (i: number, val: string) => {
     const updated = [...suggestedAmounts];
     updated[i] = Number(val) || 0;
     setSuggestedAmounts(updated);
+    // Update price to the first suggested amount if available
+    if (onPriceChange && updated[0]) {
+      onPriceChange(updated[0]);
+    }
   };
-  const removeAmount = (i: number) => setSuggestedAmounts(suggestedAmounts.filter((_, idx) => idx !== i));
+  const removeAmount = (i: number) => {
+    const updated = suggestedAmounts.filter((_, idx) => idx !== i);
+    setSuggestedAmounts(updated);
+    // Update price to the first suggested amount if available
+    if (onPriceChange && updated[0]) {
+      onPriceChange(updated[0]);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -29,8 +52,17 @@ const DonationFields = ({ suggestedAmounts, setSuggestedAmounts, showDonorList, 
         <div className="flex flex-wrap gap-2 mb-2">
           {suggestedAmounts.map((a, i) => (
             <div key={i} className="flex items-center gap-1 bg-[#e9e2d7] rounded-lg px-1">
-              <Input type="number" value={a || ""} onChange={(e) => updateAmount(i, e.target.value)} className="w-24 h-8 text-sm border-0 bg-transparent" placeholder="₦" />
-              <button onClick={() => removeAmount(i)} className="h-6 w-6 rounded flex items-center justify-center text-[#ee4343] hover:bg-[#ee4343]/10">
+              <Input 
+                type="number" 
+                value={a || ""} 
+                onChange={(e) => updateAmount(i, e.target.value)} 
+                className="w-24 h-8 text-sm border-0 bg-transparent" 
+                placeholder="₦" 
+              />
+              <button 
+                onClick={() => removeAmount(i)} 
+                className="h-6 w-6 rounded flex items-center justify-center text-[#ee4343] hover:bg-[#ee4343]/10"
+              >
                 <X className="h-3 w-3" />
               </button>
             </div>

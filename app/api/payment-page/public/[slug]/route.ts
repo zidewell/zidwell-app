@@ -1,5 +1,4 @@
-// app/api/payment-page/public/[slug]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -9,11 +8,11 @@ const supabase = createClient(
 
 // PUBLIC API - No authentication required
 export async function GET(
-  request: Request,
-  { params }: { params: { slug: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = params;
+   const slug = (await params).slug;
 
     // Get published page by slug
     const { data: page, error: pageError } = await supabase
@@ -24,14 +23,20 @@ export async function GET(
       .single();
 
     if (pageError || !page) {
+      console.error("Page not found error:", pageError);
       return NextResponse.json(
         { error: "Payment page not found" },
         { status: 404 }
       );
     }
 
-    // Increment page views (async, don't wait)
-    supabase.rpc("increment_page_views", { p_page_id: page.id }).catch(console.error);
+    // Increment page views - FIXED error handling
+    try {
+      await supabase.rpc("increment_page_views", { p_page_id: page.id });
+    } catch (rpcError) {
+      // Don't fail the request if view increment fails
+      console.error("Failed to increment page views:", rpcError);
+    }
 
     // Return only public-safe data
     const formattedPage = {

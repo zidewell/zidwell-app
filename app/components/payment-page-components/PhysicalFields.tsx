@@ -1,3 +1,4 @@
+// app/components/payment-page-components/PhysicalFields.tsx
 import { X, Plus } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -10,9 +11,18 @@ interface Props {
   setVariants: (v: Variant[]) => void;
   requiresShipping: boolean;
   setRequiresShipping: (v: boolean) => void;
+  price?: number;
+  onPriceChange?: (price: number) => void;
 }
 
-const PhysicalFields = ({ variants, setVariants, requiresShipping, setRequiresShipping }: Props) => {
+const PhysicalFields = ({ 
+  variants, 
+  setVariants, 
+  requiresShipping, 
+  setRequiresShipping,
+  price,
+  onPriceChange 
+}: Props) => {
   const addVariant = () => setVariants([...variants, { name: "", options: [""] }]);
   const updateVariantName = (i: number, val: string) => {
     const updated = [...variants];
@@ -46,7 +56,12 @@ const PhysicalFields = ({ variants, setVariants, requiresShipping, setRequiresSh
           {variants.map((v, vi) => (
             <div key={vi} className="p-4 rounded-xl border border-[#ded4c3] bg-[#e9e2d7]/30 space-y-3">
               <div className="flex gap-2 items-center">
-                <Input placeholder="Variant name (e.g. Size, Color)" value={v.name} onChange={(e) => updateVariantName(vi, e.target.value)} className="flex-1 h-9 text-sm" />
+                <Input 
+                  placeholder="Variant name (e.g. Size, Color)" 
+                  value={v.name} 
+                  onChange={(e) => updateVariantName(vi, e.target.value)} 
+                  className="flex-1 h-9 text-sm" 
+                />
                 <button onClick={() => removeVariant(vi)} className="h-7 w-7 rounded-md bg-[#ee4343]/10 flex items-center justify-center text-[#ee4343]">
                   <X className="h-3 w-3" />
                 </button>
@@ -54,7 +69,12 @@ const PhysicalFields = ({ variants, setVariants, requiresShipping, setRequiresSh
               <div className="flex flex-wrap gap-2">
                 {v.options.map((opt, oi) => (
                   <div key={oi} className="flex items-center gap-1 bg-[#f7f0e2] rounded-lg px-1 border border-[#ded4c3]">
-                    <Input placeholder="Option" value={opt} onChange={(e) => updateOption(vi, oi, e.target.value)} className="w-20 h-7 text-xs border-0 bg-transparent" />
+                    <Input 
+                      placeholder="Option" 
+                      value={opt} 
+                      onChange={(e) => updateOption(vi, oi, e.target.value)} 
+                      className="w-20 h-7 text-xs border-0 bg-transparent" 
+                    />
                     {v.options.length > 1 && (
                       <button onClick={() => removeOption(vi, oi)} className="h-5 w-5 rounded flex items-center justify-center text-[#ee4343]">
                         <X className="h-2.5 w-2.5" />

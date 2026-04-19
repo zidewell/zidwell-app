@@ -1,5 +1,4 @@
-// app/api/payment-page/details/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 
@@ -8,16 +7,17 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// AUTHENTICATED API - Requires login
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
-
+   
+     const id = (await params).id;
+   
+   
     // Check authentication
-    const { user, newTokens } = await isAuthenticatedWithRefresh(request as any);
+    const { user, newTokens } = await isAuthenticatedWithRefresh(req);
     
     if (!user) {
       const response = NextResponse.json({ error: "Please login to view page details", logout: true }, { status: 401 });
@@ -83,12 +83,14 @@ export async function GET(
       },
     };
 
-    const response = NextResponse.json({
+    const responseData = {
       success: true,
       page: formattedPage,
-    });
+    };
 
-    if (newTokens) return createAuthResponse(await response.json(), newTokens);
+    const response = NextResponse.json(responseData);
+
+    if (newTokens) return createAuthResponse(responseData, newTokens);
     return response;
   } catch (error: any) {
     console.error("Get page details error:", error);

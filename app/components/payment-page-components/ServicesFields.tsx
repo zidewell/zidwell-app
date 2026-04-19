@@ -1,3 +1,4 @@
+// app/components/payment-page-components/ServicesFields.tsx
 import { Label } from "@/app/components/ui/label";
 import { Switch } from "@/app/components/ui/switch";
 
@@ -6,9 +7,18 @@ interface Props {
   setBookingEnabled: (v: boolean) => void;
   customerNoteEnabled: boolean;
   setCustomerNoteEnabled: (v: boolean) => void;
+  price?: number;
+  onPriceChange?: (price: number) => void;
 }
 
-const ServicesFields = ({ bookingEnabled, setBookingEnabled, customerNoteEnabled, setCustomerNoteEnabled }: Props) => (
+const ServicesFields = ({ 
+  bookingEnabled, 
+  setBookingEnabled, 
+  customerNoteEnabled, 
+  setCustomerNoteEnabled,
+  price,
+  onPriceChange 
+}: Props) => (
   <div className="space-y-6">
     <div className="flex items-center justify-between">
       <div>

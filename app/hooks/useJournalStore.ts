@@ -1,5 +1,6 @@
 // app/hooks/useJournalStore.ts
-import { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { JournalEntry, Category, JournalType, DEFAULT_CATEGORIES, PeriodSummary } from '../components/journal/types'; 
 import { 
   startOfDay, 
@@ -15,21 +16,59 @@ import {
 } from 'date-fns';
 import { useUserContextData } from '../context/userData'; 
 
+export interface UnifiedTransaction {
+  id: string;
+  date: string;
+  type: 'income' | 'expense';
+  amount: number;
+  categoryId: string;
+  note: string;
+  source: 'manual' | 'wallet';
+  originalTransactionId?: string;
+  walletTransactionType?: string;
+  status?: string;
+  transactionDescription?: string;
+}
+
+interface WalletTransaction {
+  id: string;
+  created_at: string;
+  description: string;
+  amount: number;
+  type: string;
+  status: string;
+  reference?: string;
+  fee?: number;
+  narration?: string;
+  merchant_tx_ref?: string;
+}
+
 const API_BASE = '/api/journal';
 
+// INFLOW: Money you RECEIVE (Income)
+const INFLOW_TYPES = [
+  'deposit', 'virtual_account_deposit', 'card_deposit', 
+  'p2p_received', 'referral', 'referral_reward', 
+  'refund', 'cashback', 'reversal'
+];
+
+// OUTFLOW: Money you DEDUCT/WITHDRAW (Expense)
+const OUTFLOW_TYPES = [
+  'transfer', 'withdrawal', 'debit', 'airtime', 'data', 
+  'electricity', 'cable', 'p2p_transfer', 'bill_payment', 
+  'purchase', 'subscription', 'fee', 'charge'
+];
+
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId: string) {
-  // For POST and PUT requests, don't add userId to URL, send it in body
   const isMutation = options.method === 'POST' || options.method === 'PUT';
   
   let url = `${API_BASE}${endpoint}`;
   
-  // For GET and DELETE, add userId as query param
   if (!isMutation) {
     const separator = url.includes('?') ? '&' : '?';
     url = `${url}${separator}userId=${encodeURIComponent(userId)}`;
   }
 
-  // Prepare request options
   const requestOptions: RequestInit = {
     ...options,
     headers: {
@@ -39,7 +78,6 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId
     credentials: 'include',
   };
 
-  // For POST and PUT, ensure userId is in the body if not already present
   if (isMutation && options.body) {
     try {
       const bodyData = JSON.parse(options.body as string);
@@ -60,7 +98,6 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId
       const errorData = await res.json();
       errorMessage = errorData.error || errorData.message || errorMessage;
     } catch {
-      // If response is not JSON, try to get text
       try {
         const textError = await res.text();
         if (textError) errorMessage = textError;
@@ -77,6 +114,7 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId
 export function useJournalStore() {
   const { userData } = useUserContextData();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [activeJournalType, setActiveJournalType] = useState<JournalType>('business');
   const [loading, setLoading] = useState(true);
@@ -85,40 +123,243 @@ export function useJournalStore() {
 
   const userId = userData?.id;
 
-  // Force re-render in all consumers
   const forceUpdate = useCallback(() => {
     setUpdateTrigger(prev => prev + 1);
   }, []);
 
-  useEffect(() => {
-    if (userId) {
-      loadData();
-    } else {
-      setEntries([]);
-      setCategories(DEFAULT_CATEGORIES);
-      setLoading(false);
+  // Helper: Determine if transaction is INFLOW (money received) or OUTFLOW (money deducted)
+  const getWalletTransactionType = useCallback((transaction: WalletTransaction): 'income' | 'expense' => {
+    const transactionType = transaction.type?.toLowerCase();
+    
+    // INFLOW: Money you RECEIVE → INCOME
+    if (INFLOW_TYPES.includes(transactionType)) {
+      return 'income';
+    }
+    
+    // OUTFLOW: Money you DEDUCT/WITHDRAW → EXPENSE
+    if (OUTFLOW_TYPES.includes(transactionType)) {
+      return 'expense';
+    }
+    
+    // Fallback: check amount sign
+    if (transaction.amount > 0) {
+      return 'income';
+    } else if (transaction.amount < 0) {
+      return 'expense';
+    }
+    
+    return 'expense';
+  }, []);
+
+  // Helper: Get the best description for the transaction
+  const getTransactionDescription = useCallback((transaction: WalletTransaction): string => {
+    if (transaction.narration) return transaction.narration;
+    if (transaction.description) return transaction.description;
+    if (transaction.merchant_tx_ref) return transaction.merchant_tx_ref;
+    return `${transaction.type} transaction`;
+  }, []);
+
+  // Helper: Get appropriate category based on transaction type
+  const getCategoryForWalletTransaction = useCallback((transaction: WalletTransaction): string => {
+    const type = transaction.type?.toLowerCase();
+    const description = (transaction.description || transaction.narration || '').toLowerCase();
+    const isOutflow = OUTFLOW_TYPES.includes(type) || transaction.amount < 0;
+    
+    // OUTFLOW (Money deducted/withdrawn) - EXPENSES
+    if (isOutflow) {
+      // Airtime purchase
+      if (type === 'airtime' || description.includes('airtime')) {
+        const cat = categories.find(c => c.name === 'Data & Airtime');
+        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+      }
+      // Data purchase
+      if (type === 'data' || description.includes('data')) {
+        const cat = categories.find(c => c.name === 'Data & Airtime');
+        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+      }
+      // Electricity bill
+      if (type === 'electricity' || description.includes('electricity') || description.includes('light') || description.includes('power')) {
+        const cat = categories.find(c => c.name === 'Utilities');
+        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+      }
+      // Cable TV
+      if (type === 'cable' || description.includes('cable') || description.includes('tv') || description.includes('dstv') || description.includes('gotv')) {
+        const cat = categories.find(c => c.name === 'Utilities');
+        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+      }
+      // Bank transfer / P2P sent
+      if (type === 'transfer' || type === 'p2p_transfer' || description.includes('transfer') || description.includes('send to')) {
+        const cat = categories.find(c => c.name === 'Bank Transfer');
+        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+      }
+      // Withdrawal
+      if (type === 'withdrawal' || description.includes('withdraw') || description.includes('cash withdrawal')) {
+        const cat = categories.find(c => c.name === 'Withdrawal');
+        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+      }
+      // Debit transaction
+      if (type === 'debit' || description.includes('debit')) {
+        const cat = categories.find(c => c.name === 'Debit Transaction');
+        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+      }
+      // Food/Restaurant
+      if (description.includes('food') || description.includes('restaurant') || description.includes('cafe') || description.includes('eatery')) {
+        const cat = categories.find(c => c.name === 'Food');
+        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+      }
+      // Transport
+      if (description.includes('transport') || description.includes('uber') || description.includes('taxi') || description.includes('fuel') || description.includes('petrol')) {
+        const cat = categories.find(c => c.name === 'Transportation');
+        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+      }
+      // Bill payment
+      if (type === 'bill_payment' || description.includes('bill')) {
+        const cat = categories.find(c => c.name === 'Bills');
+        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+      }
+      
+      // Default expense category
+      const cat = categories.find(c => c.name === 'Wallet Expense' || c.name === 'Other Expense');
+      return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+    }
+    
+    // INFLOW (Money received) - INCOME
+    // Salary/Wages
+    if (description.includes('salary') || description.includes('wage') || description.includes('payroll')) {
+      const cat = categories.find(c => c.name === 'Salary' || c.name === 'Income');
+      return cat?.id || categories.find(c => c.type === 'income')?.id || '';
+    }
+    // Refund
+    if (type === 'refund' || description.includes('refund') || description.includes('reversal')) {
+      const cat = categories.find(c => c.name === 'Refund');
+      return cat?.id || categories.find(c => c.type === 'income')?.id || '';
+    }
+    // Referral bonus
+    if (type === 'referral' || type === 'referral_reward' || description.includes('referral')) {
+      const cat = categories.find(c => c.name === 'Referral Bonus');
+      return cat?.id || categories.find(c => c.type === 'income')?.id || '';
+    }
+    // P2P Received
+    if (type === 'p2p_received' || description.includes('received from')) {
+      const cat = categories.find(c => c.name === 'P2P Transfer Received');
+      return cat?.id || categories.find(c => c.type === 'income')?.id || '';
+    }
+    // Deposit
+    if (type === 'deposit' || type === 'virtual_account_deposit' || type === 'card_deposit' || description.includes('deposit')) {
+      const cat = categories.find(c => c.name === 'Bank Deposit');
+      return cat?.id || categories.find(c => c.type === 'income')?.id || '';
+    }
+    // Cashback
+    if (type === 'cashback' || description.includes('cashback')) {
+      const cat = categories.find(c => c.name === 'Cashback');
+      return cat?.id || categories.find(c => c.type === 'income')?.id || '';
+    }
+    
+    // Default income category
+    const cat = categories.find(c => c.name === 'Wallet Income' || c.name === 'Other Income');
+    return cat?.id || categories.find(c => c.type === 'income')?.id || '';
+  }, [categories]);
+
+  const fetchWalletTransactions = useCallback(async () => {
+    if (!userId) return [];
+    try {
+      const response = await fetch(`/api/bill-transactions?userId=${userId}&limit=500`);
+      const data = await response.json();
+      console.log('💰 Wallet transactions fetched:', data?.transactions?.length || 0);
+      
+      // Log sample to debug
+      if (data?.transactions?.length > 0) {
+        const sample = data.transactions[0];
+        console.log('📝 Sample transaction:', {
+          type: sample.type,
+          amount: sample.amount,
+          description: sample.description,
+          status: sample.status
+        });
+      }
+      return data?.transactions || [];
+    } catch (err) {
+      console.error("Error fetching wallet transactions:", err);
+      return [];
     }
   }, [userId]);
 
+  // Create unified entries (manual + wallet transactions)
+  const unifiedEntries: UnifiedTransaction[] = useMemo(() => {
+    const manualEntries: UnifiedTransaction[] = entries.map(entry => ({
+      id: entry.id,
+      date: entry.date,
+      type: entry.type,
+      amount: entry.amount,
+      categoryId: entry.categoryId,
+      note: entry.note || '',
+      source: 'manual',
+    }));
+
+    const walletEntries: UnifiedTransaction[] = walletTransactions
+      .filter(tx => tx.status?.toLowerCase() === 'success')
+      .map(tx => {
+        const txType = getWalletTransactionType(tx);
+        const description = getTransactionDescription(tx);
+        const categoryId = getCategoryForWalletTransaction(tx);
+        const amount = Math.abs(tx.amount);
+        
+        // Log each transaction's classification
+        console.log(`📊 Transaction: ${tx.type} | ${txType === 'income' ? '➕ INFLOW (Received)' : '➖ OUTFLOW (Deducted)'} | ₦${amount} | ${description.substring(0, 50)}`);
+        
+        return {
+          id: `wallet_${tx.id}`,
+          date: new Date(tx.created_at).toISOString(),
+          type: txType,
+          amount: amount,
+          categoryId: categoryId,
+          note: description,
+          source: 'wallet',
+          originalTransactionId: tx.id,
+          walletTransactionType: tx.type,
+          status: tx.status,
+          transactionDescription: description,
+        };
+      });
+
+    const allEntries = [...manualEntries, ...walletEntries];
+    const incomeCount = allEntries.filter(e => e.type === 'income').length;
+    const expenseCount = allEntries.filter(e => e.type === 'expense').length;
+    const totalIncome = allEntries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+    const totalExpense = allEntries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
+    
+    console.log(`📈 Unified entries: ${allEntries.length} total`);
+    console.log(`   ➕ Income: ${incomeCount} entries, ₦${totalIncome.toLocaleString()}`);
+    console.log(`   ➖ Expense: ${expenseCount} entries, ₦${totalExpense.toLocaleString()}`);
+    
+    return allEntries.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [entries, walletTransactions, getWalletTransactionType, getTransactionDescription, getCategoryForWalletTransaction]);
+
   const loadData = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     
     try {
       setLoading(true);
       setError(null);
       
-      // Load categories
       const categoriesData = await fetchWithAuth('/categories', {}, userId);
-      
       const mergedCategories = [
         ...DEFAULT_CATEGORIES,
         ...categoriesData.filter((cat: Category) => cat.isCustom)
       ];
       setCategories(mergedCategories);
       
-      // Load entries
       const entriesData = await fetchWithAuth('/entries', {}, userId);
       setEntries(entriesData);
+      
+      const walletData = await fetchWalletTransactions();
+      setWalletTransactions(walletData);
+      
       forceUpdate();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -126,7 +367,21 @@ export function useJournalStore() {
     } finally {
       setLoading(false);
     }
-  }, [userId, forceUpdate]);
+  }, [userId, forceUpdate, fetchWalletTransactions]);
+
+  useEffect(() => {
+    if (userId) {
+      loadData();
+    } else {
+      setEntries([]);
+      setWalletTransactions([]);
+      setCategories(DEFAULT_CATEGORIES);
+      setLoading(false);
+    }
+  }, [userId, loadData]);
+
+  // Add other CRUD functions here (addEntry, updateEntry, deleteEntry, etc.)
+  // ... (keep your existing CRUD functions)
 
   const addEntry = useCallback(async (entry: Omit<JournalEntry, 'id' | 'createdAt'>) => {
     if (!userId) throw new Error('User not authenticated');
@@ -147,14 +402,12 @@ export function useJournalStore() {
       
       const newEntry = data as JournalEntry;
       
-      // Update state with new entry at the beginning
       setEntries(prev => {
         const exists = prev.some(e => e.id === newEntry.id);
         if (exists) return prev;
         return [newEntry, ...prev];
       });
       
-      // Force multiple updates to ensure all components re-render
       setTimeout(() => forceUpdate(), 0);
       setTimeout(() => forceUpdate(), 50);
       
@@ -188,6 +441,11 @@ export function useJournalStore() {
 
   const deleteEntry = useCallback(async (id: string) => {
     if (!userId) throw new Error('User not authenticated');
+    
+    if (id.startsWith('wallet_')) {
+      alert('Wallet transactions cannot be deleted. They are automatically synced from your wallet activity.');
+      return;
+    }
     
     try {
       await fetchWithAuth(`/entries/${id}`, {
@@ -273,24 +531,22 @@ export function useJournalStore() {
     }
   }, [userId, forceUpdate]);
 
-  // Helper functions
   const getFilteredEntries = useCallback((journalType: JournalType) => {
-    return entries.filter(entry => entry.journalType === journalType);
-  }, [entries]);
+    return unifiedEntries;
+  }, [unifiedEntries]);
 
   const getEntriesForPeriod = useCallback((
     journalType: JournalType, 
     startDate: Date, 
     endDate: Date
   ) => {
-    return entries.filter(entry => {
-      if (entry.journalType !== journalType) return false;
+    return unifiedEntries.filter(entry => {
       const entryDate = parseISO(entry.date);
       return isWithinInterval(entryDate, { start: startDate, end: endDate });
     });
-  }, [entries]);
+  }, [unifiedEntries]);
 
-  const calculateSummary = useCallback((filteredEntries: JournalEntry[]): PeriodSummary => {
+  const calculateSummary = useCallback((filteredEntries: UnifiedTransaction[]): PeriodSummary => {
     const income = filteredEntries
       .filter(e => e.type === 'income')
       .reduce((sum, e) => sum + e.amount, 0);
@@ -308,15 +564,12 @@ export function useJournalStore() {
     };
   }, []);
 
-  // ALL-TIME Summary - This shows all entries ever created
   const getAllTimeSummary = useCallback((journalType: JournalType) => {
-    const filteredEntries = entries.filter(entry => entry.journalType === journalType);
-    
-    const income = filteredEntries
+    const income = unifiedEntries
       .filter(e => e.type === 'income')
       .reduce((sum, e) => sum + e.amount, 0);
     
-    const expenses = filteredEntries
+    const expenses = unifiedEntries
       .filter(e => e.type === 'expense')
       .reduce((sum, e) => sum + e.amount, 0);
 
@@ -327,7 +580,7 @@ export function useJournalStore() {
       savings: 0,
       investments: 0,
     };
-  }, [entries]);
+  }, [unifiedEntries]);
 
   const getTodaySummary = useCallback((journalType: JournalType) => {
     const today = new Date();
@@ -421,5 +674,7 @@ export function useJournalStore() {
     refetch,
     userId,
     updateTrigger,
+    unifiedEntries,
+    walletTransactions,
   };
 }

@@ -6,11 +6,11 @@
 // export default function SessionWatcher({ children }: { children: React.ReactNode }) {
 //   const router = useRouter();
 //   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
-//   const INACTIVITY_LIMIT = 15 * 60 * 1000; 
+//   const INACTIVITY_LIMIT = 15 * 60 * 1000;
 
 //   useEffect(() => {
 //     let activityTimer: NodeJS.Timeout;
-    
+
 //     const updateActivity = () => {
 //       setLastActivityTime(Date.now());
 //     };
@@ -23,8 +23,8 @@
 
 //     // Track essential user activities only
 //     const events = [
-//       "mousedown", 
-//       "click", 
+//       "mousedown",
+//       "click",
 //       "scroll",
 //       "keydown",
 //       "touchstart",
@@ -63,24 +63,24 @@
 //     const checkInactivity = async () => {
 //       const currentTime = Date.now();
 //       const timeSinceLastActivity = currentTime - lastActivityTime;
-      
+
 //       // console.log(`Time since last activity: ${Math.round(timeSinceLastActivity / 1000)}s`);
-      
+
 //       // Check if user has been inactive for 15 minutes
 //       if (!alreadyLoggedOut && timeSinceLastActivity > INACTIVITY_LIMIT) {
 //         alreadyLoggedOut = true;
-        
+
 //         console.log("User inactive for 15 minutes, logging out...");
 
 //         try {
 //           // Sign out via API
-//           const response = await fetch("/api/logout", { 
+//           const response = await fetch("/api/logout", {
 //             method: "POST",
 //             headers: {
 //               'Content-Type': 'application/json',
 //             }
 //           });
-          
+
 //           if (!response.ok) {
 //             throw new Error('Logout API failed');
 //           }
@@ -119,7 +119,7 @@
 //     };
 
 //     document.addEventListener("visibilitychange", handleVisibilityChange);
-    
+
 //     return () => {
 //       document.removeEventListener("visibilitychange", handleVisibilityChange);
 //     };
@@ -132,28 +132,32 @@
 
 //   return <>{children}</>;
 // }'use client';
-'use client';
+"use client";
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { useUserContextData } from '@/app/context/userData';
-import { useAuth } from '../hooks/useAuth'; 
+import { useEffect, useRef, useState, useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useUserContextData } from "@/app/context/userData";
+import { useAuth } from "../hooks/useAuth";
 
 // Public routes that don't need auth
 const PUBLIC_ROUTES = [
-  '/auth/login',
-  '/auth/register',
-  '/auth/forgot-password',
-  '/',
-  '/pricing',
-  '/blog',
-  '/about',
-  '/contact',
-  '/privacy',
-  '/terms',
+  "/auth/login",
+  "/auth/register",
+  "/auth/forgot-password",
+  "/",
+  "/pricing",
+  "/blog",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
 ];
 
-export default function SessionWatcher({ children }: { children: React.ReactNode }) {
+export default function SessionWatcher({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { userData, loading } = useUserContextData();
@@ -164,30 +168,37 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
   const authCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Set inactivity limit based on environment
-  const INACTIVITY_LIMIT = process.env.NODE_ENV === 'production' 
-    ? 15 * 60 * 1000  // 15 minutes in production
-    : 60 * 60 * 1000; // 1 hour in development
+  const INACTIVITY_LIMIT =
+    process.env.NODE_ENV === "production"
+      ? 15 * 60 * 1000 // 15 minutes in production
+      : 120 * 60 * 1000; // 2 hour in development
 
   // Check if current route is public
   const isPublicRoute = useCallback(() => {
     if (!pathname) return false;
-    return PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+    return PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
   }, [pathname]);
 
   // Reset activity timer
   const resetActivityTimer = useCallback(() => {
     setLastActivityTime(Date.now());
-    
+
     // Clear existing timer
     if (inactivityTimerRef.current) {
       clearTimeout(inactivityTimerRef.current);
     }
-    
+
     // Set new timer
     inactivityTimerRef.current = setTimeout(() => {
       const timeSinceLastActivity = Date.now() - lastActivityTime;
-      if (timeSinceLastActivity >= INACTIVITY_LIMIT && userData && !isPublicRoute()) {
-        console.log(`🕐 Inactive for ${Math.round(timeSinceLastActivity / 1000)}s, logging out...`);
+      if (
+        timeSinceLastActivity >= INACTIVITY_LIMIT &&
+        userData &&
+        !isPublicRoute()
+      ) {
+        console.log(
+          `🕐 Inactive for ${Math.round(timeSinceLastActivity / 1000)}s, logging out...`,
+        );
         logout();
       }
     }, INACTIVITY_LIMIT);
@@ -198,8 +209,14 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
     if (!userData || isPublicRoute()) return;
 
     const events = [
-      'mousedown', 'click', 'scroll', 'keydown', 
-      'touchstart', 'focus', 'mousemove', 'wheel'
+      "mousedown",
+      "click",
+      "scroll",
+      "keydown",
+      "touchstart",
+      "focus",
+      "mousemove",
+      "wheel",
     ];
 
     const handleActivity = () => {
@@ -207,7 +224,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
     };
 
     // Add event listeners
-    events.forEach(event => {
+    events.forEach((event) => {
       window.addEventListener(event, handleActivity, { passive: true });
     });
 
@@ -220,7 +237,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
         // User came back to tab, check if they were away too long
         const timeAway = Date.now() - lastActivityTime;
         if (timeAway > INACTIVITY_LIMIT) {
-          console.log('🕐 Tab inactive too long, logging out...');
+          console.log("🕐 Tab inactive too long, logging out...");
           logout();
         } else {
           resetActivityTimer();
@@ -228,19 +245,26 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Cleanup
     return () => {
-      events.forEach(event => {
+      events.forEach((event) => {
         window.removeEventListener(event, handleActivity);
       });
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
       }
     };
-  }, [userData, isPublicRoute, resetActivityTimer, INACTIVITY_LIMIT, lastActivityTime, logout]);
+  }, [
+    userData,
+    isPublicRoute,
+    resetActivityTimer,
+    INACTIVITY_LIMIT,
+    lastActivityTime,
+    logout,
+  ]);
 
   // Periodic auth check (every 5 minutes)
   useEffect(() => {
@@ -274,20 +298,23 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
     if (!userData || isPublicRoute() || checkedRef.current) return;
 
     checkedRef.current = true;
-    
+
     const validateOnRouteChange = async () => {
       const isValid = await checkAuth();
       if (!isValid) {
         checkedRef.current = false;
       }
     };
-    
+
     validateOnRouteChange();
-    
+
     // Reset check after 5 minutes
-    setTimeout(() => {
-      checkedRef.current = false;
-    }, 5 * 60 * 1000);
+    setTimeout(
+      () => {
+        checkedRef.current = false;
+      },
+      5 * 60 * 1000,
+    );
   }, [pathname, userData, isPublicRoute, checkAuth]);
 
   return <>{children}</>;

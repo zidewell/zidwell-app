@@ -1,4 +1,4 @@
-// app/api/webhook/route.ts
+// // app/api/webhook/route.ts
 // import { NextRequest, NextResponse } from "next/server";
 // import { createHmac, timingSafeEqual } from "crypto";
 // import { createClient } from "@supabase/supabase-js";
@@ -27,8 +27,6 @@
 
 // const headerImageUrl = `${baseUrl}/zidwell-header.png`;
 // const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
-
-// // ==================== HELPER FUNCTIONS ====================
 
 // async function updateInvoiceTotals(invoice: any, paidAmountNaira: number) {
 //   try {
@@ -230,8 +228,37 @@
 //   amount: number,
 //   customerName: string,
 //   fee?: number,
+//   metadata?: any,
 // ) {
 //   try {
+//     let additionalInfo = "";
+//     if (metadata?.pageType === "school") {
+//       additionalInfo = `
+//         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+//           <p><strong>Student Information:</strong></p>
+//           <p>Parent: ${metadata.parentName || "N/A"}</p>
+//           <p>Student: ${metadata.childName || "N/A"}</p>
+//           <p>Reg Number: ${metadata.regNumber || "N/A"}</p>
+//         </div>
+//       `;
+//     } else if (metadata?.pageType === "physical") {
+//       additionalInfo = `
+//         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+//           <p><strong>Shipping Information:</strong></p>
+//           <p>Quantity: ${metadata.quantity || "1"}</p>
+//           <p>Address: ${metadata.address || "N/A"}</p>
+//         </div>
+//       `;
+//     } else if (metadata?.pageType === "services" && metadata.bookingDate) {
+//       additionalInfo = `
+//         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+//           <p><strong>Booking Details:</strong></p>
+//           <p>Date: ${metadata.bookingDate || "N/A"}</p>
+//           <p>Time: ${metadata.bookingTime || "N/A"}</p>
+//         </div>
+//       `;
+//     }
+
 //     await transporter.sendMail({
 //       from: `Zidwell <${process.env.EMAIL_USER}>`,
 //       to: creatorEmail,
@@ -247,6 +274,7 @@
 //             <p><strong>Customer:</strong> ${customerName}</p>
 //             <p><strong>Status:</strong> <span style="color: #22c55e;">Completed</span></p>
 //           </div>
+//           ${additionalInfo}
 //           <p>The funds have been added to your payment page balance. You can withdraw them to your main wallet anytime.</p>
 //           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
 //         </div>
@@ -262,8 +290,27 @@
 //   pageTitle: string,
 //   amount: number,
 //   reference: string,
+//   metadata?: any,
 // ) {
 //   try {
+//     let additionalInfo = "";
+//     if (metadata?.pageType === "school") {
+//       additionalInfo = `
+//         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+//           <p><strong>Student Information:</strong></p>
+//           <p>Student Name: ${metadata.childName || "N/A"}</p>
+//           <p>Registration Number: ${metadata.regNumber || "N/A"}</p>
+//         </div>
+//       `;
+//     } else if (metadata?.pageType === "digital" && metadata.downloadUrl) {
+//       additionalInfo = `
+//         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+//           <p><strong>Download Link:</strong></p>
+//           <p><a href="${metadata.downloadUrl}" style="color: #e1bf46;">Click here to download</a></p>
+//         </div>
+//       `;
+//     }
+
 //     await transporter.sendMail({
 //       from: `Zidwell <${process.env.EMAIL_USER}>`,
 //       to: customerEmail,
@@ -279,6 +326,7 @@
 //             <p><strong>Reference:</strong> ${reference}</p>
 //             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
 //           </div>
+//           ${additionalInfo}
 //           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
 //         </div>
 //       `,
@@ -288,16 +336,12 @@
 //   }
 // }
 
-// // ==================== MAIN WEBHOOK HANDLER ====================
-
 // export async function POST(req: NextRequest) {
 //   try {
 //     console.log("====== Nomba Webhook Received ======");
 
-//     // Get raw body for signature verification
 //     const rawBody = await req.text();
 
-//     // Parse payload
 //     let payload;
 //     try {
 //       payload = JSON.parse(rawBody);
@@ -307,7 +351,6 @@
 //       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 //     }
 
-//     // Verify signature
 //     const timestamp = req.headers.get("nomba-timestamp");
 //     const signature =
 //       req.headers.get("nomba-sig-value") || req.headers.get("nomba-signature");
@@ -317,7 +360,6 @@
 //       return NextResponse.json({ error: "Missing signature" }, { status: 401 });
 //     }
 
-//     // Construct hash payload as per Nomba docs
 //     const hashingPayload = `${payload.event_type}:${payload.requestId}:${
 //       payload.data?.merchant?.userId || ""
 //     }:${payload.data?.merchant?.walletId || ""}:${
@@ -331,7 +373,6 @@
 //     hmac.update(message);
 //     const expectedSignature = hmac.digest("base64");
 
-//     // Timing-safe compare
 //     const receivedBuffer = Buffer.from(signature, "base64");
 //     const expectedBuffer = Buffer.from(expectedSignature, "base64");
 
@@ -345,7 +386,6 @@
 
 //     console.log("✅ Signature verified");
 
-//     // Extract common fields
 //     const eventType = payload.event_type || payload.eventType;
 //     const tx = payload.data?.transaction || {};
 //     const order = payload.data?.order || {};
@@ -372,7 +412,6 @@
 //       reference: nombaTransactionId,
 //     });
 
-//     // SKIP SUBSCRIPTION PAYMENTS - They are handled by callback
 //     const isSubscription =
 //       orderReference?.startsWith("SUB_") ||
 //       orderReference?.includes("SUB-") ||
@@ -392,7 +431,6 @@
 //       });
 //     }
 
-//     // ========== 1. INVOICE PAYMENTS ==========
 //     const isInvoicePayment =
 //       orderReference ||
 //       payload.data?.order?.callbackUrl?.includes(
@@ -406,7 +444,6 @@
 //     ) {
 //       console.log("🧾 Processing invoice payment...");
 
-//       // Find invoice ID
 //       let invoiceId =
 //         payload.data?.order?.metadata?.invoiceId || orderReference;
 
@@ -415,7 +452,6 @@
 //         return NextResponse.json({ error: "No invoice ID" }, { status: 400 });
 //       }
 
-//       // Look up invoice
 //       const { data: invoice, error: invoiceError } = await supabase
 //         .from("invoices")
 //         .select("*")
@@ -432,7 +468,6 @@
 
 //       console.log("✅ Found invoice:", invoice.invoice_id);
 
-//       // Check for duplicate
 //       const { data: existingPayment } = await supabase
 //         .from("invoice_payments")
 //         .select("*")
@@ -447,11 +482,8 @@
 
 //       const customerEmail = order.customerEmail || customer.email;
 //       const customerName = order.customerName || customer.name || "Customer";
-
-//       // Calculate net amount after Nomba fee
 //       const netAmount = transactionAmount - nombaFee;
 
-//       // Create payment record
 //       const { error: paymentError } = await supabase
 //         .from("invoice_payments")
 //         .insert({
@@ -478,7 +510,6 @@
 //         );
 //       }
 
-//       // Create transaction record
 //       await supabase.from("transactions").insert({
 //         user_id: invoice.user_id,
 //         type: "credit",
@@ -497,7 +528,6 @@
 //         },
 //       });
 
-//       // Credit wallet - NET AMOUNT (after Nomba fee)
 //       const { error: creditError } = await supabase.rpc(
 //         "increment_wallet_balance",
 //         {
@@ -514,10 +544,8 @@
 //         );
 //       }
 
-//       // Update invoice totals
 //       await updateInvoiceTotals(invoice, transactionAmount);
 
-//       // Send notifications (non-blocking)
 //       if (customerEmail) {
 //         sendPaymentSuccessEmail(
 //           customerEmail,
@@ -528,7 +556,6 @@
 //         ).catch(console.error);
 //       }
 
-//       // Get creator email and notify
 //       const { data: creator } = await supabase
 //         .from("users")
 //         .select("email")
@@ -549,7 +576,6 @@
 //       return NextResponse.json({ success: true });
 //     }
 
-//     // ========== 2. PAYMENT PAGE PAYMENTS (NEW) ==========
 //     const isPaymentPagePayment =
 //       payload.data?.order?.metadata?.type === "payment_page" ||
 //       payload.data?.order?.metadata?.paymentPageId ||
@@ -573,7 +599,6 @@
 //         );
 //       }
 
-//       // Check for duplicate transaction
 //       const { data: existingPayment } = await supabase
 //         .from("payment_page_payments")
 //         .select("*")
@@ -585,7 +610,6 @@
 //         return NextResponse.json({ success: true });
 //       }
 
-//       // Get the payment record
 //       const { data: payment, error: paymentError } = await supabase
 //         .from("payment_page_payments")
 //         .select("*")
@@ -606,7 +630,6 @@
 //         amount: payment.amount,
 //       });
 
-//       // Update payment record
 //       const { error: updateError } = await supabase
 //         .from("payment_page_payments")
 //         .update({
@@ -624,12 +647,8 @@
 //         );
 //       }
 
-//       // Calculate net amount for page wallet
-//       // If customer paid the fee, payment.net_amount already has the correct amount
-//       // If creator paid the fee, we need to deduct it
 //       let pageCreditAmount = payment.net_amount;
 
-//       // Increment page balance
 //       const { data: newBalance, error: balanceError } = await supabase.rpc(
 //         "increment_page_balance",
 //         {
@@ -646,14 +665,12 @@
 //         );
 //       }
 
-//       // Get payment page details for email
 //       const { data: paymentPage } = await supabase
 //         .from("payment_pages")
-//         .select("title, user_id")
+//         .select("title, user_id, page_type, metadata")
 //         .eq("id", paymentPageId)
 //         .single();
 
-//       // Create transaction record
 //       await supabase.from("transactions").insert({
 //         user_id: payment.user_id,
 //         type: "credit",
@@ -679,17 +696,16 @@
 //         },
 //       });
 
-//       // Send receipt email to customer
 //       if (payment.customer_email) {
 //         sendPaymentPageReceiptEmail(
 //           payment.customer_email,
 //           paymentPage?.title || "Payment Page",
 //           payment.amount,
 //           nombaTransactionId,
+//           payment.metadata,
 //         ).catch(console.error);
 //       }
 
-//       // Send notification email to page creator
 //       const { data: creator } = await supabase
 //         .from("users")
 //         .select("email")
@@ -703,6 +719,7 @@
 //           pageCreditAmount,
 //           payment.customer_name,
 //           payment.fee,
+//           payment.metadata,
 //         ).catch(console.error);
 //       }
 
@@ -714,7 +731,6 @@
 //       });
 //     }
 
-//     // ========== 3. VIRTUAL ACCOUNT DEPOSITS ==========
 //     if (
 //       aliasAccountReference &&
 //       (eventType === "payment_success" || txStatus === "success")
@@ -731,15 +747,11 @@
 //       const narration = tx.narration || "";
 //       const senderName =
 //         customer.senderName || customer.name || "Bank Transfer";
-
-//       // Calculate net amount after Nomba fee (for wallet credit)
 //       const netAmount = transactionAmount - nombaFee;
 
-//       // Check if narration contains invoice reference (e.g., INV-1234)
 //       const invoiceMatch = narration.match(/INV[-_][A-Z0-9]{4,}/i);
 
 //       if (invoiceMatch) {
-//         // ===== INVOICE PAYMENT VIA VIRTUAL ACCOUNT =====
 //         const invoiceRef = invoiceMatch[0].toUpperCase();
 //         console.log("🧾 Found invoice reference in narration:", invoiceRef);
 
@@ -756,7 +768,6 @@
 //             depositor_id: userId,
 //           });
 
-//           // Check for duplicate
 //           const { data: existingPayment } = await supabase
 //             .from("invoice_payments")
 //             .select("*")
@@ -769,7 +780,6 @@
 //             return NextResponse.json({ success: true });
 //           }
 
-//           // Create invoice payment record with TOTAL amount (fee separate)
 //           const { error: paymentError } = await supabase
 //             .from("invoice_payments")
 //             .insert({
@@ -796,7 +806,6 @@
 //             );
 //           }
 
-//           // Determine who gets credited
 //           const creditUserId = invoice.user_id;
 //           const isCrossUser = invoice.user_id !== userId;
 
@@ -804,7 +813,6 @@
 //             console.log("💰 Cross-user invoice payment via VA");
 //           }
 
-//           // Create transaction record with TOTAL amount
 //           await supabase.from("transactions").insert({
 //             user_id: creditUserId,
 //             type: "credit",
@@ -833,7 +841,6 @@
 //             },
 //           });
 
-//           // Credit invoice owner's wallet - NET AMOUNT (what they actually get)
 //           const { error: creditError } = await supabase.rpc(
 //             "increment_wallet_balance",
 //             {
@@ -850,10 +857,8 @@
 //             );
 //           }
 
-//           // Update invoice totals with TOTAL amount
 //           await updateInvoiceTotals(invoice, transactionAmount);
 
-//           // Send notification to invoice creator
 //           const { data: creator } = await supabase
 //             .from("users")
 //             .select("email")
@@ -871,7 +876,6 @@
 //             ).catch(console.error);
 //           }
 
-//           // Send deposit confirmation to depositor if it's a different user
 //           if (isCrossUser) {
 //             sendVirtualAccountDepositEmail(
 //               userId,
@@ -896,10 +900,8 @@
 //         }
 //       }
 
-//       // ===== REGULAR DEPOSIT (NO INVOICE) =====
 //       console.log("💰 Regular wallet deposit via virtual account");
 
-//       // Check for duplicate
 //       const { data: existingTx } = await supabase
 //         .from("transactions")
 //         .select("*")
@@ -907,7 +909,6 @@
 //         .maybeSingle();
 
 //       if (!existingTx) {
-//         // Create transaction record with TOTAL amount
 //         const { error: txError } = await supabase
 //           .from("transactions")
 //           .insert({
@@ -943,7 +944,6 @@
 //           );
 //         }
 
-//         // Credit wallet - NET AMOUNT (after Nomba fee)
 //         const { error: creditError } = await supabase.rpc(
 //           "increment_wallet_balance",
 //           {
@@ -955,7 +955,6 @@
 //         if (creditError) {
 //           console.error("❌ Failed to credit wallet:", creditError);
 
-//           // Attempt manual credit as fallback
 //           const { data: user } = await supabase
 //             .from("users")
 //             .select("wallet_balance")
@@ -975,7 +974,6 @@
 //           );
 //         }
 
-//         // Send email notification
 //         sendVirtualAccountDepositEmail(
 //           userId,
 //           transactionAmount,
@@ -1000,7 +998,6 @@
 //       });
 //     }
 
-//     // ========== 4. WITHDRAWALS/TRANSFERS ==========
 //     const isPayout =
 //       eventType?.toLowerCase().includes("payout") ||
 //       transactionType.includes("transfer") ||
@@ -1009,7 +1006,6 @@
 //     if (isPayout) {
 //       console.log("💸 Processing payout...");
 
-//       // Find the pending transaction
 //       const searchRefs = [nombaTransactionId, merchantTxRef].filter(Boolean);
 
 //       let pendingTx = null;
@@ -1039,7 +1035,6 @@
 //       if (eventType === "payout_success" || txStatus === "success") {
 //         console.log("✅ Payout successful");
 
-//         // Update to success
 //         await supabase
 //           .from("transactions")
 //           .update({
@@ -1052,7 +1047,6 @@
 //           })
 //           .eq("id", pendingTx.id);
 
-//         // Send success email
 //         const receiver = pendingTx.receiver || {};
 //         sendWithdrawalEmail(
 //           pendingTx.user_id,
@@ -1073,7 +1067,6 @@
 //           payload.data?.transaction?.responseMessage ||
 //           "Transaction failed";
 
-//         // Update to failed
 //         await supabase
 //           .from("transactions")
 //           .update({
@@ -1087,7 +1080,6 @@
 //           })
 //           .eq("id", pendingTx.id);
 
-//         // Refund the user - FULL AMOUNT (including fees)
 //         const refundAmount = pendingTx.total_deduction || pendingTx.amount;
 //         await supabase.rpc("increment_wallet_balance", {
 //           user_id: pendingTx.user_id,
@@ -1098,7 +1090,6 @@
 //           `✅ Refunded ₦${refundAmount} to user ${pendingTx.user_id}`,
 //         );
 
-//         // Send failure email
 //         const receiver = pendingTx.receiver || {};
 //         sendWithdrawalEmail(
 //           pendingTx.user_id,
@@ -1116,7 +1107,6 @@
 //       return NextResponse.json({ success: true });
 //     }
 
-//     // Default response for unhandled events
 //     console.log("ℹ️ Unhandled event type:", eventType);
 //     return NextResponse.json({ message: "Event ignored" }, { status: 200 });
 //   } catch (error: any) {
@@ -1127,7 +1117,6 @@
 //     );
 //   }
 // }
-
 
 export async function POST(req: Request) {
   const timestamp = req.headers.get("nomba-timestamp");

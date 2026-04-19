@@ -1,4 +1,6 @@
+// app/context/JournalContext.tsx
 "use client"
+
 import { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useJournalStore } from '../hooks/useJournalStore';
 
@@ -14,7 +16,23 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     journalStore.activeJournalType,
     journalStore.loading,
     journalStore.error,
-    journalStore.updateTrigger
+    journalStore.updateTrigger,
+    journalStore.unifiedEntries,
+    journalStore.walletTransactions,
+    journalStore.getAllTimeSummary,
+    journalStore.getTodaySummary,
+    journalStore.getWeekSummary,
+    journalStore.getMonthSummary,
+    journalStore.getYearSummary,
+    journalStore.getCategoryBreakdown,
+    journalStore.calculateSummary,
+    journalStore.addEntry,
+    journalStore.updateEntry,
+    journalStore.deleteEntry,
+    journalStore.addCategory,
+    journalStore.updateCategory,
+    journalStore.deleteCategory,
+    journalStore.refetch
   ]);
   
   return (

@@ -1,58 +1,69 @@
-"use client"
-import { useState, useEffect } from 'react';
-import { 
-  TrendingUp, TrendingDown, Wallet, Plus, Minus, 
-  BarChart3, List, ArrowLeftRight, Settings2, 
-  RefreshCw, Printer, Loader2
-} from 'lucide-react';
-import { Button } from '../ui/button';
-import { JournalHeader } from './JournalHeader'; 
-import { SummaryCard } from './SummaryCard'; 
-import { ProgressIndicator } from './ProgressIndicator'; 
-import { EntryForm } from './EntryForm';
-import { InsightsCharts } from './InsightsCharts'; 
-import { RecentEntries } from './RecentEntries';
-import { TransactionsTab } from './TransactionTab'; 
-import { CategoryManager } from './CategoryManager'; 
-import { ExportStatementModal } from './ExportStatementModal';
-import { EntryType, JournalEntry } from './types';
-import { cn } from '@/lib/utils';
-import { useJournal } from '@/app/context/JournalContext';
-import { format } from 'date-fns';
-import Loader from '../Loader';
+"use client";
+import { useState, useEffect } from "react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  Plus,
+  Minus,
+  BarChart3,
+  List,
+  ArrowLeftRight,
+  Settings2,
+  RefreshCw,
+  Printer,
+  Loader2,
+} from "lucide-react";
+import { Button } from "../ui/button";
+import { JournalHeader } from "./JournalHeader";
+import { SummaryCard } from "./SummaryCard";
+import { ProgressIndicator } from "./ProgressIndicator";
+import { EntryForm } from "./EntryForm";
+import { InsightsCharts } from "./InsightsCharts";
+import { RecentEntries } from "./RecentEntries";
+import { TransactionsTab } from "./TransactionTab";
+import { CategoryManager } from "./CategoryManager";
+import { ExportStatementModal } from "./ExportStatementModal";
+import { EntryType, JournalEntry } from "./types";
+import { cn } from "@/lib/utils";
+import { useJournal } from "@/app/context/JournalContext";
+import { format } from "date-fns";
+import Loader from "../Loader";
 
-type ActiveView = 'dashboard' | 'insights' | 'entries' | 'transactions';
+type ActiveView = "dashboard" | "insights" | "entries" | "transactions";
 
 export function JournalDashboard() {
-  const { 
-    activeJournalType, 
+  const {
+    activeJournalType,
     getAllTimeSummary,
-    getTodaySummary, 
-    getWeekSummary, 
-    getMonthSummary, 
+    getTodaySummary,
+    getWeekSummary,
+    getMonthSummary,
     getYearSummary,
     entries,
+    unifiedEntries,  // ADD THIS - unified entries from wallet + manual
     categories,
     loading,
     error,
     refetch,
-    updateTrigger
+    updateTrigger,
   } = useJournal();
-  
+
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
-  const [entryType, setEntryType] = useState<EntryType>('expense');
+  const [entryType, setEntryType] = useState<EntryType>("expense");
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
-  const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+  const [activeView, setActiveView] = useState<ActiveView>("dashboard");
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [, setForceUpdate] = useState(0);
 
   // Force re-render when entries change
   useEffect(() => {
-    console.log('JournalDashboard - Entries updated:', entries.length);
-    setForceUpdate(prev => prev + 1);
-  }, [entries, updateTrigger]);
+    console.log("JournalDashboard - Entries updated:", entries.length);
+    console.log("JournalDashboard - Unified entries:", unifiedEntries?.length);
+    setForceUpdate((prev) => prev + 1);
+  }, [entries, unifiedEntries, updateTrigger]);
 
   // Get summaries
   const allTimeSummary = getAllTimeSummary(activeJournalType);
@@ -90,49 +101,52 @@ export function JournalDashboard() {
       // Filter entries by date range and journal type
       const fromDateTime = new Date(dateRange.from);
       fromDateTime.setHours(0, 0, 0, 0);
-      
+
       const toDateTime = new Date(dateRange.to);
       toDateTime.setHours(23, 59, 59, 999);
 
-      const filteredEntries = entries.filter(entry => {
+      const filteredEntries = entries.filter((entry) => {
         if (entry.journalType !== activeJournalType) return false;
         const entryDate = new Date(entry.date);
         return entryDate >= fromDateTime && entryDate <= toDateTime;
       });
 
       if (filteredEntries.length === 0) {
-        alert('No journal entries found in the selected date range');
+        alert("No journal entries found in the selected date range");
         return;
       }
 
       // Sort entries by date (newest first)
       const sortedEntries = [...filteredEntries].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
 
       // Calculate summaries
       const totalIncome = filteredEntries
-        .filter(e => e.type === 'income')
+        .filter((e) => e.type === "income")
         .reduce((sum, e) => sum + e.amount, 0);
-      
+
       const totalExpenses = filteredEntries
-        .filter(e => e.type === 'expense')
+        .filter((e) => e.type === "expense")
         .reduce((sum, e) => sum + e.amount, 0);
-      
+
       const netTotal = totalIncome - totalExpenses;
 
       // Group by category for breakdown
-      const categoryBreakdown: Record<string, { income: number; expense: number }> = {};
-      
-      filteredEntries.forEach(entry => {
-        const category = categories.find(c => c.id === entry.categoryId);
-        const categoryName = category?.name || 'Other';
-        
+      const categoryBreakdown: Record<
+        string,
+        { income: number; expense: number }
+      > = {};
+
+      filteredEntries.forEach((entry) => {
+        const category = categories.find((c) => c.id === entry.categoryId);
+        const categoryName = category?.name || "Other";
+
         if (!categoryBreakdown[categoryName]) {
           categoryBreakdown[categoryName] = { income: 0, expense: 0 };
         }
-        
-        if (entry.type === 'income') {
+
+        if (entry.type === "income") {
           categoryBreakdown[categoryName].income += entry.amount;
         } else {
           categoryBreakdown[categoryName].expense += entry.amount;
@@ -490,7 +504,7 @@ export function JournalDashboard() {
       <div class="period-divider"></div>
       <div class="period-item">
         <span class="period-label">Generated On</span>
-        <span class="period-value">${format(new Date(), 'MMM dd, yyyy')}</span>
+        <span class="period-value">${format(new Date(), "MMM dd, yyyy")}</span>
       </div>
     </div>
     
@@ -498,23 +512,23 @@ export function JournalDashboard() {
     <div class="summary-grid">
       <div class="summary-card income">
         <div class="summary-title">Total Income</div>
-        <div class="summary-amount">₦${totalIncome.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</div>
+        <div class="summary-amount">₦${totalIncome.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
         <div style="font-size: 12px; color: #16a34a; margin-top: 8px;">
-          ${filteredEntries.filter(e => e.type === 'income').length} transactions
+          ${filteredEntries.filter((e) => e.type === "income").length} transactions
         </div>
       </div>
       <div class="summary-card expense">
         <div class="summary-title">Total Expenses</div>
-        <div class="summary-amount">₦${totalExpenses.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</div>
+        <div class="summary-amount">₦${totalExpenses.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
         <div style="font-size: 12px; color: #e11d48; margin-top: 8px;">
-          ${filteredEntries.filter(e => e.type === 'expense').length} transactions
+          ${filteredEntries.filter((e) => e.type === "expense").length} transactions
         </div>
       </div>
       <div class="summary-card net">
         <div class="summary-title">Net Balance</div>
-        <div class="summary-amount">₦${netTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</div>
+        <div class="summary-amount">₦${netTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
         <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 8px;">
-          ${netTotal >= 0 ? 'Positive' : 'Negative'}
+          ${netTotal >= 0 ? "Positive" : "Negative"}
         </div>
       </div>
     </div>
@@ -523,18 +537,22 @@ export function JournalDashboard() {
     <div class="breakdown-section">
       <div class="breakdown-title">Category Breakdown</div>
       <div class="breakdown-grid">
-        ${Object.entries(categoryBreakdown).map(([name, data]) => `
+        ${Object.entries(categoryBreakdown)
+          .map(
+            ([name, data]) => `
           <div class="category-item">
             <span class="category-name">
-              <span class="category-icon">${categories.find(c => c.name === name)?.icon || '📦'}</span>
+              <span class="category-icon">${categories.find((c) => c.name === name)?.icon || "📦"}</span>
               ${name}
             </span>
             <div style="display: flex; gap: 16px;">
-              ${data.income > 0 ? `<span class="category-income">+₦${data.income.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>` : ''}
-              ${data.expense > 0 ? `<span class="category-expense">-₦${data.expense.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>` : ''}
+              ${data.income > 0 ? `<span class="category-income">+₦${data.income.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</span>` : ""}
+              ${data.expense > 0 ? `<span class="category-expense">-₦${data.expense.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</span>` : ""}
             </div>
           </div>
-        `).join('')}
+        `,
+          )
+          .join("")}
       </div>
     </div>
     
@@ -551,15 +569,18 @@ export function JournalDashboard() {
           </tr>
         </thead>
         <tbody>
-          ${sortedEntries.map(entry => {
-            const category = categories.find(c => c.id === entry.categoryId);
-            const categoryIcon = category?.icon || '📦';
-            const categoryName = category?.name || 'Other';
-            const isIncome = entry.type === 'income';
-            
-            return `
+          ${sortedEntries
+            .map((entry) => {
+              const category = categories.find(
+                (c) => c.id === entry.categoryId,
+              );
+              const categoryIcon = category?.icon || "📦";
+              const categoryName = category?.name || "Other";
+              const isIncome = entry.type === "income";
+
+              return `
               <tr>
-                <td style="width: 100px;">${format(new Date(entry.date), 'MMM dd, yyyy')}</td>
+                <td style="width: 100px;">${format(new Date(entry.date), "MMM dd, yyyy")}</td>
                 <td>
                   <div class="transaction-category">
                     <span style="font-size: 16px;">${categoryIcon}</span>
@@ -567,15 +588,16 @@ export function JournalDashboard() {
                   </div>
                 </td>
                 <td>
-                  ${entry.note || 'No description'}
+                  ${entry.note || "No description"}
                   <div class="transaction-note">Ref: ${entry.id.slice(0, 8)}</div>
                 </td>
-                <td style="text-align: right; font-weight: 600;" class="${isIncome ? 'transaction-income' : 'transaction-expense'}">
-                  ${isIncome ? '+' : '-'}₦${entry.amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                <td style="text-align: right; font-weight: 600;" class="${isIncome ? "transaction-income" : "transaction-expense"}">
+                  ${isIncome ? "+" : "-"}₦${entry.amount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
             `;
-          }).join('')}
+            })
+            .join("")}
         </tbody>
       </table>
     </div>
@@ -584,7 +606,7 @@ export function JournalDashboard() {
     <div class="footer">
       <div>
         <div style="font-weight: 600; margin-bottom: 4px;">Zidwell Journal</div>
-        <div>${format(new Date(), 'MMMM d, yyyy h:mm a')}</div>
+        <div>${format(new Date(), "MMMM d, yyyy h:mm a")}</div>
       </div>
       <div class="footer-stats">
         <div class="footer-stat">
@@ -593,8 +615,8 @@ export function JournalDashboard() {
         </div>
         <div class="footer-stat">
           <span class="footer-stat-label">Net Balance</span>
-          <span class="footer-stat-value" style="color: ${netTotal >= 0 ? '#16a34a' : '#e11d48'}">
-            ₦${netTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+          <span class="footer-stat-value" style="color: ${netTotal >= 0 ? "#16a34a" : "#e11d48"}">
+            ₦${netTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
           </span>
         </div>
       </div>
@@ -633,8 +655,9 @@ export function JournalDashboard() {
       URL.revokeObjectURL(url);
 
       // Success notification
-      const notification = document.createElement('div');
-      notification.className = 'fixed top-4 right-4 bg-[#2b825b] text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2';
+      const notification = document.createElement("div");
+      notification.className =
+        "fixed top-4 right-4 bg-[#2b825b] text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2";
       notification.innerHTML = `
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -645,10 +668,9 @@ export function JournalDashboard() {
       `;
       document.body.appendChild(notification);
       setTimeout(() => document.body.removeChild(notification), 3000);
-
     } catch (error) {
-      console.error('Error exporting PDF:', error);
-      alert('Failed to export statement. Please try again.');
+      console.error("Error exporting PDF:", error);
+      alert("Failed to export statement. Please try again.");
     } finally {
       setExporting(false);
     }
@@ -660,70 +682,89 @@ export function JournalDashboard() {
         <JournalHeader />
 
         {/* Navigation */}
-        <nav className="flex gap-2 pb-4 flex-wrap dark:border-gray-700" style={{ borderBottomColor: '#e6dfd6' }}>
+        <nav
+          className="flex gap-2 pb-4 flex-wrap dark:border-gray-700"
+          style={{ borderBottomColor: "#e6dfd6" }}
+        >
           <button
-            onClick={() => setActiveView('dashboard')}
+            onClick={() => setActiveView("dashboard")}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all'
+              "flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all",
             )}
             style={{
-              backgroundColor: activeView === 'dashboard' ? '#2b825b' : 'transparent',
-              color: activeView === 'dashboard' ? '#ffffff' : '#80746e',
-              boxShadow: activeView === 'dashboard' ? '0 4px 20px -4px rgba(43, 130, 91, 0.3)' : 'none'
+              backgroundColor:
+                activeView === "dashboard" ? "#2b825b" : "transparent",
+              color: activeView === "dashboard" ? "#ffffff" : "#80746e",
+              boxShadow:
+                activeView === "dashboard"
+                  ? "0 4px 20px -4px rgba(43, 130, 91, 0.3)"
+                  : "none",
             }}
           >
             <Wallet className="h-4 w-4" />
             Dashboard
           </button>
           <button
-            onClick={() => setActiveView('insights')}
+            onClick={() => setActiveView("insights")}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all'
+              "flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all",
             )}
             style={{
-              backgroundColor: activeView === 'insights' ? '#2b825b' : 'transparent',
-              color: activeView === 'insights' ? '#ffffff' : '#80746e',
-              boxShadow: activeView === 'insights' ? '0 4px 20px -4px rgba(43, 130, 91, 0.3)' : 'none'
+              backgroundColor:
+                activeView === "insights" ? "#2b825b" : "transparent",
+              color: activeView === "insights" ? "#ffffff" : "#80746e",
+              boxShadow:
+                activeView === "insights"
+                  ? "0 4px 20px -4px rgba(43, 130, 91, 0.3)"
+                  : "none",
             }}
           >
             <BarChart3 className="h-4 w-4" />
             Insights
           </button>
           <button
-            onClick={() => setActiveView('entries')}
+            onClick={() => setActiveView("entries")}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all'
+              "flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all",
             )}
             style={{
-              backgroundColor: activeView === 'entries' ? '#2b825b' : 'transparent',
-              color: activeView === 'entries' ? '#ffffff' : '#80746e',
-              boxShadow: activeView === 'entries' ? '0 4px 20px -4px rgba(43, 130, 91, 0.3)' : 'none'
+              backgroundColor:
+                activeView === "entries" ? "#2b825b" : "transparent",
+              color: activeView === "entries" ? "#ffffff" : "#80746e",
+              boxShadow:
+                activeView === "entries"
+                  ? "0 4px 20px -4px rgba(43, 130, 91, 0.3)"
+                  : "none",
             }}
           >
             <List className="h-4 w-4" />
             Entries
           </button>
           <button
-            onClick={() => setActiveView('transactions')}
+            onClick={() => setActiveView("transactions")}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all'
+              "flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all",
             )}
             style={{
-              backgroundColor: activeView === 'transactions' ? '#2b825b' : 'transparent',
-              color: activeView === 'transactions' ? '#ffffff' : '#80746e',
-              boxShadow: activeView === 'transactions' ? '0 4px 20px -4px rgba(43, 130, 91, 0.3)' : 'none'
+              backgroundColor:
+                activeView === "transactions" ? "#2b825b" : "transparent",
+              color: activeView === "transactions" ? "#ffffff" : "#80746e",
+              boxShadow:
+                activeView === "transactions"
+                  ? "0 4px 20px -4px rgba(43, 130, 91, 0.3)"
+                  : "none",
             }}
           >
             <ArrowLeftRight className="h-4 w-4" />
             Transactions
           </button>
-          
+
           <button
             onClick={() => setShowCategoryManager(true)}
             className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:opacity-80 dark:bg-gray-700 dark:text-gray-300"
             style={{
-              color: '#80746e',
-              backgroundColor: '#f5f1ea'
+              color: "#80746e",
+              backgroundColor: "#f5f1ea",
             }}
           >
             <Settings2 className="h-4 w-4" />
@@ -731,30 +772,33 @@ export function JournalDashboard() {
           </button>
         </nav>
 
-        {activeView === 'dashboard' && (
+        {activeView === "dashboard" && (
           <div className="space-y-8 animate-fade-in">
             {/* ALL-TIME Summary Cards */}
             <section className="space-y-4">
-              <h2 className="text-xl font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              <h2
+                className="text-xl font-medium dark:text-gray-100"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+              >
                 Account Summary
               </h2>
               <div className="grid gap-4 sm:grid-cols-3">
                 <SummaryCard
-                  key={`income-${entries.length}-${updateTrigger}`}
+                  key={`income-${unifiedEntries?.length || entries.length}-${updateTrigger}`}
                   title="Total Income"
                   amount={allTimeSummary.income}
                   icon={TrendingUp}
                   variant="income"
                 />
                 <SummaryCard
-                  key={`expense-${entries.length}-${updateTrigger}`}
+                  key={`expense-${unifiedEntries?.length || entries.length}-${updateTrigger}`}
                   title="Total Expenses"
                   amount={allTimeSummary.expenses}
                   icon={TrendingDown}
                   variant="expense"
                 />
                 <SummaryCard
-                  key={`net-${entries.length}-${updateTrigger}`}
+                  key={`net-${unifiedEntries?.length || entries.length}-${updateTrigger}`}
                   title="Net Balance"
                   amount={allTimeSummary.net}
                   icon={Wallet}
@@ -766,22 +810,22 @@ export function JournalDashboard() {
             {/* CTA Buttons */}
             <section className="flex gap-4">
               <Button
-                onClick={() => openEntryForm('income')}
+                onClick={() => openEntryForm("income")}
                 className="flex-1 h-14 text-base font-semibold shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#16a34a] dark:hover:bg-[#138f3f]"
                 style={{
-                  backgroundColor: '#16a34a',
-                  color: '#ffffff'
+                  backgroundColor: "#16a34a",
+                  color: "#ffffff",
                 }}
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Add Income
               </Button>
               <Button
-                onClick={() => openEntryForm('expense')}
+                onClick={() => openEntryForm("expense")}
                 className="flex-1 h-14 text-base font-semibold shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#e11d48] dark:hover:bg-[#c0183d]"
                 style={{
-                  backgroundColor: '#e11d48',
-                  color: '#ffffff'
+                  backgroundColor: "#e11d48",
+                  color: "#ffffff",
                 }}
               >
                 <Minus className="h-5 w-5 mr-2" />
@@ -791,24 +835,27 @@ export function JournalDashboard() {
 
             {/* Progress Indicators */}
             <section className="space-y-4">
-              <h2 className="text-xl font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              <h2
+                className="text-xl font-medium dark:text-gray-100"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+              >
                 Progress
               </h2>
               <div className="grid gap-4 sm:grid-cols-3">
-                <ProgressIndicator 
-                  key={`week-${entries.length}-${updateTrigger}`}
-                  label="This Week" 
-                  summary={weekSummary} 
+                <ProgressIndicator
+                  key={`week-${unifiedEntries?.length || entries.length}-${updateTrigger}`}
+                  label="This Week"
+                  summary={weekSummary}
                 />
-                <ProgressIndicator 
-                  key={`month-${entries.length}-${updateTrigger}`}
-                  label="This Month" 
-                  summary={monthSummary} 
+                <ProgressIndicator
+                  key={`month-${unifiedEntries?.length || entries.length}-${updateTrigger}`}
+                  label="This Month"
+                  summary={monthSummary}
                 />
-                <ProgressIndicator 
-                  key={`year-${entries.length}-${updateTrigger}`}
-                  label="This Year" 
-                  summary={yearSummary} 
+                <ProgressIndicator
+                  key={`year-${unifiedEntries?.length || entries.length}-${updateTrigger}`}
+                  label="This Year"
+                  summary={yearSummary}
                 />
               </div>
             </section>
@@ -816,22 +863,25 @@ export function JournalDashboard() {
             {/* Recent Activity */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                <h2
+                  className="text-xl font-medium dark:text-gray-100"
+                  style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                >
                   Recent Entries
                 </h2>
-                <button 
-                  onClick={() => setActiveView('entries')}
+                <button
+                  onClick={() => setActiveView("entries")}
                   className="text-sm hover:underline transition-all dark:text-[#3aa873]"
-                  style={{ color: '#2b825b' }}
+                  style={{ color: "#2b825b" }}
                 >
                   View all →
                 </button>
               </div>
-              <div 
+              <div
                 className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] dark:bg-gray-800 dark:border-gray-700"
                 style={{
-                  backgroundColor: 'rgba(252, 251, 249, 0.5)',
-                  borderColor: '#e6dfd6'
+                  backgroundColor: "rgba(252, 251, 249, 0.5)",
+                  borderColor: "#e6dfd6",
                 }}
               >
                 <RecentEntries onEdit={handleEdit} limit={5} />
@@ -840,82 +890,73 @@ export function JournalDashboard() {
           </div>
         )}
 
-        {activeView === 'insights' && (
+        {activeView === "insights" && (
           <div className="animate-fade-in">
             <InsightsCharts />
           </div>
         )}
 
-        {activeView === 'entries' && (
+        {activeView === "entries" && (
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-                Journal Entries
+              <h2
+                className="text-xl font-medium dark:text-gray-100"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+              >
+                All Transactions
               </h2>
               <div className="flex gap-3">
-                <Button
-                  onClick={() => setShowExportModal(true)}
-                  disabled={exporting}
-                  className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-all dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
-                  style={{
-                    backgroundColor: '#f5f1ea',
-                    color: '#80746e',
-                    borderColor: '#e6dfd6'
-                  }}
+                <div
+                  className="text-sm px-3 py-1.5 rounded-md bg-[#f5f1ea] dark:bg-gray-700"
+                  style={{ color: "#80746e" }}
                 >
-                  {exporting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Printer className="h-4 w-4 mr-2" />
-                      Export Statement
-                    </>
-                  )}
-                </Button>
+                  <span className="font-medium">Total: </span>
+                  {unifiedEntries?.length || 0} entries
+                </div>
               </div>
             </div>
 
             <div className="flex gap-3">
               <Button
-                onClick={() => openEntryForm('income')}
+                onClick={() => openEntryForm("income")}
                 className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#16a34a] dark:hover:bg-[#138f3f]"
-                style={{
-                  backgroundColor: '#16a34a',
-                  color: '#ffffff'
-                }}
+                style={{ backgroundColor: "#16a34a", color: "#ffffff" }}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Income
+                Add Manual Income
               </Button>
               <Button
-                onClick={() => openEntryForm('expense')}
+                onClick={() => openEntryForm("expense")}
                 className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#e11d48] dark:hover:bg-[#c0183d]"
-                style={{
-                  backgroundColor: '#e11d48',
-                  color: '#ffffff'
-                }}
+                style={{ backgroundColor: "#e11d48", color: "#ffffff" }}
               >
                 <Minus className="h-4 w-4 mr-2" />
-                Add Expense
+                Add Manual Expense
               </Button>
             </div>
 
-            <div 
-              className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] dark:bg-gray-800 dark:border-gray-700"
-              style={{
-                backgroundColor: 'rgba(252, 251, 249, 0.5)',
-                borderColor: '#e6dfd6'
-              }}
-            >
+            <div className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] dark:bg-gray-800 dark:border-gray-700">
               <RecentEntries onEdit={handleEdit} />
+            </div>
+
+            {/* Legend */}
+            <div
+              className="flex items-center justify-center gap-4 text-xs"
+              style={{ color: "#80746e" }}
+            >
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-[#fcfbf9] border border-[#e6dfd6]"></div>
+                <span>Manual Entry</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-[#f5f1ea] border border-[#e6dfd6]"></div>
+                <span>Auto-synced from Wallet</span>
+              </div>
             </div>
           </div>
         )}
 
-        {activeView === 'transactions' && (
+        {activeView === "transactions" && (
           <div className="animate-fade-in">
             <TransactionsTab />
           </div>
