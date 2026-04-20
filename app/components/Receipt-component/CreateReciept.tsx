@@ -2096,22 +2096,7 @@ function CreateReceiptPage({
               </div>
 
               <div className="space-y-6">
-                {/* Info Banner */}
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <Eye className="h-5 w-5 text-blue-500 dark:text-blue-400 mt-0.5 shrink-0" />
-                    <div>
-                      <h3 className="font-medium text-blue-800 dark:text-blue-300">
-                        Live Preview Mode
-                      </h3>
-                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                        This is a real-time preview of how your receipt will
-                        look. Any changes made in the "Create Receipt" tab will
-                        be reflected here instantly.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+               
 
                 <ReceiptPreview
                   receiptType={receiptType}
