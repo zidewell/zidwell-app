@@ -152,7 +152,7 @@ export default function AdminSidebar() {
            });
          } catch (activityError) {
            console.error("Error tracking logout activity:", activityError);
-           // Don't fail the logout if this fails
+         
          }
        }
  
