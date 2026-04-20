@@ -14,26 +14,26 @@ import Link from "next/link";
 const features = [
   { 
     icon: CreditCard, 
-    title: "Get Paid with Digital Invoice", 
+    title: "Invoice", 
     description: "Our invoice works like a regular pdf invoice and also like a payment link",
     link: "/features/invoice"
   },
   { 
     icon: Gift, 
     title: "Earn Cashback & Rewards", 
-    description: "Get rewarded for every transaction with ZidCoins and referral bonuses.",
+    description: "Become an affiliate marketer and earn as much as 20% of all subscriptions fees for 3 months.",
     link: "/rewards"
   },
   { 
     icon: Receipt, 
-    title: "Digital Proof of Payment", 
+    title: "Receipts", 
     description: "Send digital receipts as proof of payment to their customers. You sign, they sign, everyone is happy",
     link: "/features/receipt"
   },
   { 
     icon: FileText, 
-    title: "Simple Contracts & Agreements", 
-    description: "Create, send, receive and sign simple agreements to protect your business dealings all inside Zidwell.",
+    title: "Simple Contracts", 
+    description: "Create simple to understand terms of service for your clients as well as content agreements for your events or website.",
     link: "/features/contract"
   },
   { 
@@ -50,20 +50,20 @@ const features = [
   },
   { 
     icon: Book, 
-    title: "Bookkeeping", 
-    description: "Record your day-to-day income and expenses to make account reconciliation and tax filing easier.",
+    title: "Automatic Bookkeeping", 
+    description: "Automatically Record your day-to-day income and expenses to make account reconciliation and tax filing easier.",
     link: "/bookkeeping"
   },
   { 
     icon: Users, 
-    title: "Growth Community", 
+    title: "Payment pages", 
     description: "Join the financial wellness club (FinWell club) a community focused on growth, structure and smarter money habits.",
-    link: "/finwell"
+    link: "/#"
   },
   { 
     icon: Shield, 
     title: "Secure & Protected", 
-    description: "Your money is safe with regulated partners and standard security practices.",
+    description: "All your financial records and transactions have end to end encryption and is 100% safe and protected.",
     link: "/security"
   }
 ];
@@ -109,8 +109,9 @@ const Features = () => {
         {/* Bottom Call to Action */}
         <div className="max-w-2xl mx-auto text-center mt-16">
           <p className="text-xl font-semibold text-[#01402e] dark:text-[#f7f0e5]">
-            Everything you need to manage your business finances —{" "}
-            <span className="text-[#f4c600]">without the stress.</span>
+            Save Time and Money by Using Zidwell to Manage Your Financial Operations as a Business. It’s <span className="text-[#f4c600]">10x cheaper</span> than hiring your own accountant.
+
+            
           </p>
         </div>
       </div>

@@ -13,7 +13,7 @@ const BVNVerificationBadge = ({
   className = "",
 }: BVNVerificationBadgeProps) => {
   const { userData } = useUserContextData();
-  const { openVerificationModal } = useVerificationModal();
+  const { openVerificationModal, isOpen } = useVerificationModal();
 
   // Check if user needs verification
   const isPending = userData?.bvnVerification === "pending";
@@ -28,6 +28,13 @@ const BVNVerificationBadge = ({
   if (!isPending && !isNotSubmitted) {
     return null;
   }
+
+  const handleVerifyClick = () => {
+    // Prevent opening if already open
+    if (!isOpen) {
+      openVerificationModal();
+    }
+  };
 
   return (
     <div className={`sticky top-0 left-0 right-0 z-30 w-full ${className}`}>
@@ -69,9 +76,10 @@ const BVNVerificationBadge = ({
             </div>
             {isNotSubmitted && (
               <Button
-                onClick={openVerificationModal}
+                onClick={handleVerifyClick}
                 size="sm"
-                className="bg-[#2b825b] hover:bg-[#a67905] text-white h-8 text-xs whitespace-nowrap"
+                className="bg-[#2b825b] hover:bg-[#1e5b40] text-white h-8 text-xs whitespace-nowrap"
+                type="button"
               >
                 <Banknote className="h-3 w-3 mr-1" />
                 Verify Now
