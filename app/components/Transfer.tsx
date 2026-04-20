@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
@@ -115,6 +115,10 @@ export default function Transfer() {
   // ADDED: Polling states
   const [pollingTransactionId, setPollingTransactionId] = useState<string | null>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  // ADDED: Ref to track if alert has been shown to prevent duplicates
+  const alertShownRef = useRef<boolean>(false);
+  const isProcessingRef = useRef<boolean>(false);
 
   const formatNumber = (value: number) =>
     new Intl.NumberFormat("en-US", {
@@ -147,10 +151,14 @@ export default function Transfer() {
       setPollingInterval(null);
     }
     setPollingTransactionId(null);
+    isProcessingRef.current = false;
   };
 
-  // ADDED: Start polling function
+  // ADDED: Start polling function with duplicate prevention
   const startPolling = (transactionId: string) => {
+    // Reset alert shown flag when starting new polling
+    alertShownRef.current = false;
+    isProcessingRef.current = true;
     setPollingTransactionId(transactionId);
     
     let attempts = 0;
@@ -158,9 +166,15 @@ export default function Transfer() {
     const pollIntervalMs = 2000; // Poll every 2 seconds
 
     const pollStatus = async () => {
+      // Stop if we're no longer processing or alert already shown
+      if (!isProcessingRef.current || alertShownRef.current) {
+        return;
+      }
+
       if (attempts >= maxAttempts) {
         stopPolling();
-        if (Swal.isVisible()) {
+        if (Swal.isVisible() && !alertShownRef.current) {
+          alertShownRef.current = true;
           Swal.close();
           Swal.fire({
             icon: "warning",
@@ -177,9 +191,19 @@ export default function Transfer() {
         const res = await fetch(`/api/transaction/status?transactionId=${transactionId}`);
         const data = await res.json();
 
+        // Prevent duplicate alerts
+        if (alertShownRef.current) {
+          return;
+        }
+
         if (data.status === "success") {
+          alertShownRef.current = true;
           stopPolling();
-          Swal.close();
+          
+          // Close any open Swal modals
+          if (Swal.isVisible()) {
+            Swal.close();
+          }
           
           // Trigger confetti on success
           triggerConfetti();
@@ -199,8 +223,12 @@ export default function Transfer() {
           setIsOpen(false);
           
         } else if (data.status === "failed") {
+          alertShownRef.current = true;
           stopPolling();
-          Swal.close();
+          
+          if (Swal.isVisible()) {
+            Swal.close();
+          }
           
           await Swal.fire({
             icon: "error",
@@ -282,6 +310,7 @@ export default function Transfer() {
       if (pollingInterval) {
         clearInterval(pollingInterval);
       }
+      isProcessingRef.current = false;
     };
   }, [pollingInterval]);
 
@@ -643,6 +672,9 @@ export default function Transfer() {
 
       // ADDED: Check for processing status and start polling
       if (res.ok && data.status === "processing") {
+        // Reset alert flag before showing new modal
+        alertShownRef.current = false;
+        
         // Show processing message
         Swal.fire({
           icon: "info",
