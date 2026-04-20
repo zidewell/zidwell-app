@@ -112,117 +112,12 @@ export default function Transfer() {
   const [showAlltime, setShowAlltime] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
 
-  // ADDED: Polling states
-  const [pollingTransactionId, setPollingTransactionId] = useState<string | null>(null);
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
-
   const formatNumber = (value: number) =>
     new Intl.NumberFormat("en-US", {
       style: "decimal",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
-
-  // ADDED: Reset form function
-  const resetForm = () => {
-    setAmount("");
-    setAccountNumber("");
-    setAccountName("");
-    setNarration("");
-    setRecepientAcc("");
-    setBankCode("");
-    setBankName("");
-    setPin(Array(inputCount).fill(""));
-    setErrors({});
-    setSaveAccount(false);
-    setSaveP2PBeneficiary(false);
-    setSelectedSavedAccount(null);
-    setSelectedSavedP2PBeneficiary(null);
-  };
-
-  // ADDED: Stop polling function
-  const stopPolling = () => {
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      setPollingInterval(null);
-    }
-    setPollingTransactionId(null);
-  };
-
-  // ADDED: Start polling function
-  const startPolling = (transactionId: string) => {
-    setPollingTransactionId(transactionId);
-    
-    let attempts = 0;
-    const maxAttempts = 30; // 30 seconds max
-    const pollIntervalMs = 2000; // Poll every 2 seconds
-
-    const pollStatus = async () => {
-      if (attempts >= maxAttempts) {
-        stopPolling();
-        if (Swal.isVisible()) {
-          Swal.close();
-          Swal.fire({
-            icon: "warning",
-            title: "Still Processing",
-            text: "Your transfer is taking longer than expected. You will receive an email confirmation once completed.",
-          });
-        }
-        return;
-      }
-
-      attempts++;
-
-      try {
-        const res = await fetch(`/api/transaction/status?transactionId=${transactionId}`);
-        const data = await res.json();
-
-        if (data.status === "success") {
-          stopPolling();
-          Swal.close();
-          
-          // Trigger confetti on success
-          triggerConfetti();
-          
-          await Swal.fire({
-            icon: "success",
-            title: "Transfer Successful! 🎉",
-            text: "Your transaction has been processed successfully.",
-            showConfirmButton: true,
-            confirmButtonColor: "#2b825b",
-            timer: 5000,
-            timerProgressBar: true,
-          });
-          
-          resetForm();
-          setConfirmTransaction(false);
-          setIsOpen(false);
-          
-        } else if (data.status === "failed") {
-          stopPolling();
-          Swal.close();
-          
-          await Swal.fire({
-            icon: "error",
-            title: "Transfer Failed",
-            text: data.message || "Your transfer could not be completed. Your wallet was not charged.",
-          });
-          
-          setConfirmTransaction(false);
-          setIsOpen(false);
-        }
-        // If still processing, continue polling
-      } catch (error) {
-        console.error("Polling error:", error);
-        // Continue polling on error
-      }
-    };
-
-    // Start polling
-    pollStatus(); // Initial call
-    const interval = setInterval(pollStatus, pollIntervalMs);
-    setPollingInterval(interval);
-  };
 
   // Confetti function
   const triggerConfetti = () => {
@@ -275,15 +170,6 @@ export default function Transfer() {
     setOpen(false);
     setSearch("");
   };
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
-    };
-  }, [pollingInterval]);
 
   // Fetch user, bank details, saved accounts, and saved P2P beneficiaries
   useEffect(() => {
@@ -594,7 +480,6 @@ export default function Transfer() {
     }
   };
 
-  // UPDATED: performTransfer with polling support
   const performTransfer = async (submittedPin: string) => {
     setLoading(true);
 
@@ -606,7 +491,7 @@ export default function Transfer() {
         senderBankName: userDetails.bank_details.bank_name,
         amount: Number(amount),
         narration,
-        pin: submittedPin,
+        pin: submittedPin, // Use the submitted PIN
         type: transferType,
         fee: calculatedFee,
         totalDebit,
@@ -641,30 +526,7 @@ export default function Transfer() {
 
       const data = await res.json();
 
-      // ADDED: Check for processing status and start polling
-      if (res.ok && data.status === "processing") {
-        // Show processing message
-        Swal.fire({
-          icon: "info",
-          title: "Processing Transfer",
-          text: "Your transfer is being processed. Please wait...",
-          allowOutsideClick: false,
-          showConfirmButton: false,
-          willOpen: () => {
-            Swal.showLoading();
-          },
-        });
-
-        // Start polling for status
-        if (data.transactionId) {
-          startPolling(data.transactionId);
-        }
-        
-        setLoading(false);
-        return { success: true };
-      } 
-      else if (res.ok) {
-        // Handle immediate success (rare case for P2P or other fast transactions)
+      if (res.ok) {
         // Save account/beneficiary if requested
         if (
           saveAccount &&
@@ -707,15 +569,26 @@ export default function Transfer() {
         });
 
         // Reset form
-        resetForm();
-        setConfirmTransaction(false);
-        setIsOpen(false);
+        setAmount("");
+        setAccountNumber("");
+        setAccountName("");
+        setNarration("");
+        setRecepientAcc("");
+        setBankCode("");
+        setBankName("");
+        setPin(Array(inputCount).fill(""));
+        setErrors({});
+        setSaveAccount(false);
+        setSaveP2PBeneficiary(false);
+        setSelectedSavedAccount(null);
+        setSelectedSavedP2PBeneficiary(null);
 
         // Return success
         return { success: true };
       } else {
-        // Handle error
-        const errorMessage = data?.reason || data?.message || "Transfer failed.";
+        // Check if it's a PIN error
+        const errorMessage =
+          data?.reason || data?.message || "Transfer failed.";
 
         // If it's a PIN error, throw it to be caught by the PIN popup
         if (
@@ -751,7 +624,7 @@ export default function Transfer() {
         err?.message?.toLowerCase().includes("pin") ||
         err?.message?.toLowerCase().includes("transaction pin")
       ) {
-        throw err;
+        throw err; // This will be caught by the PIN popup's onConfirm
       }
 
       // For other errors, show Swal
@@ -763,6 +636,7 @@ export default function Transfer() {
 
       setErrors({ form: err?.message || "Something went wrong." });
 
+      // Return error object instead of throwing
       return { success: false, error: err?.message };
     } finally {
       setLoading(false);
@@ -838,7 +712,6 @@ export default function Transfer() {
     }
     return "bank_transfer";
   };
-  
   return (
     <>
       <PinPopOver
@@ -1392,6 +1265,9 @@ export default function Transfer() {
         senderName={`${userData?.fullName}`}
         senderAccount={userDetails?.bank_details?.bank_account_number || "N/A"}
         recipientName={
+          // For P2P: use p2pDetails.name
+          // For other-bank: use accountName (from bank lookup)
+          // For my-account: use your own payment details
           transferType === "p2p"
             ? p2pDetails?.name
             : transferType === "other-bank"
@@ -1399,6 +1275,9 @@ export default function Transfer() {
               : userDetails?.payment_details?.p_account_name
         }
         recipientAccount={
+          // For P2P: use recepientAcc
+          // For other-bank: use accountNumber
+          // For my-account: use your own account number
           transferType === "p2p"
             ? recepientAcc
             : transferType === "other-bank"
@@ -1406,6 +1285,9 @@ export default function Transfer() {
               : userDetails?.payment_details?.p_account_number
         }
         recipientBank={
+          // For P2P: always show "Zidwell"
+          // For other-bank: use bankName (selected bank)
+          // For my-account: use your own bank name
           transferType === "p2p"
             ? "Zidwell"
             : transferType === "other-bank"
