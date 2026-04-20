@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useUserContextData } from "@/app/context/userData";
 import { Button } from "../ui/button";
 import { Button2 } from "../ui/button2";
+import Image from "next/image";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -67,17 +68,18 @@ const Header = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link
-            href={pathname === "/app" ? "/app" : "/"}
-            className="flex items-center gap-2"
-          >
-            <div className="w-10 h-10 border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] flex items-center justify-center">
-              <span className="text-[#01402e] font-black text-xl">Z</span>
-            </div>
-            <span className="font-black text-xl tracking-tight text-[#01402e] dark:text-[#f7f0e5]">
-              Zidwell
-            </span>
-          </Link>
+          <Link href="/dashboard" className="flex items-center gap-2">
+              <Image
+                src="/logo.png"
+                alt="Zidwell Logo"
+                width={49}
+                height={40}
+                className="w-10 object-contain"
+              />
+              <span className="text-xl font-bold tracking-tight text-[#141414] dark:text-[#f5f5f5] uppercase">
+                Zidwell
+              </span>
+            </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-8">

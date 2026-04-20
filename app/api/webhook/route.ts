@@ -25,6 +25,7 @@ function safeNum(v: any) {
   return Number.isFinite(n) ? n : 0;
 }
 
+const cheersUrl = `${baseUrl}/cheers-transaction.png`;
 const headerImageUrl = `${baseUrl}/zidwell-header.png`;
 const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 

@@ -23,7 +23,7 @@ const Hero = () => {
           backgroundSize: '60px 60px'
         }} />
 
-        <div className="container mx-auto px-6 py-12 relative z-10">
+        <div className=" mx-auto px-6 py-12 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Content */}
             <div className="max-w-xl">

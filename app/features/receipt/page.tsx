@@ -200,7 +200,7 @@ export default function LandingPage() {
                     <feature.icon className="h-5 w-5 text-[#f5f0e6]" />
                   </div>
                   <h3 className="text-lg font-bold text-[#034835] dark:text-[#f5f0e6] mb-2">
-                    ✅ {feature.title}
+                     {feature.title}
                   </h3>
                   <p className="text-sm text-[#0a3b2d] dark:text-[#c9bfa8] leading-relaxed">
                     {feature.description}
@@ -286,14 +286,14 @@ export default function LandingPage() {
               Simple Subscription Pricing
             </h2>
             <p className="text-center text-[#0a3b2d] dark:text-[#c9bfa8] mb-16">
-              👉 Receipts are generated automatically — no extra charges per receipt.
+               Receipts are generated automatically — no extra charges per receipt.
             </p>
 
             <div className="max-w-4xl mx-auto grid gap-6 sm:grid-cols-3">
               {/* Free Trial */}
               <div className="p-6 bg-white dark:bg-[#14261f] border-2 border-[#034835] dark:border-[#e4c644] rounded-none shadow-[2px_2px_0px_#034835] dark:shadow-[2px_2px_0px_#e4c644] flex flex-col">
                 <div className="h-10 w-10 rounded-none flex items-center justify-center bg-[#034835]/10 text-[#034835] dark:text-[#e4c644] font-bold mb-4 border-2 border-[#034835] dark:border-[#e4c644]">
-                  🟢
+                  
                 </div>
                 <h3 className="text-xl font-bold text-[#034835] dark:text-[#f5f0e6] mb-1">
                   Free Trial
@@ -325,7 +325,7 @@ export default function LandingPage() {
                   POPULAR
                 </div>
                 <div className="h-10 w-10 rounded-none flex items-center justify-center bg-[#e4c644]/10 text-[#e4c644] font-bold mb-4 border-2 border-[#e4c644]">
-                  🔵
+                  
                 </div>
                 <h3 className="text-xl font-bold text-[#034835] dark:text-[#f5f0e6] mb-1">
                   Standard
@@ -358,7 +358,7 @@ export default function LandingPage() {
               {/* Pro */}
               <div className="p-6 bg-white dark:bg-[#14261f] border-2 border-[#034835] dark:border-[#e4c644] rounded-none shadow-[2px_2px_0px_#034835] dark:shadow-[2px_2px_0px_#e4c644] flex flex-col">
                 <div className="h-10 w-10 rounded-none flex items-center justify-center bg-[#e4c644]/10 text-[#e4c644] font-bold mb-4 border-2 border-[#e4c644]">
-                  🟡
+                  
                 </div>
                 <h3 className="text-xl font-bold text-[#034835] dark:text-[#f5f0e6] mb-1">
                   Pro
