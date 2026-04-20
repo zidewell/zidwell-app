@@ -32,9 +32,9 @@ export default function LandingPage() {
         {/* 1. HERO SECTION */}
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-[#034835]/5 via-transparent to-[#e4c644]/5" />
-          <div className="container relative py-20 sm:py-32">
+          <div className="py-20 sm:py-32">
             <div className="max-w-3xl mx-auto text-center">
-              <div className="inline-flex items-center gap-2 rounded-none px-4 py-1.5 text-sm font-semibold mb-8 bg-[#e4c644] text-[#034835] border-2 border-[#034835] shadow-[4px_4px_0px_#034835]">
+              <div className="inline-flex items-center gap-2 rounded-none px-4 py-1.5 text-sm font-semibold mb-8 bg-[#e4c644] text-[#034835] border-2 border-[#034835] shadow-[4px_4px_0px_#034835] mx-auto">
                 <Zap className="h-4 w-4" />
                 Automated Receipt System
               </div>
@@ -70,41 +70,39 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 2. VALUE SHIFT */}
+        {/* 2. VALUE SHIFT - Full width background */}
         <section className="py-16 sm:py-24 bg-[#034835] text-[#f5f0e6]">
-          <div className="container">
-            <div className="max-w-3xl mx-auto text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold mb-6">
-                You Don't Create Receipts Anymore.{" "}
-                <span className="text-[#e4c644]">They Just Happen.</span>
-              </h2>
-              <p className="text-lg sm:text-xl leading-relaxed opacity-90">
-                Whether a customer pays your Zidwell invoice or uses your
-                Zidwell payment page, we automatically generate a professional
-                receipt and send it to them immediately.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-4 justify-center">
-                {["No manual work", "No follow-up", "No stress"].map((item) => (
-                  <span
-                    key={item}
-                    className="px-5 py-2 rounded-none border-2 border-[#e4c644] bg-[#e4c644]/10 text-[#e4c644] font-semibold text-sm"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-6">
+              You Don't Create Receipts Anymore.{" "}
+              <span className="text-[#e4c644]">They Just Happen.</span>
+            </h2>
+            <p className="text-lg sm:text-xl leading-relaxed opacity-90">
+              Whether a customer pays your Zidwell invoice or uses your
+              Zidwell payment page, we automatically generate a professional
+              receipt and send it to them immediately.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-4 justify-center">
+              {["No manual work", "No follow-up", "No stress"].map((item) => (
+                <span
+                  key={item}
+                  className="px-5 py-2 rounded-none border-2 border-[#e4c644] bg-[#e4c644]/10 text-[#e4c644] font-semibold text-sm"
+                >
+                  {item}
+                </span>
+              ))}
             </div>
           </div>
         </section>
 
         {/* 3. HOW IT WORKS */}
         <section className="py-16 sm:py-24">
-          <div className="container">
+          <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl sm:text-4xl font-bold text-center text-[#034835] dark:text-[#f5f0e6] mb-16">
               How Zidwell Receipts Work
             </h2>
 
-            <div className="max-w-4xl mx-auto grid gap-6 sm:grid-cols-2">
+            <div className="grid gap-6 sm:grid-cols-2">
               {[
                 {
                   icon: FileText,
@@ -157,14 +155,14 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 4. AUTOMATION FEATURES */}
+        {/* 4. AUTOMATION FEATURES - Full width background */}
         <section className="py-16 sm:py-24 bg-[#f0ebe0] dark:bg-[#0a1a14]">
-          <div className="container">
+          <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl sm:text-4xl font-bold text-center text-[#034835] dark:text-[#f5f0e6] mb-16">
               Fully Automated Receipt System
             </h2>
 
-            <div className="max-w-4xl mx-auto grid gap-6 sm:grid-cols-2">
+            <div className="grid gap-6 sm:grid-cols-2">
               {[
                 {
                   icon: Mail,
@@ -213,7 +211,7 @@ export default function LandingPage() {
 
         {/* 5. WHAT YOUR RECEIPTS INCLUDE */}
         <section className="py-16 sm:py-24">
-          <div className="container">
+          <div className="max-w-3xl mx-auto px-4">
             <h2 className="text-3xl sm:text-4xl font-bold text-center text-[#034835] dark:text-[#f5f0e6] mb-4">
               Professional & Secure Receipts
             </h2>
@@ -221,7 +219,7 @@ export default function LandingPage() {
               Every receipt is clean, branded, and verifiable.
             </p>
 
-            <div className="max-w-3xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {[
                 { icon: BadgeCheck, label: "Clean, branded design" },
                 { icon: Building2, label: "Your business name & logo" },
@@ -247,41 +245,39 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 6. WHY THIS MATTERS */}
+        {/* 6. WHY THIS MATTERS - Full width background */}
         <section className="py-16 sm:py-24 bg-[#034835] text-[#f5f0e6]">
-          <div className="container">
-            <div className="max-w-3xl mx-auto">
-              <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">
-                Why Receipts Matter for Your Business
-              </h2>
+          <div className="max-w-3xl mx-auto px-4">
+            <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">
+              Why Receipts Matter for Your Business
+            </h2>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                {[
-                  { icon: CheckCircle2, text: "Builds trust with customers" },
-                  { icon: TrendingUp, text: "Keeps proper financial records" },
-                  { icon: Scale, text: "Helps during tax filing" },
-                  { icon: ShieldAlert, text: "Prevents payment disputes" },
-                ].map((item) => (
-                  <div
-                    key={item.text}
-                    className="flex items-center gap-3 p-4 rounded-none border-2 border-[#e4c644]/30 bg-[#e4c644]/5"
-                  >
-                    <item.icon className="h-6 w-6 text-[#e4c644] shrink-0" />
-                    <span className="font-medium text-lg">{item.text}</span>
-                  </div>
-                ))}
-              </div>
-
-              <p className="text-center mt-10 text-sm opacity-70 italic">
-                "You don't want to start looking for receipts when tax officials ask."
-              </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                { icon: CheckCircle2, text: "Builds trust with customers" },
+                { icon: TrendingUp, text: "Keeps proper financial records" },
+                { icon: Scale, text: "Helps during tax filing" },
+                { icon: ShieldAlert, text: "Prevents payment disputes" },
+              ].map((item) => (
+                <div
+                  key={item.text}
+                  className="flex items-center gap-3 p-4 rounded-none border-2 border-[#e4c644]/30 bg-[#e4c644]/5"
+                >
+                  <item.icon className="h-6 w-6 text-[#e4c644] shrink-0" />
+                  <span className="font-medium text-lg">{item.text}</span>
+                </div>
+              ))}
             </div>
+
+            <p className="text-center mt-10 text-sm opacity-70 italic">
+              "You don't want to start looking for receipts when tax officials ask."
+            </p>
           </div>
         </section>
 
         {/* 7. PRICING */}
         <section id="pricing" className="py-16 sm:py-24">
-          <div className="container">
+          <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl sm:text-4xl font-bold text-center text-[#034835] dark:text-[#f5f0e6] mb-4">
               Simple Subscription Pricing
             </h2>
@@ -289,7 +285,7 @@ export default function LandingPage() {
                Receipts are generated automatically — no extra charges per receipt.
             </p>
 
-            <div className="max-w-4xl mx-auto grid gap-6 sm:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-3">
               {/* Free Trial */}
               <div className="p-6 bg-white dark:bg-[#14261f] border-2 border-[#034835] dark:border-[#e4c644] rounded-none shadow-[2px_2px_0px_#034835] dark:shadow-[2px_2px_0px_#e4c644] flex flex-col">
                 <div className="h-10 w-10 rounded-none flex items-center justify-center bg-[#034835]/10 text-[#034835] dark:text-[#e4c644] font-bold mb-4 border-2 border-[#034835] dark:border-[#e4c644]">
@@ -393,7 +389,7 @@ export default function LandingPage() {
 
         {/* Footer */}
         <footer className="border-t-2 border-[#034835] dark:border-[#e4c644] py-8 bg-[#034835] text-[#f5f0e6]">
-          <div className="container text-center">
+          <div className="max-w-6xl mx-auto px-4 text-center">
             <p className="text-sm opacity-80">
               Powered by{" "}
               <a
