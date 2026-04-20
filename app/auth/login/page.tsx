@@ -22,6 +22,37 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
 import { Button2 } from "@/app/components/ui/button2";
 
+// Utility function to fix double-encoded URLs
+const fixDoubleEncodedUrl = (url: string): string => {
+  if (!url || url === "/dashboard") return "/dashboard";
+  
+  try {
+    let decoded = url;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    // Keep decoding until no more encoded characters
+    while ((decoded.includes('%') || decoded.includes('%25')) && attempts < maxAttempts) {
+      const beforeDecode = decoded;
+      decoded = decodeURIComponent(decoded);
+      if (beforeDecode === decoded) break;
+      attempts++;
+    }
+    
+    // Clean up any remaining artifacts
+    decoded = decoded.replace(/^%2F/, '/').replace(/%2F/g, '/');
+    
+    // Validate the decoded URL
+    if (decoded.startsWith('/') && !decoded.includes('//')) {
+      return decoded;
+    }
+    return "/dashboard";
+  } catch (error) {
+    console.error("Failed to decode URL:", error);
+    return "/dashboard";
+  }
+};
+
 const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +64,9 @@ const LoginForm = () => {
   const [isMobile, setIsMobile] = useState(false);
   const searchParams = useSearchParams();
 
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  // Get and fix callbackUrl from search params
+  const rawCallbackUrl = searchParams.get("callbackUrl");
+  const callbackUrl = rawCallbackUrl ? fixDoubleEncodedUrl(rawCallbackUrl) : "/dashboard";
   const fromLogin = searchParams.get("fromLogin");
   const scrollToPricing = searchParams.get("scrollToPricing");
 
@@ -54,7 +87,9 @@ const LoginForm = () => {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
+    if (loading) return;
+
     // Basic validation
     if (!email || !password) {
       setErrors({ 
@@ -63,52 +98,27 @@ const LoginForm = () => {
       });
       return;
     }
-    
-    if (loading) return;
+
     setLoading(true);
     setErrors({});
 
-    // Store start time for performance monitoring
-    const startTime = performance.now();
-
     try {
-      // Show loading indicator (non-blocking)
-      let loadingToast: any = null;
-      
-      // Only show Swal loading if it's taking longer than 300ms
-      const loadingTimeout = setTimeout(() => {
-        loadingToast = Swal.fire({
-          title: "Signing in...",
-          text: "Please wait while we verify your credentials",
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          },
-          backdrop: true,
-        });
-      }, 300);
+      // Show loading indicator
+      Swal.fire({
+        title: "Signing in...",
+        text: "Please wait while we verify your credentials",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
 
-      // Add timeout to fetch request (5 seconds)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      // Single API call for authentication
+      // API call for authentication
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-        signal: controller.signal,
       });
-
-      clearTimeout(timeoutId);
-      
-      // Clear loading timeout if it hasn't fired yet
-      clearTimeout(loadingTimeout);
-      
-      // Close loading toast if it was shown
-      if (loadingToast) {
-        Swal.close();
-      }
 
       const result = await res.json();
       
@@ -119,113 +129,77 @@ const LoginForm = () => {
       const { profile, isVerified } = result;
       if (!profile) throw new Error("User profile not found.");
 
-      // CRITICAL OPTIMIZATION: Navigate IMMEDIATELY
-      // This is the most important change - don't wait for anything else
-      const decodedCallbackUrl = decodeURIComponent(callbackUrl);
-      const targetUrl = (fromLogin === "true" && scrollToPricing === "true")
-        ? `${decodedCallbackUrl}?fromLogin=true&scrollToPricing=true`
-        : decodedCallbackUrl;
+      // Close loading alert
+      Swal.close();
+
+    
+      let targetUrl = callbackUrl;
+      if (fromLogin === "true" && scrollToPricing === "true") {
+        targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
+      }
       
-      // Start navigation immediately
+      // Start navigation immediately (this is the key fix)
       router.push(targetUrl);
 
-      // Log performance in production (optional, remove if not needed)
+      // Save data in background (fire and forget - won't block navigation)
+      Promise.allSettled([
+        // Save profile locally
+        (async () => {
+          setUserData(profile);
+          localStorage.setItem("userData", JSON.stringify(profile));
+        })(),
+        
+        // Save verification cookie
+        (async () => {
+          Cookies.set("verified", isVerified ? "true" : "false", {
+            expires: 7,
+            path: "/",
+          });
+        })(),
+        
+        // Update last login activity
+        (async () => {
+          await fetch("/api/activity/last-login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: profile.id,
+              email: profile.email,
+            }),
+          });
+        })(),
+      ]).catch(err => console.error("Background operations failed:", err));
+
+      // Send notification asynchronously (only in production)
       if (process.env.NODE_ENV === "production") {
-        const endTime = performance.now();
-        console.log(`[Performance] Login to navigation: ${(endTime - startTime).toFixed(2)}ms`);
+        sendLoginNotificationWithDeviceInfo(profile).catch(err =>
+          console.error("Failed to send login notification:", err)
+        );
       }
 
-      // Schedule all non-critical operations AFTER navigation has started
-      // Using queueMicrotask for immediate but non-blocking execution
-      queueMicrotask(() => {
-        // Save user data to context and localStorage
-        setUserData(profile);
-        
-        // Use requestIdleCallback for localStorage if available (non-critical)
-        if (typeof requestIdleCallback !== 'undefined') {
-          requestIdleCallback(() => {
-            try {
-              localStorage.setItem("userData", JSON.stringify(profile));
-            } catch (err) {
-              console.error("Failed to save to localStorage:", err);
-            }
-          }, { timeout: 2000 });
-        } else {
-          // Fallback for browsers without requestIdleCallback
-          setTimeout(() => {
-            try {
-              localStorage.setItem("userData", JSON.stringify(profile));
-            } catch (err) {
-              console.error("Failed to save to localStorage:", err);
-            }
-          }, 100);
-        }
-        
-        // Set verification cookie
-        Cookies.set("verified", isVerified ? "true" : "false", {
-          expires: 7,
-          path: "/",
-          sameSite: "lax",
-        });
-        
-        // Update last login activity (fire and forget)
-        fetch("/api/activity/last-login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: profile.id,
-            email: profile.email,
-          }),
-        }).catch(err => console.error("Failed to update last login:", err));
-        
-        // Send notification asynchronously (only in production)
-        if (process.env.NODE_ENV === "production") {
-          sendLoginNotificationWithDeviceInfo(profile).catch(err =>
-            console.error("Failed to send login notification:", err)
-          );
-        }
-      });
-
-      // Show success toast (non-blocking, doesn't interfere with navigation)
+      // Show success toast (non-blocking, appears after navigation starts)
       setTimeout(() => {
         Swal.fire({
           icon: "success",
           title: "Welcome Back!",
-          text: `Hello, ${profile.name || profile.email.split('@')[0]}`,
+          text: `Hello, ${profile.name || profile.email?.split('@')[0] || 'User'}`,
           toast: true,
           position: 'top-end',
           showConfirmButton: false,
           timer: 2000,
           timerProgressBar: true,
-          didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer);
-            toast.addEventListener('mouseleave', Swal.resumeTimer);
-          }
         }).catch(console.error);
       }, 100);
 
     } catch (err: any) {
-      // Close any open Swal dialogs
       Swal.close();
-      
-      // Handle timeout specifically
-      if (err.name === 'AbortError') {
-        Swal.fire({
-          icon: "error",
-          title: "Connection Timeout",
-          text: "The server is taking too long to respond. Please check your internet connection and try again.",
-          confirmButtonColor: "#2b825b",
-          confirmButtonText: "Try Again",
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Login Failed",
-          text: err.message || "Invalid email or password. Please check your credentials and try again.",
-          confirmButtonColor: "#2b825b",
-          confirmButtonText: "Try Again",
-        });
-      }
+      Swal.fire({
+        icon: "error",
+        title: "Login Failed",
+        text: err.message || "Invalid email or password. Please check your credentials and try again.",
+        confirmButtonColor: "#2b825b",
+        confirmButtonText: "Try Again",
+      });
     } finally {
       setLoading(false);
     }
