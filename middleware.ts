@@ -427,10 +427,11 @@ const publicPaths = [
   "/zidwell-bg-mobile.jpg",
   "/api/login", 
   "/api/signup",
-  "/api/",
+  "/api/webhook-testing-new",
+  "/api/webhook",
 ];
 
-// ✅ ADD THIS: Helper function to check if path should bypass auth
+
 function shouldBypassAuth(pathname: string): boolean {
   return publicPaths.some(path => pathname.startsWith(path));
 }
