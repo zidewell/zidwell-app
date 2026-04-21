@@ -83,60 +83,59 @@ export const useSubscription = () => {
   }, [userData?.id, supabase]);
 
   // Activate a trial for a feature
-  const activateTrial = useCallback(async (featureKey: string, durationDays: number = 14) => {
-    if (!userData?.id) return { success: false, error: "User not authenticated" };
+ const activateTrial = useCallback(async (featureKey: string, durationDays: number = 30) => {
+  if (!userData?.id) return { success: false, error: "User not authenticated" };
 
-    try {
-      // Check if user already had or has a trial
-      const { data: existingTrial } = await supabase
-        .from("user_trials")
-        .select("*")
-        .eq("user_id", userData.id)
-        .eq("feature_key", featureKey)
-        .maybeSingle();
+  try {
+    // Check if user already had or has a trial
+    const { data: existingTrial } = await supabase
+      .from("user_trials")
+      .select("*")
+      .eq("user_id", userData.id)
+      .eq("feature_key", featureKey)
+      .maybeSingle();
 
-      if (existingTrial) {
-        if (existingTrial.status === 'active') {
-          return { success: false, error: "You already have an active trial for this feature" };
-        }
-        if (existingTrial.status === 'expired') {
-          return { success: false, error: "Your trial for this feature has already expired" };
-        }
+    if (existingTrial) {
+      if (existingTrial.status === 'active') {
+        return { success: false, error: "You already have an active trial for this feature" };
       }
-
-      // Calculate trial dates
-      const startsAt = new Date();
-      const endsAt = new Date();
-      endsAt.setDate(endsAt.getDate() + durationDays);
-
-      // Create trial record
-      const { data: trial, error } = await supabase
-        .from("user_trials")
-        .insert({
-          user_id: userData.id,
-          feature_key: featureKey,
-          starts_at: startsAt.toISOString(),
-          ends_at: endsAt.toISOString(),
-          status: 'active'
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Update local state
-      setTrialStatus(prev => ({
-        ...prev,
-        [featureKey]: { isActive: true, endsAt, daysRemaining: durationDays }
-      }));
-
-      return { success: true, trial, endsAt };
-    } catch (error: any) {
-      console.error("Error activating trial:", error);
-      return { success: false, error: error.message };
+      if (existingTrial.status === 'expired') {
+        return { success: false, error: "Your trial for this feature has already expired" };
+      }
     }
-  }, [userData?.id, supabase]);
 
+    // Calculate trial dates - 30 days from now
+    const startsAt = new Date();
+    const endsAt = new Date();
+    endsAt.setDate(endsAt.getDate() + durationDays);
+
+    // Create trial record
+    const { data: trial, error } = await supabase
+      .from("user_trials")
+      .insert({
+        user_id: userData.id,
+        feature_key: featureKey,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+        status: 'active'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Update local state
+    setTrialStatus(prev => ({
+      ...prev,
+      [featureKey]: { isActive: true, endsAt, daysRemaining: durationDays }
+    }));
+
+    return { success: true, trial, endsAt };
+  } catch (error: any) {
+    console.error("Error activating trial:", error);
+    return { success: false, error: error.message };
+  }
+}, [userData?.id, supabase]);
   // Enhanced canAccessFeature with trial support
   const enhancedCanAccessFeature = useCallback(async (featureKey: string, currentCount?: number) => {
     // Special handling for trial features
@@ -154,75 +153,73 @@ export const useSubscription = () => {
     return canAccessFeature(featureKey, currentCount);
   }, [canAccessFeature, checkTrialStatus]);
 
-  // Get plan limits based on current tier
-  const getPlanLimits = useCallback(() => {
-    const tier = subscription?.tier || 'free';
-    
-    const limits = {
-      free: {
-        invoices: 5,
-        receipts: 5,
-        contracts: 1,
-        transferFee: 50,
-        bookkeepingTrial: 14,
-        taxCalculatorTrial: 14,
-      },
-      zidlite: {
-        invoices: 10,
-        receipts: 10,
-        contracts: 2,
-        transferFee: 50,
-        bookkeepingTrial: 14,
-        taxCalculatorTrial: 14,
-        whatsappCommunity: true,
-      },
-      growth: {
-        invoices: 'unlimited',
-        receipts: 'unlimited',
-        contracts: 5,
-        transferFee: 50,
-        bookkeepingAccess: true,
-        taxCalculator: true,
-        whatsappCommunity: true,
-      },
-      premium: {
-        invoices: 'unlimited',
-        receipts: 'unlimited',
-        contracts: 'unlimited',
-        transferFee: 50,
-        bookkeepingAccess: true,
-        taxCalculator: true,
-        paymentReminders: true,
-        financialStatements: true,
-        taxSupport: true,
-        prioritySupport: true,
-      },
-      elite: {
-        invoices: 'unlimited',
-        receipts: 'unlimited',
-        contracts: 'unlimited',
-        transferFee: 0,
-        bookkeepingAccess: true,
-        taxCalculator: true,
-        paymentReminders: true,
-        financialStatements: true,
-        taxSupport: true,
-        fullTaxFiling: true,
-        vatFiling: true,
-        payeFiling: true,
-        whtFiling: true,
-        citAudit: true,
-        monthlyTaxFiling: true,
-        yearlyTaxFiling: true,
-        cfoGuidance: true,
-        directWhatsappSupport: true,
-        auditCoordination: true,
-      },
-    };
+const getPlanLimits = useCallback(() => {
+  const tier = subscription?.tier || 'free';
+  
+  const limits = {
+    free: {
+      invoices: 10, 
+      receipts: 10,  
+      contracts: 1,
+      transferFee: 50,
+      bookkeepingTrial: 30, 
+      taxCalculatorTrial: 30, 
+    },
+    zidlite: {
+      invoices: 20,
+      receipts: 20,
+      contracts: 2,
+      transferFee: 50,
+      bookkeepingTrial: 14,
+      taxCalculatorTrial: 14,
+      whatsappCommunity: true,
+    },
+    growth: {
+      invoices: 'unlimited',
+      receipts: 'unlimited',
+      contracts: 5,
+      transferFee: 50,
+      bookkeepingAccess: true,
+      taxCalculator: true,
+      whatsappCommunity: true,
+    },
+    premium: {
+      invoices: 'unlimited',
+      receipts: 'unlimited',
+      contracts: 'unlimited',
+      transferFee: 50,
+      bookkeepingAccess: true,
+      taxCalculator: true,
+      paymentReminders: true,
+      financialStatements: true,
+      taxSupport: true,
+      prioritySupport: true,
+    },
+    elite: {
+      invoices: 'unlimited',
+      receipts: 'unlimited',
+      contracts: 'unlimited',
+      transferFee: 0,
+      bookkeepingAccess: true,
+      taxCalculator: true,
+      paymentReminders: true,
+      financialStatements: true,
+      taxSupport: true,
+      fullTaxFiling: true,
+      vatFiling: true,
+      payeFiling: true,
+      whtFiling: true,
+      citAudit: true,
+      monthlyTaxFiling: true,
+      yearlyTaxFiling: true,
+      cfoGuidance: true,
+      directWhatsappSupport: true,
+      auditCoordination: true,
+    },
+  };
 
-    return limits[tier as keyof typeof limits] || limits.free;
-  }, [subscription?.tier]);
-
+  return limits[tier as keyof typeof limits] || limits.free;
+}, [subscription?.tier]);
   // Get upgrade benefits when moving to a new tier
   const enhancedGetUpgradeBenefits = useCallback((targetTier: SubscriptionTier): string[] => {
     const currentTier = (subscription?.tier || 'free') as SubscriptionTier;

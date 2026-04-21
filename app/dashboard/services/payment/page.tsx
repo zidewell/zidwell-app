@@ -37,10 +37,26 @@ const useCases = [
 ];
 
 const features = [
-  { icon: Zap, title: "Instant Setup", desc: "Create a payment page in under 2 minutes" },
-  { icon: Link2, title: "Shareable Links", desc: "WhatsApp-friendly URLs for easy sharing" },
-  { icon: BarChart3, title: "Sales Dashboard", desc: "Track views, payments, and revenue" },
-  { icon: Shield, title: "Secure Payments", desc: "All transactions are encrypted and secure" },
+  {
+    icon: Zap,
+    title: "Instant Setup",
+    desc: "Create a payment page in under 2 minutes",
+  },
+  {
+    icon: Link2,
+    title: "Shareable Links",
+    desc: "WhatsApp-friendly URLs for easy sharing",
+  },
+  {
+    icon: BarChart3,
+    title: "Sales Dashboard",
+    desc: "Track views, payments, and revenue",
+  },
+  {
+    icon: Shield,
+    title: "Secure Payments",
+    desc: "All transactions are encrypted and secure",
+  },
 ];
 
 const Landing = () => {
@@ -49,11 +65,14 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen dark:bg-[#0e0e0e]">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-        
+
         <main className="flex-1">
           {/* Hero */}
           <section className="container py-16 md:py-24">
@@ -73,17 +92,32 @@ const Landing = () => {
                 <span className="text-[#e1bf46]">Collect Money Instantly.</span>
               </h1>
               <p className="text-lg md:text-xl text-[#6b6b6b] dark:text-[#a6a6a6] max-w-xl mx-auto mb-10">
-                Set up a beautiful payment page in 2 minutes. Share on WhatsApp. Start
-                collecting school fees, service payments, event tickets — anything.
+                Set up a beautiful payment page in 2 minutes. Share on WhatsApp.
+                Start collecting school fees, service payments, event tickets —
+                anything.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button variant="default" size="lg" className="text-base px-8 py-6" onClick={() => router.push("/dashboard/services/payment/dashboard")}>
+                <Button
+                  variant="default"
+                  size="lg"
+                  className="text-base px-8 py-6"
+                  onClick={() =>
+                    router.push("/dashboard/services/payment/dashboard")
+                  }
+                >
                   Create Payment Page
                   <ArrowRight className="h-5 w-5 ml-1" />
                 </Button>
-                <Button variant="outline" size="lg" className="text-base px-8 py-6" onClick={() => {
-                  document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
-                }}>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="text-base px-8 py-6"
+                  onClick={() => {
+                    document
+                      .getElementById("how-it-works")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                >
                   See How It Works
                 </Button>
               </div>
@@ -97,7 +131,10 @@ const Landing = () => {
               className="flex flex-wrap justify-center gap-3 mt-14"
             >
               {useCases.map((u) => (
-                <span key={u.label} className="px-4 py-2 rounded-full bg-[#f9f6ef] dark:bg-[#121212] border border-[#ded4c3] dark:border-[#474747] text-sm font-medium text-[#141414] dark:text-[#f5f5f5]">
+                <span
+                  key={u.label}
+                  className="px-4 py-2 rounded-full bg-[#f9f6ef] dark:bg-[#121212] border border-[#ded4c3] dark:border-[#474747] text-sm font-medium text-[#141414] dark:text-[#f5f5f5]"
+                >
                   {u.emoji} {u.label}
                 </span>
               ))}
@@ -106,7 +143,9 @@ const Landing = () => {
 
           {/* How it works */}
           <section id="how-it-works" className="container py-16 md:py-24">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-4 text-[#141414] dark:text-[#f5f5f5]">How It Works</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-4 text-[#141414] dark:text-[#f5f5f5]">
+              How It Works
+            </h2>
             <p className="text-[#6b6b6b] dark:text-[#a6a6a6] text-center mb-14 max-w-md mx-auto">
               Three simple steps to start collecting payments
             </p>
@@ -123,8 +162,12 @@ const Landing = () => {
                   <span className="text-5xl font-['Space_Grotesk',sans-serif] font-bold text-[#e1bf46]/30 group-hover:text-[#e1bf46]/50 transition-colors">
                     {s.num}
                   </span>
-                  <h3 className="text-xl font-bold mt-3 mb-2 text-[#141414] dark:text-[#f5f5f5]">{s.title}</h3>
-                  <p className="text-[#6b6b6b] dark:text-[#a6a6a6] text-sm leading-relaxed">{s.desc}</p>
+                  <h3 className="text-xl font-bold mt-3 mb-2 text-[#141414] dark:text-[#f5f5f5]">
+                    {s.title}
+                  </h3>
+                  <p className="text-[#6b6b6b] dark:text-[#a6a6a6] text-sm leading-relaxed">
+                    {s.desc}
+                  </p>
                 </motion.div>
               ))}
             </div>
@@ -132,7 +175,9 @@ const Landing = () => {
 
           {/* Features */}
           <section id="features" className="container py-16 md:py-24">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-14 text-[#141414] dark:text-[#f5f5f5]">Everything You Need</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-14 text-[#141414] dark:text-[#f5f5f5]">
+              Everything You Need
+            </h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
               {features.map((f, i) => (
                 <motion.div
@@ -146,8 +191,12 @@ const Landing = () => {
                   <div className="h-12 w-12 rounded-xl bg-[#e1bf46]/20 flex items-center justify-center mx-auto mb-4">
                     <f.icon className="h-6 w-6 text-[#023528] dark:text-[#e1bf46]" />
                   </div>
-                  <h3 className="font-bold mb-1 text-[#141414] dark:text-[#f5f5f5]">{f.title}</h3>
-                  <p className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">{f.desc}</p>
+                  <h3 className="font-bold mb-1 text-[#141414] dark:text-[#f5f5f5]">
+                    {f.title}
+                  </h3>
+                  <p className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">
+                    {f.desc}
+                  </p>
                 </motion.div>
               ))}
             </div>
@@ -165,13 +214,16 @@ const Landing = () => {
                 Ready to start collecting payments?
               </h2>
               <p className="text-[#f7f0e2]/70 mb-8">
-                Join thousands of freelancers, schools, and vendors already using Zidwell Pay.
+                Join thousands of freelancers, schools, and vendors already
+                using Zidwell Pay.
               </p>
               <Button
                 variant="default"
                 size="lg"
                 className="text-base px-10 py-6 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90"
-                onClick={() => router.push("/dashboard/services/payment/create")}
+                onClick={() =>
+                  router.push("/dashboard/services/payment/create")
+                }
               >
                 Create Your First Page
                 <ArrowRight className="h-5 w-5 ml-1" />

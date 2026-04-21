@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const token = await getNombaToken();
+    console.log("🔑 Nomba token obtained successfully", token);
     if (!token) {
       const response = NextResponse.json(
         { error: "Unable to authenticate with Nomba", logout: true },

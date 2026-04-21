@@ -90,7 +90,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       "/dashboard/services/buy-data",
       "/dashboard/services/buy-power",
       "/dashboard/services/buy-cable-tv",
-      "/dashboard/services/payment",
+      "/dashboard/services/create-invoice",
     ];
 
     const isProtected = protectedLinks.includes(item.href);

@@ -374,128 +374,79 @@
 //     "/api/payment-callback",
 //     "/api/auth/auto-login",
 //   ],
-// };
+// };import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { User } from "@supabase/supabase-js";
+import { 
+  getSupabaseAdmin, 
+  getUserWithDetails, 
+  hasSufficientTier,
+  isSubscriptionActive 
+} from "@/lib/suabase-admin"; 
 
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+// Define route configurations
+const premiumRoutes = [
+  { path: "/dashboard/bookkeeping", requiredTier: "growth" },
+  { path: "/dashboard/tax-calculator", requiredTier: "growth" },
+  { path: "/dashboard/financial-statements", requiredTier: "premium" },
+  { path: "/dashboard/tax-filing", requiredTier: "premium" },
+  { path: "/dashboard/vat-filing", requiredTier: "elite" },
+  { path: "/dashboard/paye-filing", requiredTier: "elite" },
+  { path: "/dashboard/cfo-guidance", requiredTier: "elite" },
+];
 
-// Function to check subscription access
-async function checkSubscriptionAccess(
-  userId: string,
-  requiredTier: string = "free",
-): Promise<boolean> {
-  try {
-    const supabaseAdmin = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
+const bvnRequiredRoutes = [
+  "/dashboard/fund-account",
+  "/dashboard/fund-account/transfer-page",
+  "/dashboard/services/buy-airtime",
+  "/dashboard/services/buy-data",
+  "/dashboard/services/buy-power",
+  "/dashboard/services/buy-cable-tv",
+];
 
-    // Check user's subscription tier
-    const { data: user, error: userError } = await supabaseAdmin
-      .from("users")
-      .select("subscription_tier, subscription_expires_at")
-      .eq("id", userId)
-      .single();
+const allowedAdminRoles = [
+  "super_admin",
+  "finance_admin",
+  "operations_admin",
+  "support_admin",
+  "legal_admin",
+  "blog_admin",
+];
 
-    if (userError || !user) {
-      console.log("User not found for subscription check");
-      return false;
-    }
+// ✅ ADD THIS: Paths that should bypass authentication checks
+const publicPaths = [
+  "/auth/login",
+  "/auth/signup",
+  "/auth/password-reset",
+  "/auth/forgot-password",
+  "/auth/blocked",
+  "/api/payment-callback",
+  "/api/auth/auto-login",
+  "/_next",
+  "/favicon.ico",
+  "/logo.png",
+  "/zidwell-bg-mobile.jpg",
+  "/api/login", // Allow login API to be accessed
+  "/api/signup", // Allow signup API to be accessed
+];
 
-    const userTier = user.subscription_tier || "free";
-
-    // Define tier hierarchy - updated to include zidlite
-    const tierHierarchy = ["free", "zidlite", "growth", "premium", "elite"];
-    const userTierIndex = tierHierarchy.indexOf(userTier);
-    const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
-
-    // Check if user's tier meets requirement
-    if (userTierIndex < requiredTierIndex) {
-      console.log(
-        `User tier ${userTier} insufficient for required tier ${requiredTier}`,
-      );
-      return false;
-    }
-
-    // For paid tiers, check if subscription is active and not expired
-    if (userTier !== "free") {
-      // Check if subscription is expired
-      if (
-        user.subscription_expires_at &&
-        new Date(user.subscription_expires_at) < new Date()
-      ) {
-        console.log("Subscription expired");
-        return false;
-      }
-
-      // Verify active subscription exists
-      const { data: subscription } = await supabaseAdmin
-        .from("subscriptions")
-        .select("status")
-        .eq("user_id", userId)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (!subscription) {
-        console.log("No active subscription found");
-        return false;
-      }
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error checking subscription access:", error);
-    return false;
-  }
+// ✅ ADD THIS: Helper function to check if path should bypass auth
+function shouldBypassAuth(pathname: string): boolean {
+  return publicPaths.some(path => pathname.startsWith(path));
 }
 
-// Function to check if user is verified (BVN verification)
-async function checkUserVerification(userId: string): Promise<boolean> {
-  try {
-    const supabaseAdmin = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
+// Define return type for token validation
+type TokenValidationResult = User | { error: "expired" } | null;
 
-    const { data: user, error } = await supabaseAdmin
-      .from("users")
-      .select("bvn_verification")
-      .eq("id", userId)
-      .single();
-
-    if (error || !user) {
-      console.log("User not found for verification check");
-      return false;
-    }
-
-    return user.bvn_verification === "verified";
-  } catch (error) {
-    console.error("Error checking user verification:", error);
-    return false;
-  }
-}
-
-async function validateTokenAndGetUser(token: string) {
+async function validateTokenAndGetUser(token: string): Promise<TokenValidationResult> {
   if (!token) return null;
 
   try {
-    const supabaseAdmin = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
-
-    const {
-      data: { user },
-      error,
-    } = await supabaseAdmin.auth.getUser(token);
+    const supabase = getSupabaseAdmin();
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error) {
-      // Check if it's a token expiration error
       if (error.message?.includes("JWT expired")) {
-        console.log("Token expired, needs refresh");
         return { error: "expired" };
       }
       console.error("Token validation error:", error.message);
@@ -509,35 +460,54 @@ async function validateTokenAndGetUser(token: string) {
   }
 }
 
-export async function middleware(req: NextRequest) {
- 
-  const userAgent = req.headers.get("user-agent") || "";
-  const isCrawler = /bot|crawler|spider|facebook|twitter|linkedin|slack/i.test(
-    userAgent,
-  );
+async function refreshAccessToken(refreshToken: string) {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
 
-   const currentPath = req.nextUrl.pathname;
-   
+    if (error || !data.session) {
+      return null;
+    }
+
+    return data.session;
+  } catch (error) {
+    console.error("Token refresh error:", error);
+    return null;
+  }
+}
+
+// Type guard to check if result is an error object
+function isTokenError(result: TokenValidationResult): result is { error: "expired" } {
+  return result !== null && typeof result === 'object' && 'error' in result && result.error === "expired";
+}
+
+// Type guard to check if result is a User
+function isUser(result: TokenValidationResult): result is User {
+  return result !== null && !('error' in result) && 'id' in result;
+}
+
+export async function middleware(req: NextRequest) {
+  const startTime = Date.now();
+  const userAgent = req.headers.get("user-agent") || "";
+  const isCrawler = /bot|crawler|spider|facebook|twitter|linkedin|slack/i.test(userAgent);
+  const currentPath = req.nextUrl.pathname;
+  
+  // ✅ ADD THIS: Bypass authentication for public paths
+  if (shouldBypassAuth(currentPath)) {
+    console.log(`🔓 Bypassing auth for public path: ${currentPath}`);
+    return NextResponse.next();
+  }
+  
+  // Handle crawlers
   if (isCrawler && currentPath.includes("/blog/post-blog/")) {
     const response = NextResponse.next();
-    // Add cache-control for crawlers
     response.headers.set("Cache-Control", "no-cache, must-revalidate");
     return response;
   }
 
-  // ✅ ALLOW PAYMENT CALLBACK AND AUTO-LOGIN TO PASS THROUGH WITHOUT AUTH
-  if (
-    currentPath === "/api/payment-callback" ||
-    currentPath === "/api/auth/auto-login"
-  ) {
-    console.log("🔵 Payment callback/auto-login bypassing middleware auth");
-    return NextResponse.next();
-  }
-
-  let accessToken = req.cookies.get("sb-access-token")?.value;
-  const refreshToken = req.cookies.get("sb-refresh-token")?.value;
-
-  // ✅ Allow dashboard access with payment_processed cookie
+  // Handle post-payment access
   if (
     currentPath.startsWith("/dashboard") &&
     req.cookies.get("payment_processed")
@@ -548,287 +518,197 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
-  const premiumRoutes = [
-    { path: "/dashboard/bookkeeping", requiredTier: "growth" },
-    { path: "/dashboard/tax-calculator", requiredTier: "growth" },
-    { path: "/dashboard/financial-statements", requiredTier: "premium" },
-    { path: "/dashboard/tax-filing", requiredTier: "premium" },
-    { path: "/dashboard/vat-filing", requiredTier: "elite" },
-    { path: "/dashboard/paye-filing", requiredTier: "elite" },
-    { path: "/dashboard/cfo-guidance", requiredTier: "elite" },
-  ];
-
-  // Define routes that require BVN verification
-  const bvnRequiredRoutes = [
-    "/dashboard/fund-account",
-    "/dashboard/fund-account/transfer-page",
-    "/dashboard/services/buy-airtime",
-    "/dashboard/services/buy-data",
-    "/dashboard/services/buy-power",
-    "/dashboard/services/buy-cable-tv",
-  ];
-
-  // Check if current path is a BVN required route
-  const requiresBVN = bvnRequiredRoutes.some((route) =>
-    currentPath.startsWith(route),
-  );
-
-  // Check if current path is a premium route
-  const matchedPremiumRoute = premiumRoutes.find((route) =>
-    currentPath.startsWith(route.path),
-  );
-
+  // Redirect /app to home
   if (currentPath === "/app") {
-    console.log("Redirecting /app to home page");
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // ============ API ROUTE HANDLING - ALL APIs ARE NOW PUBLIC ============
+  // API routes are public but we still need to check auth for protected APIs
   if (currentPath.startsWith("/api/")) {
-    // All API routes are now public - no authentication required
-    console.log(`🔓 Public API access: ${currentPath}`);
+    // Allow public APIs
+    const publicApis = ["/api/payment-callback", "/api/auth/auto-login", "/api/login", "/api/signup"];
+    if (publicApis.some(api => currentPath.startsWith(api))) {
+      return NextResponse.next();
+    }
+    
+    // For other APIs, check authentication
+    // We'll continue to the main auth check below
+  }
+
+  // Check if route needs protection
+  const isProtectedRoute = currentPath.startsWith("/dashboard") ||
+    currentPath.startsWith("/admin") ||
+    currentPath.startsWith("/blog/admin") ||
+    (currentPath.startsWith("/api/") && !publicPaths.some(path => currentPath.startsWith(path)));
+
+  if (!isProtectedRoute) {
     return NextResponse.next();
   }
 
-  // ============ PROTECTED ROUTES HANDLING ============
-  if (
-    currentPath.startsWith("/dashboard") ||
-    currentPath.startsWith("/admin") ||
-    currentPath.startsWith("/blog/admin")
-  ) {
-    // No session at all → redirect to login
-    if (!accessToken && !refreshToken) {
-      console.log("No tokens found, redirecting to login");
+  console.log(`🔒 Checking auth for protected route: ${currentPath}`);
+
+  // Get tokens - Check for both HTTP-only and client session cookie
+  let accessToken = req.cookies.get("sb-access-token")?.value;
+  const refreshToken = req.cookies.get("sb-refresh-token")?.value;
+  const clientSession = req.cookies.get("sb-client-session")?.value;
+
+  // Allow if client session exists (helps with race conditions)
+  if (clientSession === "true" && !accessToken && !refreshToken) {
+    console.log("🟢 Client session exists but no tokens, allowing access temporarily");
+    return NextResponse.next();
+  }
+
+  // No tokens at all
+  if (!accessToken && !refreshToken) {
+    console.log("❌ No tokens found, redirecting to login");
+    return redirectToLogin(req);
+  }
+
+  // Try to refresh token if needed
+  if (!accessToken && refreshToken) {
+    console.log("🔄 No access token but refresh token exists, attempting refresh");
+    const session = await refreshAccessToken(refreshToken);
+    
+    if (!session) {
+      console.log("❌ Token refresh failed, redirecting to login");
       return redirectToLogin(req);
     }
 
-    // ✅ Refresh access token using refresh token
-    if (!accessToken && refreshToken) {
-      console.log(
-        "No access token but refresh token exists, attempting refresh",
+    console.log("✅ Token refresh successful");
+    const response = NextResponse.next();
+    response.cookies.set("sb-access-token", session.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    response.cookies.set("sb-refresh-token", session.refresh_token!, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    
+    // Also set client session cookie
+    response.cookies.set("sb-client-session", "true", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    accessToken = session.access_token;
+    return response;
+  }
+
+  // Validate token
+  if (!accessToken) {
+    console.log("❌ No access token after refresh attempt, redirecting to login");
+    return redirectToLogin(req);
+  }
+
+  const tokenResult = await validateTokenAndGetUser(accessToken);
+  
+  // Handle token validation results
+  if (!tokenResult) {
+    console.log("❌ Token validation failed, redirecting to login");
+    return redirectToLogin(req);
+  }
+
+  // Check if token is expired
+  if (isTokenError(tokenResult)) {
+    console.log("⚠️ Token expired, redirecting to login");
+    return redirectToLogin(req);
+  }
+
+  // Now we know tokenResult is a User object
+  if (!isUser(tokenResult)) {
+    console.log("❌ Invalid user object, redirecting to login");
+    return redirectToLogin(req);
+  }
+
+  // Get user details with caching
+  const userDetails = await getUserWithDetails(tokenResult.id);
+  
+  if (!userDetails) {
+    console.log("❌ User details not found, redirecting to login");
+    return redirectToLogin(req);
+  }
+
+  // Check if user is blocked
+  if (userDetails.is_blocked) {
+    console.log("🚫 User is blocked, redirecting to blocked page");
+    const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
+    response.cookies.delete("sb-access-token");
+    response.cookies.delete("sb-refresh-token");
+    response.cookies.delete("sb-client-session");
+    response.cookies.delete("verified");
+    return response;
+  }
+
+  // Check if route requires BVN verification
+  const requiresBVN = bvnRequiredRoutes.some((route) =>
+    currentPath.startsWith(route)
+  );
+
+  if (requiresBVN && userDetails.bvn_verification !== "verified") {
+    console.log(`⚠️ BVN verification required for ${currentPath}`);
+    const response = NextResponse.redirect(
+      new URL(
+        `/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`,
+        req.url,
+      ),
+    );
+    response.cookies.set(
+      "verification_message",
+      "Please verify your BVN to access this feature",
+      { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" },
+    );
+    return response;
+  }
+
+  // Check if route requires specific subscription tier
+  const matchedPremiumRoute = premiumRoutes.find((route) =>
+    currentPath.startsWith(route.path)
+  );
+
+  if (matchedPremiumRoute) {
+    const hasAccess = hasSufficientTier(userDetails, matchedPremiumRoute.requiredTier);
+    
+    if (!hasAccess) {
+      console.log(`⚠️ Insufficient tier for ${currentPath}, requires ${matchedPremiumRoute.requiredTier}`);
+      const response = NextResponse.redirect(
+        new URL(
+          `/pricing?upgrade=${matchedPremiumRoute.requiredTier}&redirect=${encodeURIComponent(currentPath)}`,
+          req.url,
+        ),
       );
-
-      try {
-        const supabase = createClient(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        );
-
-        const { data, error } = await supabase.auth.refreshSession({
-          refresh_token: refreshToken,
-        });
-
-        if (error || !data.session) {
-          console.log("Token refresh failed:", error?.message);
-          return redirectToLogin(req);
-        }
-
-        // Save new tokens
-        console.log("Token refresh successful, updating cookies");
-        const res = NextResponse.next();
-
-        res.cookies.set("sb-access-token", data.session.access_token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 60 * 60 * 24 * 7,
-        });
-
-        res.cookies.set("sb-refresh-token", data.session.refresh_token!, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 60 * 60 * 24 * 7,
-        });
-
-        // Update access token for further checks in this request
-        accessToken = data.session.access_token;
-      } catch (refreshError) {
-        console.log("Token refresh exception:", refreshError);
-        return redirectToLogin(req);
-      }
+      response.cookies.set(
+        "subscription_message",
+        `This feature requires the ${matchedPremiumRoute.requiredTier} plan`,
+        { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" },
+      );
+      return response;
     }
+  }
 
-    // Validate the access token is still valid
-    if (accessToken) {
-      const user = await validateTokenAndGetUser(accessToken);
-      if (!user) {
-        console.log("🔴 Invalid access token, redirecting to login");
-        return redirectToLogin(req);
-      }
+  // Check admin routes
+  if (currentPath.startsWith("/admin") || currentPath.startsWith("/blog/admin")) {
+    if (!userDetails.admin_role || !allowedAdminRoles.includes(userDetails.admin_role)) {
+      console.log(`⚠️ Admin access denied for ${currentPath}, role: ${userDetails.admin_role}`);
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
+    console.log(`✅ Admin access granted for role: ${userDetails.admin_role}`);
+  }
 
-    // ✅ Check BVN verification for protected routes
-    if (requiresBVN && accessToken) {
-      try {
-        const supabaseAdmin = createClient(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        );
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabaseAdmin.auth.getUser(accessToken);
-
-        if (userError || !user) {
-          console.log("User not found for BVN check");
-          return redirectToLogin(req);
-        }
-
-        const isVerified = await checkUserVerification(user.id);
-
-        if (!isVerified) {
-          console.log(`User lacks BVN verification for ${currentPath}`);
-
-          const response = NextResponse.redirect(
-            new URL(
-              `/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`,
-              req.url,
-            ),
-          );
-
-          response.cookies.set(
-            "verification_message",
-            "Please verify your BVN to access this feature",
-            {
-              httpOnly: true,
-              maxAge: 5,
-              path: "/",
-              sameSite: "lax",
-            },
-          );
-
-          return response;
-        }
-      } catch (error) {
-        console.error("Error checking BVN verification:", error);
-      }
-    }
-
-    // ✅ Check subscription access for premium routes
-    if (matchedPremiumRoute && accessToken) {
-      try {
-        const supabaseAdmin = createClient(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        );
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabaseAdmin.auth.getUser(accessToken);
-
-        if (userError || !user) {
-          console.log("User not found for subscription check");
-          return redirectToLogin(req);
-        }
-
-        const hasAccess = await checkSubscriptionAccess(
-          user.id,
-          matchedPremiumRoute.requiredTier,
-        );
-
-        if (!hasAccess) {
-          console.log(
-            `User lacks ${matchedPremiumRoute.requiredTier} access for ${currentPath}`,
-          );
-
-          const response = NextResponse.redirect(
-            new URL(
-              `/pricing?upgrade=${matchedPremiumRoute.requiredTier}&redirect=${encodeURIComponent(currentPath)}`,
-              req.url,
-            ),
-          );
-
-          response.cookies.set(
-            "subscription_message",
-            `This feature requires the ${matchedPremiumRoute.requiredTier} plan`,
-            {
-              httpOnly: true,
-              maxAge: 5,
-              path: "/",
-              sameSite: "lax",
-            },
-          );
-
-          return response;
-        }
-      } catch (error) {
-        console.error("Error checking subscription:", error);
-      }
-    }
-
-    // ✅ Admin protection
-    if (
-      currentPath.startsWith("/admin") ||
-      currentPath.startsWith("/blog/admin")
-    ) {
-      console.log("Admin route detected, checking admin permissions");
-
-      if (!accessToken) {
-        console.log("No access token for admin check, redirecting to login");
-        return redirectToLogin(req);
-      }
-
-      try {
-        const supabaseAdmin = createClient(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        );
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabaseAdmin.auth.getUser(accessToken);
-
-        if (userError || !user) {
-          console.log("User not found or error:", userError?.message);
-          return redirectToLogin(req);
-        }
-
-        console.log(`User found: ${user.email}, checking admin role...`);
-
-        const { data: profile, error: profileError } = await supabaseAdmin
-          .from("users")
-          .select("admin_role")
-          .eq("id", user.id)
-          .single();
-
-        if (profileError) {
-          console.log("Error fetching user profile:", profileError.message);
-          return redirectToLogin(req);
-        }
-
-        console.log(`User admin role: ${profile?.admin_role}`);
-
-        const allowedAdminRoles = [
-          "super_admin",
-          "finance_admin",
-          "operations_admin",
-          "support_admin",
-          "legal_admin",
-          "blog_admin",
-        ];
-
-        if (
-          !profile?.admin_role ||
-          !allowedAdminRoles.includes(profile.admin_role)
-        ) {
-          console.log(
-            `User role '${profile?.admin_role}' not authorized for admin access`,
-          );
-          return NextResponse.redirect(new URL("/dashboard", req.url));
-        }
-
-        console.log(`Admin access granted for role: ${profile.admin_role}`);
-      } catch (adminCheckError) {
-        console.log("Admin check exception:", adminCheckError);
-        return redirectToLogin(req);
-      }
-    }
+  const responseTime = Date.now() - startTime;
+  if (responseTime > 200) {
+    console.warn(`⚠️ Slow middleware (${responseTime}ms) for ${currentPath}`);
+  } else {
+    console.log(`✅ Auth check passed for ${currentPath} (${responseTime}ms)`);
   }
 
   return NextResponse.next();
@@ -837,15 +717,17 @@ export async function middleware(req: NextRequest) {
 function redirectToLogin(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const fullUrl = `${pathname}${search}`;
-
   const loginUrl = new URL("/auth/login", req.url);
   loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
 
-  const res = NextResponse.redirect(loginUrl);
+  console.log(`🔄 Redirecting to login from ${fullUrl}`);
 
+  const res = NextResponse.redirect(loginUrl);
+  
   // Clear all auth cookies
   res.cookies.delete("sb-access-token");
   res.cookies.delete("sb-refresh-token");
+  res.cookies.delete("sb-client-session");
   res.cookies.delete("verified");
 
   return res;
@@ -860,5 +742,6 @@ export const config = {
     "/api/:path*",
     "/api/payment-callback",
     "/api/auth/auto-login",
+    "/auth/:path*",
   ],
 };

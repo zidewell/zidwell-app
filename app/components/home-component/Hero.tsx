@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ArrowRight, Users } from "lucide-react";
 import { Button2 } from "../ui/button2";
-import heroCorporateImg from "../../../public/hero-corporate-right.jpg";
-import heroCorporate2Img from "../../../public/hero-corporate-right2.jpg";
 import { useUserContextData } from "@/app/context/userData";
 
 const Hero = () => {
   const { user } = useUserContextData();
   const router = useRouter();
+
+  const mainHeroImage = "https://images.unsplash.com/photo-1739298061757-7a3339cee982?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjJ8fGhhcHB5JTIwYmxhY2slMjBidXNpbmVzcyUyMHBlb3BsZXxlbnwwfDB8MHx8fDA%3D";
+  const floatingHeroImage = "https://images.unsplash.com/photo-1687422808248-f807f4ea2a2e?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fGhhcHB5JTIwYmxhY2slMjBidXNpbmVzc3xlbnwwfDB8MHx8fDA%3D";
 
   return (
     <>
@@ -23,7 +24,7 @@ const Hero = () => {
           backgroundSize: '60px 60px'
         }} />
 
-        <div className="container mx-auto px-6 py-12 relative z-10">
+        <div className="mx-auto px-6 py-12 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Content */}
             <div className="max-w-xl">
@@ -100,22 +101,36 @@ const Hero = () => {
             {/* Right - Image Collage */}
             <div className="animate-fade-up-delay-2 relative hidden lg:block">
               {/* Main image */}
-              <div className="relative border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[8px_8px_0px_#01402e] dark:shadow-[8px_8px_0px_#f4c600] overflow-hidden">
-                <img
-                  src={heroCorporateImg.src}
+              <div className="relative border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[8px_8px_0px_#01402e] dark:shadow-[8px_8px_0px_#f4c600] overflow-hidden rounded-lg">
+                <Image
+                  src={mainHeroImage}
                   alt="Nigerian business professionals"
+                  width={800}
+                  height={400}
                   className="w-full h-[400px] object-cover"
+                  priority
+                  unoptimized={process.env.NODE_ENV === 'development'}
+                  onError={(e) => {
+                    console.error("Failed to load main hero image");
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
                 {/* Overlay gradient */}
-                <div className="absolute inset-0 bg-linear-to-t from-[#01402e]/30 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#01402e]/30 to-transparent" />
               </div>
 
               {/* Floating smaller image */}
-              <div className="absolute -bottom-8 -left-8 w-48 h-48 border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[6px_6px_0px_#f4c600] overflow-hidden">
-                <img
-                  src={heroCorporate2Img.src}
+              <div className="absolute -bottom-8 -left-8 w-48 h-48 border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[6px_6px_0px_#f4c600] overflow-hidden rounded-lg">
+                <Image
+                  src={floatingHeroImage}
                   alt="Nigerian business professional"
+                  width={192}
+                  height={192}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error("Failed to load floating hero image");
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
               </div>
 

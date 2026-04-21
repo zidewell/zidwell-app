@@ -107,6 +107,7 @@ const STATIC_PUBLIC_PAGES = [
   '/auth/login',
   '/auth/register',
   '/pricing',
+  '/pay'
 ];
 
 // Regex patterns for dynamic public routes
@@ -114,6 +115,7 @@ const PUBLIC_PAGE_PATTERNS = [
   /^\/sign-contract\/[^\/]+$/,
   /^\/sign-receipt\/[^\/]+$/,
   /^\/pay-invoice\/[^\/]+$/,
+  /^\/pay\/[^\/]+$/,
   /^\/verify-email\/[^\/]+$/,
   /^\/reset-password\/[^\/]+$/,
   /^\/invite\/[^\/]+$/,
@@ -212,10 +214,10 @@ class SubscriptionCache {
 
 const subscriptionCache = new SubscriptionCache();
 
-// Feature access mapping with zidlite
+
 const FEATURE_TIER_MAP: Record<string, string> = {
-  'invoices_total': 'free',
-  'receipts_total': 'free',
+  'invoices_total': 'free', 
+  'receipts_total': 'free',  
   'contracts_total': 'free',
   'transfer_fee': 'free',
   'bookkeeping_trial_days': 'free',
@@ -709,8 +711,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     const benefitsMap: Record<string, Record<string, string[]>> = {
       free: {
         zidlite: [
-          "10 invoices total",
-          "10 receipts total",
+          "20 invoices total",
+          "20 receipts total",
           "2 contracts total",
           "Access to WhatsApp Business Community",
           "WhatsApp support",
@@ -807,7 +809,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   // ============ END SUBSCRIPTION METHODS ============
 
-  // Initialize user from localStorage
+
   useEffect(() => {
   const initializeUser = async () => {
     try {

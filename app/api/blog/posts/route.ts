@@ -630,24 +630,75 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
+    
+    // Handle atomic increment for views
+    if (body.increment_view === true) {
+      // First get current count
+      const { data: currentPost, error: fetchError } = await supabaseBlog
+        .from("blog_posts")
+        .select("view_count")
+        .eq("id", id)
+        .single();
+      
+      if (fetchError) {
+        console.error('Fetch error:', fetchError);
+        return NextResponse.json({ error: fetchError.message }, { status: 500 });
+      }
+      
+      const newViewCount = (currentPost?.view_count || 0) + 1;
+      
+      const { data: post, error } = await supabaseBlog
+        .from("blog_posts")
+        .update({ 
+          view_count: newViewCount,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Update error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      return NextResponse.json(formatPost(post));
+    }
+    
+    // Regular update for other fields
     const updateData: any = {
       updated_at: new Date().toISOString()
     };
 
-    // Accept both camelCase and snake_case
-    if (body.view_count !== undefined) updateData.view_count = body.view_count;
-    if (body.viewCount !== undefined) updateData.view_count = body.viewCount;
+    // Handle view_count
+    if (body.view_count !== undefined) {
+      updateData.view_count = body.view_count;
+    }
+    if (body.viewCount !== undefined) {
+      updateData.view_count = body.viewCount;
+    }
     
-    if (body.likes_count !== undefined) updateData.likes_count = body.likes_count;
-    if (body.likesCount !== undefined) updateData.likes_count = body.likesCount;
+    // Handle likes_count
+    if (body.likes_count !== undefined) {
+      updateData.likes_count = body.likes_count;
+    }
+    if (body.likesCount !== undefined) {
+      updateData.likes_count = body.likesCount;
+    }
     
-    if (body.comment_count !== undefined) updateData.comment_count = body.comment_count;
-    if (body.commentCount !== undefined) updateData.comment_count = body.commentCount;
+    // Handle comment_count
+    if (body.comment_count !== undefined) {
+      updateData.comment_count = body.comment_count;
+    }
+    if (body.commentCount !== undefined) {
+      updateData.comment_count = body.commentCount;
+    }
     
+    // Handle is_published
     if (body.is_published !== undefined || body.isPublished !== undefined) {
       const isPublished = body.is_published !== undefined ? body.is_published : body.isPublished;
       updateData.is_published = isPublished;
-      if (isPublished) {
+      if (isPublished && !body.published_at) {
         updateData.published_at = new Date().toISOString();
       }
     }

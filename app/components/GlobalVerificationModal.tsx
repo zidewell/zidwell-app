@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -25,6 +25,25 @@ const GlobalVerificationModal = () => {
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Reset all form state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // Reset form when modal opens
+      setBvn("");
+      setPin("");
+      setConfirmPin("");
+      setErrors({});
+      setLoading(false);
+    }
+  }, [isOpen]);
+
+  // Force cleanup on unmount
+  useEffect(() => {
+    return () => {
+      setLoading(false);
+    };
+  }, []);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -51,8 +70,12 @@ const GlobalVerificationModal = () => {
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
+    
+    // Prevent multiple submissions
+    if (loading) return;
+    
     setLoading(true);
+    
     try {
       const response = await fetch("/api/verify-bvn", {
         method: "POST",
@@ -82,41 +105,76 @@ const GlobalVerificationModal = () => {
         pinSet: true,
       });
 
+      // Close modal first
+      closeVerificationModal();
+      
+      // Reset form state
+      setBvn("");
+      setPin("");
+      setConfirmPin("");
+      setErrors({});
+      setLoading(false);
+      
+      // Show success message that auto-closes
       Swal.fire({
         icon: "success",
         title: "Verification Successful!",
         text: "Your BVN has been verified and your wallet is ready.",
         timer: 2000,
         showConfirmButton: false,
+        allowOutsideClick: false,
+        didOpen: () => {
+          // Auto close after 2 seconds
+          setTimeout(() => {
+            Swal.close();
+          }, 2000);
+        }
       });
-
-      closeVerificationModal();
-      setBvn("");
-      setPin("");
-      setConfirmPin("");
     } catch (error: any) {
+      console.error("Verification error:", error);
+      
+      // Reset loading state first so button becomes clickable
+      setLoading(false);
+      
+      // Show error message that auto-closes after 3 seconds
       Swal.fire({
         icon: "error",
         title: "Verification Failed",
-        text: error.message || "Something went wrong",
+        text: error.message || "Something went wrong. Please try again.",
+        timer: 3000,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        didOpen: () => {
+          // Auto close after 3 seconds
+          setTimeout(() => {
+            Swal.close();
+          }, 3000);
+        }
       });
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleClose = () => {
     if (!loading) {
       closeVerificationModal();
+      // Reset all state
       setBvn("");
       setPin("");
       setConfirmPin("");
       setErrors({});
+      setLoading(false);
+    }
+  };
+
+  // Handle dialog open state change
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !loading) {
+      handleClose();
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Complete Your BVN Verification</DialogTitle>
@@ -186,12 +244,18 @@ const GlobalVerificationModal = () => {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button 
+            variant="outline" 
+            onClick={handleClose} 
+            disabled={loading}
+            type="button"
+          >
             Later
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || !bvn || !pin || !confirmPin}
+            type="button"
             className="flex-1 bg-[#2b825b] hover:bg-[#2b825b]/90 text-white dark:bg-[#236b49] dark:hover:bg-[#174c36] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (

@@ -32,7 +32,7 @@ export async function getNombaToken() {
 
 
     // Debug: log the full response to see what fields are available
-    // console.log("🔍 Full Nomba token response:", JSON.stringify(data, null, 2));
+    console.log("🔍 Full Nomba token response:", JSON.stringify(data, null, 2));
 
     if (!response.ok) {
       throw new Error(data.error_description || "Failed to get Nomba token");

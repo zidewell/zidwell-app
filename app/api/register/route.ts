@@ -1,3 +1,307 @@
+// import { NextRequest, NextResponse } from "next/server";
+// import { createClient } from "@supabase/supabase-js";
+// import bcrypt from "bcryptjs";
+// import { getNombaToken } from "@/lib/nomba";
+// import { transporter } from "@/lib/node-mailer";
+
+// const supabase = createClient(
+//   process.env.SUPABASE_URL!,
+//   process.env.SUPABASE_SERVICE_ROLE_KEY!,
+// );
+
+// export async function POST(req: NextRequest) {
+//   try {
+//     const body = await req.json();
+//     const { name, email, phone, password, bvn, transactionPin } = body;
+
+//     // ✅ 1. Validate required fields
+//     if (!name || !email || !phone || !password) {
+//       return NextResponse.json(
+//         { error: "Name, email, phone, and password are required" },
+//         { status: 400 },
+//       );
+//     }
+
+//     // ✅ 2. Check if user already exists
+//     const { data: existingUser } = await supabase
+//       .from("users")
+//       .select("id")
+//       .eq("email", email.toLowerCase())
+//       .maybeSingle();
+
+//     if (existingUser) {
+//       return NextResponse.json(
+//         { error: "User with this email already exists" },
+//         { status: 409 },
+//       );
+//     }
+
+//     // ✅ 3. Hash password
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     // ✅ 4. Hash PIN if provided
+//     let hashedPin = null;
+//     if (transactionPin) {
+//       if (!/^\d{4}$/.test(transactionPin)) {
+//         return NextResponse.json(
+//           { error: "Transaction PIN must be exactly 4 digits" },
+//           { status: 400 },
+//         );
+//       }
+//       hashedPin = await bcrypt.hash(transactionPin, 10);
+//     }
+
+//     // ✅ 5. Generate referral code
+//     const namePart = name.split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+//     const generatedReferral = `${namePart}-${Date.now().toString(36)}`;
+
+//     // ✅ 6. Create user in Supabase Auth
+//     const { data: authData, error: authError } =
+//       await supabase.auth.admin.createUser({
+//         email: email.toLowerCase(),
+//         password: password,
+//         email_confirm: true,
+//         user_metadata: {
+//           full_name: name,
+//           phone: phone,
+//         },
+//       });
+
+//     if (authError || !authData.user) {
+//       console.error("❌ Auth creation error:", authError);
+//       return NextResponse.json(
+//         { error: authError?.message || "Failed to create user" },
+//         { status: 500 },
+//       );
+//     }
+
+//     const userId = authData.user.id;
+
+//     // ✅ 7. Create user profile in users table with ALL fields properly set
+//     const { data: userData, error: userError } = await supabase
+//       .from("users")
+//       .insert({
+//         // Core required fields
+//         id: userId,
+//         full_name: name,
+//         email: email.toLowerCase(),
+//         phone: phone,
+        
+//         // Authentication fields
+//         transaction_pin: hashedPin,
+//         pin_set: !!hashedPin,
+        
+//         // Balance fields (defaults)
+//         wallet_balance: 0,
+//         zidcoin_balance: 20,
+        
+//         // Referral fields
+//         referral_code: generatedReferral,
+//         referred_by: null, // Explicitly null
+        
+//         // BVN verification
+//         bvn_verification: bvn ? "pending" : "not_submitted",
+        
+//         // Timestamps
+//         created_at: new Date().toISOString(),
+//         updated_at: new Date().toISOString(),
+        
+//         // Personal information - all null for new user
+//         first_name: null,
+//         last_name: null,
+//         date_of_birth: null,
+//         city: null,
+//         state: null,
+//         address: null,
+//         country: null,
+//         profile_picture: null,
+        
+//         // Bank information - all null initially
+//         bank_name: null,
+//         bank_account_name: null,
+//         bank_account_number: null,
+//         p_bank_name: null,
+//         p_bank_code: null,
+//         p_account_number: null,
+//         p_account_name: null,
+        
+//         // Wallet information
+//         wallet_id: null,
+//         wallet_updated_at: null,
+        
+//         // Admin fields
+//         admin_role: null, // Regular users have null admin_role
+        
+//         // Block status
+//         is_blocked: false,
+//         blocked_at: null,
+//         block_reason: null,
+        
+//         // Session tracking
+//         last_login: null,
+//         last_logout: null,
+//         current_login_session: null,
+        
+//         // Subscription defaults
+//         subscription_tier: 'free',
+//         subscription_expires_at: null,
+        
+//         // Notification preferences (default JSON)
+//         notification_preferences: {
+//           sms: false,
+//           push: true,
+//           email: true,
+//           in_app: true
+//         },
+        
+//         // Usage tracking - all zero initially
+//         total_invoices_created: 0,
+//         invoices_used_monthly: 0,
+//         receipts_used_monthly: 0,
+//         contracts_used_monthly: 0,
+//         invoices_used_lifetime: 0,
+//         receipts_used_lifetime: 0,
+//         contracts_used_lifetime: 0,
+        
+//         // Limits (default values from schema)
+//         invoice_lifetime_limit: 5,
+//         receipt_lifetime_limit: 5,
+//         contract_lifetime_limit: 1,
+        
+//         // Last usage reset
+//         last_usage_reset: new Date().toISOString().split('T')[0], // Current date
+        
+//         // Referral source
+//         referral_source: null,
+//       })
+//       .select()
+//       .single();
+
+//     if (userError) {
+//       console.error("❌ User insert error:", userError);
+//       // Rollback auth user creation
+//       await supabase.auth.admin.deleteUser(userId);
+//       return NextResponse.json(
+//         { error: "Failed to create user profile: " + userError.message },
+//         { status: 500 },
+//       );
+//     }
+
+//     // ✅ 8. Handle BVN and virtual account creation if provided
+//     if (bvn && transactionPin) {
+//       try {
+//         const token = await getNombaToken();
+//         if (token) {
+//           const nombaRes = await fetch(
+//             `${process.env.NOMBA_URL}/v1/accounts/virtual`,
+//             {
+//               method: "POST",
+//               headers: {
+//                 Authorization: `Bearer ${token}`,
+//                 accountId: process.env.NOMBA_ACCOUNT_ID!,
+//                 "Content-Type": "application/json",
+//               },
+//               body: JSON.stringify({
+//                 accountName: name,
+//                 accountRef: userId,
+//                 bvn: bvn,
+//               }),
+//             },
+//           );
+
+//           const wallet = await nombaRes.json();
+
+//           if (nombaRes.ok && wallet?.data) {
+//             // Update user with wallet information
+//             await supabase
+//               .from("users")
+//               .update({
+//                 bank_name: wallet.data.bankName,
+//                 bank_account_name: wallet.data.bankAccountName,
+//                 bank_account_number: wallet.data.bankAccountNumber,
+//                 wallet_id: wallet.data.accountRef,
+//                 bvn_verification: "verified",
+//                 wallet_updated_at: new Date().toISOString(),
+//               })
+//               .eq("id", userId);
+//           } else {
+//             console.warn("⚠️ Nomba wallet creation failed:", wallet);
+//             // Don't fail registration if wallet creation fails
+//           }
+//         }
+//       } catch (nombaError) {
+//         console.error("⚠️ Nomba API error:", nombaError);
+//         // Continue registration even if wallet creation fails
+//       }
+//     }
+
+//     // ✅ 9. Send welcome email (non-blocking)
+//     (async () => {
+//       try {
+//         const baseUrl =
+//           process.env.NODE_ENV === "development"
+//             ? process.env.NEXT_PUBLIC_DEV_URL
+//             : process.env.NEXT_PUBLIC_BASE_URL;
+
+//         await transporter.sendMail({
+//           from: `"Zidwell" <${process.env.EMAIL_USER}>`,
+//           to: email,
+//           subject: "🎉 Welcome to Zidwell!",
+//           html: `
+//             <div style="background: #f3f4f6; padding: 20px; font-family: Arial, sans-serif;">
+//               <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden;">
+//                 <div style="background: #2b825b; padding: 20px; text-align: center;">
+//                   <h2 style="color: white; margin: 0;">Welcome to Zidwell 🎉</h2>
+//                 </div>
+//                 <div style="padding: 30px;">
+//                   <h2 style="color: #333;">Hi ${name},</h2>
+//                   <p style="color: #666; line-height: 1.6;">Congratulations! Your Zidwell account is ready.</p>
+//                   <p style="color: #666; line-height: 1.6;">We've rewarded you with <strong style="color: #2b825b;">₦20 Zidcoin</strong> 🎁 to get you started.</p>
+//                   <div style="text-align: center; margin: 30px 0;">
+//                     <a href="${baseUrl}/dashboard" 
+//                        style="background: #2b825b; color: white; padding: 12px 24px; border-radius: 8px; 
+//                               text-decoration: none; display: inline-block; font-weight: bold;">
+//                       Go to Dashboard
+//                     </a>
+//                   </div>
+//                   <p style="color: #999; font-size: 12px; margin-top: 20px;">
+//                     If you didn't create this account, please ignore this email.
+//                   </p>
+//                 </div>
+//               </div>
+//             </div>
+//           `,
+//         });
+//       } catch (mailError) {
+//         console.error("❌ Email error:", mailError);
+//         // Don't fail registration if email fails
+//       }
+//     })();
+
+//     return NextResponse.json(
+//       {
+//         success: true,
+//         message: "Registration successful",
+//         user: {
+//           id: userId,
+//           email: email.toLowerCase(),
+//           full_name: name,
+//           phone: phone,
+//         }
+//       },
+//       { status: 201 },
+//     );
+//   } catch (error: any) {
+//     console.error("❌ Unexpected Error:", error);
+//     return NextResponse.json(
+//       { error: error.message || "Failed to register user" },
+//       { status: 500 },
+//     );
+//   }
+// }
+
+
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
@@ -77,7 +381,12 @@ export async function POST(req: NextRequest) {
 
     const userId = authData.user.id;
 
-    // ✅ 7. Create user profile in users table with ALL fields properly set
+    // ✅ 7. Calculate trial dates (30 days from now)
+    const trialStartsAt = new Date();
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 30); // 30-day trial
+
+    // ✅ 8. Create user profile in users table with UPDATED limits (10 invoices/receipts)
     const { data: userData, error: userError } = await supabase
       .from("users")
       .insert({
@@ -97,7 +406,7 @@ export async function POST(req: NextRequest) {
         
         // Referral fields
         referral_code: generatedReferral,
-        referred_by: null, // Explicitly null
+        referred_by: null,
         
         // BVN verification
         bvn_verification: bvn ? "pending" : "not_submitted",
@@ -130,7 +439,7 @@ export async function POST(req: NextRequest) {
         wallet_updated_at: null,
         
         // Admin fields
-        admin_role: null, // Regular users have null admin_role
+        admin_role: null,
         
         // Block status
         is_blocked: false,
@@ -163,13 +472,13 @@ export async function POST(req: NextRequest) {
         receipts_used_lifetime: 0,
         contracts_used_lifetime: 0,
         
-        // Limits (default values from schema)
-        invoice_lifetime_limit: 5,
-        receipt_lifetime_limit: 5,
+        // UPDATED LIMITS: 10 invoices, 10 receipts, 1 contract
+        invoice_lifetime_limit: 10,  // Changed from 5 to 10
+        receipt_lifetime_limit: 10,  // Changed from 5 to 10
         contract_lifetime_limit: 1,
         
         // Last usage reset
-        last_usage_reset: new Date().toISOString().split('T')[0], // Current date
+        last_usage_reset: new Date().toISOString().split('T')[0],
         
         // Referral source
         referral_source: null,
@@ -187,7 +496,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ 8. Handle BVN and virtual account creation if provided
+    // ✅ 9. ACTIVATE 30-DAY TRIALS FOR BOOKKEEPING AND TAX CALCULATOR
+    // This ensures the trial starts counting from the day of signup
+    try {
+      // Insert bookkeeping trial
+      const { error: bookkeepingTrialError } = await supabase
+        .from("user_trials")
+        .insert({
+          user_id: userId,
+          feature_key: "bookkeeping_access",
+          starts_at: trialStartsAt.toISOString(),
+          ends_at: trialEndsAt.toISOString(),
+          status: "active",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+      if (bookkeepingTrialError) {
+        console.error("❌ Error creating bookkeeping trial:", bookkeepingTrialError);
+      }
+
+      // Insert tax calculator trial
+      const { error: taxTrialError } = await supabase
+        .from("user_trials")
+        .insert({
+          user_id: userId,
+          feature_key: "tax_calculator_access",
+          starts_at: trialStartsAt.toISOString(),
+          ends_at: trialEndsAt.toISOString(),
+          status: "active",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+      if (taxTrialError) {
+        console.error("❌ Error creating tax calculator trial:", taxTrialError);
+      }
+
+      console.log(`✅ Activated 30-day trials for user ${userId} until ${trialEndsAt.toISOString()}`);
+    } catch (trialError) {
+      console.error("⚠️ Error activating trials:", trialError);
+      // Don't fail registration if trial creation fails
+    }
+
+    // ✅ 10. Handle BVN and virtual account creation if provided
     if (bvn && transactionPin) {
       try {
         const token = await getNombaToken();
@@ -226,16 +578,14 @@ export async function POST(req: NextRequest) {
               .eq("id", userId);
           } else {
             console.warn("⚠️ Nomba wallet creation failed:", wallet);
-            // Don't fail registration if wallet creation fails
           }
         }
       } catch (nombaError) {
         console.error("⚠️ Nomba API error:", nombaError);
-        // Continue registration even if wallet creation fails
       }
     }
 
-    // ✅ 9. Send welcome email (non-blocking)
+    // ✅ 11. Send welcome email (non-blocking)
     (async () => {
       try {
         const baseUrl =
@@ -256,7 +606,15 @@ export async function POST(req: NextRequest) {
                 <div style="padding: 30px;">
                   <h2 style="color: #333;">Hi ${name},</h2>
                   <p style="color: #666; line-height: 1.6;">Congratulations! Your Zidwell account is ready.</p>
-                  <p style="color: #666; line-height: 1.6;">We've rewarded you with <strong style="color: #2b825b;">₦20 Zidcoin</strong> 🎁 to get you started.</p>
+                  <p style="color: #666; line-height: 1.6;">Here's what you get with your free trial:</p>
+                  <ul style="color: #666; line-height: 1.6;">
+                    <li>✨ <strong>10 Free Invoices</strong> to get started</li>
+                    <li>✨ <strong>10 Free Receipts</strong> for your records</li>
+                    <li>✨ <strong>30-day free trial</strong> of Bookkeeping tools</li>
+                    <li>✨ <strong>30-day free trial</strong> of Tax Calculator</li>
+                    <li>✨ <strong>₦20 Zidcoin</strong> welcome bonus 🎁</li>
+                  </ul>
+                  <p style="color: #666; line-height: 1.6;">Your trials start today and will expire on <strong>${trialEndsAt.toLocaleDateString()}</strong>.</p>
                   <div style="text-align: center; margin: 30px 0;">
                     <a href="${baseUrl}/dashboard" 
                        style="background: #2b825b; color: white; padding: 12px 24px; border-radius: 8px; 
@@ -274,7 +632,6 @@ export async function POST(req: NextRequest) {
         });
       } catch (mailError) {
         console.error("❌ Email error:", mailError);
-        // Don't fail registration if email fails
       }
     })();
 
@@ -287,6 +644,18 @@ export async function POST(req: NextRequest) {
           email: email.toLowerCase(),
           full_name: name,
           phone: phone,
+        },
+        trial: {
+          bookkeeping_access: {
+            starts_at: trialStartsAt.toISOString(),
+            ends_at: trialEndsAt.toISOString(),
+            duration_days: 30
+          },
+          tax_calculator_access: {
+            starts_at: trialStartsAt.toISOString(),
+            ends_at: trialEndsAt.toISOString(),
+            duration_days: 30
+          }
         }
       },
       { status: 201 },

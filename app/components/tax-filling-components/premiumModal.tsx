@@ -35,11 +35,11 @@ const tierDetails: Record<TierType, TierDetail> = {
     textColor: "text-gray-600",
     price: "₦0",
     features: [
-      "5 invoices total",
-      "5 receipts total",
+      "10 invoices total",
+      "10 receipts total",
       "1 contract total",
       "Basic support",
-      "14-day bookkeeping trial",
+      "1 month bookkeeping trial",
     ],
   },
   zidlite: {
