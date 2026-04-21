@@ -22,7 +22,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
 import { Button2 } from "@/app/components/ui/button2";
 
-// Utility function to fix double-encoded URLs
 const fixDoubleEncodedUrl = (url: string): string => {
   if (!url || url === "/dashboard") return "/dashboard";
   
@@ -31,7 +30,6 @@ const fixDoubleEncodedUrl = (url: string): string => {
     let attempts = 0;
     const maxAttempts = 3;
     
-    // Keep decoding until no more encoded characters
     while ((decoded.includes('%') || decoded.includes('%25')) && attempts < maxAttempts) {
       const beforeDecode = decoded;
       decoded = decodeURIComponent(decoded);
@@ -39,10 +37,8 @@ const fixDoubleEncodedUrl = (url: string): string => {
       attempts++;
     }
     
-    // Clean up any remaining artifacts
     decoded = decoded.replace(/^%2F/, '/').replace(/%2F/g, '/');
     
-    // Validate the decoded URL
     if (decoded.startsWith('/') && !decoded.includes('//')) {
       return decoded;
     }
@@ -64,7 +60,6 @@ const LoginForm = () => {
   const [isMobile, setIsMobile] = useState(false);
   const searchParams = useSearchParams();
 
-  // Get and fix callbackUrl from search params
   const rawCallbackUrl = searchParams.get("callbackUrl");
   const callbackUrl = rawCallbackUrl ? fixDoubleEncodedUrl(rawCallbackUrl) : "/dashboard";
   const fromLogin = searchParams.get("fromLogin");
@@ -77,7 +72,7 @@ const LoginForm = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Preload dashboard routes when user starts typing
+  // Preload dashboard routes
   useEffect(() => {
     if (email.length > 3 && password.length > 0) {
       router.prefetch("/dashboard");
@@ -90,7 +85,6 @@ const LoginForm = () => {
 
     if (loading) return;
 
-    // Basic validation
     if (!email || !password) {
       setErrors({ 
         email: !email ? "Email is required" : "",
@@ -101,6 +95,10 @@ const LoginForm = () => {
 
     setLoading(true);
     setErrors({});
+
+    // Set timeout for slow connection
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
       // Show loading indicator
@@ -113,13 +111,14 @@ const LoginForm = () => {
         },
       });
 
-      // API call for authentication
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       const result = await res.json();
       
       if (!res.ok) {
@@ -129,35 +128,28 @@ const LoginForm = () => {
       const { profile, isVerified } = result;
       if (!profile) throw new Error("User profile not found.");
 
-      // Close loading alert
       Swal.close();
 
-    
       let targetUrl = callbackUrl;
       if (fromLogin === "true" && scrollToPricing === "true") {
         targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
       }
       
-      // Start navigation immediately (this is the key fix)
+      // Navigate immediately
       router.push(targetUrl);
 
-      // Save data in background (fire and forget - won't block navigation)
+      // Background operations (non-blocking)
       Promise.allSettled([
-        // Save profile locally
         (async () => {
           setUserData(profile);
           localStorage.setItem("userData", JSON.stringify(profile));
         })(),
-        
-        // Save verification cookie
         (async () => {
           Cookies.set("verified", isVerified ? "true" : "false", {
             expires: 7,
             path: "/",
           });
         })(),
-        
-        // Update last login activity
         (async () => {
           await fetch("/api/activity/last-login", {
             method: "POST",
@@ -166,18 +158,18 @@ const LoginForm = () => {
               user_id: profile.id,
               email: profile.email,
             }),
-          });
+          }).catch(console.error);
         })(),
       ]).catch(err => console.error("Background operations failed:", err));
 
-      // Send notification asynchronously (only in production)
+      // Send notification asynchronously
       if (process.env.NODE_ENV === "production") {
         sendLoginNotificationWithDeviceInfo(profile).catch(err =>
           console.error("Failed to send login notification:", err)
         );
       }
 
-      // Show success toast (non-blocking, appears after navigation starts)
+      // Show success toast
       setTimeout(() => {
         Swal.fire({
           icon: "success",
@@ -192,11 +184,21 @@ const LoginForm = () => {
       }, 100);
 
     } catch (err: any) {
+      clearTimeout(timeoutId);
       Swal.close();
+      
+      let errorMessage = "Invalid email or password. Please check your credentials and try again.";
+      
+      if (err.name === "AbortError") {
+        errorMessage = "Request timed out. Please check your internet connection and try again.";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       Swal.fire({
         icon: "error",
         title: "Login Failed",
-        text: err.message || "Invalid email or password. Please check your credentials and try again.",
+        text: errorMessage,
         confirmButtonColor: "#2b825b",
         confirmButtonText: "Try Again",
       });

@@ -107,6 +107,7 @@ const STATIC_PUBLIC_PAGES = [
   '/auth/login',
   '/auth/register',
   '/pricing',
+  '/pay'
 ];
 
 // Regex patterns for dynamic public routes
@@ -114,6 +115,7 @@ const PUBLIC_PAGE_PATTERNS = [
   /^\/sign-contract\/[^\/]+$/,
   /^\/sign-receipt\/[^\/]+$/,
   /^\/pay-invoice\/[^\/]+$/,
+  /^\/pay\/[^\/]+$/,
   /^\/verify-email\/[^\/]+$/,
   /^\/reset-password\/[^\/]+$/,
   /^\/invite\/[^\/]+$/,
@@ -807,7 +809,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   // ============ END SUBSCRIPTION METHODS ============
 
-  // Initialize user from localStorage
+
   useEffect(() => {
   const initializeUser = async () => {
     try {
