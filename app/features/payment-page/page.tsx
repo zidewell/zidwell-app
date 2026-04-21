@@ -1,3 +1,4 @@
+"use client"
 import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Zap, Link2, BarChart3, Shield } from "lucide-react";
