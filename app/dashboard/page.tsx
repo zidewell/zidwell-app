@@ -303,7 +303,7 @@ function DashboardPage() {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <MobileBottomNav />
+      {/* <MobileBottomNav /> */}
 
       {/* Manual trigger button for testing - remove in production */}
       {process.env.NODE_ENV === "development" && (
