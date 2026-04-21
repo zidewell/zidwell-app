@@ -374,9 +374,8 @@
 //     "/api/payment-callback",
 //     "/api/auth/auto-login",
 //   ],
-// };
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+// };import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
 import { 
   getSupabaseAdmin, 
@@ -413,6 +412,28 @@ const allowedAdminRoles = [
   "legal_admin",
   "blog_admin",
 ];
+
+// ✅ ADD THIS: Paths that should bypass authentication checks
+const publicPaths = [
+  "/auth/login",
+  "/auth/signup",
+  "/auth/password-reset",
+  "/auth/forgot-password",
+  "/auth/blocked",
+  "/api/payment-callback",
+  "/api/auth/auto-login",
+  "/_next",
+  "/favicon.ico",
+  "/logo.png",
+  "/zidwell-bg-mobile.jpg",
+  "/api/login", // Allow login API to be accessed
+  "/api/signup", // Allow signup API to be accessed
+];
+
+// ✅ ADD THIS: Helper function to check if path should bypass auth
+function shouldBypassAuth(pathname: string): boolean {
+  return publicPaths.some(path => pathname.startsWith(path));
+}
 
 // Define return type for token validation
 type TokenValidationResult = User | { error: "expired" } | null;
@@ -473,6 +494,12 @@ export async function middleware(req: NextRequest) {
   const isCrawler = /bot|crawler|spider|facebook|twitter|linkedin|slack/i.test(userAgent);
   const currentPath = req.nextUrl.pathname;
   
+  // ✅ ADD THIS: Bypass authentication for public paths
+  if (shouldBypassAuth(currentPath)) {
+    console.log(`🔓 Bypassing auth for public path: ${currentPath}`);
+    return NextResponse.next();
+  }
+  
   // Handle crawlers
   if (isCrawler && currentPath.includes("/blog/post-blog/")) {
     const response = NextResponse.next();
@@ -480,19 +507,12 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
-  // Allow payment callbacks and auto-login
-  if (
-    currentPath === "/api/payment-callback" ||
-    currentPath === "/api/auth/auto-login"
-  ) {
-    return NextResponse.next();
-  }
-
   // Handle post-payment access
   if (
     currentPath.startsWith("/dashboard") &&
     req.cookies.get("payment_processed")
   ) {
+    console.log("🟡 Post-payment access granted");
     const response = NextResponse.next();
     response.cookies.delete("payment_processed");
     return response;
@@ -503,38 +523,58 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // API routes are public
+  // API routes are public but we still need to check auth for protected APIs
   if (currentPath.startsWith("/api/")) {
-    return NextResponse.next();
+    // Allow public APIs
+    const publicApis = ["/api/payment-callback", "/api/auth/auto-login", "/api/login", "/api/signup"];
+    if (publicApis.some(api => currentPath.startsWith(api))) {
+      return NextResponse.next();
+    }
+    
+    // For other APIs, check authentication
+    // We'll continue to the main auth check below
   }
 
   // Check if route needs protection
   const isProtectedRoute = currentPath.startsWith("/dashboard") ||
     currentPath.startsWith("/admin") ||
-    currentPath.startsWith("/blog/admin");
+    currentPath.startsWith("/blog/admin") ||
+    (currentPath.startsWith("/api/") && !publicPaths.some(path => currentPath.startsWith(path)));
 
   if (!isProtectedRoute) {
     return NextResponse.next();
   }
 
-  // Get tokens
+  console.log(`🔒 Checking auth for protected route: ${currentPath}`);
+
+  // Get tokens - Check for both HTTP-only and client session cookie
   let accessToken = req.cookies.get("sb-access-token")?.value;
   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
+  const clientSession = req.cookies.get("sb-client-session")?.value;
+
+  // Allow if client session exists (helps with race conditions)
+  if (clientSession === "true" && !accessToken && !refreshToken) {
+    console.log("🟢 Client session exists but no tokens, allowing access temporarily");
+    return NextResponse.next();
+  }
 
   // No tokens at all
   if (!accessToken && !refreshToken) {
-    console.log("No tokens found, redirecting to login");
+    console.log("❌ No tokens found, redirecting to login");
     return redirectToLogin(req);
   }
 
   // Try to refresh token if needed
   if (!accessToken && refreshToken) {
+    console.log("🔄 No access token but refresh token exists, attempting refresh");
     const session = await refreshAccessToken(refreshToken);
     
     if (!session) {
+      console.log("❌ Token refresh failed, redirecting to login");
       return redirectToLogin(req);
     }
 
+    console.log("✅ Token refresh successful");
     const response = NextResponse.next();
     response.cookies.set("sb-access-token", session.access_token, {
       httpOnly: true,
@@ -550,12 +590,23 @@ export async function middleware(req: NextRequest) {
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
+    
+    // Also set client session cookie
+    response.cookies.set("sb-client-session", "true", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
 
     accessToken = session.access_token;
+    return response;
   }
 
   // Validate token
   if (!accessToken) {
+    console.log("❌ No access token after refresh attempt, redirecting to login");
     return redirectToLogin(req);
   }
 
@@ -563,16 +614,19 @@ export async function middleware(req: NextRequest) {
   
   // Handle token validation results
   if (!tokenResult) {
+    console.log("❌ Token validation failed, redirecting to login");
     return redirectToLogin(req);
   }
 
   // Check if token is expired
   if (isTokenError(tokenResult)) {
+    console.log("⚠️ Token expired, redirecting to login");
     return redirectToLogin(req);
   }
 
   // Now we know tokenResult is a User object
   if (!isUser(tokenResult)) {
+    console.log("❌ Invalid user object, redirecting to login");
     return redirectToLogin(req);
   }
 
@@ -580,14 +634,18 @@ export async function middleware(req: NextRequest) {
   const userDetails = await getUserWithDetails(tokenResult.id);
   
   if (!userDetails) {
+    console.log("❌ User details not found, redirecting to login");
     return redirectToLogin(req);
   }
 
   // Check if user is blocked
   if (userDetails.is_blocked) {
+    console.log("🚫 User is blocked, redirecting to blocked page");
     const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
     response.cookies.delete("sb-access-token");
     response.cookies.delete("sb-refresh-token");
+    response.cookies.delete("sb-client-session");
+    response.cookies.delete("verified");
     return response;
   }
 
@@ -597,6 +655,7 @@ export async function middleware(req: NextRequest) {
   );
 
   if (requiresBVN && userDetails.bvn_verification !== "verified") {
+    console.log(`⚠️ BVN verification required for ${currentPath}`);
     const response = NextResponse.redirect(
       new URL(
         `/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`,
@@ -620,6 +679,7 @@ export async function middleware(req: NextRequest) {
     const hasAccess = hasSufficientTier(userDetails, matchedPremiumRoute.requiredTier);
     
     if (!hasAccess) {
+      console.log(`⚠️ Insufficient tier for ${currentPath}, requires ${matchedPremiumRoute.requiredTier}`);
       const response = NextResponse.redirect(
         new URL(
           `/pricing?upgrade=${matchedPremiumRoute.requiredTier}&redirect=${encodeURIComponent(currentPath)}`,
@@ -638,13 +698,17 @@ export async function middleware(req: NextRequest) {
   // Check admin routes
   if (currentPath.startsWith("/admin") || currentPath.startsWith("/blog/admin")) {
     if (!userDetails.admin_role || !allowedAdminRoles.includes(userDetails.admin_role)) {
+      console.log(`⚠️ Admin access denied for ${currentPath}, role: ${userDetails.admin_role}`);
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
+    console.log(`✅ Admin access granted for role: ${userDetails.admin_role}`);
   }
 
   const responseTime = Date.now() - startTime;
   if (responseTime > 200) {
-    console.warn(`Slow middleware (${responseTime}ms) for ${currentPath}`);
+    console.warn(`⚠️ Slow middleware (${responseTime}ms) for ${currentPath}`);
+  } else {
+    console.log(`✅ Auth check passed for ${currentPath} (${responseTime}ms)`);
   }
 
   return NextResponse.next();
@@ -656,11 +720,14 @@ function redirectToLogin(req: NextRequest) {
   const loginUrl = new URL("/auth/login", req.url);
   loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
 
+  console.log(`🔄 Redirecting to login from ${fullUrl}`);
+
   const res = NextResponse.redirect(loginUrl);
   
   // Clear all auth cookies
   res.cookies.delete("sb-access-token");
   res.cookies.delete("sb-refresh-token");
+  res.cookies.delete("sb-client-session");
   res.cookies.delete("verified");
 
   return res;
@@ -675,5 +742,6 @@ export const config = {
     "/api/:path*",
     "/api/payment-callback",
     "/api/auth/auto-login",
+    "/auth/:path*",
   ],
 };

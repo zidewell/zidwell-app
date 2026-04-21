@@ -72,14 +72,6 @@ const LoginForm = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Preload dashboard routes
-  useEffect(() => {
-    if (email.length > 3 && password.length > 0) {
-      router.prefetch("/dashboard");
-      router.prefetch("/onboarding");
-    }
-  }, [email, password, router]);
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -96,12 +88,10 @@ const LoginForm = () => {
     setLoading(true);
     setErrors({});
 
-    // Set timeout for slow connection
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      // Show loading indicator
       Swal.fire({
         title: "Signing in...",
         text: "Please wait while we verify your credentials",
@@ -125,31 +115,58 @@ const LoginForm = () => {
         throw new Error(result.error || "Invalid email or password");
       }
 
-      const { profile, isVerified } = result;
+      const { profile, isVerified, sessionEstablished } = result;
       if (!profile) throw new Error("User profile not found.");
 
+      // Update user data immediately
+      setUserData(profile);
+      localStorage.setItem("userData", JSON.stringify(profile));
+      
+      // Set client-side cookies
+      Cookies.set("verified", isVerified ? "true" : "false", {
+        expires: 7,
+        path: "/",
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+      
+      // CRITICAL: Set client session cookie
+      Cookies.set("sb-client-session", "true", {
+        expires: 7,
+        path: "/",
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+
       Swal.close();
+
+      // CRITICAL: Wait for cookies to be properly set
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Verify cookies were set
+      const sessionCookie = Cookies.get("sb-client-session");
+      if (!sessionCookie) {
+        console.warn("Session cookie not set, retrying...");
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
 
       let targetUrl = callbackUrl;
       if (fromLogin === "true" && scrollToPricing === "true") {
         targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
       }
       
-      // Navigate immediately
-      router.push(targetUrl);
+      // CRITICAL FIX: Use hard navigation in production
+      // This ensures all cookies (including HTTP-only) are sent with the request
+      if (process.env.NODE_ENV === "production") {
+        // Use window.location for hard navigation
+        window.location.href = targetUrl;
+      } else {
+        // In development, router.push is fine
+        router.push(targetUrl);
+      }
 
       // Background operations (non-blocking)
       Promise.allSettled([
-        (async () => {
-          setUserData(profile);
-          localStorage.setItem("userData", JSON.stringify(profile));
-        })(),
-        (async () => {
-          Cookies.set("verified", isVerified ? "true" : "false", {
-            expires: 7,
-            path: "/",
-          });
-        })(),
         (async () => {
           await fetch("/api/activity/last-login", {
             method: "POST",

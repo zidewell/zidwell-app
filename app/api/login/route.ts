@@ -1,5 +1,4 @@
-
-import { getUserWithDetails,UserDetails } from "@/lib/suabase-admin"; 
+import { getUserWithDetails, UserDetails } from "@/lib/suabase-admin"; 
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabase } from "@/app/supabase/supabase";
@@ -60,23 +59,32 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2️⃣ Set HTTP-only cookies (parallel operation)
+    // 2️⃣ Set HTTP-only cookies
     const cookieStore = await cookies();
     
+    // Set cookies with proper production settings
     await Promise.all([
       cookieStore.set("sb-access-token", access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: "lax", // Changed from "strict" to "lax"
         path: "/",
         maxAge: expires_in,
       }),
       cookieStore.set("sb-refresh-token", refresh_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: "lax", // Changed from "strict" to "lax"
         path: "/",
         maxAge: 60 * 60 * 24 * 30,
+      }),
+      // Add a client-readable session cookie
+      cookieStore.set("sb-client-session", "true", {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: expires_in,
       }),
     ]);
 
@@ -107,11 +115,12 @@ export async function POST(req: Request) {
     const responseTime = Date.now() - startTime;
     console.log(`Login API completed in ${responseTime}ms`);
 
-    // ✅ Return final response
+    // ✅ Return response
     return NextResponse.json({
       profile,
       isVerified: profile.bvnVerification === "verified",
       isPending: false,
+      sessionEstablished: true,
     });
     
   } catch (err: any) {
