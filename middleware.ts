@@ -413,7 +413,6 @@ const allowedAdminRoles = [
   "blog_admin",
 ];
 
-// ✅ ADD THIS: Paths that should bypass authentication checks
 const publicPaths = [
   "/auth/login",
   "/auth/signup",
@@ -426,8 +425,9 @@ const publicPaths = [
   "/favicon.ico",
   "/logo.png",
   "/zidwell-bg-mobile.jpg",
-  "/api/login", // Allow login API to be accessed
-  "/api/signup", // Allow signup API to be accessed
+  "/api/login", 
+  "/api/signup",
+  "/api/",
 ];
 
 // ✅ ADD THIS: Helper function to check if path should bypass auth
