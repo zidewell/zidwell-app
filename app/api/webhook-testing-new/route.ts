@@ -1119,14 +1119,7 @@
 // }
 
 export async function POST(req: Request) {
-  const timestamp = req.headers.get("nomba-timestamp");
-  const signature = req.headers.get("nomba-sig-value");
-
-
-  if (!timestamp || !signature) {
-    console.log("Nomba initial webhook verification ping — allowing");
-    return new Response(JSON.stringify({ verified: true }), { status: 200 });
-  }
+ 
 
   const body = await req.json();
   console.log("Nomba Webhook Triggered", body);
