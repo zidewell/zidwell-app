@@ -375,6 +375,9 @@
 //     "/api/auth/auto-login",
 //   ],
 // };import { NextResponse } from "next/server";
+
+
+
 import { NextResponse, type NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
 import { 
@@ -413,6 +416,7 @@ const allowedAdminRoles = [
   "blog_admin",
 ];
 
+// ✅ ALL PATHS ARE NOW PUBLIC - No authentication required
 const publicPaths = [
   "/auth/login",
   "/auth/signup",
@@ -421,18 +425,21 @@ const publicPaths = [
   "/auth/blocked",
   "/api/payment-callback",
   "/api/auth/auto-login",
+  "/api/login", 
+  "/api/signup",
+  "/api/:path*",  // Make ALL API routes public
   "/_next",
   "/favicon.ico",
   "/logo.png",
   "/zidwell-bg-mobile.jpg",
-  "/api/login", 
-  "/api/signup",
-  "/api/webhook-testing-new",
-  "/api/webhook",
 ];
 
-
+// Helper function to check if path should bypass auth - NOW RETURNS TRUE FOR ALL API PATHS
 function shouldBypassAuth(pathname: string): boolean {
+  // Allow all API routes
+  if (pathname.startsWith("/api/")) {
+    return true;
+  }
   return publicPaths.some(path => pathname.startsWith(path));
 }
 
@@ -495,7 +502,13 @@ export async function middleware(req: NextRequest) {
   const isCrawler = /bot|crawler|spider|facebook|twitter|linkedin|slack/i.test(userAgent);
   const currentPath = req.nextUrl.pathname;
   
-  // ✅ ADD THIS: Bypass authentication for public paths
+  // ✅ ALL API ROUTES ARE NOW PUBLIC - No authentication needed
+  if (currentPath.startsWith("/api/")) {
+    console.log(`🔓 API route is public: ${currentPath}`);
+    return NextResponse.next();
+  }
+  
+  // Bypass authentication for all public paths
   if (shouldBypassAuth(currentPath)) {
     console.log(`🔓 Bypassing auth for public path: ${currentPath}`);
     return NextResponse.next();
@@ -524,23 +537,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // API routes are public but we still need to check auth for protected APIs
-  if (currentPath.startsWith("/api/")) {
-    // Allow public APIs
-    const publicApis = ["/api/payment-callback", "/api/auth/auto-login", "/api/login", "/api/signup"];
-    if (publicApis.some(api => currentPath.startsWith(api))) {
-      return NextResponse.next();
-    }
-    
-    // For other APIs, check authentication
-    // We'll continue to the main auth check below
-  }
-
-  // Check if route needs protection
+  // Check if route needs protection (dashboard/admin only now, not API)
   const isProtectedRoute = currentPath.startsWith("/dashboard") ||
     currentPath.startsWith("/admin") ||
-    currentPath.startsWith("/blog/admin") ||
-    (currentPath.startsWith("/api/") && !publicPaths.some(path => currentPath.startsWith(path)));
+    currentPath.startsWith("/blog/admin");
 
   if (!isProtectedRoute) {
     return NextResponse.next();
@@ -741,8 +741,6 @@ export const config = {
     "/admin/:path*",
     "/blog/admin/:path*",
     "/api/:path*",
-    "/api/payment-callback",
-    "/api/auth/auto-login",
     "/auth/:path*",
   ],
 };
