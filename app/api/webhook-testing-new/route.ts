@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       const result = await processPaymentPagePayment(payload, {
         nombaTransactionId,
         nombaFee,
+        orderReference,
       });
       
       if (result.error) {
