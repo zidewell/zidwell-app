@@ -17,6 +17,7 @@ const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 interface PaymentPageParams {
   nombaTransactionId: string;
   nombaFee: number;
+  orderReference: string;
 }
 
 async function sendPaymentPageNotificationEmail(
@@ -133,49 +134,99 @@ async function sendPaymentPageReceiptEmail(
   }
 }
 
+// Helper to extract payment page ID from order reference
+function extractPaymentPageIdFromReference(orderReference: string): string | null {
+  if (!orderReference) return null;
+  
+  // Pattern: PP-{payment_page_id}-{timestamp}-{random}
+  // Example: PP-5eaa1f7a-b7ef-4c2f-940b-185a5a64b94f-1776863360573-fhc2fj
+  const match = orderReference.match(/^PP-([a-f0-9-]+)-/i);
+  if (match && match[1]) {
+    return match[1];
+  }
+  return null;
+}
+
 export async function processPaymentPagePayment(payload: any, params: PaymentPageParams) {
-  const { nombaTransactionId, nombaFee } = params;
+  const { nombaTransactionId, nombaFee, orderReference } = params;
 
   console.log("💰 Processing Payment Page payment...");
+  console.log("Order Reference:", orderReference);
 
+  // Try to get payment page ID from metadata first, then from order reference
   const metadata = payload.data?.order?.metadata || {};
-  const paymentPageId = metadata.paymentPageId;
-  const paymentId = metadata.paymentId;
+  let paymentPageId = metadata.paymentPageId;
+  let paymentId = metadata.paymentId;
 
-  if (!paymentPageId || !paymentId) {
-    console.error("Missing payment page ID or payment ID from metadata");
-    return { error: "Missing payment page identifiers", status: 400 };
+  // If not found in metadata, extract from order_reference
+  if (!paymentPageId && orderReference) {
+    paymentPageId = extractPaymentPageIdFromReference(orderReference);
+    console.log("Extracted paymentPageId from orderReference:", paymentPageId);
   }
 
-  // Check for duplicate payment
-  const { data: existingPayment } = await supabase
-    .from("payment_page_payments")
-    .select("*")
-    .eq("nomba_transaction_id", nombaTransactionId)
-    .maybeSingle();
-
-  if (existingPayment) {
-    console.log("⚠️ Duplicate payment page payment detected, skipping");
-    return { success: true };
+  // If still no paymentPageId, we can't proceed
+  if (!paymentPageId) {
+    console.error("Missing payment page ID. Metadata:", metadata, "OrderReference:", orderReference);
+    return { error: "Missing payment page identifier", status: 400 };
   }
 
-  // Get the payment record
-  const { data: payment, error: paymentError } = await supabase
-    .from("payment_page_payments")
-    .select("*")
-    .eq("id", paymentId)
-    .single();
+  // Find the pending payment record using payment_page_id and status
+  let paymentRecord = null;
+  
+  if (paymentId) {
+    // Try by payment ID first if provided
+    const { data: payment } = await supabase
+      .from("payment_page_payments")
+      .select("*")
+      .eq("id", paymentId)
+      .maybeSingle();
+    
+    if (payment) {
+      paymentRecord = payment;
+    }
+  }
 
-  if (paymentError || !payment) {
-    console.error("Payment record not found:", paymentId);
+  // If not found by ID, find by payment_page_id and status = 'pending'
+  if (!paymentRecord) {
+    const { data: payment } = await supabase
+      .from("payment_page_payments")
+      .select("*")
+      .eq("payment_page_id", paymentPageId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (payment) {
+      paymentRecord = payment;
+      paymentId = payment.id;
+      console.log("Found pending payment by page ID:", paymentId);
+    }
+  }
+
+  if (!paymentRecord) {
+    console.error("Payment record not found for page:", paymentPageId);
     return { error: "Payment record not found", status: 404 };
   }
 
   console.log("✅ Found payment record:", {
-    id: payment.id,
-    pageId: payment.payment_page_id,
-    amount: payment.amount,
+    id: paymentRecord.id,
+    pageId: paymentRecord.payment_page_id,
+    amount: paymentRecord.amount,
+    status: paymentRecord.status,
   });
+
+  // Check for duplicate webhook processing
+  const { data: existingWebhook } = await supabase
+    .from("payment_page_payments")
+    .select("nomba_transaction_id")
+    .eq("nomba_transaction_id", nombaTransactionId)
+    .maybeSingle();
+
+  if (existingWebhook) {
+    console.log("⚠️ Duplicate payment page payment detected, skipping");
+    return { success: true, message: "Already processed" };
+  }
 
   // Update payment status
   const { error: updateError } = await supabase
@@ -185,7 +236,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
       nomba_transaction_id: nombaTransactionId,
       paid_at: new Date().toISOString(),
     })
-    .eq("id", paymentId);
+    .eq("id", paymentRecord.id);
 
   if (updateError) {
     console.error("Failed to update payment record:", updateError);
@@ -193,7 +244,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
   }
 
   // Credit the page balance
-  let pageCreditAmount = payment.net_amount;
+  let pageCreditAmount = paymentRecord.net_amount;
 
   const { data: newBalance, error: balanceError } = await supabase.rpc(
     "increment_page_balance",
@@ -220,22 +271,22 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
 
   // Create transaction record
   await supabase.from("transactions").insert({
-    user_id: payment.user_id,
+    user_id: paymentRecord.user_id,
     type: "credit",
-    amount: payment.amount,
-    fee: payment.fee,
+    amount: paymentRecord.amount,
+    fee: paymentRecord.fee,
     net_amount: pageCreditAmount,
     status: "success",
     reference: `PP-${paymentPageId}-${nombaTransactionId}`,
-    description: `Payment received for page "${paymentPage?.title}" from ${payment.customer_name}`,
+    description: `Payment received for page "${paymentPage?.title}" from ${paymentRecord.customer_name}`,
     channel: "payment_page",
     sender: {
-      name: payment.customer_name,
-      email: payment.customer_email,
-      phone: payment.customer_phone,
+      name: paymentRecord.customer_name,
+      email: paymentRecord.customer_email,
+      phone: paymentRecord.customer_phone,
     },
     receiver: {
-      user_id: payment.user_id,
+      user_id: paymentRecord.user_id,
       payment_page_id: paymentPageId,
     },
     external_response: {
@@ -245,13 +296,13 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
   });
 
   // Send receipt to customer
-  if (payment.customer_email) {
+  if (paymentRecord.customer_email) {
     sendPaymentPageReceiptEmail(
-      payment.customer_email,
+      paymentRecord.customer_email,
       paymentPage?.title || "Payment Page",
-      payment.amount,
+      paymentRecord.amount,
       nombaTransactionId,
-      payment.metadata,
+      paymentRecord.metadata,
     ).catch(console.error);
   }
 
@@ -259,7 +310,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
   const { data: creator } = await supabase
     .from("users")
     .select("email")
-    .eq("id", payment.user_id)
+    .eq("id", paymentRecord.user_id)
     .single();
 
   if (creator?.email) {
@@ -267,9 +318,9 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
       creator.email,
       paymentPage?.title || "Payment Page",
       pageCreditAmount,
-      payment.customer_name,
-      payment.fee,
-      payment.metadata,
+      paymentRecord.customer_name,
+      paymentRecord.fee,
+      paymentRecord.metadata,
     ).catch(console.error);
   }
 
@@ -282,7 +333,12 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
 }
 
 export function checkIfPaymentPagePayment(orderReference: string, payload: any): boolean {
+  // Check by order reference pattern
+  if (orderReference?.startsWith("PP-")) {
+    return true;
+  }
+  
+  // Check by metadata
   return payload.data?.order?.metadata?.type === "payment_page" ||
-    payload.data?.order?.metadata?.paymentPageId ||
-    orderReference?.startsWith("PP-");
+    payload.data?.order?.metadata?.paymentPageId;
 }
