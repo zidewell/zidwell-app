@@ -1,5 +1,5 @@
 "use client"
-import { ReactNode, createContext, useContext, useEffect, useState } from "react";
+import { ReactNode, createContext, useContext, useEffect, useState, useCallback } from "react";
 
 export type PageType = "school" | "donation" | "physical" | "digital" | "services" | "real_estate" | "stock" | "savings" | "crypto";
 
@@ -86,6 +86,7 @@ interface StoreContextType {
   getPageStats: (id: string) => Promise<{ payments: any[], totalAmount: number, totalCount: number }>;
   withdrawFromPage: (pageId: string, amount: number) => Promise<any>;
   addPage: (page: PaymentPage) => void;
+  refreshPages: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType>({
@@ -97,6 +98,7 @@ const StoreContext = createContext<StoreContextType>({
   getPageStats: async () => ({ payments: [], totalAmount: 0, totalCount: 0 }),
   withdrawFromPage: async () => {},
   addPage: () => {},
+  refreshPages: async () => {},
 });
 
 export const useStore = () => useContext(StoreContext);
@@ -104,73 +106,95 @@ export const useStore = () => useContext(StoreContext);
 export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [pages, setPages] = useState<PaymentPage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
 
-  const fetchPages = async () => {
+  const fetchPages = useCallback(async () => {
     try {
-      const response = await fetch("/api/payment-page/list");
-      if (!response.ok) throw new Error("Failed to fetch pages");
+      console.log("Fetching pages...");
+      const response = await fetch("/api/payment-page/list", {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch pages: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log("Fetched pages:", data.pages?.length || 0);
       setPages(data.pages || []);
+      return data;
     } catch (error) {
       console.error("Error fetching pages:", error);
+      setPages([]);
+      throw error;
     } finally {
       setLoading(false);
+      setInitialFetchDone(true);
+    }
+  }, []);
+
+  const refreshPages = useCallback(async () => {
+    setLoading(true);
+    await fetchPages();
+  }, [fetchPages]);
+
+  const createPage = async (pageData: any) => {
+    console.log("Creating page with data:", pageData);
+
+    try {
+      const response = await fetch("/api/payment-page/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(pageData),
+      });
+
+      console.log("Response status:", response.status);
+      
+      const rawResponse = await response.text();
+      console.log("Raw response:", rawResponse);
+      
+      let data;
+      try {
+        data = JSON.parse(rawResponse);
+      } catch (e) {
+        console.error("Failed to parse JSON:", e);
+        throw new Error("Invalid response from server");
+      }
+      
+      console.log("Parsed data:", data);
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to create page: ${response.status}`);
+      }
+
+      if (!data || (!data.page && !data.slug)) {
+        console.error("Missing page/slug property in response:", data);
+        throw new Error("Server returned invalid response - missing page data");
+      }
+
+      console.log("Page created successfully:", data);
+      
+      // Refresh the pages list after creation
+      await refreshPages();
+      
+      return data;
+      
+    } catch (error) {
+      console.error("Error in createPage:", error);
+      throw error;
     }
   };
-
- const createPage = async (pageData: any) => {
-  console.log("Creating page with data:", pageData);
-
-  try {
-    const response = await fetch("/api/payment-page/create", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(pageData),
-    });
-
-    console.log("Response status:", response.status);
-    console.log("Response OK?", response.ok);
-    
-    // First get the raw text to see what's coming back
-    const rawResponse = await response.text();
-    console.log("Raw response:", rawResponse);
-    
-    // Try to parse as JSON
-    let data;
-    try {
-      data = JSON.parse(rawResponse);
-    } catch (e) {
-      console.error("Failed to parse JSON:", e);
-      throw new Error("Invalid response from server");
-    }
-    
-    console.log("Parsed data:", data);
-
-    if (!response.ok) {
-      throw new Error(data.error || `Failed to create page: ${response.status}`);
-    }
-
-    if (!data || (!data.page && !data.slug)) {
-      console.error("Missing page/slug property in response:", data);
-      throw new Error("Server returned invalid response - missing page data");
-    }
-
-    console.log("Page created successfully:", data);
-    
-    // Return the data directly
-    return data;
-    
-  } catch (error) {
-    console.error("Error in createPage:", error);
-    throw error;
-  }
-};
   
   const getPageDetails = async (id: string) => {
     try {
-      const response = await fetch(`/api/payment-page/details/${id}`);
+      const response = await fetch(`/api/payment-page/details/${id}`, {
+        cache: 'no-store'
+      });
       if (!response.ok) throw new Error("Failed to fetch page details");
       const data = await response.json();
       return data.page;
@@ -210,7 +234,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      await fetchPages();
+      await refreshPages(); // Refresh after withdrawal
       return data.withdrawal;
     } catch (error) {
       console.error("Error withdrawing:", error);
@@ -222,9 +246,22 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     setPages((prev) => [page, ...prev]);
   };
 
+  // Fetch pages on mount and when the window gets focus
   useEffect(() => {
     fetchPages();
-  }, []);
+    
+    // Optional: Refetch when window gets focus (tab becomes active)
+    const handleFocus = () => {
+      console.log("Window focused, refreshing pages...");
+      fetchPages();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchPages]);
 
   return (
     <StoreContext.Provider
@@ -237,6 +274,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         getPageStats,
         withdrawFromPage,
         addPage,
+        refreshPages,
       }}
     >
       {children}

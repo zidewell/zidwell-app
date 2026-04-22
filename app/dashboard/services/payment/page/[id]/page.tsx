@@ -20,6 +20,8 @@ import {
   Clock,
   DollarSign,
   Loader2,
+  Mail,
+  User,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore, isInvestmentType } from "@/app/hooks/useStore";
@@ -96,6 +98,46 @@ const PageDetail = () => {
     } catch (error) {
       console.error("Error loading stats:", error);
     }
+  };
+
+  // Helper function to get child's name from payment
+  const getChildName = (payment: any) => {
+    if (payment.metadata?.childName) {
+      return payment.metadata.childName;
+    }
+    return null;
+  };
+
+  // Helper function to get parent's name from payment
+  const getParentName = (payment: any) => {
+    if (payment.metadata?.parentName) {
+      return payment.metadata.parentName;
+    }
+    // If no parent name in metadata, use customer name
+    return payment.customerName || payment.customer_name;
+  };
+
+  // Helper function to get parent's email from payment
+  const getParentEmail = (payment: any) => {
+    return payment.customerEmail || payment.customer_email;
+  };
+
+  // Helper function to get additional school info
+  const getSchoolAdditionalInfo = (payment: any) => {
+    const info = [];
+    if (payment.metadata?.className) {
+      info.push(`📚 Class: ${payment.metadata.className}`);
+    }
+    if (payment.metadata?.regNumber) {
+      info.push(`🔢 Reg: ${payment.metadata.regNumber}`);
+    }
+    if (payment.metadata?.term) {
+      info.push(`📖 Term: ${payment.metadata.term}`);
+    }
+    if (payment.metadata?.session) {
+      info.push(`🎓 Session: ${payment.metadata.session}`);
+    }
+    return info;
   };
 
   if (!page) {
@@ -300,6 +342,11 @@ const PageDetail = () => {
                 <h3 className="font-bold text-lg flex items-center gap-2">
                   <CreditCard className="h-4 w-4 text-[#e1bf46]" />
                   Recent Payments
+                  {page.pageType === "school" && (
+                    <span className="text-xs font-normal text-gray-500 ml-2">
+                      (Showing Parent & Child Details)
+                    </span>
+                  )}
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
                   {stats.totalCount} payment{stats.totalCount !== 1 ? "s" : ""}{" "}
@@ -319,31 +366,110 @@ const PageDetail = () => {
                   stats.payments.slice(0, 10).map((payment: any) => (
                     <div
                       key={payment.id}
-                      className="p-4 flex items-center justify-between"
+                      className="p-4 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
                     >
-                      <div>
-                        <p className="font-medium">
-                          {payment.customerName || payment.customer_name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {payment.customerEmail || payment.customer_email}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(
-                            payment.createdAt || payment.created_at,
-                          ).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-[#28a36a]">
-                          ₦{payment.amount.toLocaleString()}
-                        </p>
-                        {payment.fee > 0 && (
-                          <p className="text-xs text-gray-400">
-                            Fee: ₦{payment.fee.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
+                      {page.pageType === "school" ? (
+                        // School Payment Display - Show both parent and child details
+                        <div className="space-y-3">
+                          {/* Parent Information */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <User className="h-4 w-4 text-[#e1bf46]" />
+                                <p className="font-semibold text-gray-900 dark:text-white">
+                                  {getParentName(payment)}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 ml-6">
+                                <Mail className="h-3 w-3 text-gray-400" />
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {getParentEmail(payment) || "No email provided"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-[#28a36a]">
+                                ₦{payment.amount.toLocaleString()}
+                              </p>
+                              {payment.fee > 0 && (
+                                <p className="text-xs text-gray-400">
+                                  Fee: ₦{payment.fee.toLocaleString()}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Child Information */}
+                          {getChildName(payment) && (
+                            <div className="ml-6 pl-4 border-l-2 border-[#e1bf46]/30">
+                              <div className="flex items-center gap-2 mb-1">
+                                <GraduationCap className="h-4 w-4 text-[#28a36a]" />
+                                <p className="font-medium text-gray-800 dark:text-gray-200">
+                                  Child: {getChildName(payment)}
+                                </p>
+                              </div>
+                              
+                              {/* Additional School Info */}
+                              {getSchoolAdditionalInfo(payment).length > 0 && (
+                                <div className="ml-6 space-y-1 mt-1">
+                                  {getSchoolAdditionalInfo(payment).map((info, idx) => (
+                                    <p key={idx} className="text-xs text-gray-500">
+                                      {info}
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Payment Date */}
+                          <div className="text-xs text-gray-400 ml-6">
+                            {new Date(
+                              payment.createdAt || payment.created_at || payment.paid_at
+                            ).toLocaleDateString(undefined, {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        // Non-School Payment Display
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">
+                              {payment.customerName || payment.customer_name || "Anonymous"}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {payment.customerEmail || payment.customer_email}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(
+                                payment.createdAt || payment.created_at || payment.paid_at
+                              ).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-[#28a36a]">
+                              ₦{payment.amount.toLocaleString()}
+                            </p>
+                            {payment.fee > 0 && (
+                              <p className="text-xs text-gray-400">
+                                Fee: ₦{payment.fee.toLocaleString()}
+                              </p>
+                            )}
+                            {payment.status && (
+                              <p className={`text-xs mt-1 ${
+                                payment.status === 'completed' ? 'text-green-600' : 'text-yellow-600'
+                              }`}>
+                                {payment.status}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -377,6 +503,39 @@ const PageDetail = () => {
                         }
                       </div>
                       <div className="text-xs text-gray-600">Unpaid</div>
+                    </div>
+                  </div>
+                  
+                  {/* Student List */}
+                  <div className="mt-4">
+                    <h4 className="font-medium text-sm mb-3">Student List</h4>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {page.metadata.students.map((student: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#1a1a1a]">
+                          <div>
+                            <p className="font-medium text-sm">{student.name}</p>
+                            {student.className && (
+                              <p className="text-xs text-gray-500">{student.className}</p>
+                            )}
+                            {student.regNumber && (
+                              <p className="text-xs text-gray-400">{student.regNumber}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            {student.paid ? (
+                              <div className="flex items-center gap-1 text-green-600">
+                                <CheckCircle2 className="h-4 w-4" />
+                                <span className="text-xs">Paid</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-red-600">
+                                <XCircle className="h-4 w-4" />
+                                <span className="text-xs">Unpaid</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

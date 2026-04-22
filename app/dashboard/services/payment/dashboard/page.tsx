@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Plus,
@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Wallet,
   ArrowLeft,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore } from "@/app/hooks/useStore";
@@ -18,8 +19,21 @@ import DashboardHeader from "@/app/components/dashboard-component/DashboardHeade
 
 const Dashboard = () => {
   const router = useRouter();
-  const { pages } = useStore();
+  const { pages, loading, fetchPages, refreshPages } = useStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch pages when component mounts
+  useEffect(() => {
+    console.log("Dashboard mounted, fetching pages...");
+    fetchPages();
+  }, [fetchPages]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshPages();
+    setIsRefreshing(false);
+  };
 
   const totalBalance = pages.reduce(
     (sum, page) => sum + (page.pageBalance || 0),
@@ -37,6 +51,54 @@ const Dashboard = () => {
     (sum, page) => sum + (page.pageViews || 0),
     0,
   );
+
+  // Show loading state
+  if (loading && pages.length === 0) {
+    return (
+      <div className="min-h-screen dark:bg-[#0e0e0e]">
+        <DashboardSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+        <div className="lg:pl-72 min-h-screen flex flex-col">
+          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+          <main className="flex-1 p-4 md:p-6 lg:p-8">
+            <div className="max-w-6xl mx-auto">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded mt-2 animate-pulse"></div>
+                </div>
+                <div className="h-10 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="p-4 rounded-2xl bg-white dark:bg-[#121212] border">
+                    <div className="h-5 w-5 bg-gray-200 dark:bg-gray-700 rounded mb-2 animate-pulse"></div>
+                    <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded mb-1 animate-pulse"></div>
+                    <div className="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="p-5 rounded-2xl bg-white dark:bg-[#121212] border">
+                    <div className="h-32 rounded-xl bg-gray-200 dark:bg-gray-700 mb-4 animate-pulse"></div>
+                    <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded mb-2 animate-pulse"></div>
+                    <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded mb-4 animate-pulse"></div>
+                    <div className="flex gap-4">
+                      <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen dark:bg-[#0e0e0e]">
@@ -70,14 +132,24 @@ const Dashboard = () => {
                     : `${pages.length} page${pages.length > 1 ? "s" : ""} created`}
                 </p>
               </div>
-              <Button
-                variant="default"
-                onClick={() =>
-                  router.push("/dashboard/services/payment/create")
-                }
-              >
-                <Plus className="h-4 w-4 mr-1" /> New Page
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? "Refreshing..." : "Refresh"}
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={() =>
+                    router.push("/dashboard/services/payment/create")
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-1" /> New Page
+                </Button>
+              </div>
             </div>
 
             {/* Overview Stats */}
@@ -113,7 +185,7 @@ const Dashboard = () => {
             )}
 
             {/* Page Grid or Empty State */}
-            {pages.length === 0 ? (
+            {pages.length === 0 && !loading ? (
               <EmptyState
                 onCreateClick={() =>
                   router.push("/dashboard/services/payment/create")
@@ -154,6 +226,10 @@ const EmptyState = ({ onCreateClick }: { onCreateClick: () => void }) => (
 
 const PageGrid = ({ pages }: { pages: any[] }) => {
   const router = useRouter();
+
+  if (!pages || pages.length === 0) {
+    return null;
+  }
 
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
