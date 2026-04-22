@@ -1118,13 +1118,23 @@
 //   }
 // }
 
+// app/api/webhook-testing-new/route.ts
+import { NextResponse } from 'next/server';
+
 export async function POST(req: Request) {
- 
-
-  const body = await req.json();
-  console.log("Nomba Webhook Triggered", body);
-
-  return new Response(JSON.stringify({ received: true }), { status: 200 });
+  try {
+    const body = await req.json();
+    console.log("Nomba Webhook Triggered", body);
+    
+    // Always return a proper response
+    return NextResponse.json({ received: true }, { status: 200 });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
 }
 
-
+// Optional: Handle other HTTP methods
+export async function GET(req: Request) {
+  return NextResponse.json({ message: "Webhook endpoint is active" }, { status: 200 });
+}
