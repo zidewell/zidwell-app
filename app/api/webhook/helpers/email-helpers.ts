@@ -82,7 +82,7 @@ export async function sendVirtualAccountDepositEmail(
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount Received:</strong> ₦${amount.toLocaleString()}</p>
           
-            <p><strong>Net Credit:</strong> ₦${creditedAmount.toLocaleString()}</p>
+           
             <p><strong>Bank:</strong> ${bankName}</p>
             <p><strong>Account:</strong> ${accountNumber}</p>
             <p><strong>Sender:</strong> ${senderName}</p>

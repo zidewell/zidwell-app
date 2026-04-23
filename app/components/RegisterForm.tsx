@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import confetti from "canvas-confetti";
 import {
@@ -10,6 +10,9 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle,
+  Shield,
+  XCircle,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -39,9 +42,19 @@ const step1Schema = z.object({
   email: z.string().trim().email("Invalid email address").max(255),
 });
 
+// Enhanced password validation schema
+const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .max(128, "Password must be less than 128 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number")
+  .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character");
+
 const step2Schema = z
   .object({
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((d) => d.password === d.confirmPassword, {
@@ -62,12 +75,51 @@ const step3Schema = z
 
 const TOTAL_STEPS = 3;
 
+// Password strength calculator
+const calculatePasswordStrength = (password: string): {
+  score: number;
+  strength: string;
+  color: string;
+  requirements: { label: string; met: boolean }[];
+} => {
+  const requirements = [
+    { label: "At least 8 characters", met: password.length >= 8 },
+    { label: "At least 1 uppercase letter (A-Z)", met: /[A-Z]/.test(password) },
+    { label: "At least 1 lowercase letter (a-z)", met: /[a-z]/.test(password) },
+    { label: "At least 1 number (0-9)", met: /[0-9]/.test(password) },
+    { label: "At least 1 special character (!@#$%^&*)", met: /[^A-Za-z0-9]/.test(password) },
+  ];
+
+  const metCount = requirements.filter(r => r.met).length;
+  const score = (metCount / requirements.length) * 100;
+
+  let strength = "Very Weak";
+  let color = "#ef4444"; // red
+
+  if (score === 100) {
+    strength = "Strong";
+    color = "#22c55e"; // green
+  } else if (score >= 80) {
+    strength = "Good";
+    color = "#eab308"; // yellow
+  } else if (score >= 60) {
+    strength = "Fair";
+    color = "#f97316"; // orange
+  } else if (score >= 40) {
+    strength = "Weak";
+    color = "#ef4444"; // red
+  }
+
+  return { score, strength, color, requirements };
+};
+
 const RegisterForm = () => {
   const [step, setStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showSuccess, setShowSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  
   // Step 1
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -78,6 +130,12 @@ const RegisterForm = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({
+    score: 0,
+    strength: "Very Weak",
+    color: "#ef4444",
+    requirements: [] as { label: string; met: boolean }[],
+  });
 
   // Step 3
   const [wantsBankAccount, setWantsBankAccount] = useState(false);
@@ -88,6 +146,11 @@ const RegisterForm = () => {
   const [showConfirmPin, setShowConfirmPin] = useState(false);
 
   const progress = (step / TOTAL_STEPS) * 100;
+
+  // Update password strength whenever password changes
+  useEffect(() => {
+    setPasswordStrength(calculatePasswordStrength(password));
+  }, [password]);
 
   const validateStep = (): boolean => {
     setErrors({});
@@ -322,7 +385,7 @@ const RegisterForm = () => {
         </div>
       )}
 
-      {/* Step 2: Security */}
+      {/* Step 2: Security with Enhanced Password Requirements */}
       {step === 2 && (
         <div className="space-y-5 animate-fade-in">
           <div>
@@ -341,7 +404,7 @@ const RegisterForm = () => {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Min. 8 characters"
+                  placeholder="Min. 8 characters with uppercase, lowercase, number & special char"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={
@@ -362,6 +425,59 @@ const RegisterForm = () => {
                   )}
                 </button>
               </div>
+
+              {/* Password Strength Progress Bar */}
+              {password && (
+                <div className="mt-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-3.5 w-3.5" style={{ color: passwordStrength.color }} />
+                      <span className="text-xs font-sans" style={{ color: passwordStrength.color }}>
+                        Password Strength: {passwordStrength.strength}
+                      </span>
+                    </div>
+                    <span className="text-xs text-[hsl(30,8%,50%)]">
+                      {Math.round(passwordStrength.score)}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={passwordStrength.score} 
+                    className="h-2"
+                    style={{
+                      backgroundColor: "#f0f0f0",
+                    }}
+                  />
+                  <style jsx>{`
+                    :global(.progress-bar-fill) {
+                      background-color: ${passwordStrength.color} !important;
+                      transition: all 0.3s ease;
+                    }
+                  `}</style>
+                </div>
+              )}
+
+              {/* Password Requirements Checklist */}
+              {password && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-1.5">
+                  <p className="text-xs font-medium text-[hsl(30,10%,12%)] mb-2 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Password Requirements:
+                  </p>
+                  {passwordStrength.requirements.map((req, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      {req.met ? (
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-red-400" />
+                      )}
+                      <span className={`text-xs font-sans ${req.met ? 'text-gray-700' : 'text-gray-400'}`}>
+                        {req.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {errors.password && (
                 <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">
                   {errors.password}
@@ -400,11 +516,25 @@ const RegisterForm = () => {
                   )}
                 </button>
               </div>
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-xs text-amber-600 mt-1 font-sans flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Passwords do not match
+                </p>
+              )}
               {errors.confirmPassword && (
                 <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">
                   {errors.confirmPassword}
                 </p>
               )}
+            </div>
+
+            {/* Password Tips */}
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
+              <p className="text-xs font-medium text-blue-800 mb-1">password Tip:</p>
+              <p className="text-xs text-blue-700">
+                Use a combination of words, numbers, and symbols that's easy for you to remember but hard for others to guess. Consider using a passphrase like "MyDogLoves2Eat!@#"
+              </p>
             </div>
           </div>
         </div>
@@ -582,7 +712,7 @@ const RegisterForm = () => {
         <Button2
           onClick={handleNext}
           className="font-sans gap-2"
-          disabled={isLoading}
+          disabled={isLoading || (step === 2 && passwordStrength.score !== 100)}
         >
           {isLoading ? (
             "Processing..."
@@ -595,6 +725,14 @@ const RegisterForm = () => {
           )}
         </Button2>
       </div>
+
+      {/* Password strength warning message */}
+      {step === 2 && password && passwordStrength.score !== 100 && (
+        <p className="text-xs text-amber-600 text-center mt-4 flex items-center justify-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          Please meet all password requirements to continue
+        </p>
+      )}
 
       {/* Login link */}
       <p className="text-center text-sm text-[hsl(30,8%,50%)] font-sans mt-6">
