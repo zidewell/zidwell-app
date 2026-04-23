@@ -33,7 +33,7 @@ export async function sendInvoiceCreatorNotificationEmail(
           <p>You've received a payment for invoice <strong>${invoiceId}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-            ${nombaFee ? `<p><strong>Processing Fee:</strong> ₦${nombaFee.toLocaleString()}</p>` : ""}
+           
             <p><strong>Customer:</strong> ${customerName}</p>
             <p><strong>Status:</strong> <span style="color: #22c55e;">Completed</span></p>
           </div>
@@ -81,7 +81,7 @@ export async function sendVirtualAccountDepositEmail(
           <p>Your account has been credited with <strong>₦${creditedAmount.toLocaleString()}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount Received:</strong> ₦${amount.toLocaleString()}</p>
-            <p><strong>Nomba Fee:</strong> ₦${(nombaFee || 0).toLocaleString()}</p>
+          
             <p><strong>Net Credit:</strong> ₦${creditedAmount.toLocaleString()}</p>
             <p><strong>Bank:</strong> ${bankName}</p>
             <p><strong>Account:</strong> ${accountNumber}</p>
