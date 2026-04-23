@@ -140,9 +140,9 @@ const nextConfig = {
     SITE_NAME: "Zidwell",
   },
 
-  // compiler: {
-  //   removeConsole: process.env.NODE_ENV === "production",
-  // },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production",
+  },
 };
 
 // Wrap the config with the PWA plugin
