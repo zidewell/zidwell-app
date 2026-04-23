@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 
-// Add this line at the top
+
 const withPWA = require('next-pwa')({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
@@ -39,7 +39,7 @@ const withPWA = require('next-pwa')({
         cacheName: 'static-image-assets',
         expiration: {
           maxEntries: 64,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
+          maxAgeSeconds: 24 * 60 * 60 
         }
       }
     },
@@ -50,7 +50,7 @@ const withPWA = require('next-pwa')({
         cacheName: 'next-static',
         expiration: {
           maxEntries: 64,
-          maxAgeSeconds: 365 * 24 * 60 * 60 // 365 days
+          maxAgeSeconds: 365 * 24 * 60 * 60 
         }
       }
     }
@@ -145,5 +145,5 @@ const nextConfig = {
   // },
 };
 
-// Wrap the config with the PWA plugin
+
 module.exports = withPWA(nextConfig);

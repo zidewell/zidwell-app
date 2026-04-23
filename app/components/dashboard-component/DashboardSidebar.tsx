@@ -223,7 +223,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
               pathname === "/dashboard/services/contract/create-contract-form"
             }
           />
-
+{/* 
           <NavItem
             item={{
               name: "Payment Pages",
@@ -231,7 +231,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
               icon: CreditCard,
             }}
             isActive={pathname === "/dashboard/services/payment"}
-          />
+          /> */}
 
           <NavItem
             item={{
