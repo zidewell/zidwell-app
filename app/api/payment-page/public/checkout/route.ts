@@ -170,7 +170,7 @@ export async function POST(request: Request) {
     // Create checkout with Nomba
     const checkoutPayload = {
       order: {
-        callbackUrl: `${baseUrl}/api/webhook`,
+        callbackUrl: `${baseUrl}/api/payment-page/callback`,
         customerEmail: customerEmail,
         amount: totalForCustomer.toString(),
         currency: "NGN",
