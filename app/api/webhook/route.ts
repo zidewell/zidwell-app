@@ -1033,7 +1033,6 @@
 // }
 
 
-
 import { NextRequest, NextResponse } from "next/server";
 import { verifyNombaSignature } from "./helpers/signature-verification";
 import { processInvoicePayment } from "./services/invoice-payment.service";
@@ -1107,25 +1106,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: "Subscription payment handled by callback" });
     }
 
-    // ========== 1. PAYMENT PAGE CARD PAYMENTS ==========
-    const isPaymentPageCard = checkIfPaymentPagePayment(orderReference, payload);
-    
-    if (isPaymentPageCard && (eventType === "payment_success" || txStatus === "success")) {
-      console.log("💳 Processing payment page card payment...");
-      const result = await processPaymentPagePayment(payload, {
-        nombaTransactionId,
-        nombaFee,
-        orderReference,
-      });
-      
-      if (result.error) {
-        return NextResponse.json({ error: result.error }, { status: result.status || 500 });
-      }
-      
-      return NextResponse.json(result);
-    }
-
-    // ========== 2. PAYMENT PAGE BANK TRANSFERS (BACKTRANSFER) ==========
+    // ========== 1. PAYMENT PAGE BANK TRANSFERS (BACKTRANSFER) ==========
     const isPaymentPageBankTransfer = checkIfPaymentPageBankTransfer(aliasAccountReference, payload);
     
     if (isPaymentPageBankTransfer && (eventType === "payment_success" || txStatus === "success")) {
@@ -1137,6 +1118,24 @@ export async function POST(req: NextRequest) {
         transactionAmount,
         customer,
         tx
+      });
+      
+      if (result.error) {
+        return NextResponse.json({ error: result.error }, { status: result.status || 500 });
+      }
+      
+      return NextResponse.json(result);
+    }
+
+    // ========== 2. PAYMENT PAGE CARD PAYMENTS ==========
+    const isPaymentPageCard = checkIfPaymentPagePayment(orderReference, payload);
+    
+    if (isPaymentPageCard && (eventType === "payment_success" || txStatus === "success")) {
+      console.log("💳 Processing payment page card payment...");
+      const result = await processPaymentPagePayment(payload, {
+        nombaTransactionId,
+        nombaFee,
+        orderReference,
       });
       
       if (result.error) {
@@ -1158,7 +1157,15 @@ export async function POST(req: NextRequest) {
         customer,
         tx
       });
-      return NextResponse.json(result);
+      
+      if (result.error && result.error.includes("not found")) {
+        console.log("⚠️ Invoice not found, might be another payment type");
+        // Continue to next handler
+      } else if (result.error) {
+        return NextResponse.json({ error: result.error }, { status: result.status || 500 });
+      } else {
+        return NextResponse.json(result);
+      }
     }
 
     // ========== 4. VIRTUAL ACCOUNT DEPOSITS (Non-payment-page) ==========
@@ -1218,7 +1225,20 @@ function checkIfSubscription(orderReference: string, payload: any, tx: any): boo
 }
 
 function checkIfInvoicePayment(orderReference: string, payload: any): boolean {
-  return orderReference ||
-    payload.data?.order?.callbackUrl?.includes("/api/invoice-payment-callback") ||
-    payload.data?.order?.metadata?.invoiceId;
+  const hasInvoiceMetadata = payload.data?.order?.metadata?.invoiceId || 
+                            payload.data?.order?.metadata?.invoiceNumber ||
+                            payload.data?.order?.callbackUrl?.includes("/api/invoice-payment-callback");
+  
+  const isInvoiceReference = orderReference?.startsWith("INV-") || 
+                            orderReference?.startsWith("INVOICE-");
+  
+  const isPaymentPageRef = orderReference?.startsWith("PP-");
+  
+  const result = (hasInvoiceMetadata || isInvoiceReference) && !isPaymentPageRef;
+  
+  if (result) {
+    console.log("📄 Detected invoice payment by:", { hasInvoiceMetadata, isInvoiceReference, orderReference });
+  }
+  
+  return result;
 }
