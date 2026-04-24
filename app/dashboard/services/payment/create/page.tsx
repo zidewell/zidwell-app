@@ -1000,7 +1000,7 @@ const CreatePage = () => {
 
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1" onClick={previewPage}>Preview Page</Button>
-                <Button variant="default" className="flex-1" onClick={() => router.push("/payment/dashboard")}>Go to Dashboard</Button>
+                <Button variant="default" className="flex-1" onClick={() => router.push("/dashboard/services/payment/dashboard")}>Go to Dashboard</Button>
               </div>
             </motion.div>
           </motion.div>

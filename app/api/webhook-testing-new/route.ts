@@ -3,7 +3,12 @@ import { verifyNombaSignature } from "./helpers/signature-verification";
 import { processInvoicePayment } from "./services/invoice-payment.service";
 import { processVirtualAccountDeposit } from "./services/virtual-account.service";
 import { processPayout } from "./services/payout.service";
-import { processPaymentPagePayment, checkIfPaymentPagePayment } from "./services/payment-page.service"; // ADD THIS
+import { 
+  processPaymentPagePayment, 
+  checkIfPaymentPagePayment,
+  processPaymentPageBankTransfer,
+  checkIfPaymentPageBankTransfer
+} from "./services/payment-page.service";
 
 export async function POST(req: NextRequest) {
   try {
@@ -50,7 +55,14 @@ export async function POST(req: NextRequest) {
     const txStatus = (tx.status || payload.data?.status || "").toString().toLowerCase();
     const transactionType = (tx.type || "").toLowerCase();
 
-    console.log("Processing:", { eventType, amount: transactionAmount, nombaFee, reference: nombaTransactionId });
+    console.log("Processing:", { 
+      eventType, 
+      amount: transactionAmount, 
+      nombaFee, 
+      reference: nombaTransactionId,
+      aliasAccountReference,
+      orderReference
+    });
 
     // SKIP SUBSCRIPTION PAYMENTS
     const isSubscription = checkIfSubscription(orderReference, payload, tx);
@@ -59,10 +71,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: "Subscription payment handled by callback" });
     }
 
-    // ========== 1. PAYMENT PAGE PAYMENTS (ADD THIS - PUT IT FIRST) ==========
-    const isPaymentPage = checkIfPaymentPagePayment(orderReference, payload);
+    // ========== 1. PAYMENT PAGE CARD PAYMENTS ==========
+    const isPaymentPageCard = checkIfPaymentPagePayment(orderReference, payload);
     
-    if (isPaymentPage && (eventType === "payment_success" || txStatus === "success")) {
+    if (isPaymentPageCard && (eventType === "payment_success" || txStatus === "success")) {
+      console.log("💳 Processing payment page card payment...");
       const result = await processPaymentPagePayment(payload, {
         nombaTransactionId,
         nombaFee,
@@ -76,9 +89,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // ========== 2. INVOICE PAYMENTS ==========
+    // ========== 2. PAYMENT PAGE BANK TRANSFERS (BACKTRANSFER) ==========
+    const isPaymentPageBankTransfer = checkIfPaymentPageBankTransfer(aliasAccountReference, payload);
+    
+    if (isPaymentPageBankTransfer && (eventType === "payment_success" || txStatus === "success")) {
+      console.log("🏦 Processing payment page bank transfer (backtransfer)...");
+      const result = await processPaymentPageBankTransfer(payload, {
+        nombaTransactionId,
+        nombaFee,
+        aliasAccountReference,
+        transactionAmount,
+        customer,
+        tx
+      });
+      
+      if (result.error) {
+        return NextResponse.json({ error: result.error }, { status: result.status || 500 });
+      }
+      
+      return NextResponse.json(result);
+    }
+
+    // ========== 3. INVOICE PAYMENTS ==========
     const isInvoicePayment = checkIfInvoicePayment(orderReference, payload);
     if (isInvoicePayment && (eventType === "payment_success" || txStatus === "success")) {
+      console.log("📄 Processing invoice payment...");
       const result = await processInvoicePayment(payload, {
         nombaTransactionId,
         transactionAmount,
@@ -90,8 +125,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // ========== 3. VIRTUAL ACCOUNT DEPOSITS ==========
-    if (aliasAccountReference && (eventType === "payment_success" || txStatus === "success")) {
+    // ========== 4. VIRTUAL ACCOUNT DEPOSITS (Non-payment-page) ==========
+    if (aliasAccountReference && !isPaymentPageBankTransfer && (eventType === "payment_success" || txStatus === "success")) {
+      console.log("🏦 Processing virtual account deposit...");
       const result = await processVirtualAccountDeposit(payload, {
         aliasAccountReference,
         nombaTransactionId,
@@ -103,12 +139,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // ========== 4. WITHDRAWALS/TRANSFERS (PAYOUTS) ==========
+    // ========== 5. WITHDRAWALS/TRANSFERS (PAYOUTS) ==========
     const isPayout = eventType?.toLowerCase().includes("payout") ||
       transactionType.includes("transfer") ||
       transactionType.includes("payout");
 
     if (isPayout) {
+      console.log("💸 Processing payout...");
       const result = await processPayout(payload, {
         nombaTransactionId,
         eventType,

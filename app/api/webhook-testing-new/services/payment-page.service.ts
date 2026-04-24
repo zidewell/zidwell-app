@@ -20,6 +20,15 @@ interface PaymentPageParams {
   orderReference: string;
 }
 
+interface BankTransferParams {
+  nombaTransactionId: string;
+  nombaFee: number;
+  aliasAccountReference: string;
+  transactionAmount: number;
+  customer: any;
+  tx: any;
+}
+
 async function sendPaymentPageNotificationEmail(
   creatorEmail: string,
   pageTitle: string,
@@ -27,6 +36,7 @@ async function sendPaymentPageNotificationEmail(
   customerName: string,
   fee?: number,
   metadata?: any,
+  paymentMethod: string = "card"
 ) {
   try {
     let additionalInfo = "";
@@ -57,19 +67,23 @@ async function sendPaymentPageNotificationEmail(
       `;
     }
 
+    const paymentMethodText = paymentMethod === "card" ? "Card Payment" : "Bank Transfer";
+    const paymentMethodIcon = paymentMethod === "card" ? "💳" : "🏦";
+
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: creatorEmail,
-      subject: `💰 Payment Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
+      subject: `💰 ${paymentMethodText} Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #22c55e;">✅ Payment Received!</h3>
-          <p>You've received a payment for your payment page <strong>${pageTitle}</strong>.</p>
+          <h3 style="color: #22c55e;">✅ ${paymentMethodText} Received! ${paymentMethodIcon}</h3>
+          <p>You've received a ${paymentMethod.toLowerCase()} payment for your payment page <strong>${pageTitle}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
             ${fee ? `<p><strong>Processing Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}
             <p><strong>Customer:</strong> ${customerName}</p>
+            <p><strong>Payment Method:</strong> ${paymentMethodText}</p>
             <p><strong>Status:</strong> <span style="color: #22c55e;">Completed</span></p>
           </div>
           ${additionalInfo}
@@ -89,6 +103,7 @@ async function sendPaymentPageReceiptEmail(
   amount: number,
   reference: string,
   metadata?: any,
+  paymentMethod: string = "card"
 ) {
   try {
     let additionalInfo = "";
@@ -109,6 +124,8 @@ async function sendPaymentPageReceiptEmail(
       `;
     }
 
+    const paymentMethodText = paymentMethod === "card" ? "Card" : "Bank Transfer";
+
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: customerEmail,
@@ -117,10 +134,11 @@ async function sendPaymentPageReceiptEmail(
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
           <h3 style="color: #22c55e;">✅ Payment Successful!</h3>
-          <p>Thank you for your payment.</p>
+          <p>Thank you for your ${paymentMethodText.toLowerCase()} payment.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Page:</strong> ${pageTitle}</p>
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
+            <p><strong>Payment Method:</strong> ${paymentMethodText}</p>
             <p><strong>Reference:</strong> ${reference}</p>
             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
           </div>
@@ -134,17 +152,13 @@ async function sendPaymentPageReceiptEmail(
   }
 }
 
-// Helper to extract payment page ID from order reference
+// Helper to extract payment page ID from order reference (card payments)
 function extractPaymentPageIdFromReference(orderReference: string): string | null {
   if (!orderReference) return null;
   
   console.log("📝 Extracting from orderReference:", orderReference);
   
   // Pattern: PP-{uuid}-{timestamp}-{random}
-  // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 chars including hyphens)
-  // Example: PP-5eaa1f7a-b7ef-4c2f-940b-185a5a64b94f-1776864541329-bu571k
-  
-  // More precise regex that matches UUID pattern (8-4-4-4-12 hex chars with hyphens)
   const uuidPattern = /^PP-([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})-/i;
   const match = orderReference.match(uuidPattern);
   
@@ -157,10 +171,39 @@ function extractPaymentPageIdFromReference(orderReference: string): string | nul
   return null;
 }
 
+// Helper to extract payment page ID from virtual account reference (bank transfers)
+function extractPaymentPageIdFromVirtualAccount(aliasAccountReference: string): string | null {
+  if (!aliasAccountReference) return null;
+  
+  console.log("📝 Extracting from virtual account reference:", aliasAccountReference);
+  
+  // Pattern: VA-PP-{uuid} or just the UUID directly
+  let uuidPattern = /^VA-PP-([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i;
+  let match = aliasAccountReference.match(uuidPattern);
+  
+  if (match && match[1]) {
+    console.log("✅ Extracted UUID from VA-PP format:", match[1]);
+    return match[1];
+  }
+  
+  // Try direct UUID format
+  uuidPattern = /^([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i;
+  match = aliasAccountReference.match(uuidPattern);
+  
+  if (match && match[1]) {
+    console.log("✅ Extracted UUID directly:", match[1]);
+    return match[1];
+  }
+  
+  console.log("❌ Failed to extract UUID from:", aliasAccountReference);
+  return null;
+}
+
+// Process CARD payments
 export async function processPaymentPagePayment(payload: any, params: PaymentPageParams) {
   const { nombaTransactionId, nombaFee, orderReference } = params;
 
-  console.log("💰 Processing Payment Page payment...");
+  console.log("💰 Processing Payment Page CARD payment...");
   console.log("📦 Full payload order:", JSON.stringify(payload.data?.order, null, 2));
   console.log("🔑 Order Reference:", orderReference);
   console.log("🆔 Nomba Transaction ID:", nombaTransactionId);
@@ -313,6 +356,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     .update({
       status: "completed",
       nomba_transaction_id: nombaTransactionId,
+      payment_method: "card",
       paid_at: new Date().toISOString(),
     })
     .eq("id", paymentRecord.id);
@@ -369,7 +413,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     net_amount: pageCreditAmount,
     status: "success",
     reference: `PP-${paymentPageId}-${nombaTransactionId}`,
-    description: `Payment received for page "${paymentPage?.title}" from ${paymentRecord.customer_name}`,
+    description: `Card payment received for page "${paymentPage?.title}" from ${paymentRecord.customer_name}`,
     channel: "payment_page",
     sender: {
       name: paymentRecord.customer_name,
@@ -383,6 +427,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     external_response: {
       nomba_transaction_id: nombaTransactionId,
       nomba_fee: nombaFee,
+      payment_method: "card"
     },
   });
 
@@ -401,6 +446,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
       paymentRecord.amount,
       nombaTransactionId,
       paymentRecord.metadata,
+      "card"
     ).catch(console.error);
   }
 
@@ -420,33 +466,261 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
       paymentRecord.customer_name,
       paymentRecord.fee,
       paymentRecord.metadata,
+      "card"
     ).catch(console.error);
   }
 
-  console.log("🎉 Payment page payment processing completed successfully!");
+  console.log("🎉 Payment page card payment processing completed successfully!");
   
   return {
     success: true,
-    message: "Payment page payment processed",
+    message: "Payment page card payment processed",
     credited_amount: pageCreditAmount,
     new_balance: newBalance,
   };
 }
 
+// Process BANK TRANSFER payments (backtransfer)
+export async function processPaymentPageBankTransfer(payload: any, params: BankTransferParams) {
+  const { 
+    nombaTransactionId, 
+    nombaFee, 
+    aliasAccountReference,
+    transactionAmount,
+    customer,
+    tx 
+  } = params;
+
+  console.log("🏦 Processing Payment Page BANK TRANSFER (Backtransfer)...");
+  console.log("📦 Virtual Account Reference:", aliasAccountReference);
+  console.log("🆔 Nomba Transaction ID:", nombaTransactionId);
+  console.log("💰 Amount:", transactionAmount);
+
+  // Extract payment page ID from the virtual account reference
+  const paymentPageId = extractPaymentPageIdFromVirtualAccount(aliasAccountReference);
+  
+  if (!paymentPageId) {
+    console.error("❌ Could not extract payment page ID from virtual account:", aliasAccountReference);
+    return { error: "Invalid virtual account reference", status: 400 };
+  }
+
+  console.log("🎯 Extracted payment page ID:", paymentPageId);
+
+  // Get payment page details
+  const { data: paymentPage, error: pageError } = await supabase
+    .from("payment_pages")
+    .select("id, title, user_id, balance")
+    .eq("id", paymentPageId)
+    .single();
+
+  if (pageError || !paymentPage) {
+    console.error("❌ Payment page not found:", pageError);
+    return { error: "Payment page not found", status: 404 };
+  }
+
+  console.log("✅ Found payment page:", paymentPage.title);
+
+  // Check if this bank transfer has already been processed
+  console.log("🔍 Checking for duplicate bank transfer with ID:", nombaTransactionId);
+  const { data: existingTransfer, error: duplicateError } = await supabase
+    .from("payment_page_payments")
+    .select("id, status")
+    .eq("nomba_transaction_id", nombaTransactionId)
+    .maybeSingle();
+
+  if (duplicateError) {
+    console.error("❌ Error checking duplicate:", duplicateError);
+  }
+
+  if (existingTransfer) {
+    console.log(`⚠️ Duplicate bank transfer detected, status: ${existingTransfer.status}`);
+    return { success: true, message: "Already processed", status: existingTransfer.status };
+  }
+
+  // Calculate net amount after fees
+  const netAmount = transactionAmount - nombaFee;
+  
+  // Get customer details from the transfer
+  const customerName = customer?.name || tx?.customerName || tx?.senderName || "Bank Transfer Customer";
+  const customerEmail = customer?.email || tx?.customerEmail || null;
+  const customerPhone = customer?.phone || tx?.customerPhone || null;
+
+  // Create a payment record for this bank transfer
+  console.log("📝 Creating payment record for bank transfer...");
+  
+  const orderReference = `BT-${paymentPageId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  
+  const { data: paymentRecord, error: insertError } = await supabase
+    .from("payment_page_payments")
+    .insert({
+      payment_page_id: paymentPageId,
+      user_id: paymentPage.user_id,
+      amount: transactionAmount,
+      fee: nombaFee,
+      net_amount: netAmount,
+      status: "completed",
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      payment_method: "bank_transfer",
+      nomba_transaction_id: nombaTransactionId,
+      order_reference: orderReference,
+      metadata: {
+        virtual_account: aliasAccountReference,
+        bank_transfer: true,
+        customer_details: customer,
+        transaction_details: tx,
+        payment_type: "backtransfer"
+      },
+      paid_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (insertError) {
+    console.error("❌ Failed to create payment record:", insertError);
+    return { error: "Failed to create payment record", status: 500 };
+  }
+
+  console.log("✅ Bank transfer payment record created:", paymentRecord.id);
+
+  // Credit the page balance
+  console.log(`💰 Crediting page balance: ₦${netAmount} to page ${paymentPageId}`);
+
+  const { data: newBalance, error: balanceError } = await supabase.rpc(
+    "increment_page_balance",
+    {
+      p_page_id: paymentPageId,
+      p_amount: netAmount,
+    },
+  );
+
+  if (balanceError) {
+    console.error("❌ Failed to increment page balance:", balanceError);
+    // Don't return error, just log it
+  } else {
+    console.log(`✅ Credited ₦${netAmount} to page ${paymentPageId}. New balance: ₦${newBalance}`);
+  }
+
+  // Create transaction record
+  console.log("📝 Creating transaction record...");
+  const { error: txError } = await supabase.from("transactions").insert({
+    user_id: paymentPage.user_id,
+    type: "credit",
+    amount: transactionAmount,
+    fee: nombaFee,
+    net_amount: netAmount,
+    status: "success",
+    reference: `BT-${paymentPageId}-${nombaTransactionId}`,
+    description: `Bank transfer payment for page "${paymentPage.title}" from ${customerName}`,
+    channel: "bank_transfer",
+    sender: {
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone,
+      bank_transfer: true,
+      virtual_account: aliasAccountReference
+    },
+    receiver: {
+      user_id: paymentPage.user_id,
+      payment_page_id: paymentPageId,
+    },
+    external_response: {
+      nomba_transaction_id: nombaTransactionId,
+      nomba_fee: nombaFee,
+      virtual_account: aliasAccountReference,
+      payment_method: "bank_transfer"
+    },
+  });
+
+  if (txError) {
+    console.error("❌ Failed to create transaction record:", txError);
+  } else {
+    console.log("✅ Transaction record created");
+  }
+
+  // Send notification to page creator
+  const { data: creator } = await supabase
+    .from("users")
+    .select("email, full_name")
+    .eq("id", paymentPage.user_id)
+    .single();
+
+  if (creator?.email) {
+    console.log("📧 Sending bank transfer notification email to creator:", creator.email);
+    sendPaymentPageNotificationEmail(
+      creator.email,
+      paymentPage.title,
+      netAmount,
+      customerName,
+      nombaFee,
+      { pageType: "bank_transfer" },
+      "bank_transfer"
+    ).catch(console.error);
+  }
+
+  // Send receipt to customer if email provided
+  if (customerEmail) {
+    console.log("📧 Sending receipt email to customer:", customerEmail);
+    sendPaymentPageReceiptEmail(
+      customerEmail,
+      paymentPage.title,
+      transactionAmount,
+      nombaTransactionId,
+      { virtual_account: aliasAccountReference },
+      "bank_transfer"
+    ).catch(console.error);
+  }
+
+  console.log("🎉 Payment page bank transfer processing completed successfully!");
+  
+  return {
+    success: true,
+    message: "Bank transfer payment processed",
+    credited_amount: netAmount,
+    new_balance: newBalance,
+    payment_id: paymentRecord.id
+  };
+}
+
+// Check if this is a card payment
 export function checkIfPaymentPagePayment(orderReference: string, payload: any): boolean {
-  // Check by order reference pattern
+  // Check by order reference pattern (card payments)
   if (orderReference?.startsWith("PP-")) {
-    console.log("✅ Detected payment page by orderReference pattern:", orderReference);
+    console.log("✅ Detected payment page card payment by orderReference pattern:", orderReference);
     return true;
   }
   
-  // Check by metadata
+  // Check by metadata for card payments
   const isPaymentPage = payload.data?.order?.metadata?.type === "payment_page" ||
     payload.data?.order?.metadata?.paymentPageId;
   
   if (isPaymentPage) {
-    console.log("✅ Detected payment page by metadata");
+    console.log("✅ Detected payment page card payment by metadata");
+    return true;
   }
   
-  return isPaymentPage;
+  return false;
+}
+
+// Check if this is a bank transfer to a payment page
+export function checkIfPaymentPageBankTransfer(aliasAccountReference: string, payload: any): boolean {
+  // Check if the virtual account reference is for a payment page
+  if (aliasAccountReference && 
+      (aliasAccountReference.startsWith("VA-PP-") || 
+       extractPaymentPageIdFromVirtualAccount(aliasAccountReference))) {
+    console.log("✅ Detected payment page bank transfer by virtual account reference:", aliasAccountReference);
+    return true;
+  }
+  
+  // Check metadata
+  const isBankTransfer = payload.data?.order?.metadata?.type === "payment_page_bank_transfer" ||
+    payload.data?.transaction?.type === "bank_transfer" ||
+    payload.data?.transaction?.paymentMethod === "bank_transfer";
+  
+  if (isBankTransfer) {
+    console.log("✅ Detected payment page bank transfer by metadata");
+  }
+  
+  return isBankTransfer;
 }
