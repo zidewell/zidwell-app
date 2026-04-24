@@ -163,7 +163,7 @@ function extractPaymentPageIdFromReference(orderReference: string): string | nul
   console.log("📝 Extracting from orderReference:", orderReference);
   
   // New pattern: PP-{shortId(12)}-{timestamp}-{random}
-  // Example: PP-740302e5c374-17a8f3-xyz9
+  // Example: PP-5980740302e5-modh6afz-tgzy
   const ppPattern = /^PP-([a-f0-9]{12})-[a-z0-9]+-[a-z0-9]+$/i;
   let match = orderReference.match(ppPattern);
   
@@ -234,17 +234,32 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     if (extractedId) {
       // Search for payment page where ID ends with the extracted ID
       console.log("🔍 Searching for payment page with ID ending with:", extractedId);
-      const { data: foundPage, error: searchError } = await supabase
+      
+      // Get all payment pages and filter in JavaScript
+      const { data: allPages, error: searchError } = await supabase
         .from("payment_pages")
-        .select("id, title, user_id")
-        .ilike("id", `%-${extractedId}`)
-        .maybeSingle();
+        .select("id, title, user_id");
       
       if (searchError) {
-        console.error("❌ Error searching for payment page:", searchError);
-      } else if (foundPage) {
-        paymentPageId = foundPage.id;
-        console.log("✅ Found payment page by ID suffix:", paymentPageId);
+        console.error("❌ Error searching for payment pages:", searchError);
+      } else if (allPages) {
+        // Find the page whose ID ends with the extracted ID
+        const foundPage = allPages.find(page => 
+          page.id.endsWith(extractedId)
+        );
+        
+        if (foundPage) {
+          paymentPageId = foundPage.id;
+          console.log("✅ Found payment page by ID suffix:", paymentPageId);
+          console.log("   Page title:", foundPage.title);
+        } else {
+          console.log("❌ No payment page found with ID ending with:", extractedId);
+          // List available pages for debugging
+          console.log("📋 Available payment page IDs:");
+          allPages.slice(0, 5).forEach(page => {
+            console.log(`   - ${page.id} (ends with: ${page.id.slice(-12)})`);
+          });
+        }
       }
     }
   }
@@ -314,6 +329,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
   if (!paymentRecord) {
     console.error("❌ Payment record not found for page:", paymentPageId);
     
+    // Check if there are any payments at all for this page
     const { data: allPayments, error: allError } = await supabase
       .from("payment_page_payments")
       .select("*")
@@ -341,6 +357,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     customer: paymentRecord.customer_name,
   });
 
+  // Check for duplicate
   const { data: existingWebhook, error: duplicateError } = await supabase
     .from("payment_page_payments")
     .select("nomba_transaction_id, id")
@@ -356,6 +373,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     return { success: true, message: "Already processed" };
   }
 
+  // Update payment status
   console.log("📝 Updating payment status to 'completed'");
   const { error: updateError } = await supabase
     .from("payment_page_payments")
@@ -372,6 +390,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     return { error: "Failed to update payment", status: 500 };
   }
 
+  // Credit the page balance
   const pageCreditAmount = paymentRecord.net_amount;
   console.log(`💰 Crediting page balance: ₦${pageCreditAmount}`);
 
@@ -391,6 +410,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     console.log(`✅ Credited ₦${pageCreditAmount}. New balance: ₦${finalBalance}`);
   }
 
+  // Get payment page details
   const { data: paymentPage, error: pageDetailsError } = await supabase
     .from("payment_pages")
     .select("title, user_id, page_type, metadata")
@@ -401,6 +421,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     console.error("❌ Error fetching payment page details:", pageDetailsError);
   }
 
+  // Create transaction record
   const { error: txError } = await supabase.from("transactions").insert({
     user_id: paymentRecord.user_id,
     type: "credit",
@@ -431,6 +452,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     console.error("❌ Failed to create transaction record:", txError);
   }
 
+  // Send email notifications
   if (paymentRecord.customer_email) {
     sendPaymentPageReceiptEmail(
       paymentRecord.customer_email,
