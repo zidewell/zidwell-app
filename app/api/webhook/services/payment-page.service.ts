@@ -44,6 +44,17 @@ async function sendPaymentPageNotificationEmail(
 ): Promise<void> {
   try {
     let additionalInfo = "";
+    
+    // Determine the actual payment method from metadata if not explicitly passed
+    let actualPaymentMethod = paymentMethod;
+    if (metadata?.payment_method) {
+      actualPaymentMethod = metadata.payment_method;
+    } else if (metadata?.bank_transfer === true) {
+      actualPaymentMethod = "bank_transfer";
+    } else if (metadata?.payment_type === "backtransfer") {
+      actualPaymentMethod = "bank_transfer";
+    }
+
     if (metadata?.pageType === "school") {
       additionalInfo = `
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
@@ -71,8 +82,8 @@ async function sendPaymentPageNotificationEmail(
       `;
     }
 
-    const paymentMethodText = paymentMethod === "card" ? "Card Payment" : "Bank Transfer";
-    const paymentMethodIcon = paymentMethod === "card" ? "💳" : "🏦";
+    const paymentMethodText = actualPaymentMethod === "card" ? "Card Payment" : "Bank Transfer";
+    const paymentMethodIcon = actualPaymentMethod === "card" ? "💳" : "🏦";
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
@@ -82,7 +93,7 @@ async function sendPaymentPageNotificationEmail(
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
           <h3 style="color: #22c55e;">✅ ${paymentMethodText} Received! ${paymentMethodIcon}</h3>
-          <p>You've received a ${paymentMethod.toLowerCase()} payment for your payment page <strong>${pageTitle}</strong>.</p>
+          <p>You've received a ${actualPaymentMethod === "card" ? "card" : "bank transfer"} payment for your payment page <strong>${pageTitle}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
             ${fee ? `<p><strong>Processing Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}
@@ -111,6 +122,17 @@ async function sendPaymentPageReceiptEmail(
 ): Promise<void> {
   try {
     let additionalInfo = "";
+    
+    // Determine the actual payment method from metadata if not explicitly passed
+    let actualPaymentMethod = paymentMethod;
+    if (metadata?.payment_method) {
+      actualPaymentMethod = metadata.payment_method;
+    } else if (metadata?.bank_transfer === true) {
+      actualPaymentMethod = "bank_transfer";
+    } else if (metadata?.payment_type === "backtransfer") {
+      actualPaymentMethod = "bank_transfer";
+    }
+
     if (metadata?.pageType === "school") {
       additionalInfo = `
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
@@ -128,7 +150,7 @@ async function sendPaymentPageReceiptEmail(
       `;
     }
 
-    const paymentMethodText = paymentMethod === "card" ? "Card" : "Bank Transfer";
+    const paymentMethodText = actualPaymentMethod === "card" ? "Card" : "Bank Transfer";
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
@@ -452,14 +474,14 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     console.error("❌ Failed to create transaction record:", txError);
   }
 
-  // Send email notifications
+  // Send email notifications with payment_method="card"
   if (paymentRecord.customer_email) {
     sendPaymentPageReceiptEmail(
       paymentRecord.customer_email,
       paymentPage?.title || "Payment Page",
       paymentRecord.amount,
       nombaTransactionId,
-      paymentRecord.metadata,
+      { ...paymentRecord.metadata, payment_method: "card" },
       "card"
     ).catch(console.error);
   }
@@ -477,7 +499,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
       pageCreditAmount,
       paymentRecord.customer_name,
       paymentRecord.fee,
-      paymentRecord.metadata,
+      { ...paymentRecord.metadata, payment_method: "card" },
       "card"
     ).catch(console.error);
   }
@@ -571,9 +593,10 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
       metadata: {
         virtual_account: aliasAccountReference,
         bank_transfer: true,
+        payment_method: "bank_transfer",
+        payment_type: "backtransfer",
         customer_details: customer,
         transaction_details: tx,
-        payment_type: "backtransfer"
       },
       paid_at: new Date().toISOString(),
     })
@@ -644,6 +667,7 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
     .eq("id", paymentPage.user_id)
     .single();
 
+  // Send email notifications with payment_method="bank_transfer"
   if (creator?.email) {
     sendPaymentPageNotificationEmail(
       creator.email,
@@ -651,7 +675,11 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
       netAmount,
       customerName,
       nombaFee,
-      { pageType: "bank_transfer" },
+      { 
+        pageType: "bank_transfer", 
+        payment_method: "bank_transfer",
+        bank_transfer: true 
+      },
       "bank_transfer"
     ).catch(console.error);
   }
@@ -662,7 +690,11 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
       paymentPage.title,
       transactionAmount,
       nombaTransactionId,
-      { virtual_account: aliasAccountReference },
+      { 
+        virtual_account: aliasAccountReference,
+        payment_method: "bank_transfer",
+        bank_transfer: true 
+      },
       "bank_transfer"
     ).catch(console.error);
   }
