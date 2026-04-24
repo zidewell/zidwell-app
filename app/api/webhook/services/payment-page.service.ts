@@ -162,15 +162,26 @@ function extractPaymentPageIdFromReference(orderReference: string): string | nul
   
   console.log("📝 Extracting from orderReference:", orderReference);
   
-  const uuidPattern = /^PP-([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})-/i;
-  const match = orderReference.match(uuidPattern);
+  // New pattern: PP-{shortId(12)}-{timestamp}-{random}
+  // Example: PP-740302e5c374-17a8f3-xyz9
+  const ppPattern = /^PP-([a-f0-9]{12})-[a-z0-9]+-[a-z0-9]+$/i;
+  let match = orderReference.match(ppPattern);
   
   if (match && match[1]) {
-    console.log("✅ Extracted UUID:", match[1]);
+    console.log("✅ Extracted short ID (PP format):", match[1]);
     return match[1];
   }
   
-  console.log("❌ Failed to extract UUID from:", orderReference);
+  // Legacy pattern: P{shortId(8)}-{timestamp}-{random} (for backward compatibility)
+  const legacyPattern = /^P([a-f0-9]{8})-[a-z0-9]+-[a-z0-9]+$/i;
+  match = orderReference.match(legacyPattern);
+  
+  if (match && match[1]) {
+    console.log("⚠️ Legacy format detected, short ID:", match[1]);
+    return match[1];
+  }
+  
+  console.log("❌ Failed to extract from orderReference:", orderReference);
   return null;
 }
 
@@ -217,8 +228,25 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
   console.log("📌 From metadata - paymentPageId:", paymentPageId, "paymentId:", paymentId);
 
   if (!paymentPageId && orderReference) {
-    paymentPageId = extractPaymentPageIdFromReference(orderReference);
-    console.log("📌 Extracted paymentPageId from orderReference:", paymentPageId);
+    const extractedId = extractPaymentPageIdFromReference(orderReference);
+    console.log("📌 Extracted ID from orderReference:", extractedId);
+    
+    if (extractedId) {
+      // Search for payment page where ID ends with the extracted ID
+      console.log("🔍 Searching for payment page with ID ending with:", extractedId);
+      const { data: foundPage, error: searchError } = await supabase
+        .from("payment_pages")
+        .select("id, title, user_id")
+        .ilike("id", `%-${extractedId}`)
+        .maybeSingle();
+      
+      if (searchError) {
+        console.error("❌ Error searching for payment page:", searchError);
+      } else if (foundPage) {
+        paymentPageId = foundPage.id;
+        console.log("✅ Found payment page by ID suffix:", paymentPageId);
+      }
+    }
   }
 
   if (!paymentPageId) {
@@ -226,7 +254,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     return { error: "Missing payment page identifier", status: 400 };
   }
 
-  console.log("🎯 Searching for payment record with page_id:", paymentPageId);
+  console.log("🎯 Final payment page ID:", paymentPageId);
 
   const { data: paymentPageCheck, error: pageError } = await supabase
     .from("payment_pages")
@@ -285,6 +313,25 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
 
   if (!paymentRecord) {
     console.error("❌ Payment record not found for page:", paymentPageId);
+    
+    const { data: allPayments, error: allError } = await supabase
+      .from("payment_page_payments")
+      .select("*")
+      .eq("payment_page_id", paymentPageId)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    
+    if (allError) {
+      console.error("❌ Error fetching all payments:", allError);
+    } else if (allPayments && allPayments.length > 0) {
+      console.log(`📊 Found ${allPayments.length} total payments for this page`);
+      allPayments.forEach((p, idx) => {
+        console.log(`   ${idx + 1}. ID: ${p.id}, Status: ${p.status}, Amount: ${p.amount}`);
+      });
+    } else {
+      console.log("📊 No payments found for this page");
+    }
+    
     return { error: "Payment record not found", status: 404 };
   }
 
@@ -611,8 +658,15 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
 
 // Check if this is a card payment
 export function checkIfPaymentPagePayment(orderReference: string, payload: any): boolean {
+  // Check for PP- prefix (new format)
   if (orderReference?.startsWith("PP-")) {
-    console.log("✅ Detected payment page card payment by orderReference");
+    console.log("✅ Detected payment page card payment by PP- prefix");
+    return true;
+  }
+  
+  // Check for legacy P prefix (backward compatibility)
+  if (orderReference?.startsWith("P") && !orderReference?.startsWith("PP-")) {
+    console.log("⚠️ Detected legacy payment page card payment by P prefix");
     return true;
   }
   

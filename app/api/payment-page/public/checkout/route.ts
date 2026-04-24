@@ -1,4 +1,3 @@
-// app/api/payment-page/checkout/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
@@ -18,11 +17,17 @@ const generateOrderReference = (pageId: string | number): string => {
   // Use timestamp in base36 (shorter than numeric)
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 6);
-  const shortId = pageId.toString().slice(-8); // Last 8 chars of page ID
   
-  // Format: P{shortId(8)}-{timestamp}-{random(4)}
-  // Max length ~ 8 + 1 + 10 + 1 + 4 = 24 chars
-  let reference = `P${shortId}-${timestamp}-${random}`;
+  // Use the full page ID (convert to string if it's a number)
+  const fullPageId = pageId.toString();
+  
+  // Take last 12 chars to keep reference short but still unique
+  const shortId = fullPageId.slice(-12);
+  
+  // New format: PP-{shortId(12)}-{timestamp}-{random(4)}
+  // Example: PP-740302e5c374-17a8f3-xyz9
+  // Max length: 3 + 1 + 12 + 1 + 10 + 1 + 4 = 32 chars (well under 50)
+  let reference = `PP-${shortId}-${timestamp}-${random}`;
   
   // Ensure max 50 characters (should be fine, but just in case)
   if (reference.length > 50) {
@@ -102,10 +107,10 @@ export async function POST(request: Request) {
     const totalForCustomer =
       page.fee_mode === "customer" ? finalAmount + fee : finalAmount;
 
-    // Generate order reference (max 50 chars for Nomba)
+    // Generate order reference with PP- prefix
     const orderReference = generateOrderReference(page.id);
     
-    // Store full reference in metadata for internal tracking
+    // Store full reference for internal tracking (no longer needed separately but kept for compatibility)
     const fullReference = `PP-${page.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
     // Prepare metadata for payment record (includes student info for school pages)
@@ -165,7 +170,7 @@ export async function POST(request: Request) {
     // Create checkout with Nomba
     const checkoutPayload = {
       order: {
-        callbackUrl: `${baseUrl}/api/payment-page/webhook`,
+        callbackUrl: `${baseUrl}/api/webhook`,
         customerEmail: customerEmail,
         amount: totalForCustomer.toString(),
         currency: "NGN",
@@ -181,8 +186,7 @@ export async function POST(request: Request) {
           originalAmount: finalAmount,
           fee: fee,
           pageType: page.page_type,
-          fullReference, // Include full reference in Nomba metadata
-          // Include student tracking info for school pages
+          fullReference,
           ...(page.page_type === "school" && {
             parentName: metadata?.parentName || "",
             childName: metadata?.childName || "",
