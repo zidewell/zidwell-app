@@ -10,15 +10,32 @@ import Link from "next/link";
   const reference = searchParams.get("reference");
   const status = searchParams.get("status");
   const reason = searchParams.get("reason");
+  const message = searchParams.get("message");
 
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [pollingCount, setPollingCount] = useState(0);
 
   useEffect(() => {
-    if (reference) {
+    if (reference && (status === "processing" || !status)) {
+      // Poll for payment status if it's processing
+      const interval = setInterval(() => {
+        fetchPaymentDetails();
+        setPollingCount(prev => prev + 1);
+      }, 3000);
+
+      // Stop polling after 30 seconds (10 attempts)
+      if (pollingCount >= 10) {
+        clearInterval(interval);
+      }
+
+      return () => clearInterval(interval);
+    } else if (reference) {
       fetchPaymentDetails();
+    } else {
+      setLoading(false);
     }
-  }, [reference]);
+  }, [reference, status, pollingCount]);
 
   const fetchPaymentDetails = async () => {
     try {
@@ -26,23 +43,33 @@ import Link from "next/link";
       const data = await response.json();
       if (data.success) {
         setPaymentDetails(data.payment);
+        // If payment is completed, stop polling
+        if (data.payment.status === "completed") {
+          setLoading(false);
+          // Refresh the page to show success
+          window.location.href = `/payment-page/status?reference=${reference}&status=success`;
+        }
       }
     } catch (error) {
       console.error("Error fetching payment details:", error);
     } finally {
-      setLoading(false);
+      if (status !== "processing") {
+        setLoading(false);
+      }
     }
   };
 
-  const isSuccess = status === "success";
+  const isSuccess = status === "success" || paymentDetails?.status === "completed";
   const isFailed = status === "failed" || status === "error";
+  const isProcessing = status === "processing" || (!status && !isSuccess && !isFailed);
 
-  if (loading) {
+  if (loading && isProcessing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Verifying your payment...</p>
+          <p className="mt-2 text-sm text-gray-500">This may take a few moments</p>
         </div>
       </div>
     );
@@ -129,8 +156,16 @@ import Link from "next/link";
                 Payment Failed
               </h2>
               <p className="mt-2 text-gray-600">
-                {reason || "Your payment could not be processed. Please try again."}
+                {reason || message || "Your payment could not be processed. Please try again."}
               </p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 text-center">
+              <button
+                onClick={() => window.history.back()}
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Try Again
+              </button>
             </div>
           </>
         ) : (
@@ -152,11 +187,18 @@ import Link from "next/link";
                 </svg>
               </div>
               <h2 className="mt-4 text-2xl font-bold text-gray-900">
-                Processing Payment
+                Payment Processing
               </h2>
               <p className="mt-2 text-gray-600">
                 Your payment is being processed. You will receive a confirmation email shortly.
               </p>
+              <div className="mt-4 flex justify-center">
+                <div className="animate-pulse flex space-x-2">
+                  <div className="h-2 w-2 bg-yellow-600 rounded-full"></div>
+                  <div className="h-2 w-2 bg-yellow-600 rounded-full"></div>
+                  <div className="h-2 w-2 bg-yellow-600 rounded-full"></div>
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -164,7 +206,7 @@ import Link from "next/link";
         <div className="px-6 py-4 bg-gray-50 text-center">
           <Link
             href="/"
-            className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Return to Home
           </Link>
