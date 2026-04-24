@@ -1032,7 +1032,6 @@
 //     payload.data?.order?.metadata?.invoiceId;
 // }
 
-
 import { NextRequest, NextResponse } from "next/server";
 import { verifyNombaSignature } from "./helpers/signature-verification";
 import { processInvoicePayment } from "./services/invoice-payment.service";
@@ -1120,8 +1119,10 @@ export async function POST(req: NextRequest) {
         tx
       });
       
-      if (result.error) {
-        return NextResponse.json({ error: result.error }, { status: result.status || 500 });
+      if ("error" in result) {
+        const errorResult = result as { error: string; status?: number };
+        const statusCode = errorResult.status && typeof errorResult.status === 'number' ? errorResult.status : 500;
+        return NextResponse.json({ error: errorResult.error }, { status: statusCode });
       }
       
       return NextResponse.json(result);
@@ -1138,8 +1139,10 @@ export async function POST(req: NextRequest) {
         orderReference,
       });
       
-      if (result.error) {
-        return NextResponse.json({ error: result.error }, { status: result.status || 500 });
+      if ("error" in result) {
+        const errorResult = result as { error: string; status?: number };
+        const statusCode = errorResult.status && typeof errorResult.status === 'number' ? errorResult.status : 500;
+        return NextResponse.json({ error: errorResult.error }, { status: statusCode });
       }
       
       return NextResponse.json(result);
@@ -1158,12 +1161,15 @@ export async function POST(req: NextRequest) {
         tx
       });
       
-      if (result.error && result.error.includes("not found")) {
-        console.log("⚠️ Invoice not found, might be another payment type");
-        // Continue to next handler
-      } else if (result.error) {
-        return NextResponse.json({ error: result.error }, { status: result.status || 500 });
-      } else {
+      if (result && "error" in result && result.error) {
+        if (result.error.includes("not found")) {
+          console.log("⚠️ Invoice not found, might be another payment type");
+        } else {
+          const errorResult = result as { error: string; status?: number };
+          const statusCode = errorResult.status && typeof errorResult.status === 'number' ? errorResult.status : 500;
+          return NextResponse.json({ error: errorResult.error }, { status: statusCode });
+        }
+      } else if (result && "success" in result) {
         return NextResponse.json(result);
       }
     }
@@ -1179,6 +1185,13 @@ export async function POST(req: NextRequest) {
         customer,
         tx
       });
+      
+      if (result && "error" in result && result.error) {
+        const errorResult = result as { error: string; status?: number };
+        const statusCode = errorResult.status && typeof errorResult.status === 'number' ? errorResult.status : 500;
+        return NextResponse.json({ error: errorResult.error }, { status: statusCode });
+      }
+      
       return NextResponse.json(result);
     }
 
@@ -1195,6 +1208,13 @@ export async function POST(req: NextRequest) {
         txStatus,
         tx
       });
+      
+      if (result && "error" in result && result.error) {
+        const errorResult = result as { error: string; status?: number };
+        const statusCode = errorResult.status && typeof errorResult.status === 'number' ? errorResult.status : 500;
+        return NextResponse.json({ error: errorResult.error }, { status: statusCode });
+      }
+      
       return NextResponse.json(result);
     }
 
@@ -1209,7 +1229,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function safeNum(v: any) {
+function safeNum(v: any): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }

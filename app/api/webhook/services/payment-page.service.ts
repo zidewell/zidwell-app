@@ -29,6 +29,10 @@ interface BankTransferParams {
   tx: any;
 }
 
+type ServiceResult = 
+  | { success: true; message: string; credited_amount?: number; new_balance?: number | null; payment_id?: string }
+  | { error: string; status?: number };
+
 async function sendPaymentPageNotificationEmail(
   creatorEmail: string,
   pageTitle: string,
@@ -37,7 +41,7 @@ async function sendPaymentPageNotificationEmail(
   fee?: number,
   metadata?: any,
   paymentMethod: string = "card"
-) {
+): Promise<void> {
   try {
     let additionalInfo = "";
     if (metadata?.pageType === "school") {
@@ -104,7 +108,7 @@ async function sendPaymentPageReceiptEmail(
   reference: string,
   metadata?: any,
   paymentMethod: string = "card"
-) {
+): Promise<void> {
   try {
     let additionalInfo = "";
     if (metadata?.pageType === "school") {
@@ -197,7 +201,7 @@ function extractPaymentPageIdFromVirtualAccount(aliasAccountReference: string): 
 }
 
 // Process CARD payments
-export async function processPaymentPagePayment(payload: any, params: PaymentPageParams) {
+export async function processPaymentPagePayment(payload: any, params: PaymentPageParams): Promise<ServiceResult> {
   const { nombaTransactionId, nombaFee, orderReference } = params;
 
   console.log("💰 Processing Payment Page CARD payment...");
@@ -232,11 +236,15 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
 
   if (pageError) {
     console.error("❌ Error checking payment page:", pageError);
-  } else if (!paymentPageCheck) {
-    console.error("❌ Payment page not found with ID:", paymentPageId);
-  } else {
-    console.log("✅ Found payment page:", paymentPageCheck.title);
+    return { error: "Error checking payment page", status: 500 };
   }
+  
+  if (!paymentPageCheck) {
+    console.error("❌ Payment page not found with ID:", paymentPageId);
+    return { error: "Payment page not found", status: 404 };
+  }
+  
+  console.log("✅ Found payment page:", paymentPageCheck.title);
 
   let paymentRecord = null;
   
@@ -317,7 +325,7 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     return { error: "Failed to update payment", status: 500 };
   }
 
-  let pageCreditAmount = paymentRecord.net_amount;
+  const pageCreditAmount = paymentRecord.net_amount;
   console.log(`💰 Crediting page balance: ₦${pageCreditAmount}`);
 
   const { data: newBalance, error: balanceError } = await supabase.rpc(
@@ -328,10 +336,12 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     },
   );
 
+  let finalBalance: number | null = null;
   if (balanceError) {
     console.error("❌ Failed to increment page balance:", balanceError);
   } else {
-    console.log(`✅ Credited ₦${pageCreditAmount}. New balance: ₦${newBalance}`);
+    finalBalance = typeof newBalance === 'number' ? newBalance : null;
+    console.log(`✅ Credited ₦${pageCreditAmount}. New balance: ₦${finalBalance}`);
   }
 
   const { data: paymentPage, error: pageDetailsError } = await supabase
@@ -409,12 +419,12 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     success: true,
     message: "Card payment processed",
     credited_amount: pageCreditAmount,
-    new_balance: newBalance,
+    new_balance: finalBalance,
   };
 }
 
 // Process BANK TRANSFER payments
-export async function processPaymentPageBankTransfer(payload: any, params: BankTransferParams) {
+export async function processPaymentPageBankTransfer(payload: any, params: BankTransferParams): Promise<ServiceResult> {
   const { 
     nombaTransactionId, 
     nombaFee, 
@@ -518,10 +528,12 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
     },
   );
 
+  let finalBalance: number | null = null;
   if (balanceError) {
     console.error("❌ Failed to increment page balance:", balanceError);
   } else {
-    console.log(`✅ Credited ₦${netAmount}. New balance: ₦${newBalance}`);
+    finalBalance = typeof newBalance === 'number' ? newBalance : null;
+    console.log(`✅ Credited ₦${netAmount}. New balance: ₦${finalBalance}`);
   }
 
   const { error: txError } = await supabase.from("transactions").insert({
@@ -592,7 +604,7 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
     success: true,
     message: "Bank transfer payment processed",
     credited_amount: netAmount,
-    new_balance: newBalance,
+    new_balance: finalBalance,
     payment_id: paymentRecord.id
   };
 }
