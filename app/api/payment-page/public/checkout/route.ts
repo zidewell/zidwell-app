@@ -13,6 +13,25 @@ const baseUrl =
     ? "http://localhost:3000"
     : "https://zidwell.com";
 
+// Helper function to generate order reference (max 50 chars for Nomba)
+const generateOrderReference = (pageId: string | number): string => {
+  // Use timestamp in base36 (shorter than numeric)
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 6);
+  const shortId = pageId.toString().slice(-8); // Last 8 chars of page ID
+  
+  // Format: P{shortId(8)}-{timestamp}-{random(4)}
+  // Max length ~ 8 + 1 + 10 + 1 + 4 = 24 chars
+  let reference = `P${shortId}-${timestamp}-${random}`;
+  
+  // Ensure max 50 characters (should be fine, but just in case)
+  if (reference.length > 50) {
+    reference = reference.substring(0, 50);
+  }
+  
+  return reference;
+};
+
 export async function POST(request: Request) {
   try {
     const {
@@ -83,14 +102,18 @@ export async function POST(request: Request) {
     const totalForCustomer =
       page.fee_mode === "customer" ? finalAmount + fee : finalAmount;
 
-    // Generate order reference
-    const orderReference = `PP-${page.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    // Generate order reference (max 50 chars for Nomba)
+    const orderReference = generateOrderReference(page.id);
+    
+    // Store full reference in metadata for internal tracking
+    const fullReference = `PP-${page.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
     // Prepare metadata for payment record (includes student info for school pages)
     const paymentMetadata: any = {
       ...metadata,
       pageType: page.page_type,
       pageTitle: page.title,
+      fullReference, // Store full reference here for internal use
     };
 
     // Add school-specific metadata
@@ -158,6 +181,7 @@ export async function POST(request: Request) {
           originalAmount: finalAmount,
           fee: fee,
           pageType: page.page_type,
+          fullReference, // Include full reference in Nomba metadata
           // Include student tracking info for school pages
           ...(page.page_type === "school" && {
             parentName: metadata?.parentName || "",
