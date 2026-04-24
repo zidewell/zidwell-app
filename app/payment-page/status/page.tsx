@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
- function PaymentStatusPage() {
+function PaymentStatusPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get("reference");
@@ -14,54 +14,126 @@ import Link from "next/link";
 
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [pollingCount, setPollingCount] = useState(0);
+  const [isPolling, setIsPolling] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
-    if (reference && (status === "processing" || !status)) {
-      // Poll for payment status if it's processing
-      const interval = setInterval(() => {
-        fetchPaymentDetails();
-        setPollingCount(prev => prev + 1);
-      }, 3000);
+    // Cleanup function to clear interval
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
 
-      // Stop polling after 30 seconds (10 attempts)
-      if (pollingCount >= 10) {
-        clearInterval(interval);
+  useEffect(() => {
+    // Only run once when component mounts
+    const checkPaymentStatus = async () => {
+      if (!reference) {
+        setLoading(false);
+        return;
       }
 
-      return () => clearInterval(interval);
-    } else if (reference) {
-      fetchPaymentDetails();
-    } else {
-      setLoading(false);
-    }
-  }, [reference, status, pollingCount]);
+      // Check if we already have a final status
+      const finalStatus = status === "success" || status === "failed" || status === "error";
+      
+      if (finalStatus) {
+        // Just fetch details once for final status
+        await fetchPaymentDetailsOnce();
+        setLoading(false);
+        return;
+      }
 
-  const fetchPaymentDetails = async () => {
+      // Start polling for processing status
+      startPolling();
+    };
+
+    checkPaymentStatus();
+
+    // Cleanup function
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [reference, status]); // Only depend on reference and status
+
+  const fetchPaymentDetailsOnce = async () => {
     try {
       const response = await fetch(`/api/payment-page/status?reference=${reference}`);
       const data = await response.json();
       if (data.success) {
         setPaymentDetails(data.payment);
-        // If payment is completed, stop polling
-        if (data.payment.status === "completed") {
-          setLoading(false);
-          // Refresh the page to show success
-          window.location.href = `/payment-page/status?reference=${reference}&status=success`;
-        }
       }
     } catch (error) {
       console.error("Error fetching payment details:", error);
-    } finally {
-      if (status !== "processing") {
-        setLoading(false);
-      }
     }
   };
 
+  const startPolling = () => {
+    if (isPolling) return; // Prevent multiple polling instances
+    
+    setIsPolling(true);
+    let attempts = 0;
+    const maxAttempts = 15; // 15 attempts * 2 seconds = 30 seconds max
+
+    const poll = async () => {
+      attempts++;
+      console.log(`Polling payment status (attempt ${attempts}/${maxAttempts})...`);
+
+      try {
+        const response = await fetch(`/api/payment-page/status?reference=${reference}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setPaymentDetails(data.payment);
+          
+          // If payment is completed, stop polling and redirect
+          if (data.payment.status === "completed" && !hasRedirectedRef.current) {
+            hasRedirectedRef.current = true;
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+            }
+            // Use router.replace instead of window.location.href to avoid full page reload
+            router.replace(`/payment-page/status?reference=${reference}&status=success`);
+            return;
+          }
+          
+          // If payment failed, stop polling
+          if (data.payment.status === "failed" && !hasRedirectedRef.current) {
+            hasRedirectedRef.current = true;
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+            }
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error polling payment status:", error);
+      }
+
+      // Stop polling after max attempts
+      if (attempts >= maxAttempts) {
+        console.log("Max polling attempts reached, stopping...");
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        setLoading(false);
+      }
+    };
+
+    // Start polling immediately
+    poll();
+    
+    // Set up interval
+    pollingIntervalRef.current = setInterval(poll, 2000); // Poll every 2 seconds instead of 3
+  };
+
   const isSuccess = status === "success" || paymentDetails?.status === "completed";
-  const isFailed = status === "failed" || status === "error";
-  const isProcessing = status === "processing" || (!status && !isSuccess && !isFailed);
+  const isFailed = status === "failed" || status === "error" || paymentDetails?.status === "failed";
+  const isProcessing = (status === "processing" || !status) && !isSuccess && !isFailed;
 
   if (loading && isProcessing) {
     return (
@@ -216,8 +288,7 @@ import Link from "next/link";
   );
 }
 
-
-export default function paymentPage() {
+export default function PaymentPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
