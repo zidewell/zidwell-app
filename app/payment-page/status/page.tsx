@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function PaymentStatusPage() {
+ function PaymentStatusPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get("reference");
@@ -171,5 +171,18 @@ export default function PaymentStatusPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+
+export default function paymentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2b825b]"></div>
+      </div>
+    }>
+      <PaymentStatusPage />
+    </Suspense>
   );
 }
