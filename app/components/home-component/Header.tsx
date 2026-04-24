@@ -16,6 +16,7 @@ const Header = () => {
   const pathname = usePathname();
   const router = useRouter();
 
+  console.log("User in Header:", user);
   useEffect(() => {
     const handleScroll = () => setHasScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);

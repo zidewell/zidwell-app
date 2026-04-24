@@ -94,7 +94,7 @@ const features = [
   //   desc: "Accept payments online",
   //   icon: CreditCard,
   //   color: "bg-[#3b82f6] text-white",
-  //   link: "/dashboard/payment-pages",
+  //   link: "/dashboard/services/payment",
   //   requiredTier: "growth",
   //   featureKey: "payment_pages",
   //   type: "payment",

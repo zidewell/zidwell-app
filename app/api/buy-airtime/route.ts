@@ -1,10 +1,10 @@
 // app/api/buy-airtime/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
-import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { transporter } from "@/lib/node-mailer";
+import { getNombaToken } from "@/lib/nomba";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 
 const supabase = createClient(
