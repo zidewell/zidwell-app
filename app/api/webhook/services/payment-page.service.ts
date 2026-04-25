@@ -95,17 +95,17 @@ async function sendPaymentPageNotificationEmail(
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: creatorEmail,
-      subject: `💰 ${paymentMethodText} Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
+      subject: `💰 payment Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #22c55e;">✅ ${paymentMethodText} Received! ${paymentMethodIcon}</h3>
+          <h3 style="color: #22c55e;">✅ payment Received! ${paymentMethodIcon}</h3>
           <p>You've received a ${actualPaymentMethod === "card" ? "card" : "bank transfer"} payment for your payment page <strong>${pageTitle}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
             ${fee ? `<p><strong>Processing Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}
             <p><strong>Customer:</strong> ${customerName}</p>
-            <p><strong>Payment Method:</strong> ${paymentMethodText}</p>
+            <p><strong>Payment Method:</strong> payment</p>
             <p><strong>Status:</strong> <span style="color: #22c55e;">Completed</span></p>
           </div>
           ${additionalInfo}
