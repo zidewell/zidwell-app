@@ -277,7 +277,7 @@ function PaymentStatusPage() {
 
         <div className="px-6 py-4 bg-gray-50 text-center">
           <Link
-            href="/"
+            href="/dashboard/services/payment/dashboard"
             className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Return to Home
