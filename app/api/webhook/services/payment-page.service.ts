@@ -1,4 +1,3 @@
-
 import { createClient } from "@supabase/supabase-js";
 import { transporter } from "@/lib/node-mailer";
 import { sendTransactionReceiptWithPDF, sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf"; 
@@ -53,7 +52,6 @@ async function sendPaymentPageNotificationEmail(
   try {
     let additionalInfo = "";
 
-    // Determine the actual payment method from metadata if not explicitly passed
     let actualPaymentMethod = paymentMethod;
     if (metadata?.payment_method) {
       actualPaymentMethod = metadata.payment_method;
@@ -121,6 +119,82 @@ async function sendPaymentPageNotificationEmail(
   }
 }
 
+// NEW FUNCTION: Update student paid status in payment page metadata
+async function updateStudentPaidStatus(
+  paymentPageId: string,
+  childName: string,
+  parentName: string,
+  amount: number
+): Promise<void> {
+  try {
+    console.log(`📝 Updating student paid status for: ${childName} (Parent: ${parentName})`);
+    
+    // Get current payment page data
+    const { data: paymentPage, error: fetchError } = await supabase
+      .from("payment_pages")
+      .select("metadata")
+      .eq("id", paymentPageId)
+      .single();
+
+    if (fetchError) {
+      console.error("❌ Failed to fetch payment page:", fetchError);
+      return;
+    }
+
+    if (!paymentPage?.metadata?.students) {
+      console.log("⚠️ No students array found in metadata");
+      return;
+    }
+
+    // Update the student's paid status
+    const updatedStudents = paymentPage.metadata.students.map((student: any) => {
+      const studentName = student.name || student.childName || student.studentName;
+      if (studentName?.toLowerCase().trim() === childName?.toLowerCase().trim()) {
+        console.log(`✅ Found matching student: ${studentName}`);
+        return {
+          ...student,
+          paid: true,
+          paidAt: new Date().toISOString(),
+          paidAmount: (student.paidAmount || 0) + amount,
+          parentName: parentName,
+          lastPaymentDate: new Date().toISOString()
+        };
+      }
+      return student;
+    });
+
+    // Check if any student was updated
+    const wasUpdated = updatedStudents.some(
+      (student: any, index: number) => 
+        JSON.stringify(student) !== JSON.stringify(paymentPage.metadata.students[index])
+    );
+
+    if (!wasUpdated) {
+      console.log(`⚠️ No matching student found for: ${childName}`);
+      return;
+    }
+
+    // Update the payment page metadata
+    const { error: updateError } = await supabase
+      .from("payment_pages")
+      .update({
+        metadata: {
+          ...paymentPage.metadata,
+          students: updatedStudents
+        }
+      })
+      .eq("id", paymentPageId);
+
+    if (updateError) {
+      console.error("❌ Failed to update student paid status:", updateError);
+    } else {
+      console.log(`✅ Successfully marked ${childName} as paid`);
+    }
+  } catch (error) {
+    console.error("❌ Error updating student paid status:", error);
+  }
+}
+
 // Helper to extract payment page ID from order reference (card payments)
 function extractPaymentPageIdFromReference(
   orderReference: string,
@@ -129,8 +203,6 @@ function extractPaymentPageIdFromReference(
 
   console.log("📝 Extracting from orderReference:", orderReference);
 
-  // New pattern: PP-{shortId(12)}-{timestamp}-{random}
-  // Example: PP-5980740302e5-modh6afz-tgzy
   const ppPattern = /^PP-([a-f0-9]{12})-[a-z0-9]+-[a-z0-9]+$/i;
   let match = orderReference.match(ppPattern);
 
@@ -139,7 +211,6 @@ function extractPaymentPageIdFromReference(
     return match[1];
   }
 
-  // Legacy pattern: P{shortId(8)}-{timestamp}-{random} (for backward compatibility)
   const legacyPattern = /^P([a-f0-9]{8})-[a-z0-9]+-[a-z0-9]+$/i;
   match = orderReference.match(legacyPattern);
 
@@ -185,7 +256,7 @@ function extractPaymentPageIdFromVirtualAccount(
   return null;
 }
 
-// Process CARD payments (UPDATED with PDF)
+// Process CARD payments (UPDATED with student paid status tracking)
 export async function processPaymentPagePayment(
   payload: any,
   params: PaymentPageParams,
@@ -214,13 +285,11 @@ export async function processPaymentPagePayment(
     console.log("📌 Extracted ID from orderReference:", extractedId);
 
     if (extractedId) {
-      // Search for payment page where ID ends with the extracted ID
       console.log(
         "🔍 Searching for payment page with ID ending with:",
         extractedId,
       );
 
-      // Get all payment pages and filter in JavaScript
       const { data: allPages, error: searchError } = await supabase
         .from("payment_pages")
         .select("id, title, user_id");
@@ -228,7 +297,6 @@ export async function processPaymentPagePayment(
       if (searchError) {
         console.error("❌ Error searching for payment pages:", searchError);
       } else if (allPages) {
-        // Find the page whose ID ends with the extracted ID
         const foundPage = allPages.find((page) =>
           page.id.endsWith(extractedId),
         );
@@ -242,7 +310,6 @@ export async function processPaymentPagePayment(
             "❌ No payment page found with ID ending with:",
             extractedId,
           );
-          // List available pages for debugging
           console.log("📋 Available payment page IDs:");
           allPages.slice(0, 5).forEach((page) => {
             console.log(`   - ${page.id} (ends with: ${page.id.slice(-12)})`);
@@ -317,7 +384,6 @@ export async function processPaymentPagePayment(
   if (!paymentRecord) {
     console.error("❌ Payment record not found for page:", paymentPageId);
 
-    // Check if there are any payments at all for this page
     const { data: allPayments, error: allError } = await supabase
       .from("payment_page_payments")
       .select("*")
@@ -415,6 +481,16 @@ export async function processPaymentPagePayment(
     console.error("❌ Error fetching payment page details:", pageDetailsError);
   }
 
+  // NEW: Update student paid status if this is a school payment
+  if (paymentPage?.page_type === "school" && paymentRecord.metadata?.childName) {
+    await updateStudentPaidStatus(
+      paymentPageId,
+      paymentRecord.metadata.childName,
+      paymentRecord.metadata.parentName || paymentRecord.customer_name,
+      paymentRecord.amount
+    );
+  }
+
   // Create transaction record
   const { error: txError } = await supabase.from("transactions").insert({
     user_id: paymentRecord.user_id,
@@ -446,7 +522,7 @@ export async function processPaymentPagePayment(
     console.error("❌ Failed to create transaction record:", txError);
   }
 
-  // UPDATED: Send email notifications with PDF attachments
+  // Send email notifications with PDF attachments
   if (paymentRecord.customer_email) {
     await sendPaymentPageReceiptWithPDF(
       paymentRecord.customer_email,
@@ -489,7 +565,7 @@ export async function processPaymentPagePayment(
   };
 }
 
-// Process BANK TRANSFER payments (UPDATED with PDF)
+// Process BANK TRANSFER payments (UPDATED with student paid status tracking)
 export async function processPaymentPageBankTransfer(
   payload: any,
   params: BankTransferParams,
@@ -520,7 +596,7 @@ export async function processPaymentPageBankTransfer(
 
   const { data: paymentPage, error: pageError } = await supabase
     .from("payment_pages")
-    .select("id, title, user_id, balance, page_type")
+    .select("id, title, user_id, balance, page_type, metadata")
     .eq("id", paymentPageId)
     .single();
 
@@ -559,6 +635,10 @@ export async function processPaymentPageBankTransfer(
 
   const orderReference = `BT-${paymentPageId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
+  // Extract child name from metadata if available
+  const childName = tx?.metadata?.childName || customer?.metadata?.childName;
+  const parentName = tx?.metadata?.parentName || customer?.metadata?.parentName || customerName;
+
   const { data: paymentRecord, error: insertError } = await supabase
     .from("payment_page_payments")
     .insert({
@@ -581,6 +661,8 @@ export async function processPaymentPageBankTransfer(
         payment_type: "backtransfer",
         customer_details: customer,
         transaction_details: tx,
+        childName: childName,
+        parentName: parentName,
       },
       paid_at: new Date().toISOString(),
     })
@@ -593,6 +675,16 @@ export async function processPaymentPageBankTransfer(
   }
 
   console.log("✅ Bank transfer payment record created:", paymentRecord.id);
+
+  // NEW: Update student paid status if this is a school payment
+  if (paymentPage?.page_type === "school" && childName) {
+    await updateStudentPaidStatus(
+      paymentPageId,
+      childName,
+      parentName,
+      transactionAmount
+    );
+  }
 
   console.log(`💰 Crediting page balance: ₦${netAmount}`);
 
@@ -651,7 +743,6 @@ export async function processPaymentPageBankTransfer(
     .eq("id", paymentPage.user_id)
     .single();
 
-  // UPDATED: Send email notifications with PDF attachments
   if (creator?.email) {
     sendPaymentPageNotificationEmail(
       creator.email,
@@ -682,7 +773,9 @@ export async function processPaymentPageBankTransfer(
         virtual_account: aliasAccountReference,
         payment_method: "bank_transfer",
         bank_transfer: true,
-        pageType: paymentPage.page_type
+        pageType: paymentPage.page_type,
+        childName: childName,
+        parentName: parentName,
       }
     ).catch(console.error);
   }
@@ -703,13 +796,11 @@ export function checkIfPaymentPagePayment(
   orderReference: string,
   payload: any,
 ): boolean {
-  // Check for PP- prefix (new format)
   if (orderReference?.startsWith("PP-")) {
     console.log("✅ Detected payment page card payment by PP- prefix");
     return true;
   }
 
-  // Check for legacy P prefix (backward compatibility)
   if (orderReference?.startsWith("P") && !orderReference?.startsWith("PP-")) {
     console.log("⚠️ Detected legacy payment page card payment by P prefix");
     return true;

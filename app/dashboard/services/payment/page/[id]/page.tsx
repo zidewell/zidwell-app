@@ -22,6 +22,8 @@ import {
   Loader2,
   Mail,
   User,
+  Calendar,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore, isInvestmentType } from "@/app/hooks/useStore";
@@ -64,7 +66,6 @@ const PageDetail = () => {
     if (foundPage) {
       loadStats(foundPage.id);
     } else if (id) {
-      // If not found in pages list, fetch directly
       loadPageDetails();
     }
   }, [pages, id]);
@@ -100,51 +101,108 @@ const PageDetail = () => {
     }
   };
 
-  // Helper function to get child's name from payment
-  const getChildName = (payment: any) => {
+  // Get child/student name from payment metadata
+  const getStudentName = (payment: any) => {
     if (payment.metadata?.childName) {
       return payment.metadata.childName;
+    }
+    if (payment.metadata?.studentName) {
+      return payment.metadata.studentName;
+    }
+    if (payment.metadata?.student_name) {
+      return payment.metadata.student_name;
     }
     return null;
   };
 
-  // Helper function to get parent's name from payment
+  // Get parent name from payment
   const getParentName = (payment: any) => {
     if (payment.metadata?.parentName) {
       return payment.metadata.parentName;
     }
-    // If no parent name in metadata, use customer name
-    return payment.customerName || payment.customer_name;
+    if (payment.metadata?.parent_name) {
+      return payment.metadata.parent_name;
+    }
+    return payment.customer_name || payment.customerName;
   };
 
-  // Helper function to get parent's email from payment
+  // Get parent email
   const getParentEmail = (payment: any) => {
-    return payment.customerEmail || payment.customer_email;
+    return payment.customer_email || payment.customerEmail;
   };
 
-  // Helper function to get additional school info
-  const getSchoolAdditionalInfo = (payment: any) => {
-    const info = [];
-    if (payment.metadata?.className) {
-      info.push(`📚 Class: ${payment.metadata.className}`);
+  // UPDATED: Check if a student has paid using the database paid flag
+  const hasStudentPaid = (student: any): boolean => {
+    // First check if the student has a paid flag in the database
+    if (student.paid === true) {
+      return true;
     }
-    if (payment.metadata?.regNumber) {
-      info.push(`🔢 Reg: ${payment.metadata.regNumber}`);
+    
+    // Fallback: Check payment records if no paid flag exists
+    const studentName = student.name || student.childName || student.studentName;
+    if (!studentName || !stats.payments || stats.payments.length === 0) return false;
+    
+    return stats.payments.some((payment: any) => {
+      const paymentStudentName = getStudentName(payment);
+      const nameMatches = paymentStudentName?.toLowerCase().trim() === studentName?.toLowerCase().trim();
+      const isCompleted = payment.status === "completed" || 
+                          payment.status === "success" ||
+                          payment.paid_at !== null;
+      return nameMatches && isCompleted;
+    });
+  };
+
+  // Get student paid amount (from database or calculate from payments)
+  const getStudentPaidAmount = (student: any) => {
+    // If student has paidAmount in database, use it
+    if (student.paidAmount && student.paidAmount > 0) {
+      return student.paidAmount;
     }
-    if (payment.metadata?.term) {
-      info.push(`📖 Term: ${payment.metadata.term}`);
+    
+    // Fallback: Calculate from payment records
+    const studentName = student.name || student.childName || student.studentName;
+    if (!studentName || !stats.payments || stats.payments.length === 0) return 0;
+    
+    let total = 0;
+    stats.payments.forEach((payment: any) => {
+      const paymentStudentName = getStudentName(payment);
+      if (paymentStudentName?.toLowerCase().trim() === studentName?.toLowerCase().trim()) {
+        const isCompleted = payment.status === "completed" || 
+                            payment.status === "success" ||
+                            payment.paid_at !== null;
+        if (isCompleted) {
+          total += payment.amount || 0;
+        }
+      }
+    });
+    return total;
+  };
+
+  // Get student paid date
+  const getStudentPaidDate = (student: any) => {
+    if (student.paidAt) {
+      return new Date(student.paidAt).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
     }
-    if (payment.metadata?.session) {
-      info.push(`🎓 Session: ${payment.metadata.session}`);
+    return null;
+  };
+
+  // Get parent who paid for student
+  const getStudentParentName = (student: any) => {
+    if (student.parentName) {
+      return student.parentName;
     }
-    return info;
+    return null;
   };
 
   if (!page) {
     return (
-      <div className="min-h-screen bg-[#f7f0e2] dark:bg-[#0e0e0e] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f7f0e2] dark:bg-[#0e0e0e] flex items-center justify-center p-4">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Page not found</h1>
+          <h1 className="text-xl sm:text-2xl font-bold mb-2">Page not found</h1>
           <Button
             variant="default"
             onClick={() =>
@@ -158,7 +216,6 @@ const PageDetail = () => {
     );
   }
 
-  const isInvestment = isInvestmentType(page.pageType);
   const pageUrl = `zidwell.com/payment/${page.slug}`;
 
   const statsCards = [
@@ -193,16 +250,12 @@ const PageDetail = () => {
     const minAmount = 1000;
 
     if (amount < minAmount) {
-      setWithdrawalError(
-        `Minimum withdrawal is ₦${minAmount.toLocaleString()}`,
-      );
+      setWithdrawalError(`Minimum withdrawal is ₦${minAmount.toLocaleString()}`);
       return;
     }
 
     if (amount > page.pageBalance) {
-      setWithdrawalError(
-        `Insufficient balance. Available: ₦${page.pageBalance.toLocaleString()}`,
-      );
+      setWithdrawalError(`Insufficient balance. Available: ₦${page.pageBalance.toLocaleString()}`);
       return;
     }
 
@@ -228,205 +281,168 @@ const PageDetail = () => {
   const withdrawalFee = 200;
   const netAmount = Number(withdrawalAmount) - withdrawalFee;
 
+  // Get students from metadata
+  const students = page.metadata?.students || [];
+  
+  // Calculate paid/unpaid counts using the database paid flag
+  const paidStudentsCount = students.filter((student: any) => student.paid === true).length;
+  const unpaidStudentsCount = students.length - paidStudentsCount;
+  
+  // Calculate total paid amount from all students
+  const totalPaidAmount = students.reduce((total: number, student: any) => {
+    return total + (student.paidAmount || 0);
+  }, 0);
+
   return (
     <div className="min-h-screen dark:bg-[#0e0e0e]">
-      <DashboardSidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-          <div className="max-w-4xl mx-auto space-y-6">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
             {/* Back Button */}
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-sm text-[#6b6b6b] dark:text-[#a6a6a6] hover:text-[#023528] dark:hover:text-[#f5f5f5] transition-colors mb-4"
+              className="flex items-center gap-2 text-sm text-[#6b6b6b] dark:text-[#a6a6a6] hover:text-[#023528] dark:hover:text-[#f5f5f5] transition-colors mb-2 sm:mb-4"
             >
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
 
             {/* Header */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
                   {page.logo ? (
                     <img
                       src={page.logo}
-                      className="h-16 w-16 rounded-2xl object-cover"
+                      className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover"
                       alt="Logo"
                     />
                   ) : (
-                    <div className="h-16 w-16 rounded-2xl bg-[#e9e2d7] dark:bg-[#242424] flex items-center justify-center">
-                      <CreditCard className="h-7 w-7 text-gray-500" />
+                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-[#e9e2d7] dark:bg-[#242424] flex items-center justify-center">
+                      <CreditCard className="h-6 w-6 sm:h-7 sm:w-7 text-gray-500" />
                     </div>
                   )}
                   <div>
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <h1 className="text-2xl font-bold">{page.title}</h1>
-                      <span className="px-2 py-0.5 rounded-full bg-[#e1bf46]/10 text-[#e1bf46] text-xs font-medium">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
+                      <h1 className="text-xl sm:text-2xl font-bold break-words">{page.title}</h1>
+                      <span className="px-2 py-0.5 rounded-full bg-[#e1bf46]/10 text-[#e1bf46] text-xs font-medium self-start sm:self-center">
                         {typeLabels[page.pageType]}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500 truncate">
-                        {pageUrl}
-                      </span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <span className="text-xs sm:text-sm text-gray-500 break-all">{pageUrl}</span>
                       <button
                         onClick={() => navigator.clipboard.writeText(pageUrl)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        className="text-gray-400 hover:text-gray-600 transition-colors self-start sm:self-center"
                       >
                         <Copy className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
                 </div>
-                <Button
-                  variant="default"
-                  onClick={() => router.push(`/pay/${page.slug}`)}
-                >
+                <Button variant="default" onClick={() => router.push(`/pay/${page.slug}`)} className="self-start sm:self-center">
                   <ExternalLink className="h-4 w-4 mr-1" /> View Page
                 </Button>
               </div>
             </motion.div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
               {statsCards.map((s, i) => (
                 <motion.div
                   key={s.label}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  className="p-4 rounded-2xl bg-white dark:bg-[#121212] border"
+                  className="p-3 sm:p-4 rounded-2xl bg-white dark:bg-[#121212] border"
                 >
-                  <s.icon className={`h-5 w-5 ${s.color} mb-2`} />
-                  <div className="text-2xl font-bold">{s.value}</div>
-                  <div className="text-xs text-gray-500">{s.label}</div>
+                  <s.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${s.color} mb-2`} />
+                  <div className="text-lg sm:text-2xl font-bold truncate">{s.value}</div>
+                  <div className="text-[10px] sm:text-xs text-gray-500">{s.label}</div>
                 </motion.div>
               ))}
             </div>
 
-            {/* Withdraw Button */}
-            {page.pageBalance > 0 && (
-              <div className="bg-[#034936] rounded-2xl p-5 text-white">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div>
-                    <h3 className="font-bold text-lg">Available Balance</h3>
-                    <p className="text-3xl font-bold">
-                      ₦{page.pageBalance.toLocaleString()}
-                    </p>
-                    <p className="text-sm opacity-80 mt-1">
-                      Withdraw to your main wallet (₦200 fee)
-                    </p>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    className="bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90"
-                    onClick={() => setShowWithdrawal(true)}
-                  >
-                    <Wallet className="h-4 w-4 mr-1" /> Withdraw Funds
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Recent Payments */}
+            {/* Recent Payments - Shows Parent + Child payments */}
             <div className="bg-white dark:bg-[#121212] rounded-2xl border overflow-hidden">
-              <div className="p-5 border-b">
-                <h3 className="font-bold text-lg flex items-center gap-2">
+              <div className="p-4 sm:p-5 border-b">
+                <h3 className="font-bold text-base sm:text-lg flex items-center gap-2">
                   <CreditCard className="h-4 w-4 text-[#e1bf46]" />
                   Recent Payments
-                  {page.pageType === "school" && (
-                    <span className="text-xs font-normal text-gray-500 ml-2">
-                      (Showing Parent & Child Details)
-                    </span>
-                  )}
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  {stats.totalCount} payment{stats.totalCount !== 1 ? "s" : ""}{" "}
-                  • Total: ₦{stats.totalAmount.toLocaleString()}
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                  {stats.totalCount} payment{stats.totalCount !== 1 ? "s" : ""} • Total: ₦{stats.totalAmount.toLocaleString()}
                 </p>
               </div>
               <div className="divide-y">
                 {stats.payments.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500">
-                    <DollarSign className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                    <p>No payments yet</p>
-                    <p className="text-sm">
-                      Share your page to start receiving payments
-                    </p>
+                  <div className="p-6 sm:p-8 text-center text-gray-500">
+                    <DollarSign className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm sm:text-base">No payments yet</p>
                   </div>
                 ) : (
-                  stats.payments.slice(0, 10).map((payment: any) => (
-                    <div
-                      key={payment.id}
-                      className="p-4 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
-                    >
-                      {page.pageType === "school" ? (
-                        // School Payment Display - Show both parent and child details
+                  stats.payments.slice(0, 10).map((payment: any) => {
+                    const studentName = getStudentName(payment);
+                    const parentName = getParentName(payment);
+                    const parentEmail = getParentEmail(payment);
+                    const isPaid = payment.status === "completed" || payment.paid_at !== null;
+
+                    return (
+                      <div key={payment.id} className="p-4 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
                         <div className="space-y-3">
                           {/* Parent Information */}
-                          <div className="flex items-start justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <User className="h-4 w-4 text-[#e1bf46]" />
-                                <p className="font-semibold text-gray-900 dark:text-white">
-                                  {getParentName(payment)}
+                                <User className="h-3 w-3 sm:h-4 sm:w-4 text-[#e1bf46]" />
+                                <p className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white">
+                                  Parent: {parentName}
                                 </p>
                               </div>
-                              <div className="flex items-center gap-2 ml-6">
-                                <Mail className="h-3 w-3 text-gray-400" />
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  {getParentEmail(payment) || "No email provided"}
+                              <div className="flex items-center gap-2 ml-5 sm:ml-6">
+                                <Mail className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-400" />
+                                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                  {parentEmail || "No email provided"}
                                 </p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="font-bold text-[#28a36a]">
+                            <div className="text-left sm:text-right">
+                              <p className="font-bold text-[#28a36a] text-base sm:text-lg">
                                 ₦{payment.amount.toLocaleString()}
                               </p>
                               {payment.fee > 0 && (
-                                <p className="text-xs text-gray-400">
-                                  Fee: ₦{payment.fee.toLocaleString()}
-                                </p>
+                                <p className="text-xs text-gray-400">Fee: ₦{payment.fee.toLocaleString()}</p>
                               )}
                             </div>
                           </div>
 
                           {/* Child Information */}
-                          {getChildName(payment) && (
-                            <div className="ml-6 pl-4 border-l-2 border-[#e1bf46]/30">
-                              <div className="flex items-center gap-2 mb-1">
-                                <GraduationCap className="h-4 w-4 text-[#28a36a]" />
-                                <p className="font-medium text-gray-800 dark:text-gray-200">
-                                  Child: {getChildName(payment)}
-                                </p>
-                              </div>
-                              
-                              {/* Additional School Info */}
-                              {getSchoolAdditionalInfo(payment).length > 0 && (
-                                <div className="ml-6 space-y-1 mt-1">
-                                  {getSchoolAdditionalInfo(payment).map((info, idx) => (
-                                    <p key={idx} className="text-xs text-gray-500">
-                                      {info}
-                                    </p>
-                                  ))}
+                          {studentName && (
+                            <div className="ml-3 sm:ml-6 pl-3 sm:pl-4 border-l-2 border-[#e1bf46]/30">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
+                                <div className="flex items-center gap-2">
+                                  <GraduationCap className="h-3 w-3 sm:h-4 sm:w-4 text-[#28a36a]" />
+                                  <p className="font-medium text-sm sm:text-base text-gray-800 dark:text-gray-200">
+                                    Student: {studentName}
+                                  </p>
                                 </div>
-                              )}
+                                {isPaid && (
+                                  <div className="flex items-center gap-1 text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    <span className="text-xs font-medium">Completed</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
 
                           {/* Payment Date */}
-                          <div className="text-xs text-gray-400 ml-6">
-                            {new Date(
-                              payment.createdAt || payment.created_at || payment.paid_at
-                            ).toLocaleDateString(undefined, {
+                          <div className="flex items-center gap-2 text-xs text-gray-400 ml-3 sm:ml-6">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(payment.paid_at || payment.created_at).toLocaleDateString(undefined, {
                               year: 'numeric',
                               month: 'short',
                               day: 'numeric',
@@ -435,111 +451,152 @@ const PageDetail = () => {
                             })}
                           </div>
                         </div>
-                      ) : (
-                        // Non-School Payment Display
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">
-                              {payment.customerName || payment.customer_name || "Anonymous"}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {payment.customerEmail || payment.customer_email}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {new Date(
-                                payment.createdAt || payment.created_at || payment.paid_at
-                              ).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-[#28a36a]">
-                              ₦{payment.amount.toLocaleString()}
-                            </p>
-                            {payment.fee > 0 && (
-                              <p className="text-xs text-gray-400">
-                                Fee: ₦{payment.fee.toLocaleString()}
-                              </p>
-                            )}
-                            {payment.status && (
-                              <p className={`text-xs mt-1 ${
-                                payment.status === 'completed' ? 'text-green-600' : 'text-yellow-600'
-                              }`}>
-                                {payment.status}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
 
-            {/* School-specific stats */}
-            {page.pageType === "school" &&
-              page.metadata?.students &&
-              page.metadata.students.length > 0 && (
-                <div className="bg-white dark:bg-[#121212] rounded-2xl border p-5">
-                  <h3 className="font-bold text-lg flex items-center gap-2 mb-4">
-                    <GraduationCap className="h-4 w-4 text-[#e1bf46]" />
-                    Student Payment Status
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="p-3 rounded-xl bg-green-50 text-center">
-                      <div className="text-xl font-bold text-green-600">
-                        {
-                          page.metadata.students.filter((s: any) => s.paid)
-                            .length
-                        }
-                      </div>
-                      <div className="text-xs text-gray-600">Paid</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-red-50 text-center">
-                      <div className="text-xl font-bold text-red-600">
-                        {
-                          page.metadata.students.filter((s: any) => !s.paid)
-                            .length
-                        }
-                      </div>
-                      <div className="text-xs text-gray-600">Unpaid</div>
-                    </div>
+            {/* Student Payment Status - Shows which students have paid using database flag */}
+            {page.pageType === "school" && students.length > 0 && (
+              <div className="bg-white dark:bg-[#121212] rounded-2xl border p-4 sm:p-5">
+                <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 mb-4">
+                  <GraduationCap className="h-4 w-4 text-[#e1bf46]" />
+                  Student Payment Status
+                </h3>
+
+                {/* Stats Summary */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 text-center">
+                    <div className="text-lg sm:text-xl font-bold text-green-600">{paidStudentsCount}</div>
+                    <div className="text-[10px] sm:text-xs text-gray-600">Paid</div>
                   </div>
-                  
-                  {/* Student List */}
-                  <div className="mt-4">
-                    <h4 className="font-medium text-sm mb-3">Student List</h4>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {page.metadata.students.map((student: any, idx: number) => (
-                        <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#1a1a1a]">
-                          <div>
-                            <p className="font-medium text-sm">{student.name}</p>
-                            {student.className && (
-                              <p className="text-xs text-gray-500">{student.className}</p>
-                            )}
-                            {student.regNumber && (
-                              <p className="text-xs text-gray-400">{student.regNumber}</p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            {student.paid ? (
-                              <div className="flex items-center gap-1 text-green-600">
-                                <CheckCircle2 className="h-4 w-4" />
-                                <span className="text-xs">Paid</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-red-600">
-                                <XCircle className="h-4 w-4" />
-                                <span className="text-xs">Unpaid</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="p-3 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 text-center">
+                    <div className="text-lg sm:text-xl font-bold text-yellow-600">{unpaidStudentsCount}</div>
+                    <div className="text-[10px] sm:text-xs text-gray-600">Unpaid</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-center">
+                    <div className="text-lg sm:text-xl font-bold text-blue-600">₦{totalPaidAmount.toLocaleString()}</div>
+                    <div className="text-[10px] sm:text-xs text-gray-600">Total Paid</div>
                   </div>
                 </div>
-              )}
+
+                {/* Student List */}
+                <div className="mt-4">
+                  <h4 className="font-medium text-xs sm:text-sm mb-3">Student List</h4>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {students.map((student: any, idx: number) => {
+                      const studentName = student.name || student.childName || student.studentName;
+                      const hasPaid = student.paid === true; // Use database flag directly
+                      const paidAmount = student.paidAmount || 0;
+                      const paidDate = getStudentPaidDate(student);
+                      const parentName = getStudentParentName(student);
+                      const expectedAmount = page.price || student.expectedAmount || 0;
+                      const isFullyPaid = expectedAmount > 0 ? paidAmount >= expectedAmount : paidAmount > 0;
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex flex-col p-3 rounded-lg gap-2 transition-all ${
+                            hasPaid
+                              ? 'bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800'
+                              : 'bg-gray-50 dark:bg-[#1a1a1a] border border-transparent'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <GraduationCap className={`h-3 w-3 sm:h-4 sm:w-4 ${hasPaid ? 'text-green-600' : 'text-gray-400'}`} />
+                                <p className="font-medium text-xs sm:text-sm">{studentName}</p>
+                                {hasPaid && (
+                                  <span className="text-[10px] font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded-full">
+                                    {isFullyPaid ? 'Fully Paid' : 'Partially Paid'}
+                                  </span>
+                                )}
+                              </div>
+                              {student.className && (
+                                <p className="text-[10px] sm:text-xs text-gray-500 ml-5 sm:ml-6 mt-0.5">
+                                  📚 Class: {student.className}
+                                </p>
+                              )}
+                              {student.regNumber && (
+                                <p className="text-[10px] sm:text-xs text-gray-400 ml-5 sm:ml-6">
+                                  🔢 Reg: {student.regNumber}
+                                </p>
+                              )}
+                              {hasPaid && paidAmount > 0 && (
+                                <div className="ml-5 sm:ml-6 mt-1 space-y-0.5">
+                                  <p className="text-[10px] sm:text-xs text-green-600">
+                                    💰 Paid: ₦{paidAmount.toLocaleString()}
+                                    {expectedAmount > 0 && ` / ₦${expectedAmount.toLocaleString()}`}
+                                  </p>
+                                  {paidDate && (
+                                    <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                                      <Calendar className="h-2.5 w-2.5" />
+                                      Paid on: {paidDate}
+                                    </p>
+                                  )}
+                                  {parentName && (
+                                    <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                                      <User className="h-2.5 w-2.5" />
+                                      Paid by: {parentName}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-left sm:text-right">
+                              {hasPaid ? (
+                                <div className="flex items-center gap-1 text-green-600">
+                                  <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  <span className="text-[10px] sm:text-xs font-medium">Paid</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1 text-yellow-600">
+                                  <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  <span className="text-[10px] sm:text-xs font-medium">Pending</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Summary Note */}
+                {paidStudentsCount > 0 && (
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                      <FileText className="h-3 w-3" />
+                      Total of {paidStudentsCount} student{paidStudentsCount !== 1 ? 's have' : ' has'} paid ₦{totalPaidAmount.toLocaleString()} out of ₦{(students.length * (page.price || 0)).toLocaleString()} expected.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Withdraw Button */}
+            {page.pageBalance > 0 && (
+              <div className="bg-[#034936] rounded-2xl p-4 sm:p-5 text-white">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h3 className="font-bold text-base sm:text-lg">Available Balance</h3>
+                    <p className="text-2xl sm:text-3xl font-bold">₦{page.pageBalance.toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm opacity-80 mt-1">Withdraw to your main wallet (₦200 fee)</p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 w-full sm:w-auto"
+                    onClick={() => setShowWithdrawal(true)}
+                  >
+                    <Wallet className="h-4 w-4 mr-1" /> Withdraw Funds
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>
@@ -550,86 +607,69 @@ const PageDetail = () => {
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="max-w-md w-full bg-white rounded-2xl"
+            className="max-w-md w-full bg-white dark:bg-[#121212] rounded-2xl mx-4 sm:mx-0"
           >
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-bold">Withdraw Funds</h2>
-              <p className="text-gray-600 text-sm mt-1">
+            <div className="p-4 sm:p-6 border-b">
+              <h2 className="text-lg sm:text-xl font-bold">Withdraw Funds</h2>
+              <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mt-1">
                 Withdraw from "{page.title}" to your main wallet
               </p>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               {withdrawalSuccess ? (
-                <div className="text-center py-8">
-                  <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 className="h-8 w-8 text-green-600" />
+                <div className="text-center py-6 sm:py-8">
+                  <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
                   </div>
-                  <h3 className="text-lg font-bold mb-2">
-                    Withdrawal Successful!
-                  </h3>
-                  <p className="text-gray-600">
-                    ₦{netAmount.toLocaleString()} has been transferred to your
-                    main wallet.
+                  <h3 className="text-base sm:text-lg font-bold mb-2">Withdrawal Successful!</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    ₦{netAmount.toLocaleString()} has been transferred to your main wallet.
                   </p>
                 </div>
               ) : (
                 <>
                   <div>
-                    <label className="text-sm font-medium mb-1 block">
-                      Available Balance
-                    </label>
-                    <p className="text-2xl font-bold text-[#e1bf46]">
-                      ₦{page.pageBalance.toLocaleString()}
-                    </p>
+                    <label className="text-xs sm:text-sm font-medium mb-1 block">Available Balance</label>
+                    <p className="text-xl sm:text-2xl font-bold text-[#e1bf46]">₦{page.pageBalance.toLocaleString()}</p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-1 block">
-                      Withdrawal Amount (₦)
-                    </label>
+                    <label className="text-xs sm:text-sm font-medium mb-1 block">Withdrawal Amount (₦)</label>
                     <input
                       type="number"
-                      className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#e1bf46]"
+                      className="w-full p-2 sm:p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#e1bf46] dark:bg-[#1a1a1a] dark:border-[#474747] text-sm sm:text-base"
                       placeholder="Enter amount"
                       value={withdrawalAmount}
                       onChange={(e) => setWithdrawalAmount(e.target.value)}
                       min="1000"
                       max={page.pageBalance}
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Minimum: ₦1,000 | Fee: ₦200
-                    </p>
+                    <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Minimum: ₦1,000 | Fee: ₦200</p>
                   </div>
 
                   {Number(withdrawalAmount) >= 1000 && (
-                    <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                      <div className="flex justify-between text-sm">
+                    <div className="bg-gray-50 dark:bg-[#1a1a1a] rounded-xl p-3 sm:p-4 space-y-2">
+                      <div className="flex justify-between text-xs sm:text-sm">
                         <span>Withdrawal amount:</span>
-                        <span>
-                          ₦{Number(withdrawalAmount).toLocaleString()}
-                        </span>
+                        <span>₦{Number(withdrawalAmount).toLocaleString()}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-xs sm:text-sm">
                         <span>Processing fee:</span>
                         <span>₦{withdrawalFee.toLocaleString()}</span>
                       </div>
-                      <div className="flex justify-between font-bold pt-2 border-t">
+                      <div className="flex justify-between font-bold pt-2 border-t text-sm sm:text-base">
                         <span>You'll receive:</span>
-                        <span className="text-[#28a36a]">
-                          ₦{netAmount.toLocaleString()}
-                        </span>
+                        <span className="text-[#28a36a]">₦{netAmount.toLocaleString()}</span>
                       </div>
                     </div>
                   )}
 
                   {withdrawalError && (
-                    <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm">
-                      {withdrawalError}
-                    </div>
+                    <div className="p-2 sm:p-3 rounded-xl bg-red-50 text-red-600 text-xs sm:text-sm">{withdrawalError}</div>
                   )}
 
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <Button
                       variant="outline"
                       className="flex-1"
