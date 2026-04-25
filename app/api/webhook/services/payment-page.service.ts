@@ -407,7 +407,7 @@ export async function processPaymentPagePayment(
   // Get payment page details
   const { data: paymentPage, error: pageDetailsError } = await supabase
     .from("payment_pages")
-    .select("title, user_id, page_type, metadata, business_name")
+    .select("title, user_id, page_type, metadata")
     .eq("id", paymentPageId)
     .single();
 
@@ -450,7 +450,7 @@ export async function processPaymentPagePayment(
   if (paymentRecord.customer_email) {
     await sendPaymentPageReceiptWithPDF(
       paymentRecord.customer_email,
-      paymentPage || { title: "Payment Page", business_name: "Zidwell Merchant" },
+      paymentPage || { title: "Payment Page" },
       paymentRecord,
       paymentRecord.customer_name,
       paymentRecord.amount,
@@ -520,7 +520,7 @@ export async function processPaymentPageBankTransfer(
 
   const { data: paymentPage, error: pageError } = await supabase
     .from("payment_pages")
-    .select("id, title, user_id, balance, page_type, business_name")
+    .select("id, title, user_id, balance, page_type")
     .eq("id", paymentPageId)
     .single();
 

@@ -377,6 +377,7 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
                 <span class="info-label">Payment Method:</span>
                 <span class="info-value">${paymentDetails.paymentMethod === 'card_payment' ? 'Card Payment' : 
                   paymentDetails.paymentMethod === 'virtual_account' ? 'Bank Transfer' : 
+                  paymentDetails.paymentMethod === 'bank_transfer' ? 'Bank Transfer' :
                   paymentDetails.paymentMethod || 'N/A'}</span>
               </div>
               ${paymentDetails.narration ? `
@@ -542,6 +543,9 @@ function generatePaymentPagePDFHTML(
     }
   };
 
+  // Get page title from metadata or paymentPage object
+  const pageTitle = metadata?.pageTitle || paymentPage?.title || paymentPage?.page_title || 'Payment Page';
+  
   let additionalInfo = '';
   
   if (metadata?.pageType === 'school') {
@@ -592,11 +596,19 @@ function generatePaymentPagePDFHTML(
     `;
   }
 
+  // Determine proper payment method display text
+  let paymentMethodText = 'Card Payment';
+  if (paymentMethod === 'bank_transfer' || paymentMethod === 'virtual_account' || metadata?.bank_transfer === true) {
+    paymentMethodText = 'Bank Transfer';
+  } else if (paymentMethod === 'card' || paymentMethod === 'card_payment') {
+    paymentMethodText = 'Card Payment';
+  }
+
   return `
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Payment Receipt - ${paymentPage.title}</title>
+      <title>Payment Receipt - ${pageTitle}</title>
       <meta charset="UTF-8">
       <style>
         * {
@@ -773,7 +785,7 @@ function generatePaymentPagePDFHTML(
             </div>
             <div class="info-row">
               <span class="info-label">Payment Method:</span>
-              <span class="info-value">${paymentMethod === 'card' ? 'Card Payment' : 'Bank Transfer'}</span>
+              <span class="info-value">${paymentMethodText}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Payment Date:</span>
@@ -785,7 +797,7 @@ function generatePaymentPagePDFHTML(
             <h3>📄 PAYMENT PAGE</h3>
             <div class="info-row">
               <span class="info-label">Page Title:</span>
-              <span class="info-value">${paymentPage.title}</span>
+              <span class="info-value">${pageTitle}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Reference:</span>
@@ -812,14 +824,6 @@ function generatePaymentPagePDFHTML(
           </div>
           
           ${additionalInfo}
-          
-          <div class="info-section">
-            <h3>🏢 MERCHANT INFORMATION</h3>
-            <div class="info-row">
-              <span class="info-label">Business Name:</span>
-              <span class="info-value">${paymentPage.business_name || 'Zidwell Merchant'}</span>
-            </div>
-          </div>
           
           <div class="note">
             <strong>Thank you for your payment!</strong> This is an official receipt for your transaction. 
@@ -921,7 +925,7 @@ export async function sendTransactionReceiptWithPDF(
               </tr>
               <tr>
                 <td style="padding: 8px 0;"><strong>Payment Method:</strong></td>
-                <td style="padding: 8px 0; text-align: right;">${paymentDetails.paymentMethod === 'card_payment' ? 'Card Payment' : paymentDetails.paymentMethod === 'virtual_account' ? 'Bank Transfer' : paymentDetails.paymentMethod}</td>
+                <td style="padding: 8px 0; text-align: right;">${paymentDetails.paymentMethod === 'card_payment' ? 'Card Payment' : paymentDetails.paymentMethod === 'virtual_account' ? 'Bank Transfer' : paymentDetails.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : paymentDetails.paymentMethod}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0;"><strong>Transaction ID:</strong></td>
@@ -977,8 +981,7 @@ async function sendTransactionReceiptFallback(
   payerEmail: string,
   payerName: string,
   invoice: any,
-  paymentDetails: any
-) {
+  paymentDetails: any) {
   const formatCurrency = (value: number): string => {
     return `₦${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
@@ -1037,10 +1040,21 @@ export async function sendPaymentPageReceiptWithPDF(
       return `₦${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
 
+    // Get page title from metadata or paymentPage
+    const pageTitle = metadata?.pageTitle || paymentPage?.title || paymentPage?.page_title || 'Payment Page';
+    
+    // Determine payment method text for email
+    let paymentMethodText = 'Card Payment';
+    if (paymentMethod === 'bank_transfer' || metadata?.bank_transfer === true) {
+      paymentMethodText = 'Bank Transfer';
+    } else if (paymentMethod === 'card' || paymentMethod === 'card_payment') {
+      paymentMethodText = 'Card Payment';
+    }
+
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: customerEmail,
-      subject: `✅ Payment Receipt - ${paymentPage.title} - ${formatCurrency(amount)}`,
+      subject: `✅ Payment Receipt - ${pageTitle} - ${formatCurrency(amount)}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -1061,7 +1075,7 @@ export async function sendPaymentPageReceiptWithPDF(
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 8px 0;"><strong>Page:</strong></td>
-                <td style="padding: 8px 0; text-align: right;">${paymentPage.title}</td>
+                <td style="padding: 8px 0; text-align: right;">${pageTitle}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0;"><strong>Amount Paid:</strong></td>
@@ -1069,7 +1083,7 @@ export async function sendPaymentPageReceiptWithPDF(
               </tr>
               <tr>
                 <td style="padding: 8px 0;"><strong>Payment Method:</strong></td>
-                <td style="padding: 8px 0; text-align: right;">${paymentMethod === 'card' ? 'Card Payment' : 'Bank Transfer'}</td>
+                <td style="padding: 8px 0; text-align: right;">${paymentMethodText}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0;"><strong>Transaction ID:</strong></td>
@@ -1118,7 +1132,7 @@ export async function sendPaymentPageReceiptWithPDF(
     try {
       await sendPaymentPageReceiptFallback(
         customerEmail,
-        paymentPage.title,
+        paymentPage?.title || 'Payment Page',
         amount,
         transactionId,
         metadata,
