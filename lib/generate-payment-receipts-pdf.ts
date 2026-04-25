@@ -546,6 +546,28 @@ function generatePaymentPagePDFHTML(
   // Get page title from metadata or paymentPage object
   const pageTitle = metadata?.pageTitle || paymentPage?.title || paymentPage?.page_title || 'Payment Page';
   
+  // FIXED: Properly determine payment method text
+  let paymentMethodText = 'Card Payment';
+  
+  // Check paymentMethod parameter first
+  if (paymentMethod === 'bank_transfer' || paymentMethod === 'virtual_account') {
+    paymentMethodText = 'Bank Transfer';
+  } 
+  // Then check metadata
+  else if (metadata?.payment_method === 'bank_transfer' || 
+           metadata?.bank_transfer === true || 
+           metadata?.payment_type === 'backtransfer') {
+    paymentMethodText = 'Bank Transfer';
+  }
+  // Check payment record payment_method
+  else if (paymentRecord?.payment_method === 'bank_transfer') {
+    paymentMethodText = 'Bank Transfer';
+  }
+  // Default to card payment
+  else if (paymentMethod === 'card' || paymentMethod === 'card_payment') {
+    paymentMethodText = 'Card Payment';
+  }
+  
   let additionalInfo = '';
   
   if (metadata?.pageType === 'school') {
@@ -594,14 +616,6 @@ function generatePaymentPagePDFHTML(
         </div>
       </div>
     `;
-  }
-
-  // Determine proper payment method display text
-  let paymentMethodText = 'Card Payment';
-  if (paymentMethod === 'bank_transfer' || paymentMethod === 'virtual_account' || metadata?.bank_transfer === true) {
-    paymentMethodText = 'Bank Transfer';
-  } else if (paymentMethod === 'card' || paymentMethod === 'card_payment') {
-    paymentMethodText = 'Card Payment';
   }
 
   return `
@@ -981,7 +995,8 @@ async function sendTransactionReceiptFallback(
   payerEmail: string,
   payerName: string,
   invoice: any,
-  paymentDetails: any) {
+  paymentDetails: any
+) {
   const formatCurrency = (value: number): string => {
     return `₦${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
@@ -1043,9 +1058,9 @@ export async function sendPaymentPageReceiptWithPDF(
     // Get page title from metadata or paymentPage
     const pageTitle = metadata?.pageTitle || paymentPage?.title || paymentPage?.page_title || 'Payment Page';
     
-    // Determine payment method text for email
+    // FIXED: Determine payment method text for email
     let paymentMethodText = 'Card Payment';
-    if (paymentMethod === 'bank_transfer' || metadata?.bank_transfer === true) {
+    if (paymentMethod === 'bank_transfer' || paymentMethod === 'virtual_account' || metadata?.bank_transfer === true) {
       paymentMethodText = 'Bank Transfer';
     } else if (paymentMethod === 'card' || paymentMethod === 'card_payment') {
       paymentMethodText = 'Card Payment';
@@ -1068,7 +1083,7 @@ export async function sendPaymentPageReceiptWithPDF(
           
           <p>Dear ${customerName},</p>
           
-          <p>Thank you for your payment. Your transaction has been completed successfully.</p>
+          <p>Thank you for your ${paymentMethodText.toLowerCase()} payment. Your transaction has been completed successfully.</p>
           
           <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0;">
             <h4 style="margin: 0 0 15px 0; color: #2b825b;">Payment Details</h4>
