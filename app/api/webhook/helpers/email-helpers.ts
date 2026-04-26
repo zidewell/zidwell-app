@@ -135,7 +135,7 @@ export async function sendWithdrawalEmail(
 
     console.log(`📧 Sending email to: ${user.email}`);
 
-    const info = await transporter.sendMail({
+    await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject:
@@ -149,7 +149,7 @@ export async function sendWithdrawalEmail(
             ${status === "success" ? "✅ Transfer Successful" : "❌ Transfer Failed"}
           </h3>
           <p>Hi ${user.first_name || "there"},</p>
-          <img src="${cheersImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />
+          ${status === "success" ? `<img src="${cheersImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />` : ""}
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
             ${fee ? `<p><strong>Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}
@@ -164,11 +164,9 @@ export async function sendWithdrawalEmail(
       `,
     });
 
-    console.log(`✅ Email sent successfully! Message ID: ${info.messageId}`);
-    return info;
+    console.log(`✅ Email sent successfully!`);
   } catch (error) {
     console.error("❌ Failed to send withdrawal email:", error);
-    // Log the full error details
     if (error instanceof Error) {
       console.error("Error name:", error.name);
       console.error("Error message:", error.message);
