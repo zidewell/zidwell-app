@@ -12,7 +12,7 @@ const baseUrl =
 
 const headerImageUrl = `${baseUrl}/zidwell-header.png`;
 const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
-const cheersImageUrl = `${baseUrl}/cheers-transanction.gif`;
+const cheersImageUrl = `${baseUrl}/cheers-transanction.webp`;
 
 export async function sendInvoiceCreatorNotificationEmail(
   creatorEmail: string,
