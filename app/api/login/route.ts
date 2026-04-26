@@ -115,13 +115,14 @@ export async function POST(req: Request) {
     const responseTime = Date.now() - startTime;
     console.log(`Login API completed in ${responseTime}ms`);
 
-    // ✅ Return response
-    return NextResponse.json({
-      profile,
-      isVerified: profile.bvnVerification === "verified",
-      isPending: false,
-      sessionEstablished: true,
-    });
+   return NextResponse.json({
+  profile,
+  isVerified: profile.bvnVerification === "verified",
+  sessionEstablished: true,
+  access_token,  
+  refresh_token, 
+  expires_in,    
+});
     
   } catch (err: any) {
     console.error("Login API Error:", err.message);

@@ -1,4 +1,3 @@
-// app/context/JournalContext.tsx
 "use client"
 
 import { createContext, useContext, ReactNode, useMemo } from 'react';
@@ -9,7 +8,6 @@ const JournalContext = createContext<ReturnType<typeof useJournalStore> | undefi
 export function JournalProvider({ children }: { children: ReactNode }) {
   const journalStore = useJournalStore();
   
-
   const value = useMemo(() => journalStore, [
     journalStore.entries, 
     journalStore.categories, 
@@ -18,7 +16,6 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     journalStore.error,
     journalStore.updateTrigger,
     journalStore.unifiedEntries,
-    journalStore.walletTransactions,
     journalStore.getAllTimeSummary,
     journalStore.getTodaySummary,
     journalStore.getWeekSummary,

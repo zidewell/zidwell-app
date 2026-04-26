@@ -12,7 +12,6 @@ import {
   Settings2,
   RefreshCw,
   Printer,
-  Loader2,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { JournalHeader } from "./JournalHeader";
@@ -21,7 +20,6 @@ import { ProgressIndicator } from "./ProgressIndicator";
 import { EntryForm } from "./EntryForm";
 import { InsightsCharts } from "./InsightsCharts";
 import { RecentEntries } from "./RecentEntries";
-import { TransactionsTab } from "./TransactionTab";
 import { CategoryManager } from "./CategoryManager";
 import { ExportStatementModal } from "./ExportStatementModal";
 import { EntryType, JournalEntry } from "./types";
@@ -30,7 +28,7 @@ import { useJournal } from "@/app/context/JournalContext";
 import { format } from "date-fns";
 import Loader from "../Loader";
 
-type ActiveView = "dashboard" | "insights" | "entries" | "transactions";
+type ActiveView = "dashboard" | "insights" | "entries";
 
 export function JournalDashboard() {
   const {
@@ -41,7 +39,7 @@ export function JournalDashboard() {
     getMonthSummary,
     getYearSummary,
     entries,
-    unifiedEntries,  // ADD THIS - unified entries from wallet + manual
+    unifiedEntries,
     categories,
     loading,
     error,
@@ -740,24 +738,6 @@ export function JournalDashboard() {
             <List className="h-4 w-4" />
             Entries
           </button>
-          <button
-            onClick={() => setActiveView("transactions")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all",
-            )}
-            style={{
-              backgroundColor:
-                activeView === "transactions" ? "#2b825b" : "transparent",
-              color: activeView === "transactions" ? "#ffffff" : "#80746e",
-              boxShadow:
-                activeView === "transactions"
-                  ? "0 4px 20px -4px rgba(43, 130, 91, 0.3)"
-                  : "none",
-            }}
-          >
-            <ArrowLeftRight className="h-4 w-4" />
-            Transactions
-          </button>
 
           <button
             onClick={() => setShowCategoryManager(true)}
@@ -769,6 +749,18 @@ export function JournalDashboard() {
           >
             <Settings2 className="h-4 w-4" />
             Categories
+          </button>
+          
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:opacity-80 dark:bg-gray-700 dark:text-gray-300"
+            style={{
+              color: "#80746e",
+              backgroundColor: "#f5f1ea",
+            }}
+          >
+            <Printer className="h-4 w-4" />
+            Export
           </button>
         </nav>
 
@@ -923,7 +915,7 @@ export function JournalDashboard() {
                 style={{ backgroundColor: "#16a34a", color: "#ffffff" }}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Manual Income
+                Add Income
               </Button>
               <Button
                 onClick={() => openEntryForm("expense")}
@@ -931,34 +923,13 @@ export function JournalDashboard() {
                 style={{ backgroundColor: "#e11d48", color: "#ffffff" }}
               >
                 <Minus className="h-4 w-4 mr-2" />
-                Add Manual Expense
+                Add Expense
               </Button>
             </div>
 
             <div className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] dark:bg-gray-800 dark:border-gray-700">
               <RecentEntries onEdit={handleEdit} />
             </div>
-
-            {/* Legend */}
-            <div
-              className="flex items-center justify-center gap-4 text-xs"
-              style={{ color: "#80746e" }}
-            >
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded-full bg-[#fcfbf9] border border-[#e6dfd6]"></div>
-                <span>Manual Entry</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded-full bg-[#f5f1ea] border border-[#e6dfd6]"></div>
-                <span>Auto-synced from Wallet</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeView === "transactions" && (
-          <div className="animate-fade-in">
-            <TransactionsTab />
           </div>
         )}
 

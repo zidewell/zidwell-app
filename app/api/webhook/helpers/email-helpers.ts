@@ -12,6 +12,7 @@ const baseUrl =
 
 const headerImageUrl = `${baseUrl}/zidwell-header.png`;
 const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+const cheersImageUrl = `${baseUrl}/cheers-transanction.webp`;
 
 export async function sendInvoiceCreatorNotificationEmail(
   creatorEmail: string,
@@ -76,7 +77,7 @@ export async function sendVirtualAccountDepositEmail(
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #22c55e;">✅ Deposit Successful</h3>
+          <h3 style="color: #22c55e;">✅ Credit alert</h3>
           <p>Hi ${user.first_name || "there"},</p>
           <p>Your account has been credited with <strong>₦${creditedAmount.toLocaleString()}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
@@ -131,6 +132,7 @@ export async function sendWithdrawalEmail(
             ${status === "success" ? "✅ Transfer Successful" : "❌ Transfer Failed"}
           </h3>
           <p>Hi ${user.first_name || "there"},</p>
+          <img src="${cheersImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
             ${fee ? `<p><strong>Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}

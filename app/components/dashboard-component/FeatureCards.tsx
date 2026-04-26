@@ -183,12 +183,14 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
     "/dashboard/services/buy-data",
     "/dashboard/services/buy-power",
     "/dashboard/services/buy-cable-tv",
+    "/dashboard/services/create-invoice",
   ];
 
   const handleFeatureClick = (feature: (typeof features)[0]) => {
     const isVerified = userData?.bvnVerification === "verified";
     const requiresBVN = bvnRequiredServices.includes(feature.link);
 
+    console.log(requiresBVN, isVerified)
     // Check BVN verification first for protected services
     if (requiresBVN && !isVerified) {
       openVerificationModal();
