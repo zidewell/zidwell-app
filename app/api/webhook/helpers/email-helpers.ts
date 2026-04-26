@@ -110,15 +110,32 @@ export async function sendWithdrawalEmail(
   fee?: number,
 ) {
   try {
+    console.log(`📧 Attempting to send ${status} withdrawal email for user ${userId}`);
+    
     const { data: user, error } = await supabase
       .from("users")
       .select("email, first_name")
       .eq("id", userId)
       .single();
 
-    if (error || !user) return;
+    if (error) {
+      console.error("❌ Failed to fetch user for email:", error);
+      return;
+    }
+    
+    if (!user) {
+      console.error("❌ User not found for ID:", userId);
+      return;
+    }
 
-    await transporter.sendMail({
+    if (!user.email) {
+      console.error("❌ User has no email address:", userId);
+      return;
+    }
+
+    console.log(`📧 Sending email to: ${user.email}`);
+
+    const info = await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject:
@@ -146,7 +163,16 @@ export async function sendWithdrawalEmail(
         </div>
       `,
     });
+
+    console.log(`✅ Email sent successfully! Message ID: ${info.messageId}`);
+    return info;
   } catch (error) {
-    console.error("Failed to send withdrawal email:", error);
+    console.error("❌ Failed to send withdrawal email:", error);
+    // Log the full error details
+    if (error instanceof Error) {
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
   }
 }
