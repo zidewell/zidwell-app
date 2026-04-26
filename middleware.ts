@@ -413,17 +413,13 @@ const allowedAdminRoles = [
   "blog_admin",
 ];
 
-// Public paths that don't require authentication (within the matched routes)
+// Public paths that don't require authentication
 const publicPaths = [
   "/auth/login",
   "/auth/signup",
   "/auth/password-reset",
   "/auth/forgot-password",
   "/auth/blocked",
-  "/api/payment-callback",
-  "/api/auth/auto-login",
-  "/api/login", 
-  "/api/signup",
 ];
 
 // Fast route matching using Set/Map
@@ -703,7 +699,6 @@ export const config = {
     "/dashboard/:path*",
     "/admin/:path*",
     "/blog/admin/:path*",
-    "/api/:path*",
     "/auth/:path*",
   ],
 };
