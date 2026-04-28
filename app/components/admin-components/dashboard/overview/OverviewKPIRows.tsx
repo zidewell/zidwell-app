@@ -79,19 +79,19 @@ export const OverviewKPIRows = ({
       {/* Top Row: Website, Signups, Active Users, Transaction Volume */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
-          title="New Signups"
+          title="Total Signups"
           value={formatNumber(getMetricValue("signups", range))}
           icon={<UserPlus className="w-5 h-5 text-green-600" />}
           className="border-l-4 border-l-green-500"
           subtitle={`New users (${range === "total" ? "all time" : range})`}
         />
-        <KPICard
+        {/* <KPICard
           title="Active Users"
           value={formatNumber(getMetricValue("active_users", range))}
           icon={<Activity className="w-5 h-5 text-purple-600" />}
           className="border-l-4 border-l-purple-500"
           subtitle={`Active users (${range === "total" ? "all time" : range})`}
-        />
+        /> */}
         <KPICard
           title="Transaction Volume"
           value={formatCurrency(getMetricValue("transaction_volume", range))}
@@ -159,7 +159,7 @@ export const OverviewKPIRows = ({
           className="border-l-4 border-l-orange-500 bg-linear-to-r from-orange-50 to-white"
           subtitle="API provider costs"
         />
-        <KPICard
+        {/* <KPICard
           title="Contract Revenue"
           value={formatCurrency(revenueData.contract)}
           growth={<GrowthIndicator value={calculateContractRevenueGrowth()} />}
@@ -173,12 +173,12 @@ export const OverviewKPIRows = ({
           icon={<File className="w-5 h-5 text-purple-600" />}
           className="border-l-4 border-l-purple-500 bg-linear-to-r from-purple-50 to-white"
           subtitle={`Revenue from invoices (${range === "total" ? "all time" : range})`}
-        />
+        /> */}
       </div>
 
       {/* Fourth Row: Contract & Invoice Performance */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
+        {/* <KPICard
           title="Total Contracts"
           value={formatNumber(totalContracts)}
           growth={<GrowthIndicator value={contractsGrowth} />}
@@ -207,7 +207,7 @@ export const OverviewKPIRows = ({
           icon={<Percent className="w-5 h-5 text-green-600" />}
           className="border-l-4 border-l-green-500"
           subtitle="Paid invoices"
-        />
+        /> */}
       </div>
 
       {/* Fifth Row: Detailed Fee Breakdown (Optional) */}

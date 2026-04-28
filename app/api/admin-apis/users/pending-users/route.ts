@@ -72,18 +72,15 @@ async function fetchPendingUsers({
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
+  // Get all pending users from both sources
   let pendingTableQuery = supabaseAdmin
     .from("pending_users")
-    .select("*", { count: "exact" })
-    .order(sortBy, { ascending: sortOrder === "asc" })
-    .range(from, to);
+    .select("*");
 
   let usersQuery = supabaseAdmin
     .from("users")
-    .select("*", { count: "exact" })
-    .in("bvn_verification", ["not_submitted", "pending", null])
-    .order(sortBy, { ascending: sortOrder === "asc" })
-    .range(from, to);
+    .select("*")
+    .in("bvn_verification", ["not_submitted", "pending", null]);
 
   if (q) {
     pendingTableQuery = pendingTableQuery.or(
@@ -124,9 +121,42 @@ async function fetchPendingUsers({
     is_blocked: user.is_blocked || false,
   }));
 
+  // Combine and DEDUPLICATE BY EMAIL
   const allPendingUsers = [...pendingTableUsers, ...usersWithPendingKYC];
-  const totalCount = (pendingTableResult.count || 0) + (usersResult.count || 0);
-  const paginatedUsers = allPendingUsers.slice(from, to);
+  
+  // Remove duplicates by email
+  const uniquePendingMap = new Map();
+  allPendingUsers.forEach(user => {
+    const email = user.email?.toLowerCase();
+    if (email && !uniquePendingMap.has(email)) {
+      uniquePendingMap.set(email, user);
+    }
+  });
+  
+  const uniquePendingUsers = Array.from(uniquePendingMap.values());
+  const totalCount = uniquePendingUsers.length;
+  
+  // Sort unique users
+  const sortedUsers = [...uniquePendingUsers].sort((a, b) => {
+    const aVal = a[sortBy];
+    const bVal = b[sortBy];
+    if (sortOrder === "asc") {
+      return aVal > bVal ? 1 : -1;
+    } else {
+      return aVal < bVal ? 1 : -1;
+    }
+  });
+  
+  // Paginate
+  const paginatedUsers = sortedUsers.slice(from, to + 1);
+
+  // Get counts by source (unique)
+  const pendingTableEmails = new Set(pendingTableUsers.map(u => u.email?.toLowerCase()).filter(Boolean));
+  const pendingKYCEmails = new Set(usersWithPendingKYC.map(u => u.email?.toLowerCase()).filter(Boolean));
+  
+  // Remove overlap for accurate source counts
+  const uniquePendingTableCount = pendingTableEmails.size;
+  const uniquePendingKYCCount = pendingKYCEmails.size;
 
   return {
     users: paginatedUsers,
@@ -135,8 +165,8 @@ async function fetchPendingUsers({
     perPage: limit,
     stats: {
       pending: totalCount,
-      fromTable: pendingTableResult.count || 0,
-      fromUsers: usersResult.count || 0,
+      fromTable: uniquePendingTableCount,
+      fromUsers: uniquePendingKYCCount,
     },
     search: q || null,
     sort: {
@@ -145,7 +175,6 @@ async function fetchPendingUsers({
     },
   };
 }
-
 export async function GET(req: NextRequest) {
   try {
     const adminUser = await requireAdmin(req);
@@ -224,6 +253,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Pending user not found" }, { status: 404 });
     }
 
+    // CHECK FOR EXISTING USER BEFORE INSERTING
+    const { data: existingUser } = await supabaseAdmin
+      .from("users")
+      .select("id, email")
+      .eq("email", pendingUser.email)
+      .single();
+
+    if (existingUser) {
+      // User already exists - just delete from pending_users
+      await supabaseAdmin.from("pending_users").delete().eq("id", userId);
+      
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "approve_pending_user_skipped",
+        resourceType: "User",
+        resourceId: existingUser.id,
+        description: `Skipped approval - user already exists: ${pendingUser.email}`,
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent,
+      });
+
+      return NextResponse.json({
+        message: "User already exists in main table",
+        user: existingUser,
+        skipped: true
+      });
+    }
+
+    // Proceed with insert if no duplicate
     const { data: newUser, error: insertError } = await supabaseAdmin
       .from("users")
       .insert({

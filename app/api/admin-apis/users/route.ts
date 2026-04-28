@@ -1,5 +1,3 @@
-// app/api/admin-apis/users/route.ts
-
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -17,63 +15,55 @@ async function fetchAdminUsers({
   limit = 20,
   sortBy = "created_at",
   sortOrder = "desc",
+  status = "all",
 }: {
   q: string | null;
   page: number;
   limit: number;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
+  status?: string;
 }) {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
+  // Build query
   let usersQuery = supabaseAdmin
     .from("users")
     .select("*", { count: "exact" })
     .order(sortBy, { ascending: sortOrder === "asc" })
     .range(from, to);
 
+  // Filter by status (verified or pending KYC)
+  if (status === "verified") {
+    usersQuery = usersQuery.in("bvn_verification", ["verified", "approved"]);
+  } else if (status === "pending") {
+    usersQuery = usersQuery.in("bvn_verification", ["not_submitted", "pending", null]);
+  }
+
+  // Apply search filter
   if (q) {
     usersQuery = usersQuery.or(
       `full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`
     );
   }
 
-  const {
-    data: usersData,
-    error: usersError,
-    count: usersCount,
-  } = await usersQuery;
+  const { data: usersData, error: usersError, count: usersCount } = await usersQuery;
 
   if (usersError) {
     throw new Error(`Users fetch error: ${usersError.message}`);
   }
 
-  let pendingFromTableCount = 0;
-  let pendingFromUsersCount = 0;
-  
-  try {
-    const { count: pendingTableCount, error: pendingTableError } = await supabaseAdmin
-      .from("pending_users")
-      .select("*", { count: "exact", head: true });
-    
-    if (!pendingTableError) {
-      pendingFromTableCount = pendingTableCount || 0;
-    }
+  // Get counts for stats
+  const { count: verifiedCount } = await supabaseAdmin
+    .from("users")
+    .select("*", { count: "exact", head: true })
+    .in("bvn_verification", ["verified", "approved"]);
 
-    const { count: pendingUsersCount, error: pendingUsersError } = await supabaseAdmin
-      .from("users")
-      .select("*", { count: "exact", head: true })
-      .eq("bvn_verification", "not_submitted");
-    
-    if (!pendingUsersError) {
-      pendingFromUsersCount = pendingUsersCount || 0;
-    }
-  } catch (pendingErr) {
-    console.error("❌ Pending users count error:", pendingErr);
-  }
-
-  const totalPendingUsers = pendingFromTableCount + pendingFromUsersCount;
+  const { count: pendingKYCCount } = await supabaseAdmin
+    .from("users")
+    .select("*", { count: "exact", head: true })
+    .in("bvn_verification", ["not_submitted", "pending", null]);
 
   return {
     users: usersData || [],
@@ -81,9 +71,9 @@ async function fetchAdminUsers({
     page,
     perPage: limit,
     stats: {
-      active: usersCount || 0,
-      pending: totalPendingUsers,
-      total: (usersCount || 0) + totalPendingUsers,
+      verified: verifiedCount || 0,
+      pending_kyc: pendingKYCCount || 0,
+      total: (verifiedCount || 0) + (pendingKYCCount || 0),
     },
     search: q || null,
     sort: {
@@ -109,6 +99,7 @@ export async function GET(req: NextRequest) {
     const limit = Number(url.searchParams.get("limit") ?? 20);
     const sortBy = url.searchParams.get("sortBy") ?? "created_at";
     const sortOrder = (url.searchParams.get("sortOrder") as "asc" | "desc") ?? "desc";
+    const status = url.searchParams.get("status") ?? "all";
     const nocache = url.searchParams.get("nocache") === "true";
 
     if (nocache) {
@@ -116,14 +107,14 @@ export async function GET(req: NextRequest) {
       console.log(`🔄 Force refreshing admin users data`);
     }
 
-    let result = await getCachedAdminUsers({ q, page, limit, sortBy, sortOrder });
+    let result = await getCachedAdminUsers({ q, page, limit, sortBy, sortOrder, status });
     let fromCache = true;
 
     if (!result) {
-      result = await fetchAdminUsers({ q, page, limit, sortBy, sortOrder });
+      result = await fetchAdminUsers({ q, page, limit, sortBy, sortOrder, status });
       fromCache = false;
       
-      const cacheKey = `admin_users_${q || "all"}_${page}_${limit}_${sortBy}_${sortOrder}`;
+      const cacheKey = `admin_users_${q || "all"}_${page}_${limit}_${sortBy}_${sortOrder}_${status}`;
       setCachedAdminUsers(cacheKey, result);
     }
 
@@ -161,6 +152,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Check for existing user
+    const { data: existingUser } = await supabaseAdmin
+      .from("users")
+      .select("id, email")
+      .eq("email", userData.email)
+      .single();
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "User with this email already exists", existingUser: true },
+        { status: 409 }
+      );
+    }
+
     const { data, error } = await supabaseAdmin
       .from("users")
       .insert({
@@ -168,6 +173,7 @@ export async function POST(req: NextRequest) {
         created_by: adminUser?.id,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        bvn_verification: userData.bvn_verification || "pending",
       })
       .select()
       .single();
@@ -220,6 +226,23 @@ export async function PATCH(req: NextRequest) {
 
     if (!updates || Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "Update data is required" }, { status: 400 });
+    }
+
+    // If updating email, check for duplicates
+    if (updates.email) {
+      const { data: existingUser } = await supabaseAdmin
+        .from("users")
+        .select("id, email")
+        .eq("email", updates.email)
+        .neq("id", userId)
+        .single();
+
+      if (existingUser) {
+        return NextResponse.json(
+          { error: "User with this email already exists" },
+          { status: 409 }
+        );
+      }
     }
 
     const { data: user, error: fetchError } = await supabaseAdmin

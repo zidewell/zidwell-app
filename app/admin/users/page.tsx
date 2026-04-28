@@ -47,22 +47,16 @@ export default function UsersPage() {
   const [balanceFilter, setBalanceFilter] = useState("all");
   const [isClient, setIsClient] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("active");
+  const [activeTab, setActiveTab] = useState("verified");
   const [exportLoading, setExportLoading] = useState(false);
   const [totalCounts, setTotalCounts] = useState({
-    active: 0,
+    verified: 0,
     pending: 0
   });
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [exportOptions, setExportOptions] = useState({
     exportType: "current" as "current" | "all",
-    userType: "both" as "active" | "pending" | "both",
-    includeSearch: true,
-    includeStatus: true,
-    includeRole: true,
-    includeActivity: true,
-    includeBalance: true,
-    // Field selection for CSV columns
+    userType: "both" as "verified" | "pending" | "both",
     selectedFields: {
       id: true,
       email: true,
@@ -81,11 +75,9 @@ export default function UsersPage() {
   const [isMobile, setIsMobile] = useState(false);
   
   const itemsPerPage = 10;
-
   const LOW_BALANCE_THRESHOLD = 1000;
   const HIGH_BALANCE_THRESHOLD = 100000;
 
-  // Check for mobile viewport
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -95,25 +87,32 @@ export default function UsersPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const { data, error, isLoading, mutate } = useSWR(
-    activeTab === "pending"
-      ? "/api/admin-apis/users/pending-users"
-      : "/api/admin-apis/users",
+  // Fetch verified users
+  const { data: verifiedData, error: verifiedError, isLoading: verifiedLoading, mutate: mutateVerified } = useSWR(
+    activeTab === "verified" ? "/api/admin-apis/users?status=verified" : null,
     fetcher,
   );
+
+  // Fetch pending KYC users
+  const { data: pendingData, error: pendingError, isLoading: pendingLoading, mutate: mutatePending } = useSWR(
+    activeTab === "pending" ? "/api/admin-apis/users?status=pending" : null,
+    fetcher,
+  );
+
+  const data = activeTab === "verified" ? verifiedData : pendingData;
+  const isLoading = activeTab === "verified" ? verifiedLoading : pendingLoading;
+  const error = activeTab === "verified" ? verifiedError : pendingError;
+  const mutate = activeTab === "verified" ? mutateVerified : mutatePending;
 
   useEffect(() => {
     const fetchTotalCounts = async () => {
       try {
-        const activeRes = await fetch("/api/admin-apis/users?limit=1");
-        const activeData = await activeRes.json();
-        
-        const pendingRes = await fetch("/api/admin-apis/users/pending-users?limit=1");
-        const pendingData = await pendingRes.json();
+        const allUsersRes = await fetch("/api/admin-apis/users?limit=1");
+        const allUsersData = await allUsersRes.json();
         
         setTotalCounts({
-          active: activeData.total || 0,
-          pending: pendingData.total || 0
+          verified: allUsersData.stats?.verified || 0,
+          pending: allUsersData.stats?.pending_kyc || 0
         });
       } catch (error) {
         console.error("Failed to fetch total counts:", error);
@@ -124,154 +123,68 @@ export default function UsersPage() {
   }, []);
 
   useEffect(() => {
-    if (data) {
-      if (activeTab === "active") {
-        setTotalCounts(prev => ({
-          ...prev,
-          active: data.total || data.users?.length || 0,
-          pending: data.stats?.pending || prev.pending
-        }));
-      } else {
-        setTotalCounts(prev => ({
-          ...prev,
-          pending: data.total || data.users?.length || 0,
-          active: prev.active
-        }));
-      }
-    }
-  }, [data, activeTab]);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, roleFilter, activityFilter, activeTab, balanceFilter]);
 
-  // Get active users (verified users)
-  const activeUsers = React.useMemo(() => {
-    if (!data || activeTab === "pending") return [];
-    const usersArray = data?.users ?? data;
-    return usersArray
-      .filter((user: any) => user.bvn_verification === "verified" || user.bvn_verification === "approved")
-      .map((user: any) => ({
-        ...user,
-        full_name: user.full_name || "",
-        balance: user.wallet_balance || 0,
-        created_at_raw: user.created_at,
-        last_login_raw: user.last_login,
-        last_logout_raw: user.last_logout,
-        is_blocked: user.is_blocked || user.status === "blocked",
-        phone: user.phone || "",
-      }));
-  }, [data, activeTab]);
+  const getUsers = () => {
+    if (!data) return [];
+    return data.users || [];
+  };
 
-  // Get pending users
-  const pendingUsers = React.useMemo(() => {
-    if (!data || activeTab === "active") return [];
-    const usersArray = data?.users ?? data;
-    return usersArray.map((user: any) => ({
-      ...user,
-      full_name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-      created_at_raw: user.created_at,
-      status: "pending",
-      phone: user.phone || "",
-      kyc_status: user.kyc_status || user.bvn_verification || "not_submitted",
-      source: user.source || (user.bvn_verification === "not_submitted" ? "users_table" : "pending_table"),
-    }));
-  }, [data, activeTab]);
-
-  // Activity helper functions
-  const isUserRecentlyActive = (user: any) => {
-    const isActiveStatus = !user.is_blocked && user.status === "active";
-    const hasRecentLogin = user.last_login_raw;
-    if (hasRecentLogin) {
-      const lastLogin = new Date(user.last_login_raw);
-      const daysSinceLogin = (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60 * 24);
-      return isActiveStatus && daysSinceLogin <= 30;
+  const filteredUsers = React.useMemo(() => {
+    let users = getUsers();
+    
+    if (searchTerm) {
+      users = users.filter((user: any) =>
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.phone?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-    return isActiveStatus;
-  };
+    
+    if (activeTab === "verified" && statusFilter !== "all") {
+      users = users.filter((user: any) =>
+        statusFilter === "active" ? !user.is_blocked : user.is_blocked
+      );
+    }
+    
+    if (activeTab === "verified" && roleFilter !== "all") {
+      users = users.filter((user: any) => {
+        if (roleFilter === "user") return !user.admin_role || user.admin_role === "user";
+        return user.admin_role === roleFilter;
+      });
+    }
+    
+    if (activeTab === "verified" && activityFilter !== "all") {
+      const now = new Date();
+      users = users.filter((user: any) => {
+        if (!user.last_login) return activityFilter === "inactive";
+        const lastLogin = new Date(user.last_login);
+        const daysSinceLogin = (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (activityFilter === "active") return daysSinceLogin <= 30;
+        if (activityFilter === "today") return lastLogin.toDateString() === now.toDateString();
+        if (activityFilter === "week") return daysSinceLogin <= 7;
+        if (activityFilter === "inactive") return daysSinceLogin > 30;
+        return true;
+      });
+    }
+    
+    if (activeTab === "verified" && balanceFilter !== "all") {
+      users = users.filter((user: any) => {
+        const balance = Number(user.wallet_balance) || 0;
+        if (balanceFilter === "high") return balance >= HIGH_BALANCE_THRESHOLD;
+        if (balanceFilter === "low") return balance <= LOW_BALANCE_THRESHOLD && balance >= 0;
+        if (balanceFilter === "negative") return balance < 0;
+        if (balanceFilter === "zero") return balance === 0;
+        return true;
+      });
+    }
+    
+    return users;
+  }, [getUsers(), searchTerm, statusFilter, roleFilter, activityFilter, activeTab, balanceFilter]);
 
-  const isUserActiveToday = (user: any) => {
-    if (user.is_blocked || user.status !== "active" || !user.last_login_raw) return false;
-    const lastLogin = new Date(user.last_login_raw);
-    const today = new Date();
-    return lastLogin.toDateString() === today.toDateString();
-  };
-
-  const isUserActiveThisWeek = (user: any) => {
-    if (user.is_blocked || user.status !== "active" || !user.last_login_raw) return false;
-    const lastLogin = new Date(user.last_login_raw);
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    return lastLogin > weekAgo;
-  };
-
-  const isUserInactive = (user: any) => {
-    if (user.is_blocked || user.status !== "active") return false;
-    if (!user.last_login_raw) return true;
-    const lastLogin = new Date(user.last_login_raw);
-    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    return lastLogin < monthAgo;
-  };
-
-  const isLowBalance = (user: any) => {
-    const balance = Number(user.balance) || 0;
-    return balance <= LOW_BALANCE_THRESHOLD && balance >= 0;
-  };
-
-  const isHighBalance = (user: any) => {
-    const balance = Number(user.balance) || 0;
-    return balance >= HIGH_BALANCE_THRESHOLD;
-  };
-
-  const isNegativeBalance = (user: any) => {
-    const balance = Number(user.balance) || 0;
-    return balance < 0;
-  };
-
-  // Filter active users
-  const filteredActiveUsers = activeUsers.filter((user: any) => {
-    const matchesSearch =
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phone?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && !user.is_blocked) ||
-      (statusFilter === "blocked" && user.is_blocked);
-
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-
-    const matchesActivity =
-      activityFilter === "all" ||
-      (activityFilter === "active" && isUserRecentlyActive(user)) ||
-      (activityFilter === "today" && isUserActiveToday(user)) ||
-      (activityFilter === "week" && isUserActiveThisWeek(user)) ||
-      (activityFilter === "inactive" && isUserInactive(user));
-
-    const matchesBalance =
-      balanceFilter === "all" ||
-      (balanceFilter === "low" && isLowBalance(user)) ||
-      (balanceFilter === "high" && isHighBalance(user)) ||
-      (balanceFilter === "negative" && isNegativeBalance(user)) ||
-      (balanceFilter === "zero" && (Number(user.balance) || 0) === 0);
-
-    return matchesSearch && matchesStatus && matchesRole && matchesActivity && matchesBalance;
-  });
-
-  // Filter pending users
-  const filteredPendingUsers = pendingUsers.filter((user: any) => {
-    return (
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phone?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
-
-  const currentUsers = activeTab === "active" ? filteredActiveUsers : filteredPendingUsers;
+  const currentUsers = filteredUsers;
   const totalPages = Math.ceil(currentUsers.length / itemsPerPage);
   const paginatedUsers = currentUsers.slice(
     (currentPage - 1) * itemsPerPage,
@@ -286,216 +199,95 @@ export default function UsersPage() {
     setSelectedUserId(null);
   };
 
-  // Function to format user data based on selected fields
-  const formatUserForExport = (user: any, type: string) => {
-    const formatted: any = {};
+  const handleExport = async () => {
+    setExportLoading(true);
+    setIsFilterSheetOpen(false);
     
-    if (exportOptions.selectedFields.id) {
-      formatted["User ID"] = user.id;
-    }
-    if (exportOptions.selectedFields.email) {
-      formatted["Email"] = user.email || "";
-    }
-    if (exportOptions.selectedFields.fullName) {
-      formatted["Full Name"] = user.full_name || user.fullName || "";
-    }
-    if (exportOptions.selectedFields.phone) {
-      formatted["Phone"] = user.phone || "";
-    }
-    if (exportOptions.selectedFields.status) {
-      if (type === "pending") {
-        formatted["Status"] = "Pending";
-      } else {
-        formatted["Status"] = user.is_blocked ? "Blocked" : "Active";
-      }
-    }
-    if (exportOptions.selectedFields.balance && type === "active") {
-      formatted["Wallet Balance"] = Number(user.balance || user.wallet_balance) || 0;
-    }
-    if (exportOptions.selectedFields.kycStatus) {
-      formatted["KYC Status"] = user.kyc_status || user.bvn_verification || "Not Started";
-    }
-    if (exportOptions.selectedFields.registrationDate) {
-      formatted["Registration Date"] = user.created_at_raw || user.created_at 
-        ? new Date(user.created_at_raw || user.created_at).toLocaleDateString() 
-        : "";
-    }
-    if (exportOptions.selectedFields.lastLogin && type === "active") {
-      formatted["Last Login"] = user.last_login_raw || user.last_login 
-        ? new Date(user.last_login_raw || user.last_login).toLocaleString() 
-        : "Never";
-    }
-    if (exportOptions.selectedFields.role && type === "active") {
-      formatted["Role"] = user.role || "user";
-    }
-    if (exportOptions.selectedFields.referralCode) {
-      formatted["Referral Code"] = user.referral_code || "";
-    }
-    if (exportOptions.selectedFields.referredBy) {
-      formatted["Referred By"] = user.referred_by || "";
-    }
-    
-    return formatted;
-  };
-
- const handleExportWithOptions = async () => {
-  setExportLoading(true);
-  setIsFilterSheetOpen(false);
-  
-  try {
-    if (exportOptions.exportType === "current") {
-      // Export current view with applied filters and selected fields
-      const params = new URLSearchParams();
-      
-      if (exportOptions.includeSearch && searchTerm) params.append("search", searchTerm);
-      if (exportOptions.includeStatus && statusFilter !== "all") params.append("status", statusFilter);
-      if (exportOptions.includeRole && roleFilter !== "all") params.append("role", roleFilter);
-      if (exportOptions.includeActivity && activityFilter !== "all") params.append("activity", activityFilter);
-      if (exportOptions.includeBalance && balanceFilter !== "all") params.append("balance", balanceFilter);
-      params.append("type", activeTab);
-      params.append("low_threshold", LOW_BALANCE_THRESHOLD.toString());
-      params.append("high_threshold", HIGH_BALANCE_THRESHOLD.toString());
-      
-      // Send selected fields to API
-      params.append("fields", JSON.stringify(exportOptions.selectedFields));
-
-      const response = await fetch(`/api/admin-apis/users/export?${params.toString()}`);
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Export failed");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const fileName = `${activeTab}_users_${new Date().toISOString().split("T")[0]}.csv`;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      Swal.fire({
-        icon: "success",
-        title: "Export Successful",
-        text: `Exported with selected fields`,
-        timer: 2000,
-        showConfirmButton: false,
-      });
-    } else {
-      // Export all users with selected fields
-      const params = new URLSearchParams();
-      
-      if (exportOptions.userType === "active") {
-        params.append("type", "active");
-      } else if (exportOptions.userType === "pending") {
-        params.append("type", "pending");
-      } else {
-        params.append("type", "all");
-      }
-      
-      // Send selected fields to API
-      params.append("fields", JSON.stringify(exportOptions.selectedFields));
-      
-      const queryString = params.toString();
-      const apiUrl = `/api/admin-apis/users/export-all${queryString ? `?${queryString}` : ''}`;
-      
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Export failed");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const userTypeLabel = exportOptions.userType === "both" ? "all" : exportOptions.userType;
-      a.download = `${userTypeLabel}_users_${new Date().toISOString().split("T")[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      Swal.fire({
-        icon: "success",
-        title: "Export Successful",
-        text: `Export completed successfully`,
-        timer: 2000,
-        showConfirmButton: false,
-      });
-    }
-  } catch (error: any) {
-    Swal.fire({ 
-      icon: "error", 
-      title: "Export Failed", 
-      text: error.message || "An error occurred during export" 
-    });
-  } finally {
-    setExportLoading(false);
-  }
-};
-
-  const handleApprovePendingUser = async (user: any) => {
-    const result = await Swal.fire({
-      title: "Approve User?",
-      text: `This will approve ${user.email} and allow them to access the platform.`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981",
-      confirmButtonText: "Approve",
-    });
-
-    if (!result.isConfirmed) return;
-
     try {
-      const r = await fetch(`/api/admin-apis/users/pending-users/${user.id}/approve`, {
-        method: "POST",
+      if (exportOptions.exportType === "current") {
+        // Export current view
+        const params = new URLSearchParams();
+        if (searchTerm) params.append("search", searchTerm);
+        if (statusFilter !== "all") params.append("status", statusFilter);
+        if (roleFilter !== "all") params.append("role", roleFilter);
+        if (activityFilter !== "all") params.append("activity", activityFilter);
+        if (balanceFilter !== "all") params.append("balance", balanceFilter);
+        
+        params.append("type", activeTab === "verified" ? "active" : "pending");
+        params.append("low_threshold", LOW_BALANCE_THRESHOLD.toString());
+        params.append("high_threshold", HIGH_BALANCE_THRESHOLD.toString());
+        params.append("fields", JSON.stringify(exportOptions.selectedFields));
+
+        const response = await fetch(`/api/admin-apis/users/export?${params.toString()}`);
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Export failed");
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const fileName = `${activeTab}_users_${new Date().toISOString().split("T")[0]}.csv`;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        Swal.fire({
+          icon: "success",
+          title: "Export Successful",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        // Export all users
+        const params = new URLSearchParams();
+        
+        if (exportOptions.userType === "verified") {
+          params.append("type", "active");
+        } else if (exportOptions.userType === "pending") {
+          params.append("type", "pending");
+        } else {
+          params.append("type", "all");
+        }
+        
+        params.append("fields", JSON.stringify(exportOptions.selectedFields));
+        
+        const response = await fetch(`/api/admin-apis/users/export-all?${params.toString()}`);
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Export failed");
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const userTypeLabel = exportOptions.userType === "both" ? "all" : exportOptions.userType;
+        const fileName = `${userTypeLabel}_users_${new Date().toISOString().split("T")[0]}.csv`;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        Swal.fire({
+          icon: "success",
+          title: "Export Successful",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      }
+    } catch (error: any) {
+      Swal.fire({ 
+        icon: "error", 
+        title: "Export Failed", 
+        text: error.message || "An error occurred during export" 
       });
-
-      if (!r.ok) throw new Error("Failed to approve user");
-
-      Swal.fire({ icon: "success", title: "User Approved", timer: 2000, showConfirmButton: false });
-      mutate();
-      
-      const pendingRes = await fetch("/api/admin-apis/users/pending-users?limit=1");
-      const pendingData = await pendingRes.json();
-      setTotalCounts(prev => ({ ...prev, pending: pendingData.total || 0 }));
-    } catch (err: any) {
-      Swal.fire("Error", err.message || "Failed to approve user", "error");
-    }
-  };
-
-  const handleRejectPendingUser = async (user: any) => {
-    const { value: reason } = await Swal.fire({
-      title: "Reject User",
-      input: "text",
-      inputLabel: "Reason for rejection:",
-      showCancelButton: true,
-      confirmButtonText: "Reject",
-      confirmButtonColor: "#ef4444",
-    });
-
-    if (!reason) return;
-
-    try {
-      const source = user.source || (user.bvn_verification === "not_submitted" ? "users_table" : "pending_table");
-      const r = await fetch(`/api/admin-apis/users/pending-users/${user.id}?source=${source}`, {
-        method: "DELETE",
-        body: JSON.stringify({ reason }),
-      });
-
-      if (!r.ok) throw new Error("Failed to reject user");
-
-      Swal.fire({ icon: "success", title: "User Rejected", timer: 2000, showConfirmButton: false });
-      mutate();
-      
-      const pendingRes = await fetch("/api/admin-apis/users/pending-users?limit=1");
-      const pendingData = await pendingRes.json();
-      setTotalCounts(prev => ({ ...prev, pending: pendingData.total || 0 }));
-    } catch (err: any) {
-      Swal.fire("Error", err.message || "Failed to reject user", "error");
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -512,50 +304,65 @@ export default function UsersPage() {
     if (!res.isConfirmed) return;
 
     try {
-      const endpoint = activeTab === "pending"
-        ? `/api/admin-apis/users/pending-users/${user.id}?source=${user.source || "pending_table"}`
-        : `/api/admin-apis/users/${user.id}`;
-
-      const r = await fetch(endpoint, { method: "DELETE" });
+      const r = await fetch(`/api/admin-apis/users?id=${user.id}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Delete failed");
 
       Swal.fire("Deleted", `${user.email} has been deleted.`, "success");
       mutate();
       
-      if (activeTab === "pending") {
-        const pendingRes = await fetch("/api/admin-apis/users/pending-users?limit=1");
-        const pendingData = await pendingRes.json();
-        setTotalCounts(prev => ({ ...prev, pending: pendingData.total || 0 }));
-      } else {
-        const activeRes = await fetch("/api/admin-apis/users?limit=1");
-        const activeData = await activeRes.json();
-        setTotalCounts(prev => ({ ...prev, active: activeData.total || 0 }));
-      }
+      const allUsersRes = await fetch("/api/admin-apis/users?limit=1");
+      const allUsersData = await allUsersRes.json();
+      setTotalCounts({
+        verified: allUsersData.stats?.verified || 0,
+        pending: allUsersData.stats?.pending_kyc || 0
+      });
     } catch (err) {
       Swal.fire("Error", "Failed to delete user", "error");
+    }
+  };
+
+  const handleUpdateKYC = async (user: any, status: string) => {
+    try {
+      const response = await fetch(`/api/admin-apis/users?id=${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bvn_verification: status })
+      });
+      
+      if (!response.ok) throw new Error("Update failed");
+      
+      Swal.fire("Success", `KYC status updated to ${status}`, "success");
+      mutate();
+      
+      const allUsersRes = await fetch("/api/admin-apis/users?limit=1");
+      const allUsersData = await allUsersRes.json();
+      setTotalCounts({
+        verified: allUsersData.stats?.verified || 0,
+        pending: allUsersData.stats?.pending_kyc || 0
+      });
+    } catch (error) {
+      Swal.fire("Error", "Failed to update KYC status", "error");
     }
   };
 
   const renderStatusCell = (value: string, row: any) => {
     if (row.is_blocked) {
       return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">⛔ Blocked</span>;
-    } else if (value === "active") {
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">● Active</span>;
-    } else if (value === "pending") {
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending</span>;
     }
-    return value;
+    return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">● Active</span>;
   };
 
   const renderKycCell = (value: string) => {
     if (value === "verified" || value === "approved") {
       return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">✓ Verified</span>;
-    } else if (value === "pending" || value === "not_submitted") {
+    } else if (value === "pending") {
       return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending</span>;
+    } else if (value === "not_submitted") {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">○ Not Started</span>;
     } else if (value === "rejected") {
       return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">✗ Rejected</span>;
     }
-    return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">○ Not Started</span>;
+    return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{value || "Unknown"}</span>;
   };
 
   const renderBalanceCell = (value: number) => {
@@ -570,208 +377,49 @@ export default function UsersPage() {
     return <span className={`font-medium ${balanceClass}`}>₦{amount.toLocaleString()}</span>;
   };
 
-  // Responsive column configuration
-  const activeUserColumns = isMobile ? [
+  const renderRoleCell = (value: string) => {
+    if (!value || value === "user") {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">User</span>;
+    } else if (value === "super_admin") {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Super Admin</span>;
+    } else if (value === "operations_admin") {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Operations Admin</span>;
+    } else if (value === "support_admin") {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Support Admin</span>;
+    }
+    return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{value || "User"}</span>;
+  };
+
+  const verifiedColumns = isMobile ? [
     { key: "email", label: "Email" },
     { key: "full_name", label: "Name" },
-    { key: "balance", label: "Balance", render: renderBalanceCell },
-    { key: "status", label: "Status", render: renderStatusCell },
+    { key: "wallet_balance", label: "Balance", render: renderBalanceCell },
+    { key: "is_blocked", label: "Status", render: renderStatusCell },
   ] : [
     { key: "email", label: "Email" },
     { key: "full_name", label: "Name" },
-    { key: "balance", label: "Balance", render: renderBalanceCell },
-    { key: "status", label: "Status", render: renderStatusCell },
-    { key: "created_at", label: "Created" },
     { key: "phone", label: "Phone" },
-    { key: "kyc_status", label: "KYC", render: renderKycCell },
+    { key: "wallet_balance", label: "Balance", render: renderBalanceCell },
+    { key: "is_blocked", label: "Status", render: renderStatusCell },
+    { key: "created_at", label: "Registered" },
+    { key: "last_login", label: "Last Login" },
+    { key: "bvn_verification", label: "KYC", render: renderKycCell },
+    { key: "admin_role", label: "Role", render: renderRoleCell },
   ];
 
-  const pendingUserColumns = isMobile ? [
+  const pendingColumns = isMobile ? [
     { key: "email", label: "Email" },
     { key: "full_name", label: "Name" },
     { key: "phone", label: "Phone" },
-    { key: "status", label: "Status", render: renderStatusCell },
+    { key: "bvn_verification", label: "KYC", render: renderKycCell },
   ] : [
     { key: "email", label: "Email" },
     { key: "full_name", label: "Name" },
     { key: "phone", label: "Phone" },
     { key: "created_at", label: "Registered" },
-    { key: "kyc_status", label: "KYC", render: renderKycCell },
-    { key: "status", label: "Status", render: renderStatusCell },
+    { key: "bvn_verification", label: "KYC Status", render: renderKycCell },
   ];
 
-  // Field Selection Component
-  const FieldSelectionSection = () => (
-    <div className="space-y-3">
-      <Label className="text-sm font-semibold">Select Fields to Export</Label>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="fieldId"
-            checked={exportOptions.selectedFields.id}
-            onCheckedChange={(checked) => 
-              setExportOptions({ 
-                ...exportOptions, 
-                selectedFields: { ...exportOptions.selectedFields, id: checked === true }
-              })
-            }
-          />
-          <Label htmlFor="fieldId">User ID</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="fieldEmail"
-            checked={exportOptions.selectedFields.email}
-            onCheckedChange={(checked) => 
-              setExportOptions({ 
-                ...exportOptions, 
-                selectedFields: { ...exportOptions.selectedFields, email: checked === true }
-              })
-            }
-          />
-          <Label htmlFor="fieldEmail">Email</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="fieldFullName"
-            checked={exportOptions.selectedFields.fullName}
-            onCheckedChange={(checked) => 
-              setExportOptions({ 
-                ...exportOptions, 
-                selectedFields: { ...exportOptions.selectedFields, fullName: checked === true }
-              })
-            }
-          />
-          <Label htmlFor="fieldFullName">Full Name</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="fieldPhone"
-            checked={exportOptions.selectedFields.phone}
-            onCheckedChange={(checked) => 
-              setExportOptions({ 
-                ...exportOptions, 
-                selectedFields: { ...exportOptions.selectedFields, phone: checked === true }
-              })
-            }
-          />
-          <Label htmlFor="fieldPhone">Phone Number</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="fieldStatus"
-            checked={exportOptions.selectedFields.status}
-            onCheckedChange={(checked) => 
-              setExportOptions({ 
-                ...exportOptions, 
-                selectedFields: { ...exportOptions.selectedFields, status: checked === true }
-              })
-            }
-          />
-          <Label htmlFor="fieldStatus">Status</Label>
-        </div>
-        {activeTab === "active" && (
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="fieldBalance"
-              checked={exportOptions.selectedFields.balance}
-              onCheckedChange={(checked) => 
-                setExportOptions({ 
-                  ...exportOptions, 
-                  selectedFields: { ...exportOptions.selectedFields, balance: checked === true }
-                })
-              }
-            />
-            <Label htmlFor="fieldBalance">Wallet Balance</Label>
-          </div>
-        )}
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="fieldKycStatus"
-            checked={exportOptions.selectedFields.kycStatus}
-            onCheckedChange={(checked) => 
-              setExportOptions({ 
-                ...exportOptions, 
-                selectedFields: { ...exportOptions.selectedFields, kycStatus: checked === true }
-              })
-            }
-          />
-          <Label htmlFor="fieldKycStatus">KYC Status</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="fieldRegistrationDate"
-            checked={exportOptions.selectedFields.registrationDate}
-            onCheckedChange={(checked) => 
-              setExportOptions({ 
-                ...exportOptions, 
-                selectedFields: { ...exportOptions.selectedFields, registrationDate: checked === true }
-              })
-            }
-          />
-          <Label htmlFor="fieldRegistrationDate">Registration Date</Label>
-        </div>
-        {activeTab === "active" && (
-          <>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="fieldLastLogin"
-                checked={exportOptions.selectedFields.lastLogin}
-                onCheckedChange={(checked) => 
-                  setExportOptions({ 
-                    ...exportOptions, 
-                    selectedFields: { ...exportOptions.selectedFields, lastLogin: checked === true }
-                  })
-                }
-              />
-              <Label htmlFor="fieldLastLogin">Last Login</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="fieldRole"
-                checked={exportOptions.selectedFields.role}
-                onCheckedChange={(checked) => 
-                  setExportOptions({ 
-                    ...exportOptions, 
-                    selectedFields: { ...exportOptions.selectedFields, role: checked === true }
-                  })
-                }
-              />
-              <Label htmlFor="fieldRole">Role</Label>
-            </div>
-          </>
-        )}
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="fieldReferralCode"
-            checked={exportOptions.selectedFields.referralCode}
-            onCheckedChange={(checked) => 
-              setExportOptions({ 
-                ...exportOptions, 
-                selectedFields: { ...exportOptions.selectedFields, referralCode: checked === true }
-              })
-            }
-          />
-          <Label htmlFor="fieldReferralCode">Referral Code</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="fieldReferredBy"
-            checked={exportOptions.selectedFields.referredBy}
-            onCheckedChange={(checked) => 
-              setExportOptions({ 
-                ...exportOptions, 
-                selectedFields: { ...exportOptions.selectedFields, referredBy: checked === true }
-              })
-            }
-          />
-          <Label htmlFor="fieldReferredBy">Referred By</Label>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Export Options Sheet Component
   const ExportOptionsSheet = () => (
     <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
       <SheetTrigger asChild>
@@ -784,9 +432,7 @@ export default function UsersPage() {
       <SheetContent side="right" className="w-full sm:w-[500px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Export Options</SheetTitle>
-          <SheetDescription>
-            Choose what data to export and which fields to include
-          </SheetDescription>
+          <SheetDescription>Choose what data to export and which fields to include</SheetDescription>
         </SheetHeader>
         <div className="mt-6 space-y-6">
           {/* Export Type Selection */}
@@ -801,7 +447,7 @@ export default function UsersPage() {
                   onChange={() => setExportOptions({ ...exportOptions, exportType: "current" })}
                   className="w-4 h-4"
                 />
-                <Label htmlFor="exportCurrent">Current View ({activeTab === "active" ? "Verified Users" : "Pending Users"})</Label>
+                <Label htmlFor="exportCurrent">Current View ({activeTab === "verified" ? "Verified Users" : "Pending KYC Users"})</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <input
@@ -811,7 +457,7 @@ export default function UsersPage() {
                   onChange={() => setExportOptions({ ...exportOptions, exportType: "all" })}
                   className="w-4 h-4"
                 />
-                <Label htmlFor="exportAll">All Users (Active + Pending)</Label>
+                <Label htmlFor="exportAll">All Users (All Users in System)</Label>
               </div>
             </div>
           </div>
@@ -822,97 +468,209 @@ export default function UsersPage() {
               <Label className="text-sm font-semibold">User Type</Label>
               <Select
                 value={exportOptions.userType}
-                onValueChange={(value: "active" | "pending" | "both") => setExportOptions({ ...exportOptions, userType: value })}
+                onValueChange={(value: "verified" | "pending" | "both") => setExportOptions({ ...exportOptions, userType: value })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="both">Both Active & Pending</SelectItem>
-                  <SelectItem value="active">Active Users Only</SelectItem>
-                  <SelectItem value="pending">Pending Users Only</SelectItem>
+                  <SelectItem value="both">All Users (Both Verified & Pending)</SelectItem>
+                  <SelectItem value="verified">Verified Users Only</SelectItem>
+                  <SelectItem value="pending">Pending KYC Users Only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           )}
 
           {/* Field Selection */}
-          <FieldSelectionSection />
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold">Select Fields to Export</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldId"
+                  checked={exportOptions.selectedFields.id}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, id: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldId">User ID</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldEmail"
+                  checked={exportOptions.selectedFields.email}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, email: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldEmail">Email</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldFullName"
+                  checked={exportOptions.selectedFields.fullName}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, fullName: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldFullName">Full Name</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldPhone"
+                  checked={exportOptions.selectedFields.phone}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, phone: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldPhone">Phone Number</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldStatus"
+                  checked={exportOptions.selectedFields.status}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, status: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldStatus">Status</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldBalance"
+                  checked={exportOptions.selectedFields.balance}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, balance: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldBalance">Wallet Balance</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldKycStatus"
+                  checked={exportOptions.selectedFields.kycStatus}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, kycStatus: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldKycStatus">KYC Status</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldRegistrationDate"
+                  checked={exportOptions.selectedFields.registrationDate}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, registrationDate: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldRegistrationDate">Registration Date</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldLastLogin"
+                  checked={exportOptions.selectedFields.lastLogin}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, lastLogin: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldLastLogin">Last Login</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldRole"
+                  checked={exportOptions.selectedFields.role}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, role: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldRole">Admin Role</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldReferralCode"
+                  checked={exportOptions.selectedFields.referralCode}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, referralCode: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldReferralCode">Referral Code</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="fieldReferredBy"
+                  checked={exportOptions.selectedFields.referredBy}
+                  onCheckedChange={(checked) => 
+                    setExportOptions({ 
+                      ...exportOptions, 
+                      selectedFields: { ...exportOptions.selectedFields, referredBy: checked === true }
+                    })
+                  }
+                />
+                <Label htmlFor="fieldReferredBy">Referred By</Label>
+              </div>
+            </div>
+          </div>
 
-          {/* Current Filters Section (for Current View export) */}
+          {/* Preview */}
           {exportOptions.exportType === "current" && (
-            <>
-              <div className="border-t pt-4">
-                <h4 className="text-sm font-semibold mb-3">Apply Current Filters</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="includeSearch"
-                      checked={exportOptions.includeSearch}
-                      onCheckedChange={(checked) => setExportOptions({ ...exportOptions, includeSearch: checked === true })}
-                    />
-                    <Label htmlFor="includeSearch">Include Search Term: {searchTerm || "(none)"}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="includeStatus"
-                      checked={exportOptions.includeStatus}
-                      onCheckedChange={(checked) => setExportOptions({ ...exportOptions, includeStatus: checked === true })}
-                    />
-                    <Label htmlFor="includeStatus">Include Status Filter</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="includeRole"
-                      checked={exportOptions.includeRole}
-                      onCheckedChange={(checked) => setExportOptions({ ...exportOptions, includeRole: checked === true })}
-                    />
-                    <Label htmlFor="includeRole">Include Role Filter</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="includeActivity"
-                      checked={exportOptions.includeActivity}
-                      onCheckedChange={(checked) => setExportOptions({ ...exportOptions, includeActivity: checked === true })}
-                    />
-                    <Label htmlFor="includeActivity">Include Activity Filter</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="includeBalance"
-                      checked={exportOptions.includeBalance}
-                      onCheckedChange={(checked) => setExportOptions({ ...exportOptions, includeBalance: checked === true })}
-                    />
-                    <Label htmlFor="includeBalance">Include Balance Filter</Label>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Preview:</strong> Will export {currentUsers.length} users from the current {activeTab} view
-                </p>
-              </div>
-            </>
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Preview:</strong> Will export {filteredUsers.length} users from the current view
+              </p>
+            </div>
           )}
 
-          {/* All Users Preview */}
           {exportOptions.exportType === "all" && (
             <div className="bg-green-50 p-3 rounded-lg">
               <p className="text-sm text-green-800">
                 <strong>Preview:</strong> Will export{" "}
-                {exportOptions.userType === "active" 
-                  ? totalCounts.active 
+                {exportOptions.userType === "verified" 
+                  ? totalCounts.verified 
                   : exportOptions.userType === "pending" 
                     ? totalCounts.pending 
-                    : totalCounts.active + totalCounts.pending} users
+                    : totalCounts.verified + totalCounts.pending} users
               </p>
             </div>
           )}
         </div>
         <SheetFooter className="mt-6">
           <Button 
-            onClick={handleExportWithOptions} 
-            disabled={exportLoading || Object.values(exportOptions.selectedFields).every(v => v === false)}
+            onClick={handleExport} 
+            disabled={exportLoading} 
             className="w-full"
           >
             {exportLoading ? "Exporting..." : `Export ${exportOptions.exportType === "current" ? "Current View" : "All Users"}`}
@@ -945,7 +703,6 @@ export default function UsersPage() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-        {/* Header Section - Responsive */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h2 className="text-xl md:text-2xl font-semibold">Users Management</h2>
           <div className="flex gap-2">
@@ -956,36 +713,30 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {/* Stats Cards - Responsive Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
           <div className="bg-white p-3 md:p-4 rounded-lg border shadow-sm">
-            <h3 className="text-xs md:text-sm font-medium text-gray-500">Total Users</h3>
-            <p className="text-xl md:text-2xl font-semibold">{totalCounts.active + totalCounts.pending}</p>
-            <p className="text-xs text-gray-500 mt-1 hidden sm:block">{totalCounts.active} verified + {totalCounts.pending} pending</p>
+            <h3 className="text-xs md:text-sm font-medium text-gray-500">Verified Users</h3>
+            <p className="text-xl md:text-2xl font-semibold text-green-600">{totalCounts.verified}</p>
+            <p className="text-xs text-gray-500 mt-1">Completed KYC</p>
           </div>
           <div className="bg-white p-3 md:p-4 rounded-lg border shadow-sm">
-            <h3 className="text-xs md:text-sm font-medium text-gray-500">Verified</h3>
-            <p className="text-xl md:text-2xl font-semibold text-green-600">{totalCounts.active}</p>
-          </div>
-          <div className="bg-white p-3 md:p-4 rounded-lg border shadow-sm">
-            <h3 className="text-xs md:text-sm font-medium text-gray-500">Pending</h3>
+            <h3 className="text-xs md:text-sm font-medium text-gray-500">Pending KYC</h3>
             <p className="text-xl md:text-2xl font-semibold text-yellow-600">{totalCounts.pending}</p>
+            <p className="text-xs text-gray-500 mt-1">Awaiting verification</p>
           </div>
         </div>
 
-        {/* Tabs - Responsive */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="active" className="text-xs md:text-sm">
-              Verified ({totalCounts.active})
+            <TabsTrigger value="verified" className="text-xs md:text-sm">
+              Verified ({totalCounts.verified})
             </TabsTrigger>
             <TabsTrigger value="pending" className="text-xs md:text-sm">
-              Pending ({totalCounts.pending})
+              Pending KYC ({totalCounts.pending})
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="active" className="space-y-4">
-            {/* Filters - Responsive layout */}
+          <TabsContent value="verified" className="space-y-4">
             <div className="flex flex-col gap-3">
               <div className="flex flex-col sm:flex-row gap-3">
                 <Input 
@@ -1004,8 +755,6 @@ export default function UsersPage() {
                     <SelectItem value="blocked">Blocked</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
                 <Select value={roleFilter} onValueChange={setRoleFilter}>
                   <SelectTrigger className="w-full sm:w-1/6">
                     <SelectValue placeholder="Role" />
@@ -1013,9 +762,13 @@ export default function UsersPage() {
                   <SelectContent>
                     <SelectItem value="all">All Roles</SelectItem>
                     <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                    <SelectItem value="operations_admin">Operations Admin</SelectItem>
+                    <SelectItem value="support_admin">Support Admin</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Select value={activityFilter} onValueChange={setActivityFilter}>
                   <SelectTrigger className="w-full sm:w-1/6">
                     <SelectValue placeholder="Activity" />
@@ -1043,7 +796,19 @@ export default function UsersPage() {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <AdminTable columns={activeUserColumns} rows={paginatedUsers} onDelete={handleDelete} onRowClick={handleUserClick} />
+              <AdminTable 
+                columns={verifiedColumns} 
+                rows={paginatedUsers} 
+                onDelete={handleDelete} 
+                onRowClick={handleUserClick}
+                customActions={[
+                  { 
+                    label: "Verify KYC", 
+                    onClick: (user) => handleUpdateKYC(user, "verified"), 
+                    variant: "secondary"
+                  }
+                ]}
+              />
             </div>
           </TabsContent>
 
@@ -1055,21 +820,20 @@ export default function UsersPage() {
               className="w-full sm:w-1/3"
             />
             <div className="overflow-x-auto">
-              <AdminTable
-                columns={pendingUserColumns}
-                rows={paginatedUsers}
-                onDelete={handleDelete}
+              <AdminTable 
+                columns={pendingColumns} 
+                rows={paginatedUsers} 
+                onDelete={handleDelete} 
                 onRowClick={handleUserClick}
                 customActions={[
-                  { label: "Approve", onClick: handleApprovePendingUser, variant: "secondary", icon: "✓" },
-                  { label: "Reject", onClick: handleRejectPendingUser, variant: "destructive", icon: "✗" },
+                  { label: "Approve KYC", onClick: (user) => handleUpdateKYC(user, "verified"), variant: "secondary" },
+                  { label: "Reject KYC", onClick: (user) => handleUpdateKYC(user, "rejected"), variant: "destructive" },
                 ]}
               />
             </div>
           </TabsContent>
         </Tabs>
 
-        {/* Pagination - Responsive */}
         {totalPages > 1 && (
           <div className="flex justify-center overflow-x-auto">
             <Pagination>
