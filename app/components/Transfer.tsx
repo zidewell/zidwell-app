@@ -84,41 +84,27 @@ export default function Transfer() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const { userData, balance, lifetimeBalance } = useUserContextData();
   const [pin, setPin] = useState(Array(inputCount).fill(""));
-  // Popover state for searchable bank select
   const [open, setOpen] = useState(false);
   const [confirmTransaction, setConfirmTransaction] = useState(false);
   const [search, setSearch] = useState("");
   const [calculatedFee, setCalculatedFee] = useState(0);
   const [totalDebit, setTotalDebit] = useState(0);
   const [pinError, setPinError] = useState<string | null>(null);
-  // New states for saved accounts
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
   const [saveAccount, setSaveAccount] = useState(false);
-  const [selectedSavedAccount, setSelectedSavedAccount] =
-    useState<SavedAccount | null>(null);
+  const [selectedSavedAccount, setSelectedSavedAccount] = useState<SavedAccount | null>(null);
   const [showSavedAccounts, setShowSavedAccounts] = useState(false);
-
-  // New states for saved P2P beneficiaries
-  const [savedP2PBeneficiaries, setSavedP2PBeneficiaries] = useState<
-    SavedP2PBeneficiary[]
-  >([]);
+  const [savedP2PBeneficiaries, setSavedP2PBeneficiaries] = useState<SavedP2PBeneficiary[]>([]);
   const [saveP2PBeneficiary, setSaveP2PBeneficiary] = useState(false);
-  const [selectedSavedP2PBeneficiary, setSelectedSavedP2PBeneficiary] =
-    useState<SavedP2PBeneficiary | null>(null);
-  const [showSavedP2PBeneficiaries, setShowSavedP2PBeneficiaries] =
-    useState(false);
-
-  // Balance visibility states
+  const [selectedSavedP2PBeneficiary, setSelectedSavedP2PBeneficiary] = useState<SavedP2PBeneficiary | null>(null);
+  const [showSavedP2PBeneficiaries, setShowSavedP2PBeneficiaries] = useState(false);
   const [showAlltime, setShowAlltime] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
 
-  // ADDED: Polling states
-  const [pollingTransactionId, setPollingTransactionId] = useState<string | null>(null);
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
-  
-  // ADDED: Ref to track if alert has been shown to prevent duplicates
+  // Polling refs
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const alertShownRef = useRef<boolean>(false);
-  const isProcessingRef = useRef<boolean>(false);
+  const currentTransactionIdRef = useRef<string | null>(null);
 
   const formatNumber = (value: number) =>
     new Intl.NumberFormat("en-US", {
@@ -127,7 +113,6 @@ export default function Transfer() {
       maximumFractionDigits: 2,
     }).format(value);
 
-  // ADDED: Reset form function
   const resetForm = () => {
     setAmount("");
     setAccountNumber("");
@@ -144,125 +129,21 @@ export default function Transfer() {
     setSelectedSavedP2PBeneficiary(null);
   };
 
-  // ADDED: Stop polling function
   const stopPolling = () => {
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      setPollingInterval(null);
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
-    setPollingTransactionId(null);
-    isProcessingRef.current = false;
+    currentTransactionIdRef.current = null;
   };
 
-  // ADDED: Start polling function with duplicate prevention
-  const startPolling = (transactionId: string) => {
-    // Reset alert shown flag when starting new polling
-    alertShownRef.current = false;
-    isProcessingRef.current = true;
-    setPollingTransactionId(transactionId);
-    
-    let attempts = 0;
-    const maxAttempts = 30; // 30 seconds max
-    const pollIntervalMs = 2000; // Poll every 2 seconds
-
-    const pollStatus = async () => {
-      // Stop if we're no longer processing or alert already shown
-      if (!isProcessingRef.current || alertShownRef.current) {
-        return;
-      }
-
-      if (attempts >= maxAttempts) {
-        stopPolling();
-        if (Swal.isVisible() && !alertShownRef.current) {
-          alertShownRef.current = true;
-          Swal.close();
-          Swal.fire({
-            icon: "warning",
-            title: "Still Processing",
-            text: "Your transfer is taking longer than expected. You will receive an email confirmation once completed.",
-          });
-        }
-        return;
-      }
-
-      attempts++;
-
-      try {
-        const res = await fetch(`/api/transaction/status?transactionId=${transactionId}`);
-        const data = await res.json();
-
-        // Prevent duplicate alerts
-        if (alertShownRef.current) {
-          return;
-        }
-
-        if (data.status === "success") {
-          alertShownRef.current = true;
-          stopPolling();
-          
-          // Close any open Swal modals
-          if (Swal.isVisible()) {
-            Swal.close();
-          }
-          
-          // Trigger confetti on success
-          triggerConfetti();
-          
-          await Swal.fire({
-            icon: "success",
-            title: "Transfer Successful! 🎉",
-            text: "Your transaction has been processed successfully.",
-            showConfirmButton: true,
-            confirmButtonColor: "#2b825b",
-            timer: 5000,
-            timerProgressBar: true,
-          });
-          
-          resetForm();
-          setConfirmTransaction(false);
-          setIsOpen(false);
-          
-        } else if (data.status === "failed") {
-          alertShownRef.current = true;
-          stopPolling();
-          
-          if (Swal.isVisible()) {
-            Swal.close();
-          }
-          
-          await Swal.fire({
-            icon: "error",
-            title: "Transfer Failed",
-            text: data.message || "Your transfer could not be completed. Your wallet was not charged.",
-          });
-          
-          setConfirmTransaction(false);
-          setIsOpen(false);
-        }
-        // If still processing, continue polling
-      } catch (error) {
-        console.error("Polling error:", error);
-        // Continue polling on error
-      }
-    };
-
-    // Start polling
-    pollStatus(); // Initial call
-    const interval = setInterval(pollStatus, pollIntervalMs);
-    setPollingInterval(interval);
-  };
-
-  // Confetti function
   const triggerConfetti = () => {
-    // Main burst
     confetti({
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
       colors: ["#2b825b", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
     });
-
-    // Side bursts
     setTimeout(() => {
       confetti({
         particleCount: 80,
@@ -279,8 +160,6 @@ export default function Transfer() {
         colors: ["#2b825b", "#ffd700", "#ffed4e"],
       });
     }, 150);
-
-    // Additional bursts for more celebration
     setTimeout(() => {
       confetti({
         particleCount: 100,
@@ -291,12 +170,134 @@ export default function Transfer() {
     }, 300);
   };
 
-  // Filter banks dynamically
+  const startPolling = (transactionId: string) => {
+    // Stop any existing polling
+    stopPolling();
+    
+    // Reset alert flag
+    alertShownRef.current = false;
+    currentTransactionIdRef.current = transactionId;
+    
+    let attempts = 0;
+    const maxAttempts = 45; // 90 seconds max (2 seconds * 45)
+    const pollIntervalMs = 2000;
+
+    const pollStatus = async () => {
+      // Check if we should continue polling
+      if (currentTransactionIdRef.current !== transactionId) {
+        console.log("Transaction ID mismatch, stopping polling");
+        return;
+      }
+
+      if (alertShownRef.current) {
+        console.log("Alert already shown, stopping polling");
+        stopPolling();
+        return;
+      }
+
+      if (attempts >= maxAttempts) {
+        console.log("Max polling attempts reached");
+        stopPolling();
+        if (Swal.isVisible() && !alertShownRef.current) {
+          alertShownRef.current = true;
+          Swal.close();
+          Swal.fire({
+            icon: "warning",
+            title: "Still Processing",
+            text: "Your transfer is taking longer than expected. You will receive an email confirmation once completed.",
+            confirmButtonColor: "#2b825b",
+          });
+        }
+        return;
+      }
+
+      attempts++;
+
+      try {
+        console.log(`Polling attempt ${attempts} for transaction ${transactionId}`);
+        
+        const res = await fetch(`/api/transaction/status?transactionId=${transactionId}`);
+        
+        if (!res.ok) {
+          console.error(`Polling failed with status: ${res.status}`);
+          return; // Continue polling on error
+        }
+        
+        const data = await res.json();
+        console.log("Polling response:", { status: data.status, transactionId });
+
+        // Prevent duplicate alerts
+        if (alertShownRef.current) {
+          return;
+        }
+
+        // Handle success
+        if (data.status === "success") {
+          console.log("Transaction successful!");
+          alertShownRef.current = true;
+          stopPolling();
+          
+          if (Swal.isVisible()) {
+            Swal.close();
+          }
+          
+          triggerConfetti();
+          
+          await Swal.fire({
+            icon: "success",
+            title: "Transfer Successful! 🎉",
+            text: "Your transaction has been processed successfully.",
+            showConfirmButton: true,
+            confirmButtonColor: "#2b825b",
+            timer: 5000,
+            timerProgressBar: true,
+          });
+          
+          resetForm();
+          setConfirmTransaction(false);
+          setIsOpen(false);
+          
+        } 
+        // Handle failure
+        else if (data.status === "failed") {
+          console.log("Transaction failed!");
+          alertShownRef.current = true;
+          stopPolling();
+          
+          if (Swal.isVisible()) {
+            Swal.close();
+          }
+          
+          await Swal.fire({
+            icon: "error",
+            title: "Transfer Failed",
+            text: data.message || "Your transfer could not be completed. Your wallet was not charged.",
+            confirmButtonColor: "#2b825b",
+          });
+          
+          setConfirmTransaction(false);
+          setIsOpen(false);
+        }
+        else {
+          // Still processing - continue polling
+          console.log("Still processing...");
+        }
+        
+      } catch (error) {
+        console.error("Polling error:", error);
+        // Continue polling on error - don't stop
+      }
+    };
+
+    // Start polling
+    pollStatus(); // Initial call
+    pollingIntervalRef.current = setInterval(pollStatus, pollIntervalMs);
+  };
+
   const filteredBanks = banks.filter((bank) =>
     bank.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  // Handle bank selection
   const handleSelectBank = (bank: Bank) => {
     setBankName(bank.name);
     setBankCode(bank.code);
@@ -307,12 +308,11 @@ export default function Transfer() {
   // Cleanup polling on unmount
   useEffect(() => {
     return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
       }
-      isProcessingRef.current = false;
     };
-  }, [pollingInterval]);
+  }, []);
 
   // Fetch user, bank details, saved accounts, and saved P2P beneficiaries
   useEffect(() => {
@@ -458,7 +458,6 @@ export default function Transfer() {
     return () => clearTimeout(timeout);
   }, [recepientAcc, transferType]);
 
-  // Handle saved account selection
   const handleSelectSavedAccount = (account: SavedAccount) => {
     setSelectedSavedAccount(account);
     setAccountNumber(account.account_number);
@@ -469,10 +468,7 @@ export default function Transfer() {
     setSaveAccount(false);
   };
 
-  // Handle saved P2P beneficiary selection
-  const handleSelectSavedP2PBeneficiary = (
-    beneficiary: SavedP2PBeneficiary,
-  ) => {
+  const handleSelectSavedP2PBeneficiary = (beneficiary: SavedP2PBeneficiary) => {
     setSelectedSavedP2PBeneficiary(beneficiary);
     setRecepientAcc(beneficiary.account_number);
     setP2pDetails({
@@ -483,17 +479,10 @@ export default function Transfer() {
     setSaveP2PBeneficiary(false);
   };
 
-  // Handle account number change
-  const handleAccountNumberChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setAccountNumber(newValue);
-
-    if (
-      selectedSavedAccount &&
-      newValue !== selectedSavedAccount.account_number
-    ) {
+    if (selectedSavedAccount && newValue !== selectedSavedAccount.account_number) {
       setSelectedSavedAccount(null);
       setAccountName("");
       setBankCode("");
@@ -501,34 +490,19 @@ export default function Transfer() {
     }
   };
 
-  // Handle P2P account number change
-  const handleP2PAccountNumberChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setRecepientAcc(newValue);
-
-    if (
-      selectedSavedP2PBeneficiary &&
-      newValue !== selectedSavedP2PBeneficiary.account_number
-    ) {
+    if (selectedSavedP2PBeneficiary && newValue !== selectedSavedP2PBeneficiary.account_number) {
       setSelectedSavedP2PBeneficiary(null);
       setP2pDetails(null);
     }
   };
 
-  // Save account to profile
   const saveAccountToProfile = async () => {
-    if (
-      !userData?.id ||
-      !accountNumber ||
-      !accountName ||
-      !bankCode ||
-      !bankName
-    ) {
+    if (!userData?.id || !accountNumber || !accountName || !bankCode || !bankName) {
       return;
     }
-
     try {
       const response = await fetch("/api/saved-accounts", {
         method: "POST",
@@ -542,9 +516,7 @@ export default function Transfer() {
           isDefault: false,
         }),
       });
-
       const data = await response.json();
-
       if (data.success) {
         setSavedAccounts((prev) => [...prev, data.account]);
         Swal.fire({
@@ -571,17 +543,10 @@ export default function Transfer() {
     }
   };
 
-  // Save P2P beneficiary to profile
   const saveP2PBeneficiaryToProfile = async () => {
-    if (
-      !userData?.id ||
-      !recepientAcc ||
-      !p2pDetails?.name ||
-      !p2pDetails?.id
-    ) {
+    if (!userData?.id || !recepientAcc || !p2pDetails?.name || !p2pDetails?.id) {
       return;
     }
-
     try {
       const response = await fetch("/api/save-p2p-beneficiary", {
         method: "POST",
@@ -594,9 +559,7 @@ export default function Transfer() {
           isDefault: false,
         }),
       });
-
       const data = await response.json();
-
       if (data.success) {
         setSavedP2PBeneficiaries((prev) => [...prev, data.beneficiary]);
         Swal.fire({
@@ -623,7 +586,6 @@ export default function Transfer() {
     }
   };
 
-  // UPDATED: performTransfer with polling support
   const performTransfer = async (submittedPin: string) => {
     setLoading(true);
 
@@ -659,8 +621,7 @@ export default function Transfer() {
         payload.receiverAccountId = p2pDetails?.id;
       }
 
-      const endpoint =
-        transferType === "p2p" ? "/api/p2p-transfer" : "/api/transfer-balance";
+      const endpoint = transferType === "p2p" ? "/api/p2p-transfer" : "/api/transfer-balance";
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -670,12 +631,10 @@ export default function Transfer() {
 
       const data = await res.json();
 
-      // ADDED: Check for processing status and start polling
+      // Check for processing status and start polling
       if (res.ok && data.status === "processing") {
-        // Reset alert flag before showing new modal
         alertShownRef.current = false;
         
-        // Show processing message
         Swal.fire({
           icon: "info",
           title: "Processing Transfer",
@@ -687,7 +646,6 @@ export default function Transfer() {
           },
         });
 
-        // Start polling for status
         if (data.transactionId) {
           startPolling(data.transactionId);
         }
@@ -696,25 +654,14 @@ export default function Transfer() {
         return { success: true };
       } 
       else if (res.ok) {
-        // Handle immediate success (rare case for P2P or other fast transactions)
-        // Save account/beneficiary if requested
-        if (
-          saveAccount &&
-          !selectedSavedAccount &&
-          transferType === "other-bank"
-        ) {
+        // Handle immediate success
+        if (saveAccount && !selectedSavedAccount && transferType === "other-bank") {
           await saveAccountToProfile();
         }
-
-        if (
-          saveP2PBeneficiary &&
-          !selectedSavedP2PBeneficiary &&
-          transferType === "p2p"
-        ) {
+        if (saveP2PBeneficiary && !selectedSavedP2PBeneficiary && transferType === "p2p") {
           await saveP2PBeneficiaryToProfile();
         }
 
-        // Trigger confetti animation
         triggerConfetti();
 
         await Swal.fire({
@@ -738,63 +685,41 @@ export default function Transfer() {
           },
         });
 
-        // Reset form
         resetForm();
         setConfirmTransaction(false);
         setIsOpen(false);
-
-        // Return success
         return { success: true };
       } else {
-        // Handle error
         const errorMessage = data?.reason || data?.message || "Transfer failed.";
 
-        // If it's a PIN error, throw it to be caught by the PIN popup
-        if (
-          errorMessage.toLowerCase().includes("pin") ||
-          errorMessage.toLowerCase().includes("transaction pin")
-        ) {
+        if (errorMessage.toLowerCase().includes("pin") || errorMessage.toLowerCase().includes("transaction pin")) {
           throw new Error(errorMessage);
         }
 
-        // For other errors, show Swal and set form errors
         await Swal.fire({
           icon: "error",
           title: "Transfer Failed",
           text: errorMessage,
         });
 
-        setErrors({
-          form: errorMessage,
-        });
-
-        // Return error but don't throw (so PIN popup closes)
+        setErrors({ form: errorMessage });
         return { success: false, error: errorMessage };
       }
     } catch (err: any) {
-      // Always set loading to false first
       setLoading(false);
-
-      // Clear the PIN in state
       setPin(Array(inputCount).fill(""));
-
-      // Re-throw PIN errors to be handled by PinPopOver
-      if (
-        err?.message?.toLowerCase().includes("pin") ||
-        err?.message?.toLowerCase().includes("transaction pin")
-      ) {
+      
+      if (err?.message?.toLowerCase().includes("pin") || err?.message?.toLowerCase().includes("transaction pin")) {
         throw err;
       }
-
-      // For other errors, show Swal
+      
       await Swal.fire({
         icon: "error",
         title: "Something went wrong",
         text: err?.message || "Please try again later.",
       });
-
+      
       setErrors({ form: err?.message || "Something went wrong." });
-
       return { success: false, error: err?.message };
     } finally {
       setLoading(false);
@@ -806,17 +731,12 @@ export default function Transfer() {
 
     const newErrors: { [key: string]: string } = {};
 
-    // Validate amount, narration, recipient fields BEFORE PIN
     if (!amount || Number(amount) < 100)
       newErrors.amount = "Amount must be at least ₦100.";
     if (!narration) newErrors.narration = "Narration is required.";
     if (narration.length > 100) newErrors.narration = "Narration too long.";
 
-    if (
-      transferType === "my-account" &&
-      (!userDetails.payment_details.p_account_number ||
-        !userDetails.payment_details.p_account_name)
-    ) {
+    if (transferType === "my-account" && (!userDetails.payment_details.p_account_number || !userDetails.payment_details.p_account_name)) {
       newErrors.myAccount = "Your bank details are incomplete.";
     }
 
@@ -824,10 +744,7 @@ export default function Transfer() {
       if (!bankCode || !accountNumber || !accountName) {
         newErrors.otherBank = "Please complete all bank fields.";
       }
-      if (
-        accountNumber &&
-        (accountNumber.length !== 10 || !/^\d+$/.test(accountNumber))
-      ) {
+      if (accountNumber && (accountNumber.length !== 10 || !/^\d+$/.test(accountNumber))) {
         newErrors.accountNumber = "Account number must be 10 digits.";
       }
     }
@@ -844,7 +761,6 @@ export default function Transfer() {
         html: errorMessages,
       });
       setErrors(newErrors);
-
       return;
     }
     setConfirmTransaction(true);
@@ -855,19 +771,12 @@ export default function Transfer() {
     !amount ||
     !narration ||
     Number(amount) <= 0 ||
-    (transferType === "my-account" &&
-      !userDetails?.payment_details?.p_account_number) ||
-    (transferType === "other-bank" &&
-      (!bankCode || !accountNumber || !accountName)) ||
+    (transferType === "my-account" && !userDetails?.payment_details?.p_account_number) ||
+    (transferType === "other-bank" && (!bankCode || !accountNumber || !accountName)) ||
     (transferType === "p2p" && (!recepientAcc || !p2pDetails?.id));
 
   const getPaymentMethod = (): PaymentMethod => {
-    if (transferType === "p2p") {
-      return "p2p";
-    }
-    if (transferType === "my-account" || transferType === "other-bank") {
-      return "bank_transfer";
-    }
+    if (transferType === "p2p") return "p2p";
     return "bank_transfer";
   };
   
@@ -885,34 +794,26 @@ export default function Transfer() {
           try {
             setPinError(null);
             const result = await performTransfer(code);
-
             if (result?.success) {
-              // Success - close popup and reset
               setIsOpen(false);
               setPin(Array(inputCount).fill(""));
             } else if (result?.error) {
-              // Handle non-PIN errors
               if (!result.error.toLowerCase().includes("pin")) {
-                // Close popup for non-PIN errors
                 setIsOpen(false);
                 setPin(Array(inputCount).fill(""));
               } else {
-                // Set PIN error for retry
                 setPinError(result.error);
               }
             }
           } catch (error: any) {
-            // Handle PIN errors (these are thrown)
             setPinError(error?.message || "Invalid PIN. Please try again.");
             setPin(Array(inputCount).fill(""));
-            // Don't close popup on PIN error
           }
         }}
       />
 
       {/* 💳 Balance Cards */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
-        {/* Alltime Balance */}
         <Card className="bg-linear-to-r from-[#2b825b] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#1e5f43] dark:to-[#b37f1a]">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium">
@@ -927,16 +828,11 @@ export default function Transfer() {
               onClick={() => setShowAlltime((prev) => !prev)}
               className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
             >
-              {showAlltime ? (
-                <EyeOff className="text-white md:text-2xl" />
-              ) : (
-                <Eye className="text-white md:text-2xl" />
-              )}
+              {showAlltime ? <EyeOff className="text-white md:text-2xl" /> : <Eye className="text-white md:text-2xl" />}
             </button>
           </CardContent>
         </Card>
 
-        {/* Current Balance */}
         <Card className="bg-linear-to-r from-gray-600 to-gray-800 text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-gray-700 dark:to-gray-900">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium">
@@ -951,16 +847,11 @@ export default function Transfer() {
               onClick={() => setShowCurrent((prev) => !prev)}
               className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
             >
-              {showCurrent ? (
-                <EyeOff className="text-white md:text-2xl" />
-              ) : (
-                <Eye className="text-white md:text-2xl" />
-              )}
+              {showCurrent ? <EyeOff className="text-white md:text-2xl" /> : <Eye className="text-white md:text-2xl" />}
             </button>
           </CardContent>
         </Card>
 
-        {/* Account Number Card */}
         <Card className="flex items-center justify-between bg-white border shadow-md rounded-xl p-4 dark:bg-gray-800 dark:border-gray-700">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -1055,10 +946,7 @@ export default function Transfer() {
                   }}
                 />
               )}
-
-              {errors.amount && (
-                <p className="text-red-600 text-sm dark:text-red-400">{errors.amount}</p>
-              )}
+              {errors.amount && <p className="text-red-600 text-sm dark:text-red-400">{errors.amount}</p>}
             </div>
 
             {/* My Account */}
@@ -1068,35 +956,19 @@ export default function Transfer() {
                   <div className="bg-gray-50 p-3 rounded-lg border text-sm text-gray-600 animate-pulse dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
                     Loading your bank details...
                   </div>
-                ) : userDetails?.payment_details.p_account_number &&
-                  userDetails?.payment_details.p_account_name ? (
+                ) : userDetails?.payment_details.p_account_number && userDetails?.payment_details.p_account_name ? (
                   <div className="bg-gray-50 p-3 rounded-lg border space-y-1 text-sm dark:bg-gray-700 dark:border-gray-600">
-                    <p className="dark:text-gray-300">
-                      <strong className="dark:text-gray-200">Bank:</strong>{" "}
-                      {userDetails.payment_details.p_bank_name}
-                    </p>
-                    <p className="dark:text-gray-300">
-                      <strong className="dark:text-gray-200">Account Number:</strong>{" "}
-                      {userDetails.payment_details.p_account_number}
-                    </p>
-                    <p className="dark:text-gray-300">
-                      <strong className="dark:text-gray-200">Account Name:</strong>{" "}
-                      {userDetails.payment_details.p_account_name}
-                    </p>
+                    <p className="dark:text-gray-300"><strong className="dark:text-gray-200">Bank:</strong> {userDetails.payment_details.p_bank_name}</p>
+                    <p className="dark:text-gray-300"><strong className="dark:text-gray-200">Account Number:</strong> {userDetails.payment_details.p_account_number}</p>
+                    <p className="dark:text-gray-300"><strong className="dark:text-gray-200">Account Name:</strong> {userDetails.payment_details.p_account_name}</p>
                   </div>
                 ) : (
                   <div className="bg-red-50 p-3 rounded-lg border text-sm text-red-600 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
                     You have not set your bank account details yet.{" "}
-                    <Link
-                      href="/dashboard/profile"
-                      className="text-blue-500 hover:underline dark:text-blue-400"
-                    >
+                    <Link href="/dashboard/profile" className="text-blue-500 hover:underline dark:text-blue-400">
                       Click here
-                    </Link>{" "}
-                    to add them.
-                    {errors.myAccount && (
-                      <p className="text-red-600 text-sm dark:text-red-400">{errors.myAccount}</p>
-                    )}
+                    </Link> to add them.
+                    {errors.myAccount && <p className="text-red-600 text-sm dark:text-red-400">{errors.myAccount}</p>}
                   </div>
                 )}
               </>
@@ -1105,51 +977,25 @@ export default function Transfer() {
             {/* Other Bank */}
             {transferType === "other-bank" && (
               <>
-                {/* Saved Accounts Dropdown */}
                 {savedAccounts.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium dark:text-gray-300">
-                        Saved Accounts
-                      </Label>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowSavedAccounts(!showSavedAccounts)}
-                        className="flex items-center gap-1 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
-                      >
+                      <Label className="text-sm font-medium dark:text-gray-300">Saved Accounts</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowSavedAccounts(!showSavedAccounts)} className="flex items-center gap-1 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
                         <Bookmark className="h-4 w-4" />
                         {showSavedAccounts ? "Hide" : "Show"} Saved
                       </Button>
                     </div>
-
                     {showSavedAccounts && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto dark:bg-blue-900/20 dark:border-blue-800">
                         {savedAccounts.map((account) => (
-                          <div
-                            key={account.id}
-                            onClick={() => handleSelectSavedAccount(account)}
-                            className={`p-2 rounded cursor-pointer transition-colors ${
-                              selectedSavedAccount?.id === account.id
-                                ? "bg-blue-100 border border-blue-300 dark:bg-blue-900/40 dark:border-blue-700"
-                                : "bg-white hover:bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"
-                            }`}
-                          >
+                          <div key={account.id} onClick={() => handleSelectSavedAccount(account)} className={`p-2 rounded cursor-pointer transition-colors ${selectedSavedAccount?.id === account.id ? "bg-blue-100 border border-blue-300 dark:bg-blue-900/40 dark:border-blue-700" : "bg-white hover:bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"}`}>
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <p className="font-medium text-gray-900 text-sm dark:text-gray-100">
-                                  {account.account_name}
-                                </p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400">
-                                  {account.account_number} • {account.bank_name}
-                                </p>
+                                <p className="font-medium text-gray-900 text-sm dark:text-gray-100">{account.account_name}</p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">{account.account_number} • {account.bank_name}</p>
                               </div>
-                              {account.is_default && (
-                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2 dark:bg-green-900/30 dark:text-green-400">
-                                  Default
-                                </span>
-                              )}
+                              {account.is_default && <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2 dark:bg-green-900/30 dark:text-green-400">Default</span>}
                             </div>
                           </div>
                         ))}
@@ -1160,45 +1006,22 @@ export default function Transfer() {
 
                 <div className="space-y-1">
                   <Label className="dark:text-gray-300">Select Bank Name</Label>
-
                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className="w-full flex justify-between items-center border rounded px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
-                        aria-expanded={open}
-                      >
+                      <button type="button" className="w-full flex justify-between items-center border rounded px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" aria-expanded={open}>
                         {bankName || "Search bank..."}
                         <ChevronsUpDown className="h-4 w-4 opacity-50" />
                       </button>
                     </PopoverTrigger>
-
                     <PopoverContent className="w-full p-0 dark:bg-gray-800 dark:border-gray-700">
                       <Command className="dark:bg-gray-800">
-                        <CommandInput 
-                          placeholder="Search bank..." 
-                          value={search} 
-                          onValueChange={setSearch} 
-                          autoFocus
-                          className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                        />
+                        <CommandInput placeholder="Search bank..." value={search} onValueChange={setSearch} autoFocus className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100" />
                         <CommandList>
                           <CommandEmpty className="dark:text-gray-400">No bank found.</CommandEmpty>
                           <CommandGroup>
                             {filteredBanks.map((bank) => (
-                              <CommandItem
-                                key={bank.code}
-                                onSelect={() => handleSelectBank(bank)}
-                                className="dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    bankCode === bank.code
-                                      ? "opacity-100"
-                                      : "opacity-0",
-                                  )}
-                                />
+                              <CommandItem key={bank.code} onSelect={() => handleSelectBank(bank)} className="dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:bg-gray-700">
+                                <Check className={cn("mr-2 h-4 w-4", bankCode === bank.code ? "opacity-100" : "opacity-0")} />
                                 {bank.name}
                               </CommandItem>
                             ))}
@@ -1207,65 +1030,28 @@ export default function Transfer() {
                       </Command>
                     </PopoverContent>
                   </Popover>
-
-                  {errors.otherBank && (
-                    <p className="text-red-600 text-sm dark:text-red-400">{errors.otherBank}</p>
-                  )}
+                  {errors.otherBank && <p className="text-red-600 text-sm dark:text-red-400">{errors.otherBank}</p>}
                 </div>
 
                 <div className="space-y-1">
                   <Label className="dark:text-gray-300">Account Number</Label>
-                  <Input
-                    type="number"
-                    maxLength={10}
-                    value={accountNumber}
-                    onChange={handleAccountNumberChange}
-                    placeholder="10-digit account number"
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
-                  />
-                  {errors.accountNumber && (
-                    <p className="text-red-600 text-sm dark:text-red-400">
-                      {errors.accountNumber}
-                    </p>
-                  )}
+                  <Input type="number" maxLength={10} value={accountNumber} onChange={handleAccountNumberChange} placeholder="10-digit account number" className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400" />
+                  {errors.accountNumber && <p className="text-red-600 text-sm dark:text-red-400">{errors.accountNumber}</p>}
                 </div>
 
-                {lookupLoading && (
-                  <p className="text-[#2b825b] text-sm flex items-center gap-2 dark:text-[#3aa873]">
-                    <Loader2 className="animate-spin" /> Verifying account...
-                  </p>
-                )}
+                {lookupLoading && <p className="text-[#2b825b] text-sm flex items-center gap-2 dark:text-[#3aa873]"><Loader2 className="animate-spin" /> Verifying account...</p>}
                 {accountName && !errors.accountNumber && (
                   <div className="space-y-2">
-                    <p className="text-green-600 text-sm font-semibold dark:text-green-400">
-                      Account Name: {accountName}
-                    </p>
-
-                    {/* Save Account Toggle */}
-                    {!selectedSavedAccount &&
-                      accountNumber.length === 10 &&
-                      accountName && (
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border dark:bg-gray-700 dark:border-gray-600">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Save to beneficiaries
-                          </span>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={saveAccount}
-                              onChange={(e) => setSaveAccount(e.target.checked)}
-                              className="sr-only peer"
-                            />
-                            <div
-                              className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
-                peer-checked:after:translate-x-full peer-checked:after:border-white 
-                after:content-[''] after:absolute after:top-0.5 after:left-0.5 
-                after:bg-white after:border-gray-300 after:border after:rounded-full 
-                after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b] dark:bg-gray-600"
-                            ></div>
-                          </label>
-                        </div>
-                      )}
+                    <p className="text-green-600 text-sm font-semibold dark:text-green-400">Account Name: {accountName}</p>
+                    {!selectedSavedAccount && accountNumber.length === 10 && accountName && (
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border dark:bg-gray-700 dark:border-gray-600">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Save to beneficiaries</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" checked={saveAccount} onChange={(e) => setSaveAccount(e.target.checked)} className="sr-only peer" />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b] dark:bg-gray-600"></div>
+                        </label>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -1274,57 +1060,25 @@ export default function Transfer() {
             {/* P2P */}
             {transferType === "p2p" && (
               <>
-                {/* Saved P2P Beneficiaries Dropdown */}
                 {savedP2PBeneficiaries.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium dark:text-gray-300">
-                        Saved Beneficiaries
-                      </Label>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setShowSavedP2PBeneficiaries(
-                            !showSavedP2PBeneficiaries,
-                          )
-                        }
-                        className="flex items-center gap-1 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
-                      >
+                      <Label className="text-sm font-medium dark:text-gray-300">Saved Beneficiaries</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowSavedP2PBeneficiaries(!showSavedP2PBeneficiaries)} className="flex items-center gap-1 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
                         <User className="h-4 w-4" />
                         {showSavedP2PBeneficiaries ? "Hide" : "Show"} Saved
                       </Button>
                     </div>
-
                     {showSavedP2PBeneficiaries && (
                       <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto dark:bg-purple-900/20 dark:border-purple-800">
                         {savedP2PBeneficiaries.map((beneficiary) => (
-                          <div
-                            key={beneficiary.id}
-                            onClick={() =>
-                              handleSelectSavedP2PBeneficiary(beneficiary)
-                            }
-                            className={`p-2 rounded cursor-pointer transition-colors ${
-                              selectedSavedP2PBeneficiary?.id === beneficiary.id
-                                ? "bg-purple-100 border border-purple-300 dark:bg-purple-900/40 dark:border-purple-700"
-                                : "bg-white hover:bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"
-                            }`}
-                          >
+                          <div key={beneficiary.id} onClick={() => handleSelectSavedP2PBeneficiary(beneficiary)} className={`p-2 rounded cursor-pointer transition-colors ${selectedSavedP2PBeneficiary?.id === beneficiary.id ? "bg-purple-100 border border-purple-300 dark:bg-purple-900/40 dark:border-purple-700" : "bg-white hover:bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"}`}>
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <p className="font-medium text-gray-900 text-sm dark:text-gray-100">
-                                  {beneficiary.account_name}
-                                </p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400">
-                                  {beneficiary.account_number} • Zidwell User
-                                </p>
+                                <p className="font-medium text-gray-900 text-sm dark:text-gray-100">{beneficiary.account_name}</p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">{beneficiary.account_number} • Zidwell User</p>
                               </div>
-                              {beneficiary.is_default && (
-                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2 dark:bg-green-900/30 dark:text-green-400">
-                                  Default
-                                </span>
-                              )}
+                              {beneficiary.is_default && <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2 dark:bg-green-900/30 dark:text-green-400">Default</span>}
                             </div>
                           </div>
                         ))}
@@ -1335,56 +1089,21 @@ export default function Transfer() {
 
                 <div className="space-y-1">
                   <Label className="dark:text-gray-300">Account Number (Zidwell User)</Label>
-                  <Input
-                    type="number"
-                    value={recepientAcc}
-                    onChange={handleP2PAccountNumberChange}
-                    placeholder="0234******"
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
-                  />
-                  {errors.recepientAcc && (
-                    <p className="text-red-600 text-sm dark:text-red-400">
-                      {errors.recepientAcc}
-                    </p>
-                  )}
-                  {lookupLoading && (
-                    <p className="text-[#2b825b] text-sm flex items-center gap-2 dark:text-[#3aa873]">
-                      <Loader2 className="animate-spin" /> Verifying account...
-                    </p>
-                  )}
+                  <Input type="number" value={recepientAcc} onChange={handleP2PAccountNumberChange} placeholder="0234******" className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400" />
+                  {errors.recepientAcc && <p className="text-red-600 text-sm dark:text-red-400">{errors.recepientAcc}</p>}
+                  {lookupLoading && <p className="text-[#2b825b] text-sm flex items-center gap-2 dark:text-[#3aa873]"><Loader2 className="animate-spin" /> Verifying account...</p>}
                   {p2pDetails?.name && !errors.recepientAcc && (
                     <div className="space-y-2">
-                      <p className="text-green-600 text-sm font-semibold dark:text-green-400">
-                        Account Name: {p2pDetails.name}
-                      </p>
-
-                      {/* Save P2P Beneficiary Toggle */}
-                      {!selectedSavedP2PBeneficiary &&
-                        recepientAcc.length >= 6 &&
-                        p2pDetails?.name && (
-                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border dark:bg-gray-700 dark:border-gray-600">
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                              Save to beneficiaries
-                            </span>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={saveP2PBeneficiary}
-                                onChange={(e) =>
-                                  setSaveP2PBeneficiary(e.target.checked)
-                                }
-                                className="sr-only peer"
-                              />
-                              <div
-                                className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
-                  peer-checked:after:translate-x-full peer-checked:after:border-white 
-                  after:content-[''] after:absolute after:top-0.5 after:left-0.5 
-                  after:bg-white after:border-gray-300 after:border after:rounded-full 
-                  after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b] dark:bg-gray-600"
-                              ></div>
-                            </label>
-                          </div>
-                        )}
+                      <p className="text-green-600 text-sm font-semibold dark:text-green-400">Account Name: {p2pDetails.name}</p>
+                      {!selectedSavedP2PBeneficiary && recepientAcc.length >= 6 && p2pDetails?.name && (
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border dark:bg-gray-700 dark:border-gray-600">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Save to beneficiaries</span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={saveP2PBeneficiary} onChange={(e) => setSaveP2PBeneficiary(e.target.checked)} className="sr-only peer" />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b] dark:bg-gray-600"></div>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1393,28 +1112,12 @@ export default function Transfer() {
 
             {/* Narration */}
             <div className="space-y-1">
-              <Label className="dark:text-gray-300">
-                Narration{" "}
-                <span className="text-sm dark:text-gray-400">(purpose of transaction)</span>
-              </Label>
-              <Input
-                type="text"
-                value={narration}
-                onChange={(e) => setNarration(e.target.value)}
-                placeholder="e.g. Food"
-                maxLength={100}
-                className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
-              />
+              <Label className="dark:text-gray-300">Narration <span className="text-sm dark:text-gray-400">(purpose of transaction)</span></Label>
+              <Input type="text" value={narration} onChange={(e) => setNarration(e.target.value)} placeholder="e.g. Food" maxLength={100} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400" />
             </div>
-            {errors.narration && (
-              <p className="text-red-600 text-sm dark:text-red-400">{errors.narration}</p>
-            )}
+            {errors.narration && <p className="text-red-600 text-sm dark:text-red-400">{errors.narration}</p>}
 
-            <Button
-              type="submit"
-              disabled={isDisabled}
-              className="w-full bg-[#2b825b] hover:bg-[#174c36] text-white md:w-[200px] dark:bg-[#236b49] dark:hover:bg-[#174c36]"
-            >
+            <Button type="submit" disabled={isDisabled} className="w-full bg-[#2b825b] hover:bg-[#174c36] text-white md:w-[200px] dark:bg-[#236b49] dark:hover:bg-[#174c36]">
               {loading ? "Processing..." : "Transfer Now"}
             </Button>
           </form>
@@ -1423,27 +1126,9 @@ export default function Transfer() {
       <TransactionSummary
         senderName={`${userData?.fullName}`}
         senderAccount={userDetails?.bank_details?.bank_account_number || "N/A"}
-        recipientName={
-          transferType === "p2p"
-            ? p2pDetails?.name
-            : transferType === "other-bank"
-              ? accountName
-              : userDetails?.payment_details?.p_account_name
-        }
-        recipientAccount={
-          transferType === "p2p"
-            ? recepientAcc
-            : transferType === "other-bank"
-              ? accountNumber
-              : userDetails?.payment_details?.p_account_number
-        }
-        recipientBank={
-          transferType === "p2p"
-            ? "Zidwell"
-            : transferType === "other-bank"
-              ? bankName
-              : userDetails?.payment_details?.p_bank_name
-        }
+        recipientName={transferType === "p2p" ? p2pDetails?.name : transferType === "other-bank" ? accountName : userDetails?.payment_details?.p_account_name}
+        recipientAccount={transferType === "p2p" ? recepientAcc : transferType === "other-bank" ? accountNumber : userDetails?.payment_details?.p_account_number}
+        recipientBank={transferType === "p2p" ? "Zidwell" : transferType === "other-bank" ? bankName : userDetails?.payment_details?.p_bank_name}
         purpose={narration}
         amount={amount}
         confirmTransaction={confirmTransaction}
