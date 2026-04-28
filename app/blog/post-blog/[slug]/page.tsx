@@ -1,19 +1,17 @@
-// app/blog/post-blog/[slug]/page.tsx
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import ClientPostPage from "./client-page";
-import { getPostBySlug } from "./post-data";
+import BlogPostClient from "./client"; 
+import { getPostBySlug } from "@/lib/blog"; 
 
 type Props = {
   params: Promise<{ slug: string }>;
 };
 
+// Generate metadata for SEO and social sharing
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const baseUrl = "https://zidwell.com";
   const { slug } = await params;
   const post = await getPostBySlug(slug);
-
-  
+  const baseUrl = "https://zidwell.com";
 
   if (!post || !post.is_published) {
     return {
@@ -23,25 +21,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: "Zidwell Blog",
         description: "Finance & Business Tools for Nigerian SMEs",
         url: `${baseUrl}/blog/post-blog/${slug}`,
-        images: [
-          {
-            url: `${baseUrl}/blog/post-blog/${slug}/opengraph-image`,
-            width: 1200,
-            height: 630,
-          },
-        ],
+        images: [{ url: `${baseUrl}/images/og-image.png`, width: 1200, height: 630 }],
       },
       twitter: {
         card: "summary_large_image",
         title: "Zidwell Blog",
         description: "Finance & Business Tools for Nigerian SMEs",
-        images: [`${baseUrl}/blog/post-blog/${slug}/opengraph-image`],
+        images: [`${baseUrl}/images/og-image.png`],
       },
     };
   }
 
-  // The OG image is automatically available at this URL
-  const ogImageUrl = `${baseUrl}/blog/post-blog/${slug}/opengraph-image`;
+  // Use featured image for OG image if available
+  const ogImage = post.featured_image || `${baseUrl}/images/og-image.png`;
 
   return {
     title: `${post.title} | Zidwell Blog`,
@@ -60,7 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       authors: post.author_name ? [post.author_name] : ["Zidwell"],
       images: [
         {
-          url: ogImageUrl,
+          url: ogImage,
           width: 1200,
           height: 630,
           alt: post.title,
@@ -71,15 +63,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: "summary_large_image",
       title: post.title,
       description: post.excerpt || `Read "${post.title}" on Zidwell Blog`,
-      images: [ogImageUrl],
+      images: [ogImage],
       creator: "@zidwellapp",
       site: "@zidwellapp",
     },
   };
 }
 
-
-export default async function Page({ params }: Props) {
+export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
 
@@ -87,5 +78,5 @@ export default async function Page({ params }: Props) {
     notFound();
   }
 
-  return <ClientPostPage post={post} />;
+  return <BlogPostClient post={post} />;
 }

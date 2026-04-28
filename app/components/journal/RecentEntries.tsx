@@ -1,6 +1,6 @@
 "use client";
 import { format, parseISO } from "date-fns";
-import { Trash2, Pencil } from "lucide-react";
+import { Trash2, Pencil, Wallet as WalletIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { useJournal } from "@/app/context/JournalContext";
@@ -24,17 +24,34 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   };
 
   const handleDelete = async (entry: any) => {
+    if (entry.source === 'wallet') {
+      alert("Wallet transactions cannot be deleted. They are automatically synced from your wallet activity.");
+      return;
+    }
+    
     if (confirm("Are you sure you want to delete this entry?")) {
       await deleteEntry(entry.id);
       await refetch();
     }
   };
 
+  // Helper to get display category name with custom mapping for wallet transactions
+  const getDisplayCategoryName = (entry: any, category: any) => {
+    if (entry.source === 'wallet' && entry.walletTransactionType) {
+      const txType = entry.walletTransactionType.toLowerCase();
+      // Custom display names for wallet transactions
+      if (txType === 'withdrawal') return 'Withdrawal';
+      if (txType === 'transfer' || txType === 'p2p_transfer') return 'Transfer';
+      if (txType === 'debit') return 'Debit';
+    }
+    return category?.name || (entry.type === 'income' ? 'Income' : 'Expense');
+  };
+
   if (filteredEntries.length === 0) {
     return (
       <div className="p-8 text-center">
         <p className="dark:text-gray-400" style={{ color: "#80746e" }}>
-          No entries yet. Start journaling your transactions!
+          No entries yet. Start journaling or make wallet transactions!
         </p>
       </div>
     );
@@ -44,13 +61,15 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
     <div className="space-y-3">
       {filteredEntries.map((entry) => {
         const category = categories.find((c) => c.id === entry.categoryId);
+        const isWalletEntry = entry.source === 'wallet';
+        const displayName = getDisplayCategoryName(entry, category);
 
         return (
           <div
             key={entry.id}
             className="flex items-center gap-4 p-4 rounded-xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] transition-shadow group dark:bg-gray-800 dark:border-gray-700"
             style={{
-              backgroundColor: "#fcfbf9",
+              backgroundColor: isWalletEntry ? 'rgba(245, 241, 234, 0.5)' : '#fcfbf9',
               borderColor: "#e6dfd6",
             }}
           >
@@ -64,14 +83,25 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-medium truncate dark:text-gray-300">
-                  {category?.name || (entry.type === 'income' ? 'Income' : 'Expense')}
+                  {displayName}
                 </p>
+                {isWalletEntry && (
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1">
+                    <WalletIcon className="h-3 w-3" />
+                    Auto-synced
+                  </span>
+                )}
               </div>
               <p className="text-sm truncate dark:text-gray-400 mt-0.5" style={{ color: "#80746e" }}>
                 {entry.note || (entry.type === 'income' ? 'Income' : 'Expense')}
               </p>
               <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: "#80746e" }}>
                 <span>{format(parseISO(entry.date), "MMM d, yyyy")}</span>
+                {isWalletEntry && entry.walletTransactionType && (
+                  <span className="opacity-70">
+                    • {entry.walletTransactionType}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -84,7 +114,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
             </p>
 
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {onEdit && (
+              {onEdit && !isWalletEntry && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -95,15 +125,22 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                   <Pencil className="h-4 w-4" />
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="dark:text-gray-400 dark:hover:text-gray-300"
-                style={{ color: "#80746e" }}
-                onClick={() => handleDelete(entry)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {!isWalletEntry && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="dark:text-gray-400 dark:hover:text-gray-300"
+                  style={{ color: "#80746e" }}
+                  onClick={() => handleDelete(entry)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+              {isWalletEntry && (
+                <div className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-500">
+                  Read-only
+                </div>
+              )}
             </div>
           </div>
         );

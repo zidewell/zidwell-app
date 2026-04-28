@@ -8,6 +8,8 @@ const EMOJI_CATEGORIES = {
   'Money': ['💰', '💵', '💴', '💶', '💷', '🪙', '💳', '🏦', '💎', '📈', '📉', '💹'],
   'Food': ['🍽️', '🍔', '🍕', '🍜', '🍣', '🥗', '☕', '🍺', '🍷', '🧁', '🍰', '🥡'],
   'Transport': ['🚗', '🚕', '🚙', '🚌', '✈️', '🚂', '🛵', '🚲', '⛽', '🛞', '🚁', '🛳️'],
+  'Transfer': ['💸', '🔄', '↗️', '↘️', '➡️', '💱', '🏧', '💳', '📤', '📥', '💹', '🪙'],  
+  'Withdrawal': ['🏧', '💸', '💰', '💵', '🏦', '📉', '⬇️', '📤', '💳', '🪙', '💱', '💷'], 
   'Home': ['🏠', '🏡', '🏢', '🛋️', '🛏️', '🪑', '🚿', '🔑', '🏗️', '🧹', '🪴', '💡'],
   'Tech': ['📱', '💻', '🖥️', '⌨️', '🖱️', '📡', '🔋', '💿', '🎮', '🕹️', '📺', '📷'],
   'Health': ['🏥', '💊', '🩺', '🩹', '💉', '🏃', '🧘', '🧴', '🦷', '👁️', '❤️', '🩻'],
@@ -78,7 +80,7 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
           
           {/* Icons grid */}
           <div className="grid grid-cols-6 gap-1.5">
-            {EMOJI_CATEGORIES[activeCategory as keyof typeof EMOJI_CATEGORIES].map((icon) => (
+            {EMOJI_CATEGORIES[activeCategory as keyof typeof EMOJI_CATEGORIES]?.map((icon) => (
               <button
                 key={icon}
                 type="button"

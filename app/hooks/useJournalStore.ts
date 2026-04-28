@@ -1,5 +1,3 @@
-// app/hooks/useJournalStore.ts
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { JournalEntry, Category, JournalType, DEFAULT_CATEGORIES, PeriodSummary } from '../components/journal/types'; 
 import { 
@@ -15,13 +13,6 @@ import {
   parseISO
 } from 'date-fns';
 import { useUserContextData } from '../context/userData'; 
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client for real-time
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export interface UnifiedTransaction {
   id: string;
@@ -30,7 +21,7 @@ export interface UnifiedTransaction {
   amount: number;
   categoryId: string;
   note: string;
-  source: 'manual' | 'wallet'; // Add 'wallet' source
+  source: 'manual' | 'wallet';
   journalType: JournalType;
   originalTransactionId?: string;
   walletTransactionType?: string;
@@ -58,7 +49,7 @@ const API_BASE = '/api/journal';
 const INFLOW_TYPES = [
   'deposit', 'virtual_account_deposit', 'card_deposit', 
   'p2p_received', 'referral', 'referral_reward', 
-  'refund', 'cashback', 'reversal'
+  'refund', 'cashback', 'reversal', 'salary'
 ];
 
 // OUTFLOW: Money you DEDUCT/WITHDRAW (Expense)
@@ -129,7 +120,6 @@ export function useJournalStore() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updateTrigger, setUpdateTrigger] = useState(0);
-  const [syncedTransactionIds, setSyncedTransactionIds] = useState<Set<string>>(new Set());
 
   const userId = userData?.id;
 
@@ -158,113 +148,146 @@ export function useJournalStore() {
     return 'expense';
   }, []);
 
-  // Helper: Get category for wallet transaction
-  const getCategoryForWalletTransaction = useCallback((transaction: WalletTransaction): string => {
-    const type = transaction.type?.toLowerCase();
-    const description = (transaction.description || transaction.narration || '').toLowerCase();
-    const isOutflow = OUTFLOW_TYPES.includes(type) || transaction.amount < 0;
-    
-    if (isOutflow) {
-      // Airtime purchase
-      if (type === 'airtime' || description.includes('airtime')) {
-        const cat = categories.find(c => c.name === 'Data & Airtime');
-        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
-      }
-      // Data purchase
-      if (type === 'data' || description.includes('data')) {
-        const cat = categories.find(c => c.name === 'Data & Airtime');
-        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
-      }
-      // Electricity bill
-      if (type === 'electricity' || description.includes('electricity')) {
-        const cat = categories.find(c => c.name === 'Utilities');
-        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
-      }
-      // Bank transfer / P2P sent
-      if (type === 'transfer' || type === 'p2p_transfer') {
-        const cat = categories.find(c => c.name === 'Bank Transfer');
-        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
-      }
-      // Withdrawal
-      if (type === 'withdrawal') {
-        const cat = categories.find(c => c.name === 'Withdrawal');
-        return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
-      }
-      // Default expense
-      const cat = categories.find(c => c.name === 'Wallet Expense');
-      return cat?.id || categories.find(c => c.type === 'expense')?.id || '';
+const getCategoryForWalletTransaction = useCallback((transaction: WalletTransaction): string => {
+  const type = transaction.type?.toLowerCase();
+  const description = (transaction.description || transaction.narration || '').toLowerCase();
+  const isOutflow = OUTFLOW_TYPES.includes(type) || transaction.amount < 0;
+  
+  if (isOutflow) {
+    // WITHDRAWAL - Map to Withdrawal category
+    if (type === 'withdrawal') {
+      const cat = categories.find(c => c.name === 'Withdrawal');
+      if (cat) return cat.id;
+      // Fallback to Transfer if Withdrawal doesn't exist
+      const transferCat = categories.find(c => c.name === 'Transfer');
+      if (transferCat) return transferCat.id;
+      const expenseCat = categories.find(c => c.type === 'expense');
+      return expenseCat?.id || '';
     }
     
-    // INFLOW - Income
-    if (type === 'deposit' || type === 'virtual_account_deposit' || type === 'card_deposit') {
-      const cat = categories.find(c => c.name === 'Bank Deposit');
-      return cat?.id || categories.find(c => c.type === 'income')?.id || '';
-    }
-    if (type === 'referral' || type === 'referral_reward') {
-      const cat = categories.find(c => c.name === 'Referral Bonus');
-      return cat?.id || categories.find(c => c.type === 'income')?.id || '';
-    }
-    if (type === 'refund') {
-      const cat = categories.find(c => c.name === 'Refund');
-      return cat?.id || categories.find(c => c.type === 'income')?.id || '';
-    }
-    if (type === 'p2p_received') {
-      const cat = categories.find(c => c.name === 'P2P Transfer Received');
-      return cat?.id || categories.find(c => c.type === 'income')?.id || '';
+    // Bank transfer / P2P sent - Map to Transfer category
+    if (type === 'transfer' || type === 'p2p_transfer' || description.includes('transfer')) {
+      const cat = categories.find(c => c.name === 'Transfer');
+      if (cat) return cat.id;
+      const expenseCat = categories.find(c => c.type === 'expense');
+      return expenseCat?.id || '';
     }
     
-    // Default income
-    const cat = categories.find(c => c.name === 'Wallet Income');
-    return cat?.id || categories.find(c => c.type === 'income')?.id || '';
-  }, [categories]);
-
-  // Auto-create journal entry from wallet transaction
-  const autoCreateJournalEntry = useCallback(async (transaction: WalletTransaction) => {
-    if (!userId) return;
-    
-    // Check if already synced
-    if (syncedTransactionIds.has(transaction.id)) {
-      console.log(`Transaction ${transaction.id} already synced, skipping...`);
-      return;
+    // Debit transaction - Map to Transfer category
+    if (type === 'debit') {
+      const cat = categories.find(c => c.name === 'Transfer');
+      if (cat) return cat.id;
+      const expenseCat = categories.find(c => c.type === 'expense');
+      return expenseCat?.id || '';
     }
-
-    const txType = getWalletTransactionType(transaction);
-    const amount = Math.abs(transaction.amount);
-    const categoryId = getCategoryForWalletTransaction(transaction);
-    const description = transaction.narration || transaction.description || `${transaction.type} transaction`;
     
-    // Create journal entry
-    const journalEntry: Omit<JournalEntry, 'id' | 'createdAt'> = {
-      date: new Date(transaction.created_at).toISOString(),
-      type: txType,
-      amount: amount,
-      categoryId: categoryId,
-      note: `[Auto-synced] ${description} | Ref: ${transaction.reference || transaction.id}`,
-      journalType: activeJournalType, // Use current active journal type
-    };
-
-    try {
-      console.log(`🔄 Auto-creating journal entry for transaction:`, {
-        id: transaction.id,
-        type: txType,
-        amount,
-        description
-      });
-
-      const newEntry = await addEntry(journalEntry);
-      
-      // Mark as synced
-      setSyncedTransactionIds(prev => new Set([...prev, transaction.id]));
-      
-      console.log(`✅ Auto-created journal entry: ${newEntry.id} for wallet transaction ${transaction.id}`);
-      
-      return newEntry;
-    } catch (error) {
-      console.error(`❌ Failed to auto-create journal entry for transaction ${transaction.id}:`, error);
+    // Airtime purchase
+    if (type === 'airtime' || description.includes('airtime')) {
+      const cat = categories.find(c => c.name === 'Data & Airtime');
+      if (cat) return cat.id;
+      const expenseCat = categories.find(c => c.type === 'expense');
+      return expenseCat?.id || '';
     }
-  }, [userId, activeJournalType, getWalletTransactionType, getCategoryForWalletTransaction, addEntry, syncedTransactionIds]);
-
-  // Fetch initial wallet transactions
+    
+    // Data purchase
+    if (type === 'data' || description.includes('data')) {
+      const cat = categories.find(c => c.name === 'Data & Airtime');
+      if (cat) return cat.id;
+      const expenseCat = categories.find(c => c.type === 'expense');
+      return expenseCat?.id || '';
+    }
+    
+    // Electricity bill
+    if (type === 'electricity' || description.includes('electricity') || description.includes('light')) {
+      const cat = categories.find(c => c.name === 'Utilities');
+      if (cat) return cat.id;
+      const expenseCat = categories.find(c => c.type === 'expense');
+      return expenseCat?.id || '';
+    }
+    
+    // Cable TV
+    if (type === 'cable' || description.includes('cable') || description.includes('tv')) {
+      const cat = categories.find(c => c.name === 'Utilities');
+      if (cat) return cat.id;
+      const expenseCat = categories.find(c => c.type === 'expense');
+      return expenseCat?.id || '';
+    }
+    
+    // Bill payment
+    if (type === 'bill_payment' || description.includes('bill')) {
+      const cat = categories.find(c => c.name === 'Bills');
+      if (cat) return cat.id;
+      const expenseCat = categories.find(c => c.type === 'expense');
+      return expenseCat?.id || '';
+    }
+    
+    // Food - ONLY for actual food-related transactions
+    if (description.includes('food') || description.includes('restaurant') || description.includes('cafe') || description.includes('eatery')) {
+      const cat = categories.find(c => c.name === 'Food');
+      if (cat) return cat.id;
+      const expenseCat = categories.find(c => c.type === 'expense');
+      return expenseCat?.id || '';
+    }
+    
+    // Default expense
+    const expenseCat = categories.find(c => c.type === 'expense');
+    return expenseCat?.id || '';
+  }
+  
+  // INFLOW - Income
+  // Virtual account deposit, card deposit, regular deposit - ALL map to Bank Deposit
+  if (type === 'deposit' || type === 'virtual_account_deposit' || type === 'card_deposit' || description.includes('deposit')) {
+    const cat = categories.find(c => c.name === 'Bank Deposit');
+    if (cat) return cat.id;
+    const incomeCat = categories.find(c => c.type === 'income');
+    return incomeCat?.id || '';
+  }
+  
+  // Referral bonus
+  if (type === 'referral' || type === 'referral_reward' || description.includes('referral')) {
+    const cat = categories.find(c => c.name === 'Referral Bonus');
+    if (cat) return cat.id;
+    const incomeCat = categories.find(c => c.type === 'income');
+    return incomeCat?.id || '';
+  }
+  
+  // Refund
+  if (type === 'refund' || description.includes('refund') || description.includes('reversal')) {
+    const cat = categories.find(c => c.name === 'Refund');
+    if (cat) return cat.id;
+    const incomeCat = categories.find(c => c.type === 'income');
+    return incomeCat?.id || '';
+  }
+  
+  // Cashback
+  if (type === 'cashback' || description.includes('cashback')) {
+    const cat = categories.find(c => c.name === 'Cashback');
+    if (cat) return cat.id;
+    const incomeCat = categories.find(c => c.type === 'income');
+    return incomeCat?.id || '';
+  }
+  
+  // P2P Received
+  if (type === 'p2p_received' || description.includes('received from')) {
+    const cat = categories.find(c => c.name === 'P2P Transfer Received');
+    if (cat) return cat.id;
+    const incomeCat = categories.find(c => c.type === 'income');
+    return incomeCat?.id || '';
+  }
+  
+  // Salary/Wages
+  if (type === 'salary' || description.includes('salary') || description.includes('wage') || description.includes('payroll')) {
+    const cat = categories.find(c => c.name === 'Salary');
+    if (cat) return cat.id;
+    const incomeCat = categories.find(c => c.type === 'income');
+    return incomeCat?.id || '';
+  }
+  
+  // Default income
+  const incomeCat = categories.find(c => c.type === 'income');
+  return incomeCat?.id || '';
+}, [categories]);
+  // Fetch wallet transactions
   const fetchWalletTransactions = useCallback(async () => {
     if (!userId) return [];
     try {
@@ -278,59 +301,6 @@ export function useJournalStore() {
     }
   }, [userId]);
 
-  // Create unified entries (manual + wallet transactions)
-  const unifiedEntries: UnifiedTransaction[] = useMemo(() => {
-    const manualEntries: UnifiedTransaction[] = entries.map(entry => ({
-      id: entry.id,
-      date: entry.date,
-      type: entry.type,
-      amount: entry.amount,
-      categoryId: entry.categoryId,
-      note: entry.note || '',
-      source: 'manual',
-      journalType: entry.journalType,
-    }));
-
-    const walletEntries: UnifiedTransaction[] = walletTransactions
-      .filter(tx => tx.status?.toLowerCase() === 'success')
-      .map(tx => {
-        const txType = getWalletTransactionType(tx);
-        const description = tx.narration || tx.description || `${tx.type} transaction`;
-        const categoryId = getCategoryForWalletTransaction(tx);
-        const amount = Math.abs(tx.amount);
-        
-        return {
-          id: `wallet_${tx.id}`,
-          date: new Date(tx.created_at).toISOString(),
-          type: txType,
-          amount: amount,
-          categoryId: categoryId,
-          note: `[Wallet] ${description}`,
-          source: 'wallet',
-          journalType: activeJournalType,
-          originalTransactionId: tx.id,
-          walletTransactionType: tx.type,
-          status: tx.status,
-          transactionDescription: description,
-        };
-      });
-
-    const allEntries = [...manualEntries, ...walletEntries];
-    const incomeCount = allEntries.filter(e => e.type === 'income').length;
-    const expenseCount = allEntries.filter(e => e.type === 'expense').length;
-    const totalIncome = allEntries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
-    const totalExpense = allEntries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
-    
-    console.log(`📈 Unified entries: ${allEntries.length} total`);
-    console.log(`   ➕ Income: ${incomeCount} entries, ₦${totalIncome.toLocaleString()}`);
-    console.log(`   ➖ Expense: ${expenseCount} entries, ₦${totalExpense.toLocaleString()}`);
-    
-    return allEntries.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-  }, [entries, walletTransactions, activeJournalType, getWalletTransactionType, getCategoryForWalletTransaction]);
-
-  // Load all data
   const loadData = useCallback(async () => {
     if (!userId) {
       setLoading(false);
@@ -354,13 +324,6 @@ export function useJournalStore() {
       const walletData = await fetchWalletTransactions();
       setWalletTransactions(walletData);
       
-      // Auto-create journal entries for unsynced wallet transactions
-      for (const transaction of walletData) {
-        if (transaction.status?.toLowerCase() === 'success') {
-          await autoCreateJournalEntry(transaction);
-        }
-      }
-      
       forceUpdate();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -368,45 +331,7 @@ export function useJournalStore() {
     } finally {
       setLoading(false);
     }
-  }, [userId, forceUpdate, fetchWalletTransactions, autoCreateJournalEntry]);
-
-  // Set up real-time subscription for new wallet transactions
-  useEffect(() => {
-    if (!userId) return;
-
-    // Subscribe to new wallet transactions
-    const subscription = supabase
-      .channel('wallet-transactions')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'transactions', // Change to your actual transactions table name
-          filter: `user_id=eq.${userId}`,
-        },
-        async (payload) => {
-          console.log('🆕 New wallet transaction detected:', payload.new);
-          const newTransaction = payload.new as WalletTransaction;
-          
-          if (newTransaction.status?.toLowerCase() === 'success') {
-            // Add to wallet transactions state
-            setWalletTransactions(prev => [newTransaction, ...prev]);
-            
-            // Auto-create journal entry
-            await autoCreateJournalEntry(newTransaction);
-            
-            // Force UI update
-            forceUpdate();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [userId, autoCreateJournalEntry, forceUpdate]);
+  }, [userId, forceUpdate, fetchWalletTransactions]);
 
   useEffect(() => {
     if (userId) {
@@ -444,9 +369,7 @@ export function useJournalStore() {
         return [newEntry, ...prev];
       });
       
-      setTimeout(() => forceUpdate(), 0);
-      setTimeout(() => forceUpdate(), 50);
-      
+      forceUpdate();
       return newEntry;
     } catch (err) {
       console.error('Failed to add entry:', err);
@@ -477,12 +400,6 @@ export function useJournalStore() {
 
   const deleteEntry = useCallback(async (id: string) => {
     if (!userId) throw new Error('User not authenticated');
-    
-    // Check if it's a wallet-synced entry
-    if (id.startsWith('wallet_')) {
-      alert('Wallet transactions cannot be deleted. They are automatically synced from your wallet activity.');
-      return;
-    }
     
     try {
       await fetchWithAuth(`/entries/${id}`, {
@@ -567,6 +484,60 @@ export function useJournalStore() {
       setLoading(false);
     }
   }, [userId, forceUpdate]);
+
+  // Create unified entries - combines manual entries + wallet transactions (display only)
+  const unifiedEntries: UnifiedTransaction[] = useMemo(() => {
+    // Manual entries from database
+    const manualEntries: UnifiedTransaction[] = entries.map(entry => ({
+      id: entry.id,
+      date: entry.date,
+      type: entry.type,
+      amount: entry.amount,
+      categoryId: entry.categoryId,
+      note: entry.note || '',
+      source: 'manual',
+      journalType: entry.journalType,
+    }));
+
+    // Wallet transactions for display only - NOT saved to journal_entries table
+    const walletEntries: UnifiedTransaction[] = walletTransactions
+      .filter(tx => tx.status?.toLowerCase() === 'success')
+      .map(tx => {
+        const txType = getWalletTransactionType(tx);
+        const description = tx.narration || tx.description || `${tx.type} transaction`;
+        const categoryId = getCategoryForWalletTransaction(tx);
+        const amount = Math.abs(tx.amount);
+        
+        return {
+          id: `wallet_${tx.id}`,
+          date: new Date(tx.created_at).toISOString(),
+          type: txType,
+          amount: amount,
+          categoryId: categoryId,
+          note: `[Wallet] ${description}`,
+          source: 'wallet',
+          journalType: activeJournalType,
+          originalTransactionId: tx.id,
+          walletTransactionType: tx.type,
+          status: tx.status,
+          transactionDescription: description,
+        };
+      });
+
+    const allEntries = [...manualEntries, ...walletEntries];
+    const incomeCount = allEntries.filter(e => e.type === 'income').length;
+    const expenseCount = allEntries.filter(e => e.type === 'expense').length;
+    const totalIncome = allEntries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+    const totalExpense = allEntries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
+    
+    console.log(`📈 Unified entries: ${allEntries.length} total (${manualEntries.length} manual + ${walletEntries.length} wallet)`);
+    console.log(`   ➕ Income: ${incomeCount} entries, ₦${totalIncome.toLocaleString()}`);
+    console.log(`   ➖ Expense: ${expenseCount} entries, ₦${totalExpense.toLocaleString()}`);
+    
+    return allEntries.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [entries, walletTransactions, activeJournalType, getWalletTransactionType, getCategoryForWalletTransaction]);
 
   const getFilteredEntries = useCallback((journalType: JournalType) => {
     return unifiedEntries.filter(entry => entry.journalType === journalType);
