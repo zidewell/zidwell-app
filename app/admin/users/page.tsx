@@ -31,6 +31,10 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/app/components/ui/tabs";
+import { Checkbox } from "@/app/components/ui/checkbox";
+import { Label } from "@/app/components/ui/label";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetDescription } from "@/app/components/ui/sheet";
+import { Download, ChevronDown } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -45,15 +49,51 @@ export default function UsersPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("active");
   const [exportLoading, setExportLoading] = useState(false);
-  const [exportAllLoading, setExportAllLoading] = useState(false);
   const [totalCounts, setTotalCounts] = useState({
     active: 0,
     pending: 0
   });
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [exportOptions, setExportOptions] = useState({
+    exportType: "current" as "current" | "all",
+    userType: "both" as "active" | "pending" | "both",
+    includeSearch: true,
+    includeStatus: true,
+    includeRole: true,
+    includeActivity: true,
+    includeBalance: true,
+    // Field selection for CSV columns
+    selectedFields: {
+      id: true,
+      email: true,
+      fullName: true,
+      phone: true,
+      status: true,
+      balance: true,
+      kycStatus: false,
+      registrationDate: false,
+      lastLogin: false,
+      role: false,
+      referralCode: false,
+      referredBy: false,
+    }
+  });
+  const [isMobile, setIsMobile] = useState(false);
+  
   const itemsPerPage = 10;
 
   const LOW_BALANCE_THRESHOLD = 1000;
   const HIGH_BALANCE_THRESHOLD = 100000;
+
+  // Check for mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const { data, error, isLoading, mutate } = useSWR(
     activeTab === "pending"
@@ -109,21 +149,25 @@ export default function UsersPage() {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, roleFilter, activityFilter, activeTab, balanceFilter]);
 
+  // Get active users (verified users)
   const activeUsers = React.useMemo(() => {
     if (!data || activeTab === "pending") return [];
     const usersArray = data?.users ?? data;
-    return usersArray.filter((user: any) => user.bvn_verification === "verified").map((user: any) => ({
-      ...user,
-      full_name: user.full_name || "",
-      balance: user.wallet_balance || 0,
-      created_at_raw: user.created_at,
-      last_login_raw: user.last_login,
-      last_logout_raw: user.last_logout,
-      is_blocked: user.is_blocked || user.status === "blocked",
-      phone: user.phone || "",
-    }));
+    return usersArray
+      .filter((user: any) => user.bvn_verification === "verified" || user.bvn_verification === "approved")
+      .map((user: any) => ({
+        ...user,
+        full_name: user.full_name || "",
+        balance: user.wallet_balance || 0,
+        created_at_raw: user.created_at,
+        last_login_raw: user.last_login,
+        last_logout_raw: user.last_logout,
+        is_blocked: user.is_blocked || user.status === "blocked",
+        phone: user.phone || "",
+      }));
   }, [data, activeTab]);
 
+  // Get pending users
   const pendingUsers = React.useMemo(() => {
     if (!data || activeTab === "active") return [];
     const usersArray = data?.users ?? data;
@@ -138,6 +182,7 @@ export default function UsersPage() {
     }));
   }, [data, activeTab]);
 
+  // Activity helper functions
   const isUserRecentlyActive = (user: any) => {
     const isActiveStatus = !user.is_blocked && user.status === "active";
     const hasRecentLogin = user.last_login_raw;
@@ -186,15 +231,7 @@ export default function UsersPage() {
     return balance < 0;
   };
 
-  const recentlyActiveUsers = activeUsers.filter(isUserRecentlyActive);
-  const activeTodayCount = activeUsers.filter(isUserActiveToday);
-  const activeThisWeekCount = activeUsers.filter(isUserActiveThisWeek);
-  const inactiveUsers = activeUsers.filter(isUserInactive);
-  const blockedUsers = activeUsers.filter((user: any) => user.is_blocked);
-  const lowBalanceUsers = activeUsers.filter(isLowBalance);
-  const highBalanceUsers = activeUsers.filter(isHighBalance);
-  const negativeBalanceUsers = activeUsers.filter(isNegativeBalance);
-
+  // Filter active users
   const filteredActiveUsers = activeUsers.filter((user: any) => {
     const matchesSearch =
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -225,6 +262,7 @@ export default function UsersPage() {
     return matchesSearch && matchesStatus && matchesRole && matchesActivity && matchesBalance;
   });
 
+  // Filter pending users
   const filteredPendingUsers = pendingUsers.filter((user: any) => {
     return (
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -248,27 +286,91 @@ export default function UsersPage() {
     setSelectedUserId(null);
   };
 
-  const handleExportCSV = async () => {
-    setExportLoading(true);
-    try {
+  // Function to format user data based on selected fields
+  const formatUserForExport = (user: any, type: string) => {
+    const formatted: any = {};
+    
+    if (exportOptions.selectedFields.id) {
+      formatted["User ID"] = user.id;
+    }
+    if (exportOptions.selectedFields.email) {
+      formatted["Email"] = user.email || "";
+    }
+    if (exportOptions.selectedFields.fullName) {
+      formatted["Full Name"] = user.full_name || user.fullName || "";
+    }
+    if (exportOptions.selectedFields.phone) {
+      formatted["Phone"] = user.phone || "";
+    }
+    if (exportOptions.selectedFields.status) {
+      if (type === "pending") {
+        formatted["Status"] = "Pending";
+      } else {
+        formatted["Status"] = user.is_blocked ? "Blocked" : "Active";
+      }
+    }
+    if (exportOptions.selectedFields.balance && type === "active") {
+      formatted["Wallet Balance"] = Number(user.balance || user.wallet_balance) || 0;
+    }
+    if (exportOptions.selectedFields.kycStatus) {
+      formatted["KYC Status"] = user.kyc_status || user.bvn_verification || "Not Started";
+    }
+    if (exportOptions.selectedFields.registrationDate) {
+      formatted["Registration Date"] = user.created_at_raw || user.created_at 
+        ? new Date(user.created_at_raw || user.created_at).toLocaleDateString() 
+        : "";
+    }
+    if (exportOptions.selectedFields.lastLogin && type === "active") {
+      formatted["Last Login"] = user.last_login_raw || user.last_login 
+        ? new Date(user.last_login_raw || user.last_login).toLocaleString() 
+        : "Never";
+    }
+    if (exportOptions.selectedFields.role && type === "active") {
+      formatted["Role"] = user.role || "user";
+    }
+    if (exportOptions.selectedFields.referralCode) {
+      formatted["Referral Code"] = user.referral_code || "";
+    }
+    if (exportOptions.selectedFields.referredBy) {
+      formatted["Referred By"] = user.referred_by || "";
+    }
+    
+    return formatted;
+  };
+
+ const handleExportWithOptions = async () => {
+  setExportLoading(true);
+  setIsFilterSheetOpen(false);
+  
+  try {
+    if (exportOptions.exportType === "current") {
+      // Export current view with applied filters and selected fields
       const params = new URLSearchParams();
-      if (searchTerm) params.append("search", searchTerm);
-      if (statusFilter !== "all") params.append("status", statusFilter);
-      if (roleFilter !== "all") params.append("role", roleFilter);
-      if (activityFilter !== "all") params.append("activity", activityFilter);
-      if (balanceFilter !== "all") params.append("balance", balanceFilter);
+      
+      if (exportOptions.includeSearch && searchTerm) params.append("search", searchTerm);
+      if (exportOptions.includeStatus && statusFilter !== "all") params.append("status", statusFilter);
+      if (exportOptions.includeRole && roleFilter !== "all") params.append("role", roleFilter);
+      if (exportOptions.includeActivity && activityFilter !== "all") params.append("activity", activityFilter);
+      if (exportOptions.includeBalance && balanceFilter !== "all") params.append("balance", balanceFilter);
       params.append("type", activeTab);
       params.append("low_threshold", LOW_BALANCE_THRESHOLD.toString());
       params.append("high_threshold", HIGH_BALANCE_THRESHOLD.toString());
+      
+      // Send selected fields to API
+      params.append("fields", JSON.stringify(exportOptions.selectedFields));
 
       const response = await fetch(`/api/admin-apis/users/export?${params.toString()}`);
-      if (!response.ok) throw new Error("Export failed");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Export failed");
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${activeTab}_users_${new Date().toISOString().split("T")[0]}.csv`;
+      const fileName = `${activeTab}_users_${new Date().toISOString().split("T")[0]}.csv`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -277,29 +379,40 @@ export default function UsersPage() {
       Swal.fire({
         icon: "success",
         title: "Export Successful",
-        text: `Exported ${currentUsers.length} users to CSV`,
+        text: `Exported with selected fields`,
         timer: 2000,
         showConfirmButton: false,
       });
-    } catch (error: any) {
-      Swal.fire({ icon: "error", title: "Export Failed", text: error.message });
-    } finally {
-      setExportLoading(false);
-    }
-  };
-
-  // New function to export all users (active + pending) in one CSV
-  const handleExportAllUsers = async () => {
-    setExportAllLoading(true);
-    try {
-      const response = await fetch(`/api/admin-apis/users/export-all`);
-      if (!response.ok) throw new Error("Export failed");
+    } else {
+      // Export all users with selected fields
+      const params = new URLSearchParams();
+      
+      if (exportOptions.userType === "active") {
+        params.append("type", "active");
+      } else if (exportOptions.userType === "pending") {
+        params.append("type", "pending");
+      } else {
+        params.append("type", "all");
+      }
+      
+      // Send selected fields to API
+      params.append("fields", JSON.stringify(exportOptions.selectedFields));
+      
+      const queryString = params.toString();
+      const apiUrl = `/api/admin-apis/users/export-all${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Export failed");
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `all_users_${new Date().toISOString().split("T")[0]}.csv`;
+      const userTypeLabel = exportOptions.userType === "both" ? "all" : exportOptions.userType;
+      a.download = `${userTypeLabel}_users_${new Date().toISOString().split("T")[0]}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -308,16 +421,21 @@ export default function UsersPage() {
       Swal.fire({
         icon: "success",
         title: "Export Successful",
-        text: `Exported all ${totalCounts.active + totalCounts.pending} users to CSV`,
+        text: `Export completed successfully`,
         timer: 2000,
         showConfirmButton: false,
       });
-    } catch (error: any) {
-      Swal.fire({ icon: "error", title: "Export Failed", text: error.message });
-    } finally {
-      setExportAllLoading(false);
     }
-  };
+  } catch (error: any) {
+    Swal.fire({ 
+      icon: "error", 
+      title: "Export Failed", 
+      text: error.message || "An error occurred during export" 
+    });
+  } finally {
+    setExportLoading(false);
+  }
+};
 
   const handleApprovePendingUser = async (user: any) => {
     const result = await Swal.fire({
@@ -430,7 +548,7 @@ export default function UsersPage() {
   };
 
   const renderKycCell = (value: string) => {
-    if (value === "verified") {
+    if (value === "verified" || value === "approved") {
       return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">✓ Verified</span>;
     } else if (value === "pending" || value === "not_submitted") {
       return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending</span>;
@@ -452,7 +570,13 @@ export default function UsersPage() {
     return <span className={`font-medium ${balanceClass}`}>₦{amount.toLocaleString()}</span>;
   };
 
-  const activeUserColumns = [
+  // Responsive column configuration
+  const activeUserColumns = isMobile ? [
+    { key: "email", label: "Email" },
+    { key: "full_name", label: "Name" },
+    { key: "balance", label: "Balance", render: renderBalanceCell },
+    { key: "status", label: "Status", render: renderStatusCell },
+  ] : [
     { key: "email", label: "Email" },
     { key: "full_name", label: "Name" },
     { key: "balance", label: "Balance", render: renderBalanceCell },
@@ -462,7 +586,12 @@ export default function UsersPage() {
     { key: "kyc_status", label: "KYC", render: renderKycCell },
   ];
 
-  const pendingUserColumns = [
+  const pendingUserColumns = isMobile ? [
+    { key: "email", label: "Email" },
+    { key: "full_name", label: "Name" },
+    { key: "phone", label: "Phone" },
+    { key: "status", label: "Status", render: renderStatusCell },
+  ] : [
     { key: "email", label: "Email" },
     { key: "full_name", label: "Name" },
     { key: "phone", label: "Phone" },
@@ -470,6 +599,328 @@ export default function UsersPage() {
     { key: "kyc_status", label: "KYC", render: renderKycCell },
     { key: "status", label: "Status", render: renderStatusCell },
   ];
+
+  // Field Selection Component
+  const FieldSelectionSection = () => (
+    <div className="space-y-3">
+      <Label className="text-sm font-semibold">Select Fields to Export</Label>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="fieldId"
+            checked={exportOptions.selectedFields.id}
+            onCheckedChange={(checked) => 
+              setExportOptions({ 
+                ...exportOptions, 
+                selectedFields: { ...exportOptions.selectedFields, id: checked === true }
+              })
+            }
+          />
+          <Label htmlFor="fieldId">User ID</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="fieldEmail"
+            checked={exportOptions.selectedFields.email}
+            onCheckedChange={(checked) => 
+              setExportOptions({ 
+                ...exportOptions, 
+                selectedFields: { ...exportOptions.selectedFields, email: checked === true }
+              })
+            }
+          />
+          <Label htmlFor="fieldEmail">Email</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="fieldFullName"
+            checked={exportOptions.selectedFields.fullName}
+            onCheckedChange={(checked) => 
+              setExportOptions({ 
+                ...exportOptions, 
+                selectedFields: { ...exportOptions.selectedFields, fullName: checked === true }
+              })
+            }
+          />
+          <Label htmlFor="fieldFullName">Full Name</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="fieldPhone"
+            checked={exportOptions.selectedFields.phone}
+            onCheckedChange={(checked) => 
+              setExportOptions({ 
+                ...exportOptions, 
+                selectedFields: { ...exportOptions.selectedFields, phone: checked === true }
+              })
+            }
+          />
+          <Label htmlFor="fieldPhone">Phone Number</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="fieldStatus"
+            checked={exportOptions.selectedFields.status}
+            onCheckedChange={(checked) => 
+              setExportOptions({ 
+                ...exportOptions, 
+                selectedFields: { ...exportOptions.selectedFields, status: checked === true }
+              })
+            }
+          />
+          <Label htmlFor="fieldStatus">Status</Label>
+        </div>
+        {activeTab === "active" && (
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="fieldBalance"
+              checked={exportOptions.selectedFields.balance}
+              onCheckedChange={(checked) => 
+                setExportOptions({ 
+                  ...exportOptions, 
+                  selectedFields: { ...exportOptions.selectedFields, balance: checked === true }
+                })
+              }
+            />
+            <Label htmlFor="fieldBalance">Wallet Balance</Label>
+          </div>
+        )}
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="fieldKycStatus"
+            checked={exportOptions.selectedFields.kycStatus}
+            onCheckedChange={(checked) => 
+              setExportOptions({ 
+                ...exportOptions, 
+                selectedFields: { ...exportOptions.selectedFields, kycStatus: checked === true }
+              })
+            }
+          />
+          <Label htmlFor="fieldKycStatus">KYC Status</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="fieldRegistrationDate"
+            checked={exportOptions.selectedFields.registrationDate}
+            onCheckedChange={(checked) => 
+              setExportOptions({ 
+                ...exportOptions, 
+                selectedFields: { ...exportOptions.selectedFields, registrationDate: checked === true }
+              })
+            }
+          />
+          <Label htmlFor="fieldRegistrationDate">Registration Date</Label>
+        </div>
+        {activeTab === "active" && (
+          <>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="fieldLastLogin"
+                checked={exportOptions.selectedFields.lastLogin}
+                onCheckedChange={(checked) => 
+                  setExportOptions({ 
+                    ...exportOptions, 
+                    selectedFields: { ...exportOptions.selectedFields, lastLogin: checked === true }
+                  })
+                }
+              />
+              <Label htmlFor="fieldLastLogin">Last Login</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="fieldRole"
+                checked={exportOptions.selectedFields.role}
+                onCheckedChange={(checked) => 
+                  setExportOptions({ 
+                    ...exportOptions, 
+                    selectedFields: { ...exportOptions.selectedFields, role: checked === true }
+                  })
+                }
+              />
+              <Label htmlFor="fieldRole">Role</Label>
+            </div>
+          </>
+        )}
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="fieldReferralCode"
+            checked={exportOptions.selectedFields.referralCode}
+            onCheckedChange={(checked) => 
+              setExportOptions({ 
+                ...exportOptions, 
+                selectedFields: { ...exportOptions.selectedFields, referralCode: checked === true }
+              })
+            }
+          />
+          <Label htmlFor="fieldReferralCode">Referral Code</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="fieldReferredBy"
+            checked={exportOptions.selectedFields.referredBy}
+            onCheckedChange={(checked) => 
+              setExportOptions({ 
+                ...exportOptions, 
+                selectedFields: { ...exportOptions.selectedFields, referredBy: checked === true }
+              })
+            }
+          />
+          <Label htmlFor="fieldReferredBy">Referred By</Label>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Export Options Sheet Component
+  const ExportOptionsSheet = () => (
+    <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+      <SheetTrigger asChild>
+        <Button variant="outline" className="bg-blue-50 hover:bg-blue-100 border-blue-200">
+          <Download className="w-4 h-4 mr-2" />
+          Export
+          <ChevronDown className="w-4 h-4 ml-2" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-full sm:w-[500px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Export Options</SheetTitle>
+          <SheetDescription>
+            Choose what data to export and which fields to include
+          </SheetDescription>
+        </SheetHeader>
+        <div className="mt-6 space-y-6">
+          {/* Export Type Selection */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold">Export Type</Label>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="exportCurrent"
+                  checked={exportOptions.exportType === "current"}
+                  onChange={() => setExportOptions({ ...exportOptions, exportType: "current" })}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="exportCurrent">Current View ({activeTab === "active" ? "Verified Users" : "Pending Users"})</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="exportAll"
+                  checked={exportOptions.exportType === "all"}
+                  onChange={() => setExportOptions({ ...exportOptions, exportType: "all" })}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="exportAll">All Users (Active + Pending)</Label>
+              </div>
+            </div>
+          </div>
+
+          {/* User Type Selection (for All Users export) */}
+          {exportOptions.exportType === "all" && (
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">User Type</Label>
+              <Select
+                value={exportOptions.userType}
+                onValueChange={(value: "active" | "pending" | "both") => setExportOptions({ ...exportOptions, userType: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="both">Both Active & Pending</SelectItem>
+                  <SelectItem value="active">Active Users Only</SelectItem>
+                  <SelectItem value="pending">Pending Users Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Field Selection */}
+          <FieldSelectionSection />
+
+          {/* Current Filters Section (for Current View export) */}
+          {exportOptions.exportType === "current" && (
+            <>
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-semibold mb-3">Apply Current Filters</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeSearch"
+                      checked={exportOptions.includeSearch}
+                      onCheckedChange={(checked) => setExportOptions({ ...exportOptions, includeSearch: checked === true })}
+                    />
+                    <Label htmlFor="includeSearch">Include Search Term: {searchTerm || "(none)"}</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeStatus"
+                      checked={exportOptions.includeStatus}
+                      onCheckedChange={(checked) => setExportOptions({ ...exportOptions, includeStatus: checked === true })}
+                    />
+                    <Label htmlFor="includeStatus">Include Status Filter</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeRole"
+                      checked={exportOptions.includeRole}
+                      onCheckedChange={(checked) => setExportOptions({ ...exportOptions, includeRole: checked === true })}
+                    />
+                    <Label htmlFor="includeRole">Include Role Filter</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeActivity"
+                      checked={exportOptions.includeActivity}
+                      onCheckedChange={(checked) => setExportOptions({ ...exportOptions, includeActivity: checked === true })}
+                    />
+                    <Label htmlFor="includeActivity">Include Activity Filter</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeBalance"
+                      checked={exportOptions.includeBalance}
+                      onCheckedChange={(checked) => setExportOptions({ ...exportOptions, includeBalance: checked === true })}
+                    />
+                    <Label htmlFor="includeBalance">Include Balance Filter</Label>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Preview:</strong> Will export {currentUsers.length} users from the current {activeTab} view
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* All Users Preview */}
+          {exportOptions.exportType === "all" && (
+            <div className="bg-green-50 p-3 rounded-lg">
+              <p className="text-sm text-green-800">
+                <strong>Preview:</strong> Will export{" "}
+                {exportOptions.userType === "active" 
+                  ? totalCounts.active 
+                  : exportOptions.userType === "pending" 
+                    ? totalCounts.pending 
+                    : totalCounts.active + totalCounts.pending} users
+              </p>
+            </div>
+          )}
+        </div>
+        <SheetFooter className="mt-6">
+          <Button 
+            onClick={handleExportWithOptions} 
+            disabled={exportLoading || Object.values(exportOptions.selectedFields).every(v => v === false)}
+            className="w-full"
+          >
+            {exportLoading ? "Exporting..." : `Export ${exportOptions.exportType === "current" ? "Current View" : "All Users"}`}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
 
   if (selectedUserId) {
     return <UserProfilePage userId={selectedUserId} onBack={handleBackToUsers} />;
@@ -493,86 +944,159 @@ export default function UsersPage() {
 
   return (
     <AdminLayout>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">Users Management</h2>
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+        {/* Header Section - Responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h2 className="text-xl md:text-2xl font-semibold">Users Management</h2>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleExportAllUsers} 
-              disabled={exportAllLoading}
-              className="bg-blue-50 hover:bg-blue-100"
-            >
-              {exportAllLoading ? "Exporting..." : "📊 Export All Users"}
+            <ExportOptionsSheet />
+            <Button variant="outline" onClick={() => mutate()}>
+              🔄 Refresh
             </Button>
-            <Button variant="outline" onClick={handleExportCSV} disabled={exportLoading}>
-              {exportLoading ? "Exporting..." : "📥 Export CSV"}
-            </Button>
-            <Button variant="outline" onClick={() => mutate()}>🔄 Refresh</Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
-            <p className="text-2xl font-semibold">{totalCounts.active + totalCounts.pending}</p>
-            <p className="text-xs text-gray-500 mt-1">{totalCounts.active} verified + {totalCounts.pending} pending</p>
+        {/* Stats Cards - Responsive Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          <div className="bg-white p-3 md:p-4 rounded-lg border shadow-sm">
+            <h3 className="text-xs md:text-sm font-medium text-gray-500">Total Users</h3>
+            <p className="text-xl md:text-2xl font-semibold">{totalCounts.active + totalCounts.pending}</p>
+            <p className="text-xs text-gray-500 mt-1 hidden sm:block">{totalCounts.active} verified + {totalCounts.pending} pending</p>
           </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Verified Users</h3>
-            <p className="text-2xl font-semibold text-green-600">{totalCounts.active}</p>
+          <div className="bg-white p-3 md:p-4 rounded-lg border shadow-sm">
+            <h3 className="text-xs md:text-sm font-medium text-gray-500">Verified</h3>
+            <p className="text-xl md:text-2xl font-semibold text-green-600">{totalCounts.active}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Pending Users</h3>
-            <p className="text-2xl font-semibold text-yellow-600">{totalCounts.pending}</p>
+          <div className="bg-white p-3 md:p-4 rounded-lg border shadow-sm">
+            <h3 className="text-xs md:text-sm font-medium text-gray-500">Pending</h3>
+            <p className="text-xl md:text-2xl font-semibold text-yellow-600">{totalCounts.pending}</p>
           </div>
         </div>
 
+        {/* Tabs - Responsive */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="active">Verified Users ({totalCounts.active})</TabsTrigger>
-            <TabsTrigger value="pending">Pending Users ({totalCounts.pending})</TabsTrigger>
+            <TabsTrigger value="active" className="text-xs md:text-sm">
+              Verified ({totalCounts.active})
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="text-xs md:text-sm">
+              Pending ({totalCounts.pending})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="active" className="space-y-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <Input placeholder="Search by email, name, or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-1/3" />
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-1/6"><SelectValue placeholder="Status" /></SelectTrigger>
-                <SelectContent><SelectItem value="all">All</SelectItem><SelectItem value="active">Active</SelectItem><SelectItem value="blocked">Blocked</SelectItem></SelectContent>
-              </Select>
-              <Select value={balanceFilter} onValueChange={setBalanceFilter}>
-                <SelectTrigger className="w-full md:w-1/6"><SelectValue placeholder="Balance" /></SelectTrigger>
-                <SelectContent><SelectItem value="all">All</SelectItem><SelectItem value="high">High Balance</SelectItem><SelectItem value="low">Low Balance</SelectItem><SelectItem value="negative">Negative</SelectItem><SelectItem value="zero">Zero</SelectItem></SelectContent>
-              </Select>
+            {/* Filters - Responsive layout */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input 
+                  placeholder="Search by email, name, or phone..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  className="w-full sm:w-1/3"
+                />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-1/6">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-full sm:w-1/6">
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={activityFilter} onValueChange={setActivityFilter}>
+                  <SelectTrigger className="w-full sm:w-1/6">
+                    <SelectValue placeholder="Activity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Activity</SelectItem>
+                    <SelectItem value="active">Active (30 days)</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={balanceFilter} onValueChange={setBalanceFilter}>
+                  <SelectTrigger className="w-full sm:w-1/6">
+                    <SelectValue placeholder="Balance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Balances</SelectItem>
+                    <SelectItem value="high">High Balance</SelectItem>
+                    <SelectItem value="low">Low Balance</SelectItem>
+                    <SelectItem value="negative">Negative</SelectItem>
+                    <SelectItem value="zero">Zero</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <AdminTable columns={activeUserColumns} rows={paginatedUsers} onDelete={handleDelete} onRowClick={handleUserClick} />
+            <div className="overflow-x-auto">
+              <AdminTable columns={activeUserColumns} rows={paginatedUsers} onDelete={handleDelete} onRowClick={handleUserClick} />
+            </div>
           </TabsContent>
 
           <TabsContent value="pending" className="space-y-4">
-            <Input placeholder="Search pending users..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-1/3" />
-            <AdminTable
-              columns={pendingUserColumns}
-              rows={paginatedUsers}
-              onDelete={handleDelete}
-              onRowClick={handleUserClick}
-              customActions={[
-                { label: "Approve", onClick: handleApprovePendingUser, variant: "secondary", icon: "✓" },
-                { label: "Reject", onClick: handleRejectPendingUser, variant: "destructive", icon: "✗" },
-              ]}
+            <Input 
+              placeholder="Search pending users..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              className="w-full sm:w-1/3"
             />
+            <div className="overflow-x-auto">
+              <AdminTable
+                columns={pendingUserColumns}
+                rows={paginatedUsers}
+                onDelete={handleDelete}
+                onRowClick={handleUserClick}
+                customActions={[
+                  { label: "Approve", onClick: handleApprovePendingUser, variant: "secondary", icon: "✓" },
+                  { label: "Reject", onClick: handleRejectPendingUser, variant: "destructive", icon: "✗" },
+                ]}
+              />
+            </div>
           </TabsContent>
         </Tabs>
 
+        {/* Pagination - Responsive */}
         {totalPages > 1 && (
-          <div className="flex justify-center">
+          <div className="flex justify-center overflow-x-auto">
             <Pagination>
-              <PaginationContent>
-                <PaginationItem><PaginationPrevious onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className={currentPage === 1 ? "pointer-events-none opacity-50" : ""} /></PaginationItem>
+              <PaginationContent className="flex-wrap gap-1">
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
                 {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => (
-                  <PaginationItem key={i}><PaginationLink isActive={i + 1 === currentPage} onClick={() => setCurrentPage(i + 1)}>{i + 1}</PaginationLink></PaginationItem>
+                  <PaginationItem key={i}>
+                    <PaginationLink 
+                      isActive={i + 1 === currentPage} 
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={isMobile ? "hidden sm:inline-flex" : "inline-flex"}
+                    >
+                      {i + 1}
+                    </PaginationLink>
+                  </PaginationItem>
                 ))}
-                <PaginationItem><PaginationNext onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""} /></PaginationItem>
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
               </PaginationContent>
             </Pagination>
           </div>

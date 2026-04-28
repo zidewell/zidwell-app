@@ -4,12 +4,41 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAuditLog, getClientInfo } from "@/lib/audit-log";
-import { Parser } from "json2csv";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+interface SelectedFields {
+  id: boolean;
+  email: boolean;
+  fullName: boolean;
+  phone: boolean;
+  status: boolean;
+  balance: boolean;
+  kycStatus: boolean;
+  registrationDate: boolean;
+  lastLogin: boolean;
+  role: boolean;
+  referralCode: boolean;
+  referredBy: boolean;
+}
+
+const defaultSelectedFields: SelectedFields = {
+  id: true,
+  email: true,
+  fullName: true,
+  phone: true,
+  status: true,
+  balance: false,
+  kycStatus: false,
+  registrationDate: false,
+  lastLogin: false,
+  role: false,
+  referralCode: false,
+  referredBy: false,
+};
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,146 +51,230 @@ export async function GET(req: NextRequest) {
     }
 
     const clientInfo = getClientInfo(req.headers);
+    const url = new URL(req.url);
+    const typeParam = url.searchParams.get("type") || "all";
     
-    // Fetch active users (verified)
-    const { data: activeUsers, error: activeError } = await supabaseAdmin
-      .from("users")
-      .select("*")
-      .not("bvn_verification", "in", "('not_submitted','pending')")
-      .order("created_at", { ascending: false });
-
-    // Fetch pending users from pending_users table
-    const { data: pendingTableUsers, error: pendingTableError } = await supabaseAdmin
-      .from("pending_users")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    // Fetch users with pending KYC
-    const { data: pendingKYCUsers, error: pendingKYCError } = await supabaseAdmin
-      .from("users")
-      .select("*")
-      .in("bvn_verification", ["not_submitted", "pending", null])
-      .order("created_at", { ascending: false });
-
-    if (activeError || pendingTableError || pendingKYCError) {
-      throw new Error("Failed to fetch users data");
+    // Parse selected fields from request
+    let selectedFields: SelectedFields = { ...defaultSelectedFields };
+    
+    const fieldsParam = url.searchParams.get("fields");
+    if (fieldsParam) {
+      try {
+        const parsedFields = JSON.parse(fieldsParam);
+        selectedFields = { ...selectedFields, ...parsedFields };
+      } catch (e) {
+        console.error("Error parsing fields parameter:", e);
+      }
     }
 
-    // Format all users
     const formattedUsers: any[] = [];
 
-    // Add active users
-    if (activeUsers) {
-      activeUsers.forEach((user: any) => {
-        const nameParts = (user.full_name || "").split(" ");
-        const firstName = nameParts[0] || "";
-        const lastName = nameParts.slice(1).join(" ") || "";
-        
-        formattedUsers.push({
-          "User ID": user.id,
-          "Email": user.email || "",
-          "First Name": firstName,
-          "Last Name": lastName,
-          "Full Name": user.full_name || "",
-          "Phone": user.phone || "",
-          "Role": user.role || "user",
-          "Status": user.is_blocked ? "Blocked" : "Active",
-          "User Type": "Verified",
-          "KYC Status": user.bvn_verification || "verified",
-          "Wallet Balance": Number(user.wallet_balance) || 0,
-          "Last Login": user.last_login ? new Date(user.last_login).toLocaleString() : "Never",
-          "Registration Date": user.created_at ? new Date(user.created_at).toLocaleDateString() : "",
-          "Registration DateTime": user.created_at ? new Date(user.created_at).toISOString() : "",
-          "Account Age (Days)": user.created_at ? 
-            Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0,
-          "BVN Verification": user.bvn_verification || "not_submitted",
-          "Referral Code": user.referral_code || "",
-          "Referred By": user.referred_by || "",
+    // Fetch active users (verified) if type is 'active' or 'all'
+    if (typeParam === "active" || typeParam === "all") {
+      const { data: activeUsers, error: activeError } = await supabaseAdmin
+        .from("users")
+        .select("*")
+        .not("bvn_verification", "in", "('not_submitted','pending')")
+        .order("created_at", { ascending: false });
+
+      if (activeError) {
+        console.error("Error fetching active users:", activeError);
+      } else if (activeUsers && activeUsers.length > 0) {
+        activeUsers.forEach((user: any) => {
+          const formattedUser: any = {};
+          
+          if (selectedFields.id) {
+            formattedUser["User ID"] = user.id;
+          }
+          if (selectedFields.email) {
+            formattedUser["Email"] = user.email || "";
+          }
+          if (selectedFields.fullName) {
+            formattedUser["Full Name"] = user.full_name || "";
+          }
+          if (selectedFields.phone) {
+            formattedUser["Phone"] = user.phone || "";
+          }
+          if (selectedFields.status) {
+            formattedUser["Status"] = user.is_blocked ? "Blocked" : "Active";
+          }
+          if (selectedFields.balance) {
+            formattedUser["Wallet Balance"] = Number(user.wallet_balance) || 0;
+          }
+          if (selectedFields.kycStatus) {
+            formattedUser["KYC Status"] = user.bvn_verification || "verified";
+          }
+          if (selectedFields.registrationDate) {
+            formattedUser["Registration Date"] = user.created_at 
+              ? new Date(user.created_at).toLocaleDateString() 
+              : "";
+          }
+          if (selectedFields.lastLogin) {
+            formattedUser["Last Login"] = user.last_login 
+              ? new Date(user.last_login).toLocaleString() 
+              : "Never";
+          }
+          if (selectedFields.role) {
+            formattedUser["Role"] = user.role || "user";
+          }
+          if (selectedFields.referralCode) {
+            formattedUser["Referral Code"] = user.referral_code || "";
+          }
+          if (selectedFields.referredBy) {
+            formattedUser["Referred By"] = user.referred_by || "";
+          }
+          
+          if (Object.keys(formattedUser).length > 0) {
+            formattedUsers.push(formattedUser);
+          }
         });
-      });
+      }
     }
 
-    // Add pending table users
-    if (pendingTableUsers) {
-      pendingTableUsers.forEach((user: any) => {
-        formattedUsers.push({
-          "User ID": user.id,
-          "Email": user.email || "",
-          "First Name": user.first_name || "",
-          "Last Name": user.last_name || "",
-          "Full Name": `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-          "Phone": user.phone || "",
-          "Role": "user",
-          "Status": "Pending",
-          "User Type": "Pending Approval",
-          "KYC Status": "pending",
-          "Wallet Balance": 0,
-          "Last Login": "Never",
-          "Registration Date": user.created_at ? new Date(user.created_at).toLocaleDateString() : "",
-          "Registration DateTime": user.created_at ? new Date(user.created_at).toISOString() : "",
-          "Account Age (Days)": user.created_at ? 
-            Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0,
-          "BVN Verification": "pending",
-          "Referral Code": "",
-          "Referred By": user.referred_by || "",
+    // Fetch pending users if type is 'pending' or 'all'
+    if (typeParam === "pending" || typeParam === "all") {
+      // Fetch from pending_users table
+      const { data: pendingTableUsers, error: pendingTableError } = await supabaseAdmin
+        .from("pending_users")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (pendingTableError) {
+        console.error("Error fetching pending table users:", pendingTableError);
+      } else if (pendingTableUsers && pendingTableUsers.length > 0) {
+        pendingTableUsers.forEach((user: any) => {
+          const formattedUser: any = {};
+          
+          if (selectedFields.id) {
+            formattedUser["User ID"] = user.id;
+          }
+          if (selectedFields.email) {
+            formattedUser["Email"] = user.email || "";
+          }
+          if (selectedFields.fullName) {
+            formattedUser["Full Name"] = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+          }
+          if (selectedFields.phone) {
+            formattedUser["Phone"] = user.phone || "";
+          }
+          if (selectedFields.status) {
+            formattedUser["Status"] = "Pending Approval";
+          }
+          if (selectedFields.kycStatus) {
+            formattedUser["KYC Status"] = "pending";
+          }
+          if (selectedFields.registrationDate) {
+            formattedUser["Registration Date"] = user.created_at 
+              ? new Date(user.created_at).toLocaleDateString() 
+              : "";
+          }
+          if (selectedFields.referredBy) {
+            formattedUser["Referred By"] = user.referred_by || "";
+          }
+          
+          if (Object.keys(formattedUser).length > 0) {
+            formattedUsers.push(formattedUser);
+          }
         });
-      });
+      }
+
+      // Fetch users with pending KYC from users table
+      const { data: pendingKYCUsers, error: pendingKYCError } = await supabaseAdmin
+        .from("users")
+        .select("*")
+        .in("bvn_verification", ["not_submitted", "pending", null])
+        .order("created_at", { ascending: false });
+
+      if (pendingKYCError) {
+        console.error("Error fetching pending KYC users:", pendingKYCError);
+      } else if (pendingKYCUsers && pendingKYCUsers.length > 0) {
+        pendingKYCUsers.forEach((user: any) => {
+          const formattedUser: any = {};
+          
+          if (selectedFields.id) {
+            formattedUser["User ID"] = user.id;
+          }
+          if (selectedFields.email) {
+            formattedUser["Email"] = user.email || "";
+          }
+          if (selectedFields.fullName) {
+            formattedUser["Full Name"] = user.full_name || "";
+          }
+          if (selectedFields.phone) {
+            formattedUser["Phone"] = user.phone || "";
+          }
+          if (selectedFields.status) {
+            formattedUser["Status"] = user.is_blocked ? "Blocked" : "Pending KYC";
+          }
+          if (selectedFields.kycStatus) {
+            formattedUser["KYC Status"] = user.bvn_verification || "not_submitted";
+          }
+          if (selectedFields.registrationDate) {
+            formattedUser["Registration Date"] = user.created_at 
+              ? new Date(user.created_at).toLocaleDateString() 
+              : "";
+          }
+          if (selectedFields.lastLogin) {
+            formattedUser["Last Login"] = user.last_login 
+              ? new Date(user.last_login).toLocaleString() 
+              : "Never";
+          }
+          if (selectedFields.referralCode) {
+            formattedUser["Referral Code"] = user.referral_code || "";
+          }
+          if (selectedFields.referredBy) {
+            formattedUser["Referred By"] = user.referred_by || "";
+          }
+          
+          if (Object.keys(formattedUser).length > 0) {
+            formattedUsers.push(formattedUser);
+          }
+        });
+      }
     }
 
-    // Add pending KYC users
-    if (pendingKYCUsers) {
-      pendingKYCUsers.forEach((user: any) => {
-        const nameParts = (user.full_name || "").split(" ");
-        const firstName = nameParts[0] || "";
-        const lastName = nameParts.slice(1).join(" ") || "";
-        
-        formattedUsers.push({
-          "User ID": user.id,
-          "Email": user.email || "",
-          "First Name": firstName,
-          "Last Name": lastName,
-          "Full Name": user.full_name || "",
-          "Phone": user.phone || "",
-          "Role": user.role || "user",
-          "Status": user.is_blocked ? "Blocked" : "Active",
-          "User Type": "Pending KYC",
-          "KYC Status": user.bvn_verification || "not_submitted",
-          "Wallet Balance": Number(user.wallet_balance) || 0,
-          "Last Login": user.last_login ? new Date(user.last_login).toLocaleString() : "Never",
-          "Registration Date": user.created_at ? new Date(user.created_at).toLocaleDateString() : "",
-          "Registration DateTime": user.created_at ? new Date(user.created_at).toISOString() : "",
-          "Account Age (Days)": user.created_at ? 
-            Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0,
-          "BVN Verification": user.bvn_verification || "not_submitted",
-          "Referral Code": user.referral_code || "",
-          "Referred By": user.referred_by || "",
-        });
-      });
+    if (formattedUsers.length === 0) {
+      return NextResponse.json(
+        { error: "No users found for export" },
+        { status: 404 }
+      );
     }
 
-    const fields = [
-      "User ID", "Email", "First Name", "Last Name", "Full Name", "Phone",
-      "Role", "Status", "User Type", "KYC Status", "Wallet Balance",
-      "Last Login", "Registration Date", "Registration DateTime", "Account Age (Days)",
-      "BVN Verification", "Referral Code", "Referred By"
-    ];
+    // Get all unique headers from formatted users
+    const allHeaders = new Set<string>();
+    formattedUsers.forEach(user => {
+      Object.keys(user).forEach(key => allHeaders.add(key));
+    });
+    const headers = Array.from(allHeaders);
 
-    const json2csvParser = new Parser({ fields });
-    const csv = json2csvParser.parse(formattedUsers);
+    // Create CSV
+    const csvRows = [];
+    csvRows.push(headers.join(','));
+    
+    for (const user of formattedUsers) {
+      const values = headers.map(header => {
+        const value = user[header] || '';
+        const escaped = String(value).replace(/"/g, '""');
+        return `"${escaped}"`;
+      });
+      csvRows.push(values.join(','));
+    }
+    
+    const csv = csvRows.join('\n');
 
-    const filename = `all_users_${new Date().toISOString().split('T')[0]}.csv`;
+    const typeLabel = typeParam === "all" ? "all" : typeParam;
+    const filename = `${typeLabel}_users_${new Date().toISOString().split('T')[0]}.csv`;
 
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
       action: "export_all_users_csv",
       resourceType: "User",
-      description: `Exported all ${formattedUsers.length} users (active + pending) to CSV`,
+      description: `Exported ${formattedUsers.length} users (type: ${typeParam}) to CSV with selected fields`,
       metadata: {
         totalCount: formattedUsers.length,
-        activeCount: activeUsers?.length || 0,
-        pendingTableCount: pendingTableUsers?.length || 0,
-        pendingKYCCount: pendingKYCUsers?.length || 0,
+        exportType: typeParam,
+        selectedFields: Object.keys(selectedFields).filter(k => selectedFields[k as keyof SelectedFields]),
       },
       ipAddress: clientInfo.ipAddress,
       userAgent: clientInfo.userAgent,
@@ -178,7 +291,7 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     console.error("❌ GET /api/admin-apis/users/export-all error:", err.message);
     return NextResponse.json(
-      { error: "Failed to export all users data" },
+      { error: "Failed to export all users data: " + err.message },
       { status: 500 }
     );
   }
