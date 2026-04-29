@@ -329,7 +329,7 @@ const PaymentPageView = () => {
         metadata.donorMessage = formData.donorMessage;
       }
 
-      const response = await fetch("/api/payment-page/checkout", {
+      const response = await fetch("/api/payment-page/public/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
