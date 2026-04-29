@@ -797,10 +797,7 @@ function generatePaymentPagePDFHTML(
               <span class="info-label">Transaction ID:</span>
               <span class="info-value">${transactionId}</span>
             </div>
-            <div class="info-row">
-              <span class="info-label">Payment Method:</span>
-              <span class="info-value">${paymentMethodText}</span>
-            </div>
+          
             <div class="info-row">
               <span class="info-label">Payment Date:</span>
               <span class="info-value">${formatDate(paidAt)}</span>
@@ -1083,7 +1080,7 @@ export async function sendPaymentPageReceiptWithPDF(
           
           <p>Dear ${customerName},</p>
           
-          <p>Thank you for your ${paymentMethodText.toLowerCase()} payment. Your transaction has been completed successfully.</p>
+          <p>Thank you for your payment. Your transaction has been completed successfully.</p>
           
           <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0;">
             <h4 style="margin: 0 0 15px 0; color: #2b825b;">Payment Details</h4>
@@ -1096,10 +1093,7 @@ export async function sendPaymentPageReceiptWithPDF(
                 <td style="padding: 8px 0;"><strong>Amount Paid:</strong></td>
                 <td style="padding: 8px 0; text-align: right; color: #22c55e; font-size: 18px; font-weight: bold;">${formatCurrency(amount)}</td>
               </tr>
-              <tr>
-                <td style="padding: 8px 0;"><strong>Payment Method:</strong></td>
-                <td style="padding: 8px 0; text-align: right;">${paymentMethodText}</td>
-              </tr>
+           
               <tr>
                 <td style="padding: 8px 0;"><strong>Transaction ID:</strong></td>
                 <td style="padding: 8px 0; text-align: right;">${transactionId}</td>
