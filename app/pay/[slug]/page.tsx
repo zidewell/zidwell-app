@@ -158,13 +158,17 @@ const PaymentPageView = () => {
   };
 
   const validateForm = () => {
-    // Common validation
+    // Common validation - ALWAYS required for all page types
     if (!formData.fullName.trim()) {
       alert("Please enter your full name");
       return false;
     }
     if (!formData.email.trim()) {
       alert("Please enter your email address");
+      return false;
+    }
+    if (!formData.phone.trim()) {
+      alert("Please enter your phone number");
       return false;
     }
 
@@ -286,6 +290,7 @@ const PaymentPageView = () => {
         pageTitle: page?.title,
         paymentType: isInstallmentPayment ? "installment" : "full",
         isInstallment: isInstallmentPayment,
+        customerPhone: formData.phone,
       };
 
       if (isInstallmentPayment) {
@@ -544,6 +549,43 @@ const PaymentPageView = () => {
           </div>
         )}
 
+        {/* ========== CUSTOMER INFORMATION - ALWAYS SHOWN ========== */}
+        <div className="bg-white rounded-2xl border p-5 space-y-4">
+          <h3 className="font-bold text-lg mb-2">Your Information</h3>
+          
+          <div>
+            <Label className="text-sm font-semibold mb-1.5 block">Full Name *</Label>
+            <Input
+              placeholder="Enter your full name"
+              value={formData.fullName}
+              onChange={(e) => handleInputChange("fullName", e.target.value)}
+              className="h-12"
+            />
+          </div>
+
+          <div>
+            <Label className="text-sm font-semibold mb-1.5 block">Email Address *</Label>
+            <Input
+              type="email"
+              placeholder="john@example.com"
+              value={formData.email}
+              onChange={(e) => handleInputChange("email", e.target.value)}
+              className="h-12"
+            />
+          </div>
+
+          <div>
+            <Label className="text-sm font-semibold mb-1.5 block">Phone Number *</Label>
+            <Input
+              type="tel"
+              placeholder="08012345678"
+              value={formData.phone}
+              onChange={(e) => handleInputChange("phone", e.target.value)}
+              className="h-12"
+            />
+          </div>
+        </div>
+
         {/* ========== SCHOOL PAGE SPECIFIC FIELDS ========== */}
         {page.pageType === "school" && (
           <div className="bg-white rounded-2xl border p-5 space-y-4">
@@ -569,38 +611,27 @@ const PaymentPageView = () => {
               </div>
             )}
 
-            {/* Manual Student Name Entry (if no dropdown) */}
-            {unpaidStudents.length === 0 && page.students && page.students.length > 0 ? (
-              <div className="p-3 bg-green-50 rounded-xl">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span className="text-sm text-green-700 font-medium">All students have been paid!</span>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <Label className="text-sm font-semibold mb-1.5 block">Child's Full Name *</Label>
-                  <Input
-                    placeholder="Enter student's full name"
-                    value={formData.childName}
-                    onChange={(e) => handleInputChange("childName", e.target.value)}
-                    className="h-12"
-                  />
-                </div>
+            {/* Manual Student Name Entry */}
+            <div>
+              <Label className="text-sm font-semibold mb-1.5 block">Child's Full Name *</Label>
+              <Input
+                placeholder="Enter student's full name"
+                value={formData.childName}
+                onChange={(e) => handleInputChange("childName", e.target.value)}
+                className="h-12"
+              />
+            </div>
 
-                <div>
-                  <Label className="text-sm font-semibold mb-1.5 block">Registration Number</Label>
-                  <Input
-                    placeholder="Enter student registration number"
-                    value={formData.regNumber}
-                    onChange={(e) => handleInputChange("regNumber", e.target.value)}
-                    className="h-12"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Optional but recommended for tracking</p>
-                </div>
-              </>
-            )}
+            <div>
+              <Label className="text-sm font-semibold mb-1.5 block">Registration Number</Label>
+              <Input
+                placeholder="Enter student registration number"
+                value={formData.regNumber}
+                onChange={(e) => handleInputChange("regNumber", e.target.value)}
+                className="h-12"
+              />
+              <p className="text-xs text-gray-500 mt-1">Optional but recommended for tracking</p>
+            </div>
 
             {/* Parent Information */}
             <div className="pt-2">
@@ -625,45 +656,6 @@ const PaymentPageView = () => {
                 />
               </div>
             ))}
-          </div>
-        )}
-
-        {/* Common Fields - Full Name & Email (if not school page) */}
-        {page.pageType !== "school" && (
-          <div className="bg-white rounded-2xl border p-5 space-y-4">
-            <h3 className="font-bold text-lg mb-2">Your Information</h3>
-            
-            <div>
-              <Label className="text-sm font-semibold mb-1.5 block">Full Name *</Label>
-              <Input
-                placeholder="Enter your full name"
-                value={formData.fullName}
-                onChange={(e) => handleInputChange("fullName", e.target.value)}
-                className="h-12"
-              />
-            </div>
-
-            <div>
-              <Label className="text-sm font-semibold mb-1.5 block">Email Address *</Label>
-              <Input
-                type="email"
-                placeholder="john@example.com"
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                className="h-12"
-              />
-            </div>
-
-            <div>
-              <Label className="text-sm font-semibold mb-1.5 block">Phone Number</Label>
-              <Input
-                type="tel"
-                placeholder="08012345678"
-                value={formData.phone}
-                onChange={(e) => handleInputChange("phone", e.target.value)}
-                className="h-12"
-              />
-            </div>
           </div>
         )}
 
