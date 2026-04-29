@@ -1,5 +1,6 @@
 "use client"
 import { ReactNode, createContext, useContext, useEffect, useState, useCallback } from "react";
+import { useUserContextData } from "../context/userData";
 
 export type PageType = "school" | "donation" | "physical" | "digital" | "services" | "real_estate" | "stock" | "savings" | "crypto";
 
@@ -107,10 +108,10 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [pages, setPages] = useState<PaymentPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
-
+const {userData} = useUserContextData()
   const fetchPages = useCallback(async () => {
     try {
-      console.log("Fetching pages...");
+     
       const response = await fetch("/api/payment-page/list", {
         cache: 'no-store',
         headers: {
@@ -137,6 +138,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshPages = useCallback(async () => {
+  
     setLoading(true);
     await fetchPages();
   }, [fetchPages]);

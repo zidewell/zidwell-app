@@ -895,12 +895,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, [userData?.id, shouldFetchData]);
 
   // Fetch notifications on change
-  useEffect(() => {
-    if (shouldFetchData && userData?.id) {
-      fetchNotifications();
-      fetchUnreadCount();
-    }
-  }, [userData?.id, shouldFetchData, fetchNotifications, fetchUnreadCount]);
+  // useEffect(() => {
+  //   if (shouldFetchData && userData?.id) {
+  //     fetchNotifications();
+  //     fetchUnreadCount();
+  //   }
+  // }, [userData?.id, shouldFetchData, fetchNotifications, fetchUnreadCount]);
 
   // Fetch subscription on change
   useEffect(() => {

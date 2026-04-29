@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 
 export interface BlogPost {
   id: string;
@@ -59,6 +60,7 @@ interface BlogProviderProps {
 }
 
 export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
+  const pathname = usePathname();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
   const [popularPosts, setPopularPosts] = useState<BlogPost[]>([]);
@@ -68,6 +70,16 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+
+  // Check if current page needs blog data
+  const shouldFetchBlogData = useCallback(() => {
+    if (!pathname) return false;
+    
+    // Only fetch on:
+    // 1. Any page that starts with /blog (including /blog/admin, /blog/post-1, etc.)
+    // 2. ONLY the exact /dashboard page (not /dashboard/settings, /dashboard/users, etc.)
+    return pathname.startsWith('/blog') || pathname === '/dashboard';
+  }, [pathname]);
 
   const transformPosts = useCallback((data: any): BlogPost[] => {
     const posts = data.posts || data;
@@ -186,18 +198,34 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   };
 
   const refreshPosts = useCallback(async () => {
-    await fetchAllPosts();
-  }, []);
+    if (shouldFetchBlogData()) {
+      await fetchAllPosts();
+    }
+  }, [shouldFetchBlogData]);
 
-  // Fetch posts on initial load with cache check
+  // Fetch posts only on blog or exact dashboard page
   useEffect(() => {
+    // Skip if not on allowed routes
+    if (!shouldFetchBlogData()) {
+      // Clear data when leaving blog/dashboard pages
+      if (isInitialized) {
+        setPosts([]);
+        setRecentPosts([]);
+        setPopularPosts([]);
+        setCategories([]);
+        setIsInitialized(false);
+        setLastFetchTime(0);
+      }
+      return;
+    }
+    
     // Check if we should fetch (not initialized OR data is stale > 5 minutes)
     const shouldFetch = !isInitialized || (Date.now() - lastFetchTime > 5 * 60 * 1000);
     
     if (shouldFetch && !isFetching) {
       fetchAllPosts();
     }
-  }, [isInitialized, lastFetchTime, isFetching]);
+  }, [pathname, isInitialized, lastFetchTime, isFetching, shouldFetchBlogData]);
 
   const contextValue = {
     posts,
