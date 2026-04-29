@@ -8,7 +8,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, Shield, Clock, TrendingUp, 
   AlertTriangle, CreditCard, Loader2, Package, FileDown, Briefcase, 
   Heart, GraduationCap, Building2, LineChart, PiggyBank, Bitcoin, 
-  CheckCircle, UserCheck, Calendar 
+  CheckCircle, UserCheck, Calendar, ToggleLeft, ToggleRight 
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -71,6 +71,7 @@ const PaymentPageView = () => {
   const [currentImage, setCurrentImage] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [payInInstallments, setPayInInstallments] = useState(false); // Toggle state
   
   // Form state for all page types
   const [formData, setFormData] = useState({
@@ -221,11 +222,6 @@ const PaymentPageView = () => {
       return page.feeBreakdown.reduce((sum, item) => sum + item.amount, 0);
     }
     
-    // For installment payments
-    if (page?.priceType === "installment" && page.installmentAmount) {
-      return page.installmentAmount;
-    }
-    
     // For open pricing or donation
     if (page?.priceType === "open" || page?.pageType === "donation") {
       if (page?.pageType === "donation" && formData.amount) {
@@ -243,9 +239,9 @@ const PaymentPageView = () => {
   };
 
   const getInstallmentInfo = () => {
-    if (page?.priceType === "installment") {
-      const totalAmount = page.price;
-      const installmentCount = page.installmentCount || 1;
+    if (page?.installmentCount && page.installmentCount > 1) {
+      const totalAmount = getTotalAmount();
+      const installmentCount = page.installmentCount;
       const installmentAmount = totalAmount / installmentCount;
       return {
         totalAmount,
@@ -257,6 +253,20 @@ const PaymentPageView = () => {
     return null;
   };
 
+  // Get amount to charge based on toggle selection
+  const getChargeAmount = () => {
+    const totalAmount = getTotalAmount();
+    
+    if (payInInstallments) {
+      const installmentInfo = getInstallmentInfo();
+      if (installmentInfo) {
+        return installmentInfo.installmentAmount;
+      }
+    }
+    
+    return totalAmount;
+  };
+
   const handlePayment = async () => {
     if (!validateForm()) return;
 
@@ -264,14 +274,28 @@ const PaymentPageView = () => {
     
     try {
       const totalAmount = getTotalAmount();
-      const fee = Math.min(totalAmount * 0.02, 2000);
-      const totalWithFee = page?.feeMode === "customer" ? totalAmount + fee : totalAmount;
+      const chargeAmount = getChargeAmount();
+      const isInstallmentPayment = payInInstallments && page?.installmentCount && page.installmentCount > 1;
+      
+      const fee = Math.min(chargeAmount * 0.02, 2000);
+      const totalWithFee = page?.feeMode === "customer" ? chargeAmount + fee : chargeAmount;
 
       // Prepare metadata based on page type
       const metadata: any = {
         pageType: page?.pageType,
         pageTitle: page?.title,
+        paymentType: isInstallmentPayment ? "installment" : "full",
+        isInstallment: isInstallmentPayment,
       };
+
+      if (isInstallmentPayment) {
+        const installmentInfo = getInstallmentInfo();
+        metadata.totalAmount = installmentInfo?.totalAmount;
+        metadata.totalInstallments = installmentInfo?.installmentCount;
+        metadata.installmentAmount = installmentInfo?.installmentAmount;
+        metadata.currentInstallment = 1;
+        metadata.remainingInstallments = (installmentInfo?.installmentCount || 1) - 1;
+      }
 
       if (page?.pageType === "school") {
         metadata.parentName = formData.parentName;
@@ -300,16 +324,6 @@ const PaymentPageView = () => {
         metadata.donorMessage = formData.donorMessage;
       }
 
-      // Add installment info if applicable
-      if (page?.priceType === "installment") {
-        const installmentInfo = getInstallmentInfo();
-        metadata.isInstallment = true;
-        metadata.totalInstallments = installmentInfo?.installmentCount;
-        metadata.installmentAmount = installmentInfo?.installmentAmount;
-        metadata.remainingInstallments = installmentInfo?.remainingInstallments;
-        metadata.totalAmount = installmentInfo?.totalAmount;
-      }
-
       const response = await fetch("/api/payment-page/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -318,7 +332,7 @@ const PaymentPageView = () => {
           customerName: formData.fullName,
           customerEmail: formData.email,
           customerPhone: formData.phone,
-          amount: totalAmount,
+          amount: chargeAmount,
           metadata: metadata,
         }),
       });
@@ -360,9 +374,11 @@ const PaymentPageView = () => {
   }
 
   const totalAmount = getTotalAmount();
-  const fee = Math.min(totalAmount * 0.02, 2000);
-  const totalWithFee = page.feeMode === "customer" ? totalAmount + fee : totalAmount;
+  const chargeAmount = getChargeAmount();
+  const fee = Math.min(chargeAmount * 0.02, 2000);
+  const totalWithFee = page.feeMode === "customer" ? chargeAmount + fee : chargeAmount;
   const installmentInfo = getInstallmentInfo();
+  const canDoInstallments = page.installmentCount && page.installmentCount > 1 && !page.feeBreakdown;
 
   const allImages = [...(page.coverImage ? [page.coverImage] : []), ...page.productImages];
   const unpaidStudents = page.students?.filter(s => !s.paid) || [];
@@ -477,33 +493,54 @@ const PaymentPageView = () => {
           </div>
         )}
 
-        {/* Installment Information */}
-        {page.priceType === "installment" && installmentInfo && (
+        {/* Toggle Button for Installment/Full Payment */}
+        {canDoInstallments && (
           <div className="bg-white rounded-2xl border p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar className="h-5 w-5 text-[#e1bf46]" />
-              <h3 className="font-bold text-lg">Installment Plan</h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-lg">Payment Option</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {payInInstallments 
+                    ? `Pay in ${page.installmentCount} monthly installments of ₦${installmentInfo?.installmentAmount.toLocaleString()}`
+                    : `Pay full amount of ₦${totalAmount.toLocaleString()} once`}
+                </p>
+              </div>
+              <button
+                onClick={() => setPayInInstallments(!payInInstallments)}
+                className="focus:outline-none"
+              >
+                {payInInstallments ? (
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#e1bf46]/10 text-[#e1bf46]">
+                    <ToggleRight className="h-6 w-6" />
+                    <span className="text-sm font-medium">Installments</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-600">
+                    <ToggleLeft className="h-6 w-6" />
+                    <span className="text-sm font-medium">Pay in Full</span>
+                  </div>
+                )}
+              </button>
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Total Amount:</span>
-                <span className="font-semibold">₦{installmentInfo.totalAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Number of Installments:</span>
-                <span className="font-semibold">{installmentInfo.installmentCount}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Per Installment:</span>
-                <span className="font-semibold text-[#e1bf46]">₦{installmentInfo.installmentAmount.toLocaleString()}</span>
-              </div>
-              {installmentInfo.remainingInstallments < installmentInfo.installmentCount && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Remaining Installments:</span>
-                  <span className="font-semibold">{installmentInfo.remainingInstallments}</span>
+
+            {payInInstallments && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-xl">
+                <div className="flex items-start gap-2">
+                  <Calendar className="h-4 w-4 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">Installment Plan Details</p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Total: ₦{installmentInfo?.totalAmount.toLocaleString()} • 
+                      {page.installmentCount} installments of ₦{installmentInfo?.installmentAmount.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      You'll be charged ₦{installmentInfo?.installmentAmount.toLocaleString()} today.
+                      Remaining {page.installmentCount - 1} payments will be charged monthly.
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -858,9 +895,9 @@ const PaymentPageView = () => {
         <div className="bg-[#e9e2d7] rounded-2xl p-5 space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-gray-700">
-              {page.priceType === "installment" ? "Installment Amount" : "Subtotal"}
+              {payInInstallments ? "Installment Amount" : "Total Amount"}
             </span>
-            <span className="font-medium">₦{totalAmount.toLocaleString()}</span>
+            <span className="font-medium">₦{chargeAmount.toLocaleString()}</span>
           </div>
           {page.feeMode === "customer" && (
             <div className="flex justify-between text-sm">
@@ -869,13 +906,14 @@ const PaymentPageView = () => {
             </div>
           )}
           <div className="flex justify-between font-bold text-lg pt-2 border-t border-[#ded4c3]">
-            <span>Total</span>
+            <span>Total to Pay Now</span>
             <span className="text-[#e1bf46]">₦{totalWithFee.toLocaleString()}</span>
           </div>
-          {page.priceType === "installment" && installmentInfo && (
-            <p className="text-xs text-gray-500 text-center pt-2">
-              This is installment {installmentInfo.installmentCount - (installmentInfo.remainingInstallments || 0) + 1} of {installmentInfo.installmentCount}
-            </p>
+          {payInInstallments && installmentInfo && (
+            <div className="text-xs text-gray-500 text-center pt-2 space-y-1">
+              <p>This is installment 1 of {installmentInfo.installmentCount}</p>
+              <p>Remaining balance: ₦{(installmentInfo.totalAmount - chargeAmount).toLocaleString()}</p>
+            </div>
           )}
         </div>
 
@@ -893,7 +931,7 @@ const PaymentPageView = () => {
               Processing...
             </>
           ) : (
-            `Pay ₦${totalWithFee.toLocaleString()}`
+            `Pay ${payInInstallments ? 'Installment' : 'Now'} ₦${totalWithFee.toLocaleString()}`
           )}
         </Button>
 
