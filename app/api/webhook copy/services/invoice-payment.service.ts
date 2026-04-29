@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { sendPaymentSuccessEmail } from "@/lib/invoice-email-confirmation";
 import { sendInvoiceCreatorNotificationEmail } from "../helpers/email-helpers";
 import { updateInvoiceTotals } from "../helpers/invoice-helpers";
-import { sendTransactionReceipt } from "../helpers/receipt-helpers";
+import { sendTransactionReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -138,21 +138,20 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
     ).catch(console.error);
   }
 
-  // Send TRANSACTION RECEIPT to payer (NEW FEATURE)
-  await sendTransactionReceipt(
-    customerEmail,
-    customerName,
-    invoice,
-    {
-      amount: transactionAmount,
-      nombaFee,
-      netAmount,
-      transactionId: nombaTransactionId,
-      paymentMethod: "card_payment",
-      paidAt: new Date().toISOString(),
-      narration: tx.narration,
-    }
-  );
+ await sendTransactionReceiptWithPDF(
+  customerEmail,
+  customerName,
+  invoice,
+  {
+    amount: transactionAmount,
+    nombaFee,
+    netAmount,
+    transactionId: nombaTransactionId,
+    paymentMethod: "card_payment",
+    paidAt: new Date().toISOString(),
+    narration: tx.narration,
+  }
+);
 
   // Send notification to invoice creator
   const { data: creator } = await supabase

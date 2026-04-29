@@ -61,4 +61,4 @@ export async function updateInvoiceTotals(invoice: any, paidAmountNaira: number)
     console.error("Error in updateInvoiceTotals:", error);
     throw error;
   }
-}
+}  

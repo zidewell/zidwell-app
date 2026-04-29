@@ -4,11 +4,33 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, ChevronLeft, ChevronRight, Shield, Clock, TrendingUp, AlertTriangle, CreditCard, Loader2, Package, FileDown, Briefcase, Heart, GraduationCap, Building2, LineChart, PiggyBank, Bitcoin } from "lucide-react";
+import { 
+  ArrowLeft, ChevronLeft, ChevronRight, Shield, Clock, TrendingUp, 
+  AlertTriangle, CreditCard, Loader2, Package, FileDown, Briefcase, 
+  Heart, GraduationCap, Building2, LineChart, PiggyBank, Bitcoin, 
+  CheckCircle, UserCheck, Calendar 
+} from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
+
+interface Student {
+  name: string;
+  className: string;
+  regNumber?: string;
+  paid?: boolean;
+  paidAt?: string;
+  paidAmount?: number;
+  parentName?: string;
+}
 
 interface PaymentPage {
   id: string;
@@ -26,7 +48,7 @@ interface PaymentPage {
   metadata: any;
   feeBreakdown?: Array<{ label: string; amount: number }>;
   className?: string;
-  students?: Array<{ name: string; className: string; regNumber?: string; paid?: boolean }>;
+  students?: Student[];
   requiredFields?: string[];
   variants?: Array<{ name: string; options: string[] }>;
   requiresShipping?: boolean;
@@ -34,6 +56,9 @@ interface PaymentPage {
   accessLink?: string;
   bookingEnabled?: boolean;
   customerNoteEnabled?: boolean;
+  installmentAmount?: number;
+  totalInstallments?: number;
+  remainingInstallments?: number;
 }
 
 const PaymentPageView = () => {
@@ -45,6 +70,7 @@ const PaymentPageView = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentImage, setCurrentImage] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   
   // Form state for all page types
   const [formData, setFormData] = useState({
@@ -67,9 +93,6 @@ const PaymentPageView = () => {
     city: "",
     state: "",
     zipCode: "",
-    
-    // Digital product fields
-    // No additional fields needed
     
     // Service fields
     bookingDate: "",
@@ -114,18 +137,23 @@ const PaymentPageView = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleVariantChange = (variantName: string, option: string) => {
-    setFormData(prev => ({
-      ...prev,
-      selectedVariants: { ...prev.selectedVariants, [variantName]: option }
-    }));
-  };
-
   const handleCustomFieldChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       customFields: { ...prev.customFields, [field]: value }
     }));
+  };
+
+  const handleStudentSelect = (studentName: string) => {
+    const student = page?.students?.find(s => s.name === studentName);
+    if (student) {
+      setSelectedStudent(student);
+      setFormData(prev => ({
+        ...prev,
+        childName: student.name,
+        regNumber: student.regNumber || ""
+      }));
+    }
   };
 
   const validateForm = () => {
@@ -146,13 +174,18 @@ const PaymentPageView = () => {
         return false;
       }
       if (!formData.childName.trim()) {
-        alert("Please enter child's full name");
+        alert("Please select or enter child's name");
+        return false;
+      }
+      
+      // Check if student is already paid
+      if (selectedStudent?.paid) {
+        alert(`This student (${selectedStudent.name}) has already been marked as paid. Please contact the school if you believe this is an error.`);
         return false;
       }
     }
 
     if (page?.pageType === "physical") {
-      // Check if all variants are selected
       if (page.variants && page.variants.length > 0) {
         for (const variant of page.variants) {
           if (!formData.selectedVariants[variant.name]) {
@@ -179,19 +212,6 @@ const PaymentPageView = () => {
       return false;
     }
 
-    if ((page?.pageType === "real_estate" || page?.pageType === "stock" || page?.pageType === "savings" || page?.pageType === "crypto")) {
-      const minAmount = page.metadata?.minimumAmount;
-      const amount = Number(formData.investmentAmount);
-      if (!formData.investmentAmount) {
-        alert("Please enter investment amount");
-        return false;
-      }
-      if (minAmount && amount < minAmount) {
-        alert(`Minimum investment amount is ₦${minAmount.toLocaleString()}`);
-        return false;
-      }
-    }
-
     return true;
   };
 
@@ -201,13 +221,15 @@ const PaymentPageView = () => {
       return page.feeBreakdown.reduce((sum, item) => sum + item.amount, 0);
     }
     
+    // For installment payments
+    if (page?.priceType === "installment" && page.installmentAmount) {
+      return page.installmentAmount;
+    }
+    
     // For open pricing or donation
     if (page?.priceType === "open" || page?.pageType === "donation") {
       if (page?.pageType === "donation" && formData.amount) {
         return Number(formData.amount);
-      }
-      if (page?.pageType === "real_estate" || page?.pageType === "stock" || page?.pageType === "savings" || page?.pageType === "crypto") {
-        return Number(formData.investmentAmount) || page?.price || 0;
       }
       return Number(formData.amount) || page?.price || 0;
     }
@@ -218,6 +240,21 @@ const PaymentPageView = () => {
     }
     
     return page?.price || 0;
+  };
+
+  const getInstallmentInfo = () => {
+    if (page?.priceType === "installment") {
+      const totalAmount = page.price;
+      const installmentCount = page.installmentCount || 1;
+      const installmentAmount = totalAmount / installmentCount;
+      return {
+        totalAmount,
+        installmentCount,
+        installmentAmount,
+        remainingInstallments: page.remainingInstallments || installmentCount
+      };
+    }
+    return null;
   };
 
   const handlePayment = async () => {
@@ -241,6 +278,7 @@ const PaymentPageView = () => {
         metadata.childName = formData.childName;
         metadata.regNumber = formData.regNumber;
         metadata.customFields = formData.customFields;
+        metadata.selectedStudent = selectedStudent;
       }
 
       if (page?.pageType === "physical") {
@@ -262,11 +300,17 @@ const PaymentPageView = () => {
         metadata.donorMessage = formData.donorMessage;
       }
 
-      if (page?.pageType === "real_estate" || page?.pageType === "stock" || page?.pageType === "savings" || page?.pageType === "crypto") {
-        metadata.investmentAmount = formData.investmentAmount;
+      // Add installment info if applicable
+      if (page?.priceType === "installment") {
+        const installmentInfo = getInstallmentInfo();
+        metadata.isInstallment = true;
+        metadata.totalInstallments = installmentInfo?.installmentCount;
+        metadata.installmentAmount = installmentInfo?.installmentAmount;
+        metadata.remainingInstallments = installmentInfo?.remainingInstallments;
+        metadata.totalAmount = installmentInfo?.totalAmount;
       }
 
-      const response = await fetch("/api/payment-page/public/checkout", {
+      const response = await fetch("/api/payment-page/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -285,7 +329,7 @@ const PaymentPageView = () => {
         throw new Error(data.error || "Failed to create checkout");
       }
 
-      // Redirect to card payment
+      // Redirect to payment page
       window.location.href = data.checkoutLink;
     } catch (err: any) {
       console.error("Payment error:", err);
@@ -318,10 +362,12 @@ const PaymentPageView = () => {
   const totalAmount = getTotalAmount();
   const fee = Math.min(totalAmount * 0.02, 2000);
   const totalWithFee = page.feeMode === "customer" ? totalAmount + fee : totalAmount;
+  const installmentInfo = getInstallmentInfo();
 
   const allImages = [...(page.coverImage ? [page.coverImage] : []), ...page.productImages];
+  const unpaidStudents = page.students?.filter(s => !s.paid) || [];
+  const paidStudents = page.students?.filter(s => s.paid) || [];
 
-  // Get page type icon
   const getPageTypeIcon = () => {
     switch (page.pageType) {
       case "school": return <GraduationCap className="h-5 w-5" />;
@@ -431,93 +477,96 @@ const PaymentPageView = () => {
           </div>
         )}
 
-        {/* Investment Details */}
-        {(page.pageType === "real_estate" || page.pageType === "stock" || page.pageType === "savings" || page.pageType === "crypto") && (
-          <div className="bg-white rounded-2xl p-5 shadow-sm border">
-            <h3 className="font-bold text-sm mb-3 text-[#023528]">Investment Details</h3>
+        {/* Installment Information */}
+        {page.priceType === "installment" && installmentInfo && (
+          <div className="bg-white rounded-2xl border p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="h-5 w-5 text-[#e1bf46]" />
+              <h3 className="font-bold text-lg">Installment Plan</h3>
+            </div>
             <div className="space-y-2">
-              {page.metadata?.minimumAmount && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Total Amount:</span>
+                <span className="font-semibold">₦{installmentInfo.totalAmount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Number of Installments:</span>
+                <span className="font-semibold">{installmentInfo.installmentCount}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Per Installment:</span>
+                <span className="font-semibold text-[#e1bf46]">₦{installmentInfo.installmentAmount.toLocaleString()}</span>
+              </div>
+              {installmentInfo.remainingInstallments < installmentInfo.installmentCount && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Minimum Amount</span>
-                  <span className="font-medium">₦{page.metadata.minimumAmount.toLocaleString()}</span>
-                </div>
-              )}
-              {page.metadata?.expectedReturn && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" /> Expected Return
-                  </span>
-                  <span className="font-medium">{page.metadata.expectedReturn}</span>
-                </div>
-              )}
-              {page.metadata?.tenure && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> Tenure
-                  </span>
-                  <span className="font-medium">{page.metadata.tenure}</span>
+                  <span className="text-gray-600">Remaining Installments:</span>
+                  <span className="font-semibold">{installmentInfo.remainingInstallments}</span>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Risk Disclosure */}
-        {page.metadata?.riskExplanation && (
-          <div className="p-4 rounded-2xl border-2 border-yellow-500/30 bg-yellow-500/5">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <span className="text-sm font-bold text-yellow-700">Risk Disclosure</span>
-            </div>
-            <p className="text-sm text-gray-600 whitespace-pre-wrap">{page.metadata.riskExplanation}</p>
-          </div>
-        )}
-
-        {/* ========== DYNAMIC FORM FIELDS BASED ON PAGE TYPE ========== */}
-
-        {/* Common Fields - Full Name & Email */}
-        <div className="bg-white rounded-2xl border p-5 space-y-4">
-          <h3 className="font-bold text-lg mb-2">Your Information</h3>
-          
-          <div>
-            <Label className="text-sm font-semibold mb-1.5 block">Full Name *</Label>
-            <Input
-              placeholder="Enter your full name"
-              value={formData.fullName}
-              onChange={(e) => handleInputChange("fullName", e.target.value)}
-              className="h-12"
-            />
-          </div>
-
-          <div>
-            <Label className="text-sm font-semibold mb-1.5 block">Email Address *</Label>
-            <Input
-              type="email"
-              placeholder="john@example.com"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              className="h-12"
-            />
-          </div>
-
-          <div>
-            <Label className="text-sm font-semibold mb-1.5 block">Phone Number</Label>
-            <Input
-              type="tel"
-              placeholder="08012345678"
-              value={formData.phone}
-              onChange={(e) => handleInputChange("phone", e.target.value)}
-              className="h-12"
-            />
-          </div>
-        </div>
-
-        {/* SCHOOL PAGE FIELDS */}
+        {/* ========== SCHOOL PAGE SPECIFIC FIELDS ========== */}
         {page.pageType === "school" && (
           <div className="bg-white rounded-2xl border p-5 space-y-4">
             <h3 className="font-bold text-lg mb-2">Student Information</h3>
             
-            <div>
+            {/* Student Selection Dropdown */}
+            {unpaidStudents.length > 0 && (
+              <div>
+                <Label className="text-sm font-semibold mb-1.5 block">Select Student *</Label>
+                <Select onValueChange={handleStudentSelect}>
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Choose a student" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unpaidStudents.map((student) => (
+                      <SelectItem key={student.name} value={student.name}>
+                        {student.name} {student.regNumber ? `(${student.regNumber})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">Select your child from the list</p>
+              </div>
+            )}
+
+            {/* Manual Student Name Entry (if no dropdown) */}
+            {unpaidStudents.length === 0 && page.students && page.students.length > 0 ? (
+              <div className="p-3 bg-green-50 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="text-sm text-green-700 font-medium">All students have been paid!</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label className="text-sm font-semibold mb-1.5 block">Child's Full Name *</Label>
+                  <Input
+                    placeholder="Enter student's full name"
+                    value={formData.childName}
+                    onChange={(e) => handleInputChange("childName", e.target.value)}
+                    className="h-12"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-sm font-semibold mb-1.5 block">Registration Number</Label>
+                  <Input
+                    placeholder="Enter student registration number"
+                    value={formData.regNumber}
+                    onChange={(e) => handleInputChange("regNumber", e.target.value)}
+                    className="h-12"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Optional but recommended for tracking</p>
+                </div>
+              </>
+            )}
+
+            {/* Parent Information */}
+            <div className="pt-2">
               <Label className="text-sm font-semibold mb-1.5 block">Parent Full Name *</Label>
               <Input
                 placeholder="Enter parent's full name"
@@ -525,27 +574,6 @@ const PaymentPageView = () => {
                 onChange={(e) => handleInputChange("parentName", e.target.value)}
                 className="h-12"
               />
-            </div>
-
-            <div>
-              <Label className="text-sm font-semibold mb-1.5 block">Child's Full Name *</Label>
-              <Input
-                placeholder="Enter student's full name"
-                value={formData.childName}
-                onChange={(e) => handleInputChange("childName", e.target.value)}
-                className="h-12"
-              />
-            </div>
-
-            <div>
-              <Label className="text-sm font-semibold mb-1.5 block">Registration Number</Label>
-              <Input
-                placeholder="Enter student registration number"
-                value={formData.regNumber}
-                onChange={(e) => handleInputChange("regNumber", e.target.value)}
-                className="h-12"
-              />
-              <p className="text-xs text-gray-500 mt-1">Optional but recommended for tracking</p>
             </div>
 
             {/* Custom Required Fields */}
@@ -563,12 +591,50 @@ const PaymentPageView = () => {
           </div>
         )}
 
+        {/* Common Fields - Full Name & Email (if not school page) */}
+        {page.pageType !== "school" && (
+          <div className="bg-white rounded-2xl border p-5 space-y-4">
+            <h3 className="font-bold text-lg mb-2">Your Information</h3>
+            
+            <div>
+              <Label className="text-sm font-semibold mb-1.5 block">Full Name *</Label>
+              <Input
+                placeholder="Enter your full name"
+                value={formData.fullName}
+                onChange={(e) => handleInputChange("fullName", e.target.value)}
+                className="h-12"
+              />
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold mb-1.5 block">Email Address *</Label>
+              <Input
+                type="email"
+                placeholder="john@example.com"
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                className="h-12"
+              />
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold mb-1.5 block">Phone Number</Label>
+              <Input
+                type="tel"
+                placeholder="08012345678"
+                value={formData.phone}
+                onChange={(e) => handleInputChange("phone", e.target.value)}
+                className="h-12"
+              />
+            </div>
+          </div>
+        )}
+
         {/* PHYSICAL PRODUCT FIELDS */}
         {page.pageType === "physical" && (
           <div className="bg-white rounded-2xl border p-5 space-y-4">
             <h3 className="font-bold text-lg mb-2">Product Options</h3>
             
-            {/* Variants */}
             {page.variants && page.variants.length > 0 && (
               <div className="space-y-4">
                 {page.variants.map((variant) => (
@@ -579,7 +645,10 @@ const PaymentPageView = () => {
                         <button
                           key={option}
                           type="button"
-                          onClick={() => handleVariantChange(variant.name, option)}
+                          onClick={() => setFormData(prev => ({
+                            ...prev,
+                            selectedVariants: { ...prev.selectedVariants, [variant.name]: option }
+                          }))}
                           className={`px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
                             formData.selectedVariants[variant.name] === option
                               ? "border-[#e1bf46] bg-[#e1bf46]/10 text-[#023528]"
@@ -595,7 +664,6 @@ const PaymentPageView = () => {
               </div>
             )}
 
-            {/* Quantity */}
             <div>
               <Label className="text-sm font-semibold mb-1.5 block">Quantity</Label>
               <Input
@@ -607,10 +675,9 @@ const PaymentPageView = () => {
               />
             </div>
 
-            {/* Shipping Address */}
             {page.requiresShipping && (
               <>
-                <div className="pt-2">
+                <div>
                   <Label className="text-sm font-semibold mb-1.5 block">Delivery Address *</Label>
                   <Textarea
                     placeholder="Enter your full delivery address"
@@ -706,7 +773,6 @@ const PaymentPageView = () => {
           <div className="bg-white rounded-2xl border p-5 space-y-4">
             <h3 className="font-bold text-lg mb-2">Donation Details</h3>
             
-            {/* Suggested Amounts */}
             {page.metadata?.suggestedAmounts && page.metadata.suggestedAmounts.length > 0 && (
               <div>
                 <Label className="text-sm font-semibold mb-2 block">Suggested Amounts</Label>
@@ -729,7 +795,6 @@ const PaymentPageView = () => {
               </div>
             )}
 
-            {/* Custom Amount */}
             <div>
               <Label className="text-sm font-semibold mb-1.5 block">Custom Amount (₦)</Label>
               <Input
@@ -741,7 +806,6 @@ const PaymentPageView = () => {
               />
             </div>
 
-            {/* Donor Message */}
             {page.metadata?.allowDonorMessage && (
               <div>
                 <Label className="text-sm font-semibold mb-1.5 block">Message (Optional)</Label>
@@ -757,43 +821,45 @@ const PaymentPageView = () => {
           </div>
         )}
 
-        {/* INVESTMENT FIELDS */}
-        {(page.pageType === "real_estate" || page.pageType === "stock" || page.pageType === "savings" || page.pageType === "crypto") && (
-          <div className="bg-white rounded-2xl border p-5 space-y-4">
-            <h3 className="font-bold text-lg mb-2">Investment Amount</h3>
-            
-            <div>
-              <Label className="text-sm font-semibold mb-1.5 block">
-                Amount to Invest (₦)
-                {page.metadata?.minimumAmount && (
-                  <span className="text-xs text-gray-500 ml-2">
-                    (Min: ₦{page.metadata.minimumAmount.toLocaleString()})
-                  </span>
-                )}
-              </Label>
-              <Input
-                type="number"
-                placeholder="Enter investment amount"
-                value={formData.investmentAmount}
-                onChange={(e) => handleInputChange("investmentAmount", e.target.value)}
-                className="h-12"
-              />
+        {/* Paid Students List (for school admins viewing the page) */}
+        {page.pageType === "school" && paidStudents.length > 0 && (
+          <div className="bg-white rounded-2xl border p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <UserCheck className="h-5 w-5 text-green-600" />
+              <h3 className="font-bold text-lg">Paid Students</h3>
             </div>
-
-            {page.metadata?.charges && (
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">
-                  <strong>Fee Note:</strong> {page.metadata.charges}
-                </p>
-              </div>
-            )}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {paidStudents.map((student) => (
+                <div key={student.name} className="flex justify-between items-center p-2 bg-green-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-sm">{student.name}</p>
+                    {student.regNumber && (
+                      <p className="text-xs text-gray-500">Reg: {student.regNumber}</p>
+                    )}
+                    {student.parentName && (
+                      <p className="text-xs text-gray-500">Paid by: {student.parentName}</p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-green-600">
+                      {student.paidAt ? new Date(student.paidAt).toLocaleDateString() : 'Paid'}
+                    </p>
+                    {student.paidAmount && (
+                      <p className="text-xs font-medium">₦{student.paidAmount.toLocaleString()}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Payment Summary */}
         <div className="bg-[#e9e2d7] rounded-2xl p-5 space-y-3">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-700">Subtotal</span>
+            <span className="text-gray-700">
+              {page.priceType === "installment" ? "Installment Amount" : "Subtotal"}
+            </span>
             <span className="font-medium">₦{totalAmount.toLocaleString()}</span>
           </div>
           {page.feeMode === "customer" && (
@@ -806,6 +872,11 @@ const PaymentPageView = () => {
             <span>Total</span>
             <span className="text-[#e1bf46]">₦{totalWithFee.toLocaleString()}</span>
           </div>
+          {page.priceType === "installment" && installmentInfo && (
+            <p className="text-xs text-gray-500 text-center pt-2">
+              This is installment {installmentInfo.installmentCount - (installmentInfo.remainingInstallments || 0) + 1} of {installmentInfo.installmentCount}
+            </p>
+          )}
         </div>
 
         {/* Pay Button */}
@@ -814,7 +885,7 @@ const PaymentPageView = () => {
           size="lg"
           className="w-full py-6 text-base bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90"
           onClick={handlePayment}
-          disabled={isProcessing}
+          disabled={isProcessing || (page.pageType === "school" && selectedStudent?.paid)}
         >
           {isProcessing ? (
             <>

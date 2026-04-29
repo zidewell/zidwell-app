@@ -331,7 +331,7 @@ const SchoolFields = ({
             onClick={downloadTemplate}
             className="text-xs text-[#3e7465] hover:text-[#2b825b]"
           >
-            Download Template
+            Download Template sample
           </Button>
         </div>
         

@@ -78,7 +78,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
           external_response: {
             ...pendingTx.external_response,
             webhook_data: payload,
-            deduction_error: deductError?.message || "Insufficient funds or lock error",
+            deduction_error: deductError?.message || "Insufficient funds",
             failed_at: new Date().toISOString(),
             webhook_processed: true,
             note: "Balance was never deducted - no refund required"

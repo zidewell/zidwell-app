@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { transporter } from "@/lib/node-mailer";
+import { sendTransactionReceiptWithPDF, sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf"; 
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -29,6 +30,16 @@ interface BankTransferParams {
   tx: any;
 }
 
+type ServiceResult =
+  | {
+      success: true;
+      message: string;
+      credited_amount?: number;
+      new_balance?: number | null;
+      payment_id?: string;
+    }
+  | { error: string; status?: number };
+
 async function sendPaymentPageNotificationEmail(
   creatorEmail: string,
   pageTitle: string,
@@ -36,10 +47,20 @@ async function sendPaymentPageNotificationEmail(
   customerName: string,
   fee?: number,
   metadata?: any,
-  paymentMethod: string = "card"
-) {
+  paymentMethod: string = "card",
+): Promise<void> {
   try {
     let additionalInfo = "";
+
+    let actualPaymentMethod = paymentMethod;
+    if (metadata?.payment_method) {
+      actualPaymentMethod = metadata.payment_method;
+    } else if (metadata?.bank_transfer === true) {
+      actualPaymentMethod = "bank_transfer";
+    } else if (metadata?.payment_type === "backtransfer") {
+      actualPaymentMethod = "bank_transfer";
+    }
+
     if (metadata?.pageType === "school") {
       additionalInfo = `
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
@@ -67,27 +88,28 @@ async function sendPaymentPageNotificationEmail(
       `;
     }
 
-    const paymentMethodText = paymentMethod === "card" ? "Card Payment" : "Bank Transfer";
-    const paymentMethodIcon = paymentMethod === "card" ? "💳" : "🏦";
+    const paymentMethodText =
+      actualPaymentMethod === "card" ? "Card Payment" : "Bank Transfer";
+    const paymentMethodIcon = actualPaymentMethod === "card" ? "💳" : "🏦";
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: creatorEmail,
-      subject: `💰 ${paymentMethodText} Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
+      subject: `💰 payment Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #22c55e;">✅ ${paymentMethodText} Received! ${paymentMethodIcon}</h3>
-          <p>You've received a ${paymentMethod.toLowerCase()} payment for your payment page <strong>${pageTitle}</strong>.</p>
+          <h3 style="color: #22c55e;">✅ payment Received! ${paymentMethodIcon}</h3>
+          <p>You've received a ${actualPaymentMethod === "card" ? "card" : "bank transfer"} payment for your payment page <strong>${pageTitle}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
             ${fee ? `<p><strong>Processing Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}
             <p><strong>Customer:</strong> ${customerName}</p>
-            <p><strong>Payment Method:</strong> ${paymentMethodText}</p>
+            <p><strong>Payment Method:</strong> payment</p>
             <p><strong>Status:</strong> <span style="color: #22c55e;">Completed</span></p>
           </div>
           ${additionalInfo}
-          <p>The funds have been added to your payment page balance. You can withdraw them to your main wallet anytime.</p>
+          <p>The funds have been added to your payment page balance. You can withdraw them to your bank account anytime.</p>
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
         </div>
       `,
@@ -97,141 +119,213 @@ async function sendPaymentPageNotificationEmail(
   }
 }
 
-async function sendPaymentPageReceiptEmail(
-  customerEmail: string,
-  pageTitle: string,
-  amount: number,
-  reference: string,
-  metadata?: any,
-  paymentMethod: string = "card"
-) {
+// NEW FUNCTION: Update student paid status in payment page metadata
+async function updateStudentPaidStatus(
+  paymentPageId: string,
+  childName: string,
+  parentName: string,
+  amount: number
+): Promise<void> {
   try {
-    let additionalInfo = "";
-    if (metadata?.pageType === "school") {
-      additionalInfo = `
-        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
-          <p><strong>Student Information:</strong></p>
-          <p>Student Name: ${metadata.childName || "N/A"}</p>
-          <p>Registration Number: ${metadata.regNumber || "N/A"}</p>
-        </div>
-      `;
-    } else if (metadata?.pageType === "digital" && metadata.downloadUrl) {
-      additionalInfo = `
-        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
-          <p><strong>Download Link:</strong></p>
-          <p><a href="${metadata.downloadUrl}" style="color: #e1bf46;">Click here to download</a></p>
-        </div>
-      `;
+    console.log(`📝 Updating student paid status for: ${childName} (Parent: ${parentName})`);
+    
+    // Get current payment page data
+    const { data: paymentPage, error: fetchError } = await supabase
+      .from("payment_pages")
+      .select("metadata")
+      .eq("id", paymentPageId)
+      .single();
+
+    if (fetchError) {
+      console.error("❌ Failed to fetch payment page:", fetchError);
+      return;
     }
 
-    const paymentMethodText = paymentMethod === "card" ? "Card" : "Bank Transfer";
+    if (!paymentPage?.metadata?.students) {
+      console.log("⚠️ No students array found in metadata");
+      return;
+    }
 
-    await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
-      to: customerEmail,
-      subject: `Payment Receipt - ${pageTitle}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #22c55e;">✅ Payment Successful!</h3>
-          <p>Thank you for your ${paymentMethodText.toLowerCase()} payment.</p>
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Page:</strong> ${pageTitle}</p>
-            <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-            <p><strong>Payment Method:</strong> ${paymentMethodText}</p>
-            <p><strong>Reference:</strong> ${reference}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-          ${additionalInfo}
-          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
-        </div>
-      `,
+    // Update the student's paid status
+    const updatedStudents = paymentPage.metadata.students.map((student: any) => {
+      const studentName = student.name || student.childName || student.studentName;
+      if (studentName?.toLowerCase().trim() === childName?.toLowerCase().trim()) {
+        console.log(`✅ Found matching student: ${studentName}`);
+        return {
+          ...student,
+          paid: true,
+          paidAt: new Date().toISOString(),
+          paidAmount: (student.paidAmount || 0) + amount,
+          parentName: parentName,
+          lastPaymentDate: new Date().toISOString()
+        };
+      }
+      return student;
     });
+
+    // Check if any student was updated
+    const wasUpdated = updatedStudents.some(
+      (student: any, index: number) => 
+        JSON.stringify(student) !== JSON.stringify(paymentPage.metadata.students[index])
+    );
+
+    if (!wasUpdated) {
+      console.log(`⚠️ No matching student found for: ${childName}`);
+      return;
+    }
+
+    // Update the payment page metadata
+    const { error: updateError } = await supabase
+      .from("payment_pages")
+      .update({
+        metadata: {
+          ...paymentPage.metadata,
+          students: updatedStudents
+        }
+      })
+      .eq("id", paymentPageId);
+
+    if (updateError) {
+      console.error("❌ Failed to update student paid status:", updateError);
+    } else {
+      console.log(`✅ Successfully marked ${childName} as paid`);
+    }
   } catch (error) {
-    console.error("Failed to send receipt email:", error);
+    console.error("❌ Error updating student paid status:", error);
   }
 }
 
 // Helper to extract payment page ID from order reference (card payments)
-function extractPaymentPageIdFromReference(orderReference: string): string | null {
+function extractPaymentPageIdFromReference(
+  orderReference: string,
+): string | null {
   if (!orderReference) return null;
-  
+
   console.log("📝 Extracting from orderReference:", orderReference);
-  
-  // Pattern: PP-{uuid}-{timestamp}-{random}
-  const uuidPattern = /^PP-([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})-/i;
-  const match = orderReference.match(uuidPattern);
-  
+
+  const ppPattern = /^PP-([a-f0-9]{12})-[a-z0-9]+-[a-z0-9]+$/i;
+  let match = orderReference.match(ppPattern);
+
   if (match && match[1]) {
-    console.log("✅ Extracted UUID:", match[1]);
+    console.log("✅ Extracted short ID (PP format):", match[1]);
     return match[1];
   }
-  
-  console.log("❌ Failed to extract UUID from:", orderReference);
+
+  const legacyPattern = /^P([a-f0-9]{8})-[a-z0-9]+-[a-z0-9]+$/i;
+  match = orderReference.match(legacyPattern);
+
+  if (match && match[1]) {
+    console.log("⚠️ Legacy format detected, short ID:", match[1]);
+    return match[1];
+  }
+
+  console.log("❌ Failed to extract from orderReference:", orderReference);
   return null;
 }
 
 // Helper to extract payment page ID from virtual account reference (bank transfers)
-function extractPaymentPageIdFromVirtualAccount(aliasAccountReference: string): string | null {
+function extractPaymentPageIdFromVirtualAccount(
+  aliasAccountReference: string,
+): string | null {
   if (!aliasAccountReference) return null;
-  
-  console.log("📝 Extracting from virtual account reference:", aliasAccountReference);
-  
-  // Pattern: VA-PP-{uuid} or just the UUID directly
-  let uuidPattern = /^VA-PP-([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i;
+
+  console.log(
+    "📝 Extracting from virtual account reference:",
+    aliasAccountReference,
+  );
+
+  let uuidPattern =
+    /^VA-PP-([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i;
   let match = aliasAccountReference.match(uuidPattern);
-  
+
   if (match && match[1]) {
     console.log("✅ Extracted UUID from VA-PP format:", match[1]);
     return match[1];
   }
-  
-  // Try direct UUID format
-  uuidPattern = /^([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i;
+
+  uuidPattern =
+    /^([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i;
   match = aliasAccountReference.match(uuidPattern);
-  
+
   if (match && match[1]) {
     console.log("✅ Extracted UUID directly:", match[1]);
     return match[1];
   }
-  
+
   console.log("❌ Failed to extract UUID from:", aliasAccountReference);
   return null;
 }
 
-// Process CARD payments
-export async function processPaymentPagePayment(payload: any, params: PaymentPageParams) {
+// Process CARD payments (UPDATED with student paid status tracking)
+export async function processPaymentPagePayment(
+  payload: any,
+  params: PaymentPageParams,
+): Promise<ServiceResult> {
   const { nombaTransactionId, nombaFee, orderReference } = params;
 
   console.log("💰 Processing Payment Page CARD payment...");
-  console.log("📦 Full payload order:", JSON.stringify(payload.data?.order, null, 2));
   console.log("🔑 Order Reference:", orderReference);
   console.log("🆔 Nomba Transaction ID:", nombaTransactionId);
 
-  // Try to get payment page ID from metadata first, then from order reference
   const metadata = payload.data?.order?.metadata || {};
   console.log("📋 Metadata from order:", metadata);
-  
+
   let paymentPageId = metadata.paymentPageId;
   let paymentId = metadata.paymentId;
 
-  console.log("📌 From metadata - paymentPageId:", paymentPageId, "paymentId:", paymentId);
+  console.log(
+    "📌 From metadata - paymentPageId:",
+    paymentPageId,
+    "paymentId:",
+    paymentId,
+  );
 
-  // If not found in metadata, extract from order_reference
   if (!paymentPageId && orderReference) {
-    paymentPageId = extractPaymentPageIdFromReference(orderReference);
-    console.log("📌 Extracted paymentPageId from orderReference:", paymentPageId);
+    const extractedId = extractPaymentPageIdFromReference(orderReference);
+    console.log("📌 Extracted ID from orderReference:", extractedId);
+
+    if (extractedId) {
+      console.log(
+        "🔍 Searching for payment page with ID ending with:",
+        extractedId,
+      );
+
+      const { data: allPages, error: searchError } = await supabase
+        .from("payment_pages")
+        .select("id, title, user_id");
+
+      if (searchError) {
+        console.error("❌ Error searching for payment pages:", searchError);
+      } else if (allPages) {
+        const foundPage = allPages.find((page) =>
+          page.id.endsWith(extractedId),
+        );
+
+        if (foundPage) {
+          paymentPageId = foundPage.id;
+          console.log("✅ Found payment page by ID suffix:", paymentPageId);
+          console.log("   Page title:", foundPage.title);
+        } else {
+          console.log(
+            "❌ No payment page found with ID ending with:",
+            extractedId,
+          );
+          console.log("📋 Available payment page IDs:");
+          allPages.slice(0, 5).forEach((page) => {
+            console.log(`   - ${page.id} (ends with: ${page.id.slice(-12)})`);
+          });
+        }
+      }
+    }
   }
 
-  // If still no paymentPageId, we can't proceed
   if (!paymentPageId) {
-    console.error("❌ Missing payment page ID. Metadata:", metadata, "OrderReference:", orderReference);
+    console.error("❌ Missing payment page ID");
     return { error: "Missing payment page identifier", status: 400 };
   }
 
-  console.log("🎯 Searching for payment record with page_id:", paymentPageId);
+  console.log("🎯 Final payment page ID:", paymentPageId);
 
-  // First, let's check if the payment page exists
   const { data: paymentPageCheck, error: pageError } = await supabase
     .from("payment_pages")
     .select("id, title, user_id")
@@ -240,16 +334,18 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
 
   if (pageError) {
     console.error("❌ Error checking payment page:", pageError);
-  } else if (!paymentPageCheck) {
-    console.error("❌ Payment page not found with ID:", paymentPageId);
-  } else {
-    console.log("✅ Found payment page:", paymentPageCheck.title, "User:", paymentPageCheck.user_id);
+    return { error: "Error checking payment page", status: 500 };
   }
 
-  // Find the pending payment record
+  if (!paymentPageCheck) {
+    console.error("❌ Payment page not found with ID:", paymentPageId);
+    return { error: "Payment page not found", status: 404 };
+  }
+
+  console.log("✅ Found payment page:", paymentPageCheck.title);
+
   let paymentRecord = null;
-  
-  // Try by payment ID first if provided
+
   if (paymentId) {
     console.log("🔍 Looking for payment by ID:", paymentId);
     const { data: payment, error: paymentError } = await supabase
@@ -257,18 +353,15 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
       .select("*")
       .eq("id", paymentId)
       .maybeSingle();
-    
+
     if (paymentError) {
       console.error("❌ Error fetching payment by ID:", paymentError);
     } else if (payment) {
       console.log("✅ Found payment by ID:", payment.id);
       paymentRecord = payment;
-    } else {
-      console.log("⚠️ No payment found with ID:", paymentId);
     }
   }
 
-  // If not found by ID, find by payment_page_id and status = 'pending'
   if (!paymentRecord) {
     console.log("🔍 Looking for pending payment by page_id:", paymentPageId);
     const { data: payment, error: paymentError } = await supabase
@@ -279,60 +372,50 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    
+
     if (paymentError) {
       console.error("❌ Error fetching payment by page_id:", paymentError);
     } else if (payment) {
       console.log("✅ Found pending payment by page_id:", payment.id);
-      console.log("   Payment details:", {
-        amount: payment.amount,
-        customer: payment.customer_name,
-        email: payment.customer_email,
-        status: payment.status,
-        created_at: payment.created_at
-      });
       paymentRecord = payment;
-      paymentId = payment.id;
-    } else {
-      console.log("⚠️ No pending payment found for page_id:", paymentPageId);
-      
-      // Let's check if there are any payments at all for this page (including completed)
-      const { data: allPayments, error: allError } = await supabase
-        .from("payment_page_payments")
-        .select("*")
-        .eq("payment_page_id", paymentPageId)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      
-      if (allError) {
-        console.error("❌ Error fetching all payments:", allError);
-      } else if (allPayments && allPayments.length > 0) {
-        console.log(`📊 Found ${allPayments.length} total payments for this page:`);
-        allPayments.forEach((p, idx) => {
-          console.log(`   ${idx + 1}. ID: ${p.id}, Status: ${p.status}, Amount: ${p.amount}, Created: ${p.created_at}`);
-        });
-      } else {
-        console.log("📊 No payments found at all for this page");
-      }
     }
   }
 
   if (!paymentRecord) {
     console.error("❌ Payment record not found for page:", paymentPageId);
+
+    const { data: allPayments, error: allError } = await supabase
+      .from("payment_page_payments")
+      .select("*")
+      .eq("payment_page_id", paymentPageId)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (allError) {
+      console.error("❌ Error fetching all payments:", allError);
+    } else if (allPayments && allPayments.length > 0) {
+      console.log(
+        `📊 Found ${allPayments.length} total payments for this page`,
+      );
+      allPayments.forEach((p, idx) => {
+        console.log(
+          `   ${idx + 1}. ID: ${p.id}, Status: ${p.status}, Amount: ${p.amount}`,
+        );
+      });
+    } else {
+      console.log("📊 No payments found for this page");
+    }
+
     return { error: "Payment record not found", status: 404 };
   }
 
   console.log("✅ Found payment record:", {
     id: paymentRecord.id,
-    pageId: paymentRecord.payment_page_id,
     amount: paymentRecord.amount,
-    status: paymentRecord.status,
     customer: paymentRecord.customer_name,
-    email: paymentRecord.customer_email,
   });
 
-  // Check for duplicate webhook processing
-  console.log("🔍 Checking for duplicate webhook with transaction ID:", nombaTransactionId);
+  // Check for duplicate
   const { data: existingWebhook, error: duplicateError } = await supabase
     .from("payment_page_payments")
     .select("nomba_transaction_id, id")
@@ -344,13 +427,12 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
   }
 
   if (existingWebhook) {
-    console.log("⚠️ Duplicate payment page payment detected, skipping");
-    console.log("   Existing record ID:", existingWebhook.id);
+    console.log("⚠️ Duplicate payment detected, skipping");
     return { success: true, message: "Already processed" };
   }
 
   // Update payment status
-  console.log("📝 Updating payment status to 'completed' for ID:", paymentRecord.id);
+  console.log("📝 Updating payment status to 'completed'");
   const { error: updateError } = await supabase
     .from("payment_page_payments")
     .update({
@@ -365,11 +447,10 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     console.error("❌ Failed to update payment record:", updateError);
     return { error: "Failed to update payment", status: 500 };
   }
-  console.log("✅ Payment status updated successfully");
 
   // Credit the page balance
-  let pageCreditAmount = paymentRecord.net_amount;
-  console.log(`💰 Crediting page balance: ₦${pageCreditAmount} to page ${paymentPageId}`);
+  const pageCreditAmount = paymentRecord.net_amount;
+  console.log(`💰 Crediting page balance: ₦${pageCreditAmount}`);
 
   const { data: newBalance, error: balanceError } = await supabase.rpc(
     "increment_page_balance",
@@ -379,14 +460,17 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     },
   );
 
+  let finalBalance: number | null = null;
   if (balanceError) {
     console.error("❌ Failed to increment page balance:", balanceError);
   } else {
-    console.log(`✅ Credited ₦${pageCreditAmount} to page ${paymentPageId}. New balance: ₦${newBalance}`);
+    finalBalance = typeof newBalance === "number" ? newBalance : null;
+    console.log(
+      `✅ Credited ₦${pageCreditAmount}. New balance: ₦${finalBalance}`,
+    );
   }
 
   // Get payment page details
-  console.log("📄 Fetching payment page details for ID:", paymentPageId);
   const { data: paymentPage, error: pageDetailsError } = await supabase
     .from("payment_pages")
     .select("title, user_id, page_type, metadata")
@@ -395,16 +479,19 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
 
   if (pageDetailsError) {
     console.error("❌ Error fetching payment page details:", pageDetailsError);
-  } else {
-    console.log("✅ Payment page details:", {
-      title: paymentPage?.title,
-      user_id: paymentPage?.user_id,
-      page_type: paymentPage?.page_type
-    });
+  }
+
+  // NEW: Update student paid status if this is a school payment
+  if (paymentPage?.page_type === "school" && paymentRecord.metadata?.childName) {
+    await updateStudentPaidStatus(
+      paymentPageId,
+      paymentRecord.metadata.childName,
+      paymentRecord.metadata.parentName || paymentRecord.customer_name,
+      paymentRecord.amount
+    );
   }
 
   // Create transaction record
-  console.log("📝 Creating transaction record...");
   const { error: txError } = await supabase.from("transactions").insert({
     user_id: paymentRecord.user_id,
     type: "credit",
@@ -427,30 +514,29 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     external_response: {
       nomba_transaction_id: nombaTransactionId,
       nomba_fee: nombaFee,
-      payment_method: "card"
+      payment_method: "card",
     },
   });
 
   if (txError) {
     console.error("❌ Failed to create transaction record:", txError);
-  } else {
-    console.log("✅ Transaction record created");
   }
 
-  // Send receipt to customer
+  // Send email notifications with PDF attachments
   if (paymentRecord.customer_email) {
-    console.log("📧 Sending receipt email to:", paymentRecord.customer_email);
-    sendPaymentPageReceiptEmail(
+    await sendPaymentPageReceiptWithPDF(
       paymentRecord.customer_email,
-      paymentPage?.title || "Payment Page",
+      paymentPage || { title: "Payment Page" },
+      paymentRecord,
+      paymentRecord.customer_name,
       paymentRecord.amount,
       nombaTransactionId,
-      paymentRecord.metadata,
-      "card"
+      "card",
+      new Date().toISOString(),
+      { ...paymentRecord.metadata, payment_method: "card", pageType: paymentPage?.page_type }
     ).catch(console.error);
   }
 
-  // Send notification to page creator
   const { data: creator } = await supabase
     .from("users")
     .select("email")
@@ -458,70 +544,69 @@ export async function processPaymentPagePayment(payload: any, params: PaymentPag
     .single();
 
   if (creator?.email) {
-    console.log("📧 Sending notification email to creator:", creator.email);
     sendPaymentPageNotificationEmail(
       creator.email,
       paymentPage?.title || "Payment Page",
       pageCreditAmount,
       paymentRecord.customer_name,
       paymentRecord.fee,
-      paymentRecord.metadata,
-      "card"
+      { ...paymentRecord.metadata, payment_method: "card" },
+      "card",
     ).catch(console.error);
   }
 
-  console.log("🎉 Payment page card payment processing completed successfully!");
-  
+  console.log("🎉 Card payment processing completed!");
+
   return {
     success: true,
-    message: "Payment page card payment processed",
+    message: "Card payment processed",
     credited_amount: pageCreditAmount,
-    new_balance: newBalance,
+    new_balance: finalBalance,
   };
 }
 
-// Process BANK TRANSFER payments (backtransfer)
-export async function processPaymentPageBankTransfer(payload: any, params: BankTransferParams) {
-  const { 
-    nombaTransactionId, 
-    nombaFee, 
+// Process BANK TRANSFER payments (UPDATED with student paid status tracking)
+export async function processPaymentPageBankTransfer(
+  payload: any,
+  params: BankTransferParams,
+): Promise<ServiceResult> {
+  const {
+    nombaTransactionId,
+    nombaFee,
     aliasAccountReference,
     transactionAmount,
     customer,
-    tx 
+    tx,
   } = params;
 
-  console.log("🏦 Processing Payment Page BANK TRANSFER (Backtransfer)...");
+  console.log("🏦 Processing Payment Page BANK TRANSFER...");
   console.log("📦 Virtual Account Reference:", aliasAccountReference);
-  console.log("🆔 Nomba Transaction ID:", nombaTransactionId);
   console.log("💰 Amount:", transactionAmount);
 
-  // Extract payment page ID from the virtual account reference
-  const paymentPageId = extractPaymentPageIdFromVirtualAccount(aliasAccountReference);
-  
+  const paymentPageId = extractPaymentPageIdFromVirtualAccount(
+    aliasAccountReference,
+  );
+
   if (!paymentPageId) {
-    console.error("❌ Could not extract payment page ID from virtual account:", aliasAccountReference);
+    console.error("❌ Could not extract payment page ID");
     return { error: "Invalid virtual account reference", status: 400 };
   }
 
   console.log("🎯 Extracted payment page ID:", paymentPageId);
 
-  // Get payment page details
   const { data: paymentPage, error: pageError } = await supabase
     .from("payment_pages")
-    .select("id, title, user_id, balance")
+    .select("id, title, user_id, balance, page_type, metadata")
     .eq("id", paymentPageId)
     .single();
 
   if (pageError || !paymentPage) {
-    console.error("❌ Payment page not found:", pageError);
+    console.error("❌ Payment page not found");
     return { error: "Payment page not found", status: 404 };
   }
 
   console.log("✅ Found payment page:", paymentPage.title);
 
-  // Check if this bank transfer has already been processed
-  console.log("🔍 Checking for duplicate bank transfer with ID:", nombaTransactionId);
   const { data: existingTransfer, error: duplicateError } = await supabase
     .from("payment_page_payments")
     .select("id, status")
@@ -533,23 +618,27 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
   }
 
   if (existingTransfer) {
-    console.log(`⚠️ Duplicate bank transfer detected, status: ${existingTransfer.status}`);
-    return { success: true, message: "Already processed", status: existingTransfer.status };
+    console.log(`⚠️ Duplicate bank transfer detected`);
+    return { success: true, message: "Already processed" };
   }
 
-  // Calculate net amount after fees
   const netAmount = transactionAmount - nombaFee;
-  
-  // Get customer details from the transfer
-  const customerName = customer?.name || tx?.customerName || tx?.senderName || "Bank Transfer Customer";
+  const customerName =
+    customer?.name ||
+    tx?.customerName ||
+    tx?.senderName ||
+    "Bank Transfer Customer";
   const customerEmail = customer?.email || tx?.customerEmail || null;
   const customerPhone = customer?.phone || tx?.customerPhone || null;
 
-  // Create a payment record for this bank transfer
   console.log("📝 Creating payment record for bank transfer...");
-  
+
   const orderReference = `BT-${paymentPageId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  
+
+  // Extract child name from metadata if available
+  const childName = tx?.metadata?.childName || customer?.metadata?.childName;
+  const parentName = tx?.metadata?.parentName || customer?.metadata?.parentName || customerName;
+
   const { data: paymentRecord, error: insertError } = await supabase
     .from("payment_page_payments")
     .insert({
@@ -568,9 +657,12 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
       metadata: {
         virtual_account: aliasAccountReference,
         bank_transfer: true,
+        payment_method: "bank_transfer",
+        payment_type: "backtransfer",
         customer_details: customer,
         transaction_details: tx,
-        payment_type: "backtransfer"
+        childName: childName,
+        parentName: parentName,
       },
       paid_at: new Date().toISOString(),
     })
@@ -584,8 +676,17 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
 
   console.log("✅ Bank transfer payment record created:", paymentRecord.id);
 
-  // Credit the page balance
-  console.log(`💰 Crediting page balance: ₦${netAmount} to page ${paymentPageId}`);
+  // NEW: Update student paid status if this is a school payment
+  if (paymentPage?.page_type === "school" && childName) {
+    await updateStudentPaidStatus(
+      paymentPageId,
+      childName,
+      parentName,
+      transactionAmount
+    );
+  }
+
+  console.log(`💰 Crediting page balance: ₦${netAmount}`);
 
   const { data: newBalance, error: balanceError } = await supabase.rpc(
     "increment_page_balance",
@@ -595,15 +696,14 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
     },
   );
 
+  let finalBalance: number | null = null;
   if (balanceError) {
     console.error("❌ Failed to increment page balance:", balanceError);
-    // Don't return error, just log it
   } else {
-    console.log(`✅ Credited ₦${netAmount} to page ${paymentPageId}. New balance: ₦${newBalance}`);
+    finalBalance = typeof newBalance === "number" ? newBalance : null;
+    console.log(`✅ Credited ₦${netAmount}. New balance: ₦${finalBalance}`);
   }
 
-  // Create transaction record
-  console.log("📝 Creating transaction record...");
   const { error: txError } = await supabase.from("transactions").insert({
     user_id: paymentPage.user_id,
     type: "credit",
@@ -619,7 +719,7 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
       email: customerEmail,
       phone: customerPhone,
       bank_transfer: true,
-      virtual_account: aliasAccountReference
+      virtual_account: aliasAccountReference,
     },
     receiver: {
       user_id: paymentPage.user_id,
@@ -629,17 +729,14 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
       nomba_transaction_id: nombaTransactionId,
       nomba_fee: nombaFee,
       virtual_account: aliasAccountReference,
-      payment_method: "bank_transfer"
+      payment_method: "bank_transfer",
     },
   });
 
   if (txError) {
     console.error("❌ Failed to create transaction record:", txError);
-  } else {
-    console.log("✅ Transaction record created");
   }
 
-  // Send notification to page creator
   const { data: creator } = await supabase
     .from("users")
     .select("email, full_name")
@@ -647,80 +744,109 @@ export async function processPaymentPageBankTransfer(payload: any, params: BankT
     .single();
 
   if (creator?.email) {
-    console.log("📧 Sending bank transfer notification email to creator:", creator.email);
     sendPaymentPageNotificationEmail(
       creator.email,
       paymentPage.title,
       netAmount,
       customerName,
       nombaFee,
-      { pageType: "bank_transfer" },
-      "bank_transfer"
+      {
+        pageType: "bank_transfer",
+        payment_method: "bank_transfer",
+        bank_transfer: true,
+      },
+      "bank_transfer",
     ).catch(console.error);
   }
 
-  // Send receipt to customer if email provided
   if (customerEmail) {
-    console.log("📧 Sending receipt email to customer:", customerEmail);
-    sendPaymentPageReceiptEmail(
+    await sendPaymentPageReceiptWithPDF(
       customerEmail,
-      paymentPage.title,
+      paymentPage,
+      paymentRecord,
+      customerName,
       transactionAmount,
       nombaTransactionId,
-      { virtual_account: aliasAccountReference },
-      "bank_transfer"
+      "bank_transfer",
+      new Date().toISOString(),
+      {
+        virtual_account: aliasAccountReference,
+        payment_method: "bank_transfer",
+        bank_transfer: true,
+        pageType: paymentPage.page_type,
+        childName: childName,
+        parentName: parentName,
+      }
     ).catch(console.error);
   }
 
-  console.log("🎉 Payment page bank transfer processing completed successfully!");
-  
+  console.log("🎉 Bank transfer processing completed!");
+
   return {
     success: true,
     message: "Bank transfer payment processed",
     credited_amount: netAmount,
-    new_balance: newBalance,
-    payment_id: paymentRecord.id
+    new_balance: finalBalance,
+    payment_id: paymentRecord.id,
   };
 }
 
 // Check if this is a card payment
-export function checkIfPaymentPagePayment(orderReference: string, payload: any): boolean {
-  // Check by order reference pattern (card payments)
+export function checkIfPaymentPagePayment(
+  orderReference: string,
+  payload: any,
+): boolean {
   if (orderReference?.startsWith("PP-")) {
-    console.log("✅ Detected payment page card payment by orderReference pattern:", orderReference);
+    console.log("✅ Detected payment page card payment by PP- prefix");
     return true;
   }
-  
-  // Check by metadata for card payments
-  const isPaymentPage = payload.data?.order?.metadata?.type === "payment_page" ||
-    payload.data?.order?.metadata?.paymentPageId;
-  
-  if (isPaymentPage) {
+
+  if (orderReference?.startsWith("P") && !orderReference?.startsWith("PP-")) {
+    console.log("⚠️ Detected legacy payment page card payment by P prefix");
+    return true;
+  }
+
+  const metadata = payload.data?.order?.metadata || {};
+  const isPaymentPage =
+    metadata.type === "payment_page" ||
+    metadata.paymentPageId ||
+    metadata.paymentId;
+
+  if (isPaymentPage && !metadata.invoiceId) {
     console.log("✅ Detected payment page card payment by metadata");
     return true;
   }
-  
+
   return false;
 }
 
 // Check if this is a bank transfer to a payment page
-export function checkIfPaymentPageBankTransfer(aliasAccountReference: string, payload: any): boolean {
-  // Check if the virtual account reference is for a payment page
-  if (aliasAccountReference && 
-      (aliasAccountReference.startsWith("VA-PP-") || 
-       extractPaymentPageIdFromVirtualAccount(aliasAccountReference))) {
-    console.log("✅ Detected payment page bank transfer by virtual account reference:", aliasAccountReference);
+export function checkIfPaymentPageBankTransfer(
+  aliasAccountReference: string,
+  payload: any,
+): boolean {
+  if (!aliasAccountReference) return false;
+
+  const hasPaymentPageId = extractPaymentPageIdFromVirtualAccount(
+    aliasAccountReference,
+  );
+
+  if (hasPaymentPageId) {
+    console.log(
+      "✅ Detected payment page bank transfer by virtual account reference",
+    );
     return true;
   }
-  
-  // Check metadata
-  const isBankTransfer = payload.data?.order?.metadata?.type === "payment_page_bank_transfer" ||
-    payload.data?.transaction?.type === "bank_transfer" ||
+
+  const metadata = payload.data?.order?.metadata || {};
+  const isBankTransfer =
+    metadata.type === "payment_page_bank_transfer" ||
     payload.data?.transaction?.paymentMethod === "bank_transfer";
-  
-  if (isBankTransfer) {
+
+  if (isBankTransfer && metadata.paymentPageId && !metadata.invoiceId) {
     console.log("✅ Detected payment page bank transfer by metadata");
+    return true;
   }
-  
-  return isBankTransfer;
+
+  return false;
 }

@@ -177,19 +177,31 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
         ).catch(console.error);
       }
 
-      // Send deposit email to depositor if cross-user
+      // FIXED: Send deposit email to depositor if cross-user
       if (isCrossUser) {
-        sendVirtualAccountDepositEmail(
-          userId,
-          transactionAmount,
-          nombaTransactionId,
-          customer.bankName || "N/A",
-          tx.aliasAccountNumber || "N/A",
-          tx.aliasAccountName || "N/A",
-          senderName,
-          narration,
-          nombaFee,
-        ).catch(console.error);
+        // Get the depositor's actual user record to ensure we have their email
+        const { data: depositorUser, error: depositorError } = await supabase
+          .from("users")
+          .select("id, email")
+          .eq("id", userId)
+          .single();
+
+        if (depositorError || !depositorUser) {
+          console.error("❌ Cannot find depositor user for ID:", userId, depositorError);
+        } else {
+          console.log("✅ Found depositor user, sending email to:", depositorUser.email);
+          await sendVirtualAccountDepositEmail(
+            depositorUser.id, // Pass the verified user ID
+            transactionAmount,
+            nombaTransactionId,
+            customer.bankName || "N/A",
+            tx.aliasAccountNumber || "N/A",
+            tx.aliasAccountName || "N/A",
+            senderName,
+            narration,
+            nombaFee,
+          ).catch(console.error);
+        }
       }
 
       return {
@@ -270,18 +282,30 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
       console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to wallet ${userId}`);
     }
 
-    // Send deposit email
-    sendVirtualAccountDepositEmail(
-      userId,
-      transactionAmount,
-      nombaTransactionId,
-      customer.bankName || "N/A",
-      tx.aliasAccountNumber || "N/A",
-      tx.aliasAccountName || "N/A",
-      senderName,
-      narration,
-      nombaFee,
-    ).catch(console.error);
+    // FIXED: Send deposit email for regular wallet deposit
+    // Verify the user exists before sending email
+    const { data: userExists, error: userError } = await supabase
+      .from("users")
+      .select("id, email")
+      .eq("id", userId)
+      .single();
+
+    if (userError || !userExists) {
+      console.error("❌ Cannot find user for ID:", userId, userError);
+    } else {
+      console.log("✅ Found user, sending deposit email to:", userExists.email);
+      await sendVirtualAccountDepositEmail(
+        userExists.id, // Use the verified user ID
+        transactionAmount,
+        nombaTransactionId,
+        customer.bankName || "N/A",
+        tx.aliasAccountNumber || "N/A",
+        tx.aliasAccountName || "N/A",
+        senderName,
+        narration,
+        nombaFee,
+      ).catch(console.error);
+    }
   } else {
     console.log("⚠️ Duplicate VA deposit detected, skipping");
   }
