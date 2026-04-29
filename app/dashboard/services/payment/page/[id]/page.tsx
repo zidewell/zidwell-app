@@ -29,6 +29,7 @@ import { Button } from "@/app/components/ui/button";
 import { useStore, isInvestmentType } from "@/app/hooks/useStore";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
+import Link from "next/link";
 
 const typeLabels: Record<string, string> = {
   school: "School Fees",
@@ -343,9 +344,12 @@ const PageDetail = () => {
                     </div>
                   </div>
                 </div>
-                <Button variant="default" onClick={() => router.push(`/pay/${page.slug}`)} className="self-start sm:self-center">
-                  <ExternalLink className="h-4 w-4 mr-1" /> View Page
-                </Button>
+                
+<Link href={`/pay/${page.slug}`} target="_blank" rel="noopener noreferrer">
+  <Button variant="default" className="self-start sm:self-center">
+    <ExternalLink className="h-4 w-4 mr-1" /> View Page
+  </Button>
+</Link>
               </div>
             </motion.div>
 
