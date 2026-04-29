@@ -93,7 +93,7 @@ const Landing = () => {
               </h1>
               <p className="text-lg md:text-xl text-[#6b6b6b] dark:text-[#a6a6a6] max-w-xl mx-auto mb-10">
                 Set up a beautiful payment page in 2 minutes. Share on WhatsApp.
-                Start collecting school fees, service payments, event tickets —
+                Start collecting school fees, service payments, event tickets
                 anything.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -128,7 +128,7 @@ const Landing = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
-              className="flex flex-wrap justify-center gap-3 mt-14"
+              className="flex flex-wrap justify-center px-5 gap-3 mt-14"
             >
               {useCases.map((u) => (
                 <span
@@ -178,7 +178,7 @@ const Landing = () => {
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-14 text-[#141414] dark:text-[#f5f5f5]">
               Everything You Need
             </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            <div className="px-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
               {features.map((f, i) => (
                 <motion.div
                   key={f.title}

@@ -70,6 +70,13 @@ export function JournalDashboard() {
   const monthSummary = getMonthSummary(activeJournalType);
   const yearSummary = getYearSummary(activeJournalType);
 
+  // Helper function for date formatting
+  const formatDateDisplay = (dateString: string) => {
+    if (!dateString) return "Select date";
+    const date = new Date(dateString);
+    return format(date, "MMM dd, yyyy");
+  };
+
   if (loading) {
     return <Loader />;
   }
@@ -96,36 +103,58 @@ export function JournalDashboard() {
   const handleExportPDF = async (dateRange: { from: string; to: string }) => {
     setExporting(true);
     try {
-      // Filter entries by date range and journal type
+      // Filter entries by date range
       const fromDateTime = new Date(dateRange.from);
       fromDateTime.setHours(0, 0, 0, 0);
 
       const toDateTime = new Date(dateRange.to);
       toDateTime.setHours(23, 59, 59, 999);
 
-      const filteredEntries = entries.filter((entry) => {
-        if (entry.journalType !== activeJournalType) return false;
+      // Use unifiedEntries instead of entries to include wallet transactions
+      let filteredEntries = unifiedEntries.filter((entry) => {
         const entryDate = new Date(entry.date);
-        return entryDate >= fromDateTime && entryDate <= toDateTime;
+        const matchesDate = entryDate >= fromDateTime && entryDate <= toDateTime;
+        
+        if (entry.journalType && activeJournalType) {
+          return matchesDate && entry.journalType === activeJournalType;
+        }
+        return matchesDate;
       });
 
-      if (filteredEntries.length === 0) {
-        alert("No journal entries found in the selected date range");
+      // Also include manual entries that might not be in unifiedEntries
+      const manualFiltered = entries.filter((entry) => {
+        const entryDate = new Date(entry.date);
+        const matchesDate = entryDate >= fromDateTime && entryDate <= toDateTime;
+        if (entry.journalType && activeJournalType) {
+          return matchesDate && entry.journalType === activeJournalType;
+        }
+        return matchesDate;
+      });
+
+      // Merge and deduplicate by id
+      const allFiltered = [...filteredEntries, ...manualFiltered];
+      const uniqueEntries = Array.from(
+        new Map(allFiltered.map(entry => [entry.id, entry])).values()
+      );
+
+      if (uniqueEntries.length === 0) {
+        alert(`No journal entries found in the selected date range (${formatDateDisplay(dateRange.from)} to ${formatDateDisplay(dateRange.to)}) for ${activeJournalType} journal.`);
+        setExporting(false);
         return;
       }
 
       // Sort entries by date (newest first)
-      const sortedEntries = [...filteredEntries].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      const sortedEntries = [...uniqueEntries].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       );
 
       // Calculate summaries
-      const totalIncome = filteredEntries
-        .filter((e) => e.type === "income")
+      const totalIncome = uniqueEntries
+        .filter((e) => e.type === 'income')
         .reduce((sum, e) => sum + e.amount, 0);
 
-      const totalExpenses = filteredEntries
-        .filter((e) => e.type === "expense")
+      const totalExpenses = uniqueEntries
+        .filter((e) => e.type === 'expense')
         .reduce((sum, e) => sum + e.amount, 0);
 
       const netTotal = totalIncome - totalExpenses;
@@ -133,29 +162,24 @@ export function JournalDashboard() {
       // Group by category for breakdown
       const categoryBreakdown: Record<
         string,
-        { income: number; expense: number }
+        { income: number; expense: number; icon: string }
       > = {};
 
-      filteredEntries.forEach((entry) => {
+      uniqueEntries.forEach((entry) => {
         const category = categories.find((c) => c.id === entry.categoryId);
-        const categoryName = category?.name || "Other";
+        const categoryName = category?.name || 'Other';
+        const categoryIcon = category?.icon || '📦';
 
         if (!categoryBreakdown[categoryName]) {
-          categoryBreakdown[categoryName] = { income: 0, expense: 0 };
+          categoryBreakdown[categoryName] = { income: 0, expense: 0, icon: categoryIcon };
         }
 
-        if (entry.type === "income") {
+        if (entry.type === 'income') {
           categoryBreakdown[categoryName].income += entry.amount;
         } else {
           categoryBreakdown[categoryName].expense += entry.amount;
         }
       });
-
-      const formatDateDisplay = (dateString: string) => {
-        if (!dateString) return "Select date";
-        const date = new Date(dateString);
-        return format(date, "MMM dd, yyyy");
-      };
 
       // Create professional receipt HTML
       const receiptHTML = `<!DOCTYPE html>
@@ -189,7 +213,6 @@ export function JournalDashboard() {
       box-shadow: 0 12px 40px -12px rgba(38,33,28,0.15);
     }
     
-    /* Header Section */
     .header {
       display: flex;
       justify-content: space-between;
@@ -222,7 +245,6 @@ export function JournalDashboard() {
       box-shadow: 0 4px 20px -4px rgba(43, 130, 91, 0.3);
     }
     
-    /* Period Section */
     .period {
       display: flex;
       justify-content: space-between;
@@ -258,7 +280,6 @@ export function JournalDashboard() {
       background: #e6dfd6;
     }
     
-    /* Summary Cards */
     .summary-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -315,7 +336,6 @@ export function JournalDashboard() {
       color: #ffffff;
     }
     
-    /* Category Breakdown */
     .breakdown-section {
       background: #f5f1ea;
       border-radius: 16px;
@@ -367,7 +387,6 @@ export function JournalDashboard() {
       font-weight: 600;
     }
     
-    /* Transactions Table */
     .transactions-section {
       margin-bottom: 30px;
     }
@@ -424,7 +443,6 @@ export function JournalDashboard() {
       margin-top: 4px;
     }
     
-    /* Footer */
     .footer {
       margin-top: 40px;
       padding-top: 30px;
@@ -477,18 +495,16 @@ export function JournalDashboard() {
 </head>
 <body>
   <div class="statement-container">
-    <!-- Header -->
     <div class="header">
       <div class="title-section">
         <h1>Journal Statement</h1>
         <p>${activeJournalType.charAt(0).toUpperCase() + activeJournalType.slice(1)} Account</p>
       </div>
       <div class="journal-badge">
-        ZIDWELL JOURNAL
+        ZIDWELL BOOKKEPR
       </div>
     </div>
     
-    <!-- Period -->
     <div class="period">
       <div class="period-item">
         <span class="period-label">From Date</span>
@@ -506,20 +522,19 @@ export function JournalDashboard() {
       </div>
     </div>
     
-    <!-- Summary Cards -->
     <div class="summary-grid">
       <div class="summary-card income">
         <div class="summary-title">Total Income</div>
         <div class="summary-amount">₦${totalIncome.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
         <div style="font-size: 12px; color: #16a34a; margin-top: 8px;">
-          ${filteredEntries.filter((e) => e.type === "income").length} transactions
+          ${uniqueEntries.filter((e) => e.type === "income").length} transactions
         </div>
       </div>
       <div class="summary-card expense">
         <div class="summary-title">Total Expenses</div>
         <div class="summary-amount">₦${totalExpenses.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
         <div style="font-size: 12px; color: #e11d48; margin-top: 8px;">
-          ${filteredEntries.filter((e) => e.type === "expense").length} transactions
+          ${uniqueEntries.filter((e) => e.type === "expense").length} transactions
         </div>
       </div>
       <div class="summary-card net">
@@ -531,7 +546,6 @@ export function JournalDashboard() {
       </div>
     </div>
     
-    <!-- Category Breakdown -->
     <div class="breakdown-section">
       <div class="breakdown-title">Category Breakdown</div>
       <div class="breakdown-grid">
@@ -540,7 +554,7 @@ export function JournalDashboard() {
             ([name, data]) => `
           <div class="category-item">
             <span class="category-name">
-              <span class="category-icon">${categories.find((c) => c.name === name)?.icon || "📦"}</span>
+              <span class="category-icon">${data.icon}</span>
               ${name}
             </span>
             <div style="display: flex; gap: 16px;">
@@ -554,7 +568,6 @@ export function JournalDashboard() {
       </div>
     </div>
     
-    <!-- Transactions List -->
     <div class="transactions-section">
       <div class="transactions-title">Transaction Details</div>
       <table>
@@ -575,6 +588,7 @@ export function JournalDashboard() {
               const categoryIcon = category?.icon || "📦";
               const categoryName = category?.name || "Other";
               const isIncome = entry.type === "income";
+              const displayNote = entry.note || (entry.type === 'income' ? 'Income' : 'Expense');
 
               return `
               <tr>
@@ -586,7 +600,7 @@ export function JournalDashboard() {
                   </div>
                 </td>
                 <td>
-                  ${entry.note || "No description"}
+                  ${displayNote}
                   <div class="transaction-note">Ref: ${entry.id.slice(0, 8)}</div>
                 </td>
                 <td style="text-align: right; font-weight: 600;" class="${isIncome ? "transaction-income" : "transaction-expense"}">
@@ -600,10 +614,9 @@ export function JournalDashboard() {
       </table>
     </div>
     
-    <!-- Footer -->
     <div class="footer">
       <div>
-        <div style="font-weight: 600; margin-bottom: 4px;">Zidwell Journal</div>
+        <div style="font-weight: 600; margin-bottom: 4px;">Zidwell Bookkeeping</div>
         <div>${format(new Date(), "MMMM d, yyyy h:mm a")}</div>
       </div>
       <div class="footer-stats">
@@ -620,7 +633,6 @@ export function JournalDashboard() {
       </div>
     </div>
     
-    <!-- Signature -->
     <div style="margin-top: 30px; text-align: center; color: #80746e; font-size: 11px;">
       <span class="signature">— This is an official statement from your Zidwell Journal —</span>
     </div>
@@ -812,9 +824,9 @@ export function JournalDashboard() {
                 <Plus className="h-5 w-5 mr-2" />
                 Add Income
               </Button>
-              <Button
+              <button
                 onClick={() => openEntryForm("expense")}
-                className="flex-1 h-14 text-base font-semibold shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#e11d48] dark:hover:bg-[#c0183d]"
+                className="flex-1 h-14 text-base font-semibold shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow rounded-md flex items-center justify-center dark:bg-[#e11d48] dark:hover:bg-[#b91c1c]"
                 style={{
                   backgroundColor: "#e11d48",
                   color: "#ffffff",
@@ -822,7 +834,7 @@ export function JournalDashboard() {
               >
                 <Minus className="h-5 w-5 mr-2" />
                 Add Expense
-              </Button>
+              </button>
             </section>
 
             {/* Progress Indicators */}
@@ -917,14 +929,14 @@ export function JournalDashboard() {
                 <Plus className="h-4 w-4 mr-2" />
                 Add Income
               </Button>
-              <Button
+              <button
                 onClick={() => openEntryForm("expense")}
-                className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#e11d48] dark:hover:bg-[#c0183d]"
+                className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow flex items-center justify-center dark:bg-[#e11d48] dark:hover:bg-[#b91c1c] rounded-md p-2 text-sm"
                 style={{ backgroundColor: "#e11d48", color: "#ffffff" }}
               >
                 <Minus className="h-4 w-4 mr-2" />
                 Add Expense
-              </Button>
+              </button>
             </div>
 
             <div className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] dark:bg-gray-800 dark:border-gray-700">
