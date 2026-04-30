@@ -49,7 +49,7 @@ const ALLOWED_PAYMENT_EMAILS = new Set([
   "abdullahtimilehin15@gmail.com",
   "ebrusikefavour@gmail.com",
   "skillfidelafrica@gmail.com",
-  "verifiedaboki@gmail.com",
+  // "verifiedaboki@gmail.com",
   "abbalolo360@gmail.com"
 ]);
 
