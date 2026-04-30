@@ -7,14 +7,50 @@ import { useJournal } from "@/app/context/JournalContext";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
+// Add sweet alert styles (you may need to install sweetalert2)
+// npm install sweetalert2
+import Swal from 'sweetalert2';
+
 interface RecentEntriesProps {
   onEdit?: (entry: any) => void;
   limit?: number;
 }
 
-// Map transaction types to icons based ONLY on transaction type
+// Map transaction types to display names
+const getDisplayCategoryName = (walletTransactionType: string | undefined, entryType: string): string => {
+  const type = walletTransactionType?.toLowerCase() || "";
+  
+  // Income types
+  if (entryType === 'income') {
+    if (type === 'salary') return 'Salary';
+    if (type === 'referral' || type === 'referral_reward') return 'Referral Bonus';
+    if (type === 'refund' || type === 'reversal') return 'Refund';
+    if (type === 'cashback') return 'Cashback';
+    if (type === 'deposit' || type === 'virtual_account_deposit' || type === 'card_deposit') return 'Bank Deposit';
+    if (type === 'p2p_received') return 'P2P Transfer Received';
+    return 'Income';
+  }
+  
+  // Expense/Outflow types
+  if (type === 'withdrawal') return 'Withdrawal';
+  if (type === 'transfer') return 'Transfer';
+  if (type === 'p2p_transfer') return 'Transfer';
+  if (type === 'debit') return 'Debit';
+  if (type === 'airtime') return 'Data & Airtime';
+  if (type === 'data') return 'Data & Airtime';
+  if (type === 'electricity') return 'Utilities';
+  if (type === 'cable') return 'Utilities';
+  if (type === 'bill_payment') return 'Bills';
+  if (type === 'purchase') return 'Shopping';
+  if (type === 'subscription') return 'Subscriptions';
+  if (type === 'fee' || type === 'charge') return 'Fees & Charges';
+  
+  return 'Expense';
+};
+
+// Map transaction types to icons
 const getTransactionIcon = (walletTransactionType: string | undefined, entryType: string) => {
-  const type = walletTransactionType?.toLowerCase() || entryType?.toLowerCase() || "";
+  const type = walletTransactionType?.toLowerCase() || "";
   
   // Income icons
   if (entryType === 'income') {
@@ -34,6 +70,7 @@ const getTransactionIcon = (walletTransactionType: string | undefined, entryType
   if (type === 'electricity') return <Zap className="h-5 w-5" />;
   if (type === 'cable') return <Tv className="h-5 w-5" />;
   if (type === 'bill_payment') return <Home className="h-5 w-5" />;
+  if (type === 'purchase') return <ShoppingBag className="h-5 w-5" />;
   
   return <ArrowUpRight className="h-5 w-5" />;
 };
@@ -52,46 +89,6 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   const [visibleCount, setVisibleCount] = useState(limit || 5);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Filter out unwanted categories
-  const filteredCategories = categories.filter(cat => 
-    cat.name !== 'Food' && cat.name !== 'Transportation'
-  );
-
-  // Helper function to get the correct category for wallet transactions
-  const getCorrectCategory = (entry: any) => {
-    // If it's a wallet transaction, try to find matching category by transaction type
-    if (entry.source === 'wallet' && entry.walletTransactionType) {
-      const txType = entry.walletTransactionType.toLowerCase();
-      
-      if (txType === 'withdrawal') {
-        const withdrawalCat = filteredCategories.find(c => c.name === 'Withdrawal');
-        if (withdrawalCat) return withdrawalCat;
-      }
-      
-      if (txType === 'transfer' || txType === 'p2p_transfer' || txType === 'debit') {
-        const transferCat = filteredCategories.find(c => c.name === 'Transfer');
-        if (transferCat) return transferCat;
-      }
-      
-      if (txType === 'airtime' || txType === 'data') {
-        const dataCat = filteredCategories.find(c => c.name === 'Data & Airtime');
-        if (dataCat) return dataCat;
-      }
-      
-      if (txType === 'electricity' || txType === 'cable' || txType === 'bill_payment') {
-        const billsCat = filteredCategories.find(c => c.name === 'Bills' || c.name === 'Utilities');
-        if (billsCat) return billsCat;
-      }
-    }
-    
-    // Fallback to category from entry ID
-    const category = filteredCategories.find(c => c.id === entry.categoryId);
-    if (category) return category;
-    
-    // Last resort - find any expense/income category
-    return filteredCategories.find(c => c.type === entry.type);
-  };
-
   // Get visible entries based on count
   const visibleEntries = unifiedEntries.slice(0, visibleCount);
   const hasMore = visibleCount < unifiedEntries.length;
@@ -105,8 +102,49 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   };
 
   const handleDelete = async (entry: any) => {
-    if (confirm("Are you sure you want to delete this entry?")) {
-      await deleteEntry(entry.id);
+    // Show sweet alert confirmation
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      html: `You are about to delete this transaction:<br/><strong>${getDisplayText(entry)}</strong><br/>Amount: ${formatCurrency(entry.amount)}`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#e11d48',
+      cancelButtonColor: '#80746e',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+      background: '#fcfbf9',
+      customClass: {
+        popup: 'dark:bg-gray-800',
+        title: 'dark:text-gray-100',
+        htmlContainer: 'dark:text-gray-300',
+      }
+    });
+
+    if (result.isConfirmed) {
+      if (entry.source === 'wallet') {
+        // For wallet entries, just hide them
+        await deleteEntry(entry.id);
+        await Swal.fire({
+          title: 'Hidden!',
+          text: 'Transaction has been hidden from your journal.',
+          icon: 'success',
+          confirmButtonColor: '#2b825b',
+          background: '#fcfbf9',
+          timer: 2000,
+          showConfirmButton: true,
+        });
+      } else {
+        await deleteEntry(entry.id);
+        await Swal.fire({
+          title: 'Deleted!',
+          text: 'Transaction has been deleted successfully.',
+          icon: 'success',
+          confirmButtonColor: '#2b825b',
+          background: '#fcfbf9',
+          timer: 2000,
+          showConfirmButton: true,
+        });
+      }
       await refetch();
     }
   };
@@ -128,12 +166,22 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
     
     setShowEditDialog(false);
     setEditingEntry(null);
+    
+    await Swal.fire({
+      title: 'Updated!',
+      text: 'Category has been updated successfully.',
+      icon: 'success',
+      confirmButtonColor: '#2b825b',
+      background: '#fcfbf9',
+      timer: 1500,
+      showConfirmButton: true,
+    });
+    
     await refetch();
   };
 
   const handleLoadMore = async () => {
     setIsLoadingMore(true);
-    // Simulate a small delay for better UX
     await new Promise(resolve => setTimeout(resolve, 500));
     setVisibleCount(prev => prev + 5);
     setIsLoadingMore(false);
@@ -160,16 +208,16 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
     <>
       <div className="space-y-3">
         {visibleEntries.map((entry) => {
-          const category = getCorrectCategory(entry);
           const isWalletEntry = entry.source === 'wallet';
           const displayText = getDisplayText(entry);
+          const displayCategoryName = getDisplayCategoryName(entry.walletTransactionType, entry.type);
           const icon = getTransactionIcon(entry.walletTransactionType, entry.type);
           const iconColor = getIconColor(entry.type);
 
           return (
             <div
               key={entry.id}
-              className="flex items-center gap-4 p-4 rounded-xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] transition-shadow group dark:bg-gray-800 dark:border-gray-700"
+              className="flex items-center gap-4 p-4 rounded-xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] transition-shadow dark:bg-gray-800 dark:border-gray-700"
               style={{
                 backgroundColor: isWalletEntry ? 'rgba(245, 241, 234, 0.5)' : '#fcfbf9',
                 borderColor: "#e6dfd6",
@@ -187,7 +235,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "#f5f1ea", color: "#80746e" }}>
-                    {category?.name || (entry.type === 'income' ? 'Income' : 'Expense')}
+                    {displayCategoryName}
                   </span>
                   {isWalletEntry && (
                     <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1">
@@ -222,22 +270,25 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                 {formatCurrency(entry.amount)}
               </p>
 
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Buttons always visible - removed opacity-0 group-hover:opacity-100 */}
+              <div className="flex gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="dark:text-gray-400 dark:hover:text-gray-300"
+                  className="h-8 w-8"
                   style={{ color: "#2b825b" }}
                   onClick={() => handleEditCategory(entry)}
+                  title="Edit Category"
                 >
                   <Edit2 className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="dark:text-gray-400 dark:hover:text-gray-300"
-                  style={{ color: "#80746e" }}
+                  className="h-8 w-8"
+                  style={{ color: "#e11d48" }}
                   onClick={() => handleDelete(entry)}
+                  title="Delete Entry"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -252,7 +303,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
             <button
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="px-8 py-2 font-medium rounded-md transition-colors text-sm flex "
+              className="px-8 py-2 font-medium rounded-md transition-colors text-sm flex items-center"
               style={{
                 backgroundColor: "#f5f1ea",
                 color: "#2b825b",
@@ -312,7 +363,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                   Select Category
                 </label>
                 <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
-                  {filteredCategories
+                  {categories
                     .filter(cat => cat.type === editingEntry.type || cat.type === "both")
                     .map((cat) => (
                       <button

@@ -1,4 +1,3 @@
-// app/create/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -15,6 +14,10 @@ import {
   Loader2,
   Calendar,
   Info,
+  Move,
+  ZoomIn,
+  ZoomOut,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -58,6 +61,65 @@ const typeLabels: Record<PageType, string> = {
   crypto: "Crypto Investment",
 };
 
+// Image size specifications for different page types
+const IMAGE_SPECS: Record<PageType, { width: number; height: number; ratio: string; description: string }> = {
+  school: { width: 1200, height: 600, ratio: "2:1", description: "1200 x 600px (2:1 ratio) - Best for school banners" },
+  donation: { width: 1200, height: 628, ratio: "1.91:1", description: "1200 x 628px (Facebook style) - Great for sharing" },
+  physical: { width: 1200, height: 1200, ratio: "1:1", description: "1200 x 1200px (Square) - Perfect for product display" },
+  digital: { width: 1200, height: 800, ratio: "3:2", description: "1200 x 800px (3:2 ratio) - Ideal for course thumbnails" },
+  services: { width: 1200, height: 675, ratio: "16:9", description: "1200 x 675px (16:9 ratio) - Great for service banners" },
+  real_estate: { width: 1600, height: 900, ratio: "16:9", description: "1600 x 900px (Wide) - Showcase properties beautifully" },
+  stock: { width: 1200, height: 630, ratio: "1.91:1", description: "1200 x 630px - Standard investment banner" },
+  savings: { width: 1200, height: 630, ratio: "1.91:1", description: "1200 x 630px - Perfect for savings campaigns" },
+  crypto: { width: 1200, height: 630, ratio: "1.91:1", description: "1200 x 630px - Modern crypto banner" },
+};
+
+// Placeholder text based on page type
+const getPlaceholderText = (pageType: PageType | null, field: "title" | "description"): string => {
+  if (!pageType) return field === "title" ? "Enter page title" : "Describe your product or service...";
+  
+  const placeholders: Record<PageType, { title: string; description: string }> = {
+    school: {
+      title: "Harmony International School - Term Fees 2025",
+      description: "Quality education for every child. Pay your child's school fees securely online. Includes tuition, sports, and library fees.",
+    },
+    donation: {
+      title: "Help Build a School in Africa",
+      description: "Your donation helps provide quality education to underprivileged children. Every naira counts! Join us in making a difference.",
+    },
+    physical: {
+      title: "Premium Leather Backpack",
+      description: "Handcrafted genuine leather backpack with multiple compartments. Perfect for work, travel, or everyday use. Limited stock available.",
+    },
+    digital: {
+      title: "Pastry Baking Course",
+      description: "Master the art of pastry baking with our comprehensive online course. Get instant access to video tutorials, recipes, and certification upon completion.",
+    },
+    services: {
+      title: "Professional Web Design Service",
+      description: "Custom website design tailored to your business needs. Includes responsive design, SEO optimization, and 1 year of support.",
+    },
+    real_estate: {
+      title: "Luxury 4-Bedroom Villa",
+      description: "Modern luxury villa with swimming pool, smart home features, and stunning ocean views. Located in prime neighborhood. Schedule a viewing today.",
+    },
+    stock: {
+      title: "Tech Growth Investment Fund",
+      description: "Invest in Africa's fastest-growing tech startups. Minimum investment ₦50,000. Projected returns of 15-20% annually. Start building wealth today.",
+    },
+    savings: {
+      title: "High-Yield Savings Plan",
+      description: "Save towards your financial goals with competitive interest rates. Flexible withdrawal options. Start saving for your future today.",
+    },
+    crypto: {
+      title: "Bitcoin Investment Package",
+      description: "Start your crypto journey with our secure investment packages. Expert managed funds with proven returns. Join the crypto revolution.",
+    },
+  };
+
+  return placeholders[pageType]?.[field] || (field === "title" ? `Enter ${typeLabels[pageType]} title` : `Describe your ${typeLabels[pageType].toLowerCase()}...`);
+};
+
 const CreatePage = () => {
   const router = useRouter();
   const { createPage, addPage } = useStore();
@@ -70,6 +132,17 @@ const CreatePage = () => {
   const [dynamicId, setDynamicId] = useState(() =>
     Math.floor(100 + Math.random() * 900).toString()
   );
+
+  // Image drag adjustment states for cover image preview
+  const [imagePosition, setImagePosition] = useState({ x: 50, y: 50 });
+  const [imageScale, setImageScale] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [showImageControls, setShowImageControls] = useState(false);
+  const [coverPreviewFile, setCoverPreviewFile] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false); // Drag and drop state
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -142,6 +215,150 @@ const CreatePage = () => {
     feeCap: 2000,
   });
 
+  // Drag and drop handlers for cover image
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragOver) setIsDragOver(true);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      
+      // Check if it's an image
+      if (!file.type.startsWith('image/')) {
+        Swal.fire({
+          title: "Invalid File",
+          text: "Please drop an image file (JPEG, PNG, etc.)",
+          icon: "error",
+          confirmButtonColor: "#e1bf46",
+        });
+        return;
+      }
+      
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        Swal.fire({
+          title: "File Too Large",
+          text: "Image size should be less than 5MB",
+          icon: "error",
+          confirmButtonColor: "#e1bf46",
+        });
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        setForm((f) => ({ ...f, coverImage: result }));
+        setCoverPreviewFile(result);
+        resetImagePosition();
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Image drag handlers for repositioning
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!coverPreviewFile && !form.coverImage) return;
+    e.preventDefault();
+    setIsDragging(true);
+    
+    const container = imageContainerRef.current;
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const mouseX = ((e.clientX - rect.left) / rect.width) * 100;
+    const mouseY = ((e.clientY - rect.top) / rect.height) * 100;
+    
+    setDragStart({ 
+      x: mouseX - imagePosition.x, 
+      y: mouseY - imagePosition.y 
+    });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    
+    const container = imageContainerRef.current;
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const mouseX = ((e.clientX - rect.left) / rect.width) * 100;
+    const mouseY = ((e.clientY - rect.top) / rect.height) * 100;
+    
+    let newX = mouseX - dragStart.x;
+    let newY = mouseY - dragStart.y;
+    
+    const maxX = 100 - (100 / imageScale);
+    const maxY = 100 - (100 / imageScale);
+    const minX = 0;
+    const minY = 0;
+    
+    newX = Math.min(Math.max(newX, minX), maxX);
+    newY = Math.min(Math.max(newY, minY), maxY);
+    
+    setImagePosition({ x: newX, y: newY });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (!coverPreviewFile && !form.coverImage) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setImageScale(prev => Math.min(Math.max(prev + delta, 0.5), 2));
+  };
+
+  const handleZoomIn = () => {
+    setImageScale(prev => Math.min(prev + 0.1, 2));
+  };
+
+  const handleZoomOut = () => {
+    setImageScale(prev => Math.max(prev - 0.1, 0.5));
+  };
+
+  const resetImagePosition = () => {
+    setImagePosition({ x: 50, y: 50 });
+    setImageScale(1);
+  };
+
+  // Global mouse up handler
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+      }
+    };
+    
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging]);
+
   const calculateFeeBreakdownTotal = () => {
     return feeBreakdown.reduce((sum, item) => sum + (item.amount || 0), 0);
   };
@@ -192,7 +409,12 @@ const CreatePage = () => {
 
     if (field === "coverImage") {
       const reader = new FileReader();
-      reader.onload = (ev) => setForm((f) => ({ ...f, coverImage: ev.target?.result as string }));
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        setForm((f) => ({ ...f, coverImage: result }));
+        setCoverPreviewFile(result);
+        resetImagePosition();
+      };
       reader.readAsDataURL(files[0]);
     } else if (field === "logo") {
       const reader = new FileReader();
@@ -218,7 +440,6 @@ const CreatePage = () => {
     const titleSlug = slugify(form.title);
     let prefix = "";
     
-    // Add class/group name prefix for school pages
     if (pageType === "school" && schoolClass) {
       prefix = slugify(schoolClass) + "-";
     }
@@ -401,12 +622,13 @@ const CreatePage = () => {
   const copyUrl = () => navigator.clipboard.writeText(pageUrl);
   const previewPage = () => router.push(`/pay/${createdSlug}`);
 
-  // Calculate fee per installment for display
   const getFeePerInstallment = () => {
     const perInstallment = installmentAmount;
     const fee = Math.min(perInstallment * 0.02, 2000);
     return fee;
   };
+
+  const currentImageSpecs = pageType ? IMAGE_SPECS[pageType] : IMAGE_SPECS.digital;
 
   if (!pageType) {
     return (
@@ -440,22 +662,123 @@ const CreatePage = () => {
 
             <div className="pb-32">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-                {/* Cover Image */}
+                {/* Cover Image with Drag to Adjust + Drag & Drop Upload */}
                 <div>
-                  <Label className="text-sm font-semibold mb-2 block">Cover Image <span className="text-gray-400">(Optional)</span></Label>
+                  <div className="flex justify-between items-center mb-2">
+                    <Label className="text-sm font-semibold">Cover Image <span className="text-gray-400">(Optional)</span></Label>
+                    <div className="text-xs text-gray-400">
+                      Recommended: {currentImageSpecs.description}
+                    </div>
+                  </div>
+                  
                   <input type="file" ref={coverRef} className="hidden" accept="image/*" onChange={(e) => handleImageSelect(e, "coverImage")} />
-                  {form.coverImage ? (
-                    <div className="relative h-48 rounded-2xl overflow-hidden group">
-                      <img src={form.coverImage} className="w-full h-full object-cover" alt="Cover" />
-                      <button onClick={() => setForm((f) => ({ ...f, coverImage: null }))} className="absolute top-3 right-3 h-8 w-8 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <X className="h-4 w-4 text-white" />
-                      </button>
+                  
+                  {(form.coverImage || coverPreviewFile) ? (
+                    <div 
+                      ref={imageContainerRef}
+                      className="relative overflow-hidden rounded-2xl cursor-move group"
+                      style={{ height: "280px", backgroundColor: "#0a0a0a" }}
+                      onMouseEnter={() => setShowImageControls(true)}
+                      onMouseLeave={() => {
+                        setShowImageControls(false);
+                        setIsDragging(false);
+                      }}
+                      onWheel={handleWheel}
+                    >
+                      <img
+                        ref={imageRef}
+                        src={form.coverImage || coverPreviewFile || ""}
+                        alt="Cover preview"
+                        className="w-full h-full object-cover select-none"
+                        style={{
+                          objectPosition: `${imagePosition.x}% ${imagePosition.y}%`,
+                          transform: `scale(${imageScale})`,
+                          transition: isDragging ? 'none' : 'transform 0.2s ease, object-position 0.2s ease'
+                        }}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                        draggable={false}
+                      />
+                      
+                      {/* Image Controls */}
+                      {showImageControls && (
+                        <div className="absolute bottom-4 right-4 flex gap-2 bg-black/70 rounded-lg p-2 backdrop-blur-sm z-10">
+                          <button
+                            onClick={handleZoomOut}
+                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
+                            title="Zoom Out"
+                          >
+                            <ZoomOut className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={resetImagePosition}
+                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
+                            title="Reset Position"
+                          >
+                            <Move className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={handleZoomIn}
+                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
+                            title="Zoom In"
+                          >
+                            <ZoomIn className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setForm((f) => ({ ...f, coverImage: null }));
+                              setCoverPreviewFile(null);
+                              resetImagePosition();
+                            }}
+                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
+                            title="Remove Image"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                      
+                      {/* Image Size Indicator */}
+                      {showImageControls && (
+                        <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center gap-1 z-10">
+                          <ImageIcon className="h-3 w-3" />
+                          <span>{currentImageSpecs.description}</span>
+                        </div>
+                      )}
+                      
+                      {/* Drag Instruction */}
+                      {showImageControls && (
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm flex items-center gap-1 z-10 whitespace-nowrap">
+                          <Move className="h-3 w-3" />
+                          <span>Drag to reposition • Scroll to zoom</span>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <button onClick={() => coverRef.current?.click()} className="w-full h-48 rounded-2xl border-2 border-dashed border-[#ded4c3] bg-[#e9e2d7]/50 flex flex-col items-center justify-center gap-2 hover:border-[#e1bf46] transition-all">
-                      <Upload className="h-6 w-6 text-[#6b6b6b]" />
-                      <span className="text-sm text-[#6b6b6b]">Upload cover image</span>
-                    </button>
+                    <div
+                      onClick={() => coverRef.current?.click()}
+                      onDragEnter={handleDragEnter}
+                      onDragLeave={handleDragLeave}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      className={`w-full h-56 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 cursor-pointer group ${
+                        isDragOver
+                          ? "border-[#e1bf46] bg-[#e1bf46]/20"
+                          : "border-[#ded4c3] bg-[#e9e2d7]/50 hover:border-[#e1bf46]"
+                      }`}
+                    >
+                      <Upload className={`h-8 w-8 transition-colors ${
+                        isDragOver ? "text-[#e1bf46]" : "text-[#6b6b6b] group-hover:text-[#e1bf46]"
+                      }`} />
+                      <span className={`text-sm transition-colors ${
+                        isDragOver ? "text-[#e1bf46]" : "text-[#6b6b6b] group-hover:text-[#e1bf46]"
+                      }`}>
+                        {isDragOver ? "Drop image here" : "Click or drag & drop to upload"}
+                      </span>
+                      <span className="text-xs text-gray-400">{currentImageSpecs.description}</span>
+                    </div>
                   )}
                 </div>
 
@@ -466,6 +789,14 @@ const CreatePage = () => {
                     {form.logo || userData?.profilePicture ? (
                       <div className="relative group">
                         <img src={form.logo || userData?.profilePicture} alt="Logo" className={`h-20 w-20 object-cover ${!form.logo && userData?.profilePicture ? "rounded-full" : "rounded-2xl"}`} />
+                        {form.logo && (
+                          <button 
+                            onClick={() => setForm((f) => ({ ...f, logo: null }))}
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                          >
+                            <X className="h-3 w-3 text-white" />
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <div className="h-20 w-20 rounded-2xl bg-[#e9e2d7] border-2 border-dashed border-[#ded4c3] flex items-center justify-center">
@@ -478,19 +809,21 @@ const CreatePage = () => {
                         <Upload className="h-4 w-4" />
                         <span className="text-sm">Upload Logo</span>
                       </button>
+                      <p className="text-xs text-gray-400 mt-1">Square image recommended (e.g., 200x200px)</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Title */}
+                {/* Title with Dynamic Placeholder */}
                 <div>
                   <Label className="text-sm font-semibold mb-2 block">Page Title *</Label>
                   <Input
-                    placeholder="e.g., JSS1 School Fees 2025"
+                    placeholder={getPlaceholderText(pageType, "title")}
                     value={form.title}
                     onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                     className="h-12 text-base"
                   />
+                  <p className="text-xs text-gray-400 mt-1">Example: {getPlaceholderText(pageType, "title")}</p>
                 </div>
 
                 {/* URL Preview */}
@@ -516,16 +849,17 @@ const CreatePage = () => {
                   </div>
                 )}
 
-                {/* Description */}
+                {/* Description with Dynamic Placeholder */}
                 <div>
                   <Label className="text-sm font-semibold mb-2 block">Description</Label>
                   <Textarea
-                    placeholder="Describe your product or service..."
+                    placeholder={getPlaceholderText(pageType, "description")}
                     value={form.description}
                     onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                     rows={4}
                     className="text-base resize-none"
                   />
+                  <p className="text-xs text-gray-400 mt-1">Example: {getPlaceholderText(pageType, "description").substring(0, 100)}...</p>
                 </div>
 
                 {/* Product Images */}
@@ -546,6 +880,7 @@ const CreatePage = () => {
                         <ImagePlus className="h-5 w-5 text-[#6b6b6b]" />
                       </button>
                     </div>
+                    <p className="text-xs text-gray-400 mt-2">Square images (800x800px) work best for product photos</p>
                   </div>
                 )}
 
@@ -705,62 +1040,62 @@ const CreatePage = () => {
                       )}
                     </div>
 
-                   {form.priceType === "installment" && installmentAmount > 0 && (
-  <div className="p-4 rounded-xl bg-[#e1bf46]/10 border border-[#e1bf46]/20">
-    <div className="flex items-center gap-2 mb-2">
-      <Calendar className="h-4 w-4 text-[#e1bf46]" />
-      <h4 className="text-sm font-semibold">Installment Breakdown</h4>
-    </div>
-    <div className="space-y-2 text-sm">
-      <div className="flex justify-between">
-        <span>Total Amount:</span>
-        <span className="font-semibold">₦{Number(form.price).toLocaleString()}</span>
-      </div>
-      <div className="flex justify-between">
-        <span>Number of Installments:</span>
-        <span className="font-semibold">{form.installmentCount}</span>
-      </div>
-      <div className="flex justify-between">
-        <span>Per Installment Amount:</span>
-        <span className="font-semibold text-[#e1bf46]">₦{installmentAmount.toLocaleString()}</span>
-      </div>
-      <div className="flex justify-between">
-        <span>Fee per Installment (2%):</span>
-        <span className="font-semibold">₦{getFeePerInstallment().toLocaleString()}</span>
-      </div>
-      <div className="border-t border-[#e1bf46]/20 pt-2 mt-2">
-        <div className="flex justify-between">
-          <span className="font-semibold">
-            {form.feeMode === "bearer" ? "You Receive per Installment:" : "Customer Pays per Installment:"}
-          </span>
-          <span className="font-semibold text-[#e1bf46]">
-            {form.feeMode === "bearer" 
-              ? `₦${(installmentAmount - getFeePerInstallment()).toLocaleString()}`
-              : `₦${installmentAmount.toLocaleString()}`
-            }
-          </span>
-        </div>
-        {form.feeMode === "customer" && (
-          <div className="flex justify-between mt-1">
-            <span className="text-xs text-[#3e7465]">(Plus fee):</span>
-            <span className="text-xs text-[#3e7465]">+ ₦{getFeePerInstallment().toLocaleString()}</span>
-          </div>
-        )}
-      </div>
-    </div>
-    <div className="mt-3 p-2 bg-[#e1bf46]/5 rounded-lg">
-      <div className="flex items-start gap-2">
-        <Info className="h-3 w-3 text-[#e1bf46] mt-0.5" />
-        <p className="text-xs text-[#3e7465]">
-          {form.feeMode === "bearer" 
-            ? `You will receive ₦${(installmentAmount - getFeePerInstallment()).toLocaleString()} per installment. Total you'll receive: ₦${((installmentAmount - getFeePerInstallment()) * Number(form.installmentCount)).toLocaleString()}`
-            : `Customer will pay ₦${installmentAmount.toLocaleString()} per installment + ₦${getFeePerInstallment().toLocaleString()} fee = ₦${(installmentAmount + getFeePerInstallment()).toLocaleString()} total per installment`
-          }
-        </p>
-      </div>
-    </div>
-  </div>
-)}
+                    {form.priceType === "installment" && installmentAmount > 0 && (
+                      <div className="p-4 rounded-xl bg-[#e1bf46]/10 border border-[#e1bf46]/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Calendar className="h-4 w-4 text-[#e1bf46]" />
+                          <h4 className="text-sm font-semibold">Installment Breakdown</h4>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Total Amount:</span>
+                            <span className="font-semibold">₦{Number(form.price).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Number of Installments:</span>
+                            <span className="font-semibold">{form.installmentCount}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Per Installment Amount:</span>
+                            <span className="font-semibold text-[#e1bf46]">₦{installmentAmount.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Fee per Installment (2%):</span>
+                            <span className="font-semibold">₦{getFeePerInstallment().toLocaleString()}</span>
+                          </div>
+                          <div className="border-t border-[#e1bf46]/20 pt-2 mt-2">
+                            <div className="flex justify-between">
+                              <span className="font-semibold">
+                                {form.feeMode === "bearer" ? "You Receive per Installment:" : "Customer Pays per Installment:"}
+                              </span>
+                              <span className="font-semibold text-[#e1bf46]">
+                                {form.feeMode === "bearer" 
+                                  ? `₦${(installmentAmount - getFeePerInstallment()).toLocaleString()}`
+                                  : `₦${installmentAmount.toLocaleString()}`
+                                }
+                              </span>
+                            </div>
+                            {form.feeMode === "customer" && (
+                              <div className="flex justify-between mt-1">
+                                <span className="text-xs text-[#3e7465]">(Plus fee):</span>
+                                <span className="text-xs text-[#3e7465]">+ ₦{getFeePerInstallment().toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 p-2 bg-[#e1bf46]/5 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <Info className="h-3 w-3 text-[#e1bf46] mt-0.5" />
+                            <p className="text-xs text-[#3e7465]">
+                              {form.feeMode === "bearer" 
+                                ? `You will receive ₦${(installmentAmount - getFeePerInstallment()).toLocaleString()} per installment. Total you'll receive: ₦${((installmentAmount - getFeePerInstallment()) * Number(form.installmentCount)).toLocaleString()}`
+                                : `Customer will pay ₦${installmentAmount.toLocaleString()} per installment + ₦${getFeePerInstallment().toLocaleString()} fee = ₦${(installmentAmount + getFeePerInstallment()).toLocaleString()} total per installment`
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
 

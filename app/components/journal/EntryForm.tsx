@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format, parseISO } from "date-fns";
-import { Calendar as CalendarIcon, Plus, X } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, X, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { Calendar } from "../ui/calendar";
@@ -37,8 +37,17 @@ export function EntryForm({
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryIcon, setNewCategoryIcon] = useState("📦");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [favoriteOrder, setFavoriteOrder] = useState<Record<string, number>>({});
 
   const isEditing = !!editEntry;
+
+  // Load favorite order from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('category_favorite_order');
+    if (saved) {
+      setFavoriteOrder(JSON.parse(saved));
+    }
+  }, []);
 
   // Populate form when editing
   useEffect(() => {
@@ -64,9 +73,19 @@ export function EntryForm({
     setNewCategoryIcon("📦");
   };
 
-  const filteredCategories = categories.filter(
-    (cat) => cat.type === type || cat.type === "both",
-  );
+  // Sort categories: favorites first based on type
+  const getSortedCategories = useMemo(() => {
+    const filtered = categories.filter(cat => cat.type === type || cat.type === "both");
+    
+    return filtered.sort((a, b) => {
+      if (a.isFavorite && !b.isFavorite) return -1;
+      if (!a.isFavorite && b.isFavorite) return 1;
+      if (a.isFavorite && b.isFavorite) {
+        return (favoriteOrder[a.id] || 0) - (favoriteOrder[b.id] || 0);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [categories, type, favoriteOrder]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,7 +131,6 @@ export function EntryForm({
       setShowNewCategory(false);
     } catch (error) {
       console.error("Failed to add category:", error);
-      // Optionally show an error toast/alert here
     } finally {
       setIsAddingCategory(false);
     }
@@ -295,13 +313,13 @@ export function EntryForm({
             )}
 
             <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
-              {filteredCategories.map((cat) => (
+              {getSortedCategories.map((cat) => (
                 <button
                   key={cat.id}
                   type="button"
                   onClick={() => setCategoryId(cat.id)}
                   className={cn(
-                    "flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center",
+                    "flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center relative",
                     categoryId === cat.id
                       ? "shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)]"
                       : "",
@@ -314,6 +332,9 @@ export function EntryForm({
                         : "#fcfbf9",
                   }}
                 >
+                  {cat.isFavorite && (
+                    <Star className="absolute top-1 right-1 w-3 h-3 fill-[#f59e0b] text-[#f59e0b]" />
+                  )}
                   <span className="text-xl dark:text-gray-300">{cat.icon}</span>
                   <span className="text-xs font-medium truncate w-full dark:text-gray-300">
                     {cat.name}
