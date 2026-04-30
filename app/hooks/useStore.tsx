@@ -236,7 +236,7 @@ const {userData} = useUserContextData()
       }
 
       const data = await response.json();
-      await refreshPages(); // Refresh after withdrawal
+      await refreshPages(); 
       return data.withdrawal;
     } catch (error) {
       console.error("Error withdrawing:", error);

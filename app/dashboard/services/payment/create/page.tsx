@@ -18,6 +18,8 @@ import {
   ZoomIn,
   ZoomOut,
   Image as ImageIcon,
+  CheckCircle,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -32,7 +34,7 @@ import {
   isInvestmentType,
 } from "@/app/hooks/useStore";
 import { useUserContextData } from "@/app/context/userData";
-import Swal from "sweetalert2";
+import confetti from "canvas-confetti";
 import PageTypeSelector from "@/app/components/payment-page-components/pageTypeSelector";
 import SchoolFields from "@/app/components/payment-page-components/SchoolFields";
 import DonationFields from "@/app/components/payment-page-components/DonationFields";
@@ -120,6 +122,42 @@ const getPlaceholderText = (pageType: PageType | null, field: "title" | "descrip
   return placeholders[pageType]?.[field] || (field === "title" ? `Enter ${typeLabels[pageType]} title` : `Describe your ${typeLabels[pageType].toLowerCase()}...`);
 };
 
+// Trigger confetti animation
+const triggerConfetti = () => {
+  confetti({
+    particleCount: 100,
+    spread: 70,
+    origin: { y: 0.6 },
+    colors: ['#e1bf46', '#034936', '#f7f0e2', '#023528'],
+  });
+  
+  setTimeout(() => {
+    confetti({
+      particleCount: 50,
+      spread: 100,
+      origin: { y: 0.6, x: 0.3 },
+      startVelocity: 25,
+    });
+    confetti({
+      particleCount: 50,
+      spread: 100,
+      origin: { y: 0.6, x: 0.7 },
+      startVelocity: 25,
+    });
+  }, 150);
+};
+
+// Copy to clipboard with feedback
+const copyToClipboard = async (text: string, setCopied: (value: boolean) => void) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  } catch (err) {
+    console.error("Failed to copy:", err);
+  }
+};
+
 const CreatePage = () => {
   const router = useRouter();
   const { createPage, addPage } = useStore();
@@ -129,6 +167,7 @@ const CreatePage = () => {
   const [pageType, setPageType] = useState<PageType | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [dynamicId, setDynamicId] = useState(() =>
     Math.floor(100 + Math.random() * 900).toString()
   );
@@ -140,7 +179,7 @@ const CreatePage = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [showImageControls, setShowImageControls] = useState(false);
   const [coverPreviewFile, setCoverPreviewFile] = useState<string | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false); // Drag and drop state
+  const [isDragOver, setIsDragOver] = useState(false);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -243,25 +282,13 @@ const CreatePage = () => {
     if (files && files.length > 0) {
       const file = files[0];
       
-      // Check if it's an image
       if (!file.type.startsWith('image/')) {
-        Swal.fire({
-          title: "Invalid File",
-          text: "Please drop an image file (JPEG, PNG, etc.)",
-          icon: "error",
-          confirmButtonColor: "#e1bf46",
-        });
+        alert("Please drop an image file (JPEG, PNG, etc.)");
         return;
       }
       
-      // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        Swal.fire({
-          title: "File Too Large",
-          text: "Image size should be less than 5MB",
-          icon: "error",
-          confirmButtonColor: "#e1bf46",
-        });
+        alert("Image size should be less than 5MB");
         return;
       }
       
@@ -521,6 +548,15 @@ const CreatePage = () => {
 
     try {
       const uploadedImages = await uploadAllImages();
+      
+      // If no cover image but we have product images and page type has product images, use first product image as cover
+      let finalCoverImage = uploadedImages.coverImage;
+      const pageTypesWithProductImages = ["physical", "digital", "services", "real_estate", "stock", "savings", "crypto"];
+      if (!finalCoverImage && uploadedImages.productImages.length > 0 && pageTypesWithProductImages.includes(pageType)) {
+        finalCoverImage = uploadedImages.productImages[0];
+        console.log("No cover image provided, using first product image as fallback:", finalCoverImage);
+      }
+      
       const metadata: any = {};
 
       if (form.priceType === "installment") {
@@ -573,7 +609,7 @@ const CreatePage = () => {
         title: form.title,
         slug: finalSlug,
         description: form.description,
-        coverImage: uploadedImages.coverImage,
+        coverImage: finalCoverImage,
         logo: uploadedImages.logo,
         productImages: uploadedImages.productImages,
         priceType: pageType === "donation" ? "open" : form.priceType,
@@ -596,30 +632,22 @@ const CreatePage = () => {
 
       setCreatedSlug(pageSlug);
       if (result.page) addPage(result.page);
-
-      await Swal.fire({
-        title: "Success!",
-        text: "Your payment page has been created successfully!",
-        icon: "success",
-        confirmButtonColor: "#e1bf46",
-      });
-
+      
+      // Trigger confetti blast
+      triggerConfetti();
+      
+      // Show success modal (no separate alert)
       setShowSuccess(true);
     } catch (err: any) {
       console.error("Create page error:", err);
-      await Swal.fire({
-        title: "Error!",
-        text: err.message || "Failed to create page. Please try again.",
-        icon: "error",
-        confirmButtonColor: "#e1bf46",
-      });
+      alert(err.message || "Failed to create page. Please try again.");
     } finally {
       setIsCreating(false);
     }
   };
 
   const pageUrl = `${baseUrl}/pay/${createdSlug}`;
-  const copyUrl = () => navigator.clipboard.writeText(pageUrl);
+  const copyPageUrl = () => copyToClipboard(pageUrl, setCopied);
   const previewPage = () => router.push(`/pay/${createdSlug}`);
 
   const getFeePerInstallment = () => {
@@ -702,45 +730,27 @@ const CreatePage = () => {
                         draggable={false}
                       />
                       
-                      {/* Image Controls */}
                       {showImageControls && (
                         <div className="absolute bottom-4 right-4 flex gap-2 bg-black/70 rounded-lg p-2 backdrop-blur-sm z-10">
-                          <button
-                            onClick={handleZoomOut}
-                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
-                            title="Zoom Out"
-                          >
+                          <button onClick={handleZoomOut} className="p-1.5 hover:bg-white/20 rounded transition text-white" title="Zoom Out">
                             <ZoomOut className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={resetImagePosition}
-                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
-                            title="Reset Position"
-                          >
+                          <button onClick={resetImagePosition} className="p-1.5 hover:bg-white/20 rounded transition text-white" title="Reset Position">
                             <Move className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={handleZoomIn}
-                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
-                            title="Zoom In"
-                          >
+                          <button onClick={handleZoomIn} className="p-1.5 hover:bg-white/20 rounded transition text-white" title="Zoom In">
                             <ZoomIn className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => {
-                              setForm((f) => ({ ...f, coverImage: null }));
-                              setCoverPreviewFile(null);
-                              resetImagePosition();
-                            }}
-                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
-                            title="Remove Image"
-                          >
+                          <button onClick={() => {
+                            setForm((f) => ({ ...f, coverImage: null }));
+                            setCoverPreviewFile(null);
+                            resetImagePosition();
+                          }} className="p-1.5 hover:bg-white/20 rounded transition text-white" title="Remove Image">
                             <X className="h-4 w-4" />
                           </button>
                         </div>
                       )}
                       
-                      {/* Image Size Indicator */}
                       {showImageControls && (
                         <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center gap-1 z-10">
                           <ImageIcon className="h-3 w-3" />
@@ -748,7 +758,6 @@ const CreatePage = () => {
                         </div>
                       )}
                       
-                      {/* Drag Instruction */}
                       {showImageControls && (
                         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm flex items-center gap-1 z-10 whitespace-nowrap">
                           <Move className="h-3 w-3" />
@@ -778,6 +787,7 @@ const CreatePage = () => {
                         {isDragOver ? "Drop image here" : "Click or drag & drop to upload"}
                       </span>
                       <span className="text-xs text-gray-400">{currentImageSpecs.description}</span>
+                      <span className="text-xs text-gray-400">If no cover image, first product image will be used as fallback</span>
                     </div>
                   )}
                 </div>
@@ -814,7 +824,7 @@ const CreatePage = () => {
                   </div>
                 </div>
 
-                {/* Title with Dynamic Placeholder */}
+                {/* Title */}
                 <div>
                   <Label className="text-sm font-semibold mb-2 block">Page Title *</Label>
                   <Input
@@ -849,7 +859,7 @@ const CreatePage = () => {
                   </div>
                 )}
 
-                {/* Description with Dynamic Placeholder */}
+                {/* Description */}
                 <div>
                   <Label className="text-sm font-semibold mb-2 block">Description</Label>
                   <Textarea
@@ -863,7 +873,7 @@ const CreatePage = () => {
                 </div>
 
                 {/* Product Images */}
-                {pageType !== "school" && (
+                {pageType !== "school" && pageType !== "donation" && (
                   <div>
                     <Label className="text-sm font-semibold mb-2 block">Product Images</Label>
                     <input type="file" ref={productRef} className="hidden" accept="image/*" multiple onChange={(e) => handleImageSelect(e, "productImages")} />
@@ -880,7 +890,8 @@ const CreatePage = () => {
                         <ImagePlus className="h-5 w-5 text-[#6b6b6b]" />
                       </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">Square images (800x800px) work best for product photos</p>
+                    {/* <p className="text-xs text-gray-400 mt-2">Square images (800x800px) work best for product photos</p>
+                    <p className="text-xs text-[#e1bf46] mt-1">If no cover image is uploaded, the first product image will be used as the cover.</p> */}
                   </div>
                 )}
 
@@ -1149,26 +1160,83 @@ const CreatePage = () => {
         </div>
       </div>
 
-      {/* Success Modal */}
+
       <AnimatePresence>
         {showSuccess && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
+            onClick={() => setShowSuccess(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.8, opacity: 0 }} 
+              className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="text-6xl mb-4">🎉</div>
               <h2 className="text-2xl font-bold mb-2">Payment Page Created!</h2>
               <p className="text-gray-600 mb-6">Your page is now live and ready to collect payments.</p>
+              
               <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                <Label className="text-xs font-semibold text-[#3e7465] mb-1 block">Your Payment Link:</Label>
+                <Label className="text-xs font-semibold text-[#3e7465] mb-2 block text-left">Your Payment Link:</Label>
                 <div className="flex items-center gap-2">
                   <Link2 className="h-4 w-4 text-[#e1bf46] shrink-0" />
-                  <code className="text-sm font-mono text-[#023528] break-all flex-1">{pageUrl}</code>
-                  <Button variant="secondary" size="sm" onClick={copyUrl}>Copy</Button>
+                  <code className="text-sm font-mono text-[#023528] break-all flex-1 text-left">{pageUrl}</code>
+                  <button
+                    onClick={copyPageUrl}
+                    className="relative p-2 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20 transition-colors group"
+                  >
+                    {copied ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-[#e1bf46]" />
+                    )}
+                    {/* Tooltip */}
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      {copied ? "Copied!" : "Copy link"}
+                    </span>
+                  </button>
                 </div>
+                {copied && (
+                  <p className="text-xs text-green-600 mt-2 text-center animate-pulse">
+                    ✓ Link copied to clipboard!
+                  </p>
+                )}
               </div>
+              
               <div className="flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={previewPage}>Preview</Button>
-                <Button variant="default" className="flex-1" onClick={() => router.push("/dashboard/services/payment/dashboard")}>Dashboard</Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1" 
+                  onClick={() => {
+                    setShowSuccess(false);
+                    previewPage();
+                  }}
+                >
+                  Preview Page
+                </Button>
+                <Button 
+                  variant="default" 
+                  className="flex-1" 
+                  onClick={() => {
+                    setShowSuccess(false);
+                    router.push("/dashboard/services/payment/dashboard");
+                  }}
+                >
+                  Go to Dashboard
+                </Button>
               </div>
+              
+              <button
+                onClick={() => setShowSuccess(false)}
+                className="mt-4 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Close
+              </button>
             </motion.div>
           </motion.div>
         )}

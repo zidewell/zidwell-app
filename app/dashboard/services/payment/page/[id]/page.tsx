@@ -24,6 +24,14 @@ import {
   User,
   Calendar,
   FileText,
+  Package,
+  Heart,
+  Briefcase,
+  Building2,
+  LineChart,
+  PiggyBank,
+  Bitcoin,
+  FileDown,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore, isInvestmentType } from "@/app/hooks/useStore";
@@ -41,6 +49,84 @@ const typeLabels: Record<string, string> = {
   stock: "Stock Investment",
   savings: "Savings / Ajo",
   crypto: "Crypto Investment",
+};
+
+// Get payer label based on page type
+const getPayerLabel = (pageType: string): string => {
+  switch (pageType) {
+    case "school":
+      return "Parent";
+    case "donation":
+      return "Donor";
+    case "physical":
+      return "Customer";
+    case "digital":
+      return "Customer";
+    case "services":
+      return "Client";
+    case "real_estate":
+      return "Investor";
+    case "stock":
+      return "Investor";
+    case "savings":
+      return "Saver";
+    case "crypto":
+      return "Investor";
+    default:
+      return "Customer";
+  }
+};
+
+// Get recipient label based on page type
+const getRecipientLabel = (pageType: string): string => {
+  switch (pageType) {
+    case "school":
+      return "Student";
+    case "donation":
+      return "Beneficiary";
+    case "physical":
+      return "Product";
+    case "digital":
+      return "Product";
+    case "services":
+      return "Service";
+    case "real_estate":
+      return "Property";
+    case "stock":
+      return "Investment";
+    case "savings":
+      return "Savings Plan";
+    case "crypto":
+      return "Crypto Asset";
+    default:
+      return "Item";
+  }
+};
+
+// Get icon for page type
+const getPageTypeIcon = (pageType: string) => {
+  switch (pageType) {
+    case "school":
+      return <GraduationCap className="h-4 w-4 text-[#e1bf46]" />;
+    case "donation":
+      return <Heart className="h-4 w-4 text-[#e1bf46]" />;
+    case "physical":
+      return <Package className="h-4 w-4 text-[#e1bf46]" />;
+    case "digital":
+      return <FileDown className="h-4 w-4 text-[#e1bf46]" />;
+    case "services":
+      return <Briefcase className="h-4 w-4 text-[#e1bf46]" />;
+    case "real_estate":
+      return <Building2 className="h-4 w-4 text-[#e1bf46]" />;
+    case "stock":
+      return <LineChart className="h-4 w-4 text-[#e1bf46]" />;
+    case "savings":
+      return <PiggyBank className="h-4 w-4 text-[#e1bf46]" />;
+    case "crypto":
+      return <Bitcoin className="h-4 w-4 text-[#e1bf46]" />;
+    default:
+      return <CreditCard className="h-4 w-4 text-[#e1bf46]" />;
+  }
 };
 
 const PageDetail = () => {
@@ -102,7 +188,7 @@ const PageDetail = () => {
     }
   };
 
-  // Get child/student name from payment metadata
+  // Get child/student name from payment metadata (for school pages)
   const getStudentName = (payment: any) => {
     if (payment.metadata?.childName) {
       return payment.metadata.childName;
@@ -116,30 +202,39 @@ const PageDetail = () => {
     return null;
   };
 
-  // Get parent name from payment
-  const getParentName = (payment: any) => {
-    if (payment.metadata?.parentName) {
-      return payment.metadata.parentName;
+  // Get product name from payment metadata (for physical/digital products)
+  const getProductName = (payment: any) => {
+    if (payment.metadata?.productName) {
+      return payment.metadata.productName;
     }
-    if (payment.metadata?.parent_name) {
-      return payment.metadata.parent_name;
+    if (payment.metadata?.selectedVariants) {
+      const variants = Object.values(payment.metadata.selectedVariants);
+      if (variants.length > 0) {
+        return variants.join(" - ");
+      }
     }
-    return payment.customer_name || payment.customerName;
+    if (payment.metadata?.quantity) {
+      return `Quantity: ${payment.metadata.quantity}`;
+    }
+    return null;
   };
 
-  // Get parent email
-  const getParentEmail = (payment: any) => {
+  // Get payer name from payment
+  const getPayerName = (payment: any) => {
+    return payment.customer_name || payment.customerName || "Anonymous";
+  };
+
+  // Get payer email
+  const getPayerEmail = (payment: any) => {
     return payment.customer_email || payment.customerEmail;
   };
 
-  // UPDATED: Check if a student has paid using the database paid flag
+  // Check if a student has paid using the database paid flag
   const hasStudentPaid = (student: any): boolean => {
-    // First check if the student has a paid flag in the database
     if (student.paid === true) {
       return true;
     }
     
-    // Fallback: Check payment records if no paid flag exists
     const studentName = student.name || student.childName || student.studentName;
     if (!studentName || !stats.payments || stats.payments.length === 0) return false;
     
@@ -153,14 +248,12 @@ const PageDetail = () => {
     });
   };
 
-  // Get student paid amount (from database or calculate from payments)
+  // Get student paid amount
   const getStudentPaidAmount = (student: any) => {
-    // If student has paidAmount in database, use it
     if (student.paidAmount && student.paidAmount > 0) {
       return student.paidAmount;
     }
     
-    // Fallback: Calculate from payment records
     const studentName = student.name || student.childName || student.studentName;
     if (!studentName || !stats.payments || stats.payments.length === 0) return 0;
     
@@ -191,7 +284,7 @@ const PageDetail = () => {
     return null;
   };
 
-  // Get parent who paid for student
+  // Get parent who paid for student (school only)
   const getStudentParentName = (student: any) => {
     if (student.parentName) {
       return student.parentName;
@@ -218,6 +311,9 @@ const PageDetail = () => {
   }
 
   const pageUrl = `zidwell.com/payment/${page.slug}`;
+  const payerLabel = getPayerLabel(page.pageType);
+  const recipientLabel = getRecipientLabel(page.pageType);
+  const pageTypeIcon = getPageTypeIcon(page.pageType);
 
   const statsCards = [
     {
@@ -248,7 +344,7 @@ const PageDetail = () => {
 
   const handleWithdraw = async () => {
     const amount = Number(withdrawalAmount);
-    const minAmount = 1000;
+    const minAmount = 1000; // Original minimum
 
     if (amount < minAmount) {
       setWithdrawalError(`Minimum withdrawal is ₦${minAmount.toLocaleString()}`);
@@ -279,7 +375,7 @@ const PageDetail = () => {
     }
   };
 
-  const withdrawalFee = 200;
+  const withdrawalFee = 200; // Original fee
   const netAmount = Number(withdrawalAmount) - withdrawalFee;
 
   // Get students from metadata
@@ -323,7 +419,7 @@ const PageDetail = () => {
                     />
                   ) : (
                     <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-[#e9e2d7] dark:bg-[#242424] flex items-center justify-center">
-                      <CreditCard className="h-6 w-6 sm:h-7 sm:w-7 text-gray-500" />
+                      {pageTypeIcon}
                     </div>
                   )}
                   <div>
@@ -345,11 +441,11 @@ const PageDetail = () => {
                   </div>
                 </div>
                 
-<Link href={`/pay/${page.slug}`} target="_blank" rel="noopener noreferrer">
-  <Button variant="default" className="self-start sm:self-center">
-    <ExternalLink className="h-4 w-4 mr-1" /> View Page
-  </Button>
-</Link>
+                <Link href={`/pay/${page.slug}`} target="_blank" rel="noopener noreferrer">
+                  <Button variant="default" className="self-start sm:self-center">
+                    <ExternalLink className="h-4 w-4 mr-1" /> View Page
+                  </Button>
+                </Link>
               </div>
             </motion.div>
 
@@ -370,12 +466,12 @@ const PageDetail = () => {
               ))}
             </div>
 
-            {/* Recent Payments - Shows Parent + Child payments */}
+            {/* Recent Payments - Dynamic based on page type */}
             <div className="bg-white dark:bg-[#121212] rounded-2xl border overflow-hidden">
               <div className="p-4 sm:p-5 border-b">
                 <h3 className="font-bold text-base sm:text-lg flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-[#e1bf46]" />
-                  Recent Payments
+                  {pageTypeIcon}
+                  Recent {typeLabels[page.pageType]} Payments
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-500 mt-1">
                   {stats.totalCount} payment{stats.totalCount !== 1 ? "s" : ""} • Total: ₦{stats.totalAmount.toLocaleString()}
@@ -389,27 +485,29 @@ const PageDetail = () => {
                   </div>
                 ) : (
                   stats.payments.slice(0, 10).map((payment: any) => {
+                    const payerName = getPayerName(payment);
+                    const payerEmail = getPayerEmail(payment);
                     const studentName = getStudentName(payment);
-                    const parentName = getParentName(payment);
-                    const parentEmail = getParentEmail(payment);
+                    const productName = getProductName(payment);
                     const isPaid = payment.status === "completed" || payment.paid_at !== null;
+                    const isSchoolPage = page.pageType === "school";
 
                     return (
                       <div key={payment.id} className="p-4 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
                         <div className="space-y-3">
-                          {/* Parent Information */}
+                          {/* Payer Information */}
                           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <User className="h-3 w-3 sm:h-4 sm:w-4 text-[#e1bf46]" />
                                 <p className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white">
-                                  Parent: {parentName}
+                                  {payerLabel}: {payerName}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2 ml-5 sm:ml-6">
                                 <Mail className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-400" />
                                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                  {parentEmail || "No email provided"}
+                                  {payerEmail || "No email provided"}
                                 </p>
                               </div>
                             </div>
@@ -423,14 +521,14 @@ const PageDetail = () => {
                             </div>
                           </div>
 
-                          {/* Child Information */}
-                          {studentName && (
+                          {/* Recipient Information - Dynamic based on page type */}
+                          {isSchoolPage && studentName && (
                             <div className="ml-3 sm:ml-6 pl-3 sm:pl-4 border-l-2 border-[#e1bf46]/30">
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
                                 <div className="flex items-center gap-2">
                                   <GraduationCap className="h-3 w-3 sm:h-4 sm:w-4 text-[#28a36a]" />
                                   <p className="font-medium text-sm sm:text-base text-gray-800 dark:text-gray-200">
-                                    Student: {studentName}
+                                    {recipientLabel}: {studentName}
                                   </p>
                                 </div>
                                 {isPaid && (
@@ -439,6 +537,17 @@ const PageDetail = () => {
                                     <span className="text-xs font-medium">Completed</span>
                                   </div>
                                 )}
+                              </div>
+                            </div>
+                          )}
+
+                          {!isSchoolPage && productName && (
+                            <div className="ml-3 sm:ml-6 pl-3 sm:pl-4 border-l-2 border-[#e1bf46]/30">
+                              <div className="flex items-center gap-2">
+                                {pageTypeIcon}
+                                <p className="font-medium text-sm sm:text-base text-gray-800 dark:text-gray-200">
+                                  {recipientLabel}: {productName}
+                                </p>
                               </div>
                             </div>
                           )}
@@ -462,7 +571,7 @@ const PageDetail = () => {
               </div>
             </div>
 
-            {/* Student Payment Status - Shows which students have paid using database flag */}
+            {/* Student Payment Status - Only for School Pages */}
             {page.pageType === "school" && students.length > 0 && (
               <div className="bg-white dark:bg-[#121212] rounded-2xl border p-4 sm:p-5">
                 <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 mb-4">
@@ -492,7 +601,7 @@ const PageDetail = () => {
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {students.map((student: any, idx: number) => {
                       const studentName = student.name || student.childName || student.studentName;
-                      const hasPaid = student.paid === true; // Use database flag directly
+                      const hasPaid = student.paid === true; 
                       const paidAmount = student.paidAmount || 0;
                       const paidDate = getStudentPaidDate(student);
                       const parentName = getStudentParentName(student);
@@ -646,7 +755,7 @@ const PageDetail = () => {
                       placeholder="Enter amount"
                       value={withdrawalAmount}
                       onChange={(e) => setWithdrawalAmount(e.target.value)}
-                      min="1000"
+                      min={1000}
                       max={page.pageBalance}
                     />
                     <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Minimum: ₦1,000 | Fee: ₦200</p>
