@@ -36,7 +36,7 @@ export interface PeriodSummary {
 }
 
 export const DEFAULT_CATEGORIES: Category[] = [
-  // EXPENSE CATEGORIES - Withdrawal, Transfer, Bills, etc.
+
   { id: 'cat_withdrawal', name: 'Withdrawal', icon: '🏧', type: 'expense', isCustom: false },
   { id: 'cat_transfer', name: 'Transfer', icon: '💸', type: 'expense', isCustom: false },
   { id: 'cat_data_airtime', name: 'Data & Airtime', icon: '📱', type: 'expense', isCustom: false },
@@ -53,7 +53,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat_tax', name: 'Tax', icon: '📋', type: 'expense', isCustom: false },
   { id: 'cat_other_expense', name: 'Other Expense', icon: '📦', type: 'expense', isCustom: false },
 
-  // INCOME CATEGORIES
+
   { id: 'cat_bank_deposit', name: 'Bank Deposit', icon: '💰', type: 'income', isCustom: false },
   { id: 'cat_salary', name: 'Salary', icon: '💼', type: 'income', isCustom: false },
   { id: 'cat_sales', name: 'Sales Revenue', icon: '💵', type: 'income', isCustom: false },

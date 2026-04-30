@@ -43,6 +43,22 @@ const preferenceItems = [
   { name: "My Profile", href: "/dashboard/profile", icon: User },
 ];
 
+// ✅ Define allowed emails (same as in middleware and FeatureCards)
+const ALLOWED_PAYMENT_EMAILS = new Set([
+  "characterinternational@gmail.com",
+  "abdullahtimilehin15@gmail.com",
+  "ebrusikefavour@gmail.com",
+  "skillfidelafrica@gmail.com",
+  "verifiedaboki@gmail.com",
+  "abbalolo360@gmail.com"
+]);
+
+// Helper function to check if user can access payment page
+const canAccessPaymentPage = (userEmail?: string | null) => {
+  if (!userEmail) return false;
+  return ALLOWED_PAYMENT_EMAILS.has(userEmail.toLowerCase());
+};
+
 interface DashboardSidebarProps {
   open: boolean;
   onClose: () => void;
@@ -136,6 +152,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     return "0.00";
   };
 
+  // ✅ Check if user can see payment page
+  const showPaymentPage = canAccessPaymentPage(userData?.email);
+
   // Shared navigation content to avoid duplication
   const NavigationContent = () => (
     <div className="space-y-6">
@@ -223,15 +242,18 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
               pathname === "/dashboard/services/contract/create-contract-form"
             }
           />
-{/* 
-          <NavItem
-            item={{
-              name: "Payment Pages",
-              href: "/dashboard/services/payment",
-              icon: CreditCard,
-            }}
-            isActive={pathname === "/dashboard/services/payment"}
-          /> */}
+
+          {/* ✅ Conditionally show Payment Pages link only for allowed users */}
+          {showPaymentPage && (
+            <NavItem
+              item={{
+                name: "Payment Pages",
+                href: "/dashboard/services/payment",
+                icon: CreditCard,
+              }}
+              isActive={pathname === "/dashboard/services/payment"}
+            />
+          )}
 
           <NavItem
             item={{
@@ -533,9 +555,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   return (
     <>
       {/* Mobile Version */}
-      <div className="lg:hidden">
+      {/* <div className="lg:hidden">
         <MobileSidebar />
-      </div>
+      </div> */}
 
       {/* Desktop Version */}
       <div className="hidden lg:block">

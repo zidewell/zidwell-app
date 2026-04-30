@@ -29,151 +29,178 @@ interface FeatureCardsProps {
   usage?: any;
 }
 
-const features = [
-  // Core Business Tools
-  {
-    id: 1,
-    title: "Bookkeeping",
-    desc: "Track daily income & expenses",
-    icon: BookOpen,
-    color: "bg-[#2b825b] text-white",
-    link: "/dashboard/services/bookkeeping",
-    requiredTier: "growth",
-    featureKey: "bookkeeping_access",
-    type: "core",
-  },
-  {
-    id: 2,
-    title: "Invoice",
-    desc: "Create & send invoices",
-    icon: FileText,
-    color: "bg-[#3b82f6] text-white",
-    link: "/dashboard/services/create-invoice",
-    requiredTier: "free",
-    featureKey: "invoices_per_month",
-    type: "core",
-  },
-  {
-    id: 3,
-    title: "Receipt",
-    desc: "Issue digital receipts",
-    icon: Receipt,
-    color: "bg-[#2b825b] text-white",
-    link: "/dashboard/services/receipt",
-    requiredTier: "free",
-    featureKey: "receipts_per_month",
-    type: "core",
-  },
-  {
-    id: 4,
-    title: "Contracts",
-    desc: "Manage business contracts",
-    icon: FileSignature,
-    color: "bg-[#f5b041] text-[#141414]",
-    link: "/dashboard/services/contract",
-    requiredTier: "free",
-    featureKey: "contracts_per_month",
-    type: "core",
-  },
-  {
-    id: 5,
-    title: "Tax Manager",
-    desc: "File your taxes",
-    icon: FileSpreadsheet,
-    color: "bg-[#2b825b] text-white",
-    link: "/dashboard/services/tax-filing",
-    requiredTier: "premium",
-    featureKey: "tax_support",
-    type: "core",
-  },
+// ✅ Define allowed emails (same as in middleware)
+const ALLOWED_PAYMENT_EMAILS = new Set([
+  "characterinternational@gmail.com",
+  "abdullahtimilehin15@gmail.com",
+  "ebrusikefavour@gmail.com",
+  "skillfidelafrica@gmail.com",
+  "verifiedaboki@gmail.com",
+  "abbalolo360@gmail.com"
+]);
 
-  // Payment & Wallet
-  // {
-  //   id: 6,
-  //   title: "Payment Page",
-  //   desc: "Accept payments online",
-  //   icon: CreditCard,
-  //   color: "bg-[#3b82f6] text-white",
-  //   link: "/dashboard/services/payment/dashboard",
-  //   requiredTier: "growth",
-  //   featureKey: "payment_pages",
-  //   type: "payment",
-  // },
-  {
-    id: 7,
-    title: "Fund Wallet",
-    desc: "Top up your wallet",
-    icon: Wallet,
-    color: "bg-[#2b825b] text-white",
-    link: "/dashboard/fund-account",
-    requiredTier: "free",
-    featureKey: "wallet_funding",
-    type: "payment",
-  },
-  {
-    id: 8,
-    title: "Transfer",
-    desc: "Send money instantly",
-    icon: ArrowLeftRight,
-    color: "bg-[#2b825b] text-white",
-    link: "/dashboard/fund-account/transfer-page",
-    requiredTier: "free",
-    featureKey: "transfers",
-    type: "payment",
-  },
+// Helper function to check if user can access payment page
+const canAccessPaymentPage = (userEmail?: string | null) => {
+  if (!userEmail) return false;
+  return ALLOWED_PAYMENT_EMAILS.has(userEmail.toLowerCase());
+};
 
-  // Utility Services (BVN Required)
-  {
-    id: 9,
-    title: "Buy Airtime",
-    desc: "Recharge any network",
-    icon: Phone,
-    color: "bg-[#f5b041] text-[#141414]",
-    link: "/dashboard/services/buy-airtime",
-    requiredTier: "free",
-    featureKey: "airtime",
-    type: "utility",
-  },
-  {
-    id: 10,
-    title: "Buy Data",
-    desc: "Purchase data bundles",
-    icon: Wifi,
-    color: "bg-[#db3a34] text-white",
-    link: "/dashboard/services/buy-data",
-    requiredTier: "free",
-    featureKey: "data",
-    type: "utility",
-  },
-  {
-    id: 11,
-    title: "Buy Light",
-    desc: "Pay electricity bills",
-    icon: Lightbulb,
-    color: "bg-[#f5b041] text-[#141414]",
-    link: "/dashboard/services/buy-power",
-    requiredTier: "free",
-    featureKey: "electricity",
-    type: "utility",
-  },
-  {
-    id: 12,
-    title: "Cable TV",
-    desc: "Pay TV subscription",
-    icon: Tv,
-    color: "bg-[#3b82f6] text-white",
-    link: "/dashboard/services/buy-cable-tv",
-    requiredTier: "free",
-    featureKey: "cable_tv",
-    type: "utility",
-  },
-];
+// Helper function to get all features based on user access
+const getFeatures = (userEmail?: string | null) => {
+  const baseFeatures = [
+    // Core Business Tools
+    {
+      id: 1,
+      title: "Bookkeeping",
+      desc: "Track daily income & expenses",
+      icon: BookOpen,
+      color: "bg-[#2b825b] text-white",
+      link: "/dashboard/services/bookkeeping",
+      requiredTier: "growth",
+      featureKey: "bookkeeping_access",
+      type: "core",
+    },
+    {
+      id: 2,
+      title: "Invoice",
+      desc: "Create & send invoices",
+      icon: FileText,
+      color: "bg-[#3b82f6] text-white",
+      link: "/dashboard/services/create-invoice",
+      requiredTier: "free",
+      featureKey: "invoices_per_month",
+      type: "core",
+    },
+    {
+      id: 3,
+      title: "Receipt",
+      desc: "Issue digital receipts",
+      icon: Receipt,
+      color: "bg-[#2b825b] text-white",
+      link: "/dashboard/services/receipt",
+      requiredTier: "free",
+      featureKey: "receipts_per_month",
+      type: "core",
+    },
+    {
+      id: 4,
+      title: "Contracts",
+      desc: "Manage business contracts",
+      icon: FileSignature,
+      color: "bg-[#f5b041] text-[#141414]",
+      link: "/dashboard/services/contract",
+      requiredTier: "free",
+      featureKey: "contracts_per_month",
+      type: "core",
+    },
+    {
+      id: 5,
+      title: "Tax Manager",
+      desc: "File your taxes",
+      icon: FileSpreadsheet,
+      color: "bg-[#2b825b] text-white",
+      link: "/dashboard/services/tax-filing",
+      requiredTier: "premium",
+      featureKey: "tax_support",
+      type: "core",
+    },
+    // Payment & Wallet
+    {
+      id: 6,
+      title: "Fund Wallet",
+      desc: "Top up your wallet",
+      icon: Wallet,
+      color: "bg-[#2b825b] text-white",
+      link: "/dashboard/fund-account",
+      requiredTier: "free",
+      featureKey: "wallet_funding",
+      type: "payment",
+    },
+    {
+      id: 7,
+      title: "Transfer",
+      desc: "Send money instantly",
+      icon: ArrowLeftRight,
+      color: "bg-[#2b825b] text-white",
+      link: "/dashboard/fund-account/transfer-page",
+      requiredTier: "free",
+      featureKey: "transfers",
+      type: "payment",
+    },
+    // Utility Services (BVN Required)
+    {
+      id: 8,
+      title: "Buy Airtime",
+      desc: "Recharge any network",
+      icon: Phone,
+      color: "bg-[#f5b041] text-[#141414]",
+      link: "/dashboard/services/buy-airtime",
+      requiredTier: "free",
+      featureKey: "airtime",
+      type: "utility",
+    },
+    {
+      id: 9,
+      title: "Buy Data",
+      desc: "Purchase data bundles",
+      icon: Wifi,
+      color: "bg-[#db3a34] text-white",
+      link: "/dashboard/services/buy-data",
+      requiredTier: "free",
+      featureKey: "data",
+      type: "utility",
+    },
+    {
+      id: 10,
+      title: "Buy Light",
+      desc: "Pay electricity bills",
+      icon: Lightbulb,
+      color: "bg-[#f5b041] text-[#141414]",
+      link: "/dashboard/services/buy-power",
+      requiredTier: "free",
+      featureKey: "electricity",
+      type: "utility",
+    },
+    {
+      id: 11,
+      title: "Cable TV",
+      desc: "Pay TV subscription",
+      icon: Tv,
+      color: "bg-[#3b82f6] text-white",
+      link: "/dashboard/services/buy-cable-tv",
+      requiredTier: "free",
+      featureKey: "cable_tv",
+      type: "utility",
+    },
+  ];
+
+  // ✅ Conditionally add Payment Page feature for allowed users
+  if (canAccessPaymentPage(userEmail)) {
+    baseFeatures.push({
+      id: 12,
+      title: "Payment Page",
+      desc: "Accept payments online",
+      icon: CreditCard,
+      color: "bg-[#3b82f6] text-white",
+      link: "/dashboard/services/payment",
+      requiredTier: "growth",
+      featureKey: "payment_pages",
+      type: "payment",
+    });
+  }
+
+  // Sort features by ID to maintain consistent order
+  return baseFeatures.sort((a, b) => a.id - b.id);
+};
 
 const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
   const { canAccessFeature, userTier } = useSubscription();
   const router = useRouter();
   const { userData } = useUserContextData();
   const { openVerificationModal } = useVerificationModal();
+
+  // ✅ Get features based on user's email
+  const features = getFeatures(userData?.email);
 
   // Services that require BVN verification
   const bvnRequiredServices = [
@@ -190,7 +217,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
     const isVerified = userData?.bvnVerification === "verified";
     const requiresBVN = bvnRequiredServices.includes(feature.link);
 
-    console.log(requiresBVN, isVerified)
+    console.log(requiresBVN, isVerified);
     // Check BVN verification first for protected services
     if (requiresBVN && !isVerified) {
       openVerificationModal();
@@ -272,7 +299,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
   };
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4   gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
       {features.map((feature) => {
         const isUtility = feature.type === "utility";
         const isPayment = feature.type === "payment";
