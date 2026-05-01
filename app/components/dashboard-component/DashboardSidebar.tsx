@@ -243,12 +243,12 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             }
           />
 
-          {/* ✅ Conditionally show Payment Pages link only for allowed users */}
+
           {showPaymentPage && (
             <NavItem
               item={{
                 name: "Payment Pages",
-                href: "/dashboard/services/payment",
+                href: "/dashboard/services/payment/dashboard",
                 icon: CreditCard,
               }}
               isActive={pathname === "/dashboard/services/payment"}

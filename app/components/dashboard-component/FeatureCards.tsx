@@ -174,7 +174,7 @@ const getFeatures = (userEmail?: string | null) => {
     },
   ];
 
-  // ✅ Conditionally add Payment Page feature for allowed users
+
   if (canAccessPaymentPage(userEmail)) {
     baseFeatures.push({
       id: 12,
@@ -182,14 +182,14 @@ const getFeatures = (userEmail?: string | null) => {
       desc: "Accept payments online",
       icon: CreditCard,
       color: "bg-[#3b82f6] text-white",
-      link: "/dashboard/services/payment",
+      link: "/dashboard/services/payment/dashboard",
       requiredTier: "growth",
       featureKey: "payment_pages",
       type: "payment",
     });
   }
 
-  // Sort features by ID to maintain consistent order
+
   return baseFeatures.sort((a, b) => a.id - b.id);
 };
 
