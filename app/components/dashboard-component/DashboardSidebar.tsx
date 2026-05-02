@@ -555,9 +555,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   return (
     <>
       {/* Mobile Version */}
-      {/* <div className="lg:hidden">
+      <div className="lg:hidden">
         <MobileSidebar />
-      </div> */}
+      </div>
 
       {/* Desktop Version */}
       <div className="hidden lg:block">
