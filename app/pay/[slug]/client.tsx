@@ -64,7 +64,7 @@ interface PaymentPageClientProps {
   slug: string;
 }
 
-const PaymentPageClient = ({ slug }: PaymentPageClientProps) => {
+export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const router = useRouter();
   const [page, setPage] = useState<PaymentPage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -909,6 +909,4 @@ const PaymentPageClient = ({ slug }: PaymentPageClientProps) => {
       </div>
     </div>
   );
-};
-
-export default PaymentPageClient;
+}
