@@ -1,5 +1,5 @@
 import { Metadata, ResolvingMetadata } from "next";
-import PaymentPageClient from "./client"; 
+import PaymentPageClient from "./client";
 
 // Server component for metadata generation
 async function getPageData(slug: string) {
@@ -23,10 +23,11 @@ async function getPageData(slug: string) {
 
 // Generate metadata for social sharing
 export async function generateMetadata(
-  { params }: { params: { slug: string } },
+  { params }: { params: Promise<{ slug: string }> },
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const page = await getPageData(params.slug);
+  const { slug } = await params;
+  const page = await getPageData(slug);
   
   if (!page) {
     return {
@@ -101,6 +102,11 @@ export async function generateMetadata(
 }
 
 // Server component that renders the client component
-export default function PaymentPage({ params }: { params: { slug: string } }) {
-  return <PaymentPageClient slug={params.slug} />;
+export default async function PaymentPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  return <PaymentPageClient slug={slug} />;
 }
