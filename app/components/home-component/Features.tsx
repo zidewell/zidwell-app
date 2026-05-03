@@ -22,7 +22,7 @@ const features = [
     icon: Gift, 
     title: "Earn Cashback & Rewards", 
     description: "Become an affiliate marketer and earn as much as 20% of all subscriptions fees for 3 months.",
-    // link: "/rewards"
+    link: "/#"
   },
   { 
     icon: Receipt, 
@@ -46,7 +46,7 @@ const features = [
     icon: Wallet, 
     title: "Prepaid Debit Cards", 
     description: "Access prepaid cards for everyday business and personal spending.",
-    // link: "/cards"
+    link: "/#"
   },
   { 
     icon: Book, 
@@ -64,7 +64,7 @@ const features = [
     icon: Shield, 
     title: "Secure & Protected", 
     description: "All your financial records and transactions have end to end encryption and is 100% safe and protected.",
-    link: "/security"
+    link: "/#"
   }
 ];
 
