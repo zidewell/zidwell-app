@@ -22,7 +22,7 @@ const features = [
     icon: Gift, 
     title: "Earn Cashback & Rewards", 
     description: "Become an affiliate marketer and earn as much as 20% of all subscriptions fees for 3 months.",
-    link: "/rewards"
+    // link: "/rewards"
   },
   { 
     icon: Receipt, 
@@ -46,7 +46,7 @@ const features = [
     icon: Wallet, 
     title: "Prepaid Debit Cards", 
     description: "Access prepaid cards for everyday business and personal spending.",
-    link: "/cards"
+    // link: "/cards"
   },
   { 
     icon: Book, 
@@ -58,7 +58,7 @@ const features = [
     icon: Users, 
     title: "Payment pages", 
     description: "Join the financial wellness club (FinWell club) a community focused on growth, structure and smarter money habits.",
-    link: "/#"
+    link: "/features/payment-page"
   },
   { 
     icon: Shield, 
