@@ -1,4 +1,109 @@
 // app/pay/[slug]/page.tsx
+import { Metadata, ResolvingMetadata } from "next";
+
+// This is a Server Component for metadata generation
+async function getPageData(slug: string) {
+  try {
+    const baseUrl = process.env.NODE_ENV === "development" 
+      ? "http://localhost:3000" 
+      : "https://zidwell.com";
+    
+    const response = await fetch(`${baseUrl}/api/payment-page/public/${slug}`, {
+      cache: "no-store"
+    });
+    
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.page;
+  } catch (error) {
+    console.error("Error fetching page:", error);
+    return null;
+  }
+}
+
+// Generate metadata for social sharing
+export async function generateMetadata(
+  { params }: { params: { slug: string } },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const page = await getPageData(params.slug);
+  
+  if (!page) {
+    return {
+      title: "Page Not Found | Zidwell",
+      description: "The requested payment page could not be found.",
+    };
+  }
+
+  // Determine the featured image (cover image or first product image)
+  let featuredImage = page.coverImage;
+  if (!featuredImage && page.productImages && page.productImages.length > 0) {
+    featuredImage = page.productImages[0];
+  }
+
+  // If still no image, use a default image
+  const defaultImage = `https://zidwell.com/zidwell-og-image.png`;
+  const imageUrl = featuredImage || defaultImage;
+
+  // Format price for display
+  const formattedPrice = page.price ? `₦${page.price.toLocaleString()}` : "Pay securely";
+  
+  // Determine page type label
+  const typeLabels: Record<string, string> = {
+    school: "School Fees",
+    donation: "Donation",
+    physical: "Product",
+    digital: "Digital Product",
+    services: "Service",
+    real_estate: "Real Estate",
+    stock: "Investment",
+    savings: "Savings",
+    crypto: "Crypto",
+  };
+
+  const pageTypeLabel = typeLabels[page.pageType] || "Payment";
+  
+  // Create description
+  const description = page.description 
+    ? `${page.title} - ${page.description.substring(0, 150)}...` 
+    : `Pay for ${page.title} securely on Zidwell. ${pageTypeLabel} payment made easy.`;
+
+  return {
+    title: `${page.title} | Zidwell Payment`,
+    description: description,
+    openGraph: {
+      title: `${page.title} | Pay Securely on Zidwell`,
+      description: description,
+      url: `https://zidwell.com/pay/${page.slug}`,
+      siteName: "Zidwell",
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: page.title,
+        },
+      ],
+      locale: "en_NG",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${page.title} | Zidwell Payment`,
+      description: description,
+      images: [imageUrl],
+      creator: "@zidwell",
+      site: "@zidwell",
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+    keywords: [`${page.title}`, pageTypeLabel, "payment", "Zidwell", "online payment"],
+  };
+}
+
+// Client Component for the actual page
 "use client";
 
 import { useState, useEffect } from "react";
@@ -71,39 +176,27 @@ const PaymentPageView = () => {
   const [currentImage, setCurrentImage] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [payInInstallments, setPayInInstallments] = useState(false); // Toggle state
+  const [payInInstallments, setPayInInstallments] = useState(false);
   
-  // Form state for all page types
   const [formData, setFormData] = useState({
-    // Common fields
     fullName: "",
     email: "",
     phone: "",
     amount: "",
-    
-    // School fields
     parentName: "",
     childName: "",
     regNumber: "",
     customFields: {} as Record<string, string>,
-    
-    // Physical product fields
     selectedVariants: {} as Record<string, string>,
     quantity: "1",
     address: "",
     city: "",
     state: "",
     zipCode: "",
-    
-    // Service fields
     bookingDate: "",
     bookingTime: "",
     customerNote: "",
-    
-    // Donation fields
     donorMessage: "",
-    
-    // Investment fields
     investmentAmount: "",
   });
 
@@ -123,6 +216,11 @@ const PaymentPageView = () => {
         
         const data = await response.json();
         setPage(data.page);
+        
+        // Update document title for better SEO (fallback)
+        if (data.page?.title) {
+          document.title = `${data.page.title} | Pay with Zidwell`;
+        }
       } catch (err) {
         console.error("Error loading page:", err);
         setError("Failed to load page");
@@ -158,7 +256,6 @@ const PaymentPageView = () => {
   };
 
   const validateForm = () => {
-    // Common validation - ALWAYS required for all page types
     if (!formData.fullName.trim()) {
       alert("Please enter your full name");
       return false;
@@ -172,7 +269,6 @@ const PaymentPageView = () => {
       return false;
     }
 
-    // Page type specific validation
     if (page?.pageType === "school") {
       if (!formData.parentName.trim()) {
         alert("Please enter parent's full name");
@@ -183,7 +279,6 @@ const PaymentPageView = () => {
         return false;
       }
       
-      // Check if student is already paid
       if (selectedStudent?.paid) {
         alert(`This student (${selectedStudent.name}) has already been marked as paid. Please contact the school if you believe this is an error.`);
         return false;
@@ -221,12 +316,10 @@ const PaymentPageView = () => {
   };
 
   const getTotalAmount = () => {
-    // For school pages with fee breakdown
     if (page?.feeBreakdown && page.feeBreakdown.length > 0) {
       return page.feeBreakdown.reduce((sum, item) => sum + item.amount, 0);
     }
     
-    // For open pricing or donation
     if (page?.priceType === "open" || page?.pageType === "donation") {
       if (page?.pageType === "donation" && formData.amount) {
         return Number(formData.amount);
@@ -234,7 +327,6 @@ const PaymentPageView = () => {
       return Number(formData.amount) || page?.price || 0;
     }
     
-    // For physical products with quantity
     if (page?.pageType === "physical") {
       return (page?.price || 0) * (Number(formData.quantity) || 1);
     }
@@ -257,7 +349,6 @@ const PaymentPageView = () => {
     return null;
   };
 
-  // Get amount to charge based on toggle selection
   const getChargeAmount = () => {
     const totalAmount = getTotalAmount();
     
@@ -284,7 +375,6 @@ const PaymentPageView = () => {
       const fee = Math.min(chargeAmount * 0.02, 2000);
       const totalWithFee = page?.feeMode === "customer" ? chargeAmount + fee : chargeAmount;
 
-      // Prepare metadata based on page type
       const metadata: any = {
         pageType: page?.pageType,
         pageTitle: page?.title,
@@ -329,7 +419,7 @@ const PaymentPageView = () => {
         metadata.donorMessage = formData.donorMessage;
       }
 
-      const response = await fetch("/api/payment-page/public/checkout", {
+      const response = await fetch("/api/payment-page/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -348,7 +438,6 @@ const PaymentPageView = () => {
         throw new Error(data.error || "Failed to create checkout");
       }
 
-      // Redirect to payment page
       window.location.href = data.checkoutLink;
     } catch (err: any) {
       console.error("Payment error:", err);
@@ -429,7 +518,7 @@ const PaymentPageView = () => {
         <div className="relative bg-black/5">
           <img
             src={allImages[currentImage]}
-            alt="Product"
+            alt={page.title}
             className="w-full h-64 md:h-80 object-cover"
           />
           {allImages.length > 1 && (
@@ -461,7 +550,7 @@ const PaymentPageView = () => {
         </div>
       )}
 
-      {/* Content */}
+      {/* Rest of your existing content... */}
       <div className="container max-w-lg mx-auto py-6 space-y-6 px-4 pb-32">
         {/* Title & Description */}
         <div>
@@ -591,7 +680,6 @@ const PaymentPageView = () => {
           <div className="bg-white rounded-2xl border p-5 space-y-4">
             <h3 className="font-bold text-lg mb-2">Student Information</h3>
             
-            {/* Student Selection Dropdown */}
             {unpaidStudents.length > 0 && (
               <div>
                 <Label className="text-sm font-semibold mb-1.5 block">Select Student *</Label>
@@ -611,7 +699,6 @@ const PaymentPageView = () => {
               </div>
             )}
 
-            {/* Manual Student Name Entry */}
             <div>
               <Label className="text-sm font-semibold mb-1.5 block">Child's Full Name *</Label>
               <Input
@@ -633,7 +720,6 @@ const PaymentPageView = () => {
               <p className="text-xs text-gray-500 mt-1">Optional but recommended for tracking</p>
             </div>
 
-            {/* Parent Information */}
             <div className="pt-2">
               <Label className="text-sm font-semibold mb-1.5 block">Parent Full Name *</Label>
               <Input
@@ -644,7 +730,6 @@ const PaymentPageView = () => {
               />
             </div>
 
-            {/* Custom Required Fields */}
             {page.requiredFields && page.requiredFields.map((field) => (
               <div key={field}>
                 <Label className="text-sm font-semibold mb-1.5 block">{field}</Label>
@@ -850,7 +935,7 @@ const PaymentPageView = () => {
           </div>
         )}
 
-        {/* Paid Students List (for school admins viewing the page) */}
+        {/* Paid Students List */}
         {page.pageType === "school" && paidStudents.length > 0 && (
           <div className="bg-white rounded-2xl border p-5">
             <div className="flex items-center gap-2 mb-3">
