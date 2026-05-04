@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ThemeToggle } from "./ThemeToggle";
 import { TaxCard } from "./TaxCard";
 import { CurrencyInput } from "./CurrencyInput";
 import { InfoTooltip } from "./InfoTooltip";
