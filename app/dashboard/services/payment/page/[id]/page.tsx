@@ -234,16 +234,21 @@ const PageDetail = () => {
     if (student.paid === true) {
       return true;
     }
-    
-    const studentName = student.name || student.childName || student.studentName;
-    if (!studentName || !stats.payments || stats.payments.length === 0) return false;
-    
+
+    const studentName =
+      student.name || student.childName || student.studentName;
+    if (!studentName || !stats.payments || stats.payments.length === 0)
+      return false;
+
     return stats.payments.some((payment: any) => {
       const paymentStudentName = getStudentName(payment);
-      const nameMatches = paymentStudentName?.toLowerCase().trim() === studentName?.toLowerCase().trim();
-      const isCompleted = payment.status === "completed" || 
-                          payment.status === "success" ||
-                          payment.paid_at !== null;
+      const nameMatches =
+        paymentStudentName?.toLowerCase().trim() ===
+        studentName?.toLowerCase().trim();
+      const isCompleted =
+        payment.status === "completed" ||
+        payment.status === "success" ||
+        payment.paid_at !== null;
       return nameMatches && isCompleted;
     });
   };
@@ -253,17 +258,23 @@ const PageDetail = () => {
     if (student.paidAmount && student.paidAmount > 0) {
       return student.paidAmount;
     }
-    
-    const studentName = student.name || student.childName || student.studentName;
-    if (!studentName || !stats.payments || stats.payments.length === 0) return 0;
-    
+
+    const studentName =
+      student.name || student.childName || student.studentName;
+    if (!studentName || !stats.payments || stats.payments.length === 0)
+      return 0;
+
     let total = 0;
     stats.payments.forEach((payment: any) => {
       const paymentStudentName = getStudentName(payment);
-      if (paymentStudentName?.toLowerCase().trim() === studentName?.toLowerCase().trim()) {
-        const isCompleted = payment.status === "completed" || 
-                            payment.status === "success" ||
-                            payment.paid_at !== null;
+      if (
+        paymentStudentName?.toLowerCase().trim() ===
+        studentName?.toLowerCase().trim()
+      ) {
+        const isCompleted =
+          payment.status === "completed" ||
+          payment.status === "success" ||
+          payment.paid_at !== null;
         if (isCompleted) {
           total += payment.amount || 0;
         }
@@ -276,9 +287,9 @@ const PageDetail = () => {
   const getStudentPaidDate = (student: any) => {
     if (student.paidAt) {
       return new Date(student.paidAt).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
+        year: "numeric",
+        month: "short",
+        day: "numeric",
       });
     }
     return null;
@@ -347,12 +358,16 @@ const PageDetail = () => {
     const minAmount = 1000; // Original minimum
 
     if (amount < minAmount) {
-      setWithdrawalError(`Minimum withdrawal is ₦${minAmount.toLocaleString()}`);
+      setWithdrawalError(
+        `Minimum withdrawal is ₦${minAmount.toLocaleString()}`,
+      );
       return;
     }
 
     if (amount > page.pageBalance) {
-      setWithdrawalError(`Insufficient balance. Available: ₦${page.pageBalance.toLocaleString()}`);
+      setWithdrawalError(
+        `Insufficient balance. Available: ₦${page.pageBalance.toLocaleString()}`,
+      );
       return;
     }
 
@@ -380,11 +395,13 @@ const PageDetail = () => {
 
   // Get students from metadata
   const students = page.metadata?.students || [];
-  
+
   // Calculate paid/unpaid counts using the database paid flag
-  const paidStudentsCount = students.filter((student: any) => student.paid === true).length;
+  const paidStudentsCount = students.filter(
+    (student: any) => student.paid === true,
+  ).length;
   const unpaidStudentsCount = students.length - paidStudentsCount;
-  
+
   // Calculate total paid amount from all students
   const totalPaidAmount = students.reduce((total: number, student: any) => {
     return total + (student.paidAmount || 0);
@@ -392,7 +409,10 @@ const PageDetail = () => {
 
   return (
     <div className="min-h-screen dark:bg-[#0e0e0e]">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
@@ -408,7 +428,10 @@ const PageDetail = () => {
             </button>
 
             {/* Header */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
                   {page.logo ? (
@@ -424,13 +447,17 @@ const PageDetail = () => {
                   )}
                   <div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
-                      <h1 className="text-xl sm:text-2xl font-bold break-words">{page.title}</h1>
+                      <h1 className="text-xl sm:text-2xl font-bold wrap-break-word">
+                        {page.title}
+                      </h1>
                       <span className="px-2 py-0.5 rounded-full bg-[#e1bf46]/10 text-[#e1bf46] text-xs font-medium self-start sm:self-center">
                         {typeLabels[page.pageType]}
                       </span>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <span className="text-xs sm:text-sm text-gray-500 break-all">{pageUrl}</span>
+                      <span className="text-xs sm:text-sm text-gray-500 break-all">
+                        {pageUrl}
+                      </span>
                       <button
                         onClick={() => navigator.clipboard.writeText(pageUrl)}
                         className="text-gray-400 hover:text-gray-600 transition-colors self-start sm:self-center"
@@ -440,9 +467,16 @@ const PageDetail = () => {
                     </div>
                   </div>
                 </div>
-                
-                <Link href={`/pay/${page.slug}`} target="_blank" rel="noopener noreferrer">
-                  <Button variant="default" className="self-start sm:self-center">
+
+                <Link
+                  href={`/pay/${page.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button
+                    variant="default"
+                    className="self-start sm:self-center"
+                  >
                     <ExternalLink className="h-4 w-4 mr-1" /> View Page
                   </Button>
                 </Link>
@@ -460,8 +494,12 @@ const PageDetail = () => {
                   className="p-3 sm:p-4 rounded-2xl bg-white dark:bg-[#121212] border"
                 >
                   <s.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${s.color} mb-2`} />
-                  <div className="text-lg sm:text-2xl font-bold truncate">{s.value}</div>
-                  <div className="text-[10px] sm:text-xs text-gray-500">{s.label}</div>
+                  <div className="text-lg sm:text-2xl font-bold truncate">
+                    {s.value}
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-gray-500">
+                    {s.label}
+                  </div>
                 </motion.div>
               ))}
             </div>
@@ -474,7 +512,8 @@ const PageDetail = () => {
                   Recent {typeLabels[page.pageType]} Payments
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                  {stats.totalCount} payment{stats.totalCount !== 1 ? "s" : ""} • Total: ₦{stats.totalAmount.toLocaleString()}
+                  {stats.totalCount} payment{stats.totalCount !== 1 ? "s" : ""}{" "}
+                  • Total: ₦{stats.totalAmount.toLocaleString()}
                 </p>
               </div>
               <div className="divide-y">
@@ -489,11 +528,16 @@ const PageDetail = () => {
                     const payerEmail = getPayerEmail(payment);
                     const studentName = getStudentName(payment);
                     const productName = getProductName(payment);
-                    const isPaid = payment.status === "completed" || payment.paid_at !== null;
+                    const isPaid =
+                      payment.status === "completed" ||
+                      payment.paid_at !== null;
                     const isSchoolPage = page.pageType === "school";
 
                     return (
-                      <div key={payment.id} className="p-4 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
+                      <div
+                        key={payment.id}
+                        className="p-4 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
+                      >
                         <div className="space-y-3">
                           {/* Payer Information */}
                           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -516,7 +560,9 @@ const PageDetail = () => {
                                 ₦{payment.amount.toLocaleString()}
                               </p>
                               {payment.fee > 0 && (
-                                <p className="text-xs text-gray-400">Fee: ₦{payment.fee.toLocaleString()}</p>
+                                <p className="text-xs text-gray-400">
+                                  Fee: ₦{payment.fee.toLocaleString()}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -534,7 +580,9 @@ const PageDetail = () => {
                                 {isPaid && (
                                   <div className="flex items-center gap-1 text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
                                     <CheckCircle2 className="h-3 w-3" />
-                                    <span className="text-xs font-medium">Completed</span>
+                                    <span className="text-xs font-medium">
+                                      Completed
+                                    </span>
                                   </div>
                                 )}
                               </div>
@@ -555,12 +603,14 @@ const PageDetail = () => {
                           {/* Payment Date */}
                           <div className="flex items-center gap-2 text-xs text-gray-400 ml-3 sm:ml-6">
                             <Calendar className="h-3 w-3" />
-                            {new Date(payment.paid_at || payment.created_at).toLocaleDateString(undefined, {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
+                            {new Date(
+                              payment.paid_at || payment.created_at,
+                            ).toLocaleDateString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
                             })}
                           </div>
                         </div>
@@ -582,49 +632,76 @@ const PageDetail = () => {
                 {/* Stats Summary */}
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 text-center">
-                    <div className="text-lg sm:text-xl font-bold text-green-600">{paidStudentsCount}</div>
-                    <div className="text-[10px] sm:text-xs text-gray-600">Paid</div>
+                    <div className="text-lg sm:text-xl font-bold text-green-600">
+                      {paidStudentsCount}
+                    </div>
+                    <div className="text-[10px] sm:text-xs text-gray-600">
+                      Paid
+                    </div>
                   </div>
                   <div className="p-3 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 text-center">
-                    <div className="text-lg sm:text-xl font-bold text-yellow-600">{unpaidStudentsCount}</div>
-                    <div className="text-[10px] sm:text-xs text-gray-600">Unpaid</div>
+                    <div className="text-lg sm:text-xl font-bold text-yellow-600">
+                      {unpaidStudentsCount}
+                    </div>
+                    <div className="text-[10px] sm:text-xs text-gray-600">
+                      Unpaid
+                    </div>
                   </div>
                   <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-center">
-                    <div className="text-lg sm:text-xl font-bold text-blue-600">₦{totalPaidAmount.toLocaleString()}</div>
-                    <div className="text-[10px] sm:text-xs text-gray-600">Total Paid</div>
+                    <div className="text-lg sm:text-xl font-bold text-blue-600">
+                      ₦{totalPaidAmount.toLocaleString()}
+                    </div>
+                    <div className="text-[10px] sm:text-xs text-gray-600">
+                      Total Paid
+                    </div>
                   </div>
                 </div>
 
                 {/* Student List */}
                 <div className="mt-4">
-                  <h4 className="font-medium text-xs sm:text-sm mb-3">Student List</h4>
+                  <h4 className="font-medium text-xs sm:text-sm mb-3">
+                    Student List
+                  </h4>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {students.map((student: any, idx: number) => {
-                      const studentName = student.name || student.childName || student.studentName;
-                      const hasPaid = student.paid === true; 
+                      const studentName =
+                        student.name ||
+                        student.childName ||
+                        student.studentName;
+                      const hasPaid = student.paid === true;
                       const paidAmount = student.paidAmount || 0;
                       const paidDate = getStudentPaidDate(student);
                       const parentName = getStudentParentName(student);
-                      const expectedAmount = page.price || student.expectedAmount || 0;
-                      const isFullyPaid = expectedAmount > 0 ? paidAmount >= expectedAmount : paidAmount > 0;
+                      const expectedAmount =
+                        page.price || student.expectedAmount || 0;
+                      const isFullyPaid =
+                        expectedAmount > 0
+                          ? paidAmount >= expectedAmount
+                          : paidAmount > 0;
 
                       return (
                         <div
                           key={idx}
                           className={`flex flex-col p-3 rounded-lg gap-2 transition-all ${
                             hasPaid
-                              ? 'bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800'
-                              : 'bg-gray-50 dark:bg-[#1a1a1a] border border-transparent'
+                              ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"
+                              : "bg-gray-50 dark:bg-[#1a1a1a] border border-transparent"
                           }`}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <GraduationCap className={`h-3 w-3 sm:h-4 sm:w-4 ${hasPaid ? 'text-green-600' : 'text-gray-400'}`} />
-                                <p className="font-medium text-xs sm:text-sm">{studentName}</p>
+                                <GraduationCap
+                                  className={`h-3 w-3 sm:h-4 sm:w-4 ${hasPaid ? "text-green-600" : "text-gray-400"}`}
+                                />
+                                <p className="font-medium text-xs sm:text-sm">
+                                  {studentName}
+                                </p>
                                 {hasPaid && (
                                   <span className="text-[10px] font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded-full">
-                                    {isFullyPaid ? 'Fully Paid' : 'Partially Paid'}
+                                    {isFullyPaid
+                                      ? "Fully Paid"
+                                      : "Partially Paid"}
                                   </span>
                                 )}
                               </div>
@@ -642,7 +719,8 @@ const PageDetail = () => {
                                 <div className="ml-5 sm:ml-6 mt-1 space-y-0.5">
                                   <p className="text-[10px] sm:text-xs text-green-600">
                                     💰 Paid: ₦{paidAmount.toLocaleString()}
-                                    {expectedAmount > 0 && ` / ₦${expectedAmount.toLocaleString()}`}
+                                    {expectedAmount > 0 &&
+                                      ` / ₦${expectedAmount.toLocaleString()}`}
                                   </p>
                                   {paidDate && (
                                     <p className="text-[10px] text-gray-500 flex items-center gap-1">
@@ -663,12 +741,16 @@ const PageDetail = () => {
                               {hasPaid ? (
                                 <div className="flex items-center gap-1 text-green-600">
                                   <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                                  <span className="text-[10px] sm:text-xs font-medium">Paid</span>
+                                  <span className="text-[10px] sm:text-xs font-medium">
+                                    Paid
+                                  </span>
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1 text-yellow-600">
                                   <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                                  <span className="text-[10px] sm:text-xs font-medium">Pending</span>
+                                  <span className="text-[10px] sm:text-xs font-medium">
+                                    Pending
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -684,7 +766,11 @@ const PageDetail = () => {
                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
                     <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
                       <FileText className="h-3 w-3" />
-                      Total of {paidStudentsCount} student{paidStudentsCount !== 1 ? 's have' : ' has'} paid ₦{totalPaidAmount.toLocaleString()} out of ₦{(students.length * (page.price || 0)).toLocaleString()} expected.
+                      Total of {paidStudentsCount} student
+                      {paidStudentsCount !== 1 ? "s have" : " has"} paid ₦
+                      {totalPaidAmount.toLocaleString()} out of ₦
+                      {(students.length * (page.price || 0)).toLocaleString()}{" "}
+                      expected.
                     </p>
                   </div>
                 )}
@@ -696,9 +782,15 @@ const PageDetail = () => {
               <div className="bg-[#034936] rounded-2xl p-4 sm:p-5 text-white">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
-                    <h3 className="font-bold text-base sm:text-lg">Available Balance</h3>
-                    <p className="text-2xl sm:text-3xl font-bold">₦{page.pageBalance.toLocaleString()}</p>
-                    <p className="text-xs sm:text-sm opacity-80 mt-1">Withdraw to your main wallet (₦200 fee)</p>
+                    <h3 className="font-bold text-base sm:text-lg">
+                      Available Balance
+                    </h3>
+                    <p className="text-2xl sm:text-3xl font-bold">
+                      ₦{page.pageBalance.toLocaleString()}
+                    </p>
+                    <p className="text-xs sm:text-sm opacity-80 mt-1">
+                      Withdraw to your main wallet (₦200 fee)
+                    </p>
                   </div>
                   <Button
                     variant="secondary"
@@ -735,20 +827,29 @@ const PageDetail = () => {
                   <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
                     <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
                   </div>
-                  <h3 className="text-base sm:text-lg font-bold mb-2">Withdrawal Successful!</h3>
+                  <h3 className="text-base sm:text-lg font-bold mb-2">
+                    Withdrawal Successful!
+                  </h3>
                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                    ₦{netAmount.toLocaleString()} has been transferred to your main wallet.
+                    ₦{netAmount.toLocaleString()} has been transferred to your
+                    main wallet.
                   </p>
                 </div>
               ) : (
                 <>
                   <div>
-                    <label className="text-xs sm:text-sm font-medium mb-1 block">Available Balance</label>
-                    <p className="text-xl sm:text-2xl font-bold text-[#e1bf46]">₦{page.pageBalance.toLocaleString()}</p>
+                    <label className="text-xs sm:text-sm font-medium mb-1 block">
+                      Available Balance
+                    </label>
+                    <p className="text-xl sm:text-2xl font-bold text-[#e1bf46]">
+                      ₦{page.pageBalance.toLocaleString()}
+                    </p>
                   </div>
 
                   <div>
-                    <label className="text-xs sm:text-sm font-medium mb-1 block">Withdrawal Amount (₦)</label>
+                    <label className="text-xs sm:text-sm font-medium mb-1 block">
+                      Withdrawal Amount (₦)
+                    </label>
                     <input
                       type="number"
                       className="w-full p-2 sm:p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#e1bf46] dark:bg-[#1a1a1a] dark:border-[#474747] text-sm sm:text-base"
@@ -758,14 +859,18 @@ const PageDetail = () => {
                       min={1000}
                       max={page.pageBalance}
                     />
-                    <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Minimum: ₦1,000 | Fee: ₦200</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
+                      Minimum: ₦1,000 | Fee: ₦200
+                    </p>
                   </div>
 
                   {Number(withdrawalAmount) >= 1000 && (
                     <div className="bg-gray-50 dark:bg-[#1a1a1a] rounded-xl p-3 sm:p-4 space-y-2">
                       <div className="flex justify-between text-xs sm:text-sm">
                         <span>Withdrawal amount:</span>
-                        <span>₦{Number(withdrawalAmount).toLocaleString()}</span>
+                        <span>
+                          ₦{Number(withdrawalAmount).toLocaleString()}
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm">
                         <span>Processing fee:</span>
@@ -773,13 +878,17 @@ const PageDetail = () => {
                       </div>
                       <div className="flex justify-between font-bold pt-2 border-t text-sm sm:text-base">
                         <span>You'll receive:</span>
-                        <span className="text-[#28a36a]">₦{netAmount.toLocaleString()}</span>
+                        <span className="text-[#28a36a]">
+                          ₦{netAmount.toLocaleString()}
+                        </span>
                       </div>
                     </div>
                   )}
 
                   {withdrawalError && (
-                    <div className="p-2 sm:p-3 rounded-xl bg-red-50 text-red-600 text-xs sm:text-sm">{withdrawalError}</div>
+                    <div className="p-2 sm:p-3 rounded-xl bg-red-50 text-red-600 text-xs sm:text-sm">
+                      {withdrawalError}
+                    </div>
                   )}
 
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">

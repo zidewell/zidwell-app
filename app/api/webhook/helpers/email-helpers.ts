@@ -149,7 +149,7 @@ export async function sendWithdrawalEmail(
             ${status === "success" ? "✅ Transfer Successful" : "❌ Transfer Failed"}
           </h3>
           <p>Hi ${user.first_name || "there"},</p>
-          ${status === "success" ? `<img src="${cheersImageUrl}" style="width: 70%; margin: 10px 0; border-radius: 8px;" />` : ""}
+          ${status === "success" ? `<img src="${cheersImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />` : ""}
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
             ${fee ? `<p><strong>Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}

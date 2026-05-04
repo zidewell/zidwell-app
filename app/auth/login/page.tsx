@@ -20,26 +20,28 @@ import { useUserContextData } from "@/app/context/userData";
 import Carousel from "@/app/components/Carousel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
-import { Button2 } from "@/app/components/ui/button2";
 
 const fixDoubleEncodedUrl = (url: string): string => {
   if (!url || url === "/dashboard") return "/dashboard";
-  
+
   try {
     let decoded = url;
     let attempts = 0;
     const maxAttempts = 3;
-    
-    while ((decoded.includes('%') || decoded.includes('%25')) && attempts < maxAttempts) {
+
+    while (
+      (decoded.includes("%") || decoded.includes("%25")) &&
+      attempts < maxAttempts
+    ) {
       const beforeDecode = decoded;
       decoded = decodeURIComponent(decoded);
       if (beforeDecode === decoded) break;
       attempts++;
     }
-    
-    decoded = decoded.replace(/^%2F/, '/').replace(/%2F/g, '/');
-    
-    if (decoded.startsWith('/') && !decoded.includes('//')) {
+
+    decoded = decoded.replace(/^%2F/, "/").replace(/%2F/g, "/");
+
+    if (decoded.startsWith("/") && !decoded.includes("//")) {
       return decoded;
     }
     return "/dashboard";
@@ -61,7 +63,9 @@ const LoginForm = () => {
   const searchParams = useSearchParams();
 
   const rawCallbackUrl = searchParams.get("callbackUrl");
-  const callbackUrl = rawCallbackUrl ? fixDoubleEncodedUrl(rawCallbackUrl) : "/dashboard";
+  const callbackUrl = rawCallbackUrl
+    ? fixDoubleEncodedUrl(rawCallbackUrl)
+    : "/dashboard";
   const fromLogin = searchParams.get("fromLogin");
   const scrollToPricing = searchParams.get("scrollToPricing");
 
@@ -78,9 +82,9 @@ const LoginForm = () => {
     if (loading) return;
 
     if (!email || !password) {
-      setErrors({ 
+      setErrors({
         email: !email ? "Email is required" : "",
-        password: !password ? "Password is required" : ""
+        password: !password ? "Password is required" : "",
       });
       return;
     }
@@ -110,7 +114,7 @@ const LoginForm = () => {
 
       clearTimeout(timeoutId);
       const result = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(result.error || "Invalid email or password");
       }
@@ -118,19 +122,16 @@ const LoginForm = () => {
       const { profile, isVerified, sessionEstablished } = result;
       if (!profile) throw new Error("User profile not found.");
 
-      // Update user data immediately
       setUserData(profile);
       localStorage.setItem("userData", JSON.stringify(profile));
-      
-      // Set client-side cookies
+
       Cookies.set("verified", isVerified ? "true" : "false", {
         expires: 7,
         path: "/",
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
       });
-      
-      // CRITICAL: Set client session cookie
+
       Cookies.set("sb-client-session", "true", {
         expires: 7,
         path: "/",
@@ -140,32 +141,25 @@ const LoginForm = () => {
 
       Swal.close();
 
-      // CRITICAL: Wait for cookies to be properly set
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Verify cookies were set
       const sessionCookie = Cookies.get("sb-client-session");
       if (!sessionCookie) {
         console.warn("Session cookie not set, retrying...");
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
 
       let targetUrl = callbackUrl;
       if (fromLogin === "true" && scrollToPricing === "true") {
         targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
       }
-      
-      // CRITICAL FIX: Use hard navigation in production
-      // This ensures all cookies (including HTTP-only) are sent with the request
+
       if (process.env.NODE_ENV === "production") {
-        // Use window.location for hard navigation
         window.location.href = targetUrl;
       } else {
-        // In development, router.push is fine
         router.push(targetUrl);
       }
 
-      // Background operations (non-blocking)
       Promise.allSettled([
         (async () => {
           await fetch("/api/activity/last-login", {
@@ -177,46 +171,45 @@ const LoginForm = () => {
             }),
           }).catch(console.error);
         })(),
-      ]).catch(err => console.error("Background operations failed:", err));
+      ]).catch((err) => console.error("Background operations failed:", err));
 
-      // Send notification asynchronously
       if (process.env.NODE_ENV === "production") {
-        sendLoginNotificationWithDeviceInfo(profile).catch(err =>
-          console.error("Failed to send login notification:", err)
+        sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
+          console.error("Failed to send login notification:", err),
         );
       }
 
-      // Show success toast
       setTimeout(() => {
         Swal.fire({
           icon: "success",
           title: "Welcome Back!",
-          text: `Hello, ${profile.name || profile.email?.split('@')[0] || 'User'}`,
+          text: `Hello, ${profile.name || profile.email?.split("@")[0] || "User"}`,
           toast: true,
-          position: 'top-end',
+          position: "top-end",
           showConfirmButton: false,
           timer: 2000,
           timerProgressBar: true,
         }).catch(console.error);
       }, 100);
-
     } catch (err: any) {
       clearTimeout(timeoutId);
       Swal.close();
-      
-      let errorMessage = "Invalid email or password. Please check your credentials and try again.";
-      
+
+      let errorMessage =
+        "Invalid email or password. Please check your credentials and try again.";
+
       if (err.name === "AbortError") {
-        errorMessage = "Request timed out. Please check your internet connection and try again.";
+        errorMessage =
+          "Request timed out. Please check your internet connection and try again.";
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       Swal.fire({
         icon: "error",
         title: "Login Failed",
         text: errorMessage,
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
         confirmButtonText: "Try Again",
       });
     } finally {
@@ -225,25 +218,29 @@ const LoginForm = () => {
   };
 
   return (
-    <div className="lg:flex lg:justify-between bg-gray-50 min-h-screen fade-in">
+    <div className="lg:flex lg:justify-between bg-(--bg-primary) min-h-screen fade-in">
       <div
         className="lg:w-[50%] min-h-screen md:h-full flex justify-center md:items-start items-center px-6 md:py-8 fade-in bg-cover bg-center relative"
-        style={isMobile ? {
-          backgroundImage: `url("/zidwell-bg-mobile.jpg")`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        } : {}}
+        style={
+          isMobile
+            ? {
+                backgroundImage: `url("/zidwell-bg-mobile.jpg")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : {}
+        }
       >
         <Button
           onClick={() => router.push("/")}
           variant="outline"
-          className="absolute top-4 left-4 md:top-8 md:left-8 hover:bg-white/20 transition-colors z-10 cursor-pointer"
+          className="absolute top-4 left-4 md:top-8 md:left-8 hover:bg-(--bg-secondary) transition-colors z-10 cursor-pointer squircle-md border-(--border-color) text-(--text-primary)"
           aria-label="Go back"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
 
-        <Card className="w-full max-w-md h-full shadow-lg">
+        <Card className="w-full max-w-md h-full shadow-soft squircle-lg border border-(--border-color) bg-(--bg-primary)">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center mb-4">
               <Image
@@ -255,13 +252,20 @@ const LoginForm = () => {
                 priority
               />
             </div>
-            <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-            <CardDescription>Sign in to your Zidwell Wallet</CardDescription>
+            <CardTitle className="text-2xl font-bold text-(--text-primary)">
+              Welcome Back
+            </CardTitle>
+            <CardDescription className="text-(--text-secondary)">
+              Sign in to your Zidwell Wallet
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
+                <Label
+                  htmlFor="email"
+                  className="text-sm font-medium text-(--text-primary)"
+                >
                   Email Address
                 </Label>
                 <Input
@@ -275,16 +279,22 @@ const LoginForm = () => {
                   }}
                   required
                   disabled={loading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2b825b] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:border-(--color-accent-yellow) squircle-md"
+                  style={{ outline: "none", boxShadow: "none" }}
                   autoComplete="email"
                 />
                 {errors.email && (
-                  <p className="text-sm text-red-500 animate-pulse">{errors.email}</p>
+                  <p className="text-sm text-destructive animate-pulse">
+                    {errors.email}
+                  </p>
                 )}
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">
+                <Label
+                  htmlFor="password"
+                  className="text-sm font-medium text-(--text-primary)"
+                >
                   Password
                 </Label>
                 <div className="relative">
@@ -295,57 +305,66 @@ const LoginForm = () => {
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
-                      if (errors.password) setErrors({ ...errors, password: "" });
+                      if (errors.password)
+                        setErrors({ ...errors, password: "" });
                     }}
                     required
                     disabled={loading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2b825b] focus:border-transparent pr-10"
+                    className="w-full px-3 py-2 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:border-(--color-accent-yellow) pr-10 squircle-md"
+                    style={{ outline: "none", boxShadow: "none" }}
                     autoComplete="current-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-(--text-secondary) hover:text-(--text-primary) transition-colors"
                     disabled={loading}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="text-sm text-red-500 animate-pulse">{errors.password}</p>
+                  <p className="text-sm text-destructive animate-pulse">
+                    {errors.password}
+                  </p>
                 )}
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     id="remember"
-                    className="h-4 w-4 text-[#2b825b] border-gray-300 rounded focus:ring-[#2b825b]"
+                    className="h-4 w-4 accent-[var(--color-accent-yellow)] border-(--border-color) rounded focus:ring-[var(--color-accent-yellow)] focus:ring-offset-0"
                     disabled={loading}
                   />
-                  <Label htmlFor="remember" className="text-sm cursor-pointer">
+                  <Label
+                    htmlFor="remember"
+                    className="text-sm cursor-pointer text-(--text-primary)"
+                  >
                     Remember me
                   </Label>
                 </div>
                 <Link
                   href="/auth/password-reset"
-                  className="text-sm text-[#2b825b] hover:text-[#1f6044] transition-colors"
+                  className="text-sm text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 transition-colors"
                 >
                   Forgot password?
                 </Link>
               </div>
-              
-              <Button2
+
+              <Button
                 type="submit"
-                className="w-full bg-[#2b825b] hover:bg-[#1f6044] transition-colors"
+                className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 transition-colors squircle-md py-2"
                 disabled={loading}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <svg
-                      className="animate-spin h-5 w-5 text-white"
+                      className="animate-spin h-5 w-5 text-(--color-ink)"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
@@ -369,15 +388,15 @@ const LoginForm = () => {
                 ) : (
                   "Sign In"
                 )}
-              </Button2>
+              </Button>
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-(--text-secondary)">
                 Don&apos;t have an account?{" "}
                 <Link
                   href="/auth/signup"
-                  className="text-[#2b825b] hover:text-[#1f6044] font-medium transition-colors"
+                  className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 font-medium transition-colors"
                 >
                   Sign up
                 </Link>
@@ -393,11 +412,13 @@ const LoginForm = () => {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2b825b]"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-(--bg-primary)">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-(--color-accent-yellow)"></div>
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

@@ -1,3 +1,4 @@
+// app/components/RegisterForm.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -30,7 +31,6 @@ import {
 import Swal from "sweetalert2";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button2 } from "./ui/button2";
 
 // Validation schemas per step
 const step1Schema = z.object({
@@ -50,7 +50,10 @@ const passwordSchema = z
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
   .regex(/[a-z]/, "Password must contain at least one lowercase letter")
   .regex(/[0-9]/, "Password must contain at least one number")
-  .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character");
+  .regex(
+    /[^A-Za-z0-9]/,
+    "Password must contain at least one special character",
+  );
 
 const step2Schema = z
   .object({
@@ -76,7 +79,9 @@ const step3Schema = z
 const TOTAL_STEPS = 3;
 
 // Password strength calculator
-const calculatePasswordStrength = (password: string): {
+const calculatePasswordStrength = (
+  password: string,
+): {
   score: number;
   strength: string;
   color: string;
@@ -87,10 +92,13 @@ const calculatePasswordStrength = (password: string): {
     { label: "At least 1 uppercase letter (A-Z)", met: /[A-Z]/.test(password) },
     { label: "At least 1 lowercase letter (a-z)", met: /[a-z]/.test(password) },
     { label: "At least 1 number (0-9)", met: /[0-9]/.test(password) },
-    { label: "At least 1 special character (!@#$%^&*)", met: /[^A-Za-z0-9]/.test(password) },
+    {
+      label: "At least 1 special character (!@#$%^&*)",
+      met: /[^A-Za-z0-9]/.test(password),
+    },
   ];
 
-  const metCount = requirements.filter(r => r.met).length;
+  const metCount = requirements.filter((r) => r.met).length;
   const score = (metCount / requirements.length) * 100;
 
   let strength = "Very Weak";
@@ -98,16 +106,16 @@ const calculatePasswordStrength = (password: string): {
 
   if (score === 100) {
     strength = "Strong";
-    color = "#22c55e"; // green
+    color = "var(--color-accent-yellow)";
   } else if (score >= 80) {
     strength = "Good";
-    color = "#eab308"; // yellow
+    color = "#eab308";
   } else if (score >= 60) {
     strength = "Fair";
-    color = "#f97316"; // orange
+    color = "#f97316";
   } else if (score >= 40) {
     strength = "Weak";
-    color = "#ef4444"; // red
+    color = "#ef4444";
   }
 
   return { score, strength, color, requirements };
@@ -119,7 +127,7 @@ const RegisterForm = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  
+
   // Step 1
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -195,7 +203,12 @@ const RegisterForm = () => {
 
   const triggerConfetti = () => {
     const end = Date.now() + 2000;
-    const colors = ["#2b825b", "#22c55e", "#3b82f6", "#ef4444", "#8b5cf6"];
+    const colors = [
+      "var(--color-accent-yellow)",
+      "#FDC020",
+      "#eab308",
+      "#ca8a04",
+    ];
     const frame = () => {
       confetti({
         particleCount: 3,
@@ -260,7 +273,7 @@ const RegisterForm = () => {
         icon: "error",
         title: "Registration Failed",
         text: error.message || "Something went wrong. Please try again.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
       setErrors({ form: error.message });
     } finally {
@@ -274,8 +287,10 @@ const RegisterForm = () => {
     <div className="w-full max-w-md mx-auto py-8 px-4">
       {/* Mobile logo - visible only on mobile */}
       <div className="lg:hidden text-center mb-8">
-        <h1 className="text-3xl font-bold text-[#2b825b]">Zidwell</h1>
-        <p className="text-xs text-[hsl(30,8%,50%)] tracking-widest uppercase font-sans mt-1">
+        <h1 className="text-3xl font-bold text-(--color-accent-yellow)">
+          Zidwell
+        </h1>
+        <p className="text-xs text-[var(--text-secondary)] tracking-widest uppercase font-sans mt-1">
           Financial Wellness
         </p>
       </div>
@@ -288,25 +303,30 @@ const RegisterForm = () => {
               <div
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold font-sans transition-colors ${
                   i + 1 <= step
-                    ? "bg-[#2b825b] text-white"
-                    : "bg-[hsl(40,20%,95%)] text-[hsl(30,8%,50%)]"
+                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                    : "bg-(--bg-secondary) text-[var(--text-secondary)]"
                 }`}
               >
                 {i + 1 < step ? <CheckCircle className="h-4 w-4" /> : i + 1}
               </div>
-              <span className="text-xs font-sans text-[hsl(30,8%,50%)] hidden sm:inline">
+              <span className="text-xs font-sans text-[var(--text-secondary)] hidden sm:inline">
                 {label}
               </span>
             </div>
           ))}
         </div>
-        <Progress value={progress} className="h-1.5 [&>div]:bg-[#2b825b]" />
+        <Progress value={progress} className="h-1.5" />
+        <style jsx>{`
+          :global(.progress-bar-fill) {
+            background-color: var(--color-accent-yellow) !important;
+          }
+        `}</style>
       </div>
 
       {/* Form Error */}
       {errors.form && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-600">{errors.form}</p>
+        <div className="mb-4 p-3 bg-destructive/10 border border-destructive rounded-lg squircle-md">
+          <p className="text-sm text-destructive">{errors.form}</p>
         </div>
       )}
 
@@ -314,8 +334,10 @@ const RegisterForm = () => {
       {step === 1 && (
         <div className="space-y-5 animate-fade-in">
           <div>
-            <h2 className="text-2xl font-bold">Let's get started!</h2>
-            <p className="text-[hsl(30,8%,50%)] font-sans text-sm mt-1">
+            <h2 className="text-2xl font-bold text-[var(--text-primary)]">
+              Let's get started!
+            </h2>
+            <p className="text-[var(--text-secondary)] font-sans text-sm mt-1">
               Join thousands of Nigerian businesses managing their finances
               smarter.
             </p>
@@ -323,7 +345,10 @@ const RegisterForm = () => {
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name" className="font-sans">
+              <Label
+                htmlFor="name"
+                className="font-sans text-[var(--text-primary)]"
+              >
                 Full Name
               </Label>
               <Input
@@ -331,18 +356,22 @@ const RegisterForm = () => {
                 placeholder="e.g. Adebayo Olaoluwa"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className={errors.name ? "border-[hsl(0,84%,60%)]" : ""}
+                className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md ${errors.name ? "border-destructive" : ""}`}
                 disabled={isLoading}
+                style={{ outline: "none", boxShadow: "none" }}
               />
               {errors.name && (
-                <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">
+                <p className="text-xs text-destructive mt-1 font-sans">
                   {errors.name}
                 </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="phone" className="font-sans">
+              <Label
+                htmlFor="phone"
+                className="font-sans text-[var(--text-primary)]"
+              >
                 Phone Number
               </Label>
               <Input
@@ -352,18 +381,22 @@ const RegisterForm = () => {
                 maxLength={11}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                className={errors.phone ? "border-[hsl(0,84%,60%)]" : ""}
+                className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md ${errors.phone ? "border-destructive" : ""}`}
                 disabled={isLoading}
+                style={{ outline: "none", boxShadow: "none" }}
               />
               {errors.phone && (
-                <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">
+                <p className="text-xs text-destructive mt-1 font-sans">
                   {errors.phone}
                 </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="email" className="font-sans">
+              <Label
+                htmlFor="email"
+                className="font-sans text-[var(--text-primary)]"
+              >
                 Email Address
               </Label>
               <Input
@@ -372,11 +405,12 @@ const RegisterForm = () => {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={errors.email ? "border-[hsl(0,84%,60%)]" : ""}
+                className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md ${errors.email ? "border-destructive" : ""}`}
                 disabled={isLoading}
+                style={{ outline: "none", boxShadow: "none" }}
               />
               {errors.email && (
-                <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">
+                <p className="text-xs text-destructive mt-1 font-sans">
                   {errors.email}
                 </p>
               )}
@@ -389,15 +423,20 @@ const RegisterForm = () => {
       {step === 2 && (
         <div className="space-y-5 animate-fade-in">
           <div>
-            <h2 className="text-2xl font-bold">Secure your account</h2>
-            <p className="text-[hsl(30,8%,50%)] font-sans text-sm mt-1">
+            <h2 className="text-2xl font-bold text-[var(--text-primary)]">
+              Secure your account
+            </h2>
+            <p className="text-[var(--text-secondary)] font-sans text-sm mt-1">
               Create a strong password to protect your business data.
             </p>
           </div>
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="password" className="font-sans">
+              <Label
+                htmlFor="password"
+                className="font-sans text-[var(--text-primary)]"
+              >
                 Password
               </Label>
               <div className="relative">
@@ -407,15 +446,14 @@ const RegisterForm = () => {
                   placeholder="Min. 8 characters with uppercase, lowercase, number & special char"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={
-                    errors.password ? "border-[hsl(0,84%,60%)] pr-10" : "pr-10"
-                  }
+                  className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pr-10 squircle-md ${errors.password ? "border-destructive" : ""}`}
                   disabled={isLoading}
+                  style={{ outline: "none", boxShadow: "none" }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(30,8%,50%)] hover:text-[hsl(30,10%,12%)]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   disabled={isLoading}
                 >
                   {showPassword ? (
@@ -431,46 +469,42 @@ const RegisterForm = () => {
                 <div className="mt-3 space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <Shield className="h-3.5 w-3.5" style={{ color: passwordStrength.color }} />
-                      <span className="text-xs font-sans" style={{ color: passwordStrength.color }}>
+                      <Shield
+                        className="h-3.5 w-3.5"
+                        style={{ color: passwordStrength.color }}
+                      />
+                      <span
+                        className="text-xs font-sans"
+                        style={{ color: passwordStrength.color }}
+                      >
                         Password Strength: {passwordStrength.strength}
                       </span>
                     </div>
-                    <span className="text-xs text-[hsl(30,8%,50%)]">
+                    <span className="text-xs text-[var(--text-secondary)]">
                       {Math.round(passwordStrength.score)}%
                     </span>
                   </div>
-                  <Progress 
-                    value={passwordStrength.score} 
-                    className="h-2"
-                    style={{
-                      backgroundColor: "#f0f0f0",
-                    }}
-                  />
-                  <style jsx>{`
-                    :global(.progress-bar-fill) {
-                      background-color: ${passwordStrength.color} !important;
-                      transition: all 0.3s ease;
-                    }
-                  `}</style>
+                  <Progress value={passwordStrength.score} className="h-2" />
                 </div>
               )}
 
               {/* Password Requirements Checklist */}
               {password && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-1.5">
-                  <p className="text-xs font-medium text-[hsl(30,10%,12%)] mb-2 flex items-center gap-1">
+                <div className="mt-3 p-3 bg-(--bg-secondary) rounded-lg space-y-1.5 squircle-md">
+                  <p className="text-xs font-medium text-[var(--text-primary)] mb-2 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     Password Requirements:
                   </p>
                   {passwordStrength.requirements.map((req, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       {req.met ? (
-                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        <CheckCircle className="h-3 w-3 text-(--color-accent-yellow)" />
                       ) : (
-                        <XCircle className="h-3 w-3 text-red-400" />
+                        <XCircle className="h-3 w-3 text-destructive" />
                       )}
-                      <span className={`text-xs font-sans ${req.met ? 'text-gray-700' : 'text-gray-400'}`}>
+                      <span
+                        className={`text-xs font-sans ${req.met ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
+                      >
                         {req.label}
                       </span>
                     </div>
@@ -479,14 +513,17 @@ const RegisterForm = () => {
               )}
 
               {errors.password && (
-                <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">
+                <p className="text-xs text-destructive mt-1 font-sans">
                   {errors.password}
                 </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword" className="font-sans">
+              <Label
+                htmlFor="confirmPassword"
+                className="font-sans text-[var(--text-primary)]"
+              >
                 Confirm Password
               </Label>
               <div className="relative">
@@ -496,17 +533,14 @@ const RegisterForm = () => {
                   placeholder="Re-enter password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={
-                    errors.confirmPassword
-                      ? "border-[hsl(0,84%,60%)] pr-10"
-                      : "pr-10"
-                  }
+                  className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pr-10 squircle-md ${errors.confirmPassword ? "border-destructive" : ""}`}
                   disabled={isLoading}
+                  style={{ outline: "none", boxShadow: "none" }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(30,8%,50%)] hover:text-[hsl(30,10%,12%)]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   disabled={isLoading}
                 >
                   {showConfirmPassword ? (
@@ -523,17 +557,21 @@ const RegisterForm = () => {
                 </p>
               )}
               {errors.confirmPassword && (
-                <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">
+                <p className="text-xs text-destructive mt-1 font-sans">
                   {errors.confirmPassword}
                 </p>
               )}
             </div>
 
             {/* Password Tips */}
-            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
-              <p className="text-xs font-medium text-blue-800 mb-1">password Tip:</p>
-              <p className="text-xs text-blue-700">
-                Use a combination of words, numbers, and symbols that's easy for you to remember but hard for others to guess. Consider using a passphrase like "MyDogLoves2Eat!@#"
+            <div className="rounded-lg bg-(--color-accent-yellow)/10 border border-[var(--color-accent-yellow)]/30 p-3 squircle-md">
+              <p className="text-xs font-medium text-[var(--text-primary)] mb-1">
+                Password Tip:
+              </p>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Use a combination of words, numbers, and symbols that's easy for
+                you to remember but hard for others to guess. Consider using a
+                passphrase like "MyDogLoves2Eat!@#"
               </p>
             </div>
           </div>
@@ -544,18 +582,20 @@ const RegisterForm = () => {
       {step === 3 && (
         <div className="space-y-5 animate-fade-in">
           <div>
-            <h2 className="text-2xl font-bold">Business Bank Account</h2>
-            <p className="text-[hsl(30,8%,50%)] font-sans text-sm mt-1">
+            <h2 className="text-2xl font-bold text-[var(--text-primary)]">
+              Business Bank Account
+            </h2>
+            <p className="text-[var(--text-secondary)] font-sans text-sm mt-1">
               Optional: Set up a dedicated account for your business finances.
             </p>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border bg-white p-4">
+          <div className="flex items-center justify-between rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 squircle-lg">
             <div>
-              <p className="font-sans font-medium text-sm">
+              <p className="font-sans font-medium text-sm text-[var(--text-primary)]">
                 Do you want a business bank account?
               </p>
-              <p className="text-xs text-[hsl(30,8%,50%)] font-sans mt-0.5">
+              <p className="text-xs text-[var(--text-secondary)] font-sans mt-0.5">
                 You can always set this up later
               </p>
             </div>
@@ -569,23 +609,28 @@ const RegisterForm = () => {
           {wantsBankAccount && (
             <div className="space-y-4 animate-fade-in">
               {/* BVN info banner */}
-              <div className="rounded-lg border border-[#2b825b]/30 bg-[#2b825b]/5 p-3 flex gap-2 items-start">
-                <Info className="h-4 w-4 text-[#2b825b] mt-0.5 shrink-0" />
-                <p className="text-xs text-[hsl(30,10%,12%)]/80 font-sans">
-                  <strong>CBN Regulation:</strong> Your Bank Verification Number
-                  (BVN) is required to open a business account. It is securely
-                  encrypted and never shared.
+              <div className="rounded-lg border border-[var(--color-accent-yellow)]/30 bg-(--color-accent-yellow)/5 p-3 flex gap-2 items-start squircle-md">
+                <Info className="h-4 w-4 text-(--color-accent-yellow) mt-0.5 shrink-0" />
+                <p className="text-xs text-[var(--text-secondary)] font-sans">
+                  <strong className="text-[var(--text-primary)]">
+                    CBN Regulation:
+                  </strong>{" "}
+                  Your Bank Verification Number (BVN) is required to open a
+                  business account. It is securely encrypted and never shared.
                 </p>
               </div>
 
               <div>
                 <div className="flex items-center gap-1">
-                  <Label htmlFor="bvn" className="font-sans">
+                  <Label
+                    htmlFor="bvn"
+                    className="font-sans text-[var(--text-primary)]"
+                  >
                     BVN
                   </Label>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-3.5 w-3.5 text-[hsl(30,8%,50%)] cursor-help" />
+                      <Info className="h-3.5 w-3.5 text-[var(--text-secondary)] cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs font-sans text-xs">
                       The Central Bank of Nigeria (CBN) requires BVN
@@ -601,18 +646,22 @@ const RegisterForm = () => {
                   maxLength={11}
                   value={bvn}
                   onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))}
-                  className={errors.bvn ? "border-[hsl(0,84%,60%)]" : ""}
+                  className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md ${errors.bvn ? "border-destructive" : ""}`}
                   disabled={isLoading}
+                  style={{ outline: "none", boxShadow: "none" }}
                 />
                 {errors.bvn && (
-                  <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">
+                  <p className="text-xs text-destructive mt-1 font-sans">
                     {errors.bvn}
                   </p>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="pin" className="font-sans">
+                <Label
+                  htmlFor="pin"
+                  className="font-sans text-[var(--text-primary)]"
+                >
                   Transaction PIN
                 </Label>
                 <div className="relative">
@@ -624,15 +673,14 @@ const RegisterForm = () => {
                     maxLength={4}
                     value={pin}
                     onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-                    className={
-                      errors.pin ? "border-[hsl(0,84%,60%)] pr-10" : "pr-10"
-                    }
+                    className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pr-10 squircle-md ${errors.pin ? "border-destructive" : ""}`}
                     disabled={isLoading}
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPin(!showPin)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(30,8%,50%)] hover:text-[hsl(30,10%,12%)]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     disabled={isLoading}
                   >
                     {showPin ? (
@@ -643,14 +691,17 @@ const RegisterForm = () => {
                   </button>
                 </div>
                 {errors.pin && (
-                  <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">
+                  <p className="text-xs text-destructive mt-1 font-sans">
                     {errors.pin}
                   </p>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="confirmPin" className="font-sans">
+                <Label
+                  htmlFor="confirmPin"
+                  className="font-sans text-[var(--text-primary)]"
+                >
                   Confirm Transaction PIN
                 </Label>
                 <div className="relative">
@@ -664,17 +715,14 @@ const RegisterForm = () => {
                     onChange={(e) =>
                       setConfirmPin(e.target.value.replace(/\D/g, ""))
                     }
-                    className={
-                      errors.confirmPin
-                        ? "border-[hsl(0,84%,60%)] pr-10"
-                        : "pr-10"
-                    }
+                    className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pr-10 squircle-md ${errors.confirmPin ? "border-destructive" : ""}`}
                     disabled={isLoading}
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPin(!showConfirmPin)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(30,8%,50%)] hover:text-[hsl(30,10%,12%)]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     disabled={isLoading}
                   >
                     {showConfirmPin ? (
@@ -685,7 +733,7 @@ const RegisterForm = () => {
                   </button>
                 </div>
                 {errors.confirmPin && (
-                  <p className="text-xs text-[hsl(0,84%,60%)] mt-1 font-sans">
+                  <p className="text-xs text-destructive mt-1 font-sans">
                     {errors.confirmPin}
                   </p>
                 )}
@@ -698,20 +746,20 @@ const RegisterForm = () => {
       {/* Navigation */}
       <div className="flex justify-between mt-8">
         {step > 1 ? (
-          <Button2
+          <Button
             variant="outline"
             onClick={handleBack}
-            className="font-sans gap-2"
+            className="font-sans gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-(--bg-secondary) squircle-md"
             disabled={isLoading}
           >
             <ArrowLeft className="h-4 w-4" /> Back
-          </Button2>
+          </Button>
         ) : (
           <div />
         )}
-        <Button2
+        <Button
           onClick={handleNext}
-          className="font-sans gap-2"
+          className="font-sans gap-2 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
           disabled={isLoading || (step === 2 && passwordStrength.score !== 100)}
         >
           {isLoading ? (
@@ -723,7 +771,7 @@ const RegisterForm = () => {
           ) : (
             "Create Account"
           )}
-        </Button2>
+        </Button>
       </div>
 
       {/* Password strength warning message */}
@@ -735,24 +783,24 @@ const RegisterForm = () => {
       )}
 
       {/* Login link */}
-      <p className="text-center text-sm text-[hsl(30,8%,50%)] font-sans mt-6">
+      <p className="text-center text-sm text-[var(--text-secondary)] font-sans mt-6">
         Already have an account?{" "}
         <Link
           href="/auth/login"
-          className="text-[#2b825b] font-medium hover:underline"
+          className="text-(--color-accent-yellow) font-medium hover:underline"
         >
           Login instead
         </Link>
       </p>
 
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
-        <DialogContent className="text-center sm:max-w-md">
+        <DialogContent className="text-center sm:max-w-md bg-[var(--bg-primary)] border-[var(--border-color)] squircle-lg">
           <DialogHeader>
             <div className="mx-auto mb-4 text-6xl">🎉</div>
-            <DialogTitle className="text-2xl text-center">
+            <DialogTitle className="text-2xl text-center text-[var(--text-primary)]">
               Congratulations!
             </DialogTitle>
-            <DialogDescription className="font-sans text-base mt-2 leading-relaxed text-center">
+            <DialogDescription className="font-sans text-base mt-2 leading-relaxed text-center text-[var(--text-secondary)]">
               You've successfully created your Zidwell account! Kindly check
               your email to verify your account.
             </DialogDescription>
@@ -762,7 +810,7 @@ const RegisterForm = () => {
               setShowSuccess(false);
               router.push("/auth/login");
             }}
-            className="mt-4 font-sans w-full bg-[#2b825b] hover:bg-[#1e5d42]"
+            className="mt-4 font-sans w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
           >
             Got it!
           </Button>

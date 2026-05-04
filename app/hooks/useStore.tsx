@@ -1,6 +1,7 @@
 "use client"
 import { ReactNode, createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useUserContextData } from "../context/userData";
+import { usePathname } from "next/navigation";
 
 export type PageType = "school" | "donation" | "physical" | "digital" | "services" | "real_estate" | "stock" | "savings" | "crypto";
 
@@ -108,10 +109,26 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [pages, setPages] = useState<PaymentPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
-const {userData} = useUserContextData()
+  const { userData } = useUserContextData();
+  const pathname = usePathname();
+
+  // Helper function to check if current route is dashboard/services/payment
+  const shouldFetchPages = useCallback(() => {
+    // Check if the current path includes dashboard/services/payment
+    return pathname?.includes('/dashboard/services/payment') || 
+           pathname?.includes('/dashboard/services/payment/');
+  }, [pathname]);
+
   const fetchPages = useCallback(async () => {
+    // Only fetch if we're on a page that includes dashboard/services/payment
+    if (!shouldFetchPages()) {
+      console.log("Skipping API call - not on dashboard/services/payment page. Current path:", pathname);
+      setLoading(false);
+      setInitialFetchDone(true);
+      return;
+    }
+
     try {
-     
       const response = await fetch("/api/payment-page/list", {
         cache: 'no-store',
         headers: {
@@ -135,13 +152,18 @@ const {userData} = useUserContextData()
       setLoading(false);
       setInitialFetchDone(true);
     }
-  }, []);
+  }, [shouldFetchPages, pathname]);
 
   const refreshPages = useCallback(async () => {
-  
+    // Only refresh if we're on a page that includes dashboard/services/payment
+    if (!shouldFetchPages()) {
+      console.log("Skipping refresh - not on dashboard/services/payment page");
+      return;
+    }
+    
     setLoading(true);
     await fetchPages();
-  }, [fetchPages]);
+  }, [fetchPages, shouldFetchPages]);
 
   const createPage = async (pageData: any) => {
     console.log("Creating page with data:", pageData);
@@ -248,14 +270,19 @@ const {userData} = useUserContextData()
     setPages((prev) => [page, ...prev]);
   };
 
-  // Fetch pages on mount and when the window gets focus
+  // Fetch pages on mount and when the window gets focus, but only on allowed routes
   useEffect(() => {
     fetchPages();
     
     // Optional: Refetch when window gets focus (tab becomes active)
     const handleFocus = () => {
-      console.log("Window focused, refreshing pages...");
-      fetchPages();
+      console.log("Window focused, checking if should refresh pages...");
+      if (shouldFetchPages()) {
+        console.log("Refreshing pages...");
+        fetchPages();
+      } else {
+        console.log("Skipping refresh - not on dashboard/services/payment page");
+      }
     };
     
     window.addEventListener('focus', handleFocus);
@@ -263,7 +290,19 @@ const {userData} = useUserContextData()
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, [fetchPages]);
+  }, [fetchPages, shouldFetchPages]);
+
+  // Also re-fetch when pathname changes
+  useEffect(() => {
+    if (shouldFetchPages() && initialFetchDone) {
+      console.log("Path changed to dashboard/services/payment, fetching pages...");
+      fetchPages();
+    } else if (!shouldFetchPages() && !initialFetchDone) {
+      // If not on the right page and initial fetch hasn't been done, just set loading to false
+      setLoading(false);
+      setInitialFetchDone(true);
+    }
+  }, [pathname, shouldFetchPages, fetchPages, initialFetchDone]);
 
   return (
     <StoreContext.Provider

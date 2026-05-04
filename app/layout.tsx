@@ -1,24 +1,39 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
+import { Space_Grotesk, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "./context/userData";
 import SessionWatcher from "./components/SessionWatcher";
-import FloatingHelpButton from "./components/FloatingHelpButton";
 import NotificationToast from "./components/NotificationToast";
 import FloatingWhatsApp from "./components/FloatingWhatsapp";
 import Script from "next/script";
-import DashboardFooter from "./components/dashboardFooter";
 import { InstallPrompt } from "./components/PushNotificationManager";
 import GlobalVerificationModal from "./components/GlobalVerificationModal";
 import { VerificationModalProvider } from "./context/verificationModalContext";
 import AuthChecker from "./components/AuthChecker";
 import { StoreProvider } from "./hooks/useStore";
+import { ThemeProvider } from "./components/ThemeProvider";
+import { ThemeWrapper } from "./components/ThemeWrapper";
+
+// Initialize fonts with Next.js font optimization
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-space-grotesk",
+  display: "swap",
+});
+
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-be-vietnam",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   themeColor: "#2b825b",
   width: "device-width",
   initialScale: 1,
-
   maximumScale: 1,
   userScalable: false,
 };
@@ -189,53 +204,38 @@ export const metadata: Metadata = {
   description:
     "Zidwell helps Nigerian businesses with invoicing, receipts, contracts, accounting, tax filing, and financial management. All-in-one platform for SMEs, freelancers, and entrepreneurs.",
   keywords: [
-    // ALL YOUR PAGES KEYWORDS
     "Zidwell sign up",
     "Zidwell login",
     "create Zidwell account",
-
-    // INVOICE PAGE KEYWORDS
     "invoice generator Nigeria",
     "online invoice maker Nigeria",
     "professional invoice Nigeria",
     "business invoice software Nigeria",
     "free invoice generator Nigeria",
-
-    // RECEIPT PAGE KEYWORDS
     "digital receipt Nigeria",
     "receipt maker online Nigeria",
     "business receipt generator",
     "proof of payment Nigeria",
     "digital receipt creator",
-
-    // CONTRACT PAGE KEYWORDS
     "contract creator Nigeria",
     "business contract templates Nigeria",
     "legal contracts Nigeria",
     "simple contract maker Nigeria",
     "freelance contract Nigeria",
-
-    // BLOG PAGE KEYWORDS
     "business blog Nigeria",
     "SME tips Nigeria",
     "entrepreneur blog Nigeria",
     "finance education Nigeria",
     "business growth blog",
-
-    // ACCOUNTING KEYWORDS
     "accounting services for small businesses in Nigeria",
     "small business accounting Nigeria",
     "online accounting services in Nigeria",
-
-    // HIGH-INTENT CONVERSION
     "sign up for Zidwell",
     "create free account",
     "try Zidwell free",
     "Zidwell pricing",
     "Zidwell features",
     "how to use Zidwell",
-
-    // ORIGINAL KEYWORDS
     "business bill payment Nigeria",
     "SME financial management",
     "pay electricity bills online",
@@ -244,8 +244,6 @@ export const metadata: Metadata = {
     "fintech platform Nigeria",
     "business tools Nigeria",
     "digital finance Nigeria",
-
-    // PWA KEYWORDS
     "Zidwell mobile app",
     "install Zidwell",
     "Zidwell PWA",
@@ -294,56 +292,16 @@ export const metadata: Metadata = {
       { url: "/favicon.ico" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      {
-        url: "/icons/icon-48x48.png",
-        sizes: "48x48",
-        type: "image/png",
-      },
-      {
-        url: "/icons/icon-72x72.png",
-        sizes: "72x72",
-        type: "image/png",
-      },
-      {
-        url: "/icons/icon-96x96.png",
-        sizes: "96x96",
-        type: "image/png",
-      },
-      {
-        url: "/icons/icon-128x128.png",
-        sizes: "128x128",
-        type: "image/png",
-      },
-      {
-        url: "/icons/icon-144x144.png",
-        sizes: "144x144",
-        type: "image/png",
-      },
-      {
-        url: "/icons/icon-152x152.png",
-        sizes: "152x152",
-        type: "image/png",
-      },
-      {
-        url: "/icons/icon-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
-      {
-        url: "/icons/icon-256x256.png",
-        sizes: "256x256",
-        type: "image/png",
-      },
-      {
-        url: "/icons/icon-384x384.png",
-        sizes: "384x384",
-        type: "image/png",
-      },
-      {
-        url: "/icons/icon-512x512.png",
-        sizes: "512x512",
-        type: "image/png",
-      },
+      { url: "/icons/icon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/icons/icon-72x72.png", sizes: "72x72", type: "image/png" },
+      { url: "/icons/icon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/icons/icon-128x128.png", sizes: "128x128", type: "image/png" },
+      { url: "/icons/icon-144x144.png", sizes: "144x144", type: "image/png" },
+      { url: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-256x256.png", sizes: "256x256", type: "image/png" },
+      { url: "/icons/icon-384x384.png", sizes: "384x384", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [
       { url: "/apple-touch-icon.png" },
@@ -353,7 +311,6 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   manifest: "/manifest.json",
-
   robots: {
     index: true,
     follow: true,
@@ -369,7 +326,6 @@ export const metadata: Metadata = {
   other: {
     "google-site-verification":
       "google-site-verification=rBgRfj247s1PVKZyJC6VRnl_xJxFOo2exemDkjUxEm4",
-    // Add these for iOS PWA support
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "default",
     "apple-mobile-web-app-title": "Zidwell",
@@ -384,8 +340,30 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-NG">
+    <html
+      lang="en-NG"
+      suppressHydrationWarning
+      className={`${spaceGrotesk.variable} ${beVietnamPro.variable}`}
+    >
       <head>
+        {/* Theme initialization script - prevents flash of wrong theme */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                let theme = localStorage.getItem('zidwell-theme');
+                let systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                let resolved = theme === 'system' ? systemTheme : (theme || systemTheme);
+                if (resolved === 'dark') {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+
         {/* Structured Data for SEO */}
         <script
           type="application/ld+json"
@@ -406,18 +384,16 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(signupPageSchema) }}
         />
 
-        {/* IMPORTANT: Add sitemap.xml and navigation links */}
+        {/* Sitemap and navigation links */}
         <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
         <link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" />
-
-        {/* Navigation links for search engines */}
         <link rel="canonical" href="https://zidwell.com" />
         <link
           rel="alternate"
           href="https://zidwell.com/accountants"
           hrefLang="en-NG"
         />
-          <link
+        <link
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         />
@@ -472,67 +448,52 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Zidwell" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <link rel="manifest" href="/manifest.json" />
 
-        {/* iOS launch images - optional but recommended */}
+        {/* iOS launch images */}
         <link rel="apple-touch-startup-image" href="/splash/launch.png" />
-
-        {/* Preconnect to fonts and CDNs */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin=""
-        />
 
         {/* Preload critical resources */}
         <link rel="preload" href="/logo.png" as="image" />
         <link rel="preload" href="/images/og-image.png" as="image" />
 
-        {/* Preconnect to CDNs */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
         <link rel="preconnect" href="https://cdn.zidwell.com" />
       </head>
-      <body className={``}>
-        {/* Google Analytics Script - PRESERVED */}
+      <body className="bg-(--bg-primary) text-(--text-primary) antialiased">
+        {/* Google Analytics Script */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
           strategy="afterInteractive"
         />
         <Script id="google-analytics" strategy="afterInteractive">
           {`
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}');
-  `}
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}');
+          `}
         </Script>
 
-        <UserProvider>
-          <SessionWatcher>
-            <AuthChecker>
-              <VerificationModalProvider>
+        <ThemeProvider>
+           <ThemeWrapper>
+          <UserProvider>
+            <SessionWatcher>
+              <AuthChecker>
+                <VerificationModalProvider>
                   <StoreProvider>
-                {children}
-                <GlobalVerificationModal />
-                <div className="fixed bottom-4 right-4 z-50">
-                  {/* <PushNotificationManager /> */}
-                  <InstallPrompt />
-                </div>
-                <FloatingWhatsApp />
-                {/* <FloatingHelpButton /> */}
-                <NotificationToast />
-                {/* <DashboardFooter /> */}
-                </StoreProvider>
-              </VerificationModalProvider>
-            </AuthChecker>
-          </SessionWatcher>
-        </UserProvider>
+                    {children}
+                    <GlobalVerificationModal />
+                    <div className="fixed bottom-4 right-4 z-50">
+                      <InstallPrompt />
+                    </div>
+                    <FloatingWhatsApp />
+                    <NotificationToast />
+                  </StoreProvider>
+                </VerificationModalProvider>
+              </AuthChecker>
+            </SessionWatcher>
+          </UserProvider>
+          </ThemeWrapper>
+        </ThemeProvider>
       </body>
     </html>
   );
