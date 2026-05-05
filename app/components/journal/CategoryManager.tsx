@@ -134,15 +134,9 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
-        className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col dark:bg-gray-800 dark:border-gray-700" 
-        style={{
-          backgroundColor: '#fcfbf9',
-          borderColor: '#e6dfd6'
-        }}
-      >
+      <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
         <DialogHeader>
-          <DialogTitle className="text-xl dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          <DialogTitle className="text-xl text-[var(--text-primary)]" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
             Manage Categories
           </DialogTitle>
         </DialogHeader>
@@ -150,19 +144,18 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
         {/* Search and Add Button */}
         <div className="flex gap-2 mb-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: '#80746e' }} />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
             <Input
               placeholder="Search categories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-              style={{ backgroundColor: '#fcfbf9', borderColor: '#e6dfd6' }}
+              className="pl-9 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+              style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
           <Button
             onClick={() => setShowNewCategory(true)}
-            className="dark:bg-[#2b825b] dark:hover:bg-[#1e5f43]"
-            style={{ backgroundColor: '#2b825b', color: '#ffffff' }}
+            className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
           >
             <Plus className="w-4 h-4 mr-1" />
             New
@@ -170,10 +163,7 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
         </div>
 
         {/* Filter tabs */}
-        <div 
-          className="flex gap-2 p-1 rounded-xl dark:bg-gray-700" 
-          style={{ backgroundColor: '#f5f1ea' }}
-        >
+        <div className="flex gap-2 p-1 rounded-xl bg-[var(--bg-secondary)]">
           {(['all', 'income', 'expense'] as const).map((type) => (
             <button
               key={type}
@@ -181,11 +171,11 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
               onClick={() => setFilterType(type)}
               className={cn(
                 'flex-1 py-2 rounded-lg font-medium text-sm capitalize transition-all',
-                filterType === type ? 'shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)]' : ''
+                filterType === type ? 'shadow-soft' : ''
               )}
               style={{
-                backgroundColor: filterType === type ? '#fcfbf9' : 'transparent',
-                color: filterType === type ? '#26121c' : '#80746e'
+                backgroundColor: filterType === type ? 'var(--bg-primary)' : 'transparent',
+                color: filterType === type ? 'var(--text-primary)' : 'var(--text-secondary)'
               }}
             >
               {type}
@@ -199,8 +189,8 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
           {favorites.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Star className="w-4 h-4" style={{ color: '#f59e0b' }} />
-                <h3 className="text-sm font-semibold" style={{ color: '#26121c' }}>Favorites</h3>
+                <Star className="w-4 h-4 text-[var(--color-accent-yellow)]" />
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">Favorites</h3>
               </div>
               <div className="space-y-2">
                 {favorites.map((cat) => (
@@ -232,9 +222,9 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
             <div>
               {favorites.length > 0 && (
                 <div className="flex items-center gap-2 mb-2 mt-4">
-                  <div className="h-px flex-1" style={{ backgroundColor: '#e6dfd6' }} />
-                  <h3 className="text-xs font-medium" style={{ color: '#80746e' }}>All Categories</h3>
-                  <div className="h-px flex-1" style={{ backgroundColor: '#e6dfd6' }} />
+                  <div className="h-px flex-1 bg-[var(--border-color)]" />
+                  <h3 className="text-xs font-medium text-[var(--text-secondary)]">All Categories</h3>
+                  <div className="h-px flex-1 bg-[var(--border-color)]" />
                 </div>
               )}
               <div className="space-y-2">
@@ -266,36 +256,36 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
 
       {/* New Category Dialog */}
       <Dialog open={showNewCategory} onOpenChange={setShowNewCategory}>
-        <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#fcfbf9', borderColor: '#e6dfd6' }}>
+        <DialogContent className="sm:max-w-md bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            <DialogTitle className="text-xl text-[var(--text-primary)]" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
               Add New Category
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div>
-              <label className="text-sm font-medium block mb-1" style={{ color: '#80746e' }}>Category Name</label>
+              <label className="text-sm font-medium block mb-1 text-[var(--text-secondary)]">Category Name</label>
               <Input
                 placeholder="e.g., Freelance, Subscription"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
-                className="dark:bg-gray-700 dark:border-gray-600"
-                style={{ backgroundColor: '#fcfbf9', borderColor: '#e6dfd6' }}
+                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
             <div>
-              <label className="text-sm font-medium block mb-1" style={{ color: '#80746e' }}>Icon</label>
+              <label className="text-sm font-medium block mb-1 text-[var(--text-secondary)]">Icon</label>
               <IconPicker value={newCategoryIcon} onChange={setNewCategoryIcon} />
             </div>
             <div>
-              <label className="text-sm font-medium block mb-1" style={{ color: '#80746e' }}>Category Type</label>
+              <label className="text-sm font-medium block mb-1 text-[var(--text-secondary)]">Category Type</label>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setNewCategoryType('income')}
                   className={cn(
                     "flex-1 py-2 rounded-lg font-medium text-sm transition-all",
-                    newCategoryType === 'income' ? "bg-[#16a34a] text-white" : "bg-[#f5f1ea] text-[#80746e]"
+                    newCategoryType === 'income' ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]" : "bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
                   )}
                 >
                   Income
@@ -305,7 +295,7 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
                   onClick={() => setNewCategoryType('expense')}
                   className={cn(
                     "flex-1 py-2 rounded-lg font-medium text-sm transition-all",
-                    newCategoryType === 'expense' ? "bg-[#e11d48] text-white" : "bg-[#f5f1ea] text-[#80746e]"
+                    newCategoryType === 'expense' ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]" : "bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
                   )}
                 >
                   Expense
@@ -316,16 +306,14 @@ export function CategoryManager({ open, onOpenChange }: CategoryManagerProps) {
               <Button
                 onClick={handleAddCategory}
                 disabled={!newCategoryName.trim() || isAddingCategory}
-                className="flex-1"
-                style={{ backgroundColor: '#2b825b', color: '#ffffff' }}
+                className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
               >
                 {isAddingCategory ? 'Adding...' : 'Add Category'}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowNewCategory(false)}
-                className="flex-1"
-                style={{ borderColor: '#e6dfd6', color: '#80746e' }}
+                className="flex-1 border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
               >
                 Cancel
               </Button>
@@ -355,28 +343,27 @@ function CategoryRow({
 
   if (isEditing) {
     return (
-      <div className="flex items-center gap-3 p-3 rounded-xl border dark:bg-gray-700 dark:border-gray-600" style={{ backgroundColor: '#fcfbf9', borderColor: '#e6dfd6' }}>
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
         <IconPicker value={editIcon} onChange={(icon: string) => onEditChange('icon', icon)} />
         <Input
           value={editName}
           onChange={(e) => onEditChange('name', e.target.value)}
-          className="flex-1 h-9 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
-          style={{ backgroundColor: '#fcfbf9' }}
+          className="flex-1 h-9 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+          style={{ outline: "none", boxShadow: "none" }}
         />
         <select
           value={editType}
           onChange={(e) => onEditChange('type', e.target.value)}
-          className="h-9 px-2 rounded-md border text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300"
-          style={{ backgroundColor: '#fcfbf9', borderColor: '#e6dfd6' }}
+          className="h-9 px-2 rounded-md border text-sm bg-[var(--bg-primary)] border-[var(--border-color)] text-[var(--text-primary)]"
         >
           <option value="income">Income</option>
           <option value="expense">Expense</option>
           <option value="both">Both</option>
         </select>
-        <Button size="icon" variant="ghost" onClick={onSaveEdit} className="h-8 w-8" style={{ color: '#16a34a' }}>
+        <Button size="icon" variant="ghost" onClick={onSaveEdit} className="h-8 w-8 text-[var(--color-lemon-green)]">
           <Check className="h-4 w-4" />
         </Button>
-        <Button size="icon" variant="ghost" onClick={onCancelEdit} className="h-8 w-8" style={{ color: '#80746e' }}>
+        <Button size="icon" variant="ghost" onClick={onCancelEdit} className="h-8 w-8 text-[var(--text-secondary)]">
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -384,31 +371,31 @@ function CategoryRow({
   }
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border dark:bg-gray-700 dark:border-gray-600" style={{ backgroundColor: '#fcfbf9', borderColor: '#e6dfd6' }}>
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
       <button
         onClick={() => onToggleFavorite(category)}
         className="hover:scale-110 transition-transform"
       >
         <Star 
-          className={cn("w-4 h-4", category.isFavorite ? "fill-[#f59e0b] text-[#f59e0b]" : "text-[#e6dfd6]")} 
+          className={cn("w-4 h-4", category.isFavorite ? "fill-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)]" : "text-[var(--border-color)]")} 
         />
       </button>
-      <span className="text-xl w-8 text-center dark:text-gray-300">{category.icon}</span>
-      <span className="flex-1 font-medium dark:text-gray-300">{category.name}</span>
+      <span className="text-xl w-8 text-center text-[var(--text-primary)]">{category.icon}</span>
+      <span className="flex-1 font-medium text-[var(--text-primary)]">{category.name}</span>
       <span 
         className="text-xs px-2 py-0.5 rounded-full capitalize"
         style={{
-          backgroundColor: category.type === 'income' ? 'rgba(22, 163, 74, 0.2)' : 'rgba(225, 29, 72, 0.2)',
-          color: category.type === 'income' ? '#16a34a' : '#e11d48'
+          backgroundColor: category.type === 'income' ? 'rgba(0, 182, 79, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+          color: category.type === 'income' ? 'var(--color-lemon-green)' : 'var(--destructive)'
         }}
       >
         {category.type}
       </span>
-      <Button size="icon" variant="ghost" onClick={() => onStartEdit(category)} className="h-8 w-8" style={{ color: '#80746e' }}>
+      <Button size="icon" variant="ghost" onClick={() => onStartEdit(category)} className="h-8 w-8 text-[var(--text-secondary)]">
         <Pencil className="h-4 w-4" />
       </Button>
       {category.isCustom && (
-        <Button size="icon" variant="ghost" onClick={() => onDelete(category.id)} className="h-8 w-8" style={{ color: '#80746e' }}>
+        <Button size="icon" variant="ghost" onClick={() => onDelete(category.id)} className="h-8 w-8 text-[var(--text-secondary)]">
           <Trash2 className="h-4 w-4" />
         </Button>
       )}

@@ -65,7 +65,7 @@ const contractPie = [
   { name: "Draft", value: 10 },
 ];
 
-const PIE_COLORS = ["#2b825b", "#3b82f6", "#f5b041", "#808080"];
+const PIE_COLORS = ["var(--color-accent-yellow)", "#3b82f6", "#f5b041", "#808080"];
 
 const ChartCard = ({
   title,
@@ -74,8 +74,8 @@ const ChartCard = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <div className="bg-[#ffffff] dark:bg-[#171717] border-2 border-[#242424] dark:border-[#474747] rounded-md p-5 shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]">
-    <h4 className="text-sm  font-bold text-[#141414] dark:text-[#f5f5f5] mb-5 uppercase tracking-wide">
+  <div className="bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-md p-5 shadow-[2px_2px_0px_var(--border-color)]">
+    <h4 className="text-sm font-bold text-[var(--text-primary)] mb-5 uppercase tracking-wide">
       {title}
     </h4>
     {children}
@@ -92,10 +92,10 @@ const DashboardCharts = () => {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-md text-sm  font-bold uppercase tracking-wide border-2 border-[#242424] dark:border-[#474747] transition-all ${
+            className={`px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wide border-2 border-[var(--border-color)] transition-all ${
               filter === f
-                ? "bg-[#2b825b] dark:bg-[#2b825b] text-white shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]"
-                : "bg-[#ffffff] dark:bg-[#171717] text-[#6b6b6b] dark:text-[#a6a6a6] hover:text-[#141414] dark:hover:text-[#f5f5f5] hover:bg-[#f0efe7] dark:hover:bg-[#242424]"
+                ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] shadow-[2px_2px_0px_var(--border-color)]"
+                : "bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
             }`}
           >
             {f}
@@ -104,16 +104,16 @@ const DashboardCharts = () => {
       </div>
 
       <div className="w-full">
-        <div className="flex flex-wrap gap-2 bg-[#ffffff] dark:bg-[#171717] border-2 border-[#242424] dark:border-[#474747] rounded-md p-2">
+        <div className="flex flex-wrap gap-2 bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-md p-2">
           {["bookkeeping", "wallet", "invoices", "receipts", "contracts"].map(
             (tab) => (
               <button
                 key={tab}
                 onClick={() => setFilter(tab as any)}
-                className={`px-4 py-2 text-sm  font-bold uppercase tracking-wide rounded-md transition-all ${
+                className={`px-4 py-2 text-sm font-bold uppercase tracking-wide rounded-md transition-all ${
                   filter === tab
-                    ? "bg-[#2b825b] dark:bg-[#2b825b] text-white"
-                    : "text-[#6b6b6b] dark:text-[#a6a6a6] hover:text-[#141414] dark:hover:text-[#f5f5f5]"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -148,7 +148,7 @@ const DashboardCharts = () => {
                     <Line
                       type="monotone"
                       dataKey="income"
-                      stroke="#2b825b"
+                      stroke="var(--color-accent-yellow)"
                       strokeWidth={3}
                       dot={false}
                     />
@@ -184,7 +184,7 @@ const DashboardCharts = () => {
                         dataKey="value"
                       >
                         {[
-                          "#2b825b",
+                          "var(--color-accent-yellow)",
                           "#3b82f6",
                           "#f5b041",
                           "#db3a34",
@@ -214,10 +214,10 @@ const DashboardCharts = () => {
                     ].map((d, i) => (
                       <div key={d.n} className="flex items-center gap-2">
                         <div
-                          className="w-3 h-3 rounded-sm border-2 border-[#242424] dark:border-[#474747]"
+                          className="w-3 h-3 rounded-sm border-2 border-[var(--border-color)]"
                           style={{
                             backgroundColor: [
-                              "#2b825b",
+                              "var(--color-accent-yellow)",
                               "#3b82f6",
                               "#f5b041",
                               "#db3a34",
@@ -225,7 +225,7 @@ const DashboardCharts = () => {
                             ][i],
                           }}
                         />
-                        <span className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]  font-medium">
+                        <span className="text-sm text-[var(--text-secondary)] font-medium">
                           {d.n} ({d.v}%)
                         </span>
                       </div>
@@ -257,7 +257,7 @@ const DashboardCharts = () => {
                       fontWeight: 600,
                     }}
                   />
-                  <Bar dataKey="funded" fill="#2b825b" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="funded" fill="var(--color-accent-yellow)" radius={[2, 2, 0, 0]} />
                   <Bar dataKey="spent" fill="#db3a34" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -286,7 +286,7 @@ const DashboardCharts = () => {
                     }}
                   />
                   <Bar dataKey="sent" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="paid" fill="#2b825b" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="paid" fill="var(--color-accent-yellow)" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -323,7 +323,7 @@ const DashboardCharts = () => {
                     yAxisId="left"
                     type="monotone"
                     dataKey="issued"
-                    stroke="#2b825b"
+                    stroke="var(--color-accent-yellow)"
                     strokeWidth={3}
                     dot={false}
                   />
@@ -375,10 +375,10 @@ const DashboardCharts = () => {
                   {contractPie.map((d, i) => (
                     <div key={d.name} className="flex items-center gap-2">
                       <div
-                        className="w-3 h-3 rounded-sm border-2 border-[#242424] dark:border-[#474747]"
+                        className="w-3 h-3 rounded-sm border-2 border-[var(--border-color)]"
                         style={{ backgroundColor: PIE_COLORS[i] }}
                       />
-                      <span className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]  font-medium">
+                      <span className="text-sm text-[var(--text-secondary)] font-medium">
                         {d.name} ({d.value}%)
                       </span>
                     </div>

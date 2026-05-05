@@ -25,28 +25,33 @@ import {
 import Loader from "./Loader";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { useIsMobile } from "../hooks/use-mobile"; 
+import { useIsMobile } from "../hooks/use-mobile";
 
 const statusConfig: any = {
-  success: { 
-    label: "Completed", 
-    className: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
-    dotColor: "bg-emerald-500 dark:bg-emerald-400"
+  success: {
+    label: "Completed",
+    className:
+      "bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]/30 dark:bg-[var(--color-accent-yellow)]/20 dark:text-[var(--color-accent-yellow)] dark:border-[var(--color-accent-yellow)]/30",
+    dotColor:
+      "bg-[var(--color-accent-yellow)] dark:bg-[var(--color-accent-yellow)]",
   },
-  pending: { 
-    label: "Pending", 
-    className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
-    dotColor: "bg-amber-500 dark:bg-amber-400"
+  pending: {
+    label: "Pending",
+    className:
+      "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
+    dotColor: "bg-amber-500 dark:bg-amber-400",
   },
-  failed: { 
-    label: "Failed", 
-    className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
-    dotColor: "bg-red-500 dark:bg-red-400"
+  failed: {
+    label: "Failed",
+    className:
+      "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
+    dotColor: "bg-red-500 dark:bg-red-400",
   },
-  processing: { 
-    label: "Processing", 
-    className: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
-    dotColor: "bg-blue-500 dark:bg-blue-400"
+  processing: {
+    label: "Processing",
+    className:
+      "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+    dotColor: "bg-blue-500 dark:bg-blue-400",
   },
 };
 
@@ -92,47 +97,63 @@ const TRANSACTIONS_PER_PAGE = 10;
 // Status Badge Component
 const StatusBadge = ({ status }: { status: string }) => {
   const config = statusConfig[status?.toLowerCase()] || statusConfig.pending;
-  return <Badge variant="outline" className={config.className}>{config.label}</Badge>;
+  return (
+    <Badge variant="outline" className={config.className}>
+      {config.label}
+    </Badge>
+  );
 };
 
 // Mobile Card Component
-const MobileCard = ({ tx, formatAmount, isEligibleForReceipt, isDownloadingReceipt, handleViewTransaction, handleDownloadReceipt }: any) => {
+const MobileCard = ({
+  tx,
+  formatAmount,
+  isEligibleForReceipt,
+  isDownloadingReceipt,
+  handleViewTransaction,
+  handleDownloadReceipt,
+}: any) => {
   const amountInfo = formatAmount(tx);
   const isDownloading = isDownloadingReceipt(tx.id);
   const config = statusConfig[tx.status?.toLowerCase()] || statusConfig.pending;
-  
-  // Get description - check multiple locations
-  const description = tx.description || 
-                     tx.narration || 
-                     tx.external_response?.withdrawal_details?.narration ||
-                     tx.external_response?.data?.transaction?.narration ||
-                     "Transaction";
+
+  const description =
+    tx.description ||
+    tx.narration ||
+    tx.external_response?.withdrawal_details?.narration ||
+    tx.external_response?.data?.transaction?.narration ||
+    "Transaction";
 
   return (
-    <div className="border-b border-border dark:border-gray-700 p-4 last:border-0">
+    <div className="border-b border-[var(--border-color)] dark:border-gray-700 p-4 last:border-0">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <p className="font-medium text-foreground dark:text-gray-100">{description}</p>
-          <p className="text-xs text-muted-foreground dark:text-gray-400">
+          <p className="font-medium text-[var(--text-primary)] dark:text-gray-100">
+            {description}
+          </p>
+          <p className="text-xs text-[var(--text-secondary)] dark:text-gray-400">
             {new Date(tx.created_at).toLocaleDateString()}
           </p>
           {tx.reference && (
-            <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+            <p className="text-xs text-[var(--text-secondary)] dark:text-gray-400 mt-1">
               Ref: {tx.reference.substring(0, 8)}...
             </p>
           )}
         </div>
-        <span className={`font-semibold ${amountInfo.isOutflow ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+        <span
+          className={`font-semibold ${amountInfo.isOutflow ? "text-red-600 dark:text-red-400" : "text-[var(--color-accent-yellow)] dark:text-[var(--color-accent-yellow)]"}`}
+        >
           {amountInfo.signedDisplay}
         </span>
       </div>
-      
+
       {tx.fee > 0 && (
-        <p className="text-xs text-muted-foreground dark:text-gray-400 mb-2">
-          Fee: ₦{Number(tx.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+        <p className="text-xs text-[var(--text-secondary)] dark:text-gray-400 mb-2">
+          Fee: ₦
+          {Number(tx.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
         </p>
       )}
-      
+
       <div className="flex items-center justify-between">
         <StatusBadge status={tx.status} />
         <div className="flex gap-2">
@@ -166,8 +187,8 @@ const MobileCard = ({ tx, formatAmount, isEligibleForReceipt, isDownloadingRecei
 };
 
 const formatCurrency = (amount: number) => {
-  const formatted = new Intl.NumberFormat("en-NG", { 
-    style: "currency", 
+  const formatted = new Intl.NumberFormat("en-NG", {
+    style: "currency",
     currency: "NGN",
     minimumFractionDigits: 2,
   }).format(Math.abs(amount));
@@ -178,7 +199,7 @@ export default function TransactionHistory() {
   const isMobile = useIsMobile();
   const [filter, setFilter] = useState("All transactions");
   const [downloadingReceipts, setDownloadingReceipts] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [pageLoading, setPageLoading] = useState(true);
   const [durationFilter, setDurationFilter] = useState("all");
@@ -191,26 +212,18 @@ export default function TransactionHistory() {
   const [statementDateRange, setStatementDateRange] = useState<{
     from: string;
     to: string;
-  }>({
-    from: "",
-    to: "",
-  });
+  }>({ from: "", to: "" });
   const [showStatementModal, setShowStatementModal] = useState(false);
-  
-  // Load More state
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
-  
-  // Local state for search and loading
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
 
   const router = useRouter();
 
-  // Get user data from localStorage on component mount
   useEffect(() => {
     const storedUser = localStorage.getItem("userData");
     if (storedUser) {
@@ -227,11 +240,9 @@ export default function TransactionHistory() {
     const timer = setTimeout(() => {
       setPageLoading(false);
     }, 2500);
-
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch initial transactions when userData is available
   useEffect(() => {
     if (!userData?.id) return;
 
@@ -244,9 +255,11 @@ export default function TransactionHistory() {
           limit: TRANSACTIONS_PER_PAGE.toString(),
         });
 
-        const response = await fetch(`/api/bill-transactions?${params.toString()}`);
+        const response = await fetch(
+          `/api/bill-transactions?${params.toString()}`,
+        );
         const data = await response.json();
-        
+
         if (data.transactions && data.transactions.length > 0) {
           setAllTransactions(data.transactions);
           setHasMore(data.hasMore || false);
@@ -266,7 +279,6 @@ export default function TransactionHistory() {
     fetchInitialTransactions();
   }, [userData]);
 
-  // Search effect - fetch transactions when search term changes
   useEffect(() => {
     if (!userData?.id) return;
 
@@ -283,9 +295,11 @@ export default function TransactionHistory() {
           params.set("search", searchTerm);
         }
 
-        const response = await fetch(`/api/bill-transactions?${params.toString()}`);
+        const response = await fetch(
+          `/api/bill-transactions?${params.toString()}`,
+        );
         const data = await response.json();
-        
+
         if (data.transactions && data.transactions.length > 0) {
           setAllTransactions(data.transactions);
           setHasMore(data.hasMore || false);
@@ -299,7 +313,7 @@ export default function TransactionHistory() {
       } finally {
         setLoading(false);
       }
-    }, 500); // Debounce search
+    }, 500);
 
     return () => clearTimeout(searchTimeout);
   }, [searchTerm, userData]);
@@ -384,21 +398,20 @@ export default function TransactionHistory() {
 
       return filtered;
     },
-    [durationFilter, dateRange]
+    [durationFilter, dateRange],
   );
 
-  // Apply status filter and search term (client-side filtering after fetch)
   const filteredTransactions = allTransactions.filter((tx) => {
     const matchesFilter =
       filter === "All transactions" ||
       tx.status?.toLowerCase() === filter.toLowerCase();
 
-    // Get description from multiple locations for search
-    const description = tx.description || 
-                       tx.narration || 
-                       tx.external_response?.withdrawal_details?.narration ||
-                       tx.external_response?.data?.transaction?.narration ||
-                       "";
+    const description =
+      tx.description ||
+      tx.narration ||
+      tx.external_response?.withdrawal_details?.narration ||
+      tx.external_response?.data?.transaction?.narration ||
+      "";
 
     const matchesSearch =
       searchTerm === "" ||
@@ -410,17 +423,16 @@ export default function TransactionHistory() {
     return matchesFilter && matchesSearch;
   });
 
-  // Apply duration filter
-  const durationFilteredTransactions = applyDurationFilter(filteredTransactions);
+  const durationFilteredTransactions =
+    applyDurationFilter(filteredTransactions);
 
-  // Function to handle Load More
   const handleLoadMore = async () => {
     if (!hasMore || isLoadingMore || !userData?.id) return;
 
     setIsLoadingMore(true);
     try {
       const nextPage = currentPage + 1;
-      
+
       const params = new URLSearchParams({
         userId: userData.id,
         page: nextPage.toString(),
@@ -431,11 +443,13 @@ export default function TransactionHistory() {
         params.set("search", searchTerm);
       }
 
-      const response = await fetch(`/api/bill-transactions?${params.toString()}`);
+      const response = await fetch(
+        `/api/bill-transactions?${params.toString()}`,
+      );
       const data = await response.json();
-      
+
       if (data.transactions && data.transactions.length > 0) {
-        setAllTransactions(prev => [...prev, ...data.transactions]);
+        setAllTransactions((prev) => [...prev, ...data.transactions]);
         setCurrentPage(nextPage);
         setHasMore(data.hasMore || false);
       } else {
@@ -448,7 +462,6 @@ export default function TransactionHistory() {
     }
   };
 
-  // Function to reset filters
   const handleResetFilters = () => {
     setFilter("All transactions");
     setDurationFilter("all");
@@ -456,21 +469,22 @@ export default function TransactionHistory() {
     setSearchTerm("");
     setCurrentPage(1);
     setShowFilters(false);
-    
+
     if (userData?.id) {
       setLoading(true);
-      fetch(`/api/bill-transactions?userId=${userData.id}&page=1&limit=${TRANSACTIONS_PER_PAGE}`)
-        .then(res => res.json())
-        .then(data => {
+      fetch(
+        `/api/bill-transactions?userId=${userData.id}&page=1&limit=${TRANSACTIONS_PER_PAGE}`,
+      )
+        .then((res) => res.json())
+        .then((data) => {
           setAllTransactions(data.transactions || []);
           setHasMore(data.hasMore || false);
         })
-        .catch(err => console.error("Error resetting transactions:", err))
+        .catch((err) => console.error("Error resetting transactions:", err))
         .finally(() => setLoading(false));
     }
   };
 
-  // Function to handle statement download
   const handleDownloadStatement = async () => {
     if (!statementDateRange.from || !statementDateRange.to) {
       alert("Please select a date range for the statement");
@@ -506,11 +520,16 @@ export default function TransactionHistory() {
           to: statementDateRange.to,
         });
 
-        const response = await fetch(`/api/bill-transactions?${params.toString()}`);
+        const response = await fetch(
+          `/api/bill-transactions?${params.toString()}`,
+        );
         const data = await response.json();
-        
+
         if (data.transactions && data.transactions.length > 0) {
-          allDateRangeTransactions = [...allDateRangeTransactions, ...data.transactions];
+          allDateRangeTransactions = [
+            ...allDateRangeTransactions,
+            ...data.transactions,
+          ];
           hasMoreTransactions = data.hasMore || false;
           page++;
         } else {
@@ -542,7 +561,7 @@ export default function TransactionHistory() {
         const errorText = await response.text();
         console.error("API Error:", errorText);
         throw new Error(
-          `Failed to generate statement: ${response.status} ${response.statusText}`
+          `Failed to generate statement: ${response.status} ${response.statusText}`,
         );
       }
 
@@ -562,7 +581,7 @@ export default function TransactionHistory() {
 
       const notification = document.createElement("div");
       notification.className =
-        "fixed top-4 right-4 bg-[#2b825b] text-white px-4 py-2 rounded-lg shadow-lg z-50 dark:bg-[#1e5f43]";
+        "fixed top-4 right-4 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-4 py-2 rounded-lg shadow-lg z-50";
       notification.innerHTML = `
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -579,9 +598,7 @@ export default function TransactionHistory() {
     } catch (error: any) {
       console.error("Error downloading statement:", error);
       alert(
-        `Error: ${
-          error.message || "Failed to download statement. Please try again."
-        }`
+        `Error: ${error.message || "Failed to download statement. Please try again."}`,
       );
     } finally {
       setDownloadingStatement(false);
@@ -593,202 +610,107 @@ export default function TransactionHistory() {
   };
 
   const getDescription = (transaction: any) => {
-    return transaction.description || 
-           transaction.narration || 
-           transaction.external_response?.withdrawal_details?.narration ||
-           transaction.external_response?.data?.transaction?.narration ||
-           "Transaction";
+    return (
+      transaction.description ||
+      transaction.narration ||
+      transaction.external_response?.withdrawal_details?.narration ||
+      transaction.external_response?.data?.transaction?.narration ||
+      "Transaction"
+    );
   };
 
   const handleViewTransaction = (transaction: any) => {
     router.push(`/dashboard/transactions/${transaction.id}`);
   };
 
-const handleDownloadReceipt = async (transaction: any) => {
-  const transactionId = transaction.id;
-  setDownloadingReceipts((prev) => new Set(prev).add(transactionId));
+  const handleDownloadReceipt = async (transaction: any) => {
+    const transactionId = transaction.id;
+    setDownloadingReceipts((prev) => new Set(prev).add(transactionId));
 
-  const amountInfo = formatAmount(transaction);
-  
-  // IMPROVED: Function to get narration from multiple locations
-  const getNarration = (tx: any) => {
-    // Check direct narration field
-    if (tx.narration) {
-      return tx.narration;
-    }
-    
-    // Check description field
-    if (tx.description) {
-      return tx.description;
-    }
-    
-    // Check external_response structure
-    if (tx.external_response?.data?.transaction?.narration) {
-      return tx.external_response.data.transaction.narration;
-    }
-    
-    if (tx.external_response?.narration) {
-      return tx.external_response.narration;
-    }
-    
-    if (tx.external_response?.withdrawal_details?.narration) {
-      return tx.external_response.withdrawal_details.narration;
-    }
-    
-    // Check for specific withdrawal narration
-    if (tx.external_response?.withdrawal_details?.narration) {
-      return tx.external_response.withdrawal_details.narration;
-    }
-    
-    if (tx.external_response?.data?.transaction?.narration) {
-      return tx.external_response.data.transaction.narration;
-    }
-    
-    // Check for other common patterns
-    if (tx.external_response?.data?.narration) {
-      return tx.external_response.data.narration;
-    }
-    
-    // Fallback to "Transaction" if no narration found
-    return "Transaction";
-  };
-  
-  const narration = getNarration(transaction);
+    const amountInfo = formatAmount(transaction);
 
-  // Extract sender and receiver info with fallback
-  const senderData = transaction.sender || {};
-  const receiverData = transaction.receiver || {};
-  const externalData = transaction.external_response || {};
+    const getNarration = (tx: any) => {
+      if (tx.narration) return tx.narration;
+      if (tx.description) return tx.description;
+      if (tx.external_response?.data?.transaction?.narration)
+        return tx.external_response.data.transaction.narration;
+      if (tx.external_response?.narration)
+        return tx.external_response.narration;
+      if (tx.external_response?.withdrawal_details?.narration)
+        return tx.external_response.withdrawal_details.narration;
+      if (tx.external_response?.data?.narration)
+        return tx.external_response.data.narration;
+      return "Transaction";
+    };
 
-  const displaySender = {
-    name: senderData.name || 
-          externalData?.withdrawal_details?.account_name || 
-          externalData?.data?.customer?.senderName || 
-          externalData?.metadata?.sender_name ||
-          "N/A",
-    accountNumber: senderData.accountNumber || 
-                  externalData?.withdrawal_details?.account_number || 
-                  externalData?.data?.customer?.accountNumber || 
-                  "N/A",
-    bankName: senderData.bankName || 
-             externalData?.withdrawal_details?.bank_name || 
-             externalData?.data?.customer?.bankName || 
-             "N/A",
-  };
+    const narration = getNarration(transaction);
 
-  const displayReceiver = {
-    name: receiverData.name || 
-          externalData?.receiver_details?.account_name || 
-          externalData?.data?.customer?.recipientName || 
-          externalData?.data?.transaction?.aliasAccountName ||
-          externalData?.data?.meta?.recipientName ||
-          "N/A",
-    accountNumber: receiverData.accountNumber || 
-                  externalData?.receiver_details?.account_number || 
-                  externalData?.data?.customer?.accountNumber || 
-                  externalData?.data?.transaction?.aliasAccountNumber ||
-                  "N/A",
-    bankName: receiverData.bankName || 
-             externalData?.receiver_details?.bank_name || 
-             externalData?.data?.customer?.bankName || 
-             "N/A",
-  };
+    const senderData = transaction.sender || {};
+    const receiverData = transaction.receiver || {};
+    const externalData = transaction.external_response || {};
 
-  const receiptHTML = `
+    const displaySender = {
+      name:
+        senderData.name ||
+        externalData?.withdrawal_details?.account_name ||
+        externalData?.data?.customer?.senderName ||
+        externalData?.metadata?.sender_name ||
+        "N/A",
+      accountNumber:
+        senderData.accountNumber ||
+        externalData?.withdrawal_details?.account_number ||
+        externalData?.data?.customer?.accountNumber ||
+        "N/A",
+      bankName:
+        senderData.bankName ||
+        externalData?.withdrawal_details?.bank_name ||
+        externalData?.data?.customer?.bankName ||
+        "N/A",
+    };
+
+    const displayReceiver = {
+      name:
+        receiverData.name ||
+        externalData?.receiver_details?.account_name ||
+        externalData?.data?.customer?.recipientName ||
+        externalData?.data?.transaction?.aliasAccountName ||
+        externalData?.data?.meta?.recipientName ||
+        "N/A",
+      accountNumber:
+        receiverData.accountNumber ||
+        externalData?.receiver_details?.account_number ||
+        externalData?.data?.customer?.accountNumber ||
+        externalData?.data?.transaction?.aliasAccountNumber ||
+        "N/A",
+      bankName:
+        receiverData.bankName ||
+        externalData?.receiver_details?.bank_name ||
+        externalData?.data?.customer?.bankName ||
+        "N/A",
+    };
+
+    const receiptHTML = `
 <!DOCTYPE html>
 <html>
   <head>
     <title>Transaction Receipt - ${transaction.reference || transaction.id}</title>
     <style>
-      body { 
-        font-family: Arial, sans-serif; 
-        margin: 0; 
-        padding: 20px; 
-        background: white; 
-        color: #333; 
-      }
-      .receipt-container { 
-        max-width: 500px; 
-        margin: 0 auto; 
-        border: 2px solid #e5e7eb; 
-        border-radius: 12px; 
-        padding: 20px; 
-        background: white; 
-      }
-      .header { 
-        text-align: center; 
-        border-bottom: 2px solid #e5e7eb; 
-        padding-bottom: 16px; 
-        margin-bottom: 20px; 
-      }
-      .header h1 { 
-        color: #111827; 
-        margin: 8px 0 4px 0; 
-        font-size: 24px; 
-      }
-      .amount-section { 
-        text-align: center; 
-        margin: 20px 0; 
-      }
-      .amount { 
-        font-size: 28px; 
-        font-weight: bold; 
-      }
-      .section { 
-        margin: 20px 0; 
-      }
-      .section-title { 
-        color: #374151; 
-        font-weight: 600; 
-        margin-bottom: 8px; 
-        font-size: 14px; 
-      }
-      .details-card { 
-        background: #f9fafb; 
-        border-radius: 8px; 
-        padding: 16px; 
-      }
-      .detail-row { 
-        display: flex; 
-        justify-content: space-between; 
-        margin-bottom: 8px; 
-        font-size: 14px; 
-      }
-      .detail-label { 
-        color: #6b7280; 
-      }
-      .detail-value { 
-        color: #111827; 
-        font-weight: 500; 
-      }
-      .narration-section {
-        background: #f0f9ff;
-        border-left: 4px solid #0ea5e9;
-        padding: 12px 16px;
-        margin: 16px 0;
-        border-radius: 4px;
-      }
-      .narration-text {
-        font-style: italic;
-        color: #0369a1;
-        font-weight: 500;
-      }
-      .footer { 
-        text-align: center; 
-        border-top: 1px solid #e5e7eb; 
-        padding-top: 16px; 
-        margin-top: 20px; 
-        color: #6b7280; 
-        font-size: 12px; 
-      }
-      @media (max-width: 640px) {
-        body { padding: 10px; }
-        .receipt-container { padding: 16px; }
-        .amount { font-size: 24px; }
-        .header h1 { font-size: 20px; }
-        .detail-row { flex-direction: column; gap: 4px; }
-        .detail-label, .detail-value { width: 100%; }
-      }
+      body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: white; color: #333; }
+      .receipt-container { max-width: 500px; margin: 0 auto; border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; background: white; }
+      .header { text-align: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 20px; }
+      .header h1 { color: #111827; margin: 8px 0 4px 0; font-size: 24px; }
+      .amount-section { text-align: center; margin: 20px 0; }
+      .amount { font-size: 28px; font-weight: bold; }
+      .section { margin: 20px 0; }
+      .section-title { color: #374151; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+      .details-card { background: #f9fafb; border-radius: 8px; padding: 16px; }
+      .detail-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+      .detail-label { color: #6b7280; }
+      .detail-value { color: #111827; font-weight: 500; }
+      .narration-section { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+      .narration-text { font-style: italic; color: #0369a1; font-weight: 500; }
+      .footer { text-align: center; border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 20px; color: #6b7280; font-size: 12px; }
+      @media (max-width: 640px) { body { padding: 10px; } .receipt-container { padding: 16px; } .amount { font-size: 24px; } .header h1 { font-size: 20px; } .detail-row { flex-direction: column; gap: 4px; } .detail-label, .detail-value { width: 100%; } }
     </style>
   </head>
   <body>
@@ -809,33 +731,28 @@ const handleDownloadReceipt = async (transaction: any) => {
 
       <div class="amount-section">
         <div style="color:#6b7280;font-size:14px;margin-bottom:8px;">Transaction Amount</div>
-        <div class="amount" style="color:${transaction.status?.toLowerCase() === "success" ? "#059669" : transaction.status?.toLowerCase() === "pending" ? "#2563eb" : "#dc2626"};">
+        <div class="amount" style="color:${transaction.status?.toLowerCase() === "success" ? "var(--color-accent-yellow)" : transaction.status?.toLowerCase() === "pending" ? "#2563eb" : "#dc2626"};">
           ${amountInfo.signedDisplay}
         </div>
       </div>
 
-      ${narration ? `
+      ${
+        narration
+          ? `
       <div class="narration-section">
         <div class="section-title">Transaction Narration</div>
         <div class="narration-text">"${narration}"</div>
       </div>
-      ` : ''}
+      `
+          : ""
+      }
 
       <div class="section">
         <div class="section-title">Transaction Details</div>
         <div class="details-card">
-          <div class="detail-row">
-            <span class="detail-label">Type</span>
-            <span class="detail-value">${transaction.type || "N/A"}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Description</span>
-            <span class="detail-value">${transaction.description || narration || "N/A"}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Status</span>
-            <span class="detail-value" style="color:${transaction.status?.toLowerCase() === "success" ? "#059669" : transaction.status?.toLowerCase() === "pending" ? "#2563eb" : "#dc2626"}">${transaction.status}</span>
-          </div>
+          <div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">${transaction.type || "N/A"}</span></div>
+          <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value">${transaction.description || narration || "N/A"}</span></div>
+          <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value" style="color:${transaction.status?.toLowerCase() === "success" ? "var(--color-accent-yellow)" : transaction.status?.toLowerCase() === "pending" ? "#2563eb" : "#dc2626"}">${transaction.status}</span></div>
           ${transaction.fee > 0 ? `<div class="detail-row"><span class="detail-label">Transaction Fee</span><span class="detail-value">₦${Number(transaction.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}</span></div>` : ""}
           ${transaction.total_deduction > 0 && transaction.total_deduction !== transaction.amount ? `<div class="detail-row"><span class="detail-label">Total Deduction</span><span class="detail-value">₦${Number(transaction.total_deduction).toLocaleString("en-NG", { minimumFractionDigits: 2 })}</span></div>` : ""}
         </div>
@@ -844,10 +761,7 @@ const handleDownloadReceipt = async (transaction: any) => {
       <div class="section">
         <div class="section-title">Sender Information</div>
         <div class="details-card">
-          <div class="detail-row">
-            <span class="detail-label">Name</span>
-            <span class="detail-value">${displaySender.name}</span>
-          </div>
+          <div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">${displaySender.name}</span></div>
           ${displaySender.accountNumber && displaySender.accountNumber !== "N/A" ? `<div class="detail-row"><span class="detail-label">Account Number</span><span class="detail-value">${displaySender.accountNumber}</span></div>` : ""}
           ${displaySender.bankName && displaySender.bankName !== "N/A" ? `<div class="detail-row"><span class="detail-label">Bank Name</span><span class="detail-value">${displaySender.bankName}</span></div>` : ""}
         </div>
@@ -856,10 +770,7 @@ const handleDownloadReceipt = async (transaction: any) => {
       <div class="section">
         <div class="section-title">Receiver Information</div>
         <div class="details-card">
-          <div class="detail-row">
-            <span class="detail-label">Name</span>
-            <span class="detail-value">${displayReceiver.name}</span>
-          </div>
+          <div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">${displayReceiver.name}</span></div>
           ${displayReceiver.accountNumber && displayReceiver.accountNumber !== "N/A" ? `<div class="detail-row"><span class="detail-label">Account Number</span><span class="detail-value">${displayReceiver.accountNumber}</span></div>` : ""}
           ${displayReceiver.bankName && displayReceiver.bankName !== "N/A" ? `<div class="detail-row"><span class="detail-label">Bank Name</span><span class="detail-value">${displayReceiver.bankName}</span></div>` : ""}
         </div>
@@ -874,48 +785,47 @@ const handleDownloadReceipt = async (transaction: any) => {
 </html>
 `;
 
-  try {
-    const response = await fetch("/api/generate-pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ html: receiptHTML }),
-    });
+    try {
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: receiptHTML }),
+      });
 
-    if (!response.ok) throw new Error("Failed to generate PDF");
+      if (!response.ok) throw new Error("Failed to generate PDF");
 
-    const pdfBlob = await response.blob();
-    const url = URL.createObjectURL(pdfBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `transaction-receipt-${transaction.reference || transaction.id}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Error generating PDF:", error);
-    const blob = new Blob([receiptHTML], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `transaction-receipt-${transaction.reference || transaction.id}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    alert("PDF generation failed. Downloading as HTML instead.");
-  } finally {
-    setDownloadingReceipts((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(transactionId);
-      return newSet;
-    });
-  }
-};
+      const pdfBlob = await response.blob();
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transaction-receipt-${transaction.reference || transaction.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      const blob = new Blob([receiptHTML], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transaction-receipt-${transaction.reference || transaction.id}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert("PDF generation failed. Downloading as HTML instead.");
+    } finally {
+      setDownloadingReceipts((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(transactionId);
+        return newSet;
+      });
+    }
+  };
 
   const formatAmount = (transaction: any) => {
     const isOutflowTransaction = isOutflow(transaction.type);
-    // Use the exact amount from the transaction, not total_deduction
     const amount = Number(transaction.amount) || 0;
 
     return {
@@ -955,13 +865,13 @@ const handleDownloadReceipt = async (transaction: any) => {
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700">
+    <Card className="w-full max-w-5xl mx-auto bg-[var(--bg-primary)]">
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <CardTitle className="text-2xl font-bold text-[var(--text-primary)]">
             Transaction History
             {allTransactions.length > 0 && (
-              <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+              <span className="text-sm font-normal text-[var(--text-secondary)] ml-2">
                 ({allTransactions.length} loaded)
               </span>
             )}
@@ -969,12 +879,13 @@ const handleDownloadReceipt = async (transaction: any) => {
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
               <Input
                 placeholder="Search transactions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
+                className="pl-10 w-full border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
 
@@ -982,7 +893,7 @@ const handleDownloadReceipt = async (transaction: any) => {
               <Button
                 variant="outline"
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                className="flex items-center gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               >
                 <Filter className="w-4 h-4" />
                 <span className="hidden xs:inline">Filters</span>
@@ -992,9 +903,12 @@ const handleDownloadReceipt = async (transaction: any) => {
                 variant="outline"
                 onClick={() => {
                   setShowStatementModal(true);
-                  setStatementDateRange({ from: getLastMonth(), to: getToday() });
+                  setStatementDateRange({
+                    from: getLastMonth(),
+                    to: getToday(),
+                  });
                 }}
-                className="flex items-center gap-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                className="flex items-center gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               >
                 <Download className="w-4 h-4" />
                 <span className="xs:hidden">Statement</span>
@@ -1004,23 +918,30 @@ const handleDownloadReceipt = async (transaction: any) => {
         </div>
 
         {showFilters && (
-          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border dark:border-gray-600">
+          <div className="mt-4 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Filter Transactions</h3>
-              <Button variant="ghost" size="sm" onClick={handleResetFilters} className="dark:text-gray-300 dark:hover:text-gray-100">
+              <h3 className="font-semibold text-[var(--text-primary)]">
+                Filter Transactions
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetFilters}
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              >
                 Reset All
               </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">
+                <label className="text-sm font-medium mb-2 block text-[var(--text-primary)]">
                   Status
                 </label>
                 <select
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  className="w-full border rounded-md px-3 py-2 text-gray-700 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-600 bg-white"
+                  className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                 >
                   <option value="All transactions">All transactions</option>
                   <option value="success">Success</option>
@@ -1031,7 +952,7 @@ const handleDownloadReceipt = async (transaction: any) => {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">
+                <label className="text-sm font-medium mb-2 block text-[var(--text-primary)]">
                   Time Period
                 </label>
                 <select
@@ -1042,7 +963,7 @@ const handleDownloadReceipt = async (transaction: any) => {
                       setDateRange({ from: "", to: "" });
                     }
                   }}
-                  className="w-full border rounded-md px-3 py-2 text-gray-700 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-600 bg-white"
+                  className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                 >
                   {durationOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -1054,27 +975,35 @@ const handleDownloadReceipt = async (transaction: any) => {
 
               {durationFilter === "custom" && (
                 <div>
-                  <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">
+                  <label className="text-sm font-medium mb-2 block text-[var(--text-primary)]">
                     Custom Date Range
                   </label>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex-1">
-                      <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">From</label>
+                      <label className="text-xs text-[var(--text-secondary)] mb-1 block">
+                        From
+                      </label>
                       <input
                         type="date"
                         value={dateRange.from}
-                        onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-                        className="w-full border rounded-md px-3 py-2 text-gray-700 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-600 bg-white"
+                        onChange={(e) =>
+                          setDateRange({ ...dateRange, from: e.target.value })
+                        }
+                        className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                         max={dateRange.to || getToday()}
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">To</label>
+                      <label className="text-xs text-[var(--text-secondary)] mb-1 block">
+                        To
+                      </label>
                       <input
                         type="date"
                         value={dateRange.to}
-                        onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-                        className="w-full border rounded-md px-3 py-2 text-gray-700 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-600 bg-white"
+                        onChange={(e) =>
+                          setDateRange({ ...dateRange, to: e.target.value })
+                        }
+                        className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                         min={dateRange.from}
                         max={getToday()}
                       />
@@ -1084,15 +1013,24 @@ const handleDownloadReceipt = async (transaction: any) => {
               )}
             </div>
 
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
+              <p className="text-sm text-[var(--text-secondary)]">
                 Showing {durationFilteredTransactions.length} transactions
                 {filter !== "All transactions" && ` with status: ${filter}`}
                 {durationFilter !== "all" && (
-                  <span> for {durationOptions.find((opt) => opt.value === durationFilter)?.label.toLowerCase()}</span>
+                  <span>
+                    {" "}
+                    for{" "}
+                    {durationOptions
+                      .find((opt) => opt.value === durationFilter)
+                      ?.label.toLowerCase()}
+                  </span>
                 )}
                 {dateRange.from && dateRange.to && (
-                  <span>: {formatDateDisplay(dateRange.from)} to {formatDateDisplay(dateRange.to)}</span>
+                  <span>
+                    : {formatDateDisplay(dateRange.from)} to{" "}
+                    {formatDateDisplay(dateRange.to)}
+                  </span>
                 )}
               </p>
             </div>
@@ -1104,17 +1042,21 @@ const handleDownloadReceipt = async (transaction: any) => {
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-[#2b825b] dark:text-[#3aa873]" />
-              <p className="text-gray-500 dark:text-gray-400">Loading transactions...</p>
+              <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
+              <p className="text-[var(--text-secondary)]">
+                Loading transactions...
+              </p>
             </div>
           </div>
         ) : durationFilteredTransactions.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-12 text-[var(--text-secondary)]">
             <p className="mb-2">No transactions found.</p>
             {allTransactions.length === 0 ? (
               <p className="text-sm">No transactions have been loaded yet.</p>
             ) : (
-              <p className="text-sm">Try changing your filters or search term.</p>
+              <p className="text-sm">
+                Try changing your filters or search term.
+              </p>
             )}
           </div>
         ) : isMobile ? (
@@ -1135,40 +1077,61 @@ const handleDownloadReceipt = async (transaction: any) => {
           <>
             <Table>
               <TableHeader>
-                <TableRow className="dark:border-gray-700">
-                  <TableHead className="dark:text-gray-400">Date</TableHead>
-                  <TableHead className="dark:text-gray-400">Description</TableHead>
-                  <TableHead className="text-right dark:text-gray-400">Amount</TableHead>
-                  <TableHead className="text-right dark:text-gray-400">Fee</TableHead>
-                  <TableHead className="text-center dark:text-gray-400">Status</TableHead>
-                  <TableHead className="text-right dark:text-gray-400">Actions</TableHead>
+                <TableRow className="border-[var(--border-color)]">
+                  <TableHead className="text-[var(--text-secondary)]">
+                    Date
+                  </TableHead>
+                  <TableHead className="text-[var(--text-secondary)]">
+                    Description
+                  </TableHead>
+                  <TableHead className="text-right text-[var(--text-secondary)]">
+                    Amount
+                  </TableHead>
+                  <TableHead className="text-right text-[var(--text-secondary)]">
+                    Fee
+                  </TableHead>
+                  <TableHead className="text-center text-[var(--text-secondary)]">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-right text-[var(--text-secondary)]">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {durationFilteredTransactions.map((tx, i) => {
                   const amountInfo = formatAmount(tx);
-                  const config = statusConfig[tx.status?.toLowerCase()] || statusConfig.pending;
+                  const config =
+                    statusConfig[tx.status?.toLowerCase()] ||
+                    statusConfig.pending;
                   const isDownloading = isDownloadingReceipt(tx.id);
                   const description = getDescription(tx);
 
                   return (
-                    <TableRow key={tx.id} className={`${i % 2 === 0 ? "bg-muted/30 dark:bg-gray-700/50" : ""} dark:border-gray-700`}>
-                      <TableCell className="text-muted-foreground dark:text-gray-400">
+                    <TableRow
+                      key={tx.id}
+                      className={`${i % 2 === 0 ? "bg-[var(--bg-secondary)]/30" : ""} border-[var(--border-color)]`}
+                    >
+                      <TableCell className="text-[var(--text-secondary)]">
                         {new Date(tx.created_at).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="font-medium dark:text-gray-300">
+                      <TableCell className="font-medium text-[var(--text-primary)]">
                         {description}
                         {tx.reference && (
-                          <div className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+                          <div className="text-xs text-[var(--text-secondary)] mt-1">
                             Ref: {tx.reference}
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className={`text-right font-semibold ${amountInfo.isOutflow ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                      <TableCell
+                        className={`text-right font-semibold ${amountInfo.isOutflow ? "text-red-600 dark:text-red-400" : "text-[var(--color-accent-yellow)]"}`}
+                      >
                         {amountInfo.signedDisplay}
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground dark:text-gray-400">
-                        {tx.fee > 0 ? `₦${Number(tx.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}` : "—"}
+                      <TableCell className="text-right text-[var(--text-secondary)]">
+                        {tx.fee > 0
+                          ? `₦${Number(tx.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`
+                          : "—"}
                       </TableCell>
                       <TableCell className="text-center">
                         <StatusBadge status={tx.status} />
@@ -1179,7 +1142,7 @@ const handleDownloadReceipt = async (transaction: any) => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleViewTransaction(tx)}
-                            className="h-8 px-2 dark:text-gray-400 dark:hover:text-gray-300"
+                            className="h-8 px-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
@@ -1189,7 +1152,7 @@ const handleDownloadReceipt = async (transaction: any) => {
                               size="sm"
                               onClick={() => handleDownloadReceipt(tx)}
                               disabled={isDownloading}
-                              className="h-8 px-2 dark:text-gray-400 dark:hover:text-gray-300"
+                              className="h-8 px-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                             >
                               {isDownloading ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1207,12 +1170,12 @@ const handleDownloadReceipt = async (transaction: any) => {
             </Table>
 
             {hasMore && durationFilteredTransactions.length > 0 && (
-              <div className="text-center py-6 border-t dark:border-gray-700">
+              <div className="text-center py-6 border-t border-[var(--border-color)]">
                 <Button
                   variant="outline"
                   onClick={handleLoadMore}
                   disabled={isLoadingMore}
-                  className="px-8 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                  className="px-8 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                 >
                   {isLoadingMore ? (
                     <>
@@ -1230,8 +1193,8 @@ const handleDownloadReceipt = async (transaction: any) => {
             )}
 
             {!hasMore && durationFilteredTransactions.length > 0 && (
-              <div className="text-center py-6 border-t dark:border-gray-700">
-                <p className="text-gray-500 dark:text-gray-400 text-sm">
+              <div className="text-center py-6 border-t border-[var(--border-color)]">
+                <p className="text-[var(--text-secondary)] text-sm">
                   You've reached the end of your transaction history
                 </p>
               </div>
@@ -1242,44 +1205,64 @@ const handleDownloadReceipt = async (transaction: any) => {
 
       {showStatementModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto dark:border dark:border-gray-700">
+          <div className="bg-[var(--bg-primary)] rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-[var(--border-color)]">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Download Bank Statement</h3>
-                <button onClick={() => setShowStatementModal(false)} className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400">
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">
+                  Download Bank Statement
+                </h3>
+                <button
+                  onClick={() => setShowStatementModal(false)}
+                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  Select a date range to download your transaction statement as PDF.
+                <p className="text-[var(--text-secondary)] text-sm">
+                  Select a date range to download your transaction statement as
+                  PDF.
                 </p>
 
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium mb-1 block text-gray-700 dark:text-gray-300">From Date</label>
+                    <label className="text-sm font-medium mb-1 block text-[var(--text-primary)]">
+                      From Date
+                    </label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
                       <input
                         type="date"
                         value={statementDateRange.from}
-                        onChange={(e) => setStatementDateRange((prev) => ({ ...prev, from: e.target.value }))}
-                        className="w-full border rounded-md px-3 py-2 pl-10 text-gray-700 dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 bg-white"
+                        onChange={(e) =>
+                          setStatementDateRange((prev) => ({
+                            ...prev,
+                            from: e.target.value,
+                          }))
+                        }
+                        className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 pl-10 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                         max={statementDateRange.to || getToday()}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-1 block text-gray-700 dark:text-gray-300">To Date</label>
+                    <label className="text-sm font-medium mb-1 block text-[var(--text-primary)]">
+                      To Date
+                    </label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
                       <input
                         type="date"
                         value={statementDateRange.to}
-                        onChange={(e) => setStatementDateRange((prev) => ({ ...prev, to: e.target.value }))}
-                        className="w-full border rounded-md px-3 py-2 pl-10 text-gray-700 dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600 bg-white"
+                        onChange={(e) =>
+                          setStatementDateRange((prev) => ({
+                            ...prev,
+                            to: e.target.value,
+                          }))
+                        }
+                        className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 pl-10 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                         min={statementDateRange.from}
                         max={getToday()}
                       />
@@ -1288,40 +1271,59 @@ const handleDownloadReceipt = async (transaction: any) => {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const to = getToday();
-                    const fromDate = new Date();
-                    fromDate.setDate(fromDate.getDate() - 7);
-                    const from = fromDate.toISOString().split("T")[0];
-                    setStatementDateRange({ from, to });
-                  }} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const to = getToday();
+                      const fromDate = new Date();
+                      fromDate.setDate(fromDate.getDate() - 7);
+                      const from = fromDate.toISOString().split("T")[0];
+                      setStatementDateRange({ from, to });
+                    }}
+                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  >
                     Last 7 days
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const to = getToday();
-                    const fromDate = new Date();
-                    fromDate.setDate(fromDate.getDate() - 30);
-                    const from = fromDate.toISOString().split("T")[0];
-                    setStatementDateRange({ from, to });
-                  }} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const to = getToday();
+                      const fromDate = new Date();
+                      fromDate.setDate(fromDate.getDate() - 30);
+                      const from = fromDate.toISOString().split("T")[0];
+                      setStatementDateRange({ from, to });
+                    }}
+                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  >
                     Last 30 days
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const to = getToday();
-                    const fromDate = new Date();
-                    fromDate.setMonth(fromDate.getMonth() - 3);
-                    const from = fromDate.toISOString().split("T")[0];
-                    setStatementDateRange({ from, to });
-                  }} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const to = getToday();
+                      const fromDate = new Date();
+                      fromDate.setMonth(fromDate.getMonth() - 3);
+                      const from = fromDate.toISOString().split("T")[0];
+                      setStatementDateRange({ from, to });
+                    }}
+                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  >
                     Last 3 months
                   </Button>
                 </div>
 
-                <div className="pt-4 border-t dark:border-gray-700">
+                <div className="pt-4 border-t border-[var(--border-color)]">
                   <Button
                     onClick={handleDownloadStatement}
-                    disabled={!statementDateRange.from || !statementDateRange.to || downloadingStatement}
-                    className="w-full bg-[#2b825b] hover:bg-[#236b49] dark:bg-[#2b825b] dark:hover:bg-[#1e5f43] text-white"
+                    disabled={
+                      !statementDateRange.from ||
+                      !statementDateRange.to ||
+                      downloadingStatement
+                    }
+                    className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                   >
                     {downloadingStatement ? (
                       <>

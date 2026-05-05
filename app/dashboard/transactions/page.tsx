@@ -12,7 +12,7 @@ export default function TransactionsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] relative">
+    <div className="min-h-screen bg-[var(--bg-primary)] relative">
       <DashboardSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -28,23 +28,23 @@ export default function TransactionsPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[#2b825b] hover:text-[#1e5d42] hover:bg-[#f0efe7] dark:hover:bg-[#242424] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[#242424] dark:hover:border-[#474747] transition-all"
+                className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[var(--border-color)] transition-all"
               >
                 <ArrowLeft className="w-5 h-5 md:mr-2" />
                 <span className="hidden md:inline text-sm font-medium">Back</span>
               </Button>
 
               <div className="flex-1">
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#141414] dark:text-[#f5f5f5] mb-2">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)] mb-2">
                   Transaction History
                 </h1>
-                <p className="text-sm md:text-base text-[#6b6b6b] dark:text-[#a6a6a6]">
+                <p className="text-sm md:text-base text-[var(--text-secondary)]">
                   View and manage all your transactions
                 </p>
               </div>
             </div>
 
-            <div className="bg-[#ffffff] dark:bg-[#121212] border-2 border-[#242424] dark:border-[#474747] rounded-md p-4 md:p-6 shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]">
+            <div className="">
               <TransactionHistory />
             </div>
           </div>

@@ -199,25 +199,25 @@ export function JournalDashboard() {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #f7f3ee;
       padding: 40px 20px;
-      color: #26121c;
+      color: #191919;
       line-height: 1.5; 
     }
     
     .statement-container {
       max-width: 1000px;
       margin: 0 auto;
-      background: #fcfbf9;
-      border: 1px solid #e6dfd6;
-      border-radius: 20px;
+      background: #FFFFFF;
+      border: 1px solid #E5E5E5;
+      border-radius: 28px;
       padding: 40px;
-      box-shadow: 0 12px 40px -12px rgba(38,33,28,0.15);
+      box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.15), 0 5px 12px -4px rgba(0, 0, 0, 0.1);
     }
     
     .header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      border-bottom: 2px solid #e6dfd6;
+      border-bottom: 2px solid #E5E5E5;
       padding-bottom: 30px;
       margin-bottom: 30px;
     }
@@ -226,31 +226,31 @@ export function JournalDashboard() {
       font-family: 'Playfair Display', Georgia, serif;
       font-size: 32px;
       font-weight: 700;
-      color: #26121c;
+      color: #191919;
       margin-bottom: 8px;
     }
     
     .title-section p {
-      color: #80746e;
+      color: #666666;
       font-size: 14px;
     }
     
     .journal-badge {
-      background: #2b825b;
-      color: #ffffff;
+      background: #FDC020;
+      color: #191919;
       padding: 12px 24px;
-      border-radius: 100px;
+      border-radius: 20px;
       font-weight: 600;
       font-size: 18px;
-      box-shadow: 0 4px 20px -4px rgba(43, 130, 91, 0.3);
+      box-shadow: 0 2px 4px rgba(25, 25, 25, 0.1);
     }
     
     .period {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #f5f1ea;
-      border-radius: 16px;
+      background: #F5F5F5;
+      border-radius: 20px;
       padding: 20px;
       margin-bottom: 30px;
     }
@@ -262,7 +262,7 @@ export function JournalDashboard() {
     
     .period-label {
       font-size: 12px;
-      color: #80746e;
+      color: #666666;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 4px;
@@ -271,13 +271,13 @@ export function JournalDashboard() {
     .period-value {
       font-size: 18px;
       font-weight: 600;
-      color: #26121c;
+      color: #191919;
     }
     
     .period-divider {
       width: 2px;
       height: 30px;
-      background: #e6dfd6;
+      background: #E5E5E5;
     }
     
     .summary-grid {
@@ -289,34 +289,34 @@ export function JournalDashboard() {
     
     .summary-card {
       background: white;
-      border: 1px solid #e6dfd6;
-      border-radius: 16px;
+      border: 1px solid #E5E5E5;
+      border-radius: 20px;
       padding: 20px;
     }
     
     .summary-card.income {
       background: linear-gradient(145deg, #ffffff, #f0fdf4);
-      border-color: rgba(22, 163, 74, 0.3);
+      border-color: rgba(0, 182, 79, 0.3);
     }
     
     .summary-card.expense {
       background: linear-gradient(145deg, #ffffff, #fef2f2);
-      border-color: rgba(225, 29, 72, 0.3);
+      border-color: rgba(239, 68, 68, 0.3);
     }
     
     .summary-card.net {
-      background: #2b825b;
+      background: #FDC020;
       border: none;
     }
     
     .summary-title {
       font-size: 14px;
-      color: #80746e;
+      color: #666666;
       margin-bottom: 8px;
     }
     
     .summary-card.net .summary-title {
-      color: rgba(255, 255, 255, 0.8);
+      color: rgba(25, 25, 25, 0.8);
     }
     
     .summary-amount {
@@ -325,20 +325,20 @@ export function JournalDashboard() {
     }
     
     .summary-card.income .summary-amount {
-      color: #16a34a;
+      color: #00B64F;
     }
     
     .summary-card.expense .summary-amount {
-      color: #e11d48;
+      color: #ef4444;
     }
     
     .summary-card.net .summary-amount {
-      color: #ffffff;
+      color: #191919;
     }
     
     .breakdown-section {
-      background: #f5f1ea;
-      border-radius: 16px;
+      background: #F5F5F5;
+      border-radius: 20px;
       padding: 24px;
       margin-bottom: 40px;
     }
@@ -347,7 +347,7 @@ export function JournalDashboard() {
       font-family: 'Playfair Display', Georgia, serif;
       font-size: 18px;
       font-weight: 600;
-      color: #26121c;
+      color: #191919;
       margin-bottom: 20px;
     }
     
@@ -362,7 +362,7 @@ export function JournalDashboard() {
       justify-content: space-between;
       align-items: center;
       padding: 8px 0;
-      border-bottom: 1px dashed #e6dfd6;
+      border-bottom: 1px dashed #E5E5E5;
     }
     
     .category-name {
@@ -378,12 +378,12 @@ export function JournalDashboard() {
     }
     
     .category-income {
-      color: #16a34a;
+      color: #00B64F;
       font-weight: 600;
     }
     
     .category-expense {
-      color: #e11d48;
+      color: #ef4444;
       font-weight: 600;
     }
     
@@ -395,7 +395,7 @@ export function JournalDashboard() {
       font-family: 'Playfair Display', Georgia, serif;
       font-size: 18px;
       font-weight: 600;
-      color: #26121c;
+      color: #191919;
       margin-bottom: 16px;
     }
     
@@ -407,8 +407,8 @@ export function JournalDashboard() {
     th {
       text-align: left;
       padding: 12px 16px;
-      background: #f5f1ea;
-      color: #80746e;
+      background: #F5F5F5;
+      color: #666666;
       font-size: 12px;
       font-weight: 600;
       text-transform: uppercase;
@@ -417,17 +417,17 @@ export function JournalDashboard() {
     
     td {
       padding: 16px;
-      border-bottom: 1px solid #e6dfd6;
+      border-bottom: 1px solid #E5E5E5;
       font-size: 14px;
     }
     
     .transaction-income {
-      color: #16a34a;
+      color: #00B64F;
       font-weight: 600;
     }
     
     .transaction-expense {
-      color: #e11d48;
+      color: #ef4444;
       font-weight: 600;
     }
     
@@ -438,7 +438,7 @@ export function JournalDashboard() {
     }
     
     .transaction-note {
-      color: #80746e;
+      color: #666666;
       font-size: 12px;
       margin-top: 4px;
     }
@@ -446,11 +446,11 @@ export function JournalDashboard() {
     .footer {
       margin-top: 40px;
       padding-top: 30px;
-      border-top: 2px solid #e6dfd6;
+      border-top: 2px solid #E5E5E5;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      color: #80746e;
+      color: #666666;
       font-size: 12px;
     }
     
@@ -467,13 +467,13 @@ export function JournalDashboard() {
     
     .footer-stat-label {
       font-size: 11px;
-      color: #80746e;
+      color: #666666;
     }
     
     .footer-stat-value {
       font-size: 16px;
       font-weight: 600;
-      color: #26121c;
+      color: #191919;
     }
     
     .signature {
@@ -501,7 +501,7 @@ export function JournalDashboard() {
         <p>${activeJournalType.charAt(0).toUpperCase() + activeJournalType.slice(1)} Account</p>
       </div>
       <div class="journal-badge">
-        ZIDWELL BOOKKEPR
+        ZIDWELL BOOKKEEP
       </div>
     </div>
     
@@ -526,21 +526,21 @@ export function JournalDashboard() {
       <div class="summary-card income">
         <div class="summary-title">Total Income</div>
         <div class="summary-amount">₦${totalIncome.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
-        <div style="font-size: 12px; color: #16a34a; margin-top: 8px;">
+        <div style="font-size: 12px; color: #00B64F; margin-top: 8px;">
           ${uniqueEntries.filter((e) => e.type === "income").length} transactions
         </div>
       </div>
       <div class="summary-card expense">
         <div class="summary-title">Total Expenses</div>
         <div class="summary-amount">₦${totalExpenses.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
-        <div style="font-size: 12px; color: #e11d48; margin-top: 8px;">
+        <div style="font-size: 12px; color: #ef4444; margin-top: 8px;">
           ${uniqueEntries.filter((e) => e.type === "expense").length} transactions
         </div>
       </div>
       <div class="summary-card net">
         <div class="summary-title">Net Balance</div>
         <div class="summary-amount">₦${netTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
-        <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 8px;">
+        <div style="font-size: 12px; color: rgba(25,25,25,0.8); margin-top: 8px;">
           ${netTotal >= 0 ? "Positive" : "Negative"}
         </div>
       </div>
@@ -616,7 +616,7 @@ export function JournalDashboard() {
     
     <div class="footer">
       <div>
-        <div style="font-weight: 600; margin-bottom: 4px;">Zidwell Bookkeeping</div>
+        <div style="font-weight: 600; margin-bottom: 4px;">Zidwell Book</div>
         <div>${format(new Date(), "MMMM d, yyyy h:mm a")}</div>
       </div>
       <div class="footer-stats">
@@ -626,14 +626,14 @@ export function JournalDashboard() {
         </div>
         <div class="footer-stat">
           <span class="footer-stat-label">Net Balance</span>
-          <span class="footer-stat-value" style="color: ${netTotal >= 0 ? "#16a34a" : "#e11d48"}">
+          <span class="footer-stat-value" style="color: ${netTotal >= 0 ? "#00B64F" : "#ef4444"}">
             ₦${netTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
           </span>
         </div>
       </div>
     </div>
     
-    <div style="margin-top: 30px; text-align: center; color: #80746e; font-size: 11px;">
+    <div style="margin-top: 30px; text-align: center; color: #666666; font-size: 11px;">
       <span class="signature">— This is an official statement from your Zidwell Journal —</span>
     </div>
   </div>
@@ -667,7 +667,7 @@ export function JournalDashboard() {
       // Success notification
       const notification = document.createElement("div");
       notification.className =
-        "fixed top-4 right-4 bg-[#2b825b] text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2";
+        "fixed top-4 right-4 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-4 py-2 rounded-lg shadow-pop z-50 animate-in fade-in slide-in-from-top-2 squircle-sm";
       notification.innerHTML = `
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -687,15 +687,12 @@ export function JournalDashboard() {
   };
 
   return (
-    <div className="min-h-screen dark:bg-gray-900">
+    <div className="min-h-screen">
       <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 space-y-8">
         <JournalHeader />
 
         {/* Navigation */}
-        <nav
-          className="flex gap-2 pb-4 flex-wrap dark:border-gray-700"
-          style={{ borderBottomColor: "#e6dfd6" }}
-        >
+        <nav className="flex gap-2 pb-4 flex-wrap border-b border-[var(--border-color)]">
           <button
             onClick={() => setActiveView("dashboard")}
             className={cn(
@@ -703,11 +700,11 @@ export function JournalDashboard() {
             )}
             style={{
               backgroundColor:
-                activeView === "dashboard" ? "#2b825b" : "transparent",
-              color: activeView === "dashboard" ? "#ffffff" : "#80746e",
+                activeView === "dashboard" ? "var(--color-accent-yellow)" : "transparent",
+              color: activeView === "dashboard" ? "var(--color-ink)" : "var(--text-secondary)",
               boxShadow:
                 activeView === "dashboard"
-                  ? "0 4px 20px -4px rgba(43, 130, 91, 0.3)"
+                  ? "0 4px 20px -4px rgba(253, 192, 32, 0.3)"
                   : "none",
             }}
           >
@@ -721,11 +718,11 @@ export function JournalDashboard() {
             )}
             style={{
               backgroundColor:
-                activeView === "insights" ? "#2b825b" : "transparent",
-              color: activeView === "insights" ? "#ffffff" : "#80746e",
+                activeView === "insights" ? "var(--color-accent-yellow)" : "transparent",
+              color: activeView === "insights" ? "var(--color-ink)" : "var(--text-secondary)",
               boxShadow:
                 activeView === "insights"
-                  ? "0 4px 20px -4px rgba(43, 130, 91, 0.3)"
+                  ? "0 4px 20px -4px rgba(253, 192, 32, 0.3)"
                   : "none",
             }}
           >
@@ -739,11 +736,11 @@ export function JournalDashboard() {
             )}
             style={{
               backgroundColor:
-                activeView === "entries" ? "#2b825b" : "transparent",
-              color: activeView === "entries" ? "#ffffff" : "#80746e",
+                activeView === "entries" ? "var(--color-accent-yellow)" : "transparent",
+              color: activeView === "entries" ? "var(--color-ink)" : "var(--text-secondary)",
               boxShadow:
                 activeView === "entries"
-                  ? "0 4px 20px -4px rgba(43, 130, 91, 0.3)"
+                  ? "0 4px 20px -4px rgba(253, 192, 32, 0.3)"
                   : "none",
             }}
           >
@@ -753,10 +750,10 @@ export function JournalDashboard() {
 
           <button
             onClick={() => setShowCategoryManager(true)}
-            className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:opacity-80 dark:bg-gray-700 dark:text-gray-300"
+            className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-[var(--bg-secondary)]"
             style={{
-              color: "#80746e",
-              backgroundColor: "#f5f1ea",
+              color: "var(--text-secondary)",
+              backgroundColor: "var(--bg-secondary)",
             }}
           >
             <Settings2 className="h-4 w-4" />
@@ -765,10 +762,10 @@ export function JournalDashboard() {
           
           <button
             onClick={() => setShowExportModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:opacity-80 dark:bg-gray-700 dark:text-gray-300"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-[var(--bg-secondary)]"
             style={{
-              color: "#80746e",
-              backgroundColor: "#f5f1ea",
+              color: "var(--text-secondary)",
+              backgroundColor: "var(--bg-secondary)",
             }}
           >
             <Printer className="h-4 w-4" />
@@ -781,7 +778,7 @@ export function JournalDashboard() {
             {/* ALL-TIME Summary Cards */}
             <section className="space-y-4">
               <h2
-                className="text-xl font-medium dark:text-gray-100"
+                className="text-xl font-medium text-[var(--text-primary)]"
                 style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
               >
                 Account Summary
@@ -815,32 +812,24 @@ export function JournalDashboard() {
             <section className="flex gap-4">
               <Button
                 onClick={() => openEntryForm("income")}
-                className="flex-1 h-14 text-base font-semibold shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#16a34a] dark:hover:bg-[#138f3f]"
-                style={{
-                  backgroundColor: "#16a34a",
-                  color: "#ffffff",
-                }}
+                className="flex-1 h-14 text-base font-semibold bg-[var(--color-lemon-green)] text-white hover:bg-[var(--color-lemon-green)]/90 squircle-md shadow-soft"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Add Income
               </Button>
-              <button
+              <Button
                 onClick={() => openEntryForm("expense")}
-                className="flex-1 h-14 text-base font-semibold shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow rounded-md flex items-center justify-center dark:bg-[#e11d48] dark:hover:bg-[#b91c1c]"
-                style={{
-                  backgroundColor: "#e11d48",
-                  color: "#ffffff",
-                }}
+                className="flex-1 h-14 text-base font-semibold bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 squircle-md shadow-soft"
               >
                 <Minus className="h-5 w-5 mr-2" />
                 Add Expense
-              </button>
+              </Button>
             </section>
 
             {/* Progress Indicators */}
             <section className="space-y-4">
               <h2
-                className="text-xl font-medium dark:text-gray-100"
+                className="text-xl font-medium text-[var(--text-primary)]"
                 style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
               >
                 Progress
@@ -868,26 +857,19 @@ export function JournalDashboard() {
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2
-                  className="text-xl font-medium dark:text-gray-100"
+                  className="text-xl font-medium text-[var(--text-primary)]"
                   style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
                 >
                   Recent Entries
                 </h2>
                 <button
                   onClick={() => setActiveView("entries")}
-                  className="text-sm hover:underline transition-all dark:text-[#3aa873]"
-                  style={{ color: "#2b825b" }}
+                  className="text-sm hover:underline transition-all text-[var(--color-accent-yellow)]"
                 >
                   View all →
                 </button>
               </div>
-              <div
-                className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] dark:bg-gray-800 dark:border-gray-700"
-                style={{
-                  backgroundColor: "rgba(252, 251, 249, 0.5)",
-                  borderColor: "#e6dfd6",
-                }}
-              >
+              <div className="rounded-2xl overflow-hidden transition-all squircle-lg">
                 <RecentEntries onEdit={handleEdit} limit={5} />
               </div>
             </section>
@@ -904,15 +886,14 @@ export function JournalDashboard() {
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
               <h2
-                className="text-xl font-medium dark:text-gray-100"
+                className="text-xl font-medium text-[var(--text-primary)]"
                 style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
               >
                 All Transactions
               </h2>
               <div className="flex gap-3">
                 <div
-                  className="text-sm px-3 py-1.5 rounded-md bg-[#f5f1ea] dark:bg-gray-700"
-                  style={{ color: "#80746e" }}
+                  className="text-sm px-3 py-1.5 rounded-md bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
                 >
                   <span className="font-medium">Total: </span>
                   {unifiedEntries?.length || 0} entries
@@ -923,23 +904,21 @@ export function JournalDashboard() {
             <div className="flex gap-3">
               <Button
                 onClick={() => openEntryForm("income")}
-                className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow dark:bg-[#16a34a] dark:hover:bg-[#138f3f]"
-                style={{ backgroundColor: "#16a34a", color: "#ffffff" }}
+                className="bg-[var(--color-lemon-green)] text-white hover:bg-[var(--color-lemon-green)]/90 squircle-md shadow-soft"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Income
               </Button>
-              <button
+              <Button
                 onClick={() => openEntryForm("expense")}
-                className="shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.15)] transition-shadow flex items-center justify-center dark:bg-[#e11d48] dark:hover:bg-[#b91c1c] rounded-md p-2 text-sm"
-                style={{ backgroundColor: "#e11d48", color: "#ffffff" }}
+                className="bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 squircle-md shadow-soft"
               >
                 <Minus className="h-4 w-4 mr-2" />
                 Add Expense
-              </button>
+              </Button>
             </div>
 
-            <div className="rounded-2xl border overflow-hidden transition-all hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] dark:bg-gray-800 dark:border-gray-700">
+            <div className="rounded-2xl border overflow-hidden bg-[var(--bg-primary)] border-[var(--border-color)] shadow-soft squircle-lg">
               <RecentEntries onEdit={handleEdit} />
             </div>
           </div>

@@ -200,7 +200,7 @@ const LoginForm = () => {
 
       if (err.name === "AbortError") {
         errorMessage =
-          "Request timed out. Please check your internet connection and try again.";
+          "Please check your internet connection and try again.";
       } else if (err.message) {
         errorMessage = err.message;
       }
@@ -350,7 +350,7 @@ const LoginForm = () => {
                 </div>
                 <Link
                   href="/auth/password-reset"
-                  className="text-sm text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 transition-colors"
+                  className="text-sm text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 transition-colors underline"
                 >
                   Forgot password?
                 </Link>

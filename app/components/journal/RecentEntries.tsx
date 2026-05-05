@@ -7,10 +7,6 @@ import { useJournal } from "@/app/context/JournalContext";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
-// Add sweet alert styles (you may need to install sweetalert2)
-// npm install sweetalert2
-import Swal from 'sweetalert2';
-
 interface RecentEntriesProps {
   onEdit?: (entry: any) => void;
   limit?: number;
@@ -71,15 +67,23 @@ const getTransactionIcon = (walletTransactionType: string | undefined, entryType
   if (type === 'cable') return <Tv className="h-5 w-5" />;
   if (type === 'bill_payment') return <Home className="h-5 w-5" />;
   if (type === 'purchase') return <ShoppingBag className="h-5 w-5" />;
+  if (type === 'food' || type === 'restaurant') return <Utensils className="h-5 w-5" />;
   
   return <ArrowUpRight className="h-5 w-5" />;
 };
 
 // Get icon color based on transaction type
 const getIconColor = (type: string) => {
-  if (type === 'income') return "#16a34a";
-  return "#e11d48";
+  if (type === 'income') return "var(--color-lemon-green)";
+  return "var(--destructive)";
 };
+
+// Helper to get icon component (need to add Utensils)
+const Utensils = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l2 2m0 0l2 2M5 5l2-2m-2 2l2 2m6-3a4 4 0 00-4 4v6a2 2 0 002 2h2a2 2 0 002-2v-6a4 4 0 00-4-4z" />
+  </svg>
+);
 
 export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   const { unifiedEntries, categories, deleteEntry, refetch, updateWalletEntry } = useJournal();
@@ -102,49 +106,8 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   };
 
   const handleDelete = async (entry: any) => {
-    // Show sweet alert confirmation
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      html: `You are about to delete this transaction:<br/><strong>${getDisplayText(entry)}</strong><br/>Amount: ${formatCurrency(entry.amount)}`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#e11d48',
-      cancelButtonColor: '#80746e',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
-      background: '#fcfbf9',
-      customClass: {
-        popup: 'dark:bg-gray-800',
-        title: 'dark:text-gray-100',
-        htmlContainer: 'dark:text-gray-300',
-      }
-    });
-
-    if (result.isConfirmed) {
-      if (entry.source === 'wallet') {
-        // For wallet entries, just hide them
-        await deleteEntry(entry.id);
-        await Swal.fire({
-          title: 'Hidden!',
-          text: 'Transaction has been hidden from your journal.',
-          icon: 'success',
-          confirmButtonColor: '#2b825b',
-          background: '#fcfbf9',
-          timer: 2000,
-          showConfirmButton: true,
-        });
-      } else {
-        await deleteEntry(entry.id);
-        await Swal.fire({
-          title: 'Deleted!',
-          text: 'Transaction has been deleted successfully.',
-          icon: 'success',
-          confirmButtonColor: '#2b825b',
-          background: '#fcfbf9',
-          timer: 2000,
-          showConfirmButton: true,
-        });
-      }
+    if (confirm("Are you sure you want to delete this entry?")) {
+      await deleteEntry(entry.id);
       await refetch();
     }
   };
@@ -166,17 +129,6 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
     
     setShowEditDialog(false);
     setEditingEntry(null);
-    
-    await Swal.fire({
-      title: 'Updated!',
-      text: 'Category has been updated successfully.',
-      icon: 'success',
-      confirmButtonColor: '#2b825b',
-      background: '#fcfbf9',
-      timer: 1500,
-      showConfirmButton: true,
-    });
-    
     await refetch();
   };
 
@@ -197,7 +149,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   if (unifiedEntries.length === 0) {
     return (
       <div className="p-8 text-center">
-        <p className="dark:text-gray-400" style={{ color: "#80746e" }}>
+        <p className="text-[var(--text-secondary)]">
           No entries yet. Start journaling or make wallet transactions!
         </p>
       </div>
@@ -210,18 +162,18 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
         {visibleEntries.map((entry) => {
           const isWalletEntry = entry.source === 'wallet';
           const displayText = getDisplayText(entry);
+          // Use the transaction type to determine the display category name
           const displayCategoryName = getDisplayCategoryName(entry.walletTransactionType, entry.type);
           const icon = getTransactionIcon(entry.walletTransactionType, entry.type);
           const iconColor = getIconColor(entry.type);
+          
+          // Try to find actual category from categories list (for edit dialog)
+          const actualCategory = categories.find(c => c.id === entry.categoryId);
 
           return (
             <div
               key={entry.id}
-              className="flex items-center gap-4 p-4 rounded-xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] hover:shadow-[0_4px_24px_-8px_rgba(38,33,28,0.1)] transition-shadow dark:bg-gray-800 dark:border-gray-700"
-              style={{
-                backgroundColor: isWalletEntry ? 'rgba(245, 241, 234, 0.5)' : '#fcfbf9',
-                borderColor: "#e6dfd6",
-              }}
+              className="flex items-center gap-4 p-4 rounded-xl border shadow-soft hover:shadow-pop transition-shadow group bg-[var(--bg-primary)] border-[var(--border-color)] squircle-lg"
             >
               <div
                 className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
@@ -234,20 +186,21 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "#f5f1ea", color: "#80746e" }}>
+                  {/* Display category name based on transaction type */}
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
                     {displayCategoryName}
                   </span>
                   {isWalletEntry && (
-                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1">
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
                       <WalletIcon className="h-3 w-3" />
                       Auto-synced
                     </span>
                   )}
                 </div>
-                <p className="text-sm font-medium truncate dark:text-gray-200 mt-1" style={{ color: "#26121c" }}>
+                <p className="text-sm font-medium truncate text-[var(--text-primary)] mt-1">
                   {displayText}
                 </p>
-                <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: "#80746e" }}>
+                <div className="flex items-center gap-2 text-xs mt-0.5 text-[var(--text-secondary)]">
                   <span>{format(parseISO(entry.date), "MMM d, yyyy")}</span>
                   {isWalletEntry && entry.walletTransactionType && (
                     <span className="opacity-70 capitalize">
@@ -264,31 +217,26 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
 
               <p
                 className={cn("font-semibold tabular-nums text-lg")}
-                style={{ color: entry.type === "income" ? "#16a34a" : "#e11d48" }}
+                style={{ color: entry.type === "income" ? "var(--color-lemon-green)" : "var(--destructive)" }}
               >
                 {entry.type === "income" ? "+" : "-"}
                 {formatCurrency(entry.amount)}
               </p>
 
-              {/* Buttons always visible - removed opacity-0 group-hover:opacity-100 */}
-              <div className="flex gap-1">
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
-                  style={{ color: "#2b825b" }}
+                  className="text-[var(--color-accent-yellow)]"
                   onClick={() => handleEditCategory(entry)}
-                  title="Edit Category"
                 >
                   <Edit2 className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
-                  style={{ color: "#e11d48" }}
+                  className="text-[var(--text-secondary)]"
                   onClick={() => handleDelete(entry)}
-                  title="Delete Entry"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -303,12 +251,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
             <button
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="px-8 py-2 font-medium rounded-md transition-colors text-sm flex items-center"
-              style={{
-                backgroundColor: "#f5f1ea",
-                color: "#2b825b",
-                border: "1px solid #e6dfd6",
-              }}
+              className="px-8 py-2 font-medium rounded-md transition-colors text-sm flex items-center bg-[var(--bg-secondary)] text-[var(--color-accent-yellow)] border border-[var(--border-color)] squircle-md"
             >
               {isLoadingMore ? (
                 <>
@@ -322,7 +265,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                 </>
               )}
             </button>
-            <p className="text-xs mt-2" style={{ color: "#80746e" }}>
+            <p className="text-xs mt-2 text-[var(--text-secondary)]">
               Showing {visibleCount} of {unifiedEntries.length} entries
             </p>
           </div>
@@ -330,7 +273,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
 
         {!hasMore && unifiedEntries.length > (limit || 5) && (
           <div className="text-center pt-4">
-            <p className="text-xs" style={{ color: "#80746e" }}>
+            <p className="text-xs text-[var(--text-secondary)]">
               All {unifiedEntries.length} entries loaded
             </p>
           </div>
@@ -339,27 +282,27 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
 
       {/* Edit Category Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-md" style={{ backgroundColor: "#fcfbf9", borderColor: "#e6dfd6" }}>
+        <DialogContent className="sm:max-w-md bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            <DialogTitle className="text-xl text-[var(--text-primary)]" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
               Edit Category
             </DialogTitle>
           </DialogHeader>
 
           {editingEntry && (
             <div className="space-y-5 mt-4">
-              <div className="p-4 rounded-xl" style={{ backgroundColor: "#f5f1ea" }}>
-                <p className="text-sm" style={{ color: "#80746e" }}>Transaction</p>
-                <p className="font-medium" style={{ color: "#26121c" }}>
+              <div className="p-4 rounded-xl bg-[var(--bg-secondary)] squircle-md">
+                <p className="text-sm text-[var(--text-secondary)]">Transaction</p>
+                <p className="font-medium text-[var(--text-primary)]">
                   {getDisplayText(editingEntry)}
                 </p>
-                <p className="text-xl font-semibold mt-1" style={{ color: editingEntry.type === "income" ? "#16a34a" : "#e11d48" }}>
+                <p className="text-xl font-semibold mt-1" style={{ color: editingEntry.type === "income" ? "var(--color-lemon-green)" : "var(--destructive)" }}>
                   {editingEntry.type === "income" ? "+" : "-"}{formatCurrency(editingEntry.amount)}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium" style={{ color: "#80746e" }}>
+                <label className="text-sm font-medium text-[var(--text-secondary)]">
                   Select Category
                 </label>
                 <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
@@ -374,12 +317,12 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                           "flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center"
                         )}
                         style={{
-                          borderColor: selectedCategory === cat.id ? "#2b825b" : "#e6dfd6",
-                          backgroundColor: selectedCategory === cat.id ? "rgba(43, 130, 91, 0.1)" : "#fcfbf9",
+                          borderColor: selectedCategory === cat.id ? "var(--color-accent-yellow)" : "var(--border-color)",
+                          backgroundColor: selectedCategory === cat.id ? "rgba(253, 192, 32, 0.1)" : "var(--bg-primary)",
                         }}
                       >
                         <span className="text-2xl">{cat.icon}</span>
-                        <span className="text-xs font-medium truncate w-full" style={{ color: "#26121c" }}>
+                        <span className="text-xs font-medium truncate w-full text-[var(--text-primary)]">
                           {cat.name}
                         </span>
                       </button>
@@ -390,11 +333,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
               <Button
                 onClick={handleUpdateCategory}
                 disabled={!selectedCategory}
-                className="w-full font-semibold h-12"
-                style={{
-                  background: !selectedCategory ? "#e6dfd6" : "#2b825b",
-                  color: !selectedCategory ? "#80746e" : "#ffffff",
-                }}
+                className="w-full font-semibold h-12 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
               >
                 Update Category
               </Button>

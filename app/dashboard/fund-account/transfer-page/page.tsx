@@ -12,7 +12,7 @@ export default function TransferPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] fade-in relative">
+    <div className="min-h-screen bg-[var(--bg-primary)] fade-in relative">
       {/* Sidebar - handles mobile and desktop */}
       <DashboardSidebar
         open={sidebarOpen}
@@ -33,17 +33,17 @@ export default function TransferPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[#2b825b] hover:text-[#1e5d42] hover:bg-[#f0efe7] dark:hover:bg-[#242424] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[#242424] dark:hover:border-[#474747] transition-all"
+                className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[var(--border-color)] transition-all"
               >
                 <ArrowLeft className="w-5 h-5 md:mr-2" />
                 <span className="hidden md:inline text-sm font-medium">Back</span>
               </Button>
 
               <div className="flex-1">
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#141414] dark:text-[#f5f5f5] mb-2">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)] mb-2">
                   Transfer From Balance
                 </h1>
-                <p className="text-sm md:text-base text-[#6b6b6b] dark:text-[#a6a6a6]">
+                <p className="text-sm md:text-base text-[var(--text-secondary)]">
                   Transfer money from your wallet directly into your bank
                   account in just a few steps. Fill in the details below to
                   complete your transaction securely.

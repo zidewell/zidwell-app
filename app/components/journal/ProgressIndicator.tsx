@@ -36,15 +36,9 @@ export function ProgressIndicator({
       : 0;
 
   return (
-    <div
-      className="p-4 rounded-xl border shadow-[0_2px_20px_-4px_rgba(38,33,28,0.08)] dark:bg-gray-800 dark:border-gray-700"
-      style={{
-        backgroundColor: "#fcfbf9",
-        borderColor: "#e6dfd6",
-      }}
-    >
+    <div className="p-4 rounded-xl border bg-[var(--bg-primary)] border-[var(--border-color)] shadow-soft squircle-lg">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium dark:text-gray-300" style={{ color: "#80746e" }}>
+        <span className="text-sm font-medium text-[var(--text-secondary)]">
           {label}
         </span>
         <div
@@ -54,9 +48,9 @@ export function ProgressIndicator({
           style={{
             backgroundColor:
               summary.net >= 0
-                ? "rgba(22, 163, 74, 0.1)"
-                : "rgba(225, 29, 72, 0.1)",
-            color: summary.net >= 0 ? "#16a34a" : "#e11d48",
+                ? "rgba(0, 182, 79, 0.1)"
+                : "rgba(239, 68, 68, 0.1)",
+            color: summary.net >= 0 ? "var(--color-lemon-green)" : "var(--destructive)",
           }}
         >
           <TrendIcon className="h-3 w-3" />
@@ -66,10 +60,7 @@ export function ProgressIndicator({
       </div>
 
       <div className="space-y-2">
-        <div
-          className="flex justify-between text-xs dark:text-gray-400"
-          style={{ color: "#80746e" }}
-        >
+        <div className="flex justify-between text-xs text-[var(--text-secondary)]">
           <span>
             Income: {currency}
             {formatAmount(summary.income)}
@@ -80,15 +71,12 @@ export function ProgressIndicator({
           </span>
         </div>
 
-        <div
-          className="h-2 rounded-full overflow-hidden dark:bg-gray-600"
-          style={{ backgroundColor: "#f5f1ea" }}
-        >
+        <div className="h-2 rounded-full overflow-hidden bg-[var(--bg-secondary)]">
           <div
             className={cn("h-full rounded-full transition-all duration-500")}
             style={{
               width: `${Math.abs(netPercentage)}%`,
-              background: summary.net >= 0 ? "#2b825b" : "#e11d48",
+              background: summary.net >= 0 ? "var(--color-accent-yellow)" : "var(--destructive)",
             }}
           />
         </div>

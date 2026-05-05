@@ -90,27 +90,27 @@ function BookkeepingPage() {
             <div className="max-w-5xl mx-auto">
               {/* Header */}
               <div className="mb-8">
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#141414] dark:text-[#f5f5f5] mb-2">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)] mb-2">
                   Bookkeeping & Journal Management
                 </h1>
-                <p className="text-sm md:text-base text-[#6b6b6b] dark:text-[#a6a6a6]">
+                <p className="text-sm md:text-base text-[var(--text-secondary)]">
                   Track your business finances, manage journals, and get
                   insights with our professional bookkeeping tools
                 </p>
               </div>
 
               {/* Trial Offer Card */}
-              <div className="bg-linear-to-r from-[#2b825b] to-[#1e5d42] rounded-2xl p-8 mb-10 text-white shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]">
+              <div className="bg-gradient-to-r from-[var(--color-accent-yellow)] to-[#e0a800] rounded-2xl p-8 mb-10 text-[var(--color-ink)] shadow-pop squircle-lg">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                      <Clock className="w-8 h-8 text-white" />
+                    <div className="w-16 h-16 bg-[var(--color-ink)]/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                      <Clock className="w-8 h-8 text-[var(--color-ink)]" />
                     </div>
                     <div>
                       <h2 className="text-2xl font-bold mb-1">
                         Try Bookkeeping Free for 14 Days
                       </h2>
-                      <p className="text-white/90">
+                      <p className="text-[var(--color-ink)]/80">
                         Full access to all bookkeeping features. No credit card
                         required.
                       </p>
@@ -119,7 +119,7 @@ function BookkeepingPage() {
                   <button
                     onClick={handleStartTrial}
                     disabled={activatingTrial}
-                    className="bg-white text-[#2b825b] px-8 py-3 rounded-md font-semibold hover:bg-gray-100 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5"
+                    className="bg-[var(--color-ink)] text-white px-8 py-3 rounded-md font-semibold hover:bg-[var(--color-ink)]/90 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed shadow-soft squircle-md"
                   >
                     {activatingTrial ? (
                       <span className="flex items-center gap-2">
@@ -133,102 +133,143 @@ function BookkeepingPage() {
                 </div>
               </div>
 
-              {/* Rest of your pricing section */}
-              <h2 className="text-2xl font-bold text-[#141414] dark:text-[#f5f5f5] mb-6">
+              {/* Pricing Section */}
+              <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">
                 Choose a Plan That Fits Your Business
               </h2>
               <div className="grid md:grid-cols-3 gap-6">
                 {/* Growth Plan */}
-                <div className="bg-[#ffffff] dark:bg-[#121212] border-2 border-[#242424] dark:border-[#474747] rounded-md p-6 hover:border-[#2b825b] transition-all shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]">
+                <div className="bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-md p-6 hover:border-[var(--color-accent-yellow)] transition-all shadow-soft squircle-lg">
                   <div className="flex items-center gap-3 mb-4">
                     <Zap className="w-6 h-6 text-blue-600" />
-                    <h3 className="text-xl font-bold text-[#141414] dark:text-[#f5f5f5]">
+                    <h3 className="text-xl font-bold text-[var(--text-primary)]">
                       Growth
                     </h3>
                   </div>
-                  <p className="text-3xl font-bold text-[#141414] dark:text-[#f5f5f5] mb-2">
+                  <p className="text-3xl font-bold text-[var(--text-primary)] mb-2">
                     ₦10,000
-                    <span className="text-sm font-normal text-[#6b6b6b] dark:text-[#a6a6a6]">
+                    <span className="text-sm font-normal text-[var(--text-secondary)]">
                       /month
                     </span>
                   </p>
-                  <p className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6] mb-6">
+                  <p className="text-sm text-[var(--text-secondary)] mb-6">
                     Perfect for growing businesses
                   </p>
                   <ul className="space-y-3 mb-6">
-                    <li className="flex items-start gap-2 text-sm text-[#141414] dark:text-[#f5f5f5]">
-                      <span className="text-[#2b825b] font-bold">✓</span>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
                       Full bookkeeping access
                     </li>
-                    {/* ... rest of list items */}
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      Up to 500 transactions/month
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      Basic analytics & reports
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      Email support
+                    </li>
                   </ul>
                   <Link href="/pricing?upgrade=growth">
-                    <button className="w-full bg-[#2b825b] text-white py-3 rounded-md font-semibold hover:bg-[#1e5d42] border-2 border-[#242424] dark:border-[#474747] shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all">
+                    <button className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] py-3 rounded-md font-semibold hover:bg-[var(--color-accent-yellow)]/90 border-2 border-[var(--border-color)] shadow-soft squircle-md transition-all">
                       Choose Growth
                     </button>
                   </Link>
                 </div>
 
                 {/* Premium Plan - Highlighted */}
-                <div className="bg-[#ffffff] dark:bg-[#121212] border-2 border-[#2b825b] rounded-md p-6 relative transform scale-105 shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]">
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[#2b825b] text-white px-4 py-1 rounded-full text-xs font-bold">
+                <div className="bg-[var(--bg-primary)] border-2 border-[var(--color-accent-yellow)] rounded-md p-6 relative transform scale-105 shadow-pop squircle-lg">
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-4 py-1 rounded-full text-xs font-bold">
                     MOST POPULAR
                   </div>
                   <div className="flex items-center gap-3 mb-4">
-                    <Crown className="w-6 h-6 text-[#2b825b]" />
-                    <h3 className="text-xl font-bold text-[#141414] dark:text-[#f5f5f5]">
+                    <Crown className="w-6 h-6 text-[var(--color-accent-yellow)]" />
+                    <h3 className="text-xl font-bold text-[var(--text-primary)]">
                       Premium
                     </h3>
                   </div>
-                  <p className="text-3xl font-bold text-[#141414] dark:text-[#f5f5f5] mb-2">
+                  <p className="text-3xl font-bold text-[var(--text-primary)] mb-2">
                     ₦50,000
-                    <span className="text-sm font-normal text-[#6b6b6b] dark:text-[#a6a6a6]">
+                    <span className="text-sm font-normal text-[var(--text-secondary)]">
                       /month
                     </span>
                   </p>
-                  <p className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6] mb-6">
+                  <p className="text-sm text-[var(--text-secondary)] mb-6">
                     For established businesses
                   </p>
                   <ul className="space-y-3 mb-6">
-                    <li className="flex items-start gap-2 text-sm text-[#141414] dark:text-[#f5f5f5]">
-                      <span className="text-[#2b825b] font-bold">✓</span>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
                       Everything in Growth
                     </li>
-                    {/* ... rest of list items */}
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      Unlimited transactions
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      Advanced analytics & insights
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      Priority support
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      Custom category management
+                    </li>
                   </ul>
                   <Link href="/pricing?upgrade=premium">
-                    <button className="w-full bg-[#2b825b] text-white py-3 rounded-md font-semibold hover:bg-[#1e5d42] border-2 border-[#242424] dark:border-[#474747] shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all">
+                    <button className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] py-3 rounded-md font-semibold hover:bg-[var(--color-accent-yellow)]/90 border-2 border-[var(--border-color)] shadow-soft squircle-md transition-all">
                       Choose Premium
                     </button>
                   </Link>
                 </div>
 
                 {/* Elite Plan */}
-                <div className="bg-[#ffffff] dark:bg-[#121212] border-2 border-[#242424] dark:border-[#474747] rounded-md p-6 hover:border-purple-500 transition-all shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]">
+                <div className="bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-md p-6 hover:border-purple-500 transition-all shadow-soft squircle-lg">
                   <div className="flex items-center gap-3 mb-4">
                     <Sparkles className="w-6 h-6 text-purple-600" />
-                    <h3 className="text-xl font-bold text-[#141414] dark:text-[#f5f5f5]">
+                    <h3 className="text-xl font-bold text-[var(--text-primary)]">
                       Elite
                     </h3>
                   </div>
-                  <p className="text-3xl font-bold text-[#141414] dark:text-[#f5f5f5] mb-2">
+                  <p className="text-3xl font-bold text-[var(--text-primary)] mb-2">
                     ₦100,000
-                    <span className="text-sm font-normal text-[#6b6b6b] dark:text-[#a6a6a6]">
+                    <span className="text-sm font-normal text-[var(--text-secondary)]">
                       /month
                     </span>
                   </p>
-                  <p className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6] mb-6">
+                  <p className="text-sm text-[var(--text-secondary)] mb-6">
                     For large enterprises
                   </p>
                   <ul className="space-y-3 mb-6">
-                    <li className="flex items-start gap-2 text-sm text-[#141414] dark:text-[#f5f5f5]">
-                      <span className="text-[#2b825b] font-bold">✓</span>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
                       Everything in Premium
                     </li>
-                    {/* ... rest of list items */}
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      Dedicated account manager
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      Custom integrations & API access
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      24/7 phone support
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      Team collaboration features
+                    </li>
                   </ul>
                   <Link href="/pricing?upgrade=elite">
-                    <button className="w-full bg-purple-600 text-white py-3 rounded-md font-semibold hover:bg-purple-700 border-2 border-[#242424] dark:border-[#474747] shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all">
+                    <button className="w-full bg-purple-600 text-white py-3 rounded-md font-semibold hover:bg-purple-700 border-2 border-[var(--border-color)] shadow-soft squircle-md transition-all">
                       Contact Sales
                     </button>
                   </Link>
@@ -236,36 +277,81 @@ function BookkeepingPage() {
               </div>
 
               {/* Why Choose Bookkeeping Section */}
-              <div className="mt-12 bg-[#ffffff] dark:bg-[#121212] border-2 border-[#242424] dark:border-[#474747] rounded-md p-8 shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]">
-                <h3 className="text-xl font-bold text-[#141414] dark:text-[#f5f5f5] mb-4">
+              <div className="mt-12 bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-md p-8 shadow-soft squircle-lg">
+                <h3 className="text-xl font-bold text-[var(--text-primary)] mb-4">
                   Why Choose Zidwell Bookkeeping?
                 </h3>
                 <div className="grid md:grid-cols-3 gap-6">
                   <div>
-                    <h4 className="font-semibold text-[#141414] dark:text-[#f5f5f5] mb-2">
+                    <h4 className="font-semibold text-[var(--text-primary)] mb-2">
                       📊 Real-time Insights
                     </h4>
-                    <p className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">
+                    <p className="text-sm text-[var(--text-secondary)]">
                       Get instant visibility into your business finances with
                       interactive charts and reports
                     </p>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-[#141414] dark:text-[#f5f5f5] mb-2">
+                    <h4 className="font-semibold text-[var(--text-primary)] mb-2">
                       🔒 Bank-Level Security
                     </h4>
-                    <p className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">
+                    <p className="text-sm text-[var(--text-secondary)]">
                       Your financial data is encrypted and protected with
                       enterprise-grade security
                     </p>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-[#141414] dark:text-[#f5f5f5] mb-2">
+                    <h4 className="font-semibold text-[var(--text-primary)] mb-2">
                       📱 Access Anywhere
                     </h4>
-                    <p className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">
+                    <p className="text-sm text-[var(--text-secondary)]">
                       Manage your books on the go with our mobile-responsive
                       dashboard
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* FAQ Section */}
+              <div className="mt-12 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-md p-8 shadow-soft squircle-lg">
+                <h3 className="text-xl font-bold text-[var(--text-primary)] mb-4">
+                  Frequently Asked Questions
+                </h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+                      Can I switch plans?
+                    </h4>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Yes, you can upgrade or downgrade your plan at any time
+                      from your account settings.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+                      Is there a free trial?
+                    </h4>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Yes, we offer a 14-day free trial with full access to all
+                      features. No credit card required.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+                      Can I cancel anytime?
+                    </h4>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Absolutely. You can cancel your subscription at any time
+                      with no hidden fees.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+                      Is my data secure?
+                    </h4>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Yes, we use bank-level encryption and security measures
+                      to protect your financial data.
                     </p>
                   </div>
                 </div>
@@ -291,17 +377,17 @@ function BookkeepingPage() {
             <main className="flex-1 p-4 md:p-6 lg:p-8">
               <div className="max-w-6xl mx-auto">
                 {/* Trial Banner */}
-                <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-md shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]">
+                <div className="mb-6 p-4 bg-[var(color-accent-yellow)]/10 border-2 border-[var(color-accent-yellow)]/30 rounded-md shadow-soft squircle-lg">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                        <Clock className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      <div className="w-10 h-10 bg-[var(color-accent-yellow)]/20 rounded-full flex items-center justify-center">
+                        <Clock className="w-5 h-5 text-[var(color-accent-yellow)]" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-green-800 dark:text-green-400">
+                        <h3 className="font-semibold text-[var(color-accent-yellow)]">
                           Free Trial Active
                         </h3>
-                        <p className="text-sm text-green-600 dark:text-green-500">
+                        <p className="text-sm text-[var(color-accent-yellow)]/80">
                           You have {trialInfo.daysRemaining} days remaining in
                           your bookkeeping trial
                         </p>
@@ -309,7 +395,7 @@ function BookkeepingPage() {
                     </div>
                     <div className="flex gap-3">
                       <Link href="/pricing?upgrade=growth">
-                        <button className="bg-[#2b825b] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#1e5d42] border-2 border-[#242424] dark:border-[#474747] shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all">
+                        <button className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-4 py-2 rounded-md text-sm font-semibold hover:bg-[var(--color-accent-yellow)]/90 border-2 border-[var(--border-color)] shadow-soft squircle-md transition-all">
                           Upgrade to Keep Access
                         </button>
                       </Link>
@@ -318,13 +404,13 @@ function BookkeepingPage() {
 
                   {/* Progress bar for trial */}
                   <div className="mt-3">
-                    <div className="flex justify-between text-xs text-[#6b6b6b] dark:text-[#a6a6a6] mb-1">
+                    <div className="flex justify-between text-xs text-[var(--text-secondary)] mb-1">
                       <span>Day {14 - trialInfo.daysRemaining} of 14</span>
                       <span>{trialInfo.daysRemaining} days left</span>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                    <div className="w-full bg-[var(--bg-secondary)] rounded-full h-2 overflow-hidden">
                       <div
-                        className="bg-[#2b825b] h-2"
+                        className="bg-[var(--color-accent-yellow)] h-2 rounded-full transition-all duration-500"
                         style={{
                           width: `${((14 - trialInfo.daysRemaining) / 14) * 100}%`,
                         }}
@@ -349,11 +435,11 @@ function BookkeepingPage() {
       case "growth":
         return <Zap className="w-6 h-6 text-blue-600" />;
       case "premium":
-        return <Crown className="w-6 h-6 text-[#2b825b]" />;
+        return <Crown className="w-6 h-6 text-[var(--color-accent-yellow)]" />;
       case "elite":
         return <Sparkles className="w-6 h-6 text-purple-600" />;
       default:
-        return <Crown className="w-6 h-6 text-[#2b825b]" />;
+        return <Crown className="w-6 h-6 text-[var(--color-accent-yellow)]" />;
     }
   };
 
@@ -362,11 +448,11 @@ function BookkeepingPage() {
       case "growth":
         return "text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800";
       case "premium":
-        return "text-[#2b825b] bg-[#2b825b]/10 border-[#2b825b]";
+        return "text-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]";
       case "elite":
         return "text-purple-600 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800";
       default:
-        return "text-[#2b825b] bg-[#2b825b]/10 border-[#2b825b]";
+        return "text-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]";
     }
   };
 
@@ -383,15 +469,15 @@ function BookkeepingPage() {
             <div className="max-w-6xl mx-auto">
               {/* Premium Banner */}
               <div
-                className={`mb-6 p-4 rounded-md border-2 ${getPlanColor()} shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]`}
+                className={`mb-6 p-4 rounded-md border-2 shadow-soft squircle-lg ${getPlanColor()}`}
               >
                 <div className="flex items-center gap-3">
                   {getPlanIcon()}
                   <div>
-                    <h3 className="font-semibold capitalize text-[#141414] dark:text-[#f5f5f5]">
+                    <h3 className="font-semibold capitalize text-[var(--text-primary)]">
                       {userTier} Plan Active
                     </h3>
-                    <p className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">
+                    <p className="text-sm text-[var(--text-secondary)]">
                       You have full access to all bookkeeping features
                     </p>
                   </div>
