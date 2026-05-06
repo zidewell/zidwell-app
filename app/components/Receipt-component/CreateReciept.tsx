@@ -112,7 +112,7 @@ function CreateReceiptPage({
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedReceiptData, setSavedReceiptData] = useState<any>(null);
-  const [sendEmailAutomatically, setSendEmailAutomatically] = useState(true); // Add this state
+  const [sendEmailAutomatically, setSendEmailAutomatically] = useState(true);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -247,14 +247,12 @@ function CreateReceiptPage({
 
       setSeller(sellerInfo);
 
-      // Focus on seller name field on initial load
       setTimeout(() => {
         if (sellerNameRef.current) {
           sellerNameRef.current.focus();
         }
       }, 500);
 
-      // Only set unsaved changes if not initial load
       if (
         !isInitialLoad &&
         (sellerInfo.name || sellerInfo.email || sellerInfo.phone)
@@ -327,7 +325,9 @@ function CreateReceiptPage({
           icon: "warning",
           title: "Not Logged In",
           text: "You need to be logged in to load saved signatures.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
+          customClass: { popup: "squircle-lg" },
         });
         return;
       }
@@ -350,18 +350,22 @@ function CreateReceiptPage({
             icon: "success",
             title: "Signature Loaded",
             text: "Your saved signature has been loaded.",
-            confirmButtonColor: "#2b825b",
+            confirmButtonColor: "var(--color-accent-yellow)",
+            background: "var(--bg-primary)",
             timer: 2000,
             showConfirmButton: false,
+            customClass: { popup: "squircle-lg" },
           });
         } else {
           Swal.fire({
             icon: "info",
             title: "No Saved Signature",
             text: "No saved signature found. Please create a new one.",
-            confirmButtonColor: "#2b825b",
+            confirmButtonColor: "var(--color-accent-yellow)",
+            background: "var(--bg-primary)",
             timer: 2000,
             showConfirmButton: false,
+            customClass: { popup: "squircle-lg" },
           });
         }
       } else {
@@ -369,7 +373,9 @@ function CreateReceiptPage({
           icon: "error",
           title: "Load Failed",
           text: "Failed to load saved signature. Please try again.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
+          customClass: { popup: "squircle-lg" },
         });
       }
     } catch (error) {
@@ -377,7 +383,9 @@ function CreateReceiptPage({
         icon: "error",
         title: "Load Failed",
         text: "Failed to load saved signature. Please try again.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: { popup: "squircle-lg" },
       });
     }
   };
@@ -422,9 +430,11 @@ function CreateReceiptPage({
             icon: "success",
             title: "Signature Saved",
             text: "Your signature has been saved for future use.",
-            confirmButtonColor: "#2b825b",
+            confirmButtonColor: "var(--color-accent-yellow)",
+            background: "var(--bg-primary)",
             timer: 2000,
             showConfirmButton: false,
+            customClass: { popup: "squircle-lg" },
           });
         }
       } catch (error) {
@@ -432,7 +442,9 @@ function CreateReceiptPage({
           icon: "error",
           title: "Save Failed",
           text: "Failed to save signature. Please try again.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
+          customClass: { popup: "squircle-lg" },
         });
       }
     }
@@ -504,7 +516,6 @@ function CreateReceiptPage({
       if (result.success && result.drafts && result.drafts.length > 0) {
         setUserDrafts(result.drafts);
 
-        // Show draft prompt if form is empty
         if (
           !seller.name &&
           !receiver.name &&
@@ -525,10 +536,12 @@ function CreateReceiptPage({
               confirmButtonText: "Load Recent",
               denyButtonText: "View All Drafts",
               cancelButtonText: "Start Fresh",
-              confirmButtonColor: "#2b825b",
+              confirmButtonColor: "var(--color-accent-yellow)",
               cancelButtonColor: "#6b7280",
               denyButtonColor: "#3b82f6",
               width: 500,
+              background: "var(--bg-primary)",
+              customClass: { popup: "squircle-lg" },
             }).then((swalResult) => {
               if (swalResult.isConfirmed) {
                 const recentDraft = result.drafts[0];
@@ -550,7 +563,6 @@ function CreateReceiptPage({
 
   const loadDraftIntoForm = (draft: ReceiptDraft) => {
     try {
-      // Parse receipt_items if it's a string
       let receiptItems: any[] = [];
       if (typeof draft.receipt_items === "string") {
         try {
@@ -563,7 +575,6 @@ function CreateReceiptPage({
         receiptItems = draft.receipt_items;
       }
 
-      // Load items from draft.receipt_items
       if (receiptItems && receiptItems.length > 0) {
         const items = receiptItems.map((item: any) => ({
           id:
@@ -577,21 +588,18 @@ function CreateReceiptPage({
         setItems(items);
       }
 
-      // Set seller info
       setSeller({
         name: draft.initiator_name || draft.business_name || "",
         email: draft.initiator_email || "",
         phone: "",
       });
 
-      // Set receiver info
       setReceiver({
         name: draft.client_name || "",
         email: draft.client_email || "",
         phone: draft.client_phone || "",
       });
 
-      // LOAD SIGNATURE from draft data
       if (draft.seller_signature) {
         setSellerSignature(draft.seller_signature);
         setSaveSignatureForFuture(true);
@@ -599,7 +607,6 @@ function CreateReceiptPage({
         setSellerSignature("");
       }
 
-      // Try to extract receipt type from payment_for field
       if (draft.payment_for) {
         const typeMatch = draft.payment_for.toLowerCase();
         if (typeMatch.includes("product")) setReceiptType("product");
@@ -611,23 +618,22 @@ function CreateReceiptPage({
         else setReceiptType("general");
       }
 
-      // Set payment method if available
       if (draft.payment_method) {
         setPaymentMethod(draft.payment_method as any);
       }
 
-      // Set current draft ID for updating
       setCurrentDraftId(draft.id);
-
       setHasUnsavedChanges(false);
 
       Swal.fire({
         icon: "success",
         title: "Draft Loaded!",
         text: "Your receipt draft has been loaded successfully.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
         timer: 2000,
         showConfirmButton: false,
+        customClass: { popup: "squircle-lg" },
       });
     } catch (error) {
       console.error("Error loading draft:", error);
@@ -635,7 +641,9 @@ function CreateReceiptPage({
         icon: "error",
         title: "Error Loading Draft",
         text: "Failed to load draft data. Please try again.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: { popup: "squircle-lg" },
       });
     }
   };
@@ -688,13 +696,11 @@ function CreateReceiptPage({
       `,
       showConfirmButton: true,
       confirmButtonText: "Close",
-      confirmButtonColor: "#2b825b",
+      confirmButtonColor: "var(--color-accent-yellow)",
       width: 600,
-      background: document.documentElement.classList.contains("dark")
-        ? "#1f2937"
-        : "#ffffff",
+      background: "var(--bg-primary)",
+      customClass: { popup: "squircle-lg" },
       didOpen: () => {
-        // Add click handlers for loading drafts
         const draftElements = document.querySelectorAll("[data-draft-index]");
         draftElements.forEach((element) => {
           element.addEventListener("click", (e) => {
@@ -708,7 +714,6 @@ function CreateReceiptPage({
           });
         });
 
-        // Add delete handlers
         const deleteButtons = document.querySelectorAll("[data-delete-index]");
         deleteButtons.forEach((button) => {
           button.addEventListener("click", async (e) => {
@@ -727,13 +732,12 @@ function CreateReceiptPage({
               }"?`,
               icon: "warning",
               showCancelButton: true,
-              confirmButtonColor: "#2b825b",
+              confirmButtonColor: "var(--color-accent-yellow)",
               cancelButtonColor: "#6b7280",
               confirmButtonText: "Yes, delete it!",
               cancelButtonText: "Cancel",
-              background: document.documentElement.classList.contains("dark")
-                ? "#1f2937"
-                : "#ffffff",
+              background: "var(--bg-primary)",
+              customClass: { popup: "squircle-lg" },
             });
 
             if (result.isConfirmed) {
@@ -788,7 +792,9 @@ function CreateReceiptPage({
           icon: "warning",
           title: "Unauthorized",
           text: "You must be logged in to save a draft.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
+          customClass: { popup: "squircle-lg" },
         });
         setIsFormLocked(false);
         return;
@@ -804,7 +810,9 @@ function CreateReceiptPage({
           icon: "warning",
           title: "No Content",
           text: "Please add some content before saving as draft.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
+          customClass: { popup: "squircle-lg" },
         });
         setIsFormLocked(false);
         return;
@@ -849,15 +857,13 @@ function CreateReceiptPage({
         status: "draft",
         receipt_items: receipt_items,
         seller_signature: sellerSignature || null,
-        send_email_automatically: sendEmailAutomatically, // Add this field
+        send_email_automatically: sendEmailAutomatically,
       };
 
-      // Determine if we're creating new or updating existing
       let method = "POST";
       let endpoint = "/api/receipt/receipt-drafts";
 
       if (currentDraftId) {
-        // Update existing draft
         method = "PUT";
         payload.id = currentDraftId;
       }
@@ -882,7 +888,9 @@ function CreateReceiptPage({
         text: currentDraftId
           ? "Your receipt draft has been updated successfully."
           : "Your receipt draft has been saved successfully.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: { popup: "squircle-lg" },
       });
 
       setHasUnsavedChanges(false);
@@ -892,7 +900,9 @@ function CreateReceiptPage({
         icon: "error",
         title: "Failed to Save Draft",
         text: err.message || "An unexpected error occurred.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: { popup: "squircle-lg" },
       });
     } finally {
       setDraftLoading(false);
@@ -922,7 +932,6 @@ function CreateReceiptPage({
 
       toast.success("Draft deleted successfully");
 
-      // If we're deleting the current draft, reset the form
       if (currentDraftId === draftId) {
         setCurrentDraftId(null);
         resetForm();
@@ -983,7 +992,7 @@ function CreateReceiptPage({
         status: isDraft ? "draft" : "pending",
         receipt_items: items,
         seller_signature: sellerSignature || null,
-        send_email_automatically: sendEmailAutomatically, // Add this field
+        send_email_automatically: sendEmailAutomatically,
       };
 
       const endpoint = "/api/receipt/send-receipt";
@@ -1006,7 +1015,6 @@ function CreateReceiptPage({
       }
 
       if (!isDraft) {
-        // Store the complete receipt data for the modal
         const receiptData = {
           ...payload,
           id: result.receiptId || receiptId,
@@ -1048,7 +1056,6 @@ function CreateReceiptPage({
       setIsProcessing(true);
       setIsSubmitting(true);
 
-      // Create the receipt
       const result = await handleSaveReceipt(false);
 
       if (result.success) {
@@ -1062,7 +1069,6 @@ function CreateReceiptPage({
         setHasUnsavedChanges(false);
         setCurrentDraftId(null);
 
-        // Reset form
         setSeller({
           name: userData?.fullName
             ? `${userData.fullName}`
@@ -1094,21 +1100,20 @@ function CreateReceiptPage({
         icon: "error",
         title: "Processing Failed",
         text: "Failed to process your request. Please try again.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: { popup: "squircle-lg" },
       });
     }
   };
 
   const handleSubmit = async (isDraft: boolean = false) => {
-    // FIRST CHECK: If user has unlimited receipts (Premium, Growth, or Elite), always allow submission
     if (hasUnlimitedReceipts) {
-      // Skip all limit checks for unlimited users
       if (isDraft) {
         await handleSaveDraft();
         return;
       }
 
-      // For non-draft, proceed to validation and summary
       try {
         setIsSubmitting(true);
 
@@ -1126,12 +1131,11 @@ function CreateReceiptPage({
                 </ul>
               </div>
             `,
-            confirmButtonColor: "#2b825b",
+            confirmButtonColor: "var(--color-accent-yellow)",
             confirmButtonText: "OK",
             width: 500,
-            background: document.documentElement.classList.contains("dark")
-              ? "#1f2937"
-              : "#ffffff",
+            background: "var(--bg-primary)",
+            customClass: { popup: "squircle-lg" },
           });
           setIsSubmitting(false);
           return;
@@ -1144,7 +1148,9 @@ function CreateReceiptPage({
           icon: "error",
           title: "Submission Error",
           text: "An error occurred while processing your request.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
+          customClass: { popup: "squircle-lg" },
         });
       } finally {
         setIsSubmitting(false);
@@ -1152,7 +1158,6 @@ function CreateReceiptPage({
       return;
     }
 
-    // For Free and ZidLite users, check if they've reached the limit
     if (!hasUnlimitedReceipts) {
       if (receiptUsage.requiresUpgrade && !isDraft) {
         setShowUpgradePrompt(true);
@@ -1160,7 +1165,6 @@ function CreateReceiptPage({
       }
     }
 
-    // Prevent multiple submissions
     if (isSubmitting || isProcessing || draftLoading) {
       return;
     }
@@ -1187,12 +1191,11 @@ function CreateReceiptPage({
               </ul>
             </div>
           `,
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
           confirmButtonText: "OK",
           width: 500,
-          background: document.documentElement.classList.contains("dark")
-            ? "#1f2937"
-            : "#ffffff",
+          background: "var(--bg-primary)",
+          customClass: { popup: "squircle-lg" },
         });
         setIsSubmitting(false);
         return;
@@ -1205,7 +1208,9 @@ function CreateReceiptPage({
         icon: "error",
         title: "Submission Error",
         text: "An error occurred while processing your request.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: { popup: "squircle-lg" },
       });
     } finally {
       setIsSubmitting(false);
@@ -1215,17 +1220,14 @@ function CreateReceiptPage({
   const handleSummaryConfirm = () => {
     setShowReceiptSummary(false);
 
-    // If user has unlimited receipts, proceed directly
     if (hasUnlimitedReceipts) {
       processReceiptAndSubmit();
       return;
     }
 
-    // For free/ZidLite users with remaining receipts, proceed
     if (hasFreeReceiptAccess()) {
       processReceiptAndSubmit();
     } else {
-      // This should not happen as we check in handleSubmit, but just in case
       setShowUpgradePrompt(true);
     }
   };
@@ -1240,7 +1242,7 @@ function CreateReceiptPage({
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#2b825b", "#1e5f43", "#3a9f72", "#ffffff", "#fbbf24"],
+      colors: ["#FDC020", "#191919", "#00B64F", "#ffffff"],
     });
   };
 
@@ -1255,7 +1257,9 @@ function CreateReceiptPage({
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot clear form while submission is in progress.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: { popup: "squircle-lg" },
       });
       return;
     }
@@ -1265,13 +1269,12 @@ function CreateReceiptPage({
       text: "This will remove all current form data including signature.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#2b825b",
+      confirmButtonColor: "var(--color-accent-yellow)",
       cancelButtonColor: "#6b7280",
       confirmButtonText: "Clear",
       cancelButtonText: "Cancel",
-      background: document.documentElement.classList.contains("dark")
-        ? "#1f2937"
-        : "#ffffff",
+      background: "var(--bg-primary)",
+      customClass: { popup: "squircle-lg" },
     }).then((result) => {
       if (result.isConfirmed) {
         setSeller({
@@ -1297,11 +1300,10 @@ function CreateReceiptPage({
         setCurrentDraftId(null);
         setHasUnsavedChanges(false);
         setSaveSignatureForFuture(false);
-        setSendEmailAutomatically(true); // Reset email toggle
+        setSendEmailAutomatically(true);
 
         toast.success("Form has been cleared successfully.");
 
-        // Focus on seller name field after reset
         setTimeout(() => {
           if (sellerNameRef.current) {
             sellerNameRef.current.focus();
@@ -1353,9 +1355,8 @@ function CreateReceiptPage({
     );
   };
 
-  // Custom CSS for better focus styling
   const customFocusStyle =
-    "focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:border-primary transition-all duration-200";
+    "focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:ring-offset-2 focus:border-[var(--color-accent-yellow)] transition-all duration-200 outline-none";
 
   // Get tier display name
   const getTierDisplayName = () => {
@@ -1370,15 +1371,15 @@ function CreateReceiptPage({
     <>
       {/* Upgrade Prompt Modal - Only show for free and ZidLite tiers */}
       {showUpgradePrompt && !hasUnlimitedReceipts && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl max-w-md w-full p-6">
-            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Crown className="w-6 h-6 text-red-600 dark:text-red-400" />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--bg-primary)] rounded-xl max-w-md w-full p-6 shadow-pop border border-[var(--border-color)] squircle-lg">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Crown className="w-6 h-6 text-red-600" />
             </div>
-            <h3 className="text-xl font-bold text-center mb-2 dark:text-white">
+            <h3 className="text-xl font-bold text-center mb-2 text-[var(--text-primary)]">
               Upgrade Required
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
+            <p className="text-[var(--text-secondary)] text-center mb-6">
               {isZidLiteUser
                 ? "You've used all your ZidLite receipts. Upgrade to continue creating receipts with unlimited access!"
                 : "You've used all your free receipts. Upgrade to continue creating receipts with unlimited access!"}
@@ -1386,13 +1387,13 @@ function CreateReceiptPage({
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                 onClick={() => setShowUpgradePrompt(false)}
               >
                 Cancel
               </Button>
               <Link href="/pricing?upgrade=growth" className="flex-1">
-                <Button className="w-full bg-primary hover:bg-primary-dark text-white">
+                <Button className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
                   View Plans
                 </Button>
               </Link>
@@ -1432,35 +1433,35 @@ function CreateReceiptPage({
           {/* Usage Warning Banner - Only show for free and ZidLite tiers */}
           {!hasUnlimitedReceipts && !receiptUsage.isChecking && (
             <div
-              className={`mb-4 p-3 rounded-lg border ${
+              className={`mb-4 p-3 rounded-lg border max-w-3xl mx-auto squircle-md ${
                 receiptUsage.requiresUpgrade
-                  ? "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
+                  ? "bg-red-50 border-red-200"
                   : typeof receiptUsage.remaining === "number" &&
                       receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
-                    ? "bg-green-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800"
-                    : "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
-              } max-w-3xl mx-auto`}
+                    ? "bg-yellow-50 border-yellow-200"
+                    : "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]"
+              }`}
             >
               <div className="flex items-start gap-3">
                 <AlertCircle
                   className={`w-5 h-5 mt-0.5 ${
                     receiptUsage.requiresUpgrade
-                      ? "text-red-500 dark:text-red-400"
+                      ? "text-red-500"
                       : typeof receiptUsage.remaining === "number" &&
                           receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
-                        ? "text-yellow-500 dark:text-yellow-400"
-                        : "text-green-500 dark:text-green-400"
+                        ? "text-yellow-500"
+                        : "text-[var(--color-accent-yellow)]"
                   }`}
                 />
                 <div className="flex-1">
                   <p
                     className={`font-medium ${
                       receiptUsage.requiresUpgrade
-                        ? "text-red-700 dark:text-red-300"
+                        ? "text-red-700"
                         : typeof receiptUsage.remaining === "number" &&
                             receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
-                          ? "text-yellow-700 dark:text-yellow-300"
-                          : "text-green-700 dark:text-green-300"
+                          ? "text-yellow-700"
+                          : "text-[var(--color-accent-yellow)]"
                     }`}
                   >
                     {receiptUsage.requiresUpgrade
@@ -1469,7 +1470,7 @@ function CreateReceiptPage({
                         : "Free receipts exhausted - Upgrade required"
                       : `${receiptUsage.remaining} receipt${receiptUsage.remaining !== 1 ? "s" : ""} remaining`}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  <p className="text-sm text-[var(--text-secondary)] mt-1">
                     {receiptUsage.requiresUpgrade
                       ? "Upgrade to Growth plan or higher for unlimited receipts."
                       : `You have ${receiptUsage.remaining} ${isZidLiteUser ? "ZidLite" : "free"} ${receiptUsage.remaining === 1 ? "receipt" : "receipts"} left.`}
@@ -1484,23 +1485,23 @@ function CreateReceiptPage({
             <div
               className={`mb-4 p-3 ${
                 isEliteUser
-                  ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800"
+                  ? "bg-purple-50 border-purple-200"
                   : isPremiumUser
-                    ? "bg-primary-light-bg border-primary dark:bg-primary-light-bg"
+                    ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]"
                     : isGrowthUser
-                      ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
-                      : "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800"
-              } border rounded-lg max-w-3xl mx-auto`}
+                      ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]"
+                      : "bg-blue-50 border-blue-200"
+              } border rounded-lg max-w-3xl mx-auto squircle-md`}
             >
               <p
                 className={`${
                   isEliteUser
-                    ? "text-purple-600 dark:text-purple-400"
+                    ? "text-purple-600"
                     : isPremiumUser
-                      ? "text-primary dark:text-primary"
+                      ? "text-[var(--color-accent-yellow)]"
                       : isGrowthUser
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-blue-600 dark:text-blue-400"
+                        ? "text-[var(--color-accent-yellow)]"
+                        : "text-blue-600"
                 } font-medium flex items-center gap-2 text-sm`}
               >
                 <span
@@ -1508,9 +1509,9 @@ function CreateReceiptPage({
                     isEliteUser
                       ? "bg-purple-600"
                       : isPremiumUser
-                        ? "bg-primary"
+                        ? "bg-[var(--color-accent-yellow)]"
                         : isGrowthUser
-                          ? "bg-green-600"
+                          ? "bg-[var(--color-accent-yellow)]"
                           : "bg-blue-600"
                   } text-white px-2 py-0.5 rounded text-xs uppercase`}
                 >
@@ -1531,12 +1532,18 @@ function CreateReceiptPage({
             }
             className="w-full mb-6"
           >
-            <TabsList className="grid w-full grid-cols-2 dark:bg-gray-800">
-              <TabsTrigger value="create" className="flex items-center gap-2">
+            <TabsList className="grid w-full grid-cols-2 bg-[var(--bg-secondary)] p-1 rounded-xl">
+              <TabsTrigger 
+                value="create" 
+                className="flex items-center gap-2 data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--color-accent-yellow)] text-[var(--text-secondary)] squircle-md"
+              >
                 <FileText className="w-4 h-4" />
                 Create Receipt
               </TabsTrigger>
-              <TabsTrigger value="preview" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="preview" 
+                className="flex items-center gap-2 data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--color-accent-yellow)] text-[var(--text-secondary)] squircle-md"
+              >
                 <Eye className="w-4 h-4" />
                 Preview Receipt
               </TabsTrigger>
@@ -1555,13 +1562,15 @@ function CreateReceiptPage({
                           icon: "warning",
                           title: "Form is Processing",
                           text: "Cannot navigate away while submission is in progress.",
-                          confirmButtonColor: "#2b825b",
+                          confirmButtonColor: "var(--color-accent-yellow)",
+                          background: "var(--bg-primary)",
+                          customClass: { popup: "squircle-lg" },
                         });
                         return;
                       }
                       router.back();
                     }}
-                    className="text-primary hover:bg-primary/10"
+                    className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
                     disabled={isProcessing}
                   >
                     <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1569,10 +1578,10 @@ function CreateReceiptPage({
                   </Button>
 
                   <div>
-                    <h1 className="text-2xl font-bold text-foreground">
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">
                       Create Receipt
                     </h1>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-[var(--text-secondary)]">
                       Generate a receipt for your transaction
                     </p>
                   </div>
@@ -1584,11 +1593,11 @@ function CreateReceiptPage({
                       variant="outline"
                       className={
                         receiptUsage.requiresUpgrade
-                          ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
+                          ? "bg-red-50 text-red-700 border-red-200"
                           : typeof receiptUsage.remaining === "number" &&
                               receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
-                            ? "bg-green-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800"
-                            : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                            ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                            : "bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]"
                       }
                     >
                       {receiptUsage.requiresUpgrade
@@ -1599,7 +1608,7 @@ function CreateReceiptPage({
                   {hasUnlimitedReceipts && (
                     <Badge
                       variant="outline"
-                      className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800"
+                      className="bg-purple-50 text-purple-700 border-purple-200"
                     >
                       Unlimited
                     </Badge>
@@ -1607,7 +1616,7 @@ function CreateReceiptPage({
                   {isZidLiteUser && !hasUnlimitedReceipts && (
                     <Badge
                       variant="outline"
-                      className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+                      className="bg-blue-50 text-blue-700 border-blue-200"
                     >
                       ZidLite • {receiptUsage.remaining} left
                     </Badge>
@@ -1615,7 +1624,7 @@ function CreateReceiptPage({
                   {currentDraftId && (
                     <Badge
                       variant="outline"
-                      className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800"
+                      className="bg-purple-50 text-purple-700 border-purple-200"
                     >
                       Editing Draft
                     </Badge>
@@ -1623,7 +1632,7 @@ function CreateReceiptPage({
                   {hasUnsavedChanges && (
                     <Badge
                       variant="outline"
-                      className="bg-green-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800"
+                      className="bg-yellow-50 text-yellow-700 border-yellow-200"
                     >
                       Unsaved changes
                     </Badge>
@@ -1631,7 +1640,7 @@ function CreateReceiptPage({
                   {sellerSignature && (
                     <Badge
                       variant="outline"
-                      className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                      className="bg-[var(--color-lemon-green)]/20 text-[var(--color-lemon-green)] border-[var(--color-lemon-green)]"
                     >
                       ✓ Signed
                     </Badge>
@@ -1640,7 +1649,7 @@ function CreateReceiptPage({
               </div>
 
               {/* Create Receipt Form */}
-              <div className="md:max-w-3xl mx-auto bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border dark:border-gray-700">
+              <div className="md:max-w-3xl mx-auto bg-[var(--bg-primary)] p-6 rounded-lg shadow-soft border border-[var(--border-color)] squircle-lg">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -1662,8 +1671,8 @@ function CreateReceiptPage({
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.1s" }}
                   >
-                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-primary text-white">
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
                         1
                       </span>
                       Seller Information
@@ -1672,7 +1681,7 @@ function CreateReceiptPage({
                       <div className="sm:col-span-2">
                         <Label
                           htmlFor="seller-name"
-                          className="flex items-center gap-1"
+                          className="flex items-center gap-1 text-[var(--text-secondary)]"
                         >
                           Business / Individual Name{" "}
                           <span className="text-red-500">*</span>
@@ -1685,14 +1694,14 @@ function CreateReceiptPage({
                           onChange={(e) =>
                             setSeller({ ...seller, name: e.target.value })
                           }
-                          className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 ${customFocusStyle}`}
+                          className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
                           disabled={isFormLocked || isProcessing}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="seller-phone">Phone (Optional)</Label>
+                        <Label htmlFor="seller-phone" className="text-[var(--text-secondary)]">Phone (Optional)</Label>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
+                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-4 w-4" />
                           <Input
                             id="seller-phone"
                             ref={sellerPhoneRef}
@@ -1701,7 +1710,7 @@ function CreateReceiptPage({
                             onChange={(e) =>
                               setSeller({ ...seller, phone: e.target.value })
                             }
-                            className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 pl-10 ${customFocusStyle}`}
+                            className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pl-10 ${customFocusStyle}`}
                             disabled={isFormLocked || isProcessing}
                           />
                         </div>
@@ -1709,12 +1718,12 @@ function CreateReceiptPage({
                       <div>
                         <Label
                           htmlFor="seller-email"
-                          className="flex items-center gap-1"
+                          className="flex items-center gap-1 text-[var(--text-secondary)]"
                         >
                           Email <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
+                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-4 w-4" />
                           <Input
                             id="seller-email"
                             ref={sellerEmailRef}
@@ -1724,7 +1733,7 @@ function CreateReceiptPage({
                             onChange={(e) =>
                               setSeller({ ...seller, email: e.target.value })
                             }
-                            className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 pl-10 ${customFocusStyle}`}
+                            className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pl-10 ${customFocusStyle}`}
                             disabled={isFormLocked || isProcessing}
                           />
                         </div>
@@ -1737,8 +1746,8 @@ function CreateReceiptPage({
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.15s" }}
                   >
-                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-primary text-white">
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
                         2
                       </span>
                       Receiver Information
@@ -1748,7 +1757,7 @@ function CreateReceiptPage({
                       <div>
                         <Label
                           htmlFor="receiver-name"
-                          className="flex items-center gap-1"
+                          className="flex items-center gap-1 text-[var(--text-secondary)]"
                         >
                           Name (Individual or Business){" "}
                           <span className="text-red-500">*</span>
@@ -1761,18 +1770,16 @@ function CreateReceiptPage({
                           onChange={(e) =>
                             setReceiver({ ...receiver, name: e.target.value })
                           }
-                          className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 ${customFocusStyle}`}
+                          className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
                           disabled={isFormLocked || isProcessing}
                         />
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="receiver-email">
-                            Email (Optional)
-                          </Label>
+                          <Label htmlFor="receiver-email" className="text-[var(--text-secondary)]">Email (Optional)</Label>
                           <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
+                            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-4 w-4" />
                             <Input
                               id="receiver-email"
                               ref={receiverEmailRef}
@@ -1785,7 +1792,7 @@ function CreateReceiptPage({
                                   email: e.target.value,
                                 })
                               }
-                              className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 pl-10 ${customFocusStyle}`}
+                              className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pl-10 ${customFocusStyle}`}
                               disabled={isFormLocked || isProcessing}
                             />
                           </div>
@@ -1800,11 +1807,9 @@ function CreateReceiptPage({
                         </div>
 
                         <div>
-                          <Label htmlFor="receiver-phone">
-                            Phone (Optional)
-                          </Label>
+                          <Label htmlFor="receiver-phone" className="text-[var(--text-secondary)]">Phone (Optional)</Label>
                           <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
+                            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-4 w-4" />
                             <Input
                               id="receiver-phone"
                               ref={receiverPhoneRef}
@@ -1816,7 +1821,7 @@ function CreateReceiptPage({
                                   phone: e.target.value,
                                 })
                               }
-                              className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 pl-10 ${customFocusStyle}`}
+                              className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pl-10 ${customFocusStyle}`}
                               disabled={isFormLocked || isProcessing}
                             />
                           </div>
@@ -1830,8 +1835,8 @@ function CreateReceiptPage({
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.2s" }}
                   >
-                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-primary text-white">
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
                         3
                       </span>
                       Transaction Details
@@ -1844,10 +1849,10 @@ function CreateReceiptPage({
 
                     <div className="p-4">
                       <div className="flex justify-between items-center">
-                        <span className="text-lg text-muted-foreground font-semibold">
+                        <span className="text-lg text-[var(--text-secondary)] font-semibold">
                           Total
                         </span>
-                        <span className="text-2xl font-bold text-primary">
+                        <span className="text-2xl font-bold text-[var(--color-accent-yellow)]">
                           ₦
                           {calculateTotal().toLocaleString("en-NG", {
                             minimumFractionDigits: 2,
@@ -1858,7 +1863,7 @@ function CreateReceiptPage({
                     </div>
 
                     <div className="pt-2">
-                      <Label htmlFor="payment-method">Payment Method</Label>
+                      <Label htmlFor="payment-method" className="text-[var(--text-secondary)]">Payment Method</Label>
                       <Select
                         value={paymentMethod}
                         onValueChange={(v) =>
@@ -1867,15 +1872,13 @@ function CreateReceiptPage({
                         disabled={isFormLocked || isProcessing}
                       >
                         <SelectTrigger
-                          className={`mt-1.5 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 ${customFocusStyle}`}
+                          className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
                         >
                           <SelectValue placeholder="Select payment method" />
                         </SelectTrigger>
-                        <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                        <SelectContent className="bg-[var(--bg-primary)] border border-[var(--border-color)]">
                           <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="transfer">
-                            Bank Transfer
-                          </SelectItem>
+                          <SelectItem value="transfer">Bank Transfer</SelectItem>
                           <SelectItem value="card">Card</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
@@ -1888,8 +1891,8 @@ function CreateReceiptPage({
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.25s" }}
                   >
-                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-primary text-white">
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
                         4
                       </span>
                       Your Signature
@@ -1903,16 +1906,16 @@ function CreateReceiptPage({
                     />
 
                     {/* Toggle Button for Saving Signature */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] squircle-md">
                       <div className="flex items-center space-x-3">
-                        <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                          <Save className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                          <Save className="h-4 w-4 text-blue-600" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          <p className="text-sm font-medium text-[var(--text-primary)]">
                             Save this signature for future use
                           </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <p className="text-xs text-[var(--text-secondary)]">
                             Your signature will be securely stored
                           </p>
                         </div>
@@ -1921,36 +1924,36 @@ function CreateReceiptPage({
                         checked={saveSignatureForFuture}
                         onCheckedChange={handleSaveSignatureToggle}
                         disabled={!sellerSignature || isProcessing}
-                        className="data-[state=checked]:bg-primary"
+                        className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
                       />
                     </div>
                   </div>
 
                   {/* Email Automation Toggle */}
                   <div
-                    className="space-y-4 animate-fade-in border-t border-gray-200 dark:border-gray-700 pt-6"
+                    className="space-y-4 animate-fade-in border-t border-[var(--border-color)] pt-6"
                     style={{ animationDelay: "0.3s" }}
                   >
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] squircle-md">
                       <div className="flex items-center space-x-3">
-                        <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                        <div className="h-8 w-8 rounded-full bg-[var(--color-lemon-green)]/20 flex items-center justify-center">
                           {sendEmailAutomatically ? (
-                            <Mail className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            <Mail className="h-4 w-4 text-[var(--color-lemon-green)]" />
                           ) : (
-                            <Mail className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                            <Mail className="h-4 w-4 text-[var(--text-secondary)]" />
                           )}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          <p className="text-sm font-medium text-[var(--text-primary)]">
                             Send receipt automatically to client
                           </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <p className="text-xs text-[var(--text-secondary)]">
                             {sendEmailAutomatically
                               ? "An email will be sent to the client with the receipt link"
                               : "You'll need to share the receipt link manually with the client"}
                           </p>
                           {sendEmailAutomatically && !receiver.email && (
-                            <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+                            <p className="text-xs text-yellow-600 mt-1">
                               ⚠️ Client email is required for automatic email sending
                             </p>
                           )}
@@ -1960,7 +1963,7 @@ function CreateReceiptPage({
                         checked={sendEmailAutomatically}
                         onCheckedChange={setSendEmailAutomatically}
                         disabled={isProcessing}
-                        className="data-[state=checked]:bg-primary"
+                        className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
                       />
                     </div>
                   </div>
@@ -1977,7 +1980,7 @@ function CreateReceiptPage({
                         isFormLocked ||
                         isSubmitting
                       }
-                      className="flex-1 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                      className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 squircle-md"
                     >
                       {draftLoading ? (
                         <>
@@ -1995,7 +1998,7 @@ function CreateReceiptPage({
                       type="submit"
                       variant="default"
                       size="lg"
-                      className={`flex-1 bg-primary hover:bg-primary-dark text-white focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
+                      className={`flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 focus:ring-2 focus:ring-offset-2 focus:ring-[var(--color-accent-yellow)] squircle-md`}
                       disabled={
                         isProcessing ||
                         isSubmitting ||
@@ -2009,15 +2012,15 @@ function CreateReceiptPage({
 
                   {/* Upgrade Required Warning */}
                   {receiptUsage.requiresUpgrade && !hasUnlimitedReceipts && (
-                    <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg squircle-md">
                       <div className="flex items-start gap-3">
-                        <Crown className="h-5 w-5 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
+                        <Crown className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
                         <div>
-                          <h3 className="font-medium text-red-800 dark:text-red-300">
+                          <h3 className="font-medium text-red-800">
                             {isZidLiteUser ? "ZidLite" : "Free"} Receipts
                             Exhausted
                           </h3>
-                          <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                          <p className="text-sm text-red-700 mt-1">
                             {isZidLiteUser
                               ? "You've used all your ZidLite receipts. Upgrade to Growth plan for unlimited receipts."
                               : "You've used all your free receipts. Upgrade to Growth plan for unlimited receipts."}
@@ -2026,7 +2029,7 @@ function CreateReceiptPage({
                             <Link href="/pricing?upgrade=growth">
                               <Button
                                 size="sm"
-                                className="bg-primary hover:bg-primary-dark text-white"
+                                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-sm"
                               >
                                 Upgrade Now
                               </Button>
@@ -2053,13 +2056,15 @@ function CreateReceiptPage({
                           icon: "warning",
                           title: "Form is Processing",
                           text: "Cannot navigate away while submission is in progress.",
-                          confirmButtonColor: "#2b825b",
+                          confirmButtonColor: "var(--color-accent-yellow)",
+                          background: "var(--bg-primary)",
+                          customClass: { popup: "squircle-lg" },
                         });
                         return;
                       }
                       router.back();
                     }}
-                    className="text-primary hover:bg-primary/10"
+                    className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
                     disabled={isProcessing}
                   >
                     <ArrowLeft className="w-4 h-4 mr-2" />
@@ -2067,10 +2072,10 @@ function CreateReceiptPage({
                   </Button>
 
                   <div>
-                    <h1 className="text-2xl font-bold text-foreground">
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">
                       Receipt Preview
                     </h1>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-[var(--text-secondary)]">
                       Live preview of your receipt as you fill out the form
                     </p>
                   </div>
@@ -2079,14 +2084,14 @@ function CreateReceiptPage({
                 <div className="flex items-center gap-2">
                   <Badge
                     variant="outline"
-                    className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+                    className="bg-blue-50 text-blue-700 border-blue-200"
                   >
                     Live Preview
                   </Badge>
                   {isProcessing && (
                     <Badge
                       variant="outline"
-                      className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
+                      className="bg-red-50 text-red-700 border-red-200"
                     >
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                       Generating...
@@ -2096,8 +2101,6 @@ function CreateReceiptPage({
               </div>
 
               <div className="space-y-6">
-               
-
                 <ReceiptPreview
                   receiptType={receiptType}
                   seller={seller}
@@ -2110,8 +2113,8 @@ function CreateReceiptPage({
                 />
 
                 {/* Action Buttons */}
-                <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">
-                  <div className="text-sm text-muted-foreground">
+                <div className="flex justify-between items-center pt-4 border-t border-[var(--border-color)]">
+                  <div className="text-sm text-[var(--text-secondary)]">
                     <p>
                       Switch to the "Create Receipt" tab to edit your receipt
                     </p>
@@ -2119,7 +2122,7 @@ function CreateReceiptPage({
                   <Button
                     variant="outline"
                     onClick={() => setActiveTab("create")}
-                    className="border-primary text-primary hover:bg-primary/10 dark:border-primary dark:text-primary"
+                    className="border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 squircle-md"
                   >
                     <EyeOff className="h-4 w-4 mr-2" />
                     Back to Editor
@@ -2142,7 +2145,7 @@ export default function CreateReceipt({
     <Suspense
       fallback={
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-accent-yellow)]"></div>
         </div>
       }
     >

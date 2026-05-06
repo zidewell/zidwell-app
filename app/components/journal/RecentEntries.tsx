@@ -6,6 +6,7 @@ import { Button } from "../ui/button";
 import { useJournal } from "@/app/context/JournalContext";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import Swal from 'sweetalert2';
 
 interface RecentEntriesProps {
   onEdit?: (entry: any) => void;
@@ -67,23 +68,24 @@ const getTransactionIcon = (walletTransactionType: string | undefined, entryType
   if (type === 'cable') return <Tv className="h-5 w-5" />;
   if (type === 'bill_payment') return <Home className="h-5 w-5" />;
   if (type === 'purchase') return <ShoppingBag className="h-5 w-5" />;
-  if (type === 'food' || type === 'restaurant') return <Utensils className="h-5 w-5" />;
+  if (type === 'subscription') return <CreditCard className="h-5 w-5" />;
+  if (type === 'fee' || type === 'charge') return <AlertCircle className="h-5 w-5" />;
   
   return <ArrowUpRight className="h-5 w-5" />;
 };
+
+// AlertCircle icon for fees
+const AlertCircle = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
 
 // Get icon color based on transaction type
 const getIconColor = (type: string) => {
   if (type === 'income') return "var(--color-lemon-green)";
   return "var(--destructive)";
 };
-
-// Helper to get icon component (need to add Utensils)
-const Utensils = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l2 2m0 0l2 2M5 5l2-2m-2 2l2 2m6-3a4 4 0 00-4 4v6a2 2 0 002 2h2a2 2 0 002-2v-6a4 4 0 00-4-4z" />
-  </svg>
-);
 
 export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   const { unifiedEntries, categories, deleteEntry, refetch, updateWalletEntry } = useJournal();
@@ -106,8 +108,59 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   };
 
   const handleDelete = async (entry: any) => {
-    if (confirm("Are you sure you want to delete this entry?")) {
-      await deleteEntry(entry.id);
+    // Show sweet alert confirmation
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      html: `You are about to delete this transaction:<br/><strong>${getDisplayText(entry)}</strong><br/>Amount: ${formatCurrency(entry.amount)}`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: 'var(--destructive)',
+      cancelButtonColor: 'var(--text-secondary)',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+      background: 'var(--bg-primary)',
+      customClass: {
+        popup: 'squircle-lg',
+        title: 'text-[var(--text-primary)]',
+        htmlContainer: 'text-[var(--text-secondary)]',
+      }
+    });
+
+    if (result.isConfirmed) {
+      if (entry.source === 'wallet') {
+        // For wallet entries, just hide them
+        await deleteEntry(entry.id);
+        await Swal.fire({
+          title: 'Hidden!',
+          text: 'Transaction has been hidden from your journal.',
+          icon: 'success',
+          confirmButtonColor: 'var(--color-accent-yellow)',
+          background: 'var(--bg-primary)',
+          timer: 2000,
+          showConfirmButton: true,
+          customClass: {
+            popup: 'squircle-lg',
+            title: 'text-[var(--text-primary)]',
+            htmlContainer: 'text-[var(--text-secondary)]',
+          }
+        });
+      } else {
+        await deleteEntry(entry.id);
+        await Swal.fire({
+          title: 'Deleted!',
+          text: 'Transaction has been deleted successfully.',
+          icon: 'success',
+          confirmButtonColor: 'var(--color-accent-yellow)',
+          background: 'var(--bg-primary)',
+          timer: 2000,
+          showConfirmButton: true,
+          customClass: {
+            popup: 'squircle-lg',
+            title: 'text-[var(--text-primary)]',
+            htmlContainer: 'text-[var(--text-secondary)]',
+          }
+        });
+      }
       await refetch();
     }
   };
@@ -129,6 +182,22 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
     
     setShowEditDialog(false);
     setEditingEntry(null);
+    
+    await Swal.fire({
+      title: 'Updated!',
+      text: 'Category has been updated successfully.',
+      icon: 'success',
+      confirmButtonColor: 'var(--color-accent-yellow)',
+      background: 'var(--bg-primary)',
+      timer: 1500,
+      showConfirmButton: true,
+      customClass: {
+        popup: 'squircle-lg',
+        title: 'text-[var(--text-primary)]',
+        htmlContainer: 'text-[var(--text-secondary)]',
+      }
+    });
+    
     await refetch();
   };
 
@@ -162,18 +231,14 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
         {visibleEntries.map((entry) => {
           const isWalletEntry = entry.source === 'wallet';
           const displayText = getDisplayText(entry);
-          // Use the transaction type to determine the display category name
           const displayCategoryName = getDisplayCategoryName(entry.walletTransactionType, entry.type);
           const icon = getTransactionIcon(entry.walletTransactionType, entry.type);
           const iconColor = getIconColor(entry.type);
-          
-          // Try to find actual category from categories list (for edit dialog)
-          const actualCategory = categories.find(c => c.id === entry.categoryId);
 
           return (
             <div
               key={entry.id}
-              className="flex items-center gap-4 p-4 rounded-xl border shadow-soft hover:shadow-pop transition-shadow group bg-[var(--bg-primary)] border-[var(--border-color)] squircle-lg"
+              className="flex items-center gap-4 p-4 rounded-xl border shadow-soft hover:shadow-pop transition-shadow bg-[var(--bg-primary)] border-[var(--border-color)] squircle-lg"
             >
               <div
                 className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
@@ -186,7 +251,6 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  {/* Display category name based on transaction type */}
                   <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
                     {displayCategoryName}
                   </span>
@@ -223,20 +287,23 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                 {formatCurrency(entry.amount)}
               </p>
 
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Buttons always visible */}
+              <div className="flex gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-[var(--color-accent-yellow)]"
+                  className="h-8 w-8 text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
                   onClick={() => handleEditCategory(entry)}
+                  title="Edit Category"
                 >
                   <Edit2 className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-[var(--text-secondary)]"
+                  className="h-8 w-8 text-[var(--destructive)] hover:bg-[var(--bg-secondary)]"
                   onClick={() => handleDelete(entry)}
+                  title="Delete Entry"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -251,7 +318,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
             <button
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="px-8 py-2 font-medium rounded-md transition-colors text-sm flex items-center bg-[var(--bg-secondary)] text-[var(--color-accent-yellow)] border border-[var(--border-color)] squircle-md"
+              className="px-8 py-2 font-medium rounded-md transition-colors text-sm flex items-center bg-[var(--bg-secondary)] text-[var(--color-accent-yellow)] border border-[var(--border-color)] squircle-md hover:bg-[var(--bg-secondary)]/80"
             >
               {isLoadingMore ? (
                 <>

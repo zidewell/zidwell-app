@@ -53,9 +53,7 @@ export const ReceiptSignaturePanel = ({
   onSignatureComplete,
   onCancel,
 }: ReceiptSignaturePanelProps) => {
-  const [step, setStep] = useState<"verification" | "signature" | "review">(
-    "verification",
-  );
+  const [step, setStep] = useState<"verification" | "signature" | "review">("verification");
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [typedName, setTypedName] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -67,16 +65,14 @@ export const ReceiptSignaturePanel = ({
   const [codeSent, setCodeSent] = useState(false);
   const [sendCooldown, setSendCooldown] = useState(0);
   const [signatureMode, setSignatureMode] = useState<"draw" | "upload">("draw");
-  const [storedVerificationCode, setStoredVerificationCode] =
-    useState<string>("");
+  const [storedVerificationCode, setStoredVerificationCode] = useState<string>("");
 
-  // Confetti function
   const triggerConfetti = () => {
     confetti({
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#2b825b", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: ["#FDC020", "#191919", "#00B64F", "#ffffff"],
     });
 
     setTimeout(() => {
@@ -85,14 +81,14 @@ export const ReceiptSignaturePanel = ({
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ["#2b825b", "#ffd700", "#ffed4e"],
+        colors: ["#FDC020", "#191919", "#00B64F"],
       });
       confetti({
         particleCount: 80,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ["#2b825b", "#ffd700", "#ffed4e"],
+        colors: ["#FDC020", "#191919", "#00B64F"],
       });
     }, 150);
 
@@ -101,19 +97,17 @@ export const ReceiptSignaturePanel = ({
         particleCount: 100,
         spread: 100,
         origin: { y: 0.8 },
-        colors: ["#2b825b", "#ffd700", "#ffed4e"],
+        colors: ["#FDC020", "#191919", "#00B64F"],
       });
     }, 300);
   };
 
-  // Initialize with signee name
   useEffect(() => {
     if (signeeName) {
       setTypedName(signeeName);
     }
   }, [signeeName]);
 
-  // Handle cooldown timer for sending verification code
   useEffect(() => {
     if (sendCooldown > 0) {
       const timer = setInterval(() => {
@@ -129,18 +123,20 @@ export const ReceiptSignaturePanel = ({
     }
   }, [sendCooldown]);
 
-  // Alert functions
   const showSuccessAlert = (title: string, text: string) => {
     return Swal.fire({
       title,
       text,
       icon: "success",
       confirmButtonText: "OK",
-      confirmButtonColor: "#2b825b",
-      background: "#fafafa",
-      iconColor: "#2b825b",
+      confirmButtonColor: "#FDC020",
+      background: "var(--bg-primary)",
+      iconColor: "#FDC020",
       timer: 3000,
       timerProgressBar: true,
+      customClass: {
+        popup: "squircle-lg",
+      },
     });
   };
 
@@ -151,37 +147,32 @@ export const ReceiptSignaturePanel = ({
       icon: "error",
       confirmButtonText: "OK",
       confirmButtonColor: "#ef4444",
-      background: "#fafafa",
+      background: "var(--bg-primary)",
       iconColor: "#ef4444",
+      customClass: {
+        popup: "squircle-lg",
+      },
     });
   };
 
-  // Handle signature change from SignaturePad
   const handleSignatureChange = (dataUrl: string) => {
     setSignatureData(dataUrl);
   };
 
-  // Clear signature
   const handleClearSignature = () => {
     setSignatureData(null);
   };
 
-  // Verification functions
   const handleVerification = async () => {
     setIsVerifying(true);
 
     if (!verificationCode || verificationCode.length !== 6) {
-      showErrorAlert(
-        "Invalid Code",
-        "Please enter a valid 6-digit verification code",
-      );
+      showErrorAlert("Invalid Code", "Please enter a valid 6-digit verification code");
       setIsVerifying(false);
       return;
     }
 
     try {
-      console.log("Verifying code:", verificationCode);
-
       const response = await fetch("/api/receipt/verify-signature-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -193,20 +184,15 @@ export const ReceiptSignaturePanel = ({
       });
 
       const result = await response.json();
-      console.log("Verification response:", result);
 
       if (!response.ok) {
         throw new Error(result.error || "Verification failed");
       }
 
-      // Store verification code for signing
       setStoredVerificationCode(verificationCode);
       setStep("signature");
       setIsVerifying(false);
-      showSuccessAlert(
-        "Verified!",
-        "Identity verified successfully. You can now sign the receipt.",
-      );
+      showSuccessAlert("Verified!", "Identity verified successfully. You can now sign the receipt.");
     } catch (error) {
       console.error("Verification error:", error);
       setIsVerifying(false);
@@ -214,16 +200,10 @@ export const ReceiptSignaturePanel = ({
       setAttempts(newAttempts);
 
       if (newAttempts >= 3) {
-        showErrorAlert(
-          "Too Many Attempts",
-          "Please request a new verification code",
-        );
+        showErrorAlert("Too Many Attempts", "Please request a new verification code");
         setVerificationCode("");
       } else {
-        showErrorAlert(
-          "Verification Failed",
-          error instanceof Error ? error.message : "Invalid verification code",
-        );
+        showErrorAlert("Verification Failed", error instanceof Error ? error.message : "Invalid verification code");
       }
     }
   };
@@ -255,16 +235,10 @@ export const ReceiptSignaturePanel = ({
 
       setCodeSent(true);
       setSendCooldown(60);
-      showSuccessAlert(
-        "Code Sent!",
-        "Check your email for the verification code",
-      );
+      showSuccessAlert("Code Sent!", "Check your email for the verification code");
     } catch (error) {
       console.error("Error sending code:", error);
-      showErrorAlert(
-        "Error",
-        error instanceof Error ? error.message : "Failed to send code",
-      );
+      showErrorAlert("Error", error instanceof Error ? error.message : "Failed to send code");
     } finally {
       setIsSendingCode(false);
     }
@@ -272,10 +246,7 @@ export const ReceiptSignaturePanel = ({
 
   const handleProceedToSignature = () => {
     if (!signatureData) {
-      showErrorAlert(
-        "Signature Required",
-        "Please provide your signature before proceeding",
-      );
+      showErrorAlert("Signature Required", "Please provide your signature before proceeding");
       return;
     }
 
@@ -296,8 +267,6 @@ export const ReceiptSignaturePanel = ({
         throw new Error("No signature data available");
       }
 
-      console.log("Sending sign request with code:", storedVerificationCode);
-
       const response = await fetch("/api/receipt/sign-receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -306,90 +275,65 @@ export const ReceiptSignaturePanel = ({
           signeeName: typedName,
           signeeEmail,
           signatureImage: signatureData,
-          verificationCode: storedVerificationCode, // Include the verified code
+          verificationCode: storedVerificationCode,
         }),
       });
 
       const result = await response.json();
-      console.log("Sign response:", result);
 
       if (!response.ok) {
         throw new Error(result.error || "Failed to sign receipt");
       }
 
-      // First close the SignaturePanel
       onSignatureComplete(signatureData);
 
-      // Small delay to ensure panel is closed before showing confetti
       setTimeout(() => {
-        // Trigger confetti after panel is closed
         triggerConfetti();
 
-        // Show success message
         Swal.fire({
           title: "🎉 Receipt Signed Successfully!",
           html: `
-          <div class="text-center">
-            <div class="mb-4">
-              <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#FEFCE8] mb-3">
-                <svg class="w-8 h-8 text-[#2b825b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
+            <div class="text-center">
+              <div class="mb-4">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--color-lemon-green)]/10 mb-3">
+                  <svg class="w-8 h-8 text-[var(--color-lemon-green)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-bold text-[var(--text-primary)] mb-2">Receipt Signed!</h3>
               </div>
-              <h3 class="text-lg font-bold text-gray-900 mb-2">Receipt Signed!</h3>
+              <div class="space-y-2 text-[var(--text-secondary)]">
+                <p>✓ Digital signature recorded</p>
+                <p>✓ Legal acknowledgement generated</p>
+                <p>✓ Email sent with signed copy</p>
+              </div>
             </div>
-            <div class="space-y-2 text-gray-600">
-              <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[#2b825b]" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                </svg>
-                Digital signature recorded
-              </p>
-              <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[#2b825b]" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                </svg>
-                Legal acknowledgement generated
-              </p>
-              <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[#2b825b]" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                </svg>
-                Email sent with signed copy
-              </p>
-            </div>
-          </div>
-        `,
+          `,
           icon: "success",
           showConfirmButton: false,
-          background: "#fafafa",
-          iconColor: "#10b981",
+          background: "var(--bg-primary)",
           allowOutsideClick: false,
           allowEscapeKey: false,
           timer: 3000,
           timerProgressBar: true,
+          customClass: {
+            popup: "squircle-lg",
+          },
         }).then(() => {
-          // Refresh the page after SweetAlert closes
           window.location.reload();
         });
 
-        // Backup refresh in case SweetAlert has issues
         setTimeout(() => {
           window.location.reload();
         }, 4000);
       }, 300);
     } catch (error) {
-      // Show error and reset signing state
       console.error("Signing error:", error);
-      showErrorAlert(
-        "Error",
-        error instanceof Error ? error.message : "Failed to sign receipt",
-      );
+      showErrorAlert("Error", error instanceof Error ? error.message : "Failed to sign receipt");
       setIsSigning(false);
     }
   };
 
-  // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -399,7 +343,6 @@ export const ReceiptSignaturePanel = ({
     }).format(amount);
   };
 
-  // Format date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-NG", {
       day: "numeric",
@@ -410,36 +353,36 @@ export const ReceiptSignaturePanel = ({
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-[#2b825b]" />
+          <DialogTitle className="flex items-center gap-2 text-[var(--text-primary)]">
+            <Shield className="h-5 w-5 text-[var(--color-accent-yellow)]" />
             Secure Receipt Signature Panel
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-[var(--text-secondary)]">
             Sign and acknowledge receipt of items/services
           </DialogDescription>
         </DialogHeader>
 
         {/* Receipt Summary */}
-        <div className="bg-linear-to-r from-[#2b825b]/10 to-[#b38606]/10 rounded-lg p-4 mb-4">
+        <div className="bg-gradient-to-r from-[var(--color-accent-yellow)]/10 to-[var(--color-accent-yellow)]/5 rounded-lg p-4 mb-4 squircle-md border border-[var(--border-color)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#2b825b]/20 rounded-lg flex items-center justify-center">
-                <Receipt className="h-5 w-5 text-[#2b825b]" />
+              <div className="w-10 h-10 bg-[var(--color-accent-yellow)]/20 rounded-lg flex items-center justify-center">
+                <Receipt className="h-5 w-5 text-[var(--color-accent-yellow)]" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">{receiptTitle}</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="font-semibold text-[var(--text-primary)]">{receiptTitle}</h3>
+                <p className="text-sm text-[var(--text-secondary)]">
                   {businessName} → {clientName}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-[#2b825b]">
+              <p className="text-lg font-bold text-[var(--color-accent-yellow)]">
                 {formatCurrency(totalAmount)}
               </p>
-              <p className="text-sm text-gray-600">{formatDate(issueDate)}</p>
+              <p className="text-sm text-[var(--text-secondary)]">{formatDate(issueDate)}</p>
             </div>
           </div>
         </div>
@@ -447,14 +390,14 @@ export const ReceiptSignaturePanel = ({
         {/* Verification Step */}
         {step === "verification" && (
           <div className="space-y-6 py-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 squircle-md">
               <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
+                <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-blue-800">
+                  <h4 className="font-semibold text-blue-800 dark:text-blue-300">
                     Identity Verification Required
                   </h4>
-                  <p className="text-sm text-blue-700 mt-1">
+                  <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
                     For security, we need to verify it's really you before
                     acknowledging the receipt.
                   </p>
@@ -464,7 +407,7 @@ export const ReceiptSignaturePanel = ({
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="verificationCode">
+                <Label htmlFor="verificationCode" className="text-[var(--text-secondary)]">
                   Email Verification Code *
                 </Label>
                 <div className="flex gap-2">
@@ -478,13 +421,14 @@ export const ReceiptSignaturePanel = ({
                     }
                     placeholder="Enter 6-digit code"
                     maxLength={6}
-                    className="text-center text-lg tracking-widest"
+                    className="text-center text-lg tracking-widest border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handleSendVerificationCode}
-                    className="whitespace-nowrap min-w-[120px]"
+                    className="whitespace-nowrap min-w-[120px] border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                     disabled={isSendingCode || sendCooldown > 0}
                   >
                     {isSendingCode ? (
@@ -504,7 +448,7 @@ export const ReceiptSignaturePanel = ({
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--text-secondary)]">
                   {codeSent
                     ? `A 6-digit verification code has been sent to ${signeeEmail}`
                     : `Enter the verification code sent to ${signeeEmail}`}
@@ -515,20 +459,16 @@ export const ReceiptSignaturePanel = ({
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                   onClick={onCancel}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="button"
-                  className="flex-1 bg-[#2b825b] hover:bg-[#1e5d42]"
+                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
                   onClick={handleVerification}
-                  disabled={
-                    !verificationCode ||
-                    verificationCode.length !== 6 ||
-                    isVerifying
-                  }
+                  disabled={!verificationCode || verificationCode.length !== 6 || isVerifying}
                 >
                   {isVerifying ? (
                     <span className="flex items-center gap-2">
@@ -547,14 +487,14 @@ export const ReceiptSignaturePanel = ({
         {/* Signature Step */}
         {step === "signature" && (
           <div className="space-y-6 py-4">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 squircle-md">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-amber-800">
+                  <h4 className="font-semibold text-amber-800 dark:text-amber-300">
                     Legal Acknowledgement
                   </h4>
-                  <p className="text-sm text-amber-700 mt-1">
+                  <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
                     Your signature confirms that you have received and accepted
                     the items/services described in this receipt.
                   </p>
@@ -564,15 +504,16 @@ export const ReceiptSignaturePanel = ({
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="typedName">Your Full Name *</Label>
+                <Label htmlFor="typedName" className="text-[var(--text-secondary)]">Your Full Name *</Label>
                 <Input
                   id="typedName"
                   value={typedName}
                   onChange={(e) => setTypedName(e.target.value)}
                   placeholder="Enter your full name as it should appear on the receipt"
-                  className="text-lg"
+                  className="text-lg border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                  style={{ outline: "none", boxShadow: "none" }}
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--text-secondary)]">
                   This should match the name provided by {businessName}
                 </p>
               </div>
@@ -582,7 +523,7 @@ export const ReceiptSignaturePanel = ({
                 <Button
                   type="button"
                   variant={signatureMode === "draw" ? "default" : "outline"}
-                  className="flex-1"
+                  className={`flex-1 ${signatureMode === "draw" ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90" : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"} squircle-md`}
                   onClick={() => setSignatureMode("draw")}
                 >
                   Draw Signature
@@ -590,7 +531,7 @@ export const ReceiptSignaturePanel = ({
                 <Button
                   type="button"
                   variant={signatureMode === "upload" ? "default" : "outline"}
-                  className="flex-1"
+                  className={`flex-1 ${signatureMode === "upload" ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90" : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"} squircle-md`}
                   onClick={() => setSignatureMode("upload")}
                 >
                   Upload Signature
@@ -605,9 +546,8 @@ export const ReceiptSignaturePanel = ({
                     onChange={handleSignatureChange}
                     label="Draw Your Signature *"
                   />
-
-                  <div className="flex items-start text-xs text-gray-500">
-                    <div className="h-2 w-2 bg-gray-400 rounded-full mr-2 mt-1 shrink-0"></div>
+                  <div className="flex items-start text-xs text-[var(--text-secondary)]">
+                    <div className="h-2 w-2 bg-[var(--text-secondary)] rounded-full mr-2 mt-1 shrink-0"></div>
                     <p>
                       Draw your signature in the box above. For best results,
                       sign along the line.
@@ -619,16 +559,16 @@ export const ReceiptSignaturePanel = ({
               {/* Upload Signature */}
               {signatureMode === "upload" && (
                 <div className="space-y-3">
-                  <Label>Upload Signature Image</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-sm text-gray-600 mb-2">
+                  <Label className="text-[var(--text-secondary)]">Upload Signature Image</Label>
+                  <div className="border-2 border-dashed border-[var(--border-color)] rounded-lg p-8 text-center squircle-lg">
+                    <Upload className="h-12 w-12 mx-auto text-[var(--text-secondary)] mb-4" />
+                    <p className="text-sm text-[var(--text-secondary)] mb-2">
                       Upload a clear image of your signature
                     </p>
                     <Input
                       type="file"
                       accept="image/*"
-                      className="max-w-xs mx-auto"
+                      className="max-w-xs mx-auto cursor-pointer"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
@@ -651,7 +591,7 @@ export const ReceiptSignaturePanel = ({
                     variant="ghost"
                     size="sm"
                     onClick={handleClearSignature}
-                    className="text-red-600 hover:text-red-800"
+                    className="text-[var(--destructive)] hover:text-[var(--destructive)] hover:bg-[var(--destructive)]/10"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Clear Signature
@@ -663,14 +603,14 @@ export const ReceiptSignaturePanel = ({
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                   onClick={() => setStep("verification")}
                 >
                   Back
                 </Button>
                 <Button
                   type="button"
-                  className="flex-1 bg-[#2b825b] hover:bg-[#1e5d42]"
+                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
                   onClick={handleProceedToSignature}
                   disabled={!signatureData || !typedName.trim()}
                 >
@@ -686,41 +626,41 @@ export const ReceiptSignaturePanel = ({
         {step === "review" && (
           <div className="space-y-6 py-4">
             <div className="text-center">
-              <CheckCircle className="h-16 w-16 text-[#2b825b] mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <CheckCircle className="h-16 w-16 text-[var(--color-lemon-green)] mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">
                 Review Your Acknowledgment
               </h3>
-              <p className="text-gray-600">
+              <p className="text-[var(--text-secondary)]">
                 Please verify your details before final submission
               </p>
             </div>
 
             <div className="space-y-6">
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6 squircle-lg">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-medium text-gray-700 mb-2">
+                      <h4 className="font-medium text-[var(--text-secondary)] mb-2">
                         Receipt Information
                       </h4>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">From:</span>
-                          <span className="font-medium">{businessName}</span>
+                          <span className="text-sm text-[var(--text-secondary)]">From:</span>
+                          <span className="font-medium text-[var(--text-primary)]">{businessName}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">To:</span>
-                          <span className="font-medium">{clientName}</span>
+                          <span className="text-sm text-[var(--text-secondary)]">To:</span>
+                          <span className="font-medium text-[var(--text-primary)]">{clientName}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Amount:</span>
-                          <span className="font-medium">
+                          <span className="text-sm text-[var(--text-secondary)]">Amount:</span>
+                          <span className="font-medium text-[var(--color-accent-yellow)]">
                             {formatCurrency(totalAmount)}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Date:</span>
-                          <span className="font-medium">
+                          <span className="text-sm text-[var(--text-secondary)]">Date:</span>
+                          <span className="font-medium text-[var(--text-primary)]">
                             {formatDate(issueDate)}
                           </span>
                         </div>
@@ -729,37 +669,33 @@ export const ReceiptSignaturePanel = ({
                   </div>
 
                   <div className="space-y-4">
-                    <h4 className="font-medium text-gray-700 mb-2">
+                    <h4 className="font-medium text-[var(--text-secondary)] mb-2">
                       Your Acknowledgment
                     </h4>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Name:</span>
-                        <span className="font-medium">{typedName}</span>
+                        <span className="text-sm text-[var(--text-secondary)]">Name:</span>
+                        <span className="font-medium text-[var(--text-primary)]">{typedName}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Email:</span>
-                        <span className="font-medium">{signeeEmail}</span>
+                        <span className="text-sm text-[var(--text-secondary)]">Email:</span>
+                        <span className="font-medium text-[var(--text-primary)]">{signeeEmail}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">
-                          Signed At:
-                        </span>
-                        <span className="font-medium">
-                          {signingTimestamp
-                            ? new Date(signingTimestamp).toLocaleString()
-                            : "Pending"}
+                        <span className="text-sm text-[var(--text-secondary)]">Signed At:</span>
+                        <span className="font-medium text-[var(--text-primary)]">
+                          {signingTimestamp ? new Date(signingTimestamp).toLocaleString() : "Pending"}
                         </span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t">
-                  <h4 className="font-medium text-gray-700 mb-2">
+                <div className="mt-6 pt-6 border-t border-[var(--border-color)]">
+                  <h4 className="font-medium text-[var(--text-secondary)] mb-2">
                     Your Signature
                   </h4>
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex items-center justify-center h-32">
+                  <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-4 flex items-center justify-center h-32 squircle-md">
                     {signatureData ? (
                       <img
                         src={signatureData}
@@ -767,7 +703,7 @@ export const ReceiptSignaturePanel = ({
                         className="max-h-20 object-contain"
                       />
                     ) : (
-                      <p className="text-gray-400 italic">
+                      <p className="text-[var(--text-secondary)] italic">
                         No signature captured
                       </p>
                     )}
@@ -775,14 +711,14 @@ export const ReceiptSignaturePanel = ({
                 </div>
               </div>
 
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 squircle-md">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
                   <div>
-                    <h4 className="font-semibold text-red-800">
+                    <h4 className="font-semibold text-red-800 dark:text-red-300">
                       Final Confirmation
                     </h4>
-                    <p className="text-sm text-red-700 mt-1">
+                    <p className="text-sm text-red-700 dark:text-red-400 mt-1">
                       By confirming, you acknowledge that you have received and
                       accepted the items/services described in this receipt.
                       This is a legally binding acknowledgment.
@@ -795,7 +731,7 @@ export const ReceiptSignaturePanel = ({
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                   onClick={() => setStep("signature")}
                   disabled={isSigning}
                 >
@@ -803,7 +739,7 @@ export const ReceiptSignaturePanel = ({
                 </Button>
                 <Button
                   type="button"
-                  className="flex-1 bg-red-600 hover:bg-red-700"
+                  className="flex-1 bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 squircle-md"
                   onClick={handleConfirmSign}
                   disabled={isSigning}
                 >

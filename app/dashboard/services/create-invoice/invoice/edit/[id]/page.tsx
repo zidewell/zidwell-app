@@ -62,8 +62,6 @@ export default function Page() {
         }
         const data = await res.json();
 
-        console.log(data);
-
         // Transform the data to match our form structure
         const transformedData: InvoiceForm = {
           client_name: data.client_name || "",
@@ -86,7 +84,7 @@ export default function Page() {
           payment_type: data.payment_type || "single",
           allow_multiple_payments: data.allow_multiple_payments || false,
           redirect_url: data.redirect_url || "",
-          target_quantity: data.target_quantity || 1, // ADDED: Default to 1
+          target_quantity: data.target_quantity || 1,
           invoice_items: (data.invoice_items || []).map((item: any) => ({
             id: item.id,
             description: item.item_description || "",
@@ -106,8 +104,6 @@ export default function Page() {
     if (id) fetchInvoice();
   }, [id]);
 
-  console.log(form);
-
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -116,7 +112,6 @@ export default function Page() {
     if (!form) return;
     const { name, value, type } = e.target;
 
-    // Handle checkbox separately
     if (type === "checkbox") {
       const checked = (e.target as HTMLInputElement).checked;
       setForm((prev) => (prev ? { ...prev, [name]: checked } : null));
@@ -133,7 +128,6 @@ export default function Page() {
 
     updatedItem[field] = value;
 
-    // Recalculate total if quantity or unitPrice changes
     if (field === "quantity" || field === "unitPrice") {
       updatedItem.total =
         Number(updatedItem.quantity) * Number(updatedItem.unitPrice);
@@ -141,7 +135,6 @@ export default function Page() {
 
     updatedItems[index] = updatedItem;
 
-    // Recalculate totals
     const subtotal = updatedItems.reduce(
       (sum, item) => sum + Number(item.total),
       0,
@@ -181,7 +174,6 @@ export default function Page() {
 
     const updatedItems = form.invoice_items.filter((_, i) => i !== index);
 
-    // Recalculate totals
     const subtotal = updatedItems.reduce(
       (sum, item) => sum + Number(item.total),
       0,
@@ -204,7 +196,6 @@ export default function Page() {
 
     setLoading(true);
     try {
-      // Transform data back to match database schema
       const updateData = {
         client_name: form.client_name,
         client_email: form.client_email,
@@ -221,8 +212,7 @@ export default function Page() {
         fee_option: form.fee_option,
         payment_type: form.payment_type,
         allow_multiple_payments: form.allow_multiple_payments,
-        target_quantity: form.target_quantity, // ADDED: Include target quantity
-        // Transform invoice items to match database schema
+        target_quantity: form.target_quantity,
         invoice_items: form.invoice_items.map((item) => ({
           id: item.id,
           item_description: item.description,
@@ -286,55 +276,47 @@ export default function Page() {
         
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-4xl mx-auto">
-            {/* Header with Back Button */}
             <div className="flex items-center justify-between mb-6">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[#2b825b] hover:bg-[#f0efe7] dark:hover:bg-gray-800 text-sm md:text-base"
+                className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)] text-sm md:text-base"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 <span className="hidden md:block">Back</span>
               </Button>
-              <h1 className="text-2xl md:text-3xl font-bold text-center flex-1 text-gray-900 dark:text-gray-100">
+              <h1 className="text-2xl md:text-3xl font-bold text-center flex-1 text-[var(--text-primary)]">
                 Edit Invoice
               </h1>
-              <div className="w-20"></div> {/* Spacer for balance */}
+              <div className="w-20"></div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-4 md:p-6 space-y-6">
+            <div className="bg-[var(--bg-primary)] rounded-lg shadow-soft border border-[var(--border-color)] p-4 md:p-6 space-y-6 squircle-lg">
               {/* Business Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label
-                    htmlFor="business_name"
-                    className="block font-medium mb-2 dark:text-gray-300"
-                  >
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Business Name
                   </label>
                   <Input
-                    id="business_name"
                     name="business_name"
                     value={form.business_name}
                     onChange={handleChange}
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="invoice_id"
-                    className="block font-medium mb-2 dark:text-gray-300"
-                  >
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Invoice ID
                   </label>
                   <Input
-                    id="invoice_id"
                     name="invoice_id"
                     value={form.invoice_id}
                     disabled
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400"
+                    className="border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
                   />
                 </div>
               </div>
@@ -342,66 +324,57 @@ export default function Page() {
               {/* Client Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label
-                    htmlFor="client_name"
-                    className="block font-medium mb-2 dark:text-gray-300"
-                  >
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Client Name
                   </label>
                   <Input
-                    id="client_name"
                     name="client_name"
                     value={form.client_name}
                     onChange={handleChange}
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="client_email"
-                    className="block font-medium mb-2 dark:text-gray-300"
-                  >
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Client Email
                   </label>
                   <Input
-                    id="client_email"
                     name="client_email"
                     type="email"
                     value={form.client_email}
                     onChange={handleChange}
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label
-                    htmlFor="client_phone"
-                    className="block font-medium mb-2 dark:text-gray-300"
-                  >
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Client Phone
                   </label>
                   <Input
-                    id="client_phone"
                     name="client_phone"
                     value={form.client_phone || ""}
                     onChange={handleChange}
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="bill_to" className="block font-medium mb-2 dark:text-gray-300">
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Bill To
                   </label>
                   <Input
-                    id="bill_to"
                     name="bill_to"
                     value={form.bill_to}
                     onChange={handleChange}
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
               </div>
@@ -409,52 +382,46 @@ export default function Page() {
               {/* Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label
-                    htmlFor="issue_date"
-                    className="block font-medium mb-2 dark:text-gray-300"
-                  >
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Issue Date
                   </label>
                   <Input
-                    id="issue_date"
                     name="issue_date"
                     type="date"
                     value={form.issue_date}
                     onChange={handleChange}
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="due_date" className="block font-medium mb-2 dark:text-gray-300">
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Due Date
                   </label>
                   <Input
-                    id="due_date"
                     name="due_date"
                     type="date"
                     value={form.due_date}
                     onChange={handleChange}
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
               </div>
 
               {/* Payment Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-[var(--bg-secondary)] rounded-lg squircle-md">
                 <div>
-                  <label
-                    htmlFor="payment_type"
-                    className="block font-medium mb-2 dark:text-gray-300"
-                  >
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Payment Type
                   </label>
                   <select
-                    id="payment_type"
                     name="payment_type"
                     value={form.payment_type}
                     onChange={handleChange}
-                    className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+                    className="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   >
                     <option value="single">Single Payment</option>
                     <option value="multiple">Multiple Payments</option>
@@ -462,18 +429,15 @@ export default function Page() {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="fee_option"
-                    className="block font-medium mb-2 dark:text-gray-300"
-                  >
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Fee Option
                   </label>
                   <select
-                    id="fee_option"
                     name="fee_option"
                     value={form.fee_option}
                     onChange={handleChange}
-                    className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+                    className="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   >
                     <option value="customer">Customer Pays Fee</option>
                     <option value="absorbed">Absorb Fee</option>
@@ -481,42 +445,36 @@ export default function Page() {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="target_quantity"
-                    className="block font-medium mb-2 dark:text-gray-300"
-                  >
+                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                     Target Quantity
                   </label>
                   <Input
-                    id="target_quantity"
                     name="target_quantity"
                     type="number"
                     min="1"
                     value={form.target_quantity}
                     onChange={handleChange}
                     placeholder="1"
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">
                     Number of times this invoice should be paid
                   </p>
                 </div>
               </div>
 
               {/* Multiple Payments Toggle */}
-              <div className="flex items-center space-x-2 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <div className="flex items-center space-x-2 p-4 bg-[var(--bg-secondary)] rounded-lg squircle-md">
                 <input
                   type="checkbox"
                   id="allow_multiple_payments"
                   name="allow_multiple_payments"
                   checked={form.allow_multiple_payments}
                   onChange={handleChange}
-                  className="w-4 h-4 text-[#2b825b] border-gray-300 rounded focus:ring-[#2b825b] dark:bg-gray-700 dark:border-gray-600"
+                  className="w-4 h-4 text-[var(--color-accent-yellow)] border-[var(--border-color)] rounded focus:ring-[var(--color-accent-yellow)]"
                 />
-                <label
-                  htmlFor="allow_multiple_payments"
-                  className="font-medium dark:text-gray-300"
-                >
+                <label className="font-medium text-[var(--text-secondary)]">
                   Allow Multiple Payments
                 </label>
               </div>
@@ -524,13 +482,13 @@ export default function Page() {
               {/* Invoice Items */}
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <label className="block font-medium dark:text-gray-300">Invoice Items</label>
+                  <label className="block font-medium text-[var(--text-secondary)]">Invoice Items</label>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={addItem}
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                    className="border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                   >
                     + Add Item
                   </Button>
@@ -548,7 +506,8 @@ export default function Page() {
                           updateItem(index, "description", e.target.value)
                         }
                         placeholder="Item description"
-                        className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                        className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        style={{ outline: "none", boxShadow: "none" }}
                       />
                     </div>
                     <div className="col-span-2">
@@ -560,7 +519,8 @@ export default function Page() {
                         }
                         placeholder="Qty"
                         min="1"
-                        className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                        className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        style={{ outline: "none", boxShadow: "none" }}
                       />
                     </div>
                     <div className="col-span-2">
@@ -573,7 +533,8 @@ export default function Page() {
                         placeholder="Price"
                         min="0"
                         step="0.01"
-                        className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                        className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        style={{ outline: "none", boxShadow: "none" }}
                       />
                     </div>
                     <div className="col-span-2">
@@ -581,7 +542,7 @@ export default function Page() {
                         value={`₦${item.total.toLocaleString()}`}
                         disabled
                         placeholder="Total"
-                        className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400"
+                        className="border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
                       />
                     </div>
                     <div className="col-span-1">
@@ -590,7 +551,7 @@ export default function Page() {
                         variant="outline"
                         size="sm"
                         onClick={() => removeItem(index)}
-                        className="text-red-600 hover:text-red-800 dark:bg-gray-700 dark:border-gray-600 dark:text-red-400 dark:hover:text-red-300"
+                        className="text-[var(--destructive)] hover:text-[var(--destructive)] border-[var(--border-color)] hover:bg-[var(--bg-secondary)]"
                       >
                         ×
                       </Button>
@@ -599,30 +560,30 @@ export default function Page() {
                 ))}
 
                 {/* Totals Summary */}
-                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <div className="mt-4 p-4 bg-[var(--bg-secondary)] rounded-lg squircle-md">
                   <div className="flex justify-between text-sm">
-                    <span className="dark:text-gray-300">Subtotal:</span>
-                    <span className="dark:text-gray-100">₦{form.subtotal.toLocaleString()}</span>
+                    <span className="text-[var(--text-secondary)]">Subtotal:</span>
+                    <span className="text-[var(--text-primary)]">₦{form.subtotal.toLocaleString()}</span>
                   </div>
                   {form.fee_amount > 0 && (
                     <div className="flex justify-between text-sm mt-1">
-                      <span className="dark:text-gray-300">
+                      <span className="text-[var(--text-secondary)]">
                         Processing Fee (
                         {form.fee_option === "customer" ? "2%" : "Absorbed"}):
                       </span>
-                      <span className="dark:text-gray-100">₦{form.fee_amount.toLocaleString()}</span>
+                      <span className="text-[var(--text-primary)]">₦{form.fee_amount.toLocaleString()}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-bold mt-2 pt-2 border-t dark:border-gray-600">
-                    <span className="dark:text-gray-300">Total Amount:</span>
-                    <span className="text-[#2b825b] dark:text-[#3aa873]">
+                  <div className="flex justify-between font-bold mt-2 pt-2 border-t border-[var(--border-color)]">
+                    <span className="text-[var(--text-secondary)]">Total Amount:</span>
+                    <span className="text-[var(--color-accent-yellow)]">
                       ₦{form.total_amount.toLocaleString()}
                     </span>
                   </div>
                   {form.allow_multiple_payments && (
-                    <div className="flex justify-between text-sm mt-2 pt-2 border-t dark:border-gray-600">
-                      <span className="dark:text-gray-300">Target Quantity:</span>
-                      <span className="font-medium dark:text-gray-100">
+                    <div className="flex justify-between text-sm mt-2 pt-2 border-t border-[var(--border-color)]">
+                      <span className="text-[var(--text-secondary)]">Target Quantity:</span>
+                      <span className="font-medium text-[var(--text-primary)]">
                         {form.target_quantity}
                       </span>
                     </div>
@@ -632,44 +593,41 @@ export default function Page() {
 
               {/* Message */}
               <div>
-                <label htmlFor="message" className="block font-medium mb-2 dark:text-gray-300">
+                <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                   Message
                 </label>
                 <Textarea
-                  id="message"
                   name="message"
                   value={form.message}
                   onChange={handleChange}
                   placeholder="Message to client"
                   rows={3}
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
+                  className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] resize-none"
+                  style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
 
               {/* Redirect URL */}
               <div>
-                <label
-                  htmlFor="redirect_url"
-                  className="block font-medium mb-2 dark:text-gray-300"
-                >
+                <label className="block font-medium mb-2 text-[var(--text-secondary)]">
                   Redirect URL (Optional)
                 </label>
                 <Input
-                  id="redirect_url"
                   name="redirect_url"
                   type="url"
                   value={form.redirect_url || ""}
                   onChange={handleChange}
                   placeholder="https://example.com/thankyou"
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="border-[var(--border-color)] bg-[var(--bg-primary)]text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                  style={{ outline: "none", boxShadow: "none" }}
                 />
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-sm text-[var(--text-secondary)] mt-1">
                   Redirect clients to this URL after successful payment
                 </p>
               </div>
 
               <Button
-                className="w-full bg-[#2b825b] hover:bg-[#1e5d42] text-white dark:bg-[#2b825b] dark:hover:bg-[#1e5f43]"
+                className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
                 onClick={handleUpdate}
                 disabled={loading}
                 size="lg"

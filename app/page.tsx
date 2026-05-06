@@ -44,8 +44,8 @@ function HomeContent() {
     const components = [
       { id: "hero", name: "Hero" },
       { id: "features", name: "Features" },
-      { id: "whyDifferent", name: "WhyDifferent" },
       { id: "howItWorks", name: "HowItWorks" },
+      { id: "whyDifferent", name: "WhyDifferent" },
       { id: "whyChoose", name: "WhyChoose" },
       { id: "testimonials", name: "Testimonials" },
       { id: "pricing", name: "Pricing" },
@@ -75,8 +75,8 @@ function HomeContent() {
         >
           {component.id === "hero" && <Hero />}
           {component.id === "features" && <Features />}
-          {component.id === "whyDifferent" && <WhyDifferent />}
           {component.id === "howItWorks" && <HowItWorks />}
+          {component.id === "whyDifferent" && <WhyDifferent />}
           {component.id === "whyChoose" && <WhyChoose />}
           {component.id === "testimonials" && <Testimonials />}
           {component.id === "pricing" && <Pricing />}

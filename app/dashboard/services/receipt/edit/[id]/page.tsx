@@ -175,7 +175,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
       if (!items) return [];
 
       if (Array.isArray(items)) {
-        // Map the incoming items to match your ReceiptItem type
         return items.map((item: any, index: number) => ({
           id: item.id || `item_${index + 1}`,
           description: item.description || "",
@@ -234,7 +233,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
       setSeller({
         name: receipt.initiator_name || "",
         email: receipt.initiator_email || "",
-        phone: receipt.metadata.initiator_phone || "",
+        phone: receipt.metadata?.initiator_phone || "",
       });
       setReceiver({
         name: receipt.client_name || "",
@@ -245,7 +244,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
       if (receiptItems.length > 0) {
         setItems(receiptItems);
       } else {
-        // Keep at least one empty item
         setItems([
           {
             id: "item_1",
@@ -278,7 +276,11 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
           icon: "info",
           title: "Receipt Already Signed",
           text: "This receipt has been signed. Editing will reset the signature status and require the client to sign again.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
+          customClass: {
+            popup: "squircle-lg",
+          },
         });
       }
     } catch (error) {
@@ -287,7 +289,11 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
         icon: "error",
         title: "Error",
         text: error instanceof Error ? error.message : "Failed to load receipt",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: {
+          popup: "squircle-lg",
+        },
       }).then(() => {
         router.push("/dashboard/services/receipt");
       });
@@ -296,7 +302,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
     }
   };
 
-  console.log("Receipt ID to edit:", seller);
   // Update receipt using PUT endpoint
   const updateReceiptInDatabase = async (): Promise<boolean> => {
     try {
@@ -307,7 +312,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
       const totalAmount = calculateTotal();
       const subtotalAmount = calculateSubtotal();
 
-      // Prepare items with proper structure
       const receipt_items = items.map((item) => ({
         id: item.id,
         description: item.description,
@@ -342,7 +346,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
         seller_signature: sellerSignature || null,
       };
 
-      // Call the PUT API to update receipt
       const res = await fetch("/api/receipt/update-receipt", {
         method: "PUT",
         headers: {
@@ -431,7 +434,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  // Helper functions
   const generateToken = useCallback(() => {
     return `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }, []);
@@ -448,7 +450,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
     }, 0);
   };
 
-  // Payment handling
   const handleDeduct = async (): Promise<boolean> => {
     return new Promise((resolve) => {
       const pinString = pin.join("");
@@ -499,7 +500,11 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
           icon: "info",
           title: "Refund Processed",
           text: `₦${UPDATE_FEE.toLocaleString()} has been refunded to your wallet due to failed receipt update.`,
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
+          customClass: {
+            popup: "squircle-lg",
+          },
         });
       } else {
         throw new Error(data.error || "Refund failed");
@@ -510,7 +515,11 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
         icon: "warning",
         title: "Refund Failed",
         text: "Payment deduction was made, but refund failed. Please contact support.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: {
+          popup: "squircle-lg",
+        },
       });
     }
   };
@@ -540,7 +549,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
       errorMessages.push("• At least one item is required");
     }
 
-    // Validate items
     items.forEach((item, index) => {
       if (
         item.description &&
@@ -575,30 +583,37 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
             html: `
               <div class="text-center">
                 <p>Your receipt has been updated successfully and sent for signing.</p>
-                <p class="text-sm text-gray-600 mt-2">
+                <p class="text-sm text-[var(--text-secondary)] mt-2">
                   <strong>Update Fee:</strong> ₦${UPDATE_FEE.toLocaleString()}<br>
                   <strong>Status:</strong> Resent for signature<br>
                   <strong>Note:</strong> The client will need to sign the updated receipt
                 </p>
               </div>
             `,
-            confirmButtonColor: "#2b825b",
+            confirmButtonColor: "var(--color-accent-yellow)",
+            background: "var(--bg-primary)",
             timer: 4000,
             showConfirmButton: false,
+            customClass: {
+              popup: "squircle-lg",
+            },
           }).then(() => {
             setHasUnsavedChanges(false);
             setIsFormLocked(false);
             router.push("/dashboard/services/receipt");
           });
         } else {
-          // If update fails, refund the payment
           await handleRefund();
           setIsFormLocked(false);
           Swal.fire({
             icon: "error",
             title: "Update Failed",
             text: "Failed to update receipt. Your payment has been refunded.",
-            confirmButtonColor: "#2b825b",
+            confirmButtonColor: "var(--color-accent-yellow)",
+            background: "var(--bg-primary)",
+            customClass: {
+              popup: "squircle-lg",
+            },
           });
         }
       } else {
@@ -607,7 +622,11 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
           icon: "error",
           title: "Payment Failed",
           text: "Payment deduction failed. Please check your PIN and try again.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
+          customClass: {
+            popup: "squircle-lg",
+          },
         });
       }
     } catch (error) {
@@ -617,12 +636,15 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
         icon: "error",
         title: "Processing Failed",
         text: "Failed to process payment and update receipt. Please try again.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: {
+          popup: "squircle-lg",
+        },
       });
     } finally {
       setSaving(false);
       setIsSending(false);
-      // Reset PIN
       setPin(Array(inputCount).fill(""));
     }
   };
@@ -644,9 +666,13 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
             </ul>
           </div>
         `,
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
         confirmButtonText: "OK",
+        background: "var(--bg-primary)",
         width: 500,
+        customClass: {
+          popup: "squircle-lg",
+        },
       });
       return;
     }
@@ -673,7 +699,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
       particleCount: 100,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#2b825b", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: ["#FDC020", "#191919", "#00B64F", "#ffffff"],
     });
   };
 
@@ -684,11 +710,15 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
           icon: "warning",
           title: "Not Logged In",
           text: "You need to be logged in to load saved signatures.",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
+          customClass: {
+            popup: "squircle-lg",
+          },
         });
         return;
       }
 
-      // Load signature from API
       const res = await fetch(`/api/saved-signature?userId=${userData.id}`);
       const data: ApiResponse = await res.json();
 
@@ -704,7 +734,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
           icon: "success",
           title: "Signature Loaded",
           text: "Your saved signature has been loaded.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
           timer: 2000,
           showConfirmButton: false,
         });
@@ -713,7 +744,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
           icon: "info",
           title: "No Saved Signature",
           text: "No saved signature found. Please create a new one.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
           timer: 2000,
           showConfirmButton: false,
         });
@@ -723,7 +755,11 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
         icon: "error",
         title: "Load Failed",
         text: "Failed to load saved signature. Please try again.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: {
+          popup: "squircle-lg",
+        },
       });
     }
   };
@@ -733,7 +769,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
 
     if (save && sellerSignature && userData?.id) {
       try {
-        // Save signature via API
         const res = await fetch("/api/saved-signature", {
           method: "POST",
           headers: {
@@ -755,12 +790,13 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
           icon: "success",
           title: "Signature Saved",
           text: "Your signature has been saved for future use.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
           timer: 2000,
           showConfirmButton: false,
         });
       } catch (error) {
-        // Silent fail for signature save
+        console.error("Failed to save signature:", error);
       }
     }
 
@@ -784,7 +820,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
 
     if (!signature && saveSignatureForFuture && userData?.id) {
       try {
-        // Delete signature via API
         await fetch("/api/saved-signature", {
           method: "DELETE",
           headers: {
@@ -799,7 +834,6 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
 
     if (signature && saveSignatureForFuture && userData?.id) {
       try {
-        // Save signature via API
         await fetch("/api/saved-signature", {
           method: "POST",
           headers: {
@@ -822,7 +856,11 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot reset form while processing is in progress.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: {
+          popup: "squircle-lg",
+        },
       });
       return;
     }
@@ -832,10 +870,14 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
       text: "This will discard all unsaved changes and reload the original receipt.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#2b825b",
+      confirmButtonColor: "var(--color-accent-yellow)",
       cancelButtonColor: "#6b7280",
       confirmButtonText: "Reset",
       cancelButtonText: "Cancel",
+      background: "var(--bg-primary)",
+      customClass: {
+        popup: "squircle-lg",
+      },
     }).then((result) => {
       if (result.isConfirmed) {
         fetchReceipt();
@@ -845,7 +887,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
           icon: "success",
           title: "Changes Reset",
           text: "All changes have been discarded.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          background: "var(--bg-primary)",
           timer: 1500,
           showConfirmButton: false,
         });
@@ -859,7 +902,11 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot cancel while processing is in progress.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: {
+          popup: "squircle-lg",
+        },
       });
       return;
     }
@@ -870,10 +917,14 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
         text: "You have unsaved changes. Are you sure you want to leave?",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
         cancelButtonColor: "#6b7280",
         confirmButtonText: "Yes, Discard",
         cancelButtonText: "Continue Editing",
+        background: "var(--bg-primary)",
+        customClass: {
+          popup: "squircle-lg",
+        },
       }).then((result) => {
         if (result.isConfirmed) {
           router.push("/dashboard/services/receipt");
@@ -919,7 +970,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   }
 
   const customFocusStyle =
-    "focus:ring-2 focus:ring-[#2b825b] focus:ring-offset-2 focus:border-[#2b825b] transition-all duration-200";
+    "focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:ring-offset-2 focus:border-[var(--color-accent-yellow)] transition-all duration-200";
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -965,7 +1016,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
         receiverPhone={receiver.phone}
       />
 
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[var(--bg-primary)]">
         <div className="container mx-auto py-4 sm:py-6 px-3 sm:px-4">
           <div className="mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -974,7 +1025,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                   variant="ghost"
                   size="sm"
                   onClick={handleCancel}
-                  className="text-[#2b825b] hover:bg-white/10"
+                  className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
                   disabled={isFormLocked}
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
@@ -982,21 +1033,20 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                 </Button>
 
                 <div>
-                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2 text-[var(--text-primary)]">
                     Edit Receipt
                   </h1>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     Update and manage your receipt details
                   </p>
                 </div>
               </div>
 
-              {/* Responsive badges */}
               <div className="flex flex-wrap gap-2">
                 {hasUnsavedChanges && (
                   <Badge
                     variant="outline"
-                    className="bg-green-50 text-yellow-700 border-yellow-200 text-xs"
+                    className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs"
                   >
                     <AlertTriangle className="w-3 h-3 mr-1" />
                     Unsaved
@@ -1026,8 +1076,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
 
           <div className="flex justify-center">
             <div className="w-full max-w-3xl lg:max-w-4xl">
-              <Card className="p-4 sm:p-6">
-                {/* Responsive Card Header */}
+              <Card className="p-4 sm:p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -1035,7 +1084,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                       size="sm"
                       onClick={resetForm}
                       disabled={!hasUnsavedChanges || isFormLocked}
-                      className="text-xs sm:text-sm"
+                      className="text-xs sm:text-sm border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                     >
                       Reset Changes
                     </Button>
@@ -1044,14 +1093,13 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                       size="sm"
                       onClick={() => setActiveTab("preview")}
                       disabled={isFormLocked}
-                      className="border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b]/10 text-xs sm:text-sm"
+                      className="border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 text-xs sm:text-sm"
                     >
                       <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                       Preview
                     </Button>
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-500 text-right">
-                    {/* <div className="font-medium">ID: {receiptId}</div> */}
+                  <div className="text-xs sm:text-sm text-[var(--text-secondary)] text-right">
                     <div>Total: {formatCurrency(calculateTotal())}</div>
                   </div>
                 </div>
@@ -1064,10 +1112,10 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                   }}
                   className="w-full"
                 >
-                  <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-8">
+                  <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-8 bg-[var(--bg-secondary)] p-1 rounded-xl">
                     <TabsTrigger
                       value="create"
-                      className="gap-1 sm:gap-2 text-xs sm:text-sm"
+                      className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--color-accent-yellow)] text-[var(--text-secondary)] squircle-md"
                       disabled={isFormLocked}
                     >
                       <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -1075,7 +1123,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                     </TabsTrigger>
                     <TabsTrigger
                       value="preview"
-                      className="gap-1 sm:gap-2 text-xs sm:text-sm"
+                      className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--color-accent-yellow)] text-[var(--text-secondary)] squircle-md"
                       disabled={isFormLocked}
                     >
                       <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -1083,18 +1131,15 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent
-                    value="create"
-                    className="space-y-6 sm:space-y-8"
-                  >
+                  <TabsContent value="create" className="space-y-6 sm:space-y-8">
                     {/* Signature Load Banner */}
-                    <div className="p-3 sm:p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="p-3 sm:p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg squircle-md">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                          <p className="text-sm font-medium text-gray-700">
+                          <p className="text-sm font-medium text-[var(--text-primary)]">
                             Your Saved Signature
                           </p>
-                          <p className="text-xs text-gray-600 mt-1">
+                          <p className="text-xs text-[var(--text-secondary)] mt-1">
                             Load your saved signature to use in this receipt
                           </p>
                         </div>
@@ -1105,7 +1150,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                           disabled={
                             !userData?.id || !!sellerSignature || isFormLocked
                           }
-                          className="border-gray-300 text-gray-700 hover:bg-gray-100 text-xs sm:text-sm"
+                          className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] text-xs sm:text-sm"
                         >
                           {sellerSignature ? (
                             <>
@@ -1121,15 +1166,14 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                         </Button>
                       </div>
 
-                      {/* Save for future toggle */}
                       {sellerSignature && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center space-x-2 sm:space-x-3">
                               <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-blue-100 flex items-center justify-center">
                                 <Save className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-600" />
                               </div>
-                              <span className="text-xs sm:text-sm text-gray-700">
+                              <span className="text-xs sm:text-sm text-[var(--text-primary)]">
                                 Save for future use
                               </span>
                             </div>
@@ -1137,11 +1181,11 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                               checked={saveSignatureForFuture}
                               onCheckedChange={handleSaveSignatureToggle}
                               disabled={isFormLocked}
-                              className="data-[state=checked]:bg-[#2b825b] scale-75 sm:scale-90"
+                              className="data-[state=checked]:bg-[var(--color-accent-yellow)] scale-75 sm:scale-90"
                             />
                           </div>
                           {saveSignatureForFuture && (
-                            <p className="text-xs text-green-600 mt-2 ml-7 sm:ml-9">
+                            <p className="text-xs text-[var(--color-lemon-green)] mt-2 ml-7 sm:ml-9">
                               ✓ Signature will be saved
                             </p>
                           )}
@@ -1170,8 +1214,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                         className="space-y-3 sm:space-y-4 animate-fade-in"
                         style={{ animationDelay: "0.1s" }}
                       >
-                        <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
-                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#2b825b] text-white">
+                        <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
                             1
                           </span>
                           Seller Information
@@ -1180,7 +1224,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                           <div className="sm:col-span-2">
                             <Label
                               htmlFor="seller-name"
-                              className="flex items-center gap-1 text-sm sm:text-base"
+                              className="flex items-center gap-1 text-sm sm:text-base text-[var(--text-secondary)]"
                             >
                               Business / Individual Name{" "}
                               <span className="text-red-500">*</span>
@@ -1193,27 +1237,20 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                               onChange={(e) =>
                                 setSeller({ ...seller, name: e.target.value })
                               }
-                              className={`mt-1.5 text-sm sm:text-base ${customFocusStyle}`}
+                              className={`mt-1.5 text-sm sm:text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                              style={{ outline: "none", boxShadow: "none" }}
                               disabled={isFormLocked}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  if (sellerPhoneRef.current) {
-                                    sellerPhoneRef.current.focus();
-                                  }
-                                }
-                              }}
                             />
                           </div>
                           <div>
                             <Label
                               htmlFor="seller-phone"
-                              className="text-sm sm:text-base"
+                              className="text-sm sm:text-base text-[var(--text-secondary)]"
                             >
                               Phone (Optional)
                             </Label>
                             <div className="relative">
-                              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3 sm:h-4 sm:w-4" />
+                              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-3 w-3 sm:h-4 sm:w-4" />
                               <Input
                                 id="seller-phone"
                                 ref={sellerPhoneRef}
@@ -1225,28 +1262,21 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                                     phone: e.target.value,
                                   })
                                 }
-                                className={`mt-1.5 text-sm sm:text-base pl-8 sm:pl-10 ${customFocusStyle}`}
+                                className={`mt-1.5 text-sm sm:text-base pl-8 sm:pl-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                                style={{ outline: "none", boxShadow: "none" }}
                                 disabled={isFormLocked}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    if (sellerEmailRef.current) {
-                                      sellerEmailRef.current.focus();
-                                    }
-                                  }
-                                }}
                               />
                             </div>
                           </div>
                           <div>
                             <Label
                               htmlFor="seller-email"
-                              className="flex items-center gap-1 text-sm sm:text-base"
+                              className="flex items-center gap-1 text-sm sm:text-base text-[var(--text-secondary)]"
                             >
                               Email <span className="text-red-500">*</span>
                             </Label>
                             <div className="relative">
-                              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3 sm:h-4 sm:w-4" />
+                              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-3 w-3 sm:h-4 sm:w-4" />
                               <Input
                                 id="seller-email"
                                 ref={sellerEmailRef}
@@ -1259,16 +1289,9 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                                     email: e.target.value,
                                   })
                                 }
-                                className={`mt-1.5 text-sm sm:text-base pl-8 sm:pl-10 ${customFocusStyle}`}
+                                className={`mt-1.5 text-sm sm:text-base pl-8 sm:pl-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                                style={{ outline: "none", boxShadow: "none" }}
                                 disabled={isFormLocked}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    if (receiverNameRef.current) {
-                                      receiverNameRef.current.focus();
-                                    }
-                                  }
-                                }}
                               />
                             </div>
                           </div>
@@ -1280,8 +1303,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                         className="space-y-3 sm:space-y-4 animate-fade-in"
                         style={{ animationDelay: "0.15s" }}
                       >
-                        <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
-                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#2b825b] text-white">
+                        <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
                             2
                           </span>
                           Receiver Information
@@ -1291,7 +1314,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                           <div>
                             <Label
                               htmlFor="receiver-name"
-                              className="flex items-center gap-1 text-sm sm:text-base"
+                              className="flex items-center gap-1 text-sm sm:text-base text-[var(--text-secondary)]"
                             >
                               Name (Individual or Business){" "}
                               <span className="text-red-500">*</span>
@@ -1307,16 +1330,9 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                                   name: e.target.value,
                                 })
                               }
-                              className={`mt-1.5 text-sm sm:text-base ${customFocusStyle}`}
+                              className={`mt-1.5 text-sm sm:text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                              style={{ outline: "none", boxShadow: "none" }}
                               disabled={isFormLocked}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  if (receiverEmailRef.current) {
-                                    receiverEmailRef.current.focus();
-                                  }
-                                }
-                              }}
                             />
                           </div>
 
@@ -1324,12 +1340,12 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                             <div>
                               <Label
                                 htmlFor="receiver-email"
-                                className="text-sm sm:text-base"
+                                className="text-sm sm:text-base text-[var(--text-secondary)]"
                               >
                                 Email (Optional)
                               </Label>
                               <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3 sm:h-4 sm:w-4" />
+                                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-3 w-3 sm:h-4 sm:w-4" />
                                 <Input
                                   id="receiver-email"
                                   ref={receiverEmailRef}
@@ -1342,16 +1358,9 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                                       email: e.target.value,
                                     })
                                   }
-                                  className={`mt-1.5 text-sm sm:text-base pl-8 sm:pl-10 ${customFocusStyle}`}
+                                  className={`mt-1.5 text-sm sm:text-base pl-8 sm:pl-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                                  style={{ outline: "none", boxShadow: "none" }}
                                   disabled={isFormLocked}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      if (receiverPhoneRef.current) {
-                                        receiverPhoneRef.current.focus();
-                                      }
-                                    }
-                                  }}
                                 />
                               </div>
                             </div>
@@ -1359,12 +1368,12 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                             <div>
                               <Label
                                 htmlFor="receiver-phone"
-                                className="text-sm sm:text-base"
+                                className="text-sm sm:text-base text-[var(--text-secondary)]"
                               >
                                 Phone (Optional)
                               </Label>
                               <div className="relative">
-                                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3 sm:h-4 sm:w-4" />
+                                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-3 w-3 sm:h-4 sm:w-4" />
                                 <Input
                                   id="receiver-phone"
                                   ref={receiverPhoneRef}
@@ -1376,7 +1385,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                                       phone: e.target.value,
                                     })
                                   }
-                                  className={`mt-1.5 text-sm sm:text-base pl-8 sm:pl-10 ${customFocusStyle}`}
+                                  className={`mt-1.5 text-sm sm:text-base pl-8 sm:pl-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                                  style={{ outline: "none", boxShadow: "none" }}
                                   disabled={isFormLocked}
                                 />
                               </div>
@@ -1387,7 +1397,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                           <div>
                             <Label
                               htmlFor="issue-date"
-                              className="text-sm sm:text-base"
+                              className="text-sm sm:text-base text-[var(--text-secondary)]"
                             >
                               Issue Date
                             </Label>
@@ -1396,7 +1406,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                               type="date"
                               value={issueDate}
                               onChange={(e) => setIssueDate(e.target.value)}
-                              className={`mt-1.5 text-sm sm:text-base ${customFocusStyle}`}
+                              className={`mt-1.5 text-sm sm:text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                              style={{ outline: "none", boxShadow: "none" }}
                               disabled={isFormLocked}
                               max={new Date().toISOString().split("T")[0]}
                             />
@@ -1409,8 +1420,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                         className="space-y-3 sm:space-y-4 animate-fade-in"
                         style={{ animationDelay: "0.2s" }}
                       >
-                        <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
-                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#2b825b] text-white">
+                        <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
                             3
                           </span>
                           Transaction Details
@@ -1421,20 +1432,20 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                           disabled={isFormLocked}
                         />
 
-                        <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                        <div className="p-3 sm:p-4 bg-[var(--bg-secondary)] rounded-lg squircle-md">
                           <div className="flex justify-between items-center mb-1 sm:mb-2">
-                            <span className="text-base sm:text-lg text-gray-600 font-semibold">
+                            <span className="text-base sm:text-lg text-[var(--text-secondary)] font-semibold">
                               Subtotal
                             </span>
-                            <span className="text-lg sm:text-xl font-bold text-gray-800">
+                            <span className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
                               {formatCurrency(calculateSubtotal())}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center pt-2 border-t">
-                            <span className="text-lg sm:text-xl text-gray-800 font-bold">
+                          <div className="flex justify-between items-center pt-2 border-t border-[var(--border-color)]">
+                            <span className="text-lg sm:text-xl text-[var(--text-primary)] font-bold">
                               Total
                             </span>
-                            <span className="text-xl sm:text-2xl font-bold text-[#2b825b]">
+                            <span className="text-xl sm:text-2xl font-bold text-[var(--color-accent-yellow)]">
                               {formatCurrency(calculateTotal())}
                             </span>
                           </div>
@@ -1443,7 +1454,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                         <div>
                           <Label
                             htmlFor="payment-method"
-                            className="text-sm sm:text-base"
+                            className="text-sm sm:text-base text-[var(--text-secondary)]"
                           >
                             Payment Method
                           </Label>
@@ -1455,15 +1466,14 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                             disabled={isFormLocked}
                           >
                             <SelectTrigger
-                              className={`mt-1.5 text-sm sm:text-base ${customFocusStyle}`}
+                              className={`mt-1.5 text-sm sm:text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                              style={{ outline: "none", boxShadow: "none" }}
                             >
                               <SelectValue placeholder="Select payment method" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="bg-[var(--bg-primary)] border border-[var(--border-color)]">
                               <SelectItem value="cash">Cash</SelectItem>
-                              <SelectItem value="transfer">
-                                Bank Transfer
-                              </SelectItem>
+                              <SelectItem value="transfer">Bank Transfer</SelectItem>
                               <SelectItem value="card">Card</SelectItem>
                               <SelectItem value="other">Other</SelectItem>
                             </SelectContent>
@@ -1474,7 +1484,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                         <div>
                           <Label
                             htmlFor="customer-note"
-                            className="text-sm sm:text-base"
+                            className="text-sm sm:text-base text-[var(--text-secondary)]"
                           >
                             Customer Note (Optional)
                           </Label>
@@ -1483,7 +1493,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                             placeholder="Add any additional notes for the customer"
                             value={customerNote}
                             onChange={(e) => setCustomerNote(e.target.value)}
-                            className={`mt-1.5 text-sm sm:text-base ${customFocusStyle}`}
+                            className={`mt-1.5 text-sm sm:text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                            style={{ outline: "none", boxShadow: "none" }}
                             disabled={isFormLocked}
                           />
                         </div>
@@ -1494,8 +1505,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                         className="space-y-3 sm:space-y-4 animate-fade-in"
                         style={{ animationDelay: "0.25s" }}
                       >
-                        <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
-                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[#2b825b] text-white">
+                        <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                          <span className="h-5 w-5 sm:h-6 sm:w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
                             4
                           </span>
                           Your Signature
@@ -1508,16 +1519,16 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                         />
 
                         {/* Toggle Button for Saving Signature */}
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] squircle-md">
                           <div className="flex items-center space-x-2 sm:space-x-3">
                             <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-blue-100 flex items-center justify-center">
                               <Save className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                             </div>
                             <div>
-                              <p className="text-xs sm:text-sm font-medium text-gray-900">
+                              <p className="text-xs sm:text-sm font-medium text-[var(--text-primary)]">
                                 Save this signature for future use
                               </p>
-                              <p className="text-xs text-gray-600">
+                              <p className="text-xs text-[var(--text-secondary)]">
                                 Your signature will be securely stored
                               </p>
                             </div>
@@ -1526,7 +1537,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                             checked={saveSignatureForFuture}
                             onCheckedChange={handleSaveSignatureToggle}
                             disabled={!sellerSignature || isFormLocked}
-                            className="data-[state=checked]:bg-[#2b825b]"
+                            className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
                           />
                         </div>
                       </div>
@@ -1538,7 +1549,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                           variant="outline"
                           onClick={handleCancel}
                           disabled={isFormLocked}
-                          className="flex-1 focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                          className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                         >
                           Cancel
                         </Button>
@@ -1546,7 +1557,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                           type="submit"
                           variant="default"
                           size="lg"
-                          className="flex-1 bg-[#2b825b] hover:bg-[#1e5d42] text-white focus:ring-2 focus:ring-offset-2 focus:ring-[#2b825b] text-sm sm:text-base"
+                          className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 focus:ring-2 focus:ring-offset-2 focus:ring-[var(--color-accent-yellow)] text-sm sm:text-base squircle-md"
                           disabled={isFormLocked || isSending}
                         >
                           {isSending ? (
@@ -1577,8 +1588,8 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                       isProcessingPayment={isFormLocked}
                     />
 
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-4 border-t mt-6 gap-3">
-                      <div className="text-sm text-gray-500">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-4 border-t border-[var(--border-color)] mt-6 gap-3">
+                      <div className="text-sm text-[var(--text-secondary)]">
                         <p>
                           Switch to the "Edit Receipt" tab to modify your
                           receipt
@@ -1587,7 +1598,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
                       <Button
                         variant="outline"
                         onClick={() => setActiveTab("create")}
-                        className="border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b]/10"
+                        className="border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 squircle-md"
                       >
                         <EyeOff className="h-4 w-4 mr-2" />
                         Back to Editor
@@ -1610,7 +1621,7 @@ export default function EditReceipt({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader /></div>}>
       <EditReceiptPage params={params} />
     </Suspense>
   );

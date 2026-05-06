@@ -44,7 +44,7 @@ const WhyChoose = () => {
             <div className="space-y-6">
               {reasons.map((reason, index) => (
                 <div key={index} className="flex items-start gap-4 group">
-                  <div className="w-12 h-12 bg-(--bg-primary) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)] dark:shadow-[4px_4px_0px_var(--color-accent-yellow)] flex items-center justify-center shrink-0 group-hover:bg-(--color-accent-yellow) group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 transition-all squircle-md">
+                  <div className="w-12 h-12 bg-(--color-accent-yellow) border-2 border-(--border-color)  flex items-center justify-center shrink-0 group-hover:bg-(--color-accent-yellow) group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 transition-all squircle-md">
                     <reason.icon className="w-6 h-6 text-(--text-primary) group-hover:text-(--color-ink) transition-colors" />
                   </div>
                   <div>

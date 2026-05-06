@@ -23,7 +23,7 @@ const ZidCoin = () => {
               ZidCoin is the currency inside Zidwell. It's what we pay you for
               using our app.
             </p>
-            <div className="bg-(--bg-primary) border-2 border-(--color-accent-yellow) p-6 shadow-[4px_4px_0px_var(--color-accent-yellow)] mb-8 squircle-lg">
+            <div className="bg-(--bg-primary) border-2 border-(--color-accent-yellow) p-6 mb-8 squircle-lg">
               <div className="flex items-center justify-between mb-4">
                 <span className="font-bold text-(--text-primary)">
                   Exchange Rate

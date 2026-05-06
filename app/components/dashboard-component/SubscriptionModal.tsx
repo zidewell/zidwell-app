@@ -38,11 +38,16 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
   const getNextTier = () => {
     switch (userTier) {
-      case "free": return "zidlite";
-      case "zidlite": return "growth";
-      case "growth": return "premium";
-      case "premium": return "elite";
-      default: return "zidlite";
+      case "free":
+        return "zidlite";
+      case "zidlite":
+        return "growth";
+      case "growth":
+        return "premium";
+      case "premium":
+        return "elite";
+      default:
+        return "zidlite";
     }
   };
 
@@ -50,43 +55,98 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     switch (userTier) {
       case "free":
         return {
-          currentTier: "Free Trial", nextTier: "ZidLite",
-          title: "Upgrade to ZidLite", description: "Test what finance automation looks like",
-          icon: <Zap className="h-6 w-6 text-white" />, badge: "UPGRADE NOW", primaryCta: "Go ZidLite",
-          monthlyPrice: "₦4,900", annualPrice: "₦49,000", annualSavings: "save ₦9,800",
-          features: ["10 Invoices • 10 Receipts • 2 Contracts", "Bookkeeping & Tax Calculator trials", "WhatsApp Business Community", "Unlimited transfers at ₦50 each"],
+          currentTier: "Free Trial",
+          nextTier: "ZidLite",
+          title: "Upgrade to ZidLite",
+          description: "Test what finance automation looks like",
+          icon: <Zap className="h-6 w-6 text-white" />,
+          badge: "UPGRADE NOW",
+          primaryCta: "Go ZidLite",
+          monthlyPrice: "₦4,900",
+          annualPrice: "₦49,000",
+          annualSavings: "save ₦9,800",
+          features: [
+            "10 Invoices • 10 Receipts • 2 Contracts",
+            "Bookkeeping & Tax Calculator trials",
+            "WhatsApp Business Community",
+            "Unlimited transfers at ₦50 each",
+          ],
         };
       case "zidlite":
         return {
-          currentTier: "ZidLite", nextTier: "Growth",
-          title: "Upgrade to Growth", description: "Structure without stress",
-          icon: <Rocket className="h-6 w-6 text-white" />, badge: "GROW FASTER", primaryCta: "Go Growth",
-          monthlyPrice: "₦9,900", annualPrice: "₦99,000", annualSavings: "save ₦19,800",
-          features: ["Unlimited Invoices & Receipts", "5 Contracts • Bookkeeping Tool", "Tax Calculator Included", "WhatsApp Community + Support"],
+          currentTier: "ZidLite",
+          nextTier: "Growth",
+          title: "Upgrade to Growth",
+          description: "Structure without stress",
+          icon: <Rocket className="h-6 w-6 text-white" />,
+          badge: "GROW FASTER",
+          primaryCta: "Go Growth",
+          monthlyPrice: "₦9,900",
+          annualPrice: "₦99,000",
+          annualSavings: "save ₦19,800",
+          features: [
+            "Unlimited Invoices & Receipts",
+            "5 Contracts • Bookkeeping Tool",
+            "Tax Calculator Included",
+            "WhatsApp Community + Support",
+          ],
         };
       case "growth":
         return {
-          currentTier: "Growth", nextTier: "Premium",
-          title: "Upgrade to Premium", description: "For founders who want hands-on help",
-          icon: <Crown className="h-6 w-6 text-white" />, badge: "GO PREMIUM", primaryCta: "Upgrade to Premium",
-          monthlyPrice: "₦49,900", annualPrice: "₦499,000", annualSavings: "save ₦99,800",
-          features: ["Unlimited Contracts", "Payment Reminders", "Financial Statements", "Tax Filing Support • Priority Support"],
+          currentTier: "Growth",
+          nextTier: "Premium",
+          title: "Upgrade to Premium",
+          description: "For founders who want hands-on help",
+          icon: <Crown className="h-6 w-6 text-white" />,
+          badge: "GO PREMIUM",
+          primaryCta: "Upgrade to Premium",
+          monthlyPrice: "₦49,900",
+          annualPrice: "₦499,000",
+          annualSavings: "save ₦99,800",
+          features: [
+            "Unlimited Contracts",
+            "Payment Reminders",
+            "Financial Statements",
+            "Tax Filing Support • Priority Support",
+          ],
         };
       case "premium":
         return {
-          currentTier: "Premium", nextTier: "Elite",
-          title: "Upgrade to Elite", description: "For businesses that need tax support",
-          icon: <Gem className="h-6 w-6 text-white" />, badge: "GO ELITE", primaryCta: "Contact Us",
-          monthlyPrice: "₦100,000+", annualPrice: "Custom", annualSavings: "",
-          features: ["Full Tax Filing (VAT, PAYE, WHT)", "CIT Audit • CFO Guidance", "Direct WhatsApp Support", "Annual Audit Coordination"],
+          currentTier: "Premium",
+          nextTier: "Elite",
+          title: "Upgrade to Elite",
+          description: "For businesses that need tax support",
+          icon: <Gem className="h-6 w-6 text-white" />,
+          badge: "GO ELITE",
+          primaryCta: "Contact Us",
+          monthlyPrice: "₦100,000+",
+          annualPrice: "Custom",
+          annualSavings: "",
+          features: [
+            "Full Tax Filing (VAT, PAYE, WHT)",
+            "CIT Audit • CFO Guidance",
+            "Direct WhatsApp Support",
+            "Annual Audit Coordination",
+          ],
         };
       default:
         return {
-          currentTier: "Free Trial", nextTier: "ZidLite",
-          title: "Upgrade to ZidLite", description: "Test what finance automation looks like",
-          icon: <Zap className="h-6 w-6 text-white" />, badge: "UPGRADE NOW", primaryCta: "Go ZidLite",
-          monthlyPrice: "₦4,900", annualPrice: "₦49,000", annualSavings: "save ₦9,800",
-          features: ["10 Invoices • 10 Receipts • 2 Contracts", "Bookkeeping & Tax Calculator trials", "WhatsApp Business Community", "Unlimited transfers at ₦50 each"],
+          currentTier: "Free Trial",
+          nextTier: "ZidLite",
+          title: "Upgrade to ZidLite",
+          description: "Test what finance automation looks like",
+          icon: <Zap className="h-6 w-6 text-white" />,
+          badge: "UPGRADE NOW",
+          primaryCta: "Go ZidLite",
+          monthlyPrice: "₦4,900",
+          annualPrice: "₦49,000",
+          annualSavings: "save ₦9,800",
+          features: [
+            "10 Invoices • 10 Receipts • 2 Contracts",
+            "Bookkeeping & Tax Calculator trials",
+            "WhatsApp Business Community",
+            "Unlimited transfers at ₦50 each",
+          ],
         };
     }
   };
@@ -146,7 +206,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 <h2 className="text-2xl font-bold tracking-tight mb-2 text-[var(--color-ink)]">
                   {tierInfo.title}
                 </h2>
-                <p className="text-[var(--color-ink)]/80 text-sm">{tierInfo.description}</p>
+                <p className="text-[var(--color-ink)]/80 text-sm">
+                  {tierInfo.description}
+                </p>
               </div>
 
               <div className="relative z-10 mt-4">
@@ -159,7 +221,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                       <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/20">
                         <Check className="h-2.5 w-2.5 text-[var(--color-ink)]" />
                       </div>
-                      <span className="text-[var(--color-ink)]/90">{benefit}</span>
+                      <span className="text-[var(--color-ink)]/90">
+                        {benefit}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -242,7 +306,11 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                         : tierInfo.monthlyPrice}
                   </span>
                   <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">
-                    {userTier === "premium" ? "/mo" : selectedPlan === "annual" ? "/yr" : "/mo"}
+                    {userTier === "premium"
+                      ? "/mo"
+                      : selectedPlan === "annual"
+                        ? "/yr"
+                        : "/mo"}
                   </span>
                   {selectedPlan === "annual" && userTier !== "premium" && (
                     <p className="text-[10px] text-[var(--color-accent-yellow)]">
@@ -253,10 +321,15 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
                 <ul className="space-y-1 mb-3">
                   {tierInfo.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-1.5 text-xs">
+                    <li
+                      key={index}
+                      className="flex items-start gap-1.5 text-xs"
+                    >
                       <Check
                         className={`h-3 w-3 shrink-0 mt-0.5 ${
-                          userTier === "premium" ? "text-purple-500" : "text-[var(--color-accent-yellow)]"
+                          userTier === "premium"
+                            ? "text-purple-500"
+                            : "text-[var(--color-accent-yellow)]"
                         }`}
                       />
                       <span>{feature}</span>
@@ -268,7 +341,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <p className="text-[10px] text-gray-500 dark:text-gray-400">
                       vs {tierInfo.currentTier}:{" "}
-                      {selectedPlan === "annual" ? tierInfo.annualSavings : "More features"}
+                      {selectedPlan === "annual"
+                        ? tierInfo.annualSavings
+                        : "More features"}
                     </p>
                   </div>
                 )}
@@ -293,7 +368,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   Maybe later
                 </button>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500">
-                  {userTier === "premium" ? "Contact sales for custom pricing" : "14-day trials available on select features"}
+                  {userTier === "premium"
+                    ? "Contact sales for custom pricing"
+                    : "14-day trials available on select features"}
                 </p>
               </div>
             </div>

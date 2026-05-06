@@ -54,7 +54,7 @@ const Testimonials = () => {
             {testimonials.map((testimonial, index) => (
               <div
                 key={index}
-                className="relative w-16 h-16 md:w-20 md:h-20 squircle-full border-4 border-[var(--bg-primary)] overflow-hidden shadow-[4px_4px_0px_var(--border-color)] dark:shadow-[4px_4px_0px_var(--color-accent-yellow)]"
+                className="relative w-16 h-16 md:w-20 md:h-20 squircle-full border-4 border-[var(--bg-primary)] overflow-hidden "
                 style={{ zIndex: testimonials.length - index }}
               >
                 <Image
@@ -76,7 +76,7 @@ const Testimonials = () => {
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className="bg-(--bg-primary) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)] dark:shadow-[4px_4px_0px_var(--color-accent-yellow)] p-6 md:p-8 hover:shadow-[6px_6px_0px_var(--border-color)] dark:hover:shadow-[6px_6px_0px_var(--color-accent-yellow)] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 squircle-lg"
+              className="bg-(--bg-primary) border-2 border-(--border-color)  p-6 md:p-8  hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 squircle-lg"
             >
               <Quote className="w-10 h-10 text-(--color-accent-yellow) mb-4" />
               <p className="text-lg font-medium mb-6 text-(--text-primary)">

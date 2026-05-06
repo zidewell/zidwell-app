@@ -2,9 +2,9 @@ import React from "react";
 
 function ReceiptHowItsWork() {
   return (
-    <section className="py-16 sm:py-20 ">
+    <section className="py-16 sm:py-20">
       <div className="container">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center text-foreground mb-12">
+        <h2 className="text-2xl sm:text-3xl font-bold text-center text-[var(--text-primary)] mb-12">
           How It Works
         </h2>
 
@@ -41,14 +41,14 @@ function ReceiptHowItsWork() {
                 className="flex gap-4 items-start animate-fade-in"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className="h-10 w-10 rounded-full flex items-center justify-center font-bold shrink-0 bg-[#2b825b] text-white">
+                <div className="h-10 w-10 rounded-full flex items-center justify-center font-bold shrink-0 bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
                   {item.step}
                 </div>
                 <div className="pt-1">
-                  <h3 className="font-semibold text-foreground">
+                  <h3 className="font-semibold text-[var(--text-primary)]">
                     {item.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-[var(--text-secondary)] mt-1">
                     {item.description}
                   </p>
                 </div>

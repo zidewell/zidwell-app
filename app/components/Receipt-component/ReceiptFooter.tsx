@@ -2,13 +2,13 @@ import React from "react";
 
 function ReceiptFooter() {
   return (
-    <footer className="border-t border-border py-8">
+    <footer className="border-t border-[var(--border-color)] py-8">
       <div className="container text-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-secondary)]">
           Powered by{" "}
           <a
             href="https://zidwell.com"
-            className="font-semibold text-primary hover:underline"
+            className="font-semibold text-[var(--color-accent-yellow)] hover:underline"
             target="_blank"
             rel="noopener noreferrer"
           >

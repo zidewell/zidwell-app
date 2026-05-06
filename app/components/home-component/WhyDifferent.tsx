@@ -44,7 +44,7 @@ const WhyDifferent = () => {
                 },
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-(--color-accent-yellow) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)] dark:shadow-[4px_4px_0px_var(--color-accent-yellow)] flex items-center justify-center shrink-0 squircle-md">
+                  <div className="w-10 h-10 bg-(--color-accent-yellow) border-2 border-(--border-color)  flex items-center justify-center shrink-0 squircle-md">
                     <item.icon className="w-5 h-5 text-(--color-ink)" />
                   </div>
                   <div>
@@ -91,7 +91,7 @@ const WhyDifferent = () => {
                     With Zidwell
                   </span>
                   <div className="mt-3">
-                    <span className="px-6 py-3 bg-(--color-accent-yellow) text-(--color-ink) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)] dark:shadow-[4px_4px_0px_var(--color-accent-yellow)] font-bold inline-block squircle-md">
+                    <span className="px-6 py-3  bg-(--color-ink) text-white border-2 border-(--border-color)  inline-block squircle-md">
                       One Platform. Everything.
                     </span>
                   </div>
@@ -101,7 +101,7 @@ const WhyDifferent = () => {
                 </div>
               </div>
             </div>
-            <div className="absolute -top-4 -right-4 w-8 h-8 bg-(--color-accent-yellow) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)] dark:shadow-[4px_4px_0px_var(--color-accent-yellow)]" />
+            <div className="absolute -top-4 -right-4 w-8 h-8 bg-(--color-accent-yellow) border-2 border-(--border-color) " />
             <div className="absolute -bottom-4 -left-4 w-6 h-6 bg-[var(--border-color)]" />
           </div>
         </div>

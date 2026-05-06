@@ -157,19 +157,27 @@ function BookkeepingPage() {
                   </p>
                   <ul className="space-y-3 mb-6">
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Full bookkeeping access
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Up to 500 transactions/month
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Basic analytics & reports
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Email support
                     </li>
                   </ul>
@@ -202,23 +210,33 @@ function BookkeepingPage() {
                   </p>
                   <ul className="space-y-3 mb-6">
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Everything in Growth
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Unlimited transactions
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Advanced analytics & insights
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Priority support
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Custom category management
                     </li>
                   </ul>
@@ -248,23 +266,33 @@ function BookkeepingPage() {
                   </p>
                   <ul className="space-y-3 mb-6">
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Everything in Premium
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Dedicated account manager
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Custom integrations & API access
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       24/7 phone support
                     </li>
                     <li className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
-                      <span className="text-[var(--color-accent-yellow)] font-bold">✓</span>
+                      <span className="text-[var(--color-accent-yellow)] font-bold">
+                        ✓
+                      </span>
                       Team collaboration features
                     </li>
                   </ul>
@@ -350,8 +378,8 @@ function BookkeepingPage() {
                       Is my data secure?
                     </h4>
                     <p className="text-sm text-[var(--text-secondary)]">
-                      Yes, we use bank-level encryption and security measures
-                      to protect your financial data.
+                      Yes, we use bank-level encryption and security measures to
+                      protect your financial data.
                     </p>
                   </div>
                 </div>

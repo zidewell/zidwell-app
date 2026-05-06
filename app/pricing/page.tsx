@@ -16,30 +16,30 @@ import { useSubscription } from "../hooks/useSubscripion";
 import { useUserContextData } from "../context/userData";
 import { SubscriptionBadge } from "../components/subscription-components/subscriptionBadges";
 import Footer from "../components/home-component/Footer"; 
-import { Button2 } from "../components/ui/button2";
+import { Button } from "../components/ui/button";
 import Header from "../components/home-component/Header"; 
 
 const plans = [
   {
-  name: "Free Trial",
-  tier: "free",
-  price: "₦0",
-  period: "/month",
-  icon: Star,
-  description: "To Test if Zidwell is Right for You",
-  features: [
-    "Unlimited transfers at N50 each",
-    "1 month free trial of Bookkeeping",
-    "1 month free trial of Tax Calculator",
-    "10 Invoices total",
-    "10 Receipts total",
-    "1 Contract total",
-    "Basic support",
-  ],
-  cta: "Start Free",
-  amount: 0,
-  color: "gray",
-},
+    name: "Free Trial",
+    tier: "free",
+    price: "₦0",
+    period: "/month",
+    icon: Star,
+    description: "To Test if Zidwell is Right for You",
+    features: [
+      "Unlimited transfers at N50 each",
+      "1 month free trial of Bookkeeping",
+      "1 month free trial of Tax Calculator",
+      "10 Invoices total",
+      "10 Receipts total",
+      "1 Contract total",
+      "Basic support",
+    ],
+    cta: "Start Free",
+    amount: 0,
+    color: "gray",
+  },
   {
     name: "ZidLite",
     tier: "zidlite",
@@ -49,7 +49,7 @@ const plans = [
     icon: Zap,
     description:
       "For businesses that want to test what finance automation looks like",
-   features: [
+    features: [
       "Everything in Free, plus:",
       "Transfers fee at N50",
       "Bookkeeping free trial",
@@ -62,7 +62,6 @@ const plans = [
     ],
     cta: "Go ZidLite",
     amount: 4900,
-    // amount: 100,
     yearlyAmount: 49000,
     color: "blue",
   },
@@ -87,9 +86,8 @@ const plans = [
     cta: "Go Growth",
     highlight: true,
     amount: 9900,
-    // amount: 100,
     yearlyAmount: 99000,
-    color: "green",
+    color: "yellow",
   },
   {
     name: "Premium",
@@ -110,7 +108,6 @@ const plans = [
     ],
     cta: "Upgrade to Premium",
     amount: 49900,
-    // amount: 100,
     yearlyAmount: 499000,
     color: "amber",
   },
@@ -137,12 +134,11 @@ const plans = [
     ],
     cta: "Contact Us",
     amount: 100000,
-    // amount: 100,
     color: "purple",
   },
 ];
 
- function PricingPage() {
+function PricingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { subscription, loading, checkTrialStatus, activateTrial } =
@@ -160,7 +156,6 @@ const plans = [
 
   const upgradeParam = searchParams?.get("upgrade");
 
-  // Check for payment status from URL
   useEffect(() => {
     const paymentStatus = searchParams?.get("payment");
     if (paymentStatus === "success") {
@@ -172,7 +167,6 @@ const plans = [
     }
   }, [searchParams]);
 
-  // Check trial status for free users
   useEffect(() => {
     if (subscription?.tier === "free") {
       checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
@@ -180,7 +174,6 @@ const plans = [
     }
   }, [subscription?.tier, checkTrialStatus]);
 
-  // Scroll to highlighted plan if upgrade param exists
   useEffect(() => {
     if (upgradeParam && plans.some((p) => p.tier === upgradeParam)) {
       const element = document.getElementById("pricing");
@@ -257,7 +250,6 @@ const plans = [
       return;
     }
 
-    // Check if user is logged in
     if (!userData?.id) {
       sessionStorage.setItem("intendedUrl", "/pricing");
       router.push("/auth/login");
@@ -273,8 +265,6 @@ const plans = [
           ? plan.yearlyAmount
           : plan.amount;
 
-      // Directly create checkout WITHOUT creating subscription first
-      // The subscription will be created by the webhook after successful payment
       await createNombaCheckout(plan, amount);
     } catch (error: any) {
       console.error("Subscription error:", error);
@@ -299,7 +289,6 @@ const plans = [
       if (result.success) {
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 5000);
-        // Refresh trial status
         if (trialType === "bookkeeping") {
           checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
         } else {
@@ -318,12 +307,12 @@ const plans = [
       <Header />
       <section
         id="pricing"
-        className="py-20 md:py-32 bg-gray-100/30 dark:bg-gray-900/30"
+        className="py-20 md:py-32 bg-[var(--bg-primary)]"
       >
         <div className="container mx-auto px-4">
           {/* Success Message */}
           {showSuccess && (
-            <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-slideIn">
+            <div className="fixed top-4 right-4 z-50 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-6 py-3 rounded-xl shadow-pop animate-slideIn">
               <p className="font-bold">
                 ✓{" "}
                 {subscription?.tier === "free"
@@ -340,7 +329,7 @@ const plans = [
 
           {/* Error Message */}
           {error && (
-            <div className="fixed top-4 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg animate-slideIn">
+            <div className="fixed top-4 right-4 z-50 bg-[var(--destructive)] text-white px-6 py-3 rounded-xl shadow-pop animate-slideIn">
               <p className="font-bold">✗ Error</p>
               <p className="text-sm">{error}</p>
             </div>
@@ -348,11 +337,10 @@ const plans = [
 
           {/* Section Header */}
           <div className="max-w-3xl mx-auto text-center mb-16">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-gray-900 dark:text-gray-50">
-              Simple plans that <span className="text-[#2b825b]">grow</span>{" "}
-              with you
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-[var(--text-primary)]">
+              Simple plans that <span className="text-[var(--color-accent-yellow)]">grow</span> with you
             </h2>
-            <p className="text-lg text-gray-500 dark:text-gray-400">
+            <p className="text-lg text-[var(--text-secondary)]">
               We've worked hard to make our pricing as affordable as possible so
               you can get the best value. Choose the plan that matches your
               business goals.
@@ -362,7 +350,7 @@ const plans = [
             <div className="mt-4">
               <button
                 onClick={() => router.back()}
-                className="inline-flex items-center gap-2 text-[#2b825b] hover:underline"
+                className="inline-flex items-center gap-2 text-[var(--color-accent-yellow)] hover:underline"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
@@ -371,8 +359,8 @@ const plans = [
 
             {/* Current Plan Display */}
             {subscription && subscription.tier !== "free" && (
-              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[#2b825b]/10 rounded-full">
-                <span className="text-sm text-gray-600 dark:text-gray-300">
+              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full">
+                <span className="text-sm text-[var(--text-primary)]">
                   Current Plan:
                 </span>
                 <SubscriptionBadge />
@@ -383,16 +371,16 @@ const plans = [
             {subscription?.tier === "free" && (
               <div className="mt-6 space-y-2">
                 {bookkeepingTrial?.isActive && (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full mr-2">
-                    <span className="text-sm text-green-600 dark:text-green-300">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full mr-2">
+                    <span className="text-sm text-[var(--color-accent-yellow)]">
                       Bookkeeping Trial: {bookkeepingTrial.daysRemaining} days
                       remaining
                     </span>
                   </div>
                 )}
                 {taxCalculatorTrial?.isActive && (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full">
-                    <span className="text-sm text-green-600 dark:text-green-300">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full">
+                    <span className="text-sm text-[var(--color-accent-yellow)]">
                       Tax Calculator Trial: {taxCalculatorTrial.daysRemaining}{" "}
                       days remaining
                     </span>
@@ -403,14 +391,14 @@ const plans = [
 
             {/* Billing Toggle */}
             <div className="flex items-center justify-center mt-8">
-              <div className="bg-white dark:bg-gray-800 p-1 rounded-full border-2 border-gray-900 dark:border-gray-50">
+              <div className="bg-[var(--bg-secondary)] p-1 rounded-full border-2 border-[var(--border-color)]">
                 <button
                   onClick={() => setSelectedBilling("monthly")}
                   disabled={processingTier !== null}
                   className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                     selectedBilling === "monthly"
-                      ? "bg-[#2b825b] text-gray-900"
-                      : "text-gray-500 dark:text-gray-400"
+                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                      : "text-[var(--text-primary)]"
                   } disabled:opacity-50`}
                 >
                   Monthly
@@ -420,8 +408,8 @@ const plans = [
                   disabled={processingTier !== null}
                   className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                     selectedBilling === "yearly"
-                      ? "bg-[#2b825b] text-gray-900"
-                      : "text-gray-500 dark:text-gray-400"
+                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                      : "text-[var(--text-primary)]"
                   } disabled:opacity-50`}
                 >
                   Yearly <span className="text-xs ml-1">Save up to 20%</span>
@@ -441,15 +429,14 @@ const plans = [
                 <div
                   key={index}
                   id={`plan-${plan.tier}`}
-                  className={`relative flex flex-col ${
+                  className={`relative flex flex-col p-6 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 rounded-2xl ${
                     plan.highlight
-                      ? "bg-[#2b825b] text-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[6px_6px_0px_#111827] dark:shadow-[6px_6px_0px_#fbbf24]"
-                      : "bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24]"
-                  } p-6 hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150
-                  ${isUpgrade ? "ring-4 ring-[#2b825b] ring-opacity-50" : ""}`}
+                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] border-2 border-[var(--border-color)] shadow-[6px_6px_0px_var(--border-color)]"
+                      : "bg-[var(--bg-primary)] border-2 border-[var(--border-color)] shadow-[4px_4px_0px_var(--border-color)]"
+                  } ${isUpgrade ? "ring-4 ring-[var(--color-accent-yellow)] ring-opacity-50" : ""}`}
                 >
                   {plan.highlight && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gray-900 dark:bg-gray-50 text-gray-50 dark:text-gray-900 text-xs font-bold flex items-center gap-1 rounded-full">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--border-color)] text-[var(--text-primary)] text-xs font-bold flex items-center gap-1 rounded-full">
                       <Sparkles className="w-3 h-3" />
                       POPULAR
                     </div>
@@ -457,7 +444,7 @@ const plans = [
 
                   {/* Current Plan Badge */}
                   {currentPlan && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-green-600 text-white text-xs font-bold rounded-full whitespace-nowrap">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] text-xs font-bold rounded-full whitespace-nowrap">
                       CURRENT PLAN
                     </div>
                   )}
@@ -466,8 +453,8 @@ const plans = [
                     <h3
                       className={`text-xl font-bold mb-2 ${
                         plan.highlight
-                          ? "text-gray-900"
-                          : "text-gray-900 dark:text-gray-50"
+                          ? "text-[var(--color-ink)]"
+                          : "text-[var(--text-primary)]"
                       }`}
                     >
                       {plan.name}
@@ -476,8 +463,8 @@ const plans = [
                       <span
                         className={`text-3xl font-black ${
                           plan.highlight
-                            ? "text-gray-900"
-                            : "text-gray-900 dark:text-gray-50"
+                            ? "text-[var(--color-ink)]"
+                            : "text-[var(--text-primary)]"
                         }`}
                       >
                         {selectedBilling === "yearly" && plan.yearlyPrice
@@ -493,8 +480,8 @@ const plans = [
                       <span
                         className={`text-sm ${
                           plan.highlight
-                            ? "text-gray-900/70"
-                            : "text-gray-500 dark:text-gray-400"
+                            ? "text-[var(--color-ink)]/70"
+                            : "text-[var(--text-secondary)]"
                         }`}
                       >
                         {selectedBilling === "yearly" ? "/year" : plan.period}
@@ -504,8 +491,8 @@ const plans = [
                       <p
                         className={`text-xs mt-1 ${
                           plan.highlight
-                            ? "text-gray-900/70"
-                            : "text-gray-500 dark:text-gray-400"
+                            ? "text-[var(--color-ink)]/70"
+                            : "text-[var(--text-secondary)]"
                         }`}
                       >
                         {plan.yearlyPrice}
@@ -514,8 +501,8 @@ const plans = [
                     <p
                       className={`text-sm mt-3 ${
                         plan.highlight
-                          ? "text-gray-900/80"
-                          : "text-gray-500 dark:text-gray-400"
+                          ? "text-[var(--color-ink)]/80"
+                          : "text-[var(--text-secondary)]"
                       }`}
                     >
                       {plan.description}
@@ -525,22 +512,20 @@ const plans = [
                   <ul className="space-y-2 mb-8 grow">
                     {plan.features.map((feature, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">
-                        {feature.startsWith("Everything in") ? (
-                          <span className="w-4 shrink-0"></span>
-                        ) : (
+                        {!feature.startsWith("Everything in") && (
                           <Check
                             className={`w-4 h-4 shrink-0 mt-0.5 ${
                               plan.highlight
-                                ? "text-gray-900"
-                                : "text-[#2b825b]"
+                                ? "text-[var(--color-ink)]"
+                                : "text-[var(--color-accent-yellow)]"
                             }`}
                           />
                         )}
                         <span
                           className={`${
                             plan.highlight
-                              ? "text-gray-900"
-                              : "text-gray-900 dark:text-gray-50"
+                              ? "text-[var(--color-ink)]"
+                              : "text-[var(--text-primary)]"
                           } ${feature.startsWith("Everything in") ? "font-medium" : ""}`}
                         >
                           {feature}
@@ -549,12 +534,12 @@ const plans = [
                     ))}
                   </ul>
 
-                  <Button2
-                    variant={plan.highlight ? "heroOutline" : "default"}
-                    className={`w-full ${
+                  <Button
+                    variant={plan.highlight ? "outline" : "default"}
+                    className={`w-full rounded-xl ${
                       plan.highlight
-                        ? "bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50 hover:bg-gray-100 dark:hover:bg-gray-800"
-                        : ""
+                        ? "bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] border-2 border-[var(--border-color)]"
+                        : "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                     }`}
                     onClick={() => handleSubscribe(plan)}
                     disabled={loading || isProcessing || currentPlan}
@@ -564,7 +549,7 @@ const plans = [
                       : currentPlan
                         ? "Current Plan"
                         : plan.cta}
-                  </Button2>
+                  </Button>
 
                   {/* Trial Buttons for Free Plan */}
                   {plan.tier === "free" && subscription?.tier === "free" && (
@@ -572,7 +557,7 @@ const plans = [
                       {!bookkeepingTrial?.isActive && (
                         <button
                           onClick={() => handleActivateTrial("bookkeeping")}
-                          className="block w-full text-sm text-[#2b825b] hover:underline"
+                          className="block w-full text-sm text-[var(--color-accent-yellow)] hover:underline"
                         >
                           Activate 14-day bookkeeping trial
                         </button>
@@ -580,7 +565,7 @@ const plans = [
                       {!taxCalculatorTrial?.isActive && (
                         <button
                           onClick={() => handleActivateTrial("tax_calculator")}
-                          className="block w-full text-sm text-[#2b825b] hover:underline"
+                          className="block w-full text-sm text-[var(--color-accent-yellow)] hover:underline"
                         >
                           Activate 14-day tax calculator trial
                         </button>
@@ -594,50 +579,50 @@ const plans = [
 
           {/* ZidCoin Economy Section */}
           <div className="mt-20 max-w-4xl mx-auto">
-            <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[6px_6px_0px_#111827] dark:shadow-[6px_6px_0px_#fbbf24] p-8">
-              <h3 className="text-2xl md:text-3xl font-black mb-4 text-gray-900 dark:text-gray-50">
+            <div className="bg-[var(--bg-primary)] border-2 border-[var(--border-color)] shadow-[6px_6px_0px_var(--border-color)] p-8 rounded-2xl">
+              <h3 className="text-2xl md:text-3xl font-black mb-4 text-[var(--text-primary)]">
                 The ZidCoin Economy:{" "}
-                <span className="text-[#2b825b]">
+                <span className="text-[var(--color-accent-yellow)]">
                   Our Cashback & Reward System
                 </span>
               </h3>
 
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">
+                  <h4 className="text-lg font-bold mb-2 text-[var(--text-primary)]">
                     What is ZidCoin?
                   </h4>
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <p className="text-[var(--text-secondary)]">
                     Zidcoin is the currency inside Zidwell. It's what we pay you
                     for using our app. Every time you load data, airtime, cable
                     subscription and electricity on Zidwell, you earn Zidcoins
                     (ZC).
                   </p>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2 font-semibold">
+                  <p className="text-[var(--text-secondary)] mt-2 font-semibold">
                     Value: 1 Zidcoin = ₦1.
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">
+                  <h4 className="text-lg font-bold mb-2 text-[var(--text-primary)]">
                     How It Works
                   </h4>
-                  <ul className="space-y-2 text-gray-600 dark:text-gray-400">
+                  <ul className="space-y-2 text-[var(--text-secondary)]">
                     <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#2b825b]" />
+                      <Check className="w-4 h-4 shrink-0 mt-0.5 text-[var(--color-accent-yellow)]" />
                       <span>
                         Get 20 Zidcoins rewards anytime you spend N2500 and
                         above on Zidwell.
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#2b825b]" />
+                      <Check className="w-4 h-4 shrink-0 mt-0.5 text-[var(--color-accent-yellow)]" />
                       <span>
                         Your Zidcoins accumulate in your wallet as cashback.
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 shrink-0 mt-0.5 text-[#2b825b]" />
+                      <Check className="w-4 h-4 shrink-0 mt-0.5 text-[var(--color-accent-yellow)]" />
                       <span>
                         Once your Zidcoin balance hits 3,000 ZC, you can cash it
                         out.
@@ -647,15 +632,15 @@ const plans = [
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">
+                  <h4 className="text-lg font-bold mb-2 text-[var(--text-primary)]">
                     Why It Matters
                   </h4>
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <p className="text-[var(--text-secondary)]">
                     Zidcoin turns every business transaction into an opportunity
                     to earn. The more you use Zidwell, the more value you unlock
                     — it's structure, savings, and growth all in one.
                   </p>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2 font-semibold">
+                  <p className="text-[var(--text-secondary)] mt-2 font-semibold">
                     Zidwell. Structure your hustle. Earn as you grow.
                   </p>
                 </div>
@@ -669,14 +654,12 @@ const plans = [
   );
 }
 
-
-
 export default function price() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[#f7f0e5] dark:bg-[#01402e]">
-          <Loader2 className="w-8 h-8 animate-spin text-[#f4c600]" />
+        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
         </div>
       }
     >

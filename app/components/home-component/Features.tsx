@@ -100,9 +100,9 @@ const Features = () => {
             <Link
               href={feature.link}
               key={index}
-              className="group bg-(--bg-primary) border-2 border-(--border-color) p-6 shadow-[4px_4px_0px_var(--border-color)] dark:shadow-[4px_4px_0px_var(--color-accent-yellow)] hover:shadow-[6px_6px_0px_var(--border-color)] dark:hover:shadow-[6px_6px_0px_var(--color-accent-yellow)] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 squircle-lg"
+              className="group bg-(--bg-primary) border-2 border-(--border-color) p-6   dark:hover:shadow-[6px_6px_0px_var(--color-accent-yellow)] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 squircle-lg"
             >
-              <div className="w-12 h-12 bg-(--color-accent-yellow) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)] dark:shadow-[4px_4px_0px_var(--color-accent-yellow)] flex items-center justify-center mb-4 group-hover:bg-(--color-accent-yellow)/80 transition-colors squircle-md">
+              <div className="w-12 h-12 bg-(--color-accent-yellow) border-2 border-(--border-color)   flex items-center justify-center mb-4 group-hover:bg-(--color-accent-yellow)/80 transition-colors squircle-md">
                 <feature.icon className="w-6 h-6 text-(--color-ink)" />
               </div>
               <h3 className="text-lg font-bold mb-2 text-(--text-primary)">

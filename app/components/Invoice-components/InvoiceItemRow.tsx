@@ -17,51 +17,51 @@ const InvoiceItemRow: React.FC<InvoiceItemRowProps> = ({
   onRemove,
 }) => {
   return (
-    <div className="grid grid-cols-12 gap-2 md:gap-3 items-center mb-3 p-3 border rounded-md hover:bg-accent/5 transition-colors">
-      {/* Description - Responsive */}
+    <div className="grid grid-cols-12 gap-2 md:gap-3 items-center mb-3 p-3 border rounded-md hover:bg-[var(--bg-secondary)] transition-colors border-[var(--border-color)]">
+      {/* Description */}
       <div className="col-span-7 md:col-span-5">
         <div
-          className="font-medium truncate text-sm md:text-base"
+          className="font-medium truncate text-sm md:text-base text-[var(--text-primary)]"
           title={item.description}
         >
           {item.description || "No description"}
         </div>
       </div>
 
-      {/* Quantity - Responsive */}
+      {/* Quantity */}
       <div className="col-span-2 md:col-span-1">
-        <div className="text-muted-foreground text-center text-xs md:text-sm">
+        <div className="text-[var(--text-secondary)] text-center text-xs md:text-sm">
           {item.quantity}
         </div>
-        <div className="text-[10px] text-muted-foreground text-center md:hidden">
+        <div className="text-[10px] text-[var(--text-secondary)] text-center md:hidden">
           Qty
         </div>
       </div>
 
-      {/* Unit Price - Responsive */}
+      {/* Unit Price */}
       <div className="col-span-3 md:col-span-2">
-        <div className="text-muted-foreground text-right text-xs md:text-sm">
+        <div className="text-[var(--text-secondary)] text-right text-xs md:text-sm">
           ₦{item.unitPrice.toLocaleString()}
         </div>
-        <div className="text-[10px] text-muted-foreground text-right md:hidden">
+        <div className="text-[10px] text-[var(--text-secondary)] text-right md:hidden">
           Price
         </div>
       </div>
 
-      {/* Total - Hidden on mobile, shown on desktop */}
+      {/* Total - Desktop */}
       <div className="hidden md:block md:col-span-2">
-        <div className="font-semibold text-right">
+        <div className="font-semibold text-right text-[var(--text-primary)]">
           ₦{item.total.toLocaleString()}
         </div>
       </div>
 
-      {/* Actions - Responsive */}
+      {/* Actions */}
       <div className="col-span-2 flex justify-end space-x-1">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => onEdit(item.id)}
-          className="h-7 w-7 md:h-8 md:w-8 hover:bg-primary/10"
+          className="h-7 w-7 md:h-8 md:w-8 hover:bg-[var(--bg-secondary)] text-[var(--color-accent-yellow)]"
         >
           <Edit className="h-3 w-3 md:h-3.5 md:w-3.5" />
         </Button>
@@ -69,15 +69,15 @@ const InvoiceItemRow: React.FC<InvoiceItemRowProps> = ({
           variant="ghost"
           size="sm"
           onClick={() => onRemove(item.id)}
-          className="h-7 w-7 md:h-8 md:w-8 hover:bg-destructive/10 hover:text-destructive"
+          className="h-7 w-7 md:h-8 md:w-8 hover:bg-[var(--destructive)]/10 text-[var(--destructive)]"
         >
           <Trash2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
         </Button>
       </div>
 
-      {/* Mobile: Show total below description */}
+      {/* Mobile: Total below */}
       <div className="col-span-7 mt-1 md:hidden">
-        <div className="text-xs font-semibold">
+        <div className="text-xs font-semibold text-[var(--text-primary)]">
           Total: ₦{item.total.toLocaleString()}
         </div>
       </div>

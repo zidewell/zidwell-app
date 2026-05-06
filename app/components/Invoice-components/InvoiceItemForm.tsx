@@ -80,7 +80,6 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
       ...prev,
       [field]: value,
     }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
     }
@@ -90,16 +89,16 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-background rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-lg font-semibold">
+      <div className="bg-[var(--bg-primary)] rounded-lg shadow-pop max-w-md w-full max-h-[90vh] overflow-y-auto squircle-lg">
+        <div className="flex items-center justify-between p-6 border-b border-[var(--border-color)]">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             {item ? "Edit Item" : "Add New Item"}
           </h2>
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-8 w-8"
+            className="h-8 w-8 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -107,7 +106,9 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
+            <Label htmlFor="description" className="text-[var(--text-secondary)]">
+              Description *
+            </Label>
             <Input
               id="description"
               placeholder="Item/Service name"
@@ -115,16 +116,19 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
               onChange={(e: any) => handleChange("description", e.target.value)}
               required
               autoFocus
-              className={errors.description ? "border-red-500" : ""}
+              className={errors.description ? "border-[var(--destructive)]" : "border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)]"}
+              style={{ outline: "none", boxShadow: "none" }}
             />
             {errors.description && (
-              <p className="text-red-500 text-xs mt-1">{errors.description}</p>
+              <p className="text-[var(--destructive)] text-xs mt-1">{errors.description}</p>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity *</Label>
+              <Label htmlFor="quantity" className="text-[var(--text-secondary)]">
+                Quantity *
+              </Label>
               <Input
                 id="quantity"
                 type="number"
@@ -136,15 +140,18 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
                 min="1"
                 step="1"
                 required
-                className={errors.quantity ? "border-red-500" : ""}
+                className={errors.quantity ? "border-[var(--destructive)]" : "border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)]"}
+                style={{ outline: "none", boxShadow: "none" }}
               />
               {errors.quantity && (
-                <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>
+                <p className="text-[var(--destructive)] text-xs mt-1">{errors.quantity}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="unitPrice">Unit Price (₦) *</Label>
+              <Label htmlFor="unitPrice" className="text-[var(--text-secondary)]">
+                Unit Price (₦) *
+              </Label>
               <Input
                 id="unitPrice"
                 type="number"
@@ -156,17 +163,18 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
                 min="0"
                 step="0.01"
                 required
-                className={errors.unitPrice ? "border-red-500" : ""}
+                className={errors.unitPrice ? "border-[var(--destructive)]" : "border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)]"}
+                style={{ outline: "none", boxShadow: "none" }}
               />
               {errors.unitPrice && (
-                <p className="text-red-500 text-xs mt-1">{errors.unitPrice}</p>
+                <p className="text-[var(--destructive)] text-xs mt-1">{errors.unitPrice}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Total</Label>
-            <div className="p-3 bg-muted rounded-md text-lg font-semibold">
+            <Label className="text-[var(--text-secondary)]">Total</Label>
+            <div className="p-3 bg-[var(--bg-secondary)] rounded-md text-lg font-semibold text-[var(--text-primary)]">
               ₦
               {formData.total.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
@@ -176,10 +184,18 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose}
+              className="border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+            >
               Cancel
             </Button>
-            <Button type="submit" className="bg-[#2b825b] hover:bg-[#1e5d42]">
+            <Button 
+              type="submit" 
+              className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+            >
               {item ? "Update Item" : "Add Item"}
             </Button>
           </div>

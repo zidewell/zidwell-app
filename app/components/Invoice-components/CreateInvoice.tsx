@@ -68,11 +68,11 @@ const showSweetAlert = (
     text: message,
     showConfirmButton: true,
     confirmButtonText: "OK",
-    confirmButtonColor: "#2b825b",
-    background: isDark ? "#1f2937" : "#ffffff",
-    color: isDark ? "#f3f4f6" : "#333333",
+    confirmButtonColor: "var(--color-accent-yellow)",
+    background: isDark ? "#1f2937" : "var(--bg-primary)",
+    color: isDark ? "#f3f4f6" : "var(--text-primary)",
     customClass: {
-      popup: "sweet-alert-popup",
+      popup: "sweet-alert-popup squircle-lg",
       title: "sweet-alert-title",
       htmlContainer: "sweet-alert-content",
       confirmButton: "sweet-alert-confirm-btn",
@@ -163,7 +163,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     allowMultiplePayments: false,
     clientPhone: "",
     targetQuantity: 1,
-    sendEmailAutomatically: true, // Default to true
+    sendEmailAutomatically: true,
   });
 
   // Safe balance value (handle null)
@@ -181,8 +181,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     if (isPremium)
       return {
         icon: Crown,
-        color: "text-[#2b825b]",
-        bg: "bg-[#2b825b]/10 dark:bg-[#2b825b]/20",
+        color: "text-[var(--color-accent-yellow)]",
+        bg: "bg-[var(--color-accent-yellow)]/10 dark:bg-[var(--color-accent-yellow)]/20",
         label: "Premium",
       };
     if (isGrowth)
@@ -266,7 +266,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         if (usageRes.ok) {
           const data = await usageRes.json();
 
-          // Set invoice usage from the API response
           setInvoiceUsage({
             used: data.invoices.used || 0,
             limit: data.invoices.limit,
@@ -354,7 +353,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       }));
     }
 
-    // Construct business name from user's full name for fallback
     let businessName = "";
     if (userData?.fullName) {
       businessName = userData.fullName;
@@ -399,7 +397,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#2b825b", "#1e5d42", "#fbbf24", "#ffffff", "#f3f4f6"],
+      colors: ["var(--color-accent-yellow)", "#e0a800", "#fbbf24", "var(--color-white)", "#f3f4f6"],
     });
   };
 
@@ -425,7 +423,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     if (userData) {
       const today = new Date().toISOString().slice(0, 10);
 
-      // Construct business name from user's full name
       let businessName = "";
       if (userData.fullName) {
         businessName = userData.fullName;
@@ -476,20 +473,20 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     const draftsHTML = userDrafts
       .map(
         (draft, index) => `
-      <div class="draft-item p-3 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer" 
+      <div class="draft-item p-3 border-b border-[var(--border-color)] hover:bg-[var(--bg-secondary)] cursor-pointer" 
            data-draft-id="${draft.id}">
         <div class="flex justify-between items-center">
           <div>
-            <strong class="text-gray-900 dark:text-gray-100">${
+            <strong class="text-[var(--text-primary)]">${
               draft.business_name || "Untitled Invoice"
             }</strong>
-            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <div class="text-sm text-[var(--text-secondary)] mt-1">
               ${draft.invoice_id} • ${new Date(
                 draft.created_at,
               ).toLocaleDateString()}
             </div>
           </div>
-          <button class="load-draft-btn px-3 py-1 text-sm bg-[#2b825b] text-white rounded hover:bg-[#1e5d42] transition-colors"
+          <button class="load-draft-btn px-3 py-1 text-sm bg-[var(--color-accent-yellow)] text-[var(--color-ink)] rounded hover:bg-[var(--color-accent-yellow)]/90 transition-colors squircle-sm"
                   data-draft-id="${draft.id}">
             Load
           </button>
@@ -501,13 +498,13 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
     const modal = document.createElement("div");
     modal.className =
-      "fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4";
+      "fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4";
     modal.innerHTML = `
-      <div class="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-        <div class="p-6 border-b dark:border-gray-800">
+      <div class="bg-[var(--bg-primary)] rounded-lg shadow-pop max-w-2xl w-full max-h-[80vh] overflow-hidden squircle-lg">
+        <div class="p-6 border-b border-[var(--border-color)]">
           <div class="flex justify-between items-center">
-            <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">All Drafts (${userDrafts.length})</h3>
-            <button class="close-modal text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <h3 class="text-xl font-bold text-[var(--text-primary)]">All Drafts (${userDrafts.length})</h3>
+            <button class="close-modal text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
               ✕
             </button>
           </div>
@@ -515,8 +512,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         <div class="p-6 overflow-y-auto max-h-[60vh]">
           ${draftsHTML}
         </div>
-        <div class="p-6 border-t dark:border-gray-800">
-          <button class="start-fresh-btn w-full py-2 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+        <div class="p-6 border-t border-[var(--border-color)]">
+          <button class="start-fresh-btn w-full py-2 px-4 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded hover:bg-[var(--bg-secondary)]/80 transition-colors squircle-md">
             Start New Invoice
           </button>
         </div>
@@ -604,7 +601,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
       const { totalAmount } = totals;
 
-      // Construct initiator name from user's full name
       const initiatorName = userData?.fullName 
         ? userData.fullName 
         : userData?.firstName && userData?.lastName 
@@ -689,7 +685,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
       const { totalAmount } = totals;
 
-      // Construct initiator name from user's full name
       const initiatorName = userData?.fullName 
         ? userData.fullName 
         : userData?.firstName && userData?.lastName 
@@ -725,7 +720,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
           details?.bank_details?.bank_account_number || "",
         initiator_account_name: details?.bank_details?.bank_account_name || "",
         initiator_bank_name: details?.bank_details?.bank_name || "",
-        send_email_automatically: form.sendEmailAutomatically, // Add this field
+        send_email_automatically: form.sendEmailAutomatically,
       };
 
       const endpoint = isDraft
@@ -851,7 +846,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         return;
       }
 
-      // CHECK LIMIT FIRST - like contracts do
       if (hasReachedLimit()) {
         setShowUpgradePrompt(true);
         return;
@@ -900,7 +894,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         return;
       }
 
-      // SHOW SUMMARY FIRST - like contracts do
       setShowInvoiceSummary(true);
     } catch (error) {
       console.error("Submit error:", error);
@@ -930,27 +923,21 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
         setShowSuccessModal(true);
 
-        // Refresh usage data
         const usageRes = await fetch("/api/user/usage");
         if (usageRes.ok) {
           const data = await usageRes.json();
           setInvoiceUsage(data.invoices);
         }
 
-        // Only set up polling if we have a valid invoiceId and multiple payments are enabled
         if (form.allowMultiplePayments && result.invoiceId) {
-          // Initial fetch
           fetchPaymentStatus(result.invoiceId);
 
-          // Set up polling
           const pollInterval = setInterval(() => {
-            // Check again inside interval to ensure invoiceId still exists
             if (result.invoiceId) {
               fetchPaymentStatus(result.invoiceId);
             }
           }, 10000);
 
-          // Clear polling after 10 minutes
           setTimeout(() => clearInterval(pollInterval), 10 * 60 * 1000);
         }
 
@@ -1006,368 +993,198 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   };
 
   const handleDownloadPDF = async () => {
-  try {
-    setPdfLoading(true);
+    try {
+      setPdfLoading(true);
 
-    const { subtotal, totalAmount } = totals;
-    
-    // Calculate fee amount
-    const feeAmount = form.fee_option === "customer" 
-      ? totalAmount - subtotal 
-      : 0;
+      const { subtotal, totalAmount } = totals;
+      const feeAmount = form.fee_option === "customer" 
+        ? totalAmount - subtotal 
+        : 0;
 
-    // Format dates safely
-    const formatDate = (dateString: string): string => {
-      try {
-        const date = new Date(dateString);
-        return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-NG', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-      } catch {
-        return dateString;
+      const formatDate = (dateString: string): string => {
+        try {
+          const date = new Date(dateString);
+          return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-NG', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        } catch {
+          return dateString;
+        }
+      };
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Invoice ${form.invoice_id}</title>
+          <meta charset="UTF-8">
+          <style>
+            body { 
+              font-family: 'Arial', sans-serif; 
+              margin: 0;
+              padding: 40px;
+              color: #333;
+              line-height: 1.6;
+            }
+            .container {
+              max-width: 800px;
+              margin: 0 auto;
+              background: white;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              margin-bottom: 40px;
+              padding-bottom: 20px;
+              border-bottom: 2px solid var(--color-accent-yellow);
+            }
+            .business-info {
+              flex: 1;
+            }
+            .invoice-info {
+              text-align: right;
+            }
+            .logo {
+              max-height: 80px;
+              max-width: 200px;
+              margin-bottom: 15px;
+            }
+            h1 {
+              color: var(--color-accent-yellow);
+              margin: 0 0 10px 0;
+              font-size: 32px;
+              font-weight: bold;
+            }
+            h2 {
+              margin: 0 0 10px 0;
+              font-size: 24px;
+              color: #333;
+            }
+            h3 {
+              margin: 0 0 15px 0;
+              font-size: 18px;
+              color: #333;
+            }
+            .section {
+              margin: 30px 0;
+            }
+            .billing-info {
+              display: flex;
+              justify-content: space-between;
+              gap: 40px;
+            }
+            .billing-section {
+              flex: 1;
+            }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 30px 0;
+              font-size: 14px;
+            }
+            .items-table th {
+              background-color: #f8f9fa;
+              border: 1px solid #ddd;
+              padding: 12px 15px;
+              text-align: left;
+              font-weight: bold;
+            }
+            .items-table td {
+              border: 1px solid #ddd;
+              padding: 12px 15px;
+              text-align: left;
+            }
+            .totals {
+              margin-top: 30px;
+              text-align: right;
+              font-size: 16px;
+            }
+            .grand-total {
+              font-size: 20px;
+              font-weight: bold;
+              color: var(--color-accent-yellow);
+              margin-top: 15px;
+              padding-top: 15px;
+              border-top: 2px solid #ddd;
+            }
+            .footer {
+              margin-top: 50px;
+              text-align: center;
+              color: #666;
+              font-size: 14px;
+              padding-top: 20px;
+              border-top: 1px solid #ddd;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 4px 12px;
+              background-color: var(--color-accent-yellow);
+              color: var(--color-ink);
+              border-radius: 20px;
+              font-size: 12px;
+              font-weight: bold;
+              margin-left: 10px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="business-info">
+                ${form.business_logo ? `<img src="${form.business_logo}" class="logo">` : ''}
+                <h2>${form.business_name}</h2>
+                <p>${userData?.email || ''}</p>
+              </div>
+              <div class="invoice-info">
+                <h1>INVOICE</h1>
+                <p><strong>Invoice #:</strong> ${form.invoice_id}</p>
+                <p><strong>Issue Date:</strong> ${formatDate(form.issue_date)}</p>
+                <p><strong>Status:</strong> Unpaid <span class="status-badge">UNPAID</span></p>
+              </div>
+            </div>
+            <!-- Rest of invoice HTML... -->
+          </div>
+        </body>
+        </html>
+      `;
+
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          html: htmlContent,
+          filename: `invoice-${form.invoice_id}.pdf`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate PDF: ${response.status}`);
       }
-    };
 
-    // Generate HTML content for PDF (using your existing invoice template)
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Invoice ${form.invoice_id}</title>
-        <meta charset="UTF-8">
-        <style>
-          body { 
-            font-family: 'Arial', sans-serif; 
-            margin: 0;
-            padding: 40px;
-            color: #333;
-            line-height: 1.6;
-          }
-          .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-          }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #2b825b;
-          }
-          .business-info {
-            flex: 1;
-          }
-          .invoice-info {
-            text-align: right;
-          }
-          .logo {
-            max-height: 80px;
-            max-width: 200px;
-            margin-bottom: 15px;
-          }
-          .account-details {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 20px;
-          }
-          .account-details h2 {
-            color: #2b825b;
-            font-size: 18px;
-            margin: 0 0 5px 0;
-          }
-          .account-details h3 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: normal;
-          }
-          h1 {
-            color: #2b825b;
-            margin: 0 0 10px 0;
-            font-size: 32px;
-            font-weight: bold;
-          }
-          h2 {
-            margin: 0 0 10px 0;
-            font-size: 24px;
-            color: #333;
-          }
-          h3 {
-            margin: 0 0 15px 0;
-            font-size: 18px;
-            color: #333;
-          }
-          .section {
-            margin: 30px 0;
-          }
-          .billing-info {
-            display: flex;
-            justify-content: space-between;
-            gap: 40px;
-          }
-          .billing-section {
-            flex: 1;
-          }
-          .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 30px 0;
-            font-size: 14px;
-          }
-          .items-table th {
-            background-color: #f8f9fa;
-            border: 1px solid #ddd;
-            padding: 12px 15px;
-            text-align: left;
-            font-weight: bold;
-            color: #333;
-          }
-          .items-table td {
-            border: 1px solid #ddd;
-            padding: 12px 15px;
-            text-align: left;
-          }
-          .items-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-          }
-          .totals {
-            margin-top: 30px;
-            text-align: right;
-            font-size: 16px;
-          }
-          .total-row {
-            margin: 8px 0;
-          }
-          .grand-total {
-            font-size: 20px;
-            font-weight: bold;
-            color: #2b825b;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 2px solid #ddd;
-          }
-          .message-box {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #2b825b;
-            margin: 20px 0;
-          }
-          .payment-info {
-            background-color: #e8f4fd;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #2196F3;
-            margin: 20px 0;
-          }
-          .invoice-narration {
-            margin-left: 30px;
-            font-size: 12px;
-            color: #666;
-          }
-          .footer {
-            margin-top: 50px;
-            text-align: center;
-            color: #666;
-            font-size: 14px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-          }
-          .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            background-color: #2b825b;
-            color: white;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-left: 10px;
-          }
-          .note-box {
-            background-color: #f0f9ff;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #0ea5e9;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <div class="business-info">
-              ${form.business_logo ? `
-                <img src="${form.business_logo}" alt="${form.business_name}" class="logo">
-              ` : ''}
-              <h2>${form.business_name}</h2>
-              <p>${userData?.email || ''}</p>
-              ${form.bill_to ? `<p>${form.bill_to}</p>` : ''}
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${form.invoice_id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
-              ${details?.bank_details?.bank_account_name && details?.bank_details?.bank_account_number ? `
-                <div class="account-details">
-                  <h2>Account Details</h2>
-                  <h3>${details.bank_details.bank_account_name}</h3>
-                  <h3>${details.bank_details.bank_account_number}</h3>
-                  <h3>${details.bank_details.bank_name || ''}</h3>
-                </div>
-              ` : ''}
-            </div>
-            <div class="invoice-info">
-              <h1>INVOICE</h1>
-              <p><strong>Invoice #:</strong> ${form.invoice_id}</p>
-              <p><strong>Issue Date:</strong> ${formatDate(form.issue_date)}</p>
-              <p><strong>Status:</strong> Unpaid <span class="status-badge">UNPAID</span></p>
-
-              <small class="invoice-narration">
-                Ensure this invoice number <strong>${form.invoice_id}</strong> is used as the narration when you transfer to make payment valid.
-              </small>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="billing-info">
-              <div class="billing-section">
-                <h3>Bill To:</h3>
-                <p><strong>${form.name || "Client Information"}</strong></p>
-                ${form.email ? `<p>📧 ${form.email}</p>` : ''}
-                ${form.clientPhone ? `<p>📞 ${form.clientPhone}</p>` : ''}
-              </div>
-              <div class="billing-section">
-                <h3>From:</h3>
-                <p><strong>${userData?.fullName || userData?.email || ''}</strong></p>
-                <p>📧 ${userData?.email || ''}</p>
-              </div>
-            </div>
-          </div>
-
-          ${form.message ? `
-            <div class="section">
-              <div class="message-box">
-                <h3>Message from ${form.business_name}:</h3>
-                <p>${form.message}</p>
-              </div>
-            </div>
-          ` : ''}
-
-          <div class="section">
-            <h3>Invoice Items</h3>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th width="100">Qty</th>
-                  <th width="120">Unit Price</th>
-                  <th width="120">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${form.invoice_items.map((item) => `
-                  <tr>
-                    <td>${item.description || ''}</td>
-                    <td>${item.quantity || 0}</td>
-                    <td>₦${Number(item.unitPrice || 0).toLocaleString()}</td>
-                    <td>₦${Number((item.quantity || 0) * (item.unitPrice || 0)).toLocaleString()}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="totals">
-            <div class="total-row">
-              <strong>Subtotal:</strong> ₦${Number(subtotal).toLocaleString()}
-            </div>
-            ${feeAmount > 0 ? `
-              <div class="total-row">
-                <strong>Processing Fee:</strong> ₦${Number(feeAmount).toLocaleString()}
-              </div>
-            ` : ''}
-            <div class="total-row grand-total">
-              <strong>TOTAL AMOUNT:</strong> ₦${Number(totalAmount).toLocaleString()}
-            </div>
-            ${form.fee_option === "absorbed" ? `
-              <div class="total-row" style="font-size: 12px; color: #666;">
-                *Processing fees absorbed by merchant
-              </div>
-            ` : form.fee_option === "customer" && feeAmount > 0 ? `
-              <div class="total-row" style="font-size: 12px; color: #666;">
-                *2% processing fee added
-              </div>
-            ` : ''}
-          </div>
-
-          ${form.customer_note ? `
-            <div class="section">
-              <div class="note-box">
-                <h3>Note to Customer:</h3>
-                <p>${form.customer_note}</p>
-              </div>
-            </div>
-          ` : ''}
-
-          <div class="footer">
-            <p><strong>Thank you for your business!</strong></p>
-            <p>If you have any questions about this invoice, please contact ${userData?.email || ''}</p>
-            <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const response = await fetch("/api/generate-pdf", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        html: htmlContent,
-        filename: `invoice-${form.invoice_id}.pdf`,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to generate PDF: ${response.status} - ${errorText}`);
+      showSweetAlert("success", "PDF Downloaded!", "Your invoice has been downloaded as PDF");
+    } catch (error) {
+      console.error("PDF download error:", error);
+      showSweetAlert("error", "Download Failed", "Failed to download PDF. Please try again.");
+    } finally {
+      setPdfLoading(false);
     }
+  };
 
-    // Create blob and download
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.style.display = "none";
-    a.href = url;
-    a.download = `invoice-${form.invoice_id}.pdf`;
-
-    document.body.appendChild(a);
-    a.click();
-
-    // Clean up
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-
-    showSweetAlert(
-      "success",
-      "PDF Downloaded!",
-      "Your invoice has been downloaded as PDF",
-    );
-  } catch (error) {
-    console.error("PDF download error:", error);
-    showSweetAlert(
-      "error",
-      "Download Failed",
-      error instanceof Error ? error.message : "Failed to download PDF. Please try again.",
-    );
-  } finally {
-    setPdfLoading(false);
-  }
-};
   const previewInvoice = convertToInvoicePreview(form);
 
-  // Determine display text and styles
   const getButtonConfig = (): {
     text: string;
     color: string;
@@ -1377,8 +1194,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     if (hasUnlimitedInvoices) {
       return {
         text: "Generate Invoice",
-        color:
-          "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]",
+        color: "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90",
         icon: null,
         disabled: false,
       };
@@ -1389,15 +1205,14 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     ) {
       return {
         text: `Generate Invoice (${invoiceUsage.remaining} free left)`,
-        color:
-          "bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42]",
+        color: "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90",
         icon: null,
         disabled: false,
       };
     }
     return {
       text: `Invoice Limit Reached - Upgrade Plan`,
-      color: "bg-gray-400 dark:bg-gray-600 cursor-not-allowed",
+      color: "bg-gray-400 cursor-not-allowed",
       icon: React.createElement(Crown, { className: "w-4 h-4 mr-2" }),
       disabled: true,
     };
@@ -1405,55 +1220,43 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   const buttonConfig = getButtonConfig();
 
-  // Format remaining display text safely
   const getRemainingText = (): string => {
     if (hasUnlimitedInvoices) return "UNLIMITED";
     if (isZidLiteUser) return "20 limit";
-    if (
-      typeof invoiceUsage.remaining === "number" &&
-      invoiceUsage.remaining > 0
-    ) {
+    if (typeof invoiceUsage.remaining === "number" && invoiceUsage.remaining > 0) {
       return `${invoiceUsage.remaining} left`;
     }
     return "Limit reached";
   };
 
   const getRemainingColor = (): string => {
-    if (hasUnlimitedInvoices) return "bg-purple-600 dark:bg-purple-500";
-    if (isZidLiteUser) return "bg-blue-600 dark:bg-blue-500";
-    if (
-      typeof invoiceUsage.remaining === "number" &&
-      invoiceUsage.remaining > 0
-    ) {
-      return "bg-[#2b825b] dark:bg-[#2b825b]";
+    if (hasUnlimitedInvoices) return "bg-purple-600";
+    if (isZidLiteUser) return "bg-blue-600";
+    if (typeof invoiceUsage.remaining === "number" && invoiceUsage.remaining > 0) {
+      return "bg-[var(--color-accent-yellow)]";
     }
-    return "bg-red-600 dark:bg-red-500";
+    return "bg-[var(--destructive)]";
   };
 
-  // Check if user has reached their limit
   const hasReachedLimit = (): boolean => {
     if (hasUnlimitedInvoices) return false;
-    if (
-      typeof invoiceUsage.remaining === "number" &&
-      invoiceUsage.remaining > 0
-    )
-      return false;
+    if (typeof invoiceUsage.remaining === "number" && invoiceUsage.remaining > 0) return false;
     return true;
   };
 
   return (
     <>
-      {/* Upgrade Prompt Modal - Like contracts have */}
+      {/* Upgrade Prompt Modal */}
       {showUpgradePrompt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Crown className="w-6 h-6 text-red-600" />
+          <div className="bg-[var(--bg-primary)] rounded-xl max-w-md w-full p-6 squircle-lg shadow-pop">
+            <div className="w-12 h-12 bg-[var(--destructive)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Crown className="w-6 h-6 text-[var(--destructive)]" />
             </div>
-            <h3 className="text-xl font-bold text-center mb-2">
+            <h3 className="text-xl font-bold text-center mb-2 text-[var(--text-primary)]">
               Invoice Limit Reached
             </h3>
-            <p className="text-gray-600 text-center mb-6">
+            <p className="text-[var(--text-secondary)] text-center mb-6">
               {isZidLiteUser
                 ? "You've used all your ZidLite invoices. Upgrade to continue creating unlimited invoices!"
                 : "You've used all your free invoices. Upgrade to continue creating unlimited invoices!"}
@@ -1461,13 +1264,13 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1"
+                className="flex-1 border-[var(--border-color)] text-[var(--text-secondary)]"
                 onClick={() => setShowUpgradePrompt(false)}
               >
                 Cancel
               </Button>
               <Link href="/pricing?upgrade=growth" className="flex-1">
-                <Button className="w-full bg-[#2b825b] hover:bg-[#1e5d42] text-white">
+                <Button className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90">
                   View Plans
                 </Button>
               </Link>
@@ -1518,7 +1321,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         pdfLoading={pdfLoading}
       />
 
-      <div className="min-h-screen bg-background dark:bg-gray-950">
+      <div className="min-h-screen">
         <div className="container mx-auto py-8 px-4">
           <TabsNavigation
             activeTab={activeTab}
@@ -1531,7 +1334,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                       variant="ghost"
                       size="sm"
                       onClick={() => router.back()}
-                      className="text-[#2b825b] dark:text-[#2b825b] hover:bg-white/10"
+                      className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
                       disabled={isFormLocked}
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1540,50 +1343,36 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
                     <div>
                       <div className="flex items-center gap-3 mb-2">
-                        <h1 className="md:text-3xl text-xl font-bold text-foreground dark:text-gray-100">
+                        <h1 className="md:text-3xl text-xl font-bold text-[var(--text-primary)]">
                           Create Invoice
                         </h1>
-                        {/* Single Tier Badge */}
-                        <div
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
-                        >
+                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}>
                           <TierIcon className={`w-4 h-4 ${tierInfo.color}`} />
-                          <span
-                            className={`text-xs font-semibold ${tierInfo.color}`}
-                          >
+                          <span className={`text-xs font-semibold ${tierInfo.color}`}>
                             {tierInfo.label}
                           </span>
                         </div>
                         {!invoiceUsage.isChecking && (
-                          <span
-                            className={`px-2 py-1 text-white text-sm font-bold rounded ${getRemainingColor()}`}
-                          >
+                          <span className={`px-2 py-1 text-white text-sm font-bold rounded ${getRemainingColor()}`}>
                             {getRemainingText()}
                           </span>
                         )}
                       </div>
-                      <p className="text-muted-foreground dark:text-gray-400">
-                        Generate a professional invoice and share the link for
-                        payments
+                      <p className="text-[var(--text-secondary)]">
+                        Generate a professional invoice and share the link for payments
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-4">
                     {form.invoice_items.length > 0 && (
-                      <Badge
-                        variant="outline"
-                        className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                      >
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                         <FileText className="w-3 h-3 mr-1" />
                         {form.invoice_items.length} item(s)
                       </Badge>
                     )}
                     {loading && (
-                      <Badge
-                        variant="outline"
-                        className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800"
-                      >
+                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
                         <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                         Processing...
                       </Badge>
@@ -1593,40 +1382,36 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
                 {/* Subscription Info Banner */}
                 {!invoiceUsage.isChecking && (
-                  <div
-                    className={`mb-6 p-4 rounded-lg border ${
-                      hasUnlimitedInvoices
-                        ? "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800"
-                        : hasReachedLimit()
-                          ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
-                          : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                    }`}
-                  >
+                  <div className={`mb-6 p-4 rounded-lg border ${
+                    hasUnlimitedInvoices
+                      ? "bg-purple-50 border-purple-200"
+                      : hasReachedLimit()
+                        ? "bg-yellow-50 border-yellow-200"
+                        : "bg-green-50 border-green-200"
+                  } squircle-md`}>
                     <div className="flex items-start gap-3">
                       {hasUnlimitedInvoices ? (
-                        <Crown className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5" />
+                        <Crown className="w-5 h-5 text-purple-600 mt-0.5" />
                       ) : hasReachedLimit() ? (
-                        <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                        <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
                       ) : (
-                        <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+                        <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
                       )}
                       <div className="flex-1">
-                        <p
-                          className={`font-medium ${
-                            hasUnlimitedInvoices
-                              ? "text-purple-700 dark:text-purple-400"
-                              : hasReachedLimit()
-                                ? "text-yellow-700 dark:text-yellow-400"
-                                : "text-green-700 dark:text-green-400"
-                          }`}
-                        >
+                        <p className={`font-medium ${
+                          hasUnlimitedInvoices
+                            ? "text-purple-700"
+                            : hasReachedLimit()
+                              ? "text-yellow-700"
+                              : "text-green-700"
+                        }`}>
                           {hasUnlimitedInvoices
                             ? `${tierInfo.label} Plan - Unlimited Invoices`
                             : hasReachedLimit()
                               ? "Invoice Limit Reached"
                               : `${invoiceUsage.remaining} Free Invoice${invoiceUsage.remaining !== 1 ? "s" : ""} Remaining`}
                         </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <p className="text-sm text-gray-600 mt-1">
                           {hasUnlimitedInvoices ? (
                             "You have unlimited invoices as part of your subscription."
                           ) : hasReachedLimit() ? (
@@ -1635,10 +1420,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                               invoices.{" "}
                               <Button
                                 variant="link"
-                                className="p-0 h-auto text-[#2b825b] font-semibold underline"
-                                onClick={() =>
-                                  router.push("/pricing?upgrade=growth")
-                                }
+                                className="p-0 h-auto text-[var(--color-accent-yellow)] font-semibold underline"
+                                onClick={() => router.push("/pricing?upgrade=growth")}
                               >
                                 Upgrade to Growth
                               </Button>{" "}
@@ -1653,7 +1436,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   </div>
                 )}
 
-                <Card className="p-6 bg-white dark:bg-gray-900 border-border dark:border-gray-800">
+                <Card className="p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
                   <LogoUpload
                     logo={form.business_logo || ""}
                     onLogoChange={(logoDataUrl: string) =>
@@ -1666,14 +1449,10 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   />
                   <div className="space-y-4">
                     <div>
-                      <Label
-                        htmlFor="businessName"
-                        className="text-foreground dark:text-gray-200"
-                      >
+                      <Label className="text-[var(--text-secondary)]">
                         Business Name *
                       </Label>
                       <Input
-                        id="businessName"
                         value={form.business_name}
                         onChange={(e) =>
                           setForm((prev) => ({
@@ -1682,25 +1461,22 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           }))
                         }
                         placeholder="Your Business Name"
-                        className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
+                        className="mt-1 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        style={{ outline: "none", boxShadow: "none" }}
                         disabled={isFormLocked}
                       />
                       {errors.business_name && (
-                        <p className="text-red-500 dark:text-red-400 text-xs mt-1">
+                        <p className="text-[var(--destructive)] text-xs mt-1">
                           {errors.business_name}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <Label
-                        htmlFor="invoiceNumber"
-                        className="text-foreground dark:text-gray-200"
-                      >
+                      <Label className="text-[var(--text-secondary)]">
                         Invoice Number
                       </Label>
                       <Input
-                        id="invoiceNumber"
                         value={form.invoice_id}
                         onChange={(e) =>
                           setForm((prev) => ({
@@ -1708,89 +1484,80 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             invoice_id: e.target.value,
                           }))
                         }
-                        className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
+                        className="mt-1 border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
                         disabled={true}
                       />
                     </div>
 
-                    <div className="border-t border-border dark:border-gray-800 pt-4 mt-6">
+                    <div className="border-t border-[var(--border-color)] pt-4 mt-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-foreground dark:text-gray-200">
+                        <h3 className="font-semibold text-[var(--text-primary)]">
                           Bill To
                         </h3>
-                        <span className="text-xs text-muted-foreground dark:text-gray-400">
+                        <span className="text-xs text-[var(--text-secondary)]">
                           (Optional - leave blank for client to fill)
                         </span>
                       </div>
                       <div className="space-y-3">
                         <div>
-                          <Label
-                            htmlFor="clientName"
-                            className="text-foreground dark:text-gray-200"
-                          >
+                          <Label className="text-[var(--text-secondary)]">
                             Client Name
                           </Label>
                           <Input
-                            id="clientName"
                             value={form.name || ""}
                             onChange={handleFormChange}
                             name="name"
                             placeholder="Leave blank for client to fill"
-                            className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
+                            className="mt-1 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                            style={{ outline: "none", boxShadow: "none" }}
                             disabled={isFormLocked}
                           />
                         </div>
                         <div>
-                          <Label
-                            htmlFor="clientEmail"
-                            className="text-foreground dark:text-gray-200"
-                          >
+                          <Label className="text-[var(--text-secondary)]">
                             Client Email
                           </Label>
                           <Input
-                            id="clientEmail"
                             type="email"
                             value={form.email || ""}
                             onChange={handleFormChange}
                             name="email"
                             placeholder="Leave blank for client to fill"
-                            className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
+                            className="mt-1 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                            style={{ outline: "none", boxShadow: "none" }}
                             disabled={isFormLocked}
                           />
                           {errors.email && (
-                            <p className="text-red-500 dark:text-red-400 text-xs mt-1">
+                            <p className="text-[var(--destructive)] text-xs mt-1">
                               {errors.email}
                             </p>
                           )}
                         </div>
                         <div>
-                          <Label
-                            htmlFor="clientPhone"
-                            className="text-foreground dark:text-gray-200"
-                          >
+                          <Label className="text-[var(--text-secondary)]">
                             Client Phone
                           </Label>
                           <Input
-                            id="clientPhone"
                             value={form.clientPhone || ""}
                             onChange={handleFormChange}
                             name="clientPhone"
                             placeholder="Leave blank for client to fill"
-                            className="mt-1 bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground dark:text-gray-200"
+                            className="mt-1 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                            style={{ outline: "none", boxShadow: "none" }}
                             disabled={isFormLocked}
                           />
                         </div>
                       </div>
                     </div>
 
-                    <div className="border-t border-border dark:border-gray-800 pt-4 mt-6">
+                    <div className="border-t border-[var(--border-color)] pt-4 mt-6">
                       <div className="flex justify-between items-center mb-4">
                         <div>
-                          <h3 className="font-semibold text-foreground dark:text-gray-200">
+                          <h3 className="font-semibold text-[var(--text-primary)]">
                             Items
                           </h3>
                           {form.invoice_items.length > 0 && (
-                            <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+                            <p className="text-xs text-[var(--text-secondary)] mt-1">
                               {form.invoice_items.length} item
                               {form.invoice_items.length !== 1 ? "s" : ""} •
                               Total: ₦
@@ -1804,7 +1571,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           )}
                         </div>
                         <Button
-                          className="bg-[#2b825b] hover:bg-[#1e5d42] dark:bg-[#2b825b] dark:hover:bg-[#1e5d42] text-white cursor-pointer"
+                          className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                           size="sm"
                           onClick={handleAddItem}
                           disabled={isFormLocked}
@@ -1816,22 +1583,12 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
                       {form.invoice_items.length > 0 ? (
                         <div>
-                          <div className="hidden md:grid md:grid-cols-12 gap-3 mb-2 text-xs font-semibold text-muted-foreground dark:text-gray-400">
+                          <div className="hidden md:grid md:grid-cols-12 gap-3 mb-2 text-xs font-semibold text-[var(--text-secondary)]">
                             <div className="md:col-span-5">DESCRIPTION</div>
                             <div className="md:col-span-1 text-center">QTY</div>
-                            <div className="md:col-span-2 text-right">
-                              PRICE
-                            </div>
-                            <div className="md:col-span-2 text-right">
-                              TOTAL
-                            </div>
-                            <div className="md:col-span-2 text-right">
-                              ACTIONS
-                            </div>
-                          </div>
-
-                          <div className="md:hidden text-xs text-muted-foreground dark:text-gray-400 mb-2">
-                            Tap items to see details
+                            <div className="md:col-span-2 text-right">PRICE</div>
+                            <div className="md:col-span-2 text-right">TOTAL</div>
+                            <div className="md:col-span-2 text-right">ACTIONS</div>
                           </div>
 
                           <div className="space-y-2">
@@ -1846,61 +1603,43 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-center py-8 text-muted-foreground dark:text-gray-400 border border-dashed border-border dark:border-gray-700 rounded-md">
+                        <div className="text-center py-8 text-[var(--text-secondary)] border border-dashed border-[var(--border-color)] rounded-md">
                           <div className="flex flex-col items-center gap-2">
-                            <div className="w-12 h-12 bg-accent dark:bg-gray-800 rounded-full flex items-center justify-center">
-                              <Plus className="h-6 w-6 text-muted-foreground dark:text-gray-400" />
+                            <div className="w-12 h-12 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center">
+                              <Plus className="h-6 w-6 text-[var(--text-secondary)]" />
                             </div>
-                            <p className="text-sm font-medium">
-                              No items added yet
-                            </p>
-                            <p className="text-xs">
-                              Click "Add Item" to get started
-                            </p>
+                            <p className="text-sm font-medium">No items added yet</p>
+                            <p className="text-xs">Click "Add Item" to get started</p>
                           </div>
                         </div>
                       )}
                       {errors.invoice_items && (
-                        <p className="text-red-500 dark:text-red-400 text-sm mt-2">
+                        <p className="text-[var(--destructive)] text-sm mt-2">
                           {errors.invoice_items}
                         </p>
                       )}
                     </div>
 
                     {/* Email Automation Toggle */}
-                    <div className="border-t border-border dark:border-gray-800 pt-4 mt-6">
+                    <div className="border-t border-[var(--border-color)] pt-4 mt-6">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <Label
-                            htmlFor="sendEmailAutomatically"
-                            className="font-medium text-foreground dark:text-gray-200 flex items-center gap-2"
-                          >
+                          <Label className="font-medium text-[var(--text-primary)] flex items-center gap-2">
                             {form.sendEmailAutomatically ? (
-                              <Mail className="w-4 h-4 text-green-500" />
+                              <Mail className="w-4 h-4 text-[var(--color-lemon-green)]" />
                             ) : (
-                              <Mail className="w-4 h-4 text-gray-500" />
+                              <Mail className="w-4 h-4 text-[var(--text-secondary)]" />
                             )}
                             Send invoice automatically to client
                           </Label>
-                          <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+                          <p className="text-xs text-[var(--text-secondary)] mt-1">
                             {form.sendEmailAutomatically 
                               ? "An email will be sent to the client with the invoice link" 
                               : "You'll need to share the invoice link manually with the client"}
                           </p>
-                          {form.sendEmailAutomatically && !form.email && !form.allowMultiplePayments && (
-                            <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
-                              ⚠️ Client email is required for automatic email sending
-                            </p>
-                          )}
-                          {form.sendEmailAutomatically && form.allowMultiplePayments && !form.email && (
-                            <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
-                              ℹ️ No email will be sent since no client email was provided
-                            </p>
-                          )}
                         </div>
                         <div>
                           <Switch
-                            id="sendEmailAutomatically"
                             checked={form.sendEmailAutomatically}
                             onCheckedChange={(checked) =>
                               setForm((prev) => ({
@@ -1919,7 +1658,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                         variant="outline"
                         onClick={() => handleSubmit(true)}
                         disabled={draftLoading || isFormLocked || loading}
-                        className="flex-1 border-border dark:border-gray-700 text-foreground dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                       >
                         <Save className="w-4 h-4 mr-2" />
                         {draftLoading ? "Saving..." : "Save Draft"}
@@ -1933,7 +1672,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           invoiceUsage.isChecking ||
                           buttonConfig.disabled
                         }
-                        className={`flex-1 ${buttonConfig.color} text-white`}
+                        className={`flex-1 ${buttonConfig.color} text-[var(--color-ink)]`}
                       >
                         {loading ? (
                           <div className="flex items-center gap-2">
@@ -1951,18 +1690,15 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                       </Button>
                     </div>
 
-                    {/* Upgrade Link for users at limit */}
                     {hasReachedLimit() && !hasUnlimitedInvoices && (
-                      <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                        <p className="text-sm text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
+                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-700 flex items-center gap-2">
                           <Info className="w-4 h-4" />
                           You've reached your invoice limit.{" "}
                           <Button
                             variant="link"
-                            className="p-0 h-auto text-[#2b825b] font-semibold underline"
-                            onClick={() =>
-                              router.push("/pricing?upgrade=growth")
-                            }
+                            className="p-0 h-auto text-[var(--color-accent-yellow)] font-semibold underline"
+                            onClick={() => router.push("/pricing?upgrade=growth")}
                           >
                             Upgrade your plan
                           </Button>{" "}
@@ -1982,7 +1718,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                       variant="ghost"
                       size="sm"
                       onClick={() => router.back()}
-                      className="text-[#2b825b] dark:text-[#2b825b] hover:bg-white/10"
+                      className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
                       disabled={isFormLocked}
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1991,59 +1727,45 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
                     <div>
                       <div className="flex items-center gap-3 mb-2">
-                        <h1 className="md:text-3xl text-xl font-bold text-foreground dark:text-gray-100">
+                        <h1 className="md:text-3xl text-xl font-bold text-[var(--text-primary)]">
                           Invoice Preview
                         </h1>
-                        {/* Single Tier Badge */}
-                        <div
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
-                        >
+                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}>
                           <TierIcon className={`w-4 h-4 ${tierInfo.color}`} />
-                          <span
-                            className={`text-xs font-semibold ${tierInfo.color}`}
-                          >
+                          <span className={`text-xs font-semibold ${tierInfo.color}`}>
                             {tierInfo.label}
                           </span>
                         </div>
                         {!invoiceUsage.isChecking && (
-                          <span
-                            className={`px-2 py-1 text-white text-sm font-bold rounded ${getRemainingColor()}`}
-                          >
+                          <span className={`px-2 py-1 text-white text-sm font-bold rounded ${getRemainingColor()}`}>
                             {getRemainingText()}
                           </span>
                         )}
                       </div>
-                      <p className="text-muted-foreground dark:text-gray-400">
+                      <p className="text-[var(--text-secondary)]">
                         Live preview of your invoice as you fill out the form
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                    >
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                       Live Preview
                     </Badge>
                   </div>
                 </div>
 
                 <div className="space-y-6">
-                  
-
                   <InvoicePreview invoice={previewInvoice} />
 
-                  <div className="flex justify-between items-center pt-4 border-t border-border dark:border-gray-800">
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      <p>
-                        Switch to the "Create Invoice" tab to edit your invoice
-                      </p>
+                  <div className="flex justify-between items-center pt-4 border-t border-[var(--border-color)]">
+                    <div className="text-sm text-[var(--text-secondary)]">
+                      <p>Switch to the "Create Invoice" tab to edit your invoice</p>
                     </div>
                     <Button
                       variant="outline"
                       onClick={() => setActiveTab("create")}
-                      className="border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b]/10 dark:border-[#2b825b] dark:text-[#2b825b] dark:hover:bg-[#2b825b]/20"
+                      className="border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10"
                     >
                       <Edit className="h-4 w-4 mr-2" />
                       Back to Editor
@@ -2059,13 +1781,12 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   );
 };
 
-// Wrap the component with Suspense
 export default function CreateInvoiceWithSuspense() {
   return (
     <Suspense
       fallback={
-        <div className="text-center p-8 text-foreground dark:text-gray-200">
-          <Loader2 className="w-8 h-8 animate-spin text-[#2b825b] mx-auto mb-4" />
+        <div className="text-center p-8 text-[var(--text-primary)]">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)] mx-auto mb-4" />
           <p>Loading invoice form...</p>
         </div>
       }

@@ -2,7 +2,7 @@
 "use client";
 
 import { Check, Sparkles } from "lucide-react";
-import { Button2 } from "../ui/button2";
+import { Button } from "../ui/button";
 import { useSubscription } from "@/app/hooks/useSubscripion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -293,10 +293,10 @@ export default function Pricing() {
   };
 
   return (
-    <section id="pricing" className="py-20 md:py-32 bg-(--bg-primary)">
+    <section id="pricing" className="py-20 md:py-32 bg-[var(--bg-primary)]">
       <div className="container mx-auto px-4">
         {showSuccess && (
-          <div className="fixed top-4 right-4 z-50 bg-(--color-accent-yellow) text-(--color-ink) px-6 py-3 squircle-lg shadow-pop animate-slideIn">
+          <div className="fixed top-4 right-4 z-50 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-6 py-3 rounded-xl shadow-pop animate-slideIn">
             <p className="font-bold">
               ✓{" "}
               {subscription?.tier === "free"
@@ -311,25 +311,25 @@ export default function Pricing() {
           </div>
         )}
         {error && (
-          <div className="fixed top-4 right-4 z-50 bg-destructive text-white px-6 py-3 squircle-lg shadow-pop animate-slideIn">
+          <div className="fixed top-4 right-4 z-50 bg-[var(--destructive)] text-white px-6 py-3 rounded-xl shadow-pop animate-slideIn">
             <p className="font-bold">✗ Error</p>
             <p className="text-sm">{error}</p>
           </div>
         )}
 
         <div className="max-w-3xl mx-auto text-center mb-16">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-(--text-primary)">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-[var(--text-primary)]">
             Simple plans that{" "}
-            <span className="text-(--color-accent-yellow)">grow</span> with you
+            <span className="text-[var(--color-accent-yellow)]">grow</span> with you
           </h2>
-          <p className="text-lg text-(--text-secondary)">
+          <p className="text-lg text-[var(--text-secondary)]">
             We've worked hard to make our pricing as affordable as possible so
             you can get the best value. Choose the plan that matches your
             business goals.
           </p>
           {subscription && subscription.tier !== "free" && (
-            <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-(--color-accent-yellow)/10 squircle-full">
-              <span className="text-sm text-(--text-primary)">
+            <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full">
+              <span className="text-sm text-[var(--text-primary)]">
                 Current Plan:
               </span>
               <SubscriptionBadge />
@@ -338,16 +338,16 @@ export default function Pricing() {
           {subscription?.tier === "free" && (
             <div className="mt-6 space-y-2">
               {bookkeepingTrial?.isActive && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-(--color-accent-yellow)/10 squircle-full mr-2">
-                  <span className="text-sm text-(--color-accent-yellow)">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full mr-2">
+                  <span className="text-sm text-[var(--color-accent-yellow)]">
                     Bookkeeping Trial: {bookkeepingTrial.daysRemaining} days
                     remaining
                   </span>
                 </div>
               )}
               {taxCalculatorTrial?.isActive && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-(--color-accent-yellow)/10 squircle-full">
-                  <span className="text-sm text-(--color-accent-yellow)">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full">
+                  <span className="text-sm text-[var(--color-accent-yellow)]">
                     Tax Calculator Trial: {taxCalculatorTrial.daysRemaining}{" "}
                     days remaining
                   </span>
@@ -357,18 +357,18 @@ export default function Pricing() {
           )}
 
           <div className="flex items-center justify-center mt-8">
-            <div className="bg-(--bg-secondary) p-1 squircle-full border-2 border-(--border-color)">
+            <div className="bg-[var(--bg-secondary)] p-1 rounded-full border-2 border-[var(--border-color)]">
               <button
                 onClick={() => setSelectedBilling("monthly")}
                 disabled={processingTier !== null}
-                className={`px-6 py-2 squircle-full text-sm font-medium transition-all ${selectedBilling === "monthly" ? "bg-(--color-accent-yellow) text-(--color-ink)" : "text-(--text-primary)"} disabled:opacity-50`}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${selectedBilling === "monthly" ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]" : "text-[var(--text-primary)]"} disabled:opacity-50`}
               >
                 Monthly
               </button>
               <button
                 onClick={() => setSelectedBilling("yearly")}
                 disabled={processingTier !== null}
-                className={`px-6 py-2 squircle-full text-sm font-medium transition-all ${selectedBilling === "yearly" ? "bg-(--color-accent-yellow) text-(--color-ink)" : "text-(--text-primary)"} disabled:opacity-50`}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${selectedBilling === "yearly" ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]" : "text-[var(--text-primary)]"} disabled:opacity-50`}
               >
                 Yearly <span className="text-xs ml-1">Save up to 20%</span>
               </button>
@@ -384,32 +384,32 @@ export default function Pricing() {
             return (
               <div
                 key={index}
-                className={`relative flex flex-col p-6 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 squircle-lg ${
+                className={`relative flex flex-col p-6 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 rounded-2xl ${
                   plan.highlight
-                    ? "bg-(--color-accent-yellow) text-(--color-ink) border-2 border-(--border-color) shadow-[6px_6px_0px_var(--border-color)]"
-                    : "bg-(--bg-primary) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)]"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] border-2 border-[var(--border-color)] shadow-[6px_6px_0px_var(--border-color)]"
+                    : "bg-[var(--bg-primary)] border-2 border-[var(--border-color)] shadow-[4px_4px_0px_var(--border-color)]"
                 } ${isUpgrade ? "ring-4 ring-[var(--color-accent-yellow)] ring-opacity-50" : ""}`}
               >
                 {plan.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--border-color)] text-(--text-primary) text-xs font-bold flex items-center gap-1 squircle-full">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--border-color)] text-[var(--text-primary)] text-xs font-bold flex items-center gap-1 rounded-full">
                     <Sparkles className="w-3 h-3" />
                     POPULAR
                   </div>
                 )}
                 {currentPlan && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-(--color-accent-yellow) text-(--color-ink) text-xs font-bold whitespace-nowrap squircle-full">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] text-xs font-bold whitespace-nowrap rounded-full">
                     CURRENT PLAN
                   </div>
                 )}
                 <div className="mb-6">
                   <h3
-                    className={`text-xl font-bold mb-2 ${plan.highlight ? "text-(--color-ink)" : "text-(--text-primary)"}`}
+                    className={`text-xl font-bold mb-2 ${plan.highlight ? "text-[var(--color-ink)]" : "text-[var(--text-primary)]"}`}
                   >
                     {plan.name}
                   </h3>
                   <div className="flex items-baseline gap-1">
                     <span
-                      className={`text-3xl font-black ${plan.highlight ? "text-(--color-ink)" : "text-(--text-primary)"}`}
+                      className={`text-3xl font-black ${plan.highlight ? "text-[var(--color-ink)]" : "text-[var(--text-primary)]"}`}
                     >
                       {selectedBilling === "yearly" && plan.yearlyPrice
                         ? plan.tier === "zidlite"
@@ -422,20 +422,20 @@ export default function Pricing() {
                         : plan.price}
                     </span>
                     <span
-                      className={`text-sm ${plan.highlight ? "text-(--color-ink)/70" : "text-(--text-secondary)"}`}
+                      className={`text-sm ${plan.highlight ? "text-[var(--color-ink)]/70" : "text-[var(--text-secondary)]"}`}
                     >
                       {selectedBilling === "yearly" ? "/year" : plan.period}
                     </span>
                   </div>
                   {selectedBilling === "yearly" && plan.yearlyPrice && (
                     <p
-                      className={`text-xs mt-1 ${plan.highlight ? "text-(--color-ink)/70" : "text-(--text-secondary)"}`}
+                      className={`text-xs mt-1 ${plan.highlight ? "text-[var(--color-ink)]/70" : "text-[var(--text-secondary)]"}`}
                     >
                       {plan.yearlyPrice}
                     </p>
                   )}
                   <p
-                    className={`text-sm mt-3 ${plan.highlight ? "text-(--color-ink)/80" : "text-(--text-secondary)"}`}
+                    className={`text-sm mt-3 ${plan.highlight ? "text-[var(--color-ink)]/80" : "text-[var(--text-secondary)]"}`}
                   >
                     {plan.description}
                   </p>
@@ -445,23 +445,23 @@ export default function Pricing() {
                     <li key={i} className="flex items-start gap-2 text-sm">
                       {!feature.startsWith("Everything in") && (
                         <Check
-                          className={`w-4 h-4 shrink-0 mt-0.5 ${plan.highlight ? "text-(--color-ink)" : "text-(--color-accent-yellow)"}`}
+                          className={`w-4 h-4 shrink-0 mt-0.5 ${plan.highlight ? "text-[var(--color-ink)]" : "text-[var(--color-accent-yellow)]"}`}
                         />
                       )}
                       <span
-                        className={`${plan.highlight ? "text-(--color-ink)" : "text-(--text-primary)"} ${feature.startsWith("Everything in") ? "font-medium" : ""}`}
+                        className={`${plan.highlight ? "text-[var(--color-ink)]" : "text-[var(--text-primary)]"} ${feature.startsWith("Everything in") ? "font-medium" : ""}`}
                       >
                         {feature}
                       </span>
                     </li>
                   ))}
                 </ul>
-                <Button2
-                  variant={plan.highlight ? "heroOutline" : "default"}
-                  className={`w-full squircle-md ${
+                <Button
+                  variant={plan.highlight ? "outline" : "default"}
+                  className={`w-full rounded-xl ${
                     plan.highlight
-                      ? "bg-(--bg-primary) text-(--text-primary) hover:bg-(--bg-secondary)"
-                      : "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+                      ? "bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] border-2 border-[var(--border-color)]"
+                      : "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                   }`}
                   onClick={() => handleSubscribe(plan)}
                   disabled={loading || isProcessing || currentPlan}
@@ -471,13 +471,13 @@ export default function Pricing() {
                     : currentPlan
                       ? "Current Plan"
                       : plan.cta}
-                </Button2>
+                </Button>
                 {plan.tier === "free" && subscription?.tier === "free" && (
                   <div className="mt-3 space-y-2">
                     {!bookkeepingTrial?.isActive && (
                       <button
                         onClick={() => handleActivateTrial("bookkeeping")}
-                        className="block w-full text-sm text-(--color-accent-yellow) hover:underline"
+                        className="block w-full text-sm text-[var(--color-accent-yellow)] hover:underline"
                       >
                         Activate 14-day bookkeeping trial
                       </button>
@@ -485,7 +485,7 @@ export default function Pricing() {
                     {!taxCalculatorTrial?.isActive && (
                       <button
                         onClick={() => handleActivateTrial("tax_calculator")}
-                        className="block w-full text-sm text-(--color-accent-yellow) hover:underline"
+                        className="block w-full text-sm text-[var(--color-accent-yellow)] hover:underline"
                       >
                         Activate 14-day tax calculator trial
                       </button>
@@ -498,48 +498,48 @@ export default function Pricing() {
         </div>
 
         <div className="mt-20 max-w-4xl mx-auto">
-          <div className="bg-(--bg-primary) border-2 border-(--border-color) shadow-[6px_6px_0px_var(--border-color)] p-8 squircle-lg">
-            <h3 className="text-2xl md:text-3xl font-black mb-4 text-(--text-primary)">
+          <div className="bg-[var(--bg-primary)] border-2 border-[var(--border-color)] shadow-[6px_6px_0px_var(--border-color)] p-8 rounded-2xl">
+            <h3 className="text-2xl md:text-3xl font-black mb-4 text-[var(--text-primary)]">
               The ZidCoin Economy:{" "}
-              <span className="text-(--color-accent-yellow)">
+              <span className="text-[var(--color-accent-yellow)]">
                 Our Cashback & Reward System
               </span>
             </h3>
             <div className="space-y-6">
               <div>
-                <h4 className="text-lg font-bold mb-2 text-(--text-primary)">
+                <h4 className="text-lg font-bold mb-2 text-[var(--text-primary)]">
                   What is ZidCoin?
                 </h4>
-                <p className="text-(--text-secondary)">
+                <p className="text-[var(--text-secondary)]">
                   Zidcoin is the currency inside Zidwell. It's what we pay you
                   for using our app. Every time you load data, airtime, cable
                   subscription and electricity on Zidwell, you earn Zidcoins
                   (ZC).
                 </p>
-                <p className="text-(--text-secondary) mt-2 font-semibold">
+                <p className="text-[var(--text-secondary)] mt-2 font-semibold">
                   Value: 1 Zidcoin = ₦1.
                 </p>
               </div>
               <div>
-                <h4 className="text-lg font-bold mb-2 text-(--text-primary)">
+                <h4 className="text-lg font-bold mb-2 text-[var(--text-primary)]">
                   How It Works
                 </h4>
-                <ul className="space-y-2 text-(--text-secondary)">
+                <ul className="space-y-2 text-[var(--text-secondary)]">
                   <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-(--color-accent-yellow)" />
+                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[var(--color-accent-yellow)]" />
                     <span>
                       Get 20 Zidcoins rewards anytime you spend N2500 and above
                       on Zidwell.
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-(--color-accent-yellow)" />
+                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[var(--color-accent-yellow)]" />
                     <span>
                       Your Zidcoins accumulate in your wallet as cashback.
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-(--color-accent-yellow)" />
+                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-[var(--color-accent-yellow)]" />
                     <span>
                       Once your Zidcoin balance hits 3,000 ZC, you can cash it
                       out.
@@ -548,15 +548,15 @@ export default function Pricing() {
                 </ul>
               </div>
               <div>
-                <h4 className="text-lg font-bold mb-2 text-(--text-primary)">
+                <h4 className="text-lg font-bold mb-2 text-[var(--text-primary)]">
                   Why It Matters
                 </h4>
-                <p className="text-(--text-secondary)">
+                <p className="text-[var(--text-secondary)]">
                   Zidcoin turns every business transaction into an opportunity
                   to earn. The more you use Zidwell, the more value you unlock —
                   it's structure, savings, and growth all in one.
                 </p>
-                <p className="text-(--text-secondary) mt-2 font-semibold">
+                <p className="text-[var(--text-secondary)] mt-2 font-semibold">
                   Zidwell. Structure your hustle. Earn as you grow.
                 </p>
               </div>

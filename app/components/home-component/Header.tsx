@@ -6,7 +6,6 @@ import { Menu, Users, X, Sun, Moon, Laptop } from "lucide-react";
 import Link from "next/link";
 import { useUserContextData } from "@/app/context/userData";
 import { Button } from "../ui/button";
-import { Button2 } from "../ui/button2";
 import Image from "next/image";
 import { useTheme } from "@/app/components/ThemeProvider";
 
@@ -61,8 +60,8 @@ const Header = () => {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         hasScrolled
-          ? "bg-(--bg-primary)/80 backdrop-blur-md border-b border-(--border-color) shadow-soft"
-          : "bg-(--bg-primary) border-b border-transparent"
+          ? "bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-[var(--border-color)] shadow-soft"
+          : "bg-[var(--bg-primary)] border-b border-transparent"
       }`}
     >
       <div className="container mx-auto px-4">
@@ -76,7 +75,7 @@ const Header = () => {
               height={40}
               className="w-10 object-contain transition-transform group-hover:scale-105"
             />
-            <span className="text-xl font-bold tracking-tight text-(--text-primary) uppercase">
+            <span className="text-xl font-bold tracking-tight text-[var(--text-primary)] uppercase">
               Zidwell
             </span>
           </Link>
@@ -87,10 +86,10 @@ const Header = () => {
               <button
                 key={link.name}
                 onClick={() => handleNavigation(link.href)}
-                className="font-medium text-(--text-secondary) hover:text-(--text-primary) transition-colors relative group"
+                className="font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors relative group"
               >
                 {link.name}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-(--color-accent-yellow) transition-all duration-300 group-hover:w-full" />
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[var(--color-accent-yellow)] transition-all duration-300 group-hover:w-full" />
               </button>
             ))}
           </nav>
@@ -98,13 +97,13 @@ const Header = () => {
           {/* Right Section - Theme Toggle & Auth Buttons */}
           <div className="flex items-center gap-3">
             {/* Theme Toggle */}
-            <div className="hidden md:flex items-center gap-1 p-1 bg-(--bg-secondary) squircle-md">
+            <div className="hidden md:flex items-center gap-1 p-1 bg-[var(--bg-secondary)] rounded-xl">
               <button
                 onClick={() => setTheme("light")}
-                className={`p-2 squircle-sm transition-all ${
+                className={`p-2 rounded-lg transition-all ${
                   theme === "light"
-                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
-                    : "text-(--text-secondary) hover:bg-(--border-color)"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                 }`}
                 aria-label="Light mode"
               >
@@ -112,62 +111,51 @@ const Header = () => {
               </button>
               <button
                 onClick={() => setTheme("dark")}
-                className={`p-2 squircle-sm transition-all ${
+                className={`p-2 rounded-lg transition-all ${
                   theme === "dark"
-                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
-                    : "text-(--text-secondary) hover:bg-(--border-color)"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                 }`}
                 aria-label="Dark mode"
               >
                 <Moon size={18} />
               </button>
-              {/* <button
-                onClick={() => setTheme("system")}
-                className={`p-2 squircle-sm transition-all ${
-                  theme === "system"
-                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
-                    : "text-(--text-secondary) hover:bg-(--border-color)"
-                }`}
-                aria-label="System preference"
-              >
-                <Laptop size={18} />
-              </button> */}
             </div>
 
             {/* Auth Buttons */}
             {user ? (
-              <Button2
+              <Button
                 onClick={() => router.push("/dashboard")}
                 size="sm"
-                className="squircle-md"
+                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 rounded-xl"
               >
                 Dashboard
-              </Button2>
+              </Button>
             ) : (
               <div className="hidden md:flex items-center gap-3">
-                <Button2
+                <Button
                   variant="ghost"
                   onClick={() => router.push("/auth/login")}
                   size="sm"
-                  className="squircle-md"
+                  className="text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-xl"
                 >
                   Log In
-                </Button2>
-                <Button2
+                </Button>
+                <Button
                   variant="default"
                   onClick={() => router.push("/auth/signup")}
                   size="sm"
-                  className="squircle-md bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90"
+                  className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 rounded-xl"
                 >
                   Get Started Free
-                </Button2>
+                </Button>
               </div>
             )}
 
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2 squircle-md border border-(--border-color) bg-(--bg-secondary) text-(--text-primary)"
+              className="lg:hidden p-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)]"
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -176,89 +164,79 @@ const Header = () => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-(--border-color) animate-slide-in">
+          <div className="lg:hidden py-4 border-t border-[var(--border-color)] animate-slide-in">
             <nav className="flex flex-col gap-4">
               {navLinks.map((link) => (
                 <button
                   key={link.name}
                   onClick={() => handleNavigation(link.href)}
-                  className="w-full text-left font-medium text-(--text-secondary) hover:text-(--text-primary) transition-colors py-2"
+                  className="w-full text-left font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors py-2"
                 >
                   {link.name}
                 </button>
               ))}
 
               {/* Mobile Theme Toggle */}
-              <div className="flex items-center gap-2 pt-4 border-t border-(--border-color)">
-                <span className="text-sm text-(--text-secondary)">Theme:</span>
-                <div className="flex items-center gap-1 p-1 bg-(--bg-secondary) squircle-md">
+              <div className="flex items-center gap-2 pt-4 border-t border-[var(--border-color)]">
+                <span className="text-sm text-[var(--text-secondary)]">Theme:</span>
+                <div className="flex items-center gap-1 p-1 bg-[var(--bg-secondary)] rounded-xl">
                   <button
                     onClick={() => setTheme("light")}
-                    className={`p-2 squircle-sm transition-all ${
+                    className={`p-2 rounded-lg transition-all ${
                       theme === "light"
-                        ? "bg-(--color-accent-yellow) text-(--color-ink)"
-                        : "text-(--text-secondary)"
+                        ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                     }`}
                   >
                     <Sun size={16} />
                   </button>
                   <button
                     onClick={() => setTheme("dark")}
-                    className={`p-2 squircle-sm transition-all ${
+                    className={`p-2 rounded-lg transition-all ${
                       theme === "dark"
-                        ? "bg-(--color-accent-yellow) text-(--color-ink)"
-                        : "text-(--text-secondary)"
+                        ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                     }`}
                   >
                     <Moon size={16} />
                   </button>
-                  {/* <button
-                    onClick={() => setTheme('system')}
-                    className={`p-2 squircle-sm transition-all ${
-                      theme === 'system' 
-                        ? 'bg-(--color-accent-yellow) text-(--color-ink)' 
-                        : 'text-(--text-secondary)'
-                    }`}
-                  >
-                    <Laptop size={16} />
-                  </button> */}
                 </div>
               </div>
 
               {/* Auth Section Mobile */}
               <div className="flex flex-col gap-3 pt-4">
                 {user ? (
-                  <Button2
+                  <Button
                     onClick={() => {
                       router.push("/dashboard");
                       setIsMenuOpen(false);
                     }}
-                    className="w-full squircle-md"
+                    className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 rounded-xl"
                   >
                     Dashboard
-                  </Button2>
+                  </Button>
                 ) : (
                   <>
-                    <Button2
+                    <Button
                       variant="ghost"
-                      className="w-full justify-center squircle-md"
+                      className="w-full justify-center text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-xl"
                       onClick={() => {
                         router.push("/auth/login");
                         setIsMenuOpen(false);
                       }}
                     >
                       Log In
-                    </Button2>
-                    <Button2
+                    </Button>
+                    <Button
                       variant="default"
-                      className="w-full justify-center bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 squircle-md"
+                      className="w-full justify-center bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 rounded-xl"
                       onClick={() => {
                         router.push("/auth/signup");
                         setIsMenuOpen(false);
                       }}
                     >
                       Get Started Free
-                    </Button2>
+                    </Button>
                   </>
                 )}
               </div>

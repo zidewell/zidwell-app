@@ -2,12 +2,8 @@
 
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
-import ReceiptCta from "@/app/components/Receipt-component/ReceiptCta";
-import ReceiptFeature from "@/app/components/Receipt-component/ReceiptFeature";
-import ReceiptFooter from "@/app/components/Receipt-component/ReceiptFooter";
 import ReceiptGen from "@/app/components/Receipt-component/ReceiptGen";
-import ReceiptHero from "@/app/components/Receipt-component/ReceiptHero";
-import ReceiptHowItsWork from "@/app/components/Receipt-component/ReceiptHowItsWork";
+
 import { Button } from "@/app/components/ui/button";
 import { useUserContextData } from "@/app/context/userData";
 import { SubscriptionPageGuard } from "@/app/components/subscription-components/SubscriptionGuard"; 
@@ -57,6 +53,11 @@ export default function ReceiptPage() {
         icon: "error",
         title: "Error",
         text: "Failed to load receipts. Please try again.",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: {
+          popup: "squircle-lg",
+        },
       });
     } finally {
       setLoading(false);
@@ -104,11 +105,11 @@ export default function ReceiptPage() {
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isElite) return { icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/20', label: 'Elite' };
-    if (isPremium) return { icon: Crown, color: 'text-[#2b825b]', bg: 'bg-[#2b825b]/10', label: 'Premium' };
-    if (isGrowth) return { icon: Zap, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/20', label: 'Growth' };
-    if (isZidLiteUser) return { icon: Zap, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/20', label: 'ZidLite' };
-    return { icon: Star, color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-800', label: 'Free Trial' };
+    if (isElite) return { icon: Sparkles, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/20', label: 'Elite' };
+    if (isPremium) return { icon: Crown, color: 'text-[var(--color-accent-yellow)]', bg: 'bg-[var(--color-accent-yellow)]/10', label: 'Premium' };
+    if (isGrowth) return { icon: Zap, color: 'text-[var(--color-accent-yellow)]', bg: 'bg-[var(--color-accent-yellow)]/10', label: 'Growth' };
+    if (isZidLiteUser) return { icon: Zap, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/20', label: 'ZidLite' };
+    return { icon: Star, color: 'text-gray-600 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800', label: 'Free Trial' };
   };
 
   const tierInfo = getTierInfo();
@@ -121,14 +122,10 @@ export default function ReceiptPage() {
       return {
         bg: isElite 
           ? 'bg-purple-50 dark:bg-purple-900/20' 
-          : isPremium
-          ? 'bg-[#2b825b]/10'
-          : 'bg-green-50 dark:bg-green-900/20',
+          : 'bg-[var(--color-accent-yellow)]/10',
         border: isElite
           ? 'border-purple-200 dark:border-purple-800'
-          : isPremium
-          ? 'border-[#2b825b]'
-          : 'border-green-200 dark:border-green-800',
+          : 'border-[var(--color-accent-yellow)]',
         icon: <TierIcon className={`w-5 h-5 ${tierInfo.color}`} />,
         title: `${tierInfo.label} Plan`,
         message: "You have unlimited receipts! Create as many as you need.",
@@ -144,13 +141,13 @@ export default function ReceiptPage() {
           border: 'border-red-200 dark:border-red-800',
           icon: <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />,
           title: 'ZidLite Limit Reached',
-          message: `You've used all ${receiptCount}/10 receipts. Upgrade to continue creating receipts.`,
+          message: `You've used all ${receiptCount}/20 receipts. Upgrade to continue creating receipts.`,
           showUpgrade: true,
           upgradeText: 'Upgrade for Unlimited',
         };
       }
       
-      if (receiptCount >= 8) {
+      if (receiptCount >= 15) {
         return {
           bg: 'bg-yellow-50 dark:bg-yellow-900/20',
           border: 'border-yellow-200 dark:border-yellow-800',
@@ -199,9 +196,8 @@ export default function ReceiptPage() {
     }
 
     return {
-      bg: 'bg-green-50 dark:bg-green-900/20',
-      border: 'border-green-200 dark:border-green-800',
-      icon: <Star className="w-5 h-5 text-green-600 dark:text-green-400" />,
+     
+      icon: <Star className="w-5 h-5 " />,
       title: 'Free Trial',
       message: `You have ${remainingReceipts} free receipt${remainingReceipts !== 1 ? 's' : ''} remaining.`,
       showUpgrade: true,
@@ -212,12 +208,7 @@ export default function ReceiptPage() {
   const banner = getStatusBanner();
 
   return (
-    <SubscriptionPageGuard
-      requiredTier="free"
-      featureKey="receipts_total"
-      title="Receipt Management"
-      description="Create, manage, and track professional receipts for your business transactions"
-    >
+  
       <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] fade-in relative">
         <DashboardSidebar
           open={sidebarOpen}
@@ -235,7 +226,7 @@ export default function ReceiptPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => router.back()}
-                  className="text-[#2b825b] hover:text-[#1e5d42] hover:bg-[#f0efe7] dark:hover:bg-[#242424] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[#242424] dark:hover:border-[#474747] transition-all"
+                  className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:bg-[var(--bg-secondary)] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[var(--border-color)] transition-all"
                 >
                   <ArrowLeft className="w-5 h-5 md:mr-2" />
                   <span className="hidden md:inline text-sm font-medium">Back</span>
@@ -243,7 +234,7 @@ export default function ReceiptPage() {
 
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#141414] dark:text-[#f5f5f5]">
+                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)]">
                       Receipt Management
                     </h1>
                     {/* Single Tier Badge */}
@@ -254,24 +245,24 @@ export default function ReceiptPage() {
                       </span>
                     </div>
                   </div>
-                  <p className="text-sm md:text-base text-[#6b6b6b] dark:text-[#a6a6a6]">
+                  <p className="text-sm md:text-base text-[var(--text-secondary)]">
                     Create, manage, and track your receipts
                   </p>
                 </div>
               </div>
 
-              {/* Single Status Banner - Shows tier info and usage */}
-              <div className={`mb-6 p-4 rounded-lg border-2 ${banner.bg} ${banner.border} shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]`}>
+              {/* Status Banner */}
+              <div className={`mb-6 p-4 rounded-lg border-2 ${banner.bg} ${banner.border} shadow-soft squircle-lg`}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5">
                       {banner.icon}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                      <h3 className="font-semibold text-[var(--text-primary)]">
                         {banner.title}
                       </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      <p className="text-sm text-[var(--text-secondary)] mt-1">
                         {banner.message}
                       </p>
                     </div>
@@ -281,7 +272,7 @@ export default function ReceiptPage() {
                     <Link href="/pricing?upgrade=growth">
                       <Button 
                         size="sm" 
-                        className="bg-[#2b825b] hover:bg-[#1e5d42] text-white whitespace-nowrap"
+                        className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 whitespace-nowrap squircle-md"
                       >
                         <Crown className="w-4 h-4 mr-2" />
                         {banner.upgradeText}
@@ -291,20 +282,20 @@ export default function ReceiptPage() {
                 </div>
 
                 {/* Usage bar for free and ZidLite tiers */}
-                {!hasUnlimitedReceipts && (
+                {/* {!hasUnlimitedReceipts && (
                   <div className="mt-4">
-                    <div className="flex justify-between items-center mb-1 text-xs text-gray-600 dark:text-gray-400">
+                    <div className="flex justify-between items-center mb-1 text-xs text-[var(--text-secondary)]">
                       <span>Usage</span>
                       <span>{receiptCount}/{isZidLiteUser ? 20 : 5} receipts used</span>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div className="w-full bg-[var(--bg-secondary)] rounded-full h-2 overflow-hidden">
                       <div 
-                        className={`h-2 rounded-full ${
+                        className={`h-2 rounded-full transition-all duration-500 ${
                           hasReachedLimit 
-                            ? 'bg-red-500' 
-                            : receiptCount >= (isZidLiteUser ? 8 : 4)
+                            ? 'bg-[var(--destructive)]' 
+                            : receiptCount >= (isZidLiteUser ? 15 : 4)
                               ? 'bg-yellow-500'
-                              : 'bg-green-500'
+                              : 'bg-[var(--color-accent-yellow)]'
                         }`}
                         style={{ 
                           width: `${(receiptCount / (isZidLiteUser ? 20 : 5)) * 100}%` 
@@ -312,29 +303,20 @@ export default function ReceiptPage() {
                       />
                     </div>
                   </div>
-                )}
+                )} */}
               </div>
 
-              {!hasReceipts && !loading ? (
-                <>
-                  <ReceiptHero />
-                  <ReceiptFeature />
-                  <ReceiptHowItsWork />
-                  <ReceiptCta />
-                  <ReceiptFooter />
-                </>
-              ) : (
-                <ReceiptGen 
-                  receipts={receipts} 
-                  loading={loading} 
-                  userTier={userTier}
-                  remainingReceipts={remainingReceipts}
-                />
-              )}
+              {/* Receipt Generator */}
+              <ReceiptGen 
+                receipts={receipts} 
+                loading={loading} 
+                userTier={userTier}
+                remainingReceipts={remainingReceipts}
+              />
             </div>
           </main>
         </div>
       </div>
-    </SubscriptionPageGuard>
+  
   );
 }
