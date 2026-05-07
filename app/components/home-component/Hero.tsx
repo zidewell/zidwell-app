@@ -13,8 +13,9 @@ const Hero = () => {
 
   // Array of background images
   const backgroundImages = [
-    "https://images.unsplash.com/photo-1758519288948-e3c87d2d78d8?w=1600&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1687422808248-f807f4ea2a2e?w=1600&auto=format&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1758519288814-bb9f97e4df95?q=80&w=1331&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    "https://images.unsplash.com/photo-1732067606788-6b0661b7cdef?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    "https://images.unsplash.com/photo-1621569978145-08c89eb010fe?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     "https://images.unsplash.com/photo-1687422808565-929533931584?w=1600&auto=format&fit=crop&q=80",
   ];
 
