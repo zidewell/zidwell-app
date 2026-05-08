@@ -49,7 +49,7 @@ const Navbar = () => {
                   alt="Zidwell Logo"
                   width={40}
                   height={40}
-                  className="w-10 h-10 object-contain border-2 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] bg-black dark:bg-gray-950 p-1 border-[#2b825b]"
+                  className="w-10 h-10 object-contain border-2 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] bg-black dark:bg-gray-950 p-1 border-(--color-accent-yellow)"
                 />
                 <span className="font-black text-xl tracking-tight text-gray-900 dark:text-gray-50">
                   Zidwell

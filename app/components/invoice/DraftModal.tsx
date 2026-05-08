@@ -85,7 +85,7 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
                 key={draft.id}
                 className={`p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer ${
                   selectedDraftId === draft.id
-                    ? "border-[#2b825b] bg-amber-50"
+                    ? "border-(--color-accent-yellow) bg-amber-50"
                     : "border-gray-200"
                 }`}
                 onClick={() => setSelectedDraftId(draft.id)}
@@ -146,7 +146,7 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
               <Button
                 variant="link"
                 onClick={onViewAll}
-                className="text-[#2b825b] hover:text-[#b38606]"
+                className="text-(--color-accent-yellow) hover:text-[#b38606]"
               >
                 View All Drafts
               </Button>
@@ -168,7 +168,7 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
                   );
                   if (selectedDraft) onLoadDraft(selectedDraft);
                 }}
-                className="flex-1 bg-[#2b825b] hover:bg-[#1e5d42] text-white"
+                className="flex-1 bg-(--color-accent-yellow) hover:bg-[#1e5d42] text-white"
               >
                 Load Selected Draft
               </Button>

@@ -1,3 +1,4 @@
+// app/components/sign-contract-form-component/RichTextArea.tsx
 import React, { useRef, useEffect, useState } from 'react';
 import 'quill/dist/quill.snow.css';
 import { Trash2, Eraser } from 'lucide-react';
@@ -172,7 +173,7 @@ const RichTextArea = ({
   // Styles
   const editorStyles = `
     .ql-container {
-      font-family: inherit;
+      font-family: var(--font-be-vietnam), inherit;
       font-size: 16px;
       min-height: ${minHeight};
       border: none !important;
@@ -180,8 +181,8 @@ const RichTextArea = ({
     
     .ql-toolbar {
       border: none !important;
-      border-bottom: 1px solid #e5e7eb !important;
-      background-color: #f9fafb;
+      border-bottom: 1px solid var(--border-color) !important;
+      background-color: var(--bg-secondary);
       padding: 0.5rem !important;
     }
     
@@ -196,12 +197,12 @@ const RichTextArea = ({
     }
     
     .ql-toolbar button:hover {
-      background-color: #e5e7eb;
+      background-color: var(--bg-secondary);
     }
     
     .ql-toolbar button.ql-active {
-      background-color: #dbeafe;
-      color: #2563eb;
+      background-color: var(--color-accent-yellow)/20;
+      color: var(--color-accent-yellow);
     }
     
     .ql-editor {
@@ -209,7 +210,8 @@ const RichTextArea = ({
       padding: 1rem;
       font-size: 16px;
       line-height: 1.75;
-      color: #1f2937;
+      color: var(--text-primary);
+      background-color: var(--bg-primary);
     }
     
     .ql-editor p {
@@ -236,7 +238,7 @@ const RichTextArea = ({
     }
     
     .ql-editor.ql-blank::before {
-      color: #9ca3af;
+      color: var(--text-secondary);
       font-style: normal;
       left: 1rem;
     }
@@ -245,34 +247,32 @@ const RichTextArea = ({
   if (!isQuillLoaded) {
     return (
       <div 
-        className="border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center"
+        className="border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] flex items-center justify-center"
         style={{ minHeight }}
       >
-        <p className="text-gray-400">Loading editor...</p>
+        <p className="text-[var(--text-secondary)]">Loading editor...</p>
       </div>
     );
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+    <div className="border border-[var(--border-color)] rounded-lg overflow-hidden bg-[var(--bg-primary)]">
       <style>{editorStyles}</style>
       
       {/* Toolbar wrapper */}
-      <div className="flex items-center justify-between bg-muted border-b border-border">
+      <div className="flex items-center justify-between bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
         <div className="flex-1">
           <div 
             ref={editorRef} 
             className="[&_.ql-toolbar]:border-0 [&_.ql-toolbar]:bg-transparent [&_.ql-toolbar]:p-2"
           />
-        </div>
-        
-        {/* Custom buttons */}
+           {/* Custom buttons */}
         <div className="flex gap-2 px-2">
           <Button
             size="sm"
             variant="ghost"
             onClick={handleClearFormatting}
-            className="h-8 px-2 text-xs"
+            className="h-8 px-2 text-xs text-[var(--text-primary)] hover:text-[var(--color-accent-yellow)]"
             title="Clear formatting"
             type="button"
           >
@@ -283,7 +283,7 @@ const RichTextArea = ({
             size="sm"
             variant="outline"
             onClick={handleClearAll}
-            className="h-8 px-2 text-xs"
+            className="h-8 px-2 text-xs text-[var(--text-primary)] hover:text-[var(--color-accent-yellow)]"
             title="Clear all content"
             type="button"
           >
@@ -291,6 +291,9 @@ const RichTextArea = ({
             Clear All
           </Button>
         </div>
+        </div>
+        
+       
       </div>
     </div>
   );

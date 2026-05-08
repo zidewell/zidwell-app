@@ -642,7 +642,7 @@ export default function KycPage() {
             <h3 className="text-sm font-medium text-gray-500">
               Pending Review
             </h3>
-            <p className="text-2xl font-semibold text-[#2b825b]">
+            <p className="text-2xl font-semibold text-(--color-accent-yellow)">
               {stats.pending}
             </p>
           </div>

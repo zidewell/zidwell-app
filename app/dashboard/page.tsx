@@ -255,7 +255,7 @@ function DashboardPage() {
                       You're approaching your free tier limits. 
                       <button 
                         onClick={() => setShowSubscriptionModal(true)}
-                        className="ml-2 font-semibold text-[#2b825b] hover:underline"
+                        className="ml-2 font-semibold text-(--color-accent-yellow) hover:underline"
                       >
                         Upgrade now →
                       </button>
@@ -323,12 +323,11 @@ export default function Dashboard() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-[#f7f7f5] dark:bg-[#0e0e0e]">
-          <Loader2 className="w-8 h-8 animate-spin text-[#2b825b]" />
+          <Loader2 className="w-8 h-8 animate-spin text-(--color-accent-yellow)" />
         </div>
       }
     >
       <DashboardPage />
     </Suspense>
   );
-
 }

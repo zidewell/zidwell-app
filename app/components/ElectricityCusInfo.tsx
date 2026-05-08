@@ -1,3 +1,4 @@
+// ElectricityCustomerCard.tsx
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { ArrowRight, Receipt, AlertCircle } from "lucide-react";
@@ -23,30 +24,30 @@ export default function ElectricityCustomerCard({
       {/* Customer Info Card */}
 
       {customerName && (
-        <Card className="w-full shadow-md rounded-xl border border-gray-200">
+        <Card className="w-full shadow-md rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)]">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-gray-800">
+            <CardTitle className="text-lg font-semibold text-[var(--text-primary)]">
               Customer Info
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-gray-700">
+          <CardContent className="space-y-2 text-sm text-[var(--text-primary)]">
             {customerName && (
               <div className="flex gap-2">
-                <span className="font-medium">Name:</span>
+                <span className="font-medium text-[var(--text-secondary)]">Name:</span>
                 <p className="font-semibold">{customerName}</p>
               </div>
             )}
 
             {meterNumber && (
               <div className="flex gap-2">
-                <span className="font-medium">Meter Number:</span>
+                <span className="font-medium text-[var(--text-secondary)]">Meter Number:</span>
                 <p className="font-semibold">{meterNumber}</p>
               </div>
             )}
 
             {meterType && (
               <div className="flex gap-2">
-                <span className="font-medium">Meter Type:</span>
+                <span className="font-medium text-[var(--text-secondary)]">Meter Type:</span>
                 <p className="font-semibold">{meterType}</p>
               </div>
             )}
@@ -55,10 +56,10 @@ export default function ElectricityCustomerCard({
       )}
 
       {/* Payment Summary Card */}
-      <Card className="">
+      <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Receipt className="w-5 h-5" />
+          <CardTitle className="flex items-center gap-2 text-[var(--text-primary)]">
+            <Receipt className="w-5 h-5 text-[var(--color-accent-yellow)]" />
             Payment Summary
           </CardTitle>
         </CardHeader>
@@ -75,9 +76,9 @@ export default function ElectricityCustomerCard({
                 />
               </div>
               <div>
-                <p className="font-medium">{selectedProvider.name}</p>
+                <p className="font-medium text-[var(--text-primary)]">{selectedProvider.name}</p>
                 {selectedProvider.description && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {selectedProvider.description}
                   </p>
                 )}
@@ -87,21 +88,21 @@ export default function ElectricityCustomerCard({
 
           {/* Payment Amount */}
           {parsedAmount && parsedAmount > 0 && (
-            <div className="border-t pt-4 space-y-2">
+            <div className="border-t border-[var(--border-color)] pt-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span>
+                <span className="text-[var(--text-secondary)]">
                   {selectedPlan
                     ? `${selectedPlan.name} (${selectedPlan.duration})`
                     : meterType === "prepaid"
                       ? "Recharge Amount"
                       : "Payment Amount"}
                 </span>
-                <span>₦{parsedAmount?.toLocaleString()}</span>
+                <span className="text-[var(--text-primary)]">₦{parsedAmount?.toLocaleString()}</span>
               </div>
 
-              <div className="flex justify-between font-bold border-t pt-2">
-                <span>Total</span>
-                <span>₦{total?.toLocaleString()}</span>
+              <div className="flex justify-between font-bold border-t border-[var(--border-color)] pt-2">
+                <span className="text-[var(--text-primary)]">Total</span>
+                <span className="text-[var(--text-primary)]">₦{total?.toLocaleString()}</span>
               </div>
             </div>
           )}
@@ -114,11 +115,11 @@ export default function ElectricityCustomerCard({
               }
             }}
             disabled={!parsedAmount || loading}
-            className="w-full bg-[#2b825b] hover:opacity-90 py-3 font-semibold rounded-lg shadow-electric-glow transition-all duration-300"
+            className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 font-semibold rounded-lg shadow-electric-glow transition-all duration-300"
           >
             {loading ? (
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-[var(--color-ink)] border-t-transparent rounded-full animate-spin" />
                 Processing Payment...
               </div>
             ) : (
@@ -138,7 +139,7 @@ export default function ElectricityCustomerCard({
           )}
 
           {/* Security Info */}
-          <div className="text-center text-xs text-muted-foreground mt-4">
+          <div className="text-center text-xs text-[var(--text-secondary)] mt-4">
             <p>🔒 Secure payment powered by Zidwell</p>
             <p>Instant token generation • 24/7 support</p>
           </div>

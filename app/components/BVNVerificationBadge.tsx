@@ -1,6 +1,7 @@
+// BVNVerificationBadge.tsx
 "use client";
 
-import { AlertCircle, CheckCircle, Loader2, Banknote } from "lucide-react";
+import { AlertCircle, Loader2, Banknote } from "lucide-react";
 import { Button } from "./ui/button";
 import { useUserContextData } from "@/app/context/userData";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
@@ -41,14 +42,14 @@ const BVNVerificationBadge = ({
       <div
         className={`w-full px-4 py-3 border-b shadow-sm ${
           isPending
-            ? "bg-green-50 border-yellow-200"
-            : "bg-red-50 border-red-200"
+            ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]/30"
+            : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
         }`}
       >
         <div className="max-w-7xl mx-auto flex items-center gap-3">
           <div className="shrink-0">
             {isPending ? (
-              <Loader2 className="h-5 w-5 text-yellow-500 animate-spin" />
+              <Loader2 className="h-5 w-5 text-[var(--color-accent-yellow)] animate-spin" />
             ) : (
               <AlertCircle className="h-5 w-5 text-red-500" />
             )}
@@ -57,7 +58,9 @@ const BVNVerificationBadge = ({
             <div>
               <h4
                 className={`text-sm font-semibold ${
-                  isPending ? "text-yellow-800" : "text-red-800"
+                  isPending
+                    ? "text-[var(--color-accent-yellow)]"
+                    : "text-red-800 dark:text-red-400"
                 }`}
               >
                 {isPending
@@ -66,7 +69,9 @@ const BVNVerificationBadge = ({
               </h4>
               <p
                 className={`text-xs ${
-                  isPending ? "text-yellow-700" : "text-red-700"
+                  isPending
+                    ? "text-[var(--text-secondary)]"
+                    : "text-red-700 dark:text-red-500"
                 }`}
               >
                 {isPending
@@ -78,7 +83,7 @@ const BVNVerificationBadge = ({
               <Button
                 onClick={handleVerifyClick}
                 size="sm"
-                className="bg-[#2b825b] hover:bg-[#1e5b40] text-white h-8 text-xs whitespace-nowrap"
+                className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] h-8 text-xs whitespace-nowrap"
                 type="button"
               >
                 <Banknote className="h-3 w-3 mr-1" />

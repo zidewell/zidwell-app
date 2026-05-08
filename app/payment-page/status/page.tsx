@@ -36,8 +36,9 @@ function PaymentStatusPage() {
       }
 
       // Check if we already have a final status
-      const finalStatus = status === "success" || status === "failed" || status === "error";
-      
+      const finalStatus =
+        status === "success" || status === "failed" || status === "error";
+
       if (finalStatus) {
         // Just fetch details once for final status
         await fetchPaymentDetailsOnce();
@@ -61,7 +62,9 @@ function PaymentStatusPage() {
 
   const fetchPaymentDetailsOnce = async () => {
     try {
-      const response = await fetch(`/api/payment-page/status?reference=${reference}`);
+      const response = await fetch(
+        `/api/payment-page/status?reference=${reference}`,
+      );
       const data = await response.json();
       if (data.success) {
         setPaymentDetails(data.payment);
@@ -73,33 +76,42 @@ function PaymentStatusPage() {
 
   const startPolling = () => {
     if (isPolling) return; // Prevent multiple polling instances
-    
+
     setIsPolling(true);
     let attempts = 0;
     const maxAttempts = 15; // 15 attempts * 2 seconds = 30 seconds max
 
     const poll = async () => {
       attempts++;
-      console.log(`Polling payment status (attempt ${attempts}/${maxAttempts})...`);
+      console.log(
+        `Polling payment status (attempt ${attempts}/${maxAttempts})...`,
+      );
 
       try {
-        const response = await fetch(`/api/payment-page/status?reference=${reference}`);
+        const response = await fetch(
+          `/api/payment-page/status?reference=${reference}`,
+        );
         const data = await response.json();
-        
+
         if (data.success) {
           setPaymentDetails(data.payment);
-          
+
           // If payment is completed, stop polling and redirect
-          if (data.payment.status === "completed" && !hasRedirectedRef.current) {
+          if (
+            data.payment.status === "completed" &&
+            !hasRedirectedRef.current
+          ) {
             hasRedirectedRef.current = true;
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current);
             }
             // Use router.replace instead of window.location.href to avoid full page reload
-            router.replace(`/payment-page/status?reference=${reference}&status=success`);
+            router.replace(
+              `/payment-page/status?reference=${reference}&status=success`,
+            );
             return;
           }
-          
+
           // If payment failed, stop polling
           if (data.payment.status === "failed" && !hasRedirectedRef.current) {
             hasRedirectedRef.current = true;
@@ -126,14 +138,19 @@ function PaymentStatusPage() {
 
     // Start polling immediately
     poll();
-    
+
     // Set up interval
     pollingIntervalRef.current = setInterval(poll, 2000); // Poll every 2 seconds instead of 3
   };
 
-  const isSuccess = status === "success" || paymentDetails?.status === "completed";
-  const isFailed = status === "failed" || status === "error" || paymentDetails?.status === "failed";
-  const isProcessing = (status === "processing" || !status) && !isSuccess && !isFailed;
+  const isSuccess =
+    status === "success" || paymentDetails?.status === "completed";
+  const isFailed =
+    status === "failed" ||
+    status === "error" ||
+    paymentDetails?.status === "failed";
+  const isProcessing =
+    (status === "processing" || !status) && !isSuccess && !isFailed;
 
   if (loading && isProcessing) {
     return (
@@ -141,7 +158,9 @@ function PaymentStatusPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Verifying your payment...</p>
-          <p className="mt-2 text-sm text-gray-500">This may take a few moments</p>
+          <p className="mt-2 text-sm text-gray-500">
+            This may take a few moments
+          </p>
         </div>
       </div>
     );
@@ -178,25 +197,33 @@ function PaymentStatusPage() {
             <div className="px-6 py-4 border-t border-gray-200">
               <dl className="divide-y divide-gray-200">
                 <div className="py-3 flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Reference</dt>
+                  <dt className="text-sm font-medium text-gray-500">
+                    Reference
+                  </dt>
                   <dd className="text-sm text-gray-900">{reference}</dd>
                 </div>
                 {paymentDetails && (
                   <>
                     <div className="py-3 flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">Amount</dt>
+                      <dt className="text-sm font-medium text-gray-500">
+                        Amount
+                      </dt>
                       <dd className="text-sm font-semibold text-gray-900">
                         ₦{paymentDetails.amount?.toLocaleString()}
                       </dd>
                     </div>
                     <div className="py-3 flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">Customer</dt>
+                      <dt className="text-sm font-medium text-gray-500">
+                        Customer
+                      </dt>
                       <dd className="text-sm text-gray-900">
                         {paymentDetails.customer_name}
                       </dd>
                     </div>
                     <div className="py-3 flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">Email</dt>
+                      <dt className="text-sm font-medium text-gray-500">
+                        Email
+                      </dt>
                       <dd className="text-sm text-gray-900">
                         {paymentDetails.customer_email}
                       </dd>
@@ -228,7 +255,9 @@ function PaymentStatusPage() {
                 Payment Failed
               </h2>
               <p className="mt-2 text-gray-600">
-                {reason || message || "Your payment could not be processed. Please try again."}
+                {reason ||
+                  message ||
+                  "Your payment could not be processed. Please try again."}
               </p>
             </div>
             <div className="px-6 py-4 bg-gray-50 text-center">
@@ -262,7 +291,8 @@ function PaymentStatusPage() {
                 Payment Processing
               </h2>
               <p className="mt-2 text-gray-600">
-                Your payment is being processed. You will receive a confirmation email shortly.
+                Your payment is being processed. You will receive a confirmation
+                email shortly.
               </p>
               <div className="mt-4 flex justify-center">
                 <div className="animate-pulse flex space-x-2">
@@ -290,11 +320,13 @@ function PaymentStatusPage() {
 
 export default function PaymentPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2b825b]"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-(--color-accent-yellow)"></div>
+        </div>
+      }
+    >
       <PaymentStatusPage />
     </Suspense>
   );

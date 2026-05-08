@@ -1,3 +1,4 @@
+// app/components/sign-contract-form-component/SignContractFileUpload.tsx
 "use client";
 
 import React, { useRef, useState, DragEvent } from "react";
@@ -42,7 +43,7 @@ const SignContractFileUpload: React.FC<SignContractFileUploadProps> = ({ onFileS
   return (
     <div
       className={`border-2 border-dashed rounded-xl p-6 text-center transition-all duration-300 cursor-pointer 
-        ${dragOver ? "border-blue-400 bg-blue-50 shadow-lg" : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"}
+        ${dragOver ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 shadow-lg" : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"}
       `}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -50,10 +51,10 @@ const SignContractFileUpload: React.FC<SignContractFileUploadProps> = ({ onFileS
       onClick={() => fileInputRef.current?.click()}
     >
       <div className="flex flex-col items-center justify-center gap-3">
-        <div className="text-gray-400 text-4xl">
+        <div className="text-[var(--text-secondary)] text-4xl">
             <Upload className="h-7 w-7" />
         </div>
-        <p className="text-gray-600 text-sm">
+        <p className="text-[var(--text-secondary)] text-sm">
           {selectedFileName
             ? `Selected file: ${selectedFileName}`
             : "Drag and drop a file here, or click to browse"}

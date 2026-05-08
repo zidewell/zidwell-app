@@ -15,7 +15,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-10 h-10 bg-[#2b825b] border-2 border-white flex items-center justify-center">
+              <div className="w-10 h-10 bg-(--color-accent-yellow) border-2 border-white flex items-center justify-center">
                 <span className="font-black text-lg text-neutral-900">Z</span>
               </div>
               <span className="font-bold text-xl">Zidwell Finance</span>
@@ -32,7 +32,7 @@ const Footer = () => {
                 href="https://wa.me/7069175399"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 bg-white/10 hover:bg-[#2b825b] hover:text-neutral-900 border border-white/20 flex items-center justify-center transition-all"
+                className="w-10 h-10 bg-white/10 hover:bg-(--color-accent-yellow) hover:text-neutral-900 border border-white/20 flex items-center justify-center transition-all"
                 aria-label="WhatsApp"
               >
                 <MessageCircle className="w-5 h-5" />
@@ -41,7 +41,7 @@ const Footer = () => {
                 href="https://instagram.com/zidwellfinance"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 bg-white/10 hover:bg-[#2b825b] hover:text-neutral-900 border border-white/20 flex items-center justify-center transition-all"
+                className="w-10 h-10 bg-white/10 hover:bg-(--color-accent-yellow) hover:text-neutral-900 border border-white/20 flex items-center justify-center transition-all"
                 aria-label="Instagram"
               >
                 <Instagram className="w-5 h-5" />
@@ -50,7 +50,7 @@ const Footer = () => {
                 href="https://linkedin.com/company/zidwell"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 bg-white/10 hover:bg-[#2b825b] hover:text-neutral-900 border border-white/20 flex items-center justify-center transition-all"
+                className="w-10 h-10 bg-white/10 hover:bg-(--color-accent-yellow) hover:text-neutral-900 border border-white/20 flex items-center justify-center transition-all"
                 aria-label="LinkedIn"
               >
                 <Linkedin className="w-5 h-5" />
@@ -66,7 +66,7 @@ const Footer = () => {
                 <li key={link}>
                   <Link
                     href={`#${link.toLowerCase().replace(" ", "-")}`}
-                    className="text-white/70 hover:text-[#2b825b] transition-colors"
+                    className="text-white/70 hover:text-(--color-accent-yellow) transition-colors"
                   >
                     {link}
                   </Link>
@@ -80,19 +80,19 @@ const Footer = () => {
             <h4 className="font-bold text-lg mb-6">Contact Us</h4>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-[#2b825b] shrink-0 mt-0.5" />
+                <Phone className="w-5 h-5 text-(--color-accent-yellow) shrink-0 mt-0.5" />
                 <div>
                   <p className="text-white/70">WhatsApp</p>
                   <Link
                     href="tel:+234"
-                    className="hover:text-[#2b825b] transition-colors"
+                    className="hover:text-(--color-accent-yellow) transition-colors"
                   >
                     +234-7069175399
                   </Link>
                 </div>
               </li>
               <li className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-[#2b825b] shrink-0 mt-0.5" />
+                <MapPin className="w-5 h-5 text-(--color-accent-yellow) shrink-0 mt-0.5" />
                 <div>
                   <p className="text-white/70">Office</p>
                   <p>
@@ -116,13 +116,13 @@ const Footer = () => {
           <div className="flex gap-6 text-sm">
             <Link
               href="/privacy"
-              className="text-white/50 hover:text-[#2b825b] transition-colors"
+              className="text-white/50 hover:text-(--color-accent-yellow) transition-colors"
             >
               Privacy Policy
             </Link>
             <Link
               href="#"
-              className="text-white/50 hover:text-[#2b825b] transition-colors"
+              className="text-white/50 hover:text-(--color-accent-yellow) transition-colors"
             >
               Terms of Service
             </Link>

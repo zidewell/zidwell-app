@@ -442,7 +442,7 @@ export default function WalletManagementPage() {
               ? "text-green-600"
               : tx.status === "failed"
                 ? "text-red-600"
-                : "text-[#2b825b]";
+                : "text-(--color-accent-yellow)";
 
           logsHtml += `
             <tr class="border-b hover:bg-gray-50">
@@ -563,7 +563,7 @@ export default function WalletManagementPage() {
               ? "text-green-600"
               : log.status === "failed"
                 ? "text-red-600"
-                : "text-[#2b825b]";
+                : "text-(--color-accent-yellow)";
 
           logsHtml += `
             <tr class="border-b hover:bg-gray-50">

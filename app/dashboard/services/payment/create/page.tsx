@@ -1,3 +1,4 @@
+// app/dashboard/services/payment/create/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -128,7 +129,7 @@ const triggerConfetti = () => {
     particleCount: 100,
     spread: 70,
     origin: { y: 0.6 },
-    colors: ['#e1bf46', '#034936', '#f7f0e2', '#023528'],
+    colors: ['var(--color-accent-yellow)', 'var(--color-ink)', 'var(--bg-secondary)', 'var(--color-accent-yellow)'],
   });
   
   setTimeout(() => {
@@ -666,7 +667,7 @@ const CreatePage = () => {
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="max-w-2xl mx-auto">
-              <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-[#6b6b6b] hover:text-[#023528] mb-6">
+              <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] mb-6">
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
               <PageTypeSelector onSelect={setPageType} />
@@ -684,7 +685,7 @@ const CreatePage = () => {
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-2xl mx-auto">
-            <button onClick={() => setPageType(null)} className="flex items-center gap-2 text-sm text-[#6b6b6b] hover:text-[#023528] mb-6">
+            <button onClick={() => setPageType(null)} className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] mb-6">
               <ArrowLeft className="h-4 w-4" /> Change Type
             </button>
 
@@ -693,8 +694,8 @@ const CreatePage = () => {
                 {/* Cover Image with Drag to Adjust + Drag & Drop Upload */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <Label className="text-sm font-semibold">Cover Image <span className="text-gray-400">(Optional)</span></Label>
-                    <div className="text-xs text-gray-400">
+                    <Label className="text-sm font-semibold text-[var(--text-primary)]">Cover Image <span className="text-[var(--text-secondary)]">(Optional)</span></Label>
+                    <div className="text-xs text-[var(--text-secondary)]">
                       Recommended: {currentImageSpecs.description}
                     </div>
                   </div>
@@ -774,27 +775,27 @@ const CreatePage = () => {
                       onDrop={handleDrop}
                       className={`w-full h-56 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 cursor-pointer group ${
                         isDragOver
-                          ? "border-[#e1bf46] bg-[#e1bf46]/20"
-                          : "border-[#ded4c3] bg-[#e9e2d7]/50 hover:border-[#e1bf46]"
+                          ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/20"
+                          : "border-[var(--border-color)] bg-[var(--bg-secondary)]/50 hover:border-[var(--color-accent-yellow)]"
                       }`}
                     >
                       <Upload className={`h-8 w-8 transition-colors ${
-                        isDragOver ? "text-[#e1bf46]" : "text-[#6b6b6b] group-hover:text-[#e1bf46]"
+                        isDragOver ? "text-[var(--color-accent-yellow)]" : "text-[var(--text-secondary)] group-hover:text-[var(--color-accent-yellow)]"
                       }`} />
                       <span className={`text-sm transition-colors ${
-                        isDragOver ? "text-[#e1bf46]" : "text-[#6b6b6b] group-hover:text-[#e1bf46]"
+                        isDragOver ? "text-[var(--color-accent-yellow)]" : "text-[var(--text-secondary)] group-hover:text-[var(--color-accent-yellow)]"
                       }`}>
                         {isDragOver ? "Drop image here" : "Click or drag & drop to upload"}
                       </span>
-                      <span className="text-xs text-gray-400">{currentImageSpecs.description}</span>
-                      <span className="text-xs text-gray-400">If no cover image, first product image will be used as fallback</span>
+                      <span className="text-xs text-[var(--text-secondary)]">{currentImageSpecs.description}</span>
+                      <span className="text-xs text-[var(--text-secondary)]">If no cover image, first product image will be used as fallback</span>
                     </div>
                   )}
                 </div>
 
                 {/* Logo */}
                 <div>
-                  <Label className="text-sm font-semibold mb-2 block">Logo / Profile Picture</Label>
+                  <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">Logo / Profile Picture</Label>
                   <div className="flex items-center gap-4">
                     {form.logo || userData?.profilePicture ? (
                       <div className="relative group">
@@ -809,50 +810,51 @@ const CreatePage = () => {
                         )}
                       </div>
                     ) : (
-                      <div className="h-20 w-20 rounded-2xl bg-[#e9e2d7] border-2 border-dashed border-[#ded4c3] flex items-center justify-center">
-                        <Upload className="h-6 w-6 text-[#6b6b6b]" />
+                      <div className="h-20 w-20 rounded-2xl bg-[var(--bg-secondary)] border-2 border-dashed border-[var(--border-color)] flex items-center justify-center">
+                        <Upload className="h-6 w-6 text-[var(--text-secondary)]" />
                       </div>
                     )}
                     <div className="flex-1">
                       <input type="file" ref={logoRef} className="hidden" accept="image/*" onChange={(e) => handleImageSelect(e, "logo")} />
-                      <button onClick={() => logoRef.current?.click()} className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-[#ded4c3] rounded-xl bg-[#e9e2d7]/50 hover:border-[#e1bf46] transition-colors">
+                      <button onClick={() => logoRef.current?.click()} className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-[var(--border-color)] rounded-xl bg-[var(--bg-secondary)]/50 hover:border-[var(--color-accent-yellow)] transition-colors">
                         <Upload className="h-4 w-4" />
                         <span className="text-sm">Upload Logo</span>
                       </button>
-                      <p className="text-xs text-gray-400 mt-1">Square image recommended (e.g., 200x200px)</p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-1">Square image recommended (e.g., 200x200px)</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Title */}
                 <div>
-                  <Label className="text-sm font-semibold mb-2 block">Page Title *</Label>
+                  <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">Page Title *</Label>
                   <Input
                     placeholder={getPlaceholderText(pageType, "title")}
                     value={form.title}
                     onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                    className="h-12 text-base"
+                    className="h-12 text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
-                  <p className="text-xs text-gray-400 mt-1">Example: {getPlaceholderText(pageType, "title")}</p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">Example: {getPlaceholderText(pageType, "title")}</p>
                 </div>
 
                 {/* URL Preview */}
                 {form.title && (
-                  <div className="bg-[#e9e2d7]/50 rounded-lg p-4">
+                  <div className="bg-[var(--bg-secondary)]/50 rounded-lg p-4 border border-[var(--border-color)]">
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-xs font-semibold text-[#3e7465]">Your Page URL:</Label>
-                      <button onClick={regenerateId} className="flex items-center gap-1 text-xs text-[#e1bf46] hover:text-[#d4a91e]">
+                      <Label className="text-xs font-semibold text-[var(--color-accent-yellow)]">Your Page URL:</Label>
+                      <button onClick={regenerateId} className="flex items-center gap-1 text-xs text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80">
                         <RefreshCw className="h-3 w-3" /> New ID
                       </button>
                     </div>
-                    <div className="flex items-center gap-2 bg-white p-3 rounded-lg">
-                      <Link2 className="h-4 w-4 text-[#e1bf46] shrink-0" />
-                      <code className="text-sm font-mono text-[#023528] break-all">
+                    <div className="flex items-center gap-2 bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
+                      <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
+                      <code className="text-sm font-mono text-[var(--text-primary)] break-all">
                         {baseUrl}/pay/{generateSlug()}
                       </code>
                     </div>
                     {pageType === "school" && schoolClass && (
-                      <p className="text-xs text-[#3e7465] mt-2">
+                      <p className="text-xs text-[var(--color-accent-yellow)] mt-2">
                         URL includes class name: {slugify(schoolClass)}
                       </p>
                     )}
@@ -861,21 +863,22 @@ const CreatePage = () => {
 
                 {/* Description */}
                 <div>
-                  <Label className="text-sm font-semibold mb-2 block">Description</Label>
+                  <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">Description</Label>
                   <Textarea
                     placeholder={getPlaceholderText(pageType, "description")}
                     value={form.description}
                     onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                     rows={4}
-                    className="text-base resize-none"
+                    className="text-base resize-none border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
-                  <p className="text-xs text-gray-400 mt-1">Example: {getPlaceholderText(pageType, "description").substring(0, 100)}...</p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">Example: {getPlaceholderText(pageType, "description").substring(0, 100)}...</p>
                 </div>
 
                 {/* Product Images */}
                 {pageType !== "school" && pageType !== "donation" && (
                   <div>
-                    <Label className="text-sm font-semibold mb-2 block">Product Images</Label>
+                    <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">Product Images</Label>
                     <input type="file" ref={productRef} className="hidden" accept="image/*" multiple onChange={(e) => handleImageSelect(e, "productImages")} />
                     <div className="flex gap-3 flex-wrap">
                       {form.productImages.map((img, i) => (
@@ -886,18 +889,16 @@ const CreatePage = () => {
                           </button>
                         </div>
                       ))}
-                      <button onClick={() => productRef.current?.click()} className="h-24 w-24 rounded-xl border-2 border-dashed border-[#ded4c3] bg-[#e9e2d7]/50 flex items-center justify-center hover:border-[#e1bf46]">
-                        <ImagePlus className="h-5 w-5 text-[#6b6b6b]" />
+                      <button onClick={() => productRef.current?.click()} className="h-24 w-24 rounded-xl border-2 border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)]/50 flex items-center justify-center hover:border-[var(--color-accent-yellow)]">
+                        <ImagePlus className="h-5 w-5 text-[var(--text-secondary)]" />
                       </button>
                     </div>
-                    {/* <p className="text-xs text-gray-400 mt-2">Square images (800x800px) work best for product photos</p>
-                    <p className="text-xs text-[#e1bf46] mt-1">If no cover image is uploaded, the first product image will be used as the cover.</p> */}
                   </div>
                 )}
 
                 {/* Type-Specific Fields */}
-                <div className="p-5 rounded-2xl border border-[#ded4c3] bg-[#f9f6ef]">
-                  <h3 className="font-bold text-sm mb-4 text-[#e1bf46]">{typeLabels[pageType]} Settings</h3>
+                <div className="p-5 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)]">
+                  <h3 className="font-bold text-sm mb-4 text-[var(--color-accent-yellow)]">{typeLabels[pageType]} Settings</h3>
                   {pageType === "school" && (
                     <SchoolFields
                       students={students}
@@ -968,7 +969,7 @@ const CreatePage = () => {
 
                 {/* Trust Signals */}
                 {isInvestment && (
-                  <div className="p-5 rounded-2xl border border-[#ded4c3] bg-[#f9f6ef]">
+                  <div className="p-5 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)]">
                     <TrustSignals
                       cacCertificate={cacCertificate}
                       setCacCertificate={setCacCertificate}
@@ -990,7 +991,7 @@ const CreatePage = () => {
                 {pageType !== "donation" && (
                   <>
                     <div>
-                      <Label className="text-sm font-semibold mb-3 block">Pricing</Label>
+                      <Label className="text-sm font-semibold mb-3 block text-[var(--text-primary)]">Pricing</Label>
                       <div className="grid grid-cols-2 gap-3">
                         {(["fixed", "installment"] as const).map((val) => (
                           <button
@@ -998,8 +999,8 @@ const CreatePage = () => {
                             onClick={() => setForm((f) => ({ ...f, priceType: val }))}
                             className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
                               form.priceType === val
-                                ? "border-[#e1bf46] bg-[#e1bf46]/10 text-[#023528]"
-                                : "border-[#ded4c3] bg-[#f9f6ef] text-[#6b6b6b] hover:border-[#e1bf46]/50"
+                                ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)]"
+                                : "border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--color-accent-yellow)]/50"
                             }`}
                           >
                             {val === "fixed" ? "Fixed Price" : "Installment"}
@@ -1010,7 +1011,7 @@ const CreatePage = () => {
 
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <Label className="text-sm font-semibold mb-2 block">
+                        <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">
                           {form.priceType === "installment" ? "Total Amount (₦)" : "Amount (₦)"}
                         </Label>
                         <Input
@@ -1018,29 +1019,31 @@ const CreatePage = () => {
                           placeholder="0.00"
                           value={form.price}
                           onChange={(e) => pageType !== "school" && setForm((f) => ({ ...f, price: e.target.value }))}
-                          className="h-12 text-base"
+                          className="h-12 text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                          style={{ outline: "none", boxShadow: "none" }}
                           disabled={pageType === "school"}
                         />
                       </div>
                       {form.priceType === "installment" && (
                         <>
                           <div className="w-32">
-                            <Label className="text-sm font-semibold mb-2 block">Installments</Label>
+                            <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">Installments</Label>
                             <Input
                               type="number"
                               value={form.installmentCount}
                               onChange={(e) => setForm((f) => ({ ...f, installmentCount: e.target.value }))}
-                              className="h-12 text-base"
+                              className="h-12 text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                              style={{ outline: "none", boxShadow: "none" }}
                               min={2}
                               max={12}
                             />
                           </div>
                           <div className="w-32">
-                            <Label className="text-sm font-semibold mb-2 block">Period</Label>
+                            <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">Period</Label>
                             <select
                               value={installmentPeriod}
                               onChange={(e) => setInstallmentPeriod(e.target.value)}
-                              className="h-12 text-base bg-white border-[#ded4c3] rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-[#e1bf46]"
+                              className="h-12 text-base bg-[var(--bg-primary)] border-[var(--border-color)] rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] text-[var(--text-primary)]"
                             >
                               <option value="weekly">Weekly</option>
                               <option value="bi-weekly">Bi-Weekly</option>
@@ -1052,34 +1055,34 @@ const CreatePage = () => {
                     </div>
 
                     {form.priceType === "installment" && installmentAmount > 0 && (
-                      <div className="p-4 rounded-xl bg-[#e1bf46]/10 border border-[#e1bf46]/20">
+                      <div className="p-4 rounded-xl bg-[var(--color-accent-yellow)]/10 border border-[var(--color-accent-yellow)]/20">
                         <div className="flex items-center gap-2 mb-2">
-                          <Calendar className="h-4 w-4 text-[#e1bf46]" />
-                          <h4 className="text-sm font-semibold">Installment Breakdown</h4>
+                          <Calendar className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                          <h4 className="text-sm font-semibold text-[var(--text-primary)]">Installment Breakdown</h4>
                         </div>
-                        <div className="space-y-2 text-sm">
+                        <div className="space-y-2 text-sm text-[var(--text-primary)]">
                           <div className="flex justify-between">
-                            <span>Total Amount:</span>
+                            <span className="text-[var(--text-secondary)]">Total Amount:</span>
                             <span className="font-semibold">₦{Number(form.price).toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Number of Installments:</span>
+                            <span className="text-[var(--text-secondary)]">Number of Installments:</span>
                             <span className="font-semibold">{form.installmentCount}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Per Installment Amount:</span>
-                            <span className="font-semibold text-[#e1bf46]">₦{installmentAmount.toLocaleString()}</span>
+                            <span className="text-[var(--text-secondary)]">Per Installment Amount:</span>
+                            <span className="font-semibold text-[var(--color-accent-yellow)]">₦{installmentAmount.toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Fee per Installment (2%):</span>
+                            <span className="text-[var(--text-secondary)]">Fee per Installment (2%):</span>
                             <span className="font-semibold">₦{getFeePerInstallment().toLocaleString()}</span>
                           </div>
-                          <div className="border-t border-[#e1bf46]/20 pt-2 mt-2">
+                          <div className="border-t border-[var(--color-accent-yellow)]/20 pt-2 mt-2">
                             <div className="flex justify-between">
-                              <span className="font-semibold">
+                              <span className="font-semibold text-[var(--text-primary)]">
                                 {form.feeMode === "bearer" ? "You Receive per Installment:" : "Customer Pays per Installment:"}
                               </span>
-                              <span className="font-semibold text-[#e1bf46]">
+                              <span className="font-semibold text-[var(--color-accent-yellow)]">
                                 {form.feeMode === "bearer" 
                                   ? `₦${(installmentAmount - getFeePerInstallment()).toLocaleString()}`
                                   : `₦${installmentAmount.toLocaleString()}`
@@ -1088,16 +1091,16 @@ const CreatePage = () => {
                             </div>
                             {form.feeMode === "customer" && (
                               <div className="flex justify-between mt-1">
-                                <span className="text-xs text-[#3e7465]">(Plus fee):</span>
-                                <span className="text-xs text-[#3e7465]">+ ₦{getFeePerInstallment().toLocaleString()}</span>
+                                <span className="text-xs text-[var(--text-secondary)]">(Plus fee):</span>
+                                <span className="text-xs text-[var(--text-secondary)]">+ ₦{getFeePerInstallment().toLocaleString()}</span>
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="mt-3 p-2 bg-[#e1bf46]/5 rounded-lg">
+                        <div className="mt-3 p-2 bg-[var(--color-accent-yellow)]/5 rounded-lg">
                           <div className="flex items-start gap-2">
-                            <Info className="h-3 w-3 text-[#e1bf46] mt-0.5" />
-                            <p className="text-xs text-[#3e7465]">
+                            <Info className="h-3 w-3 text-[var(--color-accent-yellow)] mt-0.5" />
+                            <p className="text-xs text-[var(--text-secondary)]">
                               {form.feeMode === "bearer" 
                                 ? `You will receive ₦${(installmentAmount - getFeePerInstallment()).toLocaleString()} per installment. Total you'll receive: ₦${((installmentAmount - getFeePerInstallment()) * Number(form.installmentCount)).toLocaleString()}`
                                 : `Customer will pay ₦${installmentAmount.toLocaleString()} per installment + ₦${getFeePerInstallment().toLocaleString()} fee = ₦${(installmentAmount + getFeePerInstallment()).toLocaleString()} total per installment`
@@ -1112,7 +1115,7 @@ const CreatePage = () => {
 
                 {/* Fee Mode */}
                 <div className="space-y-4">
-                  <Label className="text-sm font-semibold mb-3 block">Who Pays the Transaction Fee?</Label>
+                  <Label className="text-sm font-semibold mb-3 block text-[var(--text-primary)]">Who Pays the Transaction Fee?</Label>
                   <div className="grid grid-cols-2 gap-3">
                     {(["bearer", "customer"] as const).map((val) => (
                       <button
@@ -1120,8 +1123,8 @@ const CreatePage = () => {
                         onClick={() => setForm((f) => ({ ...f, feeMode: val }))}
                         className={`p-4 rounded-xl border-2 text-sm font-medium transition-all ${
                           form.feeMode === val
-                            ? "border-[#e1bf46] bg-[#e1bf46]/10 text-[#023528]"
-                            : "border-[#ded4c3] bg-[#f9f6ef] text-[#6b6b6b] hover:border-[#e1bf46]/50"
+                            ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)]"
+                            : "border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--color-accent-yellow)]/50"
                         }`}
                       >
                         <div className="font-semibold mb-1">{val === "bearer" ? "I'll bear the fee" : "Customer pays"}</div>
@@ -1151,9 +1154,9 @@ const CreatePage = () => {
         </main>
 
         {/* Sticky CTA */}
-        <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-[#f7f0e2]/90 backdrop-blur-lg border-t border-[#ded4c3] p-4 z-40">
+        <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-[var(--bg-secondary)]/90 backdrop-blur-lg border-t border-[var(--border-color)] p-4 z-40">
           <div className="max-w-2xl mx-auto">
-            <Button variant="default" size="lg" className="w-full py-6 text-base" onClick={handleCreate} disabled={!canCreate() || isCreating}>
+            <Button variant="default" size="lg" className="w-full py-6 text-base bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90" onClick={handleCreate} disabled={!canCreate() || isCreating}>
               {isCreating ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...</> : `Create ${typeLabels[pageType]} Page`}
             </Button>
           </div>
@@ -1174,26 +1177,26 @@ const CreatePage = () => {
               initial={{ scale: 0.8, opacity: 0 }} 
               animate={{ scale: 1, opacity: 1 }} 
               exit={{ scale: 0.8, opacity: 0 }} 
-              className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl"
+              className="bg-[var(--bg-primary)] rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-[var(--border-color)]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-6xl mb-4">🎉</div>
-              <h2 className="text-2xl font-bold mb-2">Payment Page Created!</h2>
-              <p className="text-gray-600 mb-6">Your page is now live and ready to collect payments.</p>
+              <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Payment Page Created!</h2>
+              <p className="text-[var(--text-secondary)] mb-6">Your page is now live and ready to collect payments.</p>
               
-              <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                <Label className="text-xs font-semibold text-[#3e7465] mb-2 block text-left">Your Payment Link:</Label>
+              <div className="bg-[var(--bg-secondary)] rounded-xl p-4 mb-6 border border-[var(--border-color)]">
+                <Label className="text-xs font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">Your Payment Link:</Label>
                 <div className="flex items-center gap-2">
-                  <Link2 className="h-4 w-4 text-[#e1bf46] shrink-0" />
-                  <code className="text-sm font-mono text-[#023528] break-all flex-1 text-left">{pageUrl}</code>
+                  <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
+                  <code className="text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">{pageUrl}</code>
                   <button
                     onClick={copyPageUrl}
-                    className="relative p-2 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20 transition-colors group"
+                    className="relative p-2 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group"
                   >
                     {copied ? (
-                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <CheckCircle className="h-4 w-4 text-[var(--color-lemon-green)]" />
                     ) : (
-                      <Copy className="h-4 w-4 text-[#e1bf46]" />
+                      <Copy className="h-4 w-4 text-[var(--color-accent-yellow)]" />
                     )}
                     {/* Tooltip */}
                     <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
@@ -1202,7 +1205,7 @@ const CreatePage = () => {
                   </button>
                 </div>
                 {copied && (
-                  <p className="text-xs text-green-600 mt-2 text-center animate-pulse">
+                  <p className="text-xs text-[var(--color-lemon-green)] mt-2 text-center animate-pulse">
                     ✓ Link copied to clipboard!
                   </p>
                 )}
@@ -1221,7 +1224,7 @@ const CreatePage = () => {
                 </Button>
                 <Button 
                   variant="default" 
-                  className="flex-1" 
+                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90" 
                   onClick={() => {
                     setShowSuccess(false);
                     router.push("/dashboard/services/payment/dashboard");
@@ -1233,7 +1236,7 @@ const CreatePage = () => {
               
               <button
                 onClick={() => setShowSuccess(false)}
-                className="mt-4 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                className="mt-4 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               >
                 Close
               </button>

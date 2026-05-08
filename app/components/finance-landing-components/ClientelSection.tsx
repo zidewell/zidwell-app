@@ -26,7 +26,7 @@ const ClienteleSection = () => {
 
       <div className="container-custom relative">
         <div className="text-center mb-12 md:mb-16">
-          <div className="inline-block px-4 py-1.5 bg-[#2b825b]/20 border border-[#2b825b] text-sm font-semibold text-[#18171c] mb-4 rounded-md">
+          <div className="inline-block px-4 py-1.5 bg-(--color-accent-yellow)/20 border border-(--color-accent-yellow) text-sm font-semibold text-[#18171c] mb-4 rounded-md">
             TRUSTED BY
           </div>
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#18171c] mb-3">
@@ -61,7 +61,7 @@ const ClienteleSection = () => {
               </div>
 
               {/* Bottom accent line */}
-              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-linear-to-r from-transparent via-[#2b825b]/50 to-transparent group-hover:w-3/4 transition-all duration-300" />
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-linear-to-r from-transparent via-(--color-accent-yellow)/50 to-transparent group-hover:w-3/4 transition-all duration-300" />
             </div>
           ))}
         </div>

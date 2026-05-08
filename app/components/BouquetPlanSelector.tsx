@@ -55,12 +55,12 @@ export default function BouquePlanSelector({
               onClick={() => onSelect(plan)}
               className={`relative cursor-pointer transition-all border-2 rounded-xl ${
                 isSelected
-                  ? "border-[#2b825b] ring-2 ring-blue-200"
+                  ? "border-(--color-accent-yellow) ring-2 ring-blue-200"
                   : "hover:border-gray-300 border-gray-200"
               }`}
             >
               {isSelected && (
-                <div className="absolute top-2 right-2 text-[#2b825b]">
+                <div className="absolute top-2 right-2 text-(--color-accent-yellow)">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
               )}

@@ -30,9 +30,11 @@ export const InvoicePreview = ({ invoice }: InvoicePreviewProps) => {
           <h2 className="text-3xl font-bold text-foreground dark:text-gray-100 mb-2">
             {invoice.businessName}
           </h2>
-          <p className="text-muted-foreground dark:text-gray-400">Payment Request</p>
-          <div className="inline-block mt-2 px-4 py-1 bg-[#2b825b]/10 border border-[#2b825b] dark:border-[#2b825b] rounded-full">
-            <span className="text-sm text-[#2b825b] dark:text-[#2b825b] font-semibold">
+          <p className="text-muted-foreground dark:text-gray-400">
+            Payment Request
+          </p>
+          <div className="inline-block mt-2 px-4 py-1 bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow) dark:border-(--color-accent-yellow) rounded-full">
+            <span className="text-sm text-(--color-accent-yellow) dark:text-(--color-accent-yellow) font-semibold">
               #{invoice.invoiceNumber}
             </span>
           </div>
@@ -113,8 +115,10 @@ export const InvoicePreview = ({ invoice }: InvoicePreviewProps) => {
             )}
             <Separator className="my-3 bg-border dark:bg-gray-700" />
             <div className="flex justify-between text-2xl font-bold">
-              <span className="text-foreground dark:text-gray-200">Amount Due</span>
-              <span className="text-[#2b825b] dark:text-[#2b825b]">
+              <span className="text-foreground dark:text-gray-200">
+                Amount Due
+              </span>
+              <span className="text-(--color-accent-yellow) dark:text-(--color-accent-yellow)">
                 ₦{(invoice.total || 0).toLocaleString()}
               </span>
             </div>

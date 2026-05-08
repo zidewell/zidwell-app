@@ -317,7 +317,7 @@ const AdminCategories = () => {
             </Button>
             <Dialog>
               <DialogTrigger asChild>
-                <Button className="bg-[#2b825b] text-white hover:bg-[#2b825b]/90">
+                <Button className="bg-(--color-accent-yellow) text-white hover:bg-(--color-accent-yellow)/90">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Category
                 </Button>
@@ -345,7 +345,7 @@ const AdminCategories = () => {
                       <Button variant="outline">Cancel</Button>
                     </DialogClose>
                     <Button
-                      className="bg-[#2b825b] text-white hover:bg-[#2b825b]/90"
+                      className="bg-(--color-accent-yellow) text-white hover:bg-(--color-accent-yellow)/90"
                       onClick={handleAddCategory}
                       disabled={isAdding || !newCategoryName.trim()}
                     >
@@ -618,7 +618,7 @@ const AdminCategories = () => {
                 Cancel
               </Button>
               <Button
-                className="bg-[#2b825b] text-white hover:bg-[#2b825b]/90"
+                className="bg-(--color-accent-yellow) text-white hover:bg-(--color-accent-yellow)/90"
                 onClick={handleEditCategory}
                 disabled={!editCategoryName.trim() || !categoryToEdit}
               >

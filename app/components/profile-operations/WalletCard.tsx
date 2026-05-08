@@ -45,10 +45,7 @@ const WalletCard: React.FC<WalletCardProps> = ({
   const [loading, setLoading] = useState(false);
 
   const handleActivate = () => {
-    // Open the global verification modal
     openVerificationModal();
-
-    // Call the original onActivate if needed
     onActivate();
   };
 
@@ -77,24 +74,26 @@ const WalletCard: React.FC<WalletCardProps> = ({
   const handleCopyAccountNumber = async () => {
     if (details?.bank_details?.bank_account_number) {
       setCopyText(true);
-      await navigator.clipboard.writeText(details.bank_details.bank_account_number);
+      await navigator.clipboard.writeText(
+        details.bank_details.bank_account_number,
+      );
       setTimeout(() => setCopyText(false), 3000);
     }
   };
 
   if (!activated) {
     return (
-      <div className="neo-card bg-card p-6 md:p-8">
-        <h3 className="font-heading text-foreground text-base mb-2">
+      <div className="neo-card bg-[var(--bg-primary)] p-6 md:p-8 border border-[var(--border-color)] rounded-xl shadow-soft">
+        <h3 className="font-heading text-[var(--text-primary)] text-base mb-2">
           ACTIVATE YOUR WALLET
         </h3>
-        <p className="text-sm font-body text-muted-foreground mb-5">
+        <p className="text-sm font-body text-[var(--text-secondary)] mb-5">
           Complete your KYC verification to activate your wallet and start
           transacting.
         </p>
         <button
           onClick={handleActivate}
-          className="bg-[#2b825b] hover:bg-[#2b825b]/90 text-white dark:bg-[#236b49] dark:hover:bg-[#174c36] py-3 px-6 rounded-md transition-all font-medium"
+          className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 px-6 rounded-md transition-all font-medium"
         >
           Start Verification
         </button>
@@ -105,9 +104,9 @@ const WalletCard: React.FC<WalletCardProps> = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Card 1: All-time Balance */}
-      <Card className="bg-linear-to-r from-[#2b825b] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#1e5f43] dark:to-[#b37f1a]">
+      <Card className="bg-linear-to-r from-[var(--color-accent-yellow)] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#1e5f43] dark:to-[#b37f1a]">
         <CardHeader className="p-0">
-          <CardTitle className="text-base  font-medium">
+          <CardTitle className="text-base font-medium">
             All-time Balance
             <span className="block font-semibold text-xl mt-1">
               {showAlltime ? formatNaira(allTimeBalance) : "*****"}
@@ -120,9 +119,9 @@ const WalletCard: React.FC<WalletCardProps> = ({
             className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
           >
             {showAlltime ? (
-              <EyeOff className="text-white " />
+              <EyeOff className="text-white" />
             ) : (
-              <Eye className="text-white " />
+              <Eye className="text-white" />
             )}
           </button>
         </CardContent>
@@ -144,36 +143,35 @@ const WalletCard: React.FC<WalletCardProps> = ({
             className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
           >
             {showCurrent ? (
-              <EyeOff className="text-white " />
+              <EyeOff className="text-white" />
             ) : (
-              <Eye className="text-white " />
+              <Eye className="text-white" />
             )}
           </button>
         </CardContent>
       </Card>
 
       {/* Card 3: Account Number */}
-      <Card className="flex items-center justify-between bg-white border shadow-md rounded-xl p-4 dark:bg-gray-800 dark:border-gray-700">
+      <Card className="flex items-center justify-between bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-md rounded-xl p-4 dark:bg-gray-800 dark:border-gray-700">
         <CardHeader className="p-0">
-          <CardTitle className="text-base font-medium text-gray-900 dark:text-gray-100">
+          <CardTitle className="text-base font-medium text-[var(--text-primary)]">
             Your Account Number
-            <div className="font-semibold flex items-center gap-4 mt-1 text-gray-900 dark:text-gray-100">
-              {showAccountNumber ? (
-                details?.bank_details?.bank_account_number || "Not available"
-              ) : (
-                "*****"
-              )}
-              {showAccountNumber && details?.bank_details?.bank_account_number && (
-                <button
-                  className="text-sm border px-3 py-2 rounded-md cursor-pointer hover:bg-gray-100 transition dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300"
-                  onClick={handleCopyAccountNumber}
-                >
-                  {copyText ? "Copied" : <CopyIcon className="w-4 h-4" />}
-                </button>
-              )}
+            <div className="font-semibold flex items-center gap-4 mt-1 text-[var(--text-primary)]">
+              {showAccountNumber
+                ? details?.bank_details?.bank_account_number || "Not available"
+                : "*****"}
+              {showAccountNumber &&
+                details?.bank_details?.bank_account_number && (
+                  <button
+                    className="text-sm border px-3 py-2 rounded-md cursor-pointer hover:bg-[var(--bg-secondary)] transition dark:border-gray-600 dark:hover:bg-gray-700"
+                    onClick={handleCopyAccountNumber}
+                  >
+                    {copyText ? "Copied" : <CopyIcon className="w-4 h-4" />}
+                  </button>
+                )}
             </div>
             {showAccountNumber && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-[var(--text-secondary)]">
                 {details?.bank_details?.bank_name || "Providus Bank"}
               </p>
             )}
@@ -182,12 +180,12 @@ const WalletCard: React.FC<WalletCardProps> = ({
         <CardContent className="p-0">
           <button
             onClick={() => setShowAccountNumber((prev) => !prev)}
-            className="bg-gray-100 p-3 rounded-full hover:bg-gray-200 transition dark:bg-gray-700 dark:hover:bg-gray-600"
+            className="bg-[var(--bg-secondary)] p-3 rounded-full hover:bg-[var(--bg-secondary)]/80 transition"
           >
             {showAccountNumber ? (
-              <EyeOff className=" text-gray-700 dark:text-gray-300" />
+              <EyeOff className="text-[var(--text-secondary)]" />
             ) : (
-              <Eye className=" text-gray-700 dark:text-gray-300" />
+              <Eye className="text-[var(--text-secondary)]" />
             )}
           </button>
         </CardContent>
@@ -199,7 +197,9 @@ const WalletCard: React.FC<WalletCardProps> = ({
           <CardTitle className="text-base font-medium">
             Total Transactions
             <span className="block font-semibold text-xl mt-1">
-              {showTotalTransactions ? totalTransactions.toLocaleString() : "*****"}
+              {showTotalTransactions
+                ? totalTransactions.toLocaleString()
+                : "*****"}
             </span>
           </CardTitle>
         </CardHeader>
@@ -209,9 +209,9 @@ const WalletCard: React.FC<WalletCardProps> = ({
             className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
           >
             {showTotalTransactions ? (
-              <EyeOff className="text-white " />
+              <EyeOff className="text-white" />
             ) : (
-              <Eye className="text-white " />
+              <Eye className="text-white" />
             )}
           </button>
         </CardContent>

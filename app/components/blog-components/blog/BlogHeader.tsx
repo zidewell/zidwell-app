@@ -1,3 +1,4 @@
+// BlogHeader.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -24,14 +25,11 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
   const { userData } = useUserContextData();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Calculate top categories from posts if categories prop not provided
   const topCategories = useMemo(() => {
-    // Use provided categories if available
     if (categories && categories.length > 0) {
       return categories.sort((a, b) => b.count - a.count).slice(0, 3);
     }
 
-    // Otherwise calculate from posts
     const categoryMap = new Map<string, number>();
 
     posts.forEach((post) => {
@@ -58,10 +56,9 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
   };
 
   return (
-    <header className="border-b border-border bg-background sticky top-0 z-50">
+    <header className="border-b border-[var(--border-color)] bg-[var(--bg-primary)] sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-       
           <Link href="/" className="flex items-center">
             <Image
               src="/logo.png"
@@ -70,13 +67,13 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
               height={32}
               className="mr-2 w-16 object-contain"
             />
-            <h1 className="font-bold text-lg text-white">Zidwell</h1>
+            <h1 className="font-bold text-lg text-[var(--text-primary)]">Zidwell</h1>
           </Link>
-       
+
           <nav className="hidden md:flex items-center gap-6">
             <Link
               href="/blog"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               All Articles
             </Link>
@@ -84,7 +81,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
               <Link
                 key={category.name}
                 href={`/blog?category=${encodeURIComponent(category.name)}`}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               >
                 {category.name} {category.count > 0 && `(${category.count})`}
               </Link>
@@ -100,7 +97,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
               ].includes(userData?.role) && (
                 <Link
                   href="/blog/admin"
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   Write
                 </Link>
@@ -111,7 +108,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
               size="icon"
               onClick={handleRefresh}
               disabled={isLoading}
-              className="h-8 w-8"
+              className="h-8 w-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               title="Refresh posts"
             >
               <RefreshCw
@@ -124,13 +121,13 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
           <div className="md:hidden">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" className="text-[var(--text-secondary)]">
                   <Menu className="w-5 h-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 bg-[var(--bg-primary)] border border-[var(--border-color)]">
                 <DropdownMenuItem asChild>
-                  <Link href="/blog" className="cursor-pointer">
+                  <Link href="/blog" className="cursor-pointer text-[var(--text-primary)]">
                     All Articles
                   </Link>
                 </DropdownMenuItem>
@@ -138,7 +135,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
                   <DropdownMenuItem key={category.name} asChild>
                     <Link
                       href={`/blog?category=${encodeURIComponent(category.name)}`}
-                      className="cursor-pointer"
+                      className="cursor-pointer text-[var(--text-primary)]"
                     >
                       {category.name}{" "}
                       {category.count > 0 && `(${category.count})`}
@@ -146,11 +143,11 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuItem asChild>
-                  <Link href="/blog/admin" className="cursor-pointer">
+                  <Link href="/blog/admin" className="cursor-pointer text-[var(--text-primary)]">
                     Write Article
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleRefresh} disabled={isLoading}>
+                <DropdownMenuItem onClick={handleRefresh} disabled={isLoading} className="text-[var(--text-primary)]">
                   <RefreshCw
                     className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
                   />
@@ -163,7 +160,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
           {/* Subscribe Button */}
           <div className="hidden md:flex items-center gap-4">
             <Link href="/blog/subscribe">
-              <Button className="px-4 py-2 text-sm font-medium bg-[#2b825b]  rounded-full hover:opacity-90 transition-opacity">
+              <Button className="px-4 py-2 text-sm font-medium bg-[var(--color-accent-yellow)] text-[var(--color-ink)] rounded-full hover:opacity-90 transition-opacity">
                 Subscribe
               </Button>
             </Link>
@@ -172,12 +169,12 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
       </div>
 
       {/* Mobile Categories Bar */}
-      <div className="md:hidden border-t border-border bg-background">
+      <div className="md:hidden border-t border-[var(--border-color)] bg-[var(--bg-primary)]">
         <div className="container mx-auto px-4 py-2">
           <div className="flex items-center gap-4 overflow-x-auto pb-2">
             <Link
               href="/blog"
-              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+              className="text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
             >
               All
             </Link>
@@ -185,7 +182,7 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
               <Link
                 key={category.name}
                 href={`/blog?category=${encodeURIComponent(category.name)}`}
-                className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+                className="text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
               >
                 {category.name}
               </Link>

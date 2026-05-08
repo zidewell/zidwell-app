@@ -1,3 +1,4 @@
+// app/blog/post-blog/[slug]/page.tsx
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import BlogPostClient from "./client"; 

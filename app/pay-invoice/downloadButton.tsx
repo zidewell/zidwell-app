@@ -554,7 +554,7 @@ export default function DownloadInvoiceButton({
     <Button
       variant="outline"
       size="lg"
-      className="w-full border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b]/10"
+      className="w-full border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
       onClick={handleDownloadPDF}
       disabled={loading}
     >

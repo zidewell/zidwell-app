@@ -17,7 +17,10 @@ export default function DashboardFooter() {
         <div className="md:max-w-6xl md:mx-auto">
           <footer className="py-6 text-center">
             <p className="text-sm text-gray-600">
-              <span className="text-[#2b825b]">Zidwell Finance</span> ©2025
+              <span className="text-(--color-accent-yellow)">
+                Zidwell Finance
+              </span>{" "}
+              ©2025
             </p>
             <p className="mt-1 text-xs text-gray-500">
               Created by Zidwell Technologies in collaboration with banking

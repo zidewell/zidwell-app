@@ -18,7 +18,17 @@ import {
   CommandGroup,
   CommandItem,
 } from "./ui/command";
-import { Check, ChevronsUpDown, Loader2, Bookmark, User, Eye, EyeOff, Landmark, CopyIcon } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  Loader2,
+  Bookmark,
+  User,
+  Eye,
+  EyeOff,
+  Landmark,
+  CopyIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -754,7 +764,7 @@ export default function Transfer() {
       {/* 💳 Balance Cards */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         {/* Alltime Balance */}
-        <Card className="bg-linear-to-r from-[#2b825b] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#1e5f43] dark:to-[#b37f1a]">
+        <Card className="bg-linear-to-r from-(--color-accent-yellow) to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#1e5f43] dark:to-[#b37f1a]">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium">
               Alltime Balance
@@ -812,7 +822,9 @@ export default function Transfer() {
                   className="text-sm border px-3 py-2 rounded-md cursor-pointer hover:bg-gray-100 transition dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300"
                   onClick={async () => {
                     if (userDetails?.bank_details?.bank_account_number) {
-                      await navigator.clipboard.writeText(userDetails.bank_details.bank_account_number);
+                      await navigator.clipboard.writeText(
+                        userDetails.bank_details.bank_account_number,
+                      );
                       Swal.fire({
                         icon: "success",
                         title: "Copied!",
@@ -868,9 +880,24 @@ export default function Transfer() {
                   <SelectValue placeholder="Select transfer type" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
-                  <SelectItem value="my-account" className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700">My Bank Account</SelectItem>
-                  <SelectItem value="other-bank" className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700">Other Bank Account</SelectItem>
-                  <SelectItem value="p2p" className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700">Zidwell User (P2P)</SelectItem>
+                  <SelectItem
+                    value="my-account"
+                    className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700"
+                  >
+                    My Bank Account
+                  </SelectItem>
+                  <SelectItem
+                    value="other-bank"
+                    className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700"
+                  >
+                    Other Bank Account
+                  </SelectItem>
+                  <SelectItem
+                    value="p2p"
+                    className="dark:text-gray-100 dark:focus:bg-gray-700 dark:hover:bg-gray-700"
+                  >
+                    Zidwell User (P2P)
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -898,7 +925,9 @@ export default function Transfer() {
               )}
 
               {errors.amount && (
-                <p className="text-red-600 text-sm dark:text-red-400">{errors.amount}</p>
+                <p className="text-red-600 text-sm dark:text-red-400">
+                  {errors.amount}
+                </p>
               )}
             </div>
 
@@ -917,11 +946,15 @@ export default function Transfer() {
                       {userDetails.payment_details.p_bank_name}
                     </p>
                     <p className="dark:text-gray-300">
-                      <strong className="dark:text-gray-200">Account Number:</strong>{" "}
+                      <strong className="dark:text-gray-200">
+                        Account Number:
+                      </strong>{" "}
                       {userDetails.payment_details.p_account_number}
                     </p>
                     <p className="dark:text-gray-300">
-                      <strong className="dark:text-gray-200">Account Name:</strong>{" "}
+                      <strong className="dark:text-gray-200">
+                        Account Name:
+                      </strong>{" "}
                       {userDetails.payment_details.p_account_name}
                     </p>
                   </div>
@@ -936,7 +969,9 @@ export default function Transfer() {
                     </Link>{" "}
                     to add them.
                     {errors.myAccount && (
-                      <p className="text-red-600 text-sm dark:text-red-400">{errors.myAccount}</p>
+                      <p className="text-red-600 text-sm dark:text-red-400">
+                        {errors.myAccount}
+                      </p>
                     )}
                   </div>
                 )}
@@ -1016,15 +1051,17 @@ export default function Transfer() {
 
                     <PopoverContent className="w-full p-0 dark:bg-gray-800 dark:border-gray-700">
                       <Command className="dark:bg-gray-800">
-                        <CommandInput 
-                          placeholder="Search bank..." 
-                          value={search} 
-                          onValueChange={setSearch} 
+                        <CommandInput
+                          placeholder="Search bank..."
+                          value={search}
+                          onValueChange={setSearch}
                           autoFocus
                           className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                         />
                         <CommandList>
-                          <CommandEmpty className="dark:text-gray-400">No bank found.</CommandEmpty>
+                          <CommandEmpty className="dark:text-gray-400">
+                            No bank found.
+                          </CommandEmpty>
                           <CommandGroup>
                             {filteredBanks.map((bank) => (
                               <CommandItem
@@ -1050,7 +1087,9 @@ export default function Transfer() {
                   </Popover>
 
                   {errors.otherBank && (
-                    <p className="text-red-600 text-sm dark:text-red-400">{errors.otherBank}</p>
+                    <p className="text-red-600 text-sm dark:text-red-400">
+                      {errors.otherBank}
+                    </p>
                   )}
                 </div>
 
@@ -1072,7 +1111,7 @@ export default function Transfer() {
                 </div>
 
                 {lookupLoading && (
-                  <p className="text-[#2b825b] text-sm flex items-center gap-2 dark:text-[#3aa873]">
+                  <p className="text-(--color-accent-yellow) text-sm flex items-center gap-2 dark:text-[#3aa873]">
                     <Loader2 className="animate-spin" /> Verifying account...
                   </p>
                 )}
@@ -1102,7 +1141,7 @@ export default function Transfer() {
                 peer-checked:after:translate-x-full peer-checked:after:border-white 
                 after:content-[''] after:absolute after:top-0.5 after:left-0.5 
                 after:bg-white after:border-gray-300 after:border after:rounded-full 
-                after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b] dark:bg-gray-600"
+                after:h-5 after:w-5 after:transition-all peer-checked:bg-(--color-accent-yellow) dark:bg-gray-600"
                             ></div>
                           </label>
                         </div>
@@ -1175,7 +1214,9 @@ export default function Transfer() {
                 )}
 
                 <div className="space-y-1">
-                  <Label className="dark:text-gray-300">Account Number (Zidwell User)</Label>
+                  <Label className="dark:text-gray-300">
+                    Account Number (Zidwell User)
+                  </Label>
                   <Input
                     type="number"
                     value={recepientAcc}
@@ -1189,7 +1230,7 @@ export default function Transfer() {
                     </p>
                   )}
                   {lookupLoading && (
-                    <p className="text-[#2b825b] text-sm flex items-center gap-2 dark:text-[#3aa873]">
+                    <p className="text-(--color-accent-yellow) text-sm flex items-center gap-2 dark:text-[#3aa873]">
                       <Loader2 className="animate-spin" /> Verifying account...
                     </p>
                   )}
@@ -1221,7 +1262,7 @@ export default function Transfer() {
                   peer-checked:after:translate-x-full peer-checked:after:border-white 
                   after:content-[''] after:absolute after:top-0.5 after:left-0.5 
                   after:bg-white after:border-gray-300 after:border after:rounded-full 
-                  after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b] dark:bg-gray-600"
+                  after:h-5 after:w-5 after:transition-all peer-checked:bg-(--color-accent-yellow) dark:bg-gray-600"
                               ></div>
                             </label>
                           </div>
@@ -1236,7 +1277,9 @@ export default function Transfer() {
             <div className="space-y-1">
               <Label className="dark:text-gray-300">
                 Narration{" "}
-                <span className="text-sm dark:text-gray-400">(purpose of transaction)</span>
+                <span className="text-sm dark:text-gray-400">
+                  (purpose of transaction)
+                </span>
               </Label>
               <Input
                 type="text"
@@ -1248,13 +1291,15 @@ export default function Transfer() {
               />
             </div>
             {errors.narration && (
-              <p className="text-red-600 text-sm dark:text-red-400">{errors.narration}</p>
+              <p className="text-red-600 text-sm dark:text-red-400">
+                {errors.narration}
+              </p>
             )}
 
             <Button
               type="submit"
               disabled={isDisabled}
-              className="w-full bg-[#2b825b] hover:bg-[#174c36] text-white md:w-[200px] dark:bg-[#236b49] dark:hover:bg-[#174c36]"
+              className="w-full bg-(--color-accent-yellow) hover:bg-[#174c36] text-white md:w-[200px] dark:bg-[#236b49] dark:hover:bg-[#174c36]"
             >
               {loading ? "Processing..." : "Transfer Now"}
             </Button>

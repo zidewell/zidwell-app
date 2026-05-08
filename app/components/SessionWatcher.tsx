@@ -1,5 +1,4 @@
 'use client';
-"use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -34,11 +33,13 @@ export default function SessionWatcher({
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const authCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Set inactivity limit based on environment
-  const INACTIVITY_LIMIT =
-    process.env.NODE_ENV === "production"
-      ? 15 * 60 * 1000 // 15 minutes in production
-      : 120 * 60 * 1000; // 2 hour in development
+  // Check if we're in production
+  const isProduction = process.env.NODE_ENV === "production";
+
+  // Set inactivity limit - longer in development
+  const INACTIVITY_LIMIT = isProduction
+    ? 15 * 60 * 1000 // 15 minutes in production
+    : 24 * 60 * 60 * 1000; // 24 hours in development (effectively never)
 
   // Check if current route is public
   const isPublicRoute = useCallback(() => {
@@ -55,25 +56,34 @@ export default function SessionWatcher({
       clearTimeout(inactivityTimerRef.current);
     }
 
-    // Set new timer
-    inactivityTimerRef.current = setTimeout(() => {
-      const timeSinceLastActivity = Date.now() - lastActivityTime;
-      if (
-        timeSinceLastActivity >= INACTIVITY_LIMIT &&
-        userData &&
-        !isPublicRoute()
-      ) {
-        console.log(
-          `🕐 Inactive for ${Math.round(timeSinceLastActivity / 1000)}s, logging out...`,
-        );
-        logout();
-      }
-    }, INACTIVITY_LIMIT);
-  }, [INACTIVITY_LIMIT, lastActivityTime, userData, isPublicRoute, logout]);
+    // Only set inactivity timer in production
+    if (isProduction) {
+      // Set new timer
+      inactivityTimerRef.current = setTimeout(() => {
+        const timeSinceLastActivity = Date.now() - lastActivityTime;
+        if (
+          timeSinceLastActivity >= INACTIVITY_LIMIT &&
+          userData &&
+          !isPublicRoute()
+        ) {
+          console.log(
+            `🕐 Inactive for ${Math.round(timeSinceLastActivity / 1000)}s, logging out...`,
+          );
+          logout();
+        }
+      }, INACTIVITY_LIMIT);
+    }
+  }, [INACTIVITY_LIMIT, lastActivityTime, userData, isPublicRoute, logout, isProduction]);
 
   // Track user activity
   useEffect(() => {
     if (!userData || isPublicRoute()) return;
+    
+    // Skip activity tracking in development
+    if (!isProduction) {
+      console.log("🔧 Development mode: Session persistence enabled, no auto-logout");
+      return;
+    }
 
     const events = [
       "mousedown",
@@ -131,11 +141,18 @@ export default function SessionWatcher({
     INACTIVITY_LIMIT,
     lastActivityTime,
     logout,
+    isProduction,
   ]);
 
-  // Periodic auth check (every 5 minutes)
+  // Periodic auth check (every 5 minutes in production only)
   useEffect(() => {
     if (!userData || isPublicRoute()) return;
+    
+    // Skip periodic auth checks in development
+    if (!isProduction) {
+      console.log("🔧 Development mode: Skipping periodic auth checks");
+      return;
+    }
 
     const performAuthCheck = async () => {
       const isValid = await checkAuth();
@@ -158,11 +175,14 @@ export default function SessionWatcher({
         clearInterval(authCheckIntervalRef.current);
       }
     };
-  }, [userData, isPublicRoute, checkAuth]);
+  }, [userData, isPublicRoute, checkAuth, isProduction]);
 
-  // Check auth on route change
+  // Check auth on route change (production only)
   useEffect(() => {
     if (!userData || isPublicRoute() || checkedRef.current) return;
+    
+    // Skip route change validation in development
+    if (!isProduction) return;
 
     checkedRef.current = true;
 
@@ -182,7 +202,7 @@ export default function SessionWatcher({
       },
       5 * 60 * 1000,
     );
-  }, [pathname, userData, isPublicRoute, checkAuth]);
+  }, [pathname, userData, isPublicRoute, checkAuth, isProduction]);
 
   return <>{children}</>;
 }

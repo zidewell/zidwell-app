@@ -42,7 +42,17 @@ const prefixColorMap = [
     name: "MTN",
     src: "/networks-img/mtn.png",
     prefix: [
-      "0803", "0806", "0703", "0706", "0813", "0816", "0810", "0814", "0903", "0906", "0913",
+      "0803",
+      "0806",
+      "0703",
+      "0706",
+      "0813",
+      "0816",
+      "0810",
+      "0814",
+      "0903",
+      "0906",
+      "0913",
     ],
   },
   {
@@ -80,9 +90,12 @@ export default function DataBundlePurchase() {
   const { userData, setUserData } = useUserContextData();
   const router = useRouter();
 
-  const [savedBeneficiaries, setSavedBeneficiaries] = useState<SavedBeneficiary[]>([]);
+  const [savedBeneficiaries, setSavedBeneficiaries] = useState<
+    SavedBeneficiary[]
+  >([]);
   const [saveBeneficiary, setSaveBeneficiary] = useState(false);
-  const [selectedSavedBeneficiary, setSelectedSavedBeneficiary] = useState<SavedBeneficiary | null>(null);
+  const [selectedSavedBeneficiary, setSelectedSavedBeneficiary] =
+    useState<SavedBeneficiary | null>(null);
   const [showSavedBeneficiaries, setShowSavedBeneficiaries] = useState(false);
   const [loadingBeneficiaries, setLoadingBeneficiaries] = useState(false);
 
@@ -114,7 +127,10 @@ export default function DataBundlePurchase() {
     const cleanValue = value.replace(/\D/g, "");
     setPhoneNumber(cleanValue);
 
-    if (selectedSavedBeneficiary && cleanValue !== selectedSavedBeneficiary.phoneNumber) {
+    if (
+      selectedSavedBeneficiary &&
+      cleanValue !== selectedSavedBeneficiary.phoneNumber
+    ) {
       setSelectedSavedBeneficiary(null);
     }
 
@@ -177,12 +193,14 @@ export default function DataBundlePurchase() {
           text: "This phone number has been saved to your beneficiaries for future data purchases.",
           timer: 2000,
           showConfirmButton: false,
+          confirmButtonColor: "var(--color-accent-yellow)",
         });
       } else {
         Swal.fire({
           icon: "error",
           title: "Failed to Save",
           text: data.message || "Could not save beneficiary",
+          confirmButtonColor: "var(--color-accent-yellow)",
         });
       }
     } catch (error) {
@@ -191,6 +209,7 @@ export default function DataBundlePurchase() {
         icon: "error",
         title: "Error",
         text: "Failed to save beneficiary. Please try again.",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
     }
   };
@@ -210,7 +229,9 @@ export default function DataBundlePurchase() {
     if (!validateForm()) return;
 
     if (!selectedProvider?.id || !selectedPlan) {
-      throw new Error("Please ensure you've selected a provider and a data plan.");
+      throw new Error(
+        "Please ensure you've selected a provider and a data plan.",
+      );
     }
 
     const serviceName = selectedProvider.id;
@@ -264,7 +285,7 @@ export default function DataBundlePurchase() {
         icon: "success",
         title: "Data Bundle Purchase Successful",
         text: `₦${payload.amount} sent to ${payload.phoneNumber}`,
-        confirmButtonColor: "#0f172a",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
 
       return { success: true };
@@ -285,7 +306,8 @@ export default function DataBundlePurchase() {
         `/api/get-data-bundles?service=${selectedProvider?.id}`,
       );
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to fetch bundles");
+      if (!response.ok)
+        throw new Error(data.error || "Failed to fetch bundles");
       setBundles(data.data);
     } catch (error: any) {
       console.error("Fetch error:", error.message);
@@ -332,7 +354,9 @@ export default function DataBundlePurchase() {
             setPinError(null);
             await purchaseDatabundle(pinCode);
           } catch (error: any) {
-            setPinError(error.message || "Transaction failed. Please try again.");
+            setPinError(
+              error.message || "Transaction failed. Please try again.",
+            );
             throw error;
           }
         }}
@@ -345,15 +369,17 @@ export default function DataBundlePurchase() {
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
+          className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:bg-[var(--bg-secondary)] text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 md:mr-2" />
           <span className="hidden md:block">Back</span>
         </Button>
 
         <div className="">
-          <h1 className="md:text-3xl text-xl font-bold mb-2">Buy Data Bundle</h1>
-          <p className="text-muted-foreground">
+          <h1 className="md:text-3xl text-xl font-bold mb-2 text-[var(--text-primary)]">
+            Buy Data Bundle
+          </h1>
+          <p className="text-[var(--text-secondary)]">
             Instant Data bundle top-up for all Nigerian networks
           </p>
         </div>
@@ -361,10 +387,10 @@ export default function DataBundlePurchase() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
+          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Smartphone className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-[var(--text-primary)]">
+                <Smartphone className="w-5 h-5 text-[var(--color-accent-yellow)]" />
                 Select Network Provider
               </CardTitle>
             </CardHeader>
@@ -379,8 +405,8 @@ export default function DataBundlePurchase() {
                       onClick={() => setSelectedProvider(provider)}
                       className={`relative p-4 border-2 rounded-md transition-all duration-200 cursor-pointer ${
                         isSelected
-                          ? "bg-gray-100 border-[#2b825b] text-gray-900 shadow-md"
-                          : "bg-white border-gray-200 hover:border-gray-300"
+                          ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)] text-[var(--text-primary)] shadow-md"
+                          : "bg-[var(--bg-primary)] border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
                       }`}
                     >
                       <div className="text-center">
@@ -392,15 +418,15 @@ export default function DataBundlePurchase() {
                             height={64}
                           />
                         </div>
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-semibold text-[var(--text-primary)]">
                           {provider.name}
                         </h3>
                       </div>
 
                       {isSelected && (
                         <div className="absolute -top-2 -right-2">
-                          <div className="w-6 h-6 bg-[#2b825b] rounded-full flex items-center justify-center">
-                            <Check className="w-4 h-4 text-white" />
+                          <div className="w-6 h-6 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center">
+                            <Check className="w-4 h-4 text-[var(--color-ink)]" />
                           </div>
                         </div>
                       )}
@@ -417,23 +443,25 @@ export default function DataBundlePurchase() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle>Enter Phone Number</CardTitle>
+              <CardTitle className="text-[var(--text-primary)]">Enter Phone Number</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {savedBeneficiaries.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">
+                    <Label className="text-sm font-medium text-[var(--text-primary)]">
                       Saved Beneficiaries
                     </Label>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowSavedBeneficiaries(!showSavedBeneficiaries)}
-                      className="flex items-center gap-1"
+                      onClick={() =>
+                        setShowSavedBeneficiaries(!showSavedBeneficiaries)
+                      }
+                      className="flex items-center gap-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                     >
                       <Bookmark className="h-4 w-4" />
                       {showSavedBeneficiaries ? "Hide" : "Show"} Saved
@@ -441,11 +469,11 @@ export default function DataBundlePurchase() {
                   </div>
 
                   {showSavedBeneficiaries && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
+                    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
                       {loadingBeneficiaries ? (
                         <div className="flex items-center justify-center py-4">
-                          <Loader2 className="h-5 w-5 animate-spin text-[#2b825b]" />
-                          <span className="ml-2 text-sm">
+                          <Loader2 className="h-5 w-5 animate-spin text-[var(--color-accent-yellow)]" />
+                          <span className="ml-2 text-sm text-[var(--text-secondary)]">
                             Loading beneficiaries...
                           </span>
                         </div>
@@ -453,29 +481,31 @@ export default function DataBundlePurchase() {
                         savedBeneficiaries.map((beneficiary) => (
                           <div
                             key={beneficiary.id}
-                            onClick={() => handleSelectSavedBeneficiary(beneficiary)}
+                            onClick={() =>
+                              handleSelectSavedBeneficiary(beneficiary)
+                            }
                             className={`p-3 rounded cursor-pointer transition-colors ${
                               selectedSavedBeneficiary?.id === beneficiary.id
-                                ? "bg-blue-100 border border-blue-300"
-                                : "bg-white hover:bg-gray-50 border"
+                                ? "bg-[var(--color-accent-yellow)]/10 border border-[var(--color-accent-yellow)]/30"
+                                : "bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-[var(--border-color)]"
                             }`}
                           >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <p className="font-medium text-gray-900 text-sm">
+                                <p className="font-medium text-[var(--text-primary)] text-sm">
                                   {beneficiary.phoneNumber}
                                 </p>
-                                <p className="text-xs text-gray-600">
+                                <p className="text-xs text-[var(--text-secondary)]">
                                   {beneficiary.networkName}
                                   {beneficiary.amount && (
-                                    <span className="ml-1 text-green-600 font-medium">
+                                    <span className="ml-1 text-[var(--color-lemon-green)] font-medium">
                                       • ₦{beneficiary.amount.toLocaleString()}
                                     </span>
                                   )}
                                 </p>
                               </div>
                               {beneficiary.isDefault && (
-                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2">
+                                <span className="px-2 py-1 text-xs bg-[var(--color-lemon-green)]/20 text-[var(--color-lemon-green)] rounded-full ml-2">
                                   Default
                                 </span>
                               )}
@@ -489,7 +519,7 @@ export default function DataBundlePurchase() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Mobile Number</Label>
+                <Label htmlFor="phoneNumber" className="text-[var(--text-primary)]">Mobile Number</Label>
                 <div className="relative">
                   <Input
                     id="phoneNumber"
@@ -497,10 +527,11 @@ export default function DataBundlePurchase() {
                     placeholder="0803 123 4567"
                     value={phoneNumber}
                     onChange={(e) => handlePhoneNumberChange(e.target.value)}
-                    className={`pl-14 ${errors.phoneNumber ? "border-red-500" : ""}`}
+                    className={`pl-14 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${errors.phoneNumber ? "border-red-500" : ""}`}
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                   <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <span className="text-gray-500 font-medium">+234</span>
+                    <span className="text-[var(--text-secondary)] font-medium">+234</span>
                   </div>
                 </div>
                 {errors.phoneNumber && (
@@ -510,34 +541,36 @@ export default function DataBundlePurchase() {
                   </div>
                 )}
                 {selectedProvider && (
-                  <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
-                    <Check className="w-4 h-4 text-green-600" />
+                  <div className="mt-2 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                    <Check className="w-4 h-4 text-[var(--color-lemon-green)]" />
                     <span>{selectedProvider.name} detected</span>
                   </div>
                 )}
 
-                {!selectedSavedBeneficiary && phoneNumber.length === 11 && selectedProvider && (
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border mt-3">
-                    <span className="text-sm font-medium text-gray-700">
-                      Save to beneficiaries
-                    </span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={saveBeneficiary}
-                        onChange={(e) => setSaveBeneficiary(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b825b]"></div>
-                    </label>
-                  </div>
-                )}
+                {!selectedSavedBeneficiary &&
+                  phoneNumber.length === 11 &&
+                  selectedProvider && (
+                    <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] mt-3">
+                      <span className="text-sm font-medium text-[var(--text-primary)]">
+                        Save to beneficiaries
+                      </span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveBeneficiary}
+                          onChange={(e) => setSaveBeneficiary(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-accent-yellow)]"></div>
+                      </label>
+                    </div>
+                  )}
               </div>
             </CardContent>
           </Card>
 
           <div>
-            <Label>Select Data Plan</Label>
+            <Label className="text-[var(--text-primary)]">Select Data Plan</Label>
             <DataPlanSelector
               plans={bundles || []}
               selectedPlan={selectedPlan}
@@ -551,16 +584,16 @@ export default function DataBundlePurchase() {
         </div>
 
         <div className="lg:col-span-1">
-          <Card className="sticky top-6">
+          <Card className="sticky top-6 bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-[var(--text-primary)]">
+                <CreditCard className="w-5 h-5 text-[var(--color-accent-yellow)]" />
                 Purchase Summary
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {selectedProvider && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3 p-3 bg-[var(--bg-secondary)] rounded-lg">
                   <Image
                     src={selectedProvider.src || "/placeholder.svg"}
                     alt={selectedProvider.name}
@@ -569,16 +602,16 @@ export default function DataBundlePurchase() {
                     className="rounded"
                   />
                   <div>
-                    <p className="font-medium">{selectedProvider.name}</p>
-                    <p className="text-sm text-gray-500">Data Bundle</p>
+                    <p className="font-medium text-[var(--text-primary)]">{selectedProvider.name}</p>
+                    <p className="text-sm text-[var(--text-secondary)]">Data Bundle</p>
                   </div>
                 </div>
               )}
 
               {phoneNumber && (
                 <div>
-                  <p className="text-sm text-gray-600">Phone Number</p>
-                  <p className="font-medium">
+                  <p className="text-sm text-[var(--text-secondary)]">Phone Number</p>
+                  <p className="font-medium text-[var(--text-primary)]">
                     +234 {phoneNumber.replace(/\D/g, "").substring(1)}
                   </p>
                 </div>
@@ -587,15 +620,15 @@ export default function DataBundlePurchase() {
               {selectedPlan && (
                 <div className="space-y-2">
                   <div>
-                    <p className="text-sm text-gray-600">Data Plan</p>
-                    <p className="font-medium text-lg">
+                    <p className="text-sm text-[var(--text-secondary)]">Data Plan</p>
+                    <p className="font-medium text-lg text-[var(--text-primary)]">
                       {selectedPlan.description}
                     </p>
                   </div>
 
                   <div className="flex justify-between text-sm">
-                    <span>Data Bundle Amount</span>
-                    <span>₦{formatNumber(selectedPlan.amount)}</span>
+                    <span className="text-[var(--text-secondary)]">Data Bundle Amount</span>
+                    <span className="text-[var(--text-primary)]">₦{formatNumber(selectedPlan.amount)}</span>
                   </div>
                 </div>
               )}
@@ -607,11 +640,11 @@ export default function DataBundlePurchase() {
                   }
                 }}
                 disabled={!phoneNumber || !selectedPlan || loading2}
-                className="w-full bg-[#2b825b] hover:bg-[#2b825b] text-white py-3 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 {loading2 ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-[var(--color-ink)] border-t-transparent rounded-full animate-spin"></div>
                     Processing...
                   </div>
                 ) : (
@@ -622,7 +655,7 @@ export default function DataBundlePurchase() {
                 )}
               </Button>
 
-              <div className="text-center text-xs text-gray-500 mt-4">
+              <div className="text-center text-xs text-[var(--text-secondary)] mt-4">
                 <p>🔒 Secure payment powered by Zidwell</p>
                 <p>Instant activation • 24/7 support</p>
               </div>

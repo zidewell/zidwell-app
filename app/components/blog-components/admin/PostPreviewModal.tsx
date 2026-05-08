@@ -447,7 +447,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
                   <Badge
                     key={index}
                     variant="secondary"
-                    className="bg-[#2b825b]/10 text-[#2b825b] hover:bg-[#2b825b]/20 uppercase text-xs tracking-wider px-2 py-1"
+                    className="bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/20 uppercase text-xs tracking-wider px-2 py-1"
                   >
                     {category}
                   </Badge>
@@ -462,7 +462,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
 
             {/* Excerpt */}
             {excerpt && (
-              <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-6 italic border-l-4 border-[#2b825b] pl-4 py-2">
+              <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-6 italic border-l-4 border-(--color-accent-yellow) pl-4 py-2">
                 {excerpt}
               </p>
             )}
@@ -478,11 +478,11 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
                       className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-linear-to-br from-[#2b825b]/20 to-[#2b825b]/40 flex items-center justify-center">
-                      <User className="w-6 h-6 text-[#2b825b]" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-linear-to-br from-(--color-accent-yellow)/20 to-(--color-accent-yellow)/40 flex items-center justify-center">
+                      <User className="w-6 h-6 text-(--color-accent-yellow)" />
                     </div>
                   )}
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#2b825b] rounded-full border-2 border-white dark:border-gray-900"></div>
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-(--color-accent-yellow) rounded-full border-2 border-white dark:border-gray-900"></div>
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white">
@@ -527,7 +527,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
             {audioFile && (
               <div className="mb-8 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-3 mb-3">
-                  <Volume2 className="w-6 h-6 text-[#2b825b]" />
+                  <Volume2 className="w-6 h-6 text-(--color-accent-yellow)" />
                   <span className="font-medium text-gray-900 dark:text-white">
                     Audio Preview
                   </span>
@@ -617,7 +617,7 @@ const PostPreviewModal: React.FC<PostPreviewModalProps> = ({
                 Close Preview
               </Button>
               <Button
-                className="bg-[#2b825b] text-white hover:bg-[#2b825b]/90"
+                className="bg-(--color-accent-yellow) text-white hover:bg-(--color-accent-yellow)/90"
                 onClick={onSaveDraft}
                 disabled={isSaving}
               >

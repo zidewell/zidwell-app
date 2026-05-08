@@ -251,11 +251,34 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     </div>
   );
 
+  // Tiny scrollbar styles
+  const scrollbarStyles = `
+    .tiny-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .tiny-scrollbar::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+      border-radius: 10px;
+    }
+    .tiny-scrollbar::-webkit-scrollbar-thumb {
+      background: var(--color-accent-yellow);
+      border-radius: 10px;
+    }
+    .tiny-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: var(--color-accent-yellow);
+      opacity: 0.8;
+    }
+    .tiny-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-accent-yellow) var(--bg-secondary);
+    }
+  `;
+
   const MobileSidebar = () => (
     <>
       {open && (
         <div
-          className="fixed inset-0 bg-[#141414]/40 dark:bg-[#000000]/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-[var(--color-ink)]/40 dark:bg-[#000000]/40 z-40 lg:hidden"
           onClick={onClose}
         />
       )}
@@ -263,10 +286,11 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       <aside
         className={`
           fixed top-0 left-0 z-50 h-full w-72 bg-[var(--bg-primary)] border-r-2 border-[var(--border-color)]
-          transition-transform duration-300 ease-in-out overflow-y-auto
+          transition-transform duration-300 ease-in-out overflow-y-auto tiny-scrollbar
           ${open ? "translate-x-0" : "-translate-x-full"}
         `}
       >
+        <style>{scrollbarStyles}</style>
         <div className="flex flex-col min-h-full">
           <div className="flex items-center justify-between h-20 px-7 border-b-2 border-[var(--border-color)]">
             <Link href="/dashboard" className="flex items-center gap-2">
@@ -283,7 +307,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             </Link>
             <button
               onClick={onClose}
-              className="lg:hidden text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className="lg:hidden text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -340,7 +364,8 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   );
 
   const DesktopSidebar = () => (
-    <aside className="hidden lg:block fixed top-0 left-0 z-40 h-screen w-72 bg-[var(--bg-primary)] border-r-2 border-[var(--border-color)] overflow-y-auto">
+    <aside className="hidden lg:block fixed top-0 left-0 z-40 h-screen w-72 bg-[var(--bg-primary)] border-r-2 border-[var(--border-color)] overflow-y-auto tiny-scrollbar">
+      <style>{scrollbarStyles}</style>
       <div className="flex flex-col min-h-full">
         <div className="flex items-center h-20 px-7 border-b-2 border-[var(--border-color)]">
           <Link href="/dashboard" className="flex items-center gap-2">

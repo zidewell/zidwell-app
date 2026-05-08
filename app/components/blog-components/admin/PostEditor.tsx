@@ -49,10 +49,9 @@ import { useUserContextData } from "@/app/context/userData";
 import PostPreviewModal from "./PostPreviewModal";
 
 // Dynamically import BlogRichTextEditor to prevent SSR issues
-const BlogRichTextEditor = dynamic(
-  () => import("../RichTextEditor"),
-  { ssr: false }
-);
+const BlogRichTextEditor = dynamic(() => import("../RichTextEditor"), {
+  ssr: false,
+});
 
 const MySwal = withReactContent(Swal);
 
@@ -219,7 +218,7 @@ const useAlerts = () => {
       confirmButtonText = "Yes, proceed",
     ): Promise<boolean> => {
       if (typeof window === "undefined") return false;
-      
+
       const result = await MySwal.fire({
         title,
         text,
@@ -330,7 +329,12 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   }, [userData, isMounted]);
 
   const saveToLocalDraft = useDebouncedCallback(() => {
-    if (!postId && autoSaveEnabled && (title || content) && typeof window !== "undefined") {
+    if (
+      !postId &&
+      autoSaveEnabled &&
+      (title || content) &&
+      typeof window !== "undefined"
+    ) {
       const draft = {
         title,
         content,
@@ -351,7 +355,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
   useEffect(() => {
     if (!isMounted) return;
-    
+
     if (postId) {
       const fetchPost = async () => {
         setIsLoading(true);
@@ -656,13 +660,19 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    e.currentTarget.classList.add("border-accent", "bg-[#2b825b]/10");
+    e.currentTarget.classList.add(
+      "border-accent",
+      "bg-(--color-accent-yellow)/10",
+    );
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    e.currentTarget.classList.remove("border-accent", "bg-[#2b825b]/10");
+    e.currentTarget.classList.remove(
+      "border-accent",
+      "bg-(--color-accent-yellow)/10",
+    );
   }, []);
 
   const saveDraft = useCallback(
@@ -1102,67 +1112,77 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     setShowPreview(true);
   }, [title, content, selectedCategories, showErrorAlert]);
 
- const handleClearFeaturedImage = useCallback(async () => {
-  const confirmed = await MySwal.fire({
-    title: "Remove Featured Image",
-    text: "Are you sure you want to remove the featured image?",
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText: "Yes, remove it",
-    cancelButtonText: "Cancel",
-    confirmButtonColor: "#ef4444",
-    cancelButtonColor: swalTheme.cancelButtonColor,
-  });
+  const handleClearFeaturedImage = useCallback(async () => {
+    const confirmed = await MySwal.fire({
+      title: "Remove Featured Image",
+      text: "Are you sure you want to remove the featured image?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, remove it",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: swalTheme.cancelButtonColor,
+    });
 
-  if (!confirmed.isConfirmed) return;
+    if (!confirmed.isConfirmed) return;
 
-  // If it's a local blob URL (not uploaded yet)
-  if (featuredImage.startsWith("blob:")) {
-    URL.revokeObjectURL(featuredImage);
-    setFeaturedImage("");
-    setFeaturedImageFile(null);
-    showInfoAlert("Image Removed", "Featured image has been removed");
-    return;
-  }
-
-  // If it's an uploaded image, delete from storage
-  if (featuredImage && postId) {
-    try {
-      setIsLoading(true);
-      const apiKey = getApiKey();
-      
-      const response = await fetch(`/api/blog/delete-image`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          imageUrl: featuredImage,
-          postId: postId,
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to delete image");
-      }
-      
+    // If it's a local blob URL (not uploaded yet)
+    if (featuredImage.startsWith("blob:")) {
+      URL.revokeObjectURL(featuredImage);
       setFeaturedImage("");
       setFeaturedImageFile(null);
-      showSuccessAlert("Image Removed", "Featured image has been deleted from storage");
-    } catch (error) {
-      console.error("Error deleting image:", error);
-      showErrorAlert("Delete Failed", "Failed to delete image");
-    } finally {
-      setIsLoading(false);
+      showInfoAlert("Image Removed", "Featured image has been removed");
+      return;
     }
-  } else {
-    // External URL or new post
-    setFeaturedImage("");
-    setFeaturedImageFile(null);
-    showInfoAlert("Image Removed", "Featured image has been removed");
-  }
-}, [featuredImage, postId, getApiKey, showErrorAlert, showSuccessAlert, showInfoAlert]);
+
+    // If it's an uploaded image, delete from storage
+    if (featuredImage && postId) {
+      try {
+        setIsLoading(true);
+        const apiKey = getApiKey();
+
+        const response = await fetch(`/api/blog/delete-image`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            imageUrl: featuredImage,
+            postId: postId,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to delete image");
+        }
+
+        setFeaturedImage("");
+        setFeaturedImageFile(null);
+        showSuccessAlert(
+          "Image Removed",
+          "Featured image has been deleted from storage",
+        );
+      } catch (error) {
+        console.error("Error deleting image:", error);
+        showErrorAlert("Delete Failed", "Failed to delete image");
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // External URL or new post
+      setFeaturedImage("");
+      setFeaturedImageFile(null);
+      showInfoAlert("Image Removed", "Featured image has been removed");
+    }
+  }, [
+    featuredImage,
+    postId,
+    getApiKey,
+    showErrorAlert,
+    showSuccessAlert,
+    showInfoAlert,
+  ]);
 
   const handleClearAudioFile = useCallback(async () => {
     const confirmed = await MySwal.fire({
@@ -1287,7 +1307,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-[#2b825b]" />
+          <Loader2 className="w-8 h-8 animate-spin text-(--color-accent-yellow)" />
         </div>
       </AdminLayout>
     );
@@ -1360,7 +1380,7 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
               Preview
             </Button>
             <Button
-              className="bg-[#2b825b] text-accent-foreground hover:bg-[#2b825b]/90"
+              className="bg-(--color-accent-yellow) text-accent-foreground hover:bg-(--color-accent-yellow)/90"
               onClick={() => handleSave(true)}
               disabled={isLoading || isSaving}
             >

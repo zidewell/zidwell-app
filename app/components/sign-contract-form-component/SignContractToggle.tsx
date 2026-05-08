@@ -1,3 +1,4 @@
+// app/components/sign-contract-form-component/SignContractToggle.tsx
 import { useState } from "react";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
@@ -19,12 +20,12 @@ const SignContractToggle: React.FC<SignContractToggleProps> = ({
 }) => {
   return (
     <>
-      <div className="flex items-center justify-between p-4 border border-border rounded-lg">
+      <div className="flex items-center justify-between p-4 border border-[var(--border-color)] rounded-lg bg-[var(--bg-primary)]">
         <div className="space-y-1">
-          <Label htmlFor="age-consent" className="cursor-pointer">
+          <Label htmlFor="age-consent" className="cursor-pointer text-[var(--text-primary)]">
             I confirm that I am 18 years or older
           </Label>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[var(--text-secondary)]">
             You must be of legal age to create binding contracts
           </p>
         </div>
@@ -32,16 +33,16 @@ const SignContractToggle: React.FC<SignContractToggleProps> = ({
           id="age-consent"
           checked={ageConsent}
           onCheckedChange={setAgeConsent}
-          className="data-[state=checked]:bg-[#2b825b]"
+          className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
           disabled={disabled} // Apply disabled prop
         />
       </div>
-      <div className="flex items-center justify-between p-4 border border-border rounded-lg">
+      <div className="flex items-center justify-between p-4 border border-[var(--border-color)] rounded-lg bg-[var(--bg-primary)]">
         <div className="space-y-1">
-          <Label htmlFor="terms-consent" className="cursor-pointer">
+          <Label htmlFor="terms-consent" className="cursor-pointer text-[var(--text-primary)]">
             I agree to be bound by the terms stated in this contract
           </Label>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[var(--text-secondary)]">
             By checking this, you acknowledge and accept the contract terms
           </p>
         </div>
@@ -49,7 +50,7 @@ const SignContractToggle: React.FC<SignContractToggleProps> = ({
           id="terms-consent"
           checked={termsConsent}
           onCheckedChange={setTermsConsent}
-          className="data-[state=checked]:bg-[#2b825b]"
+          className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
           disabled={disabled} // Apply disabled prop
         />
       </div>

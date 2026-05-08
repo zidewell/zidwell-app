@@ -49,13 +49,13 @@ const TestimonialsSection = () => {
   return (
     <section className=" bg-secondary/30 relative overflow-hidden py-20 md:py-28 lg:py-32 p-5">
       {/* Decorative elements */}
-      <div className="absolute top-10 right-10 w-32 h-32 bg-linear-to-br from-[#2b825b]/20 to-transparent rounded-full blur-2xl" />
-      <div className="absolute bottom-10 left-10 w-24 h-24 bg-linear-to-tr from-[#2b825b]/15 to-transparent rounded-full blur-xl" />
+      <div className="absolute top-10 right-10 w-32 h-32 bg-linear-to-br from-(--color-accent-yellow)/20 to-transparent rounded-full blur-2xl" />
+      <div className="absolute bottom-10 left-10 w-24 h-24 bg-linear-to-tr from-(--color-accent-yellow)/15 to-transparent rounded-full blur-xl" />
 
       <div className="container-custom relative">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-block px-4 py-1 bg-[#2b825b]/20 border border-[#2b825b] text-sm font-semibold mb-4">
+          <div className="inline-block px-4 py-1 bg-(--color-accent-yellow)/20 border border-(--color-accent-yellow) text-sm font-semibold mb-4">
             TESTIMONIALS
           </div>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-4">
@@ -74,8 +74,8 @@ const TestimonialsSection = () => {
               className="bg-card border-2 border-foreground p-6 md:p-8 relative hover:shadow-[4px_4px_0px_#2b825b] transition-all duration-300"
             >
               {/* Quote icon */}
-              <div className="absolute top-6 right-6 w-10 h-10 bg-[#2b825b]/20 flex items-center justify-center">
-                <Quote className="w-5 h-5 text-[#2b825b]" />
+              <div className="absolute top-6 right-6 w-10 h-10 bg-(--color-accent-yellow)/20 flex items-center justify-center">
+                <Quote className="w-5 h-5 text-(--color-accent-yellow)" />
               </div>
 
               {/* Rating */}
@@ -83,7 +83,7 @@ const TestimonialsSection = () => {
                 {Array.from({ length: testimonial.rating }).map((_, i) => (
                   <Star
                     key={i}
-                    className="w-4 h-4 fill-[#2b825b] text-[#2b825b]"
+                    className="w-4 h-4 fill-(--color-accent-yellow) text-(--color-accent-yellow)"
                   />
                 ))}
               </div>
@@ -109,7 +109,7 @@ const TestimonialsSection = () => {
                   <p className="text-sm text-muted-foreground">
                     {testimonial.role}
                   </p>
-                  <p className="text-xs text-[#2b825b] font-semibold">
+                  <p className="text-xs text-(--color-accent-yellow) font-semibold">
                     {testimonial.location}
                   </p>
                 </div>

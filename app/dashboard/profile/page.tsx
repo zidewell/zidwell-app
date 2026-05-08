@@ -23,7 +23,13 @@ function NewProfilePage() {
   const [activeTab, setActiveTab] = useState<
     "personal" | "business" | "security"
   >("personal");
-  const { userData, balance, lifetimeBalance, totalTransactions, loading: userLoading } = useUserContextData();
+  const {
+    userData,
+    balance,
+    lifetimeBalance,
+    totalTransactions,
+    loading: userLoading,
+  } = useUserContextData();
   const { userTier, loading: subscriptionLoading } = useSubscription();
 
   // Handle URL parameters on mount
@@ -43,7 +49,7 @@ function NewProfilePage() {
             bvnSection.scrollIntoView({ behavior: "smooth", block: "center" });
             bvnSection.classList.add(
               "ring-2",
-              "ring-[#2b825b]",
+              "ring-[var(--color-accent-yellow)]",
               "ring-offset-2",
               "transition-all",
               "duration-500",
@@ -51,7 +57,7 @@ function NewProfilePage() {
             setTimeout(() => {
               bvnSection.classList.remove(
                 "ring-2",
-                "ring-[#2b825b]",
+                "ring-[var(--color-accent-yellow)]",
                 "ring-offset-2",
               );
             }, 2000);
@@ -67,21 +73,20 @@ function NewProfilePage() {
 
   const handleWalletActivate = () => {
     setActiveTab("personal");
-    // Optional: Add query param to scroll to BVN section
-    router.push('/profile?tab=personal&verify=bvn');
+    router.push("/profile?tab=personal&verify=bvn");
   };
 
   // Show loading state while data is being fetched
   if (userLoading || subscriptionLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f7f7f7] dark:bg-[#0e0e0e]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#2b825b]" />
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-secondary)] dark:bg-[#0e0e0e]">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] fade-in relative">
+    <div className="min-h-screen bg-[var(--bg-secondary)] dark:bg-[#0e0e0e] fade-in relative">
       <DashboardSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -98,7 +103,7 @@ function NewProfilePage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[#2b825b] hover:text-[#1e5d42] hover:bg-[#f0efe7] dark:hover:bg-[#242424] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[#242424] dark:hover:border-[#474747] transition-all"
+                className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:bg-[var(--bg-secondary)] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[var(--border-color)] transition-all"
               >
                 <ArrowLeft className="w-5 h-5 md:mr-2" />
                 <span className="hidden md:inline text-sm font-medium">
@@ -107,10 +112,10 @@ function NewProfilePage() {
               </Button>
 
               <div className="flex-1">
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#141414] dark:text-[#f5f5f5] mb-2">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)] mb-2">
                   Profile Settings
                 </h1>
-                <p className="text-sm md:text-base text-[#6b6b6b] dark:text-[#a6a6a6]">
+                <p className="text-sm md:text-base text-[var(--text-secondary)]">
                   Manage your account settings and preferences
                 </p>
               </div>
@@ -135,13 +140,13 @@ function NewProfilePage() {
             />
 
             {/* Tabs Navigation */}
-            <div className="neo-card bg-card p-1 flex gap-1 rounded-lg">
+            <div className="neo-card bg-[var(--bg-primary)] p-1 flex gap-1 rounded-lg border border-[var(--border-color)]">
               <button
                 onClick={() => setActiveTab("personal")}
                 className={`flex-1 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === "personal"
-                    ? "bg-[#2b825b] text-white dark:bg-[#236b49]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                 }`}
               >
                 PERSONAL KYC
@@ -150,8 +155,8 @@ function NewProfilePage() {
                 onClick={() => setActiveTab("business")}
                 className={`flex-1 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === "business"
-                    ? "bg-[#2b825b] text-white dark:bg-[#236b49]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                 }`}
               >
                 BUSINESS KYC
@@ -160,8 +165,8 @@ function NewProfilePage() {
                 onClick={() => setActiveTab("security")}
                 className={`flex-1 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === "security"
-                    ? "bg-[#2b825b] text-white dark:bg-[#236b49]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                 }`}
               >
                 SECURITY
@@ -188,8 +193,8 @@ export default function Profile() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[#f7f7f5] dark:bg-[#0e0e0e]">
-          <Loader2 className="w-8 h-8 animate-spin text-[#2b825b]" />
+        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-secondary)] dark:bg-[#0e0e0e]">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
         </div>
       }
     >

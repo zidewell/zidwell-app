@@ -179,7 +179,7 @@ export default function NotificationBell() {
         <div className="max-h-64 overflow-y-auto">
           {notificationsLoading ? (
             <div className="p-4 text-center text-gray-500">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#2b825b] mx-auto mb-2"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-(--color-accent-yellow) mx-auto mb-2"></div>
               <p className="text-sm">Loading notifications...</p>
             </div>
           ) : notifications.length === 0 ? (
@@ -196,7 +196,7 @@ export default function NotificationBell() {
                 key={notification.id}
                 className={`p-3 cursor-pointer border-b last:border-b-0 ${
                   !notification.read_at
-                    ? "bg-blue-50 border-l-2 border-l-[#2b825b]"
+                    ? "bg-blue-50 border-l-2 border-l-(--color-accent-yellow)"
                     : ""
                 } hover:bg-gray-50 transition-colors`}
                 onClick={() => handleNotificationClick(notification.id)}
@@ -215,7 +215,7 @@ export default function NotificationBell() {
                     </div>
                     {!notification.read_at && (
                       <div
-                        className="w-2 h-2 bg-[#2b825b] rounded-full shrink-0 mt-1.5"
+                        className="w-2 h-2 bg-(--color-accent-yellow) rounded-full shrink-0 mt-1.5"
                         aria-label="Unread notification"
                       />
                     )}
@@ -242,7 +242,7 @@ export default function NotificationBell() {
             <DropdownMenuItem asChild className="p-0">
               <Link
                 href="/dashboard/notifications"
-                className="cursor-pointer text-center justify-center py-2 text-[#2b825b] hover:text-[#2b825b] text-sm font-medium"
+                className="cursor-pointer text-center justify-center py-2 text-(--color-accent-yellow) hover:text-(--color-accent-yellow) text-sm font-medium"
               >
                 View All Notifications
               </Link>

@@ -315,7 +315,7 @@ export default function AIAccountant() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Risk Management</span>
-                  <span className="text-[#2b825b]">75%</span>
+                  <span className="text-(--color-accent-yellow)">75%</span>
                 </div>
               </div>
             </div>

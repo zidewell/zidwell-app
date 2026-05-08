@@ -17,10 +17,10 @@ const HeroSection = () => {
       <div className="absolute inset-0 bg-grid-pattern pointer-events-none" />
 
       {/* Background decorations */}
-      <div className="absolute top-40 right-10 w-20 h-20 border-2 border-[#2b825b] rotate-12 opacity-30" />
-      <div className="absolute bottom-40 left-10 w-16 h-16 bg-[#2b825b]/20 rotate-45" />
-      <div className="absolute top-1/2 right-1/4 w-4 h-4 bg-[#2b825b] rounded-full opacity-60" />
-      <div className="absolute top-1/3 left-1/3 w-32 h-32 bg-linear-to-br from-[#2b825b]/10 to-transparent rounded-full blur-2xl" />
+      <div className="absolute top-40 right-10 w-20 h-20 border-2 border-(--color-accent-yellow) rotate-12 opacity-30" />
+      <div className="absolute bottom-40 left-10 w-16 h-16 bg-(--color-accent-yellow)/20 rotate-45" />
+      <div className="absolute top-1/2 right-1/4 w-4 h-4 bg-(--color-accent-yellow) rounded-full opacity-60" />
+      <div className="absolute top-1/3 left-1/3 w-32 h-32 bg-linear-to-br from-(--color-accent-yellow)/10 to-transparent rounded-full blur-2xl" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
@@ -31,7 +31,7 @@ const HeroSection = () => {
                 Business Growth Starts with{" "}
                 <span className="relative inline-block">
                   <span className="relative z-10">Healthy Accounting</span>
-                  <span className="absolute bottom-2 left-0 w-full h-3 bg-[#2b825b] z-0" />
+                  <span className="absolute bottom-2 left-0 w-full h-3 bg-(--color-accent-yellow) z-0" />
                 </span>{" "}
                 & Financial Wellness.
               </h1>
@@ -45,7 +45,7 @@ const HeroSection = () => {
             </div>
 
             {/* Highlighted text */}
-            <div className="border-l-4 border-[#2b825b] pl-6 py-2 bg-linear-to-r from-[#2b825b]/10 to-transparent">
+            <div className="border-l-4 border-(--color-accent-yellow) pl-6 py-2 bg-linear-to-r from-(--color-accent-yellow)/10 to-transparent">
               <p className="text-lg font-semibold">
                 Think of Zidwell as your outsourced finance team, without the
                 stress or high cost.

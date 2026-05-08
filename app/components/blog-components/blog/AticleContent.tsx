@@ -1,3 +1,4 @@
+// ArticleContent.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -11,50 +12,47 @@ const ArticleContent = ({ content }: ArticleContentProps) => {
   const [cleanedContent, setCleanedContent] = useState<string>("");
 
   useEffect(() => {
-    // Clean the HTML content using the same function as the editor
     const cleaned = cleanQuillHTML(content || "");
     setCleanedContent(cleaned);
   }, [content]);
 
-  // Function to format paragraphs with proper spacing
   const formatContent = (html: string) => {
     if (!html)
-      return '<p class="text-gray-500 italic">No content available.</p>';
+      return '<p class="text-[var(--text-secondary)] italic">No content available.</p>';
 
-    // Add classes to standard HTML elements for consistent styling
     let formatted = html
       .replace(
         /<p>/g,
-        '<p class="mb-4 sm:mb-6 leading-relaxed text-gray-700 dark:text-gray-300">',
+        '<p class="mb-4 sm:mb-6 leading-relaxed text-[var(--text-primary)]">',
       )
       .replace(
         /<h1>/g,
-        '<h1 class="text-3xl sm:text-4xl font-bold mt-8 mb-4 text-gray-900 dark:text-white">',
+        '<h1 class="text-3xl sm:text-4xl font-bold mt-8 mb-4 text-[var(--text-primary)]">',
       )
       .replace(
         /<h2>/g,
-        '<h2 class="text-2xl sm:text-3xl font-semibold mt-6 mb-3 text-gray-900 dark:text-white">',
+        '<h2 class="text-2xl sm:text-3xl font-semibold mt-6 mb-3 text-[var(--text-primary)]">',
       )
       .replace(
         /<h3>/g,
-        '<h3 class="text-xl sm:text-2xl font-semibold mt-5 mb-3 text-gray-900 dark:text-white">',
+        '<h3 class="text-xl sm:text-2xl font-semibold mt-5 mb-3 text-[var(--text-primary)]">',
       )
       .replace(
         /<ul>/g,
-        '<ul class="list-disc pl-5 sm:pl-8 mb-4 sm:mb-6 text-gray-700 dark:text-gray-300">',
+        '<ul class="list-disc pl-5 sm:pl-8 mb-4 sm:mb-6 text-[var(--text-primary)]">',
       )
       .replace(
         /<ol>/g,
-        '<ol class="list-decimal pl-5 sm:pl-8 mb-4 sm:mb-6 text-gray-700 dark:text-gray-300">',
+        '<ol class="list-decimal pl-5 sm:pl-8 mb-4 sm:mb-6 text-[var(--text-primary)]">',
       )
       .replace(/<li>/g, '<li class="mb-2">')
       .replace(
         /<blockquote>/g,
-        '<blockquote class="border-l-4 border-[#2b825b] pl-4 sm:pl-6 py-2 my-4 sm:my-6 italic bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400">',
+        '<blockquote class="border-l-4 border-[var(--color-accent-yellow)] pl-4 sm:pl-6 py-2 my-4 sm:my-6 italic bg-[var(--bg-secondary)] text-[var(--text-secondary)]">',
       )
       .replace(
         /<a /g,
-        '<a class="text-[#2b825b] hover:text-[#2b825b]/80 hover:underline transition-colors" ',
+        '<a class="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:underline transition-colors" ',
       )
       .replace(/<strong>/g, '<strong class="font-semibold">')
       .replace(/<em>/g, '<em class="italic">');
@@ -84,17 +82,16 @@ const ArticleContent = ({ content }: ArticleContentProps) => {
         }}
       />
 
-      {/* Add custom styles for better readability */}
       <style jsx>{`
         .article-content {
           font-family: inherit;
           font-size: 16px;
           line-height: 1.75;
-          color: #374151;
+          color: var(--text-primary);
         }
 
         .article-content.dark {
-          color: #d1d5db;
+          color: var(--text-primary);
         }
 
         .article-content p {
@@ -133,21 +130,22 @@ const ArticleContent = ({ content }: ArticleContentProps) => {
         }
 
         .article-content blockquote {
-          border-left: 4px solid #2b825b;
+          border-left: 4px solid var(--color-accent-yellow);
           padding-left: 1rem;
           margin: 1.5rem 0;
           font-style: italic;
-          background-color: rgba(194, 147, 7, 0.05);
+          background-color: var(--bg-secondary);
         }
 
         .article-content a {
-          color: #2b825b;
+          color: var(--color-accent-yellow);
           text-decoration: underline;
           text-underline-offset: 2px;
         }
 
         .article-content a:hover {
-          color: #b38606;
+          color: var(--color-accent-yellow);
+          opacity: 0.8;
         }
 
         .article-content img {

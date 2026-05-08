@@ -60,7 +60,7 @@ const ServiceCard = ({
       style={{ animationDelay: `${index * 0.1}s` }}
     >
       {/* Icon */}
-      <div className="w-14 h-14 bg-[#2b825b] border-2 border-neutral-900 flex items-center justify-center mb-6">
+      <div className="w-14 h-14 bg-(--color-accent-yellow) border-2 border-neutral-900 flex items-center justify-center mb-6">
         <Icon className="w-7 h-7 text-neutral-900" />
       </div>
 
@@ -90,7 +90,7 @@ const ServiceCard = ({
       {/* Expand button */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-sm font-semibold text-neutral-900 mt-4 hover:text-[#2b825b] transition-colors"
+        className="flex items-center gap-2 text-sm font-semibold text-neutral-900 mt-4 hover:text-(--color-accent-yellow) transition-colors"
       >
         {isExpanded ? "Read Less" : "Read More"}
         <ChevronDown
@@ -109,7 +109,7 @@ const ServicesSection = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-block px-4 py-1 bg-[#2b825b]/20 border border-[#2b825b] text-sm font-semibold mb-4">
+          <div className="inline-block px-4 py-1 bg-(--color-accent-yellow)/20 border border-(--color-accent-yellow) text-sm font-semibold mb-4">
             OUR SERVICES
           </div>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6">

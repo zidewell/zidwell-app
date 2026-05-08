@@ -30,8 +30,8 @@ const tierConfig = {
   },
   premium: {
     icon: Crown,
-    color: "text-[#2b825b]",
-    bg: "bg-[#2b825b]/10",
+    color: "text-(--color-accent-yellow)",
+    bg: "bg-(--color-accent-yellow)/10",
     price: "₦50,000/month",
     features: [
       "Financial statements",
@@ -81,7 +81,7 @@ export function SubscriptionPageGuard({
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2b825b]"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-(--color-accent-yellow)"></div>
         </div>
       </div>
     );
@@ -136,7 +136,7 @@ export function SubscriptionPageGuard({
                 className={`block w-full py-3 px-4 rounded-lg text-center font-bold transition-all
                   ${
                     requiredTier === "premium"
-                      ? "bg-[#2b825b] text-gray-900 hover:bg-[#2b825b]/90"
+                      ? "bg-(--color-accent-yellow) text-gray-900 hover:bg-(--color-accent-yellow)/90"
                       : requiredTier === "elite"
                         ? "bg-purple-600 text-white hover:bg-purple-700"
                         : "bg-blue-600 text-white hover:bg-blue-700"
@@ -151,7 +151,7 @@ export function SubscriptionPageGuard({
             Already subscribed?{" "}
             <button
               onClick={() => router.refresh()}
-              className="text-[#2b825b] hover:underline"
+              className="text-(--color-accent-yellow) hover:underline"
             >
               Click here to refresh
             </button>

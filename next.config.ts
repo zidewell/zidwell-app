@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 
-
 const withPWA = require('next-pwa')({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
@@ -69,6 +68,25 @@ const nextConfig = {
   trailingSlash: false,
   poweredByHeader: false,
   compress: true,
+
+  // Webpack configuration to suppress warnings
+  webpack: (config, { isServer }) => {
+    // Ignore specific warnings from Supabase realtime-js
+    if (!config.ignoreWarnings) {
+      config.ignoreWarnings = [];
+    }
+    
+    config.ignoreWarnings.push(
+      {
+        module: /@supabase\/realtime-js/,
+      },
+      {
+        message: /Critical dependency: the request of a dependency is an expression/,
+      }
+    );
+    
+    return config;
+  },
 
   // Headers for security and PWA
   async headers() {
@@ -144,6 +162,5 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === "production",
   },
 };
-
 
 module.exports = withPWA(nextConfig);

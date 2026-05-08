@@ -247,7 +247,7 @@ const AdminDashboard = () => {
             </Button>
             <Button
               onClick={handleCreateNewPost}
-              className="bg-[#2b825b] hover:bg-yellow-600 gap-2"
+              className="bg-(--color-accent-yellow) hover:bg-yellow-600 gap-2"
             >
               <Plus className="w-4 h-4" />
               New Post

@@ -1,3 +1,4 @@
+// app/components/smart-contract/ButtonPrimary.tsx
 import React from "react";
 import { Button } from "../ui/button";
 
@@ -9,7 +10,7 @@ const ButtonPrimary = ({ children, className = "", ...props }: ButtonProps) => {
   return (
     <Button
       {...props}
-      className={`bg-[#2b825b] hover:bg-[#2b825b] text-white shadow-sm `}
+      className={`bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] shadow-sm ${className}`}
     >
       {children}
     </Button>

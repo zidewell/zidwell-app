@@ -1,3 +1,4 @@
+// app/components/sign-contract-form-component/ContractSummary.tsx
 "use client";
 
 import { Button } from "../ui/button";
@@ -92,10 +93,10 @@ export default function ContractSummary({
   // Get tier icon
   const getTierIcon = () => {
     if (isElite) return <Sparkles className="w-4 h-4 text-purple-600" />;
-    if (isPremium) return <Crown className="w-4 h-4 text-[#2b825b]" />;
-    if (isGrowth) return <Zap className="w-4 h-4 text-green-600" />;
+    if (isPremium) return <Crown className="w-4 h-4 text-[var(--color-accent-yellow)]" />;
+    if (isGrowth) return <Zap className="w-4 h-4 text-[var(--color-accent-yellow)]" />;
     if (isZidLite) return <Zap className="w-4 h-4 text-blue-600" />;
-    return <Star className="w-4 h-4 text-gray-600" />;
+    return <Star className="w-4 h-4 text-[var(--text-secondary)]" />;
   };
 
   // Get tier display name
@@ -119,19 +120,19 @@ export default function ContractSummary({
       };
     if (isPremium)
       return {
-        bg: "bg-[#2b825b]/10",
-        border: "border-[#2b825b]",
-        text: "text-[#2b825b]",
-        icon: "text-[#2b825b]",
-        badge: "bg-[#2b825b]/10",
+        bg: "bg-[var(--color-accent-yellow)]/10",
+        border: "border-[var(--color-accent-yellow)]",
+        text: "text-[var(--color-accent-yellow)]",
+        icon: "text-[var(--color-accent-yellow)]",
+        badge: "bg-[var(--color-accent-yellow)]/10",
       };
     if (isGrowth)
       return {
-        bg: "bg-green-50",
-        border: "border-green-200",
-        text: "text-green-700",
-        icon: "text-green-600",
-        badge: "bg-green-100",
+        bg: "bg-[var(--color-accent-yellow)]/5",
+        border: "border-[var(--color-accent-yellow)]/20",
+        text: "text-[var(--color-accent-yellow)]",
+        icon: "text-[var(--color-accent-yellow)]",
+        badge: "bg-[var(--color-accent-yellow)]/10",
       };
     if (isZidLite)
       return {
@@ -142,11 +143,11 @@ export default function ContractSummary({
         badge: "bg-blue-100",
       };
     return {
-      bg: "bg-gray-50",
-      border: "border-gray-200",
-      text: "text-gray-700",
-      icon: "text-gray-600",
-      badge: "bg-gray-100",
+      bg: "bg-[var(--bg-secondary)]",
+      border: "border-[var(--border-color)]",
+      text: "text-[var(--text-secondary)]",
+      icon: "text-[var(--text-secondary)]",
+      badge: "bg-[var(--bg-secondary)]",
     };
   };
 
@@ -249,15 +250,15 @@ export default function ContractSummary({
 
     if (hasFreeContract()) {
       return {
-        bg: "bg-green-50",
-        border: "border-green-200",
-        text: "text-green-700",
+        bg: "bg-[var(--color-lemon-green)]/10",
+        border: "border-[var(--color-lemon-green)]/20",
+        text: "text-[var(--color-lemon-green)]",
         icon: <span className="text-2xl">🎉</span>,
         title: isZidLite
           ? "ZidLite Contract Available"
           : "Free Contract Available",
         message: `You have ${remaining} contract${remaining !== 1 ? "s" : ""} remaining`,
-        badge: "bg-green-100",
+        badge: "bg-[var(--color-lemon-green)]/20",
       };
     }
 
@@ -295,7 +296,7 @@ export default function ContractSummary({
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
-            <div className="max-w-lg w-full mx-auto bg-white rounded-xl shadow-lg p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="max-w-lg w-full mx-auto bg-[var(--bg-primary)] rounded-xl shadow-lg p-6 space-y-6 max-h-[90vh] overflow-y-auto">
               {/* Status Banner */}
               <div
                 className={`${banner.bg} ${banner.border} border rounded-lg p-4`}
@@ -306,7 +307,7 @@ export default function ContractSummary({
                     <p className={`font-semibold ${banner.text}`}>
                       {banner.title}
                     </p>
-                    <p className="text-sm text-gray-600">{banner.message}</p>
+                    <p className="text-sm text-[var(--text-secondary)]">{banner.message}</p>
                   </div>
                   {!unlimited && (
                     <Badge variant="outline" className={banner.badge}>
@@ -325,12 +326,12 @@ export default function ContractSummary({
               </div>
 
               {/* Header */}
-              <div className="text-center border-b pb-4">
-                <h2 className="text-lg font-semibold text-gray-800">
+              <div className="text-center border-b border-[var(--border-color)] pb-4">
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">
                   Contract Summary
                 </h2>
                 <div className="mt-2">
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="text-sm text-[var(--text-secondary)] mt-1">
                     {contractType}
                   </div>
                 </div>
@@ -340,19 +341,19 @@ export default function ContractSummary({
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                    <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">
                       Contract Details
                     </h4>
                     <div className="space-y-2 text-sm">
                       <div>
-                        <div className="text-gray-500">Title</div>
-                        <div className="font-medium truncate">
+                        <div className="text-[var(--text-secondary)]">Title</div>
+                        <div className="font-medium truncate text-[var(--text-primary)]">
                           {contractTitle || "Untitled"}
                         </div>
                       </div>
                       <div>
-                        <div className="text-gray-500">Date</div>
-                        <div>
+                        <div className="text-[var(--text-secondary)]">Date</div>
+                        <div className="text-[var(--text-primary)]">
                           {contractDate
                             ? new Date(contractDate).toLocaleDateString()
                             : dateCreated}
@@ -362,19 +363,19 @@ export default function ContractSummary({
                   </div>
 
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                    <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">
                       Parties
                     </h4>
                     <div className="space-y-2 text-sm">
                       <div>
-                        <div className="text-gray-500">Initiator</div>
-                        <div className="font-medium truncate">
+                        <div className="text-[var(--text-secondary)]">Initiator</div>
+                        <div className="font-medium truncate text-[var(--text-primary)]">
                           {initiatorName || "Not specified"}
                         </div>
                       </div>
                       <div>
-                        <div className="text-gray-500">Signee</div>
-                        <div className="font-medium truncate">
+                        <div className="text-[var(--text-secondary)]">Signee</div>
+                        <div className="font-medium truncate text-[var(--text-primary)]">
                           {receiverName || "Not specified"}
                         </div>
                       </div>
@@ -385,10 +386,10 @@ export default function ContractSummary({
                 {/* Content Preview */}
                 {contractContent && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                    <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">
                       Contract Content
                     </h4>
-                    <div className="bg-gray-50 rounded p-3 text-sm text-gray-700">
+                    <div className="bg-[var(--bg-secondary)] rounded p-3 text-sm text-[var(--text-primary)]">
                       <div dangerouslySetInnerHTML={{ __html: truncatedContent }} />
                     </div>
                   </div>
@@ -397,24 +398,24 @@ export default function ContractSummary({
                 {/* Attachments */}
                 {attachments.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                    <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">
                       Attachments ({attachments.length})
                     </h4>
-                    <div className="bg-gray-50 rounded p-3">
+                    <div className="bg-[var(--bg-secondary)] rounded p-3">
                       <div className="space-y-1">
                         {attachments.slice(0, 3).map((attachment, index) => (
                           <div
                             key={index}
-                            className="flex items-center text-sm"
+                            className="flex items-center text-sm text-[var(--text-primary)]"
                           >
-                            <FileText className="h-4 w-4 text-gray-500 mr-2" />
+                            <FileText className="h-4 w-4 text-[var(--text-secondary)] mr-2" />
                             <span className="truncate flex-1">
                               {attachment.name}
                             </span>
                           </div>
                         ))}
                         {attachments.length > 3 && (
-                          <div className="text-xs text-gray-500 text-center pt-1">
+                          <div className="text-xs text-[var(--text-secondary)] text-center pt-1">
                             +{attachments.length - 3} more files
                           </div>
                         )}
@@ -426,22 +427,22 @@ export default function ContractSummary({
 
               {/* Lawyer Signature Option - Only show for Growth, Premium, and Elite */}
               {canAddLawyerSignature && (
-                <div className="bg-gray-50 rounded-lg p-4">
+                <div className="bg-[var(--bg-secondary)] rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Scale className="h-4 w-4 text-purple-600" />
-                      <h4 className="text-sm font-medium text-gray-700">
+                      <h4 className="text-sm font-medium text-[var(--text-primary)]">
                         Add Lawyer Signature
                       </h4>
                     </div>
                     <Switch
                       checked={includeLawyerSignature}
                       onCheckedChange={handleToggleLawyerSignature}
-                      className="data-[state=checked]:bg-[#2b825b]"
+                      className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
                     />
                   </div>
                   {includeLawyerSignature && (
-                    <div className="mt-2 text-sm text-gray-600">
+                    <div className="mt-2 text-sm text-[var(--text-secondary)]">
                       <p>
                         Lawyer signature adds legal validity and professional
                         verification
@@ -474,10 +475,10 @@ export default function ContractSummary({
               )}
 
               {/* Summary */}
-              <Separator />
+              <Separator className="bg-[var(--border-color)]" />
               <div className="flex justify-between font-bold text-base">
-                <span className="text-gray-900">Total Amount</span>
-                <span className="text-gray-900">
+                <span className="text-[var(--text-primary)]">Total Amount</span>
+                <span className="text-[var(--text-primary)]">
                   {canAddLawyerSignature && includeLawyerSignature
                     ? `₦${LAWYER_FEE.toLocaleString()}`
                     : "₦0"}
@@ -524,20 +525,20 @@ export default function ContractSummary({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t">
+              <div className="flex gap-3 pt-4 border-t border-[var(--border-color)]">
                 <Button
                   variant="outline"
                   onClick={() => {
                     handleBack();
                     if (onClose) onClose();
                   }}
-                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                 >
                   Back to Edit
                 </Button>
                 <Button
                   onClick={handleConfirm}
-                  className={`flex-1 bg-[#2b825b] hover:bg-[#1e5d42] text-white`}
+                  className={`flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]`}
                   disabled={!hasFreeContract() && !unlimited}
                 >
                   {canAddLawyerSignature && includeLawyerSignature ? (
@@ -552,16 +553,16 @@ export default function ContractSummary({
               </div>
 
               {/* Status Indicator */}
-              <div className="text-center text-xs text-gray-500 pt-2">
+              <div className="text-center text-xs text-[var(--text-secondary)] pt-2">
                 <div className="flex items-center justify-center gap-2">
                   <div
                     className={`h-2 w-2 rounded-full ${
                       canAddLawyerSignature && includeLawyerSignature
-                        ? "bg-[#2b825b]"
+                        ? "bg-[var(--color-accent-yellow)]"
                         : unlimited
                           ? "bg-purple-600"
                           : hasFreeContract()
-                            ? "bg-green-600"
+                            ? "bg-[var(--color-lemon-green)]"
                             : "bg-red-600"
                     }`}
                   ></div>

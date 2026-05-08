@@ -1,3 +1,4 @@
+// app/components/smart-contract/SmartContractHero.tsx
 "use client";
 
 import React from "react";
@@ -14,12 +15,12 @@ const SmartContractHero: React.FC = () => {
     <header className="py-16">
       <div className="container mx-auto px-6 md:px-12 lg:px-20 text-center">
         <div className="mx-auto max-w-3xl">
-          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight">
+          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">
             Smart Contracts
-            <span className="block text-[#2b825b]">Made Simple</span>
+            <span className="block text-[var(--color-accent-yellow)]">Made Simple</span>
           </h1>
 
-          <p className="mt-4 text-gray-600">
+          <p className="mt-4 text-[var(--text-secondary)]">
             Create, send, and sign professional contracts in minutes. Legally
             binding, digitally secured, effortlessly managed.
           </p>

@@ -622,7 +622,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         onPaste={handlePaste}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        className="w-full p-4 border border-t-0 border-gray-300 rounded-b-lg focus:outline-none focus:ring-1 focus:ring-[#2b825b] focus:border-[#2b825b] overflow-y-auto bg-white"
+        className="w-full p-4 border border-t-0 border-gray-300 rounded-b-lg focus:outline-none focus:ring-1 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) overflow-y-auto bg-white"
         style={{
           height: `${height - 50}px`,
           minHeight: "200px",
@@ -666,7 +666,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             ))}
           </div>
 
-          <p className="text-xs mt-2 text-[#2b825b]">
+          <p className="text-xs mt-2 text-(--color-accent-yellow)">
             Images are compressed automatically. They will be uploaded when you
             submit the notification.
           </p>

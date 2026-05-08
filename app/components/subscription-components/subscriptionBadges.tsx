@@ -33,10 +33,10 @@ const tierConfig = {
   },
   premium: {
     icon: Crown,
-    color: "text-[#2b825b]",
-    bg: "bg-[#2b825b]/10",
-    darkBg: "dark:bg-[#2b825b]/20",
-    darkColor: "dark:text-[#2b825b]",
+    color: "text-(--color-accent-yellow)",
+    bg: "bg-(--color-accent-yellow)/10",
+    darkBg: "dark:bg-(--color-accent-yellow)/20",
+    darkColor: "dark:text-(--color-accent-yellow)",
     label: TIER_DISPLAY_NAMES.premium,
   },
   elite: {

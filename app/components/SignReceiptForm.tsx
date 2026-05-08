@@ -152,7 +152,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
             </button> */}
             <button
               onClick={() => (window.location.href = "/")}
-              className="px-6 py-3 bg-[#2b825b] text-white rounded-lg font-medium hover:bg-[#1e5d42] transition-all shadow-lg flex items-center justify-center gap-2"
+              className="px-6 py-3 bg-(--color-accent-yellow) text-white rounded-lg font-medium hover:bg-[#1e5d42] transition-all shadow-lg flex items-center justify-center gap-2"
             >
               <Check className="h-4 w-4" />
               Go Home
@@ -185,7 +185,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
       {/* Receipt Card */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-8">
         {/* Header */}
-        <div className="bg-linear-to-r from-[#2b825b] to-[#b38606] p-8 text-white">
+        <div className="bg-linear-to-r from-(--color-accent-yellow) to-[#b38606] p-8 text-white">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
@@ -224,8 +224,8 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#2b825b]/10 rounded-lg flex items-center justify-center">
-                  <Building className="h-5 w-5 text-[#2b825b]" />
+                <div className="w-10 h-10 bg-(--color-accent-yellow)/10 rounded-lg flex items-center justify-center">
+                  <Building className="h-5 w-5 text-(--color-accent-yellow)" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">From</h3>
@@ -244,8 +244,8 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
 
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#2b825b]/10 rounded-lg flex items-center justify-center">
-                  <User className="h-5 w-5 text-[#2b825b]" />
+                <div className="w-10 h-10 bg-(--color-accent-yellow)/10 rounded-lg flex items-center justify-center">
+                  <User className="h-5 w-5 text-(--color-accent-yellow)" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">To</h3>
@@ -331,13 +331,13 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm text-gray-600">Subtotal</p>
-                    <p className="text-2xl font-bold text-[#2b825b]">
+                    <p className="text-2xl font-bold text-(--color-accent-yellow)">
                       {formatCurrency(totalAmount)}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-gray-600">Total Amount</p>
-                    <p className="text-2xl font-bold text-[#2b825b]">
+                    <p className="text-2xl font-bold text-(--color-accent-yellow)">
                       {formatCurrency(totalAmount)}
                     </p>
                   </div>
@@ -448,8 +448,8 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
       {!isAlreadySigned && (
         <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200 space-y-8">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#2b825b]/10 rounded-xl flex items-center justify-center">
-              <Shield className="h-6 w-6 text-[#2b825b]" />
+            <div className="w-12 h-12 bg-(--color-accent-yellow)/10 rounded-xl flex items-center justify-center">
+              <Shield className="h-6 w-6 text-(--color-accent-yellow)" />
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
@@ -477,7 +477,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                 className={`mt-2 w-full px-4 py-3 rounded-lg border bg-gray-50 text-gray-900 ${
                   nameError
                     ? "border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:ring-[#2b825b]"
+                    : "border-gray-300 focus:ring-(--color-accent-yellow)"
                 } focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all`}
                 placeholder="Enter your full name as provided"
               />
@@ -510,7 +510,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                 <label
                   htmlFor="acknowledge"
                   className={`w-12 h-6 rounded-full cursor-pointer transition-colors duration-200 flex items-center p-1 ${
-                    acknowledged ? "bg-[#2b825b]" : "bg-gray-300"
+                    acknowledged ? "bg-(--color-accent-yellow)" : "bg-gray-300"
                   }`}
                 >
                   <span
@@ -545,7 +545,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
           <button
             onClick={handleStartSigning}
             disabled={!name.trim() || !acknowledged}
-            className="w-full py-4 bg-[#2b825b] text-white rounded-lg font-medium hover:bg-[#1e5d42] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-lg disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-3"
+            className="w-full py-4 bg-(--color-accent-yellow) text-white rounded-lg font-medium hover:bg-[#1e5d42] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-lg disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-3"
           >
             <PenTool className="h-5 w-5" />
             <span className="text-lg">Sign Receipt</span>

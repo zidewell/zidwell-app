@@ -528,8 +528,8 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <Volume2 className="w-4 h-4 text-[#2b825b]" />
-          <span className="text-sm font-medium text-[#2b825b]">
+          <Volume2 className="w-4 h-4 text-(--color-accent-yellow)" />
+          <span className="text-sm font-medium text-(--color-accent-yellow)">
             Listen to this article
           </span>
         </div>
@@ -547,8 +547,8 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
         <div className="flex items-center justify-center gap-2 py-8">
-          <Loader2 className="w-6 h-6 text-[#2b825b] animate-spin" />
-          <span className="text-sm font-medium text-[#2b825b]">
+          <Loader2 className="w-6 h-6 text-(--color-accent-yellow) animate-spin" />
+          <span className="text-sm font-medium text-(--color-accent-yellow)">
             Preparing audio player...
           </span>
         </div>
@@ -561,14 +561,14 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
       {/* Audio Controls */}
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <div className="p-2 bg-[#2b825b] rounded-lg">
+          <div className="p-2 bg-(--color-accent-yellow) rounded-lg">
             <Volume2 className="w-5 h-5 text-white" />
           </div>
           <div>
-            <span className="text-sm font-medium text-[#2b825b]">
+            <span className="text-sm font-medium text-(--color-accent-yellow)">
               Listen to this article
             </span>
-            <p className="text-xs text-[#2b825b] mt-0.5">
+            <p className="text-xs text-(--color-accent-yellow) mt-0.5">
               Words will be highlighted in gold as they're read
             </p>
           </div>
@@ -580,7 +580,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-[#2b825b] hover:bg-amber-100 hover:text-amber-700"
+              className="h-8 w-8 text-(--color-accent-yellow) hover:bg-amber-100 hover:text-amber-700"
               onClick={skipBackward}
               disabled={!isPlaying}
             >
@@ -590,7 +590,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
             <Button
               variant="default"
               size="icon"
-              className="h-10 w-10 rounded-full bg-[#2b825b] hover:bg-amber-700 text-white"
+              className="h-10 w-10 rounded-full bg-(--color-accent-yellow) hover:bg-amber-700 text-white"
               onClick={togglePlay}
             >
               {isPlaying ? (
@@ -603,7 +603,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-[#2b825b] hover:bg-amber-100 hover:text-amber-700"
+              className="h-8 w-8 text-(--color-accent-yellow) hover:bg-amber-100 hover:text-amber-700"
               onClick={skipForward}
               disabled={!isPlaying}
             >
@@ -620,14 +620,14 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
               />
             </div>
 
-            <span className="text-xs font-medium text-[#2b825b] min-w-[60px] text-right">
+            <span className="text-xs font-medium text-(--color-accent-yellow) min-w-[60px] text-right">
               {formatTime(time.current)} / {formatTime(time.total)}
             </span>
 
             <Button
               variant="outline"
               size="sm"
-              className="h-7 px-2 text-xs font-medium border-[#2b825b] text-[#2b825b] hover:bg-amber-100"
+              className="h-7 px-2 text-xs font-medium border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-amber-100"
               onClick={changePlaybackRate}
             >
               {playbackRate}x
@@ -635,7 +635,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
           </div>
 
           {/* Stats */}
-          <div className="flex items-center justify-between text-xs text-[#2b825b] pt-2">
+          <div className="flex items-center justify-between text-xs text-(--color-accent-yellow) pt-2">
             <div className="flex items-center gap-4">
               <span className="font-medium">
                 Word: {currentWordIndex} / {totalWordsRef.current}
@@ -648,7 +648,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-2 text-xs text-[#2b825b] hover:bg-amber-100"
+              className="h-6 px-2 text-xs text-(--color-accent-yellow) hover:bg-amber-100"
               onClick={stopSpeech}
               disabled={!isPlaying}
             >
@@ -660,11 +660,13 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
           {/* Status */}
           <div className="flex items-center gap-2 text-xs pt-2">
             <div
-              className={`w-2 h-2 rounded-full ${isPlaying ? "bg-[#2b825b] animate-pulse" : "bg-gray-300"}`}
+              className={`w-2 h-2 rounded-full ${isPlaying ? "bg-(--color-accent-yellow) animate-pulse" : "bg-gray-300"}`}
             />
             <span
               className={
-                isPlaying ? "text-[#2b825b] font-medium" : "text-gray-500"
+                isPlaying
+                  ? "text-(--color-accent-yellow) font-medium"
+                  : "text-gray-500"
               }
             >
               {isPlaying ? "Playing..." : "Ready to play"}

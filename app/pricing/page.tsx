@@ -141,7 +141,7 @@ const plans = [
 function PricingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { subscription, loading, checkTrialStatus, activateTrial } =
+  const { subscription, loading, checkTrialStatus, activateTrial, subscribe } =
     useSubscription();
   const { userData } = useUserContextData();
 
@@ -183,13 +183,35 @@ function PricingPage() {
     }
   }, [upgradeParam]);
 
+  // Handle callback after login
+  useEffect(() => {
+    const upgradePlan = searchParams?.get("upgrade");
+    const billingParam = searchParams?.get("billing");
+    
+    if (upgradePlan && userData?.id) {
+      // Set the billing period if specified
+      if (billingParam === "yearly") {
+        setSelectedBilling("yearly");
+      }
+      
+      // Find and trigger subscription for the plan
+      const plan = plans.find(p => p.tier === upgradePlan);
+      if (plan && plan.tier !== "free" && plan.tier !== "elite") {
+        // Clear the URL parameters
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+        // Trigger subscription
+        handleSubscribe(plan);
+      }
+    }
+  }, [searchParams, userData?.id]);
+
   const createNombaCheckout = async (
     plan: (typeof plans)[0],
     amount: number,
   ) => {
     try {
       if (!userData?.id) {
-        sessionStorage.setItem("intendedUrl", "/pricing");
         router.push("/auth/login");
         return;
       }
@@ -250,9 +272,10 @@ function PricingPage() {
       return;
     }
 
+    // If not logged in, redirect to login with callback URL
     if (!userData?.id) {
-      sessionStorage.setItem("intendedUrl", "/pricing");
-      router.push("/auth/login");
+      const callbackUrl = `/pricing?upgrade=${plan.tier}&billing=${selectedBilling}`;
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
 
@@ -265,6 +288,19 @@ function PricingPage() {
           ? plan.yearlyAmount
           : plan.amount;
 
+      const paymentReference = `SUB_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const subscriptionResult = await subscribe(
+        plan.tier as any,
+        "card",
+        amount,
+        paymentReference,
+        selectedBilling === "yearly",
+      );
+      
+      if (!subscriptionResult.success) {
+        throw new Error(subscriptionResult.error || "Failed to create subscription");
+      }
+      
       await createNombaCheckout(plan, amount);
     } catch (error: any) {
       console.error("Subscription error:", error);

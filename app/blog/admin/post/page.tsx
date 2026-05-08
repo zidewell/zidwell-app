@@ -189,7 +189,7 @@ const AdminPosts = () => {
               <p className="text-muted-foreground">Manage your blog posts</p>
             </div>
             <Link href="/blog/admin/posts/new">
-              <Button className="bg-[#2b825b] text-accent-foreground hover:bg-[#2b825b]/90">
+              <Button className="bg-(--color-accent-yellow) text-accent-foreground hover:bg-(--color-accent-yellow)/90">
                 <Plus className="w-4 h-4 mr-2" />
                 New Post
               </Button>
@@ -197,7 +197,7 @@ const AdminPosts = () => {
           </div>
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2b825b] mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-(--color-accent-yellow) mx-auto mb-4"></div>
               <p className="text-muted-foreground">Loading posts...</p>
             </div>
           </div>
@@ -231,7 +231,7 @@ const AdminPosts = () => {
               {isLoading ? "Refreshing..." : "Refresh"}
             </Button>
             <Link href="/blog/admin/posts/new">
-              <Button className="bg-[#2b825b] text-accent-foreground hover:bg-[#2b825b]/90">
+              <Button className="bg-(--color-accent-yellow) text-accent-foreground hover:bg-(--color-accent-yellow)/90">
                 <Plus className="w-4 h-4 mr-2" />
                 New Post
               </Button>
@@ -259,7 +259,7 @@ const AdminPosts = () => {
               variant={activeFilter === "all" ? "default" : "outline"}
               onClick={() => setActiveFilter("all")}
               disabled={isLoading}
-              className={`flex items-center gap-2 ${activeFilter === "all" ? "bg-[#2b825b] text-accent-foreground hover:bg-[#2b825b]/90" : ""}`}
+              className={`flex items-center gap-2 ${activeFilter === "all" ? "bg-(--color-accent-yellow) text-accent-foreground hover:bg-(--color-accent-yellow)/90" : ""}`}
             >
               <Filter className="w-4 h-4" />
               All ({stats.totalCount})
@@ -326,7 +326,7 @@ const AdminPosts = () => {
                   Get started by creating your first blog post
                 </p>
                 <Link href="/blog/admin/posts/new">
-                  <Button className="bg-[#2b825b] text-accent-foreground hover:bg-[#2b825b]/90">
+                  <Button className="bg-(--color-accent-yellow) text-accent-foreground hover:bg-(--color-accent-yellow)/90">
                     <Plus className="w-4 h-4 mr-2" />
                     Create Post
                   </Button>

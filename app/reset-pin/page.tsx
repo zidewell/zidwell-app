@@ -119,10 +119,10 @@ function ResetPinContent() {
 
   if (isValidating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f7f0e5] dark:bg-[#01402e]">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-secondary)] dark:bg-[#01402e]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-[#f4c600] mx-auto" />
-          <p className="mt-4 text-[#01402e] dark:text-[#f7f0e5]">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)] mx-auto" />
+          <p className="mt-4 text-[var(--text-primary)] dark:text-[var(--bg-secondary)]">
             Validating reset link...
           </p>
         </div>
@@ -132,16 +132,17 @@ function ResetPinContent() {
 
   if (error && !success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f7f0e5] dark:bg-[#01402e] px-4">
-        <div className="max-w-md w-full bg-white dark:bg-[#01402e] border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-secondary)] dark:bg-[#01402e] px-4">
+        <div className="max-w-md w-full bg-[var(--bg-primary)] dark:bg-[#01402e] border-2 border-[var(--border-color)] dark:border-[var(--bg-secondary)] shadow-soft p-8 text-center rounded-xl">
           <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-[#01402e] dark:text-[#f7f0e5] mb-2">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] dark:text-[var(--bg-secondary)] mb-2">
             Invalid Reset Link
           </h1>
-          <p className="text-[#01402e]/70 dark:text-[#f7f0e5]/70 mb-6">{error}</p>
+          <p className="text-[var(--text-secondary)] dark:text-[var(--bg-secondary)]/70 mb-6">{error}</p>
           <Button
             onClick={() => router.push("/dashboard")}
             variant="default"
+            className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
           >
             Return to Dashboard
           </Button>
@@ -152,16 +153,16 @@ function ResetPinContent() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f7f0e5] dark:bg-[#01402e] px-4">
-        <div className="max-w-md w-full bg-white dark:bg-[#01402e] border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] p-8 text-center">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-[#01402e] dark:text-[#f7f0e5] mb-2">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-secondary)] dark:bg-[#01402e] px-4">
+        <div className="max-w-md w-full bg-[var(--bg-primary)] dark:bg-[#01402e] border-2 border-[var(--border-color)] dark:border-[var(--bg-secondary)] shadow-soft p-8 text-center rounded-xl">
+          <CheckCircle className="w-16 h-16 text-[var(--color-lemon-green)] mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] dark:text-[var(--bg-secondary)] mb-2">
             PIN Reset Successful!
           </h1>
-          <p className="text-[#01402e]/70 dark:text-[#f7f0e5]/70 mb-4">
+          <p className="text-[var(--text-secondary)] dark:text-[var(--bg-secondary)]/70 mb-4">
             Your transaction PIN has been reset successfully.
           </p>
-          <p className="text-sm text-[#01402e]/60 dark:text-[#f7f0e5]/60">
+          <p className="text-sm text-[var(--text-secondary)]/60 dark:text-[var(--bg-secondary)]/50">
             Redirecting to dashboard...
           </p>
         </div>
@@ -182,20 +183,20 @@ function ResetPinContent() {
         onClearError={() => setModalError(null)}
       />
 
-      <div className="min-h-screen flex items-center justify-center bg-[#f7f0e5] dark:bg-[#01402e] px-4 py-8">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-secondary)] dark:bg-[#01402e] px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 60, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 40, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 260, damping: 22 }}
-          className="max-w-md w-full bg-white dark:bg-[#01402e] border-2 border-[#01402e] dark:border-[#f7f0e5] shadow-[4px_4px_0px_#01402e] dark:shadow-[4px_4px_0px_#f4c600] p-8"
+          className="max-w-md w-full bg-[var(--bg-primary)] dark:bg-[#01402e] border-2 border-[var(--border-color)] dark:border-[var(--bg-secondary)] shadow-soft p-8 rounded-xl"
         >
           <div className="text-center mb-8">
-            <Shield className="w-12 h-12 text-[#f4c600] mx-auto mb-3" />
-            <h1 className="text-2xl font-bold text-[#01402e] dark:text-[#f7f0e5]">
+            <Shield className="w-12 h-12 text-[var(--color-accent-yellow)] mx-auto mb-3" />
+            <h1 className="text-2xl font-bold text-[var(--text-primary)] dark:text-[var(--bg-secondary)]">
               {step === "enter" ? "Set New Transaction PIN" : "Confirm Your PIN"}
             </h1>
-            <p className="text-[#01402e]/70 dark:text-[#f7f0e5]/70 mt-2">
+            <p className="text-[var(--text-secondary)] dark:text-[var(--bg-secondary)]/70 mt-2">
               {step === "enter"
                 ? "Enter a new 4-digit PIN for your transactions"
                 : "Please confirm your new PIN"}
@@ -211,7 +212,7 @@ function ResetPinContent() {
               {(step === "enter" ? pin : confirmPin).map((digit, i) => (
                 <div
                   key={i}
-                  className="w-14 h-14 flex items-center justify-center text-center text-2xl font-extrabold rounded-lg border-2 border-[#01402e] dark:border-[#f7f0e5] bg-[#f7f0e5] dark:bg-[#01402e] text-[#01402e] dark:text-[#f7f0e5] hover:border-[#f4c600] transition-colors"
+                  className="w-14 h-14 flex items-center justify-center text-center text-2xl font-extrabold rounded-lg border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)] transition-colors"
                 >
                   {digit ? "•" : ""}
                 </div>
@@ -222,7 +223,7 @@ function ResetPinContent() {
               <Button
                 onClick={handleOpenModal}
                 disabled={isLoading || success}
-                className="w-full inline-flex justify-center items-center whitespace-nowrap rounded-lg px-3.5 py-2.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 bg-[#f4c600] hover:bg-[#f4c600]/90 focus:ring-[#f4c600] text-[#01402e]"
+                className="w-full inline-flex justify-center items-center whitespace-nowrap rounded-lg px-3.5 py-2.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 focus:ring-[var(--color-accent-yellow)] text-[var(--color-ink)]"
               >
                 {isLoading ? (
                   <>
@@ -244,14 +245,14 @@ function ResetPinContent() {
                   setConfirmPin(Array(inputCount).fill(""));
                   setPin(Array(inputCount).fill(""));
                 }}
-                className="w-full text-center text-sm text-[#01402e]/60 dark:text-[#f7f0e5]/60 hover:text-[#01402e] dark:hover:text-[#f7f0e5] mt-4"
+                className="w-full text-center text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] mt-4"
               >
                 ← Back to edit PIN
               </button>
             )}
           </div>
 
-          <p className="text-xs text-[#01402e]/50 dark:text-[#f7f0e5]/50 text-center mt-6">
+          <p className="text-xs text-[var(--text-secondary)]/50 text-center mt-6">
             For security, this link will expire in 1 hour. If you didn't request
             this, please contact support immediately.
           </p>
@@ -265,8 +266,8 @@ export default function ResetPinPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[#f7f0e5] dark:bg-[#01402e]">
-          <Loader2 className="w-8 h-8 animate-spin text-[#f4c600]" />
+        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-secondary)] dark:bg-[#01402e]">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
         </div>
       }
     >

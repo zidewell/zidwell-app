@@ -4,7 +4,13 @@ import React from "react";
 import { Check, Download } from "lucide-react";
 import { Button } from "../ui/button";
 
-type ReceiptType = "general" | "product" | "service" | "bookings" | "rental" | "funds_transfer";
+type ReceiptType =
+  | "general"
+  | "product"
+  | "service"
+  | "bookings"
+  | "rental"
+  | "funds_transfer";
 
 interface SellerInfo {
   name: string;
@@ -56,7 +62,6 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
   onLoadSavedSignature,
   isProcessingPayment = false,
 }) => {
-
   const calculateTotal = () => {
     return items.reduce((total, item) => total + (item.amount || 0), 0);
   };
@@ -73,7 +78,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
       {/* Header */}
       <div className="text-center border-b border-gray-300 dark:border-gray-700 pb-6 mb-6">
         <div className="flex justify-center mb-4">
-          <div className="h-16 w-16 rounded-full bg-[#2b825b] dark:bg-[#2b825b] flex items-center justify-center">
+          <div className="h-16 w-16 rounded-full bg-(--color-accent-yellow) dark:bg-(--color-accent-yellow) flex items-center justify-center">
             <span className="text-2xl font-bold text-white">Z</span>
           </div>
         </div>
@@ -104,10 +109,14 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
               {seller.name || "Not specified"}
             </p>
             {seller.email && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{seller.email}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {seller.email}
+              </p>
             )}
             {seller.phone && (
-              <p className="text-sm text-gray-600 dark:text-gray-400">{seller.phone}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {seller.phone}
+              </p>
             )}
           </div>
         </div>
@@ -122,10 +131,14 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
               {receiver.name || "Not specified"}
             </p>
             {receiver.email && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{receiver.email}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {receiver.email}
+              </p>
             )}
             {receiver.phone && (
-              <p className="text-sm text-gray-600 dark:text-gray-400">{receiver.phone}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {receiver.phone}
+              </p>
             )}
           </div>
         </div>
@@ -140,15 +153,30 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-800">
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Description</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Qty</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Unit Price</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Amount</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Description
+                </th>
+                <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Qty
+                </th>
+                <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Unit Price
+                </th>
+                <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Amount
+                </th>
               </tr>
             </thead>
             <tbody>
               {items.map((item, index) => (
-                <tr key={item.id} className={index % 2 === 0 ? "bg-white dark:bg-gray-900" : "bg-gray-50 dark:bg-gray-800/30"}>
+                <tr
+                  key={item.id}
+                  className={
+                    index % 2 === 0
+                      ? "bg-white dark:bg-gray-900"
+                      : "bg-gray-50 dark:bg-gray-800/30"
+                  }
+                >
                   <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
                     {item.description || "Item description"}
                   </td>
@@ -166,12 +194,14 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
             </tbody>
           </table>
         </div>
-        
+
         {/* Total */}
-        <div className="border-t-2 border-[#2b825b] dark:border-[#2b825b] mt-4 pt-4">
+        <div className="border-t-2 border-(--color-accent-yellow) dark:border-(--color-accent-yellow) mt-4 pt-4">
           <div className="flex justify-between items-center">
-            <span className="text-lg font-semibold text-gray-900 dark:text-white">Total</span>
-            <span className="text-2xl font-bold text-[#2b825b] dark:text-[#2b825b]">
+            <span className="text-lg font-semibold text-gray-900 dark:text-white">
+              Total
+            </span>
+            <span className="text-2xl font-bold text-(--color-accent-yellow) dark:text-(--color-accent-yellow)">
               ₦{formatCurrency(calculateTotal())}
             </span>
           </div>
@@ -221,7 +251,9 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Seller Signature</h3>
+            <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+              Seller Signature
+            </h3>
             {sellerSignature ? (
               <div className="h-32 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 p-3 flex items-center justify-center">
                 <img
@@ -232,15 +264,21 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
               </div>
             ) : (
               <div className="h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center">
-                <span className="text-sm text-gray-400 dark:text-gray-500">No signature yet</span>
+                <span className="text-sm text-gray-400 dark:text-gray-500">
+                  No signature yet
+                </span>
               </div>
             )}
           </div>
-          
+
           <div>
-            <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Receiver Signature</h3>
+            <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+              Receiver Signature
+            </h3>
             <div className="h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center">
-              <span className="text-sm text-gray-400 dark:text-gray-500">Will be signed by receiver</span>
+              <span className="text-sm text-gray-400 dark:text-gray-500">
+                Will be signed by receiver
+              </span>
             </div>
           </div>
         </div>
@@ -249,7 +287,8 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
       {/* Footer */}
       <div className="text-center pt-6 border-t border-gray-300 dark:border-gray-700 mt-6">
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          This is a live preview of your receipt. Changes in the form will update this preview in real-time.
+          This is a live preview of your receipt. Changes in the form will
+          update this preview in real-time.
         </p>
       </div>
     </div>

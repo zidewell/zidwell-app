@@ -30,9 +30,9 @@ const tierDetails: Record<TierType, TierDetail> = {
     nextTier: "zidlite",
     icon: Star,
     color: "gray",
-    bgColor: "bg-gray-50",
-    borderColor: "border-gray-200",
-    textColor: "text-gray-600",
+    bgColor: "bg-gray-50 dark:bg-gray-800/50",
+    borderColor: "border-gray-200 dark:border-gray-700",
+    textColor: "text-gray-600 dark:text-gray-400",
     price: "₦0",
     features: [
       "10 invoices total",
@@ -46,9 +46,9 @@ const tierDetails: Record<TierType, TierDetail> = {
     nextTier: "growth",
     icon: Zap,
     color: "blue",
-    bgColor: "bg-blue-50",
-    borderColor: "border-blue-200",
-    textColor: "text-blue-600",
+    bgColor: "bg-blue-50 dark:bg-blue-900/20",
+    borderColor: "border-blue-200 dark:border-blue-800",
+    textColor: "text-blue-600 dark:text-blue-400",
     price: "₦4,900/month",
     yearlyPrice: "₦49,000/year",
     features: [
@@ -65,9 +65,9 @@ const tierDetails: Record<TierType, TierDetail> = {
     nextTier: "premium",
     icon: Zap,
     color: "green",
-    bgColor: "bg-green-50",
-    borderColor: "border-green-200",
-    textColor: "text-green-600",
+    bgColor: "bg-[var(--color-accent-yellow)]/10",
+    borderColor: "border-[var(--color-accent-yellow)]/30",
+    textColor: "text-[var(--color-accent-yellow)]",
     price: "₦9,900/month",
     yearlyPrice: "₦99,000/year",
     features: [
@@ -84,9 +84,9 @@ const tierDetails: Record<TierType, TierDetail> = {
     nextTier: "elite",
     icon: Crown,
     color: "amber",
-    bgColor: "bg-[#2b825b]/10",
-    borderColor: "border-[#2b825b]",
-    textColor: "text-[#2b825b]",
+    bgColor: "bg-[var(--color-accent-yellow)]/10",
+    borderColor: "border-[var(--color-accent-yellow)]",
+    textColor: "text-[var(--color-accent-yellow)]",
     price: "₦49,900/month",
     yearlyPrice: "₦499,000/year",
     features: [
@@ -102,9 +102,9 @@ const tierDetails: Record<TierType, TierDetail> = {
     nextTier: null,
     icon: Sparkles,
     color: "purple",
-    bgColor: "bg-purple-50",
-    borderColor: "border-purple-200",
-    textColor: "text-purple-600",
+    bgColor: "bg-purple-50 dark:bg-purple-900/20",
+    borderColor: "border-purple-200 dark:border-purple-800",
+    textColor: "text-purple-600 dark:text-purple-400",
     price: "₦100,000+/month",
     features: [
       "Full tax filing (VAT, PAYE, WHT)",
@@ -189,31 +189,31 @@ export function PremiumModal({
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative"
+        className="bg-[var(--bg-primary)] rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative border border-[var(--border-color)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with close button */}
-        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-50">
+        <div className="sticky top-0 bg-[var(--bg-primary)] border-b border-[var(--border-color)] p-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-[var(--text-primary)]">
             Unlock Premium Features
           </h2>
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            className="p-2 hover:bg-[var(--bg-secondary)] rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <X className="w-5 h-5 text-[var(--text-secondary)]" />
           </button>
         </div>
 
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Current Plan Indicator */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-[var(--bg-secondary)] rounded-lg">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-[var(--text-secondary)]">
                 Current Plan
               </p>
-              <p className="text-lg font-bold text-gray-900 dark:text-gray-50 capitalize">
+              <p className="text-lg font-bold text-[var(--text-primary)] capitalize">
                 {currentTier === "zidlite"
                   ? "ZidLite"
                   : currentTier === "free"
@@ -223,7 +223,7 @@ export function PremiumModal({
             </div>
             {currentTier !== "elite" && nextTierData && (
               <div className="text-right">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-[var(--text-secondary)]">
                   Upgrade to
                 </p>
                 <p
@@ -258,7 +258,7 @@ export function PremiumModal({
                   />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-50 capitalize">
+                  <h3 className="text-xl font-bold text-[var(--text-primary)] capitalize">
                     {nextTier === "zidlite" ? "ZidLite" : nextTier} Plan
                   </h3>
                   <p
@@ -276,8 +276,8 @@ export function PremiumModal({
                     onClick={() => setSelectedBilling("monthly")}
                     className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
                       selectedBilling === "monthly"
-                        ? "bg-[#2b825b] text-white"
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                        ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                        : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]/80"
                     }`}
                   >
                     Monthly
@@ -286,8 +286,8 @@ export function PremiumModal({
                     onClick={() => setSelectedBilling("yearly")}
                     className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
                       selectedBilling === "yearly"
-                        ? "bg-[#2b825b] text-white"
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                        ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                        : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]/80"
                     }`}
                   >
                     Yearly <span className="text-xs ml-1">Save 20%</span>
@@ -302,7 +302,7 @@ export function PremiumModal({
                     <Check
                       className={`w-5 h-5 ${nextTierData.textColor} shrink-0 mt-0.5`}
                     />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="text-sm text-[var(--text-secondary)]">
                       {feature}
                     </span>
                   </li>
@@ -311,15 +311,15 @@ export function PremiumModal({
 
               {/* Price Details */}
               {nextTier !== "elite" && (
-                <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                <div className="mb-6 p-4 bg-[var(--bg-secondary)] rounded-lg">
+                  <p className="text-sm text-[var(--text-secondary)] mb-1">
                     {selectedBilling === "yearly"
                       ? "Yearly billing"
                       : "Monthly billing"}
                   </p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-50">
+                  <p className="text-2xl font-bold text-[var(--text-primary)]">
                     {getDisplayPrice()}
-                    <span className="text-sm font-normal text-gray-500 ml-1">
+                    <span className="text-sm font-normal text-[var(--text-secondary)] ml-1">
                       /{selectedBilling === "yearly" ? "year" : "month"}
                     </span>
                   </p>
@@ -335,7 +335,7 @@ export function PremiumModal({
               <div className="flex gap-3">
                 <button
                   onClick={onClose}
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
+                  className="flex-1 px-4 py-3 border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors font-medium"
                 >
                   Cancel
                 </button>
@@ -357,9 +357,9 @@ export function PremiumModal({
                         nextTier === "zidlite"
                           ? "bg-blue-600 hover:bg-blue-700"
                           : nextTier === "growth"
-                            ? "bg-green-600 hover:bg-green-700"
+                            ? "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
                             : nextTier === "premium"
-                              ? "bg-[#2b825b] hover:bg-[#1e5d42]"
+                              ? "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
                               : "bg-purple-600 hover:bg-purple-700"
                       }`}
                     >
@@ -375,16 +375,16 @@ export function PremiumModal({
           {/* No Upgrade Path (Elite) */}
           {currentTier === "elite" && (
             <div className="text-center py-8">
-              <Crown className="w-16 h-16 text-[#2b825b] mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-50 mb-2">
+              <Crown className="w-16 h-16 text-[var(--color-accent-yellow)] mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">
                 You're on Elite!
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
+              <p className="text-[var(--text-secondary)] mb-6">
                 Contact our enterprise team for custom solutions and dedicated
                 support.
               </p>
               <Link href="/contact">
-                <button className="px-6 py-3 bg-[#2b825b] text-white rounded-lg hover:bg-[#1e5d42] transition-colors font-medium">
+                <button className="px-6 py-3 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] rounded-lg hover:bg-[var(--color-accent-yellow)]/90 transition-colors font-medium">
                   Contact Account Manager
                 </button>
               </Link>
@@ -392,8 +392,8 @@ export function PremiumModal({
           )}
 
           {/* Trust Badges */}
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-            <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+          <div className="pt-4 border-t border-[var(--border-color)]">
+            <p className="text-xs text-center text-[var(--text-secondary)]">
               🔒 Secure payment • Cancel anytime • 14-day money-back guarantee
             </p>
           </div>

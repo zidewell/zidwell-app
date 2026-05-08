@@ -1,3 +1,4 @@
+// CableCustomerCard.tsx
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { ArrowRight, Receipt, AlertCircle } from "lucide-react";
@@ -21,29 +22,29 @@ export default function CableCustomerCard(props: any) {
       {/* Customer Info Card */}
 
       {customerName && (
-        <Card className="w-full shadow-md rounded-xl border border-gray-200">
+        <Card className="w-full shadow-md rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)]">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-gray-800">
+            <CardTitle className="text-lg font-semibold text-[var(--text-primary)]">
               Customer Info
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-gray-700">
+          <CardContent className="space-y-2 text-sm text-[var(--text-primary)]">
             {customerName && (
               <div className="flex gap-2">
-                <span className="font-medium">Name:</span>
+                <span className="font-medium text-[var(--text-secondary)]">Name:</span>
                 <p className="font-semibold">{customerName}</p>
               </div>
             )}
             {service && (
               <div className="flex gap-2">
-                <span className="font-medium">Subscriber Name:</span>
+                <span className="font-medium text-[var(--text-secondary)]">Subscriber Name:</span>
                 <p className="font-semibold">{service}</p>
               </div>
             )}
 
             {decorderNumber && (
               <div className="flex gap-2">
-                <span className="font-medium">Decoder Number:</span>
+                <span className="font-medium text-[var(--text-secondary)]">Decoder Number:</span>
                 <p className="font-semibold">{decorderNumber}</p>
               </div>
             )}
@@ -52,10 +53,10 @@ export default function CableCustomerCard(props: any) {
       )}
 
       {/* Payment Summary Card */}
-      <Card className="">
+      <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Receipt className="w-5 h-5" />
+          <CardTitle className="flex items-center gap-2 text-[var(--text-primary)]">
+            <Receipt className="w-5 h-5 text-[var(--color-accent-yellow)]" />
             Payment Summary
           </CardTitle>
         </CardHeader>
@@ -71,9 +72,9 @@ export default function CableCustomerCard(props: any) {
                 />
               </div>
               <div>
-                <p className="font-medium">{selectedProvider.name}</p>
+                <p className="font-medium text-[var(--text-primary)]">{selectedProvider.name}</p>
                 {selectedProvider.description && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {selectedProvider.description}
                   </p>
                 )}
@@ -88,11 +89,11 @@ export default function CableCustomerCard(props: any) {
               }
             }}
             disabled={!selectedPlan || loading}
-            className="w-full bg-[#2b825b] hover:opacity-90 py-3 font-semibold rounded-lg shadow-electric-glow transition-all duration-300"
+            className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 font-semibold rounded-lg shadow-electric-glow transition-all duration-300"
           >
             {loading ? (
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-[var(--color-ink)] border-t-transparent rounded-full animate-spin" />
                 Processing Payment...
               </div>
             ) : (
@@ -110,7 +111,7 @@ export default function CableCustomerCard(props: any) {
             </div>
           )}
 
-          <div className="text-center text-xs text-muted-foreground mt-4">
+          <div className="text-center text-xs text-[var(--text-secondary)] mt-4">
             <p>🔒 Secure payment powered by Zidwell</p>
             <p>Instant token generation • 24/7 support</p>
           </div>

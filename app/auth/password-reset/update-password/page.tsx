@@ -71,7 +71,7 @@ const UpdatePassword = () => {
           </div>
           {errors.password && <p className="text-red-500">{errors.password}</p>}
           <Button
-            className="bg-[#2b825b] mt-4"
+            className="bg-(--color-accent-yellow) mt-4"
             type="submit"
             disabled={loading}
           >

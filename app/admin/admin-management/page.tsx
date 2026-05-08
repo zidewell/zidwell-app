@@ -4,9 +4,9 @@ import useSWR from "swr";
 import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 // @ts-ignore - CSS import
-import 'sweetalert2/dist/sweetalert2.min.css'
+import "sweetalert2/dist/sweetalert2.min.css";
 
-import AdminTable from "../../components/admin-components/AdminTable"; 
+import AdminTable from "../../components/admin-components/AdminTable";
 import AdminLayout from "@/app/components/admin-components/layout";
 import Loader from "@/app/components/Loader";
 import { Input } from "@/app/components/ui/input";
@@ -841,7 +841,7 @@ export default function AdminManagementPage() {
               🔄 Refresh
             </Button>
             <Button
-              className="bg-[#2b825b] text-white hover:bg-[#a87e06]"
+              className="bg-(--color-accent-yellow) text-white hover:bg-[#a87e06]"
               onClick={handleCreateAdmin}
             >
               + Add Admin
@@ -903,7 +903,7 @@ export default function AdminManagementPage() {
             <Input
               placeholder="Search by email, name, or role..."
               value={searchTerm}
-              onChange={(e:any) => setSearchTerm(e.target.value)}
+              onChange={(e: any) => setSearchTerm(e.target.value)}
             />
           </div>
 

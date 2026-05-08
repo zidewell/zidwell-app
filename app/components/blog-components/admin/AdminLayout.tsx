@@ -184,7 +184,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                       isActive
-                        ? "bg-[#2b825b]/10 text-[#2b825b] border border-[#2b825b]/20"
+                        ? "bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) border border-(--color-accent-yellow)/20"
                         : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                       collapsed && "justify-center",
                     )}
@@ -197,7 +197,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     <item.icon
                       className={cn(
                         "w-5 h-5 shrink-0",
-                        isActive && "text-[#2b825b]",
+                        isActive && "text-(--color-accent-yellow)",
                       )}
                     />
                     {!collapsed && (

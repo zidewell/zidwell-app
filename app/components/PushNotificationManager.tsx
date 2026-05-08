@@ -60,7 +60,7 @@ export function InstallPrompt() {
   if (!showInstallButton && !isIOS) return null;
 
   return (
-    <div className="relative bg-linear-to-r from-[#2b825b] to-[#d4a414] rounded-lg p-4 max-w-sm text-white shadow-lg">
+    <div className="relative bg-linear-to-r from-(--color-accent-yellow) to-[#d4a414] rounded-lg p-4 max-w-sm text-white shadow-lg">
       {/* 🔥 Close Button */}
       <button
         onClick={handleClose}
@@ -76,7 +76,7 @@ export function InstallPrompt() {
           alt="Zidwell Logo"
           width={40}
           height={40}
-          className="w-10 h-10 object-contain border-2 border-[#2b825b] shadow-[4px_4px_0px_#111827] bg-black p-1"
+          className="w-10 h-10 object-contain border-2 border-(--color-accent-yellow) shadow-[4px_4px_0px_#111827] bg-black p-1"
         />
 
         <div className="flex-1">
@@ -89,7 +89,7 @@ export function InstallPrompt() {
 
           <button
             onClick={handleInstallClick}
-            className="w-full px-4 py-2 bg-white text-[#2b825b] text-sm font-medium rounded-lg hover:bg-gray-100 transition-colors"
+            className="w-full px-4 py-2 bg-white text-(--color-accent-yellow) text-sm font-medium rounded-lg hover:bg-gray-100 transition-colors"
           >
             {isIOS ? "Show iOS Instructions" : "Install Now"}
           </button>

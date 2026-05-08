@@ -1,3 +1,4 @@
+// app/dashboard/services/contract/edit/[id]/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -180,7 +181,7 @@ export default function EditContractPage({
             icon: "success",
             title: "Signature Loaded",
             text: "Your saved signature has been loaded.",
-            confirmButtonColor: "#2b825b",
+            confirmButtonColor: "var(--color-accent-yellow)",
             timer: 2000,
             showConfirmButton: false,
           });
@@ -189,7 +190,7 @@ export default function EditContractPage({
             icon: "info",
             title: "No Saved Signature",
             text: "No saved signature found. Please create a new one.",
-            confirmButtonColor: "#2b825b",
+            confirmButtonColor: "var(--color-accent-yellow)",
             timer: 2000,
             showConfirmButton: false,
           });
@@ -199,7 +200,7 @@ export default function EditContractPage({
           icon: "error",
           title: "Load Failed",
           text: "Failed to load saved signature. Please try again.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
         });
       }
     } catch (error) {
@@ -207,7 +208,7 @@ export default function EditContractPage({
         icon: "error",
         title: "Load Failed",
         text: "Failed to load saved signature. Please try again.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
     }
   };
@@ -252,7 +253,7 @@ export default function EditContractPage({
             icon: "success",
             title: "Signature Saved",
             text: "Your signature has been saved for future use.",
-            confirmButtonColor: "#2b825b",
+            confirmButtonColor: "var(--color-accent-yellow)",
             timer: 2000,
             showConfirmButton: false,
           });
@@ -262,7 +263,7 @@ export default function EditContractPage({
           icon: "error",
           title: "Save Failed",
           text: "Failed to save signature. Please try again.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
         });
       }
     }
@@ -382,7 +383,7 @@ export default function EditContractPage({
           icon: "info",
           title: "Contract Already Signed",
           text: "This contract has been signed. Editing is limited.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
         });
       }
     } catch (error) {
@@ -392,7 +393,7 @@ export default function EditContractPage({
         title: "Error",
         text:
           error instanceof Error ? error.message : "Failed to load contract",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
       }).then(() => {
         router.push("/dashboard/services/contract");
       });
@@ -518,7 +519,7 @@ export default function EditContractPage({
         icon: "warning",
         title: "Signature Required",
         text: "Please add your signature in the form before submitting.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
       return false;
     }
@@ -528,7 +529,7 @@ export default function EditContractPage({
         icon: "warning",
         title: "Name Required",
         text: "Please enter your full legal name in the creator name field.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
       return false;
     }
@@ -601,7 +602,7 @@ export default function EditContractPage({
           icon: "error",
           title: "Please fix the following errors:",
           html: errorMessages.map((msg) => `• ${msg}`).join("<br>"),
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
         });
       }
       return;
@@ -625,12 +626,12 @@ export default function EditContractPage({
           html: `
             <div class="text-center">
               <p>Your contract has been updated successfully.</p>
-              <p class="text-sm text-gray-600 mt-2">
+              <p class="text-sm text-[var(--text-secondary)] mt-2">
                 <strong>Contract ID:</strong> ${form.contractId}
               </p>
             </div>
           `,
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
           timer: 3000,
           showConfirmButton: false,
         }).then(() => {
@@ -646,7 +647,7 @@ export default function EditContractPage({
         icon: "error",
         title: "Update Failed",
         text: "Failed to update contract. Please try again.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
     } finally {
       setSaving(false);
@@ -668,7 +669,7 @@ export default function EditContractPage({
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot reset form while processing is in progress.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
       return;
     }
@@ -678,7 +679,7 @@ export default function EditContractPage({
       text: "This will discard all unsaved changes and reload the original contract.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#2b825b",
+      confirmButtonColor: "var(--color-accent-yellow)",
       cancelButtonColor: "#6b7280",
       confirmButtonText: "Reset",
       cancelButtonText: "Cancel",
@@ -691,7 +692,7 @@ export default function EditContractPage({
           icon: "success",
           title: "Changes Reset",
           text: "All changes have been discarded.",
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "var(--color-accent-yellow)",
           timer: 1500,
           showConfirmButton: false,
         });
@@ -705,7 +706,7 @@ export default function EditContractPage({
         icon: "warning",
         title: "Form is Processing",
         text: "Cannot cancel while processing is in progress.",
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
       return;
     }
@@ -716,7 +717,7 @@ export default function EditContractPage({
         text: "You have unsaved changes. Are you sure you want to leave?",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: "#2b825b",
+        confirmButtonColor: "var(--color-accent-yellow)",
         cancelButtonColor: "#6b7280",
         confirmButtonText: "Yes, Discard",
         cancelButtonText: "Continue Editing",
@@ -749,7 +750,7 @@ export default function EditContractPage({
 
   return (
     <>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[var(--bg-primary)]">
         <div className="container mx-auto py-8 px-4">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-start space-x-4">
@@ -757,7 +758,7 @@ export default function EditContractPage({
                 variant="ghost"
                 size="sm"
                 onClick={handleCancel}
-                className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
+                className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)] text-sm md:text-base"
                 disabled={isFormLocked}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -765,10 +766,10 @@ export default function EditContractPage({
               </Button>
 
               <div>
-                <h1 className="md:text-3xl text-xl font-bold mb-2">
+                <h1 className="md:text-3xl text-xl font-bold mb-2 text-[var(--text-primary)]">
                   Edit Contract
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-[var(--text-secondary)]">
                   Update and manage your contract details
                 </p>
               </div>
@@ -805,7 +806,7 @@ export default function EditContractPage({
               {localSignature && (
                 <Badge
                   variant="outline"
-                  className="bg-green-50 text-green-700 border-green-200"
+                  className="bg-[var(--color-lemon-green)]/10 text-[var(--color-lemon-green)] border-[var(--color-lemon-green)]/20"
                 >
                   <Check className="w-3 h-3 mr-1" />
                   Signed
@@ -816,10 +817,10 @@ export default function EditContractPage({
                 className={`
                   ${
                     form.status === "signed"
-                      ? "bg-green-100 text-green-800 border-green-200"
+                      ? "bg-[var(--color-lemon-green)]/10 text-[var(--color-lemon-green)] border-[var(--color-lemon-green)]/20"
                       : form.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800 border-yellow-200"
-                        : "bg-gray-100 text-gray-800 border-gray-200"
+                        ? "bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]/20"
+                        : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)]"
                   }
                 `}
               >
@@ -842,7 +843,7 @@ export default function EditContractPage({
 
           <div className="flex justify-center">
             <div className="w-full max-w-3xl lg:max-w-4xl">
-              <Card className="p-6 h-fit">
+              <Card className="p-6 h-fit bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
                 <div className="flex justify-between items-center mb-6">
                   <div className="flex items-center gap-4">
                     <Button
@@ -850,12 +851,12 @@ export default function EditContractPage({
                       size="sm"
                       onClick={resetForm}
                       disabled={!hasUnsavedChanges || isFormLocked || isSigned}
-                      className="text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Reset Changes
                     </Button>
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-[var(--text-secondary)]">
                     Contract ID: {form.contractId}
                   </div>
                 </div>
@@ -890,7 +891,7 @@ export default function EditContractPage({
                   <TabsContent value="create" className="space-y-6">
                     <section className="space-y-4">
                       <div className="flex justify-between items-center">
-                        <h4 className="text-lg font-medium">
+                        <h4 className="text-lg font-medium text-[var(--text-primary)]">
                           Contract Details
                         </h4>
                         <Button
@@ -904,13 +905,13 @@ export default function EditContractPage({
                         </Button>
                       </div>
 
-                      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-gray-700">
+                            <p className="text-sm font-medium text-[var(--text-primary)]">
                               Your Saved Signature
                             </p>
-                            <p className="text-xs text-gray-600 mt-1">
+                            <p className="text-xs text-[var(--text-secondary)] mt-1">
                               Load your saved signature to use in this contract
                             </p>
                           </div>
@@ -924,7 +925,7 @@ export default function EditContractPage({
                               isFormLocked ||
                               isSigned
                             }
-                            className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                            className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                           >
                             {localSignature ? (
                               <>
@@ -940,12 +941,12 @@ export default function EditContractPage({
                           </Button>
                         </div>
                         {localSignature && (
-                          <div className="mt-3 p-3 bg-white border border-green-200 rounded-lg">
+                          <div className="mt-3 p-3 bg-[var(--bg-primary)] border border-[var(--color-lemon-green)]/30 rounded-lg">
                             <div className="flex items-center">
-                              <div className="h-6 w-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                                <Check className="h-4 w-4 text-green-600" />
+                              <div className="h-6 w-6 bg-[var(--color-lemon-green)]/10 rounded-full flex items-center justify-center mr-2">
+                                <Check className="h-4 w-4 text-[var(--color-lemon-green)]" />
                               </div>
-                              <p className="text-sm text-green-700">
+                              <p className="text-sm text-[var(--color-lemon-green)]">
                                 Signature loaded successfully!
                               </p>
                             </div>
@@ -957,7 +958,7 @@ export default function EditContractPage({
                         <div className="space-y-2 w-full">
                           <Label
                             htmlFor="creator-name"
-                            className="text-gray-700 font-medium"
+                            className="text-[var(--text-primary)] font-medium"
                           >
                             PARTY A (Creator) *
                           </Label>
@@ -967,13 +968,15 @@ export default function EditContractPage({
                             onChange={handleCreatorNameChange}
                             placeholder="Enter your full legal name as it should appear on the contract"
                             disabled={isFormLocked || isSigned}
+                            className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                            style={{ outline: "none", boxShadow: "none" }}
                           />
                         </div>
 
                         <div className="space-y-2 w-full">
                           <Label
                             htmlFor="receiver-name"
-                            className="text-gray-700 font-medium"
+                            className="text-[var(--text-primary)] font-medium"
                           >
                             PARTY B (Signee) *
                           </Label>
@@ -985,6 +988,8 @@ export default function EditContractPage({
                             }
                             placeholder="John Doe"
                             disabled={isFormLocked || isSigned}
+                            className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                            style={{ outline: "none", boxShadow: "none" }}
                           />
                           {errors.receiverName && (
                             <p className="text-xs text-red-500 mt-1">
@@ -999,7 +1004,7 @@ export default function EditContractPage({
                           <div className="space-y-1">
                             <Label
                               htmlFor="contract-date"
-                              className="text-xs font-medium text-gray-600"
+                              className="text-xs font-medium text-[var(--text-secondary)]"
                             >
                               Contract Date*
                             </Label>
@@ -1010,7 +1015,8 @@ export default function EditContractPage({
                               onChange={(e) =>
                                 handleFormChange("contractDate", e.target.value)
                               }
-                              className="w-full"
+                              className="w-full border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                              style={{ outline: "none", boxShadow: "none" }}
                               max={new Date().toISOString().split("T")[0]}
                               disabled={isFormLocked || isSigned}
                             />
@@ -1049,7 +1055,7 @@ export default function EditContractPage({
 
                       <div className="flex flex-col gap-3">
                         <div className="w-full">
-                          <Label className="block text-xs font-medium text-gray-600 mb-2">
+                          <Label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
                             Contract Title{" "}
                             <span className="text-red-500">*</span>
                           </Label>
@@ -1060,6 +1066,8 @@ export default function EditContractPage({
                             }
                             placeholder="Enter contract title"
                             disabled={isFormLocked || isSigned}
+                            className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                            style={{ outline: "none", boxShadow: "none" }}
                           />
                           {errors.contractTitle && (
                             <p className="text-xs text-red-500 mt-1">
@@ -1071,11 +1079,11 @@ export default function EditContractPage({
 
                       <div>
                         <div className="flex justify-between items-center mb-2">
-                          <Label className="block text-xs font-medium text-gray-600">
+                          <Label className="block text-xs font-medium text-[var(--text-secondary)]">
                             Contract Content{" "}
                             <span className="text-red-500">*</span>
                           </Label>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-[var(--text-secondary)]">
                             {form.contractContent.length} characters
                           </span>
                         </div>
@@ -1094,23 +1102,23 @@ export default function EditContractPage({
                       </div>
 
                       {attachments.length > 0 && (
-                        <div className="mt-6 pt-6 border-t">
-                          <h4 className="text-lg font-medium mb-4">
+                        <div className="mt-6 pt-6 border-t border-[var(--border-color)]">
+                          <h4 className="text-lg font-medium text-[var(--text-primary)] mb-4">
                             Attachments ({attachments.length})
                           </h4>
                           <div className="space-y-3">
                             {attachments.map((attachment, index) => (
                               <div
                                 key={index}
-                                className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
+                                className="flex items-center justify-between p-3 border border-[var(--border-color)] rounded-lg hover:bg-[var(--bg-secondary)]"
                               >
                                 <div className="flex items-center">
-                                  <FileText className="h-5 w-5 text-gray-500 mr-3" />
+                                  <FileText className="h-5 w-5 text-[var(--text-secondary)] mr-3" />
                                   <div>
-                                    <p className="text-sm font-medium text-gray-900">
+                                    <p className="text-sm font-medium text-[var(--text-primary)]">
                                       {attachment.name}
                                     </p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-[var(--text-secondary)]">
                                       {(attachment.size / 1024).toFixed(2)} KB •{" "}
                                       {attachment.type}
                                     </p>
@@ -1119,7 +1127,7 @@ export default function EditContractPage({
                               </div>
                             ))}
                           </div>
-                          <p className="text-xs text-gray-500 mt-2">
+                          <p className="text-xs text-[var(--text-secondary)] mt-2">
                             Note: Attachments cannot be modified in edit mode
                           </p>
                         </div>
@@ -1127,7 +1135,7 @@ export default function EditContractPage({
                     </section>
 
                     <section className="space-y-4">
-                      <h4 className="text-lg font-medium">
+                      <h4 className="text-lg font-medium text-[var(--text-primary)]">
                         Consent Declarations
                       </h4>
                       <SignContractToggle
@@ -1156,13 +1164,13 @@ export default function EditContractPage({
                     </section>
 
                     {/* Signature Section */}
-                    <section className="border border-gray-200 rounded-lg p-6 bg-gray-50 print:hidden">
+                    <section className="border border-[var(--border-color)] rounded-lg p-6 bg-[var(--bg-secondary)] print:hidden">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
                         <div className="mb-4 sm:mb-0">
-                          <h4 className="text-lg font-semibold text-gray-900">
+                          <h4 className="text-lg font-semibold text-[var(--text-primary)]">
                             Add Your Signature
                           </h4>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-[var(--text-secondary)]">
                             Draw or upload your signature to complete the
                             contract
                           </p>
@@ -1220,12 +1228,12 @@ export default function EditContractPage({
 
                         {/* Save Signature Toggle */}
                         {userData?.id && !isSigned && (
-                          <div className="flex items-center space-x-3 p-4 bg-white border border-gray-200 rounded-lg">
+                          <div className="flex items-center space-x-3 p-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg">
                             <Switch
                               id="save-signature-toggle"
                               checked={saveSignatureForFuture}
                               onCheckedChange={handleSaveSignatureToggle}
-                              className="data-[state=checked]:bg-[#2b825b]"
+                              className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
                               disabled={
                                 (!localSignature && saveSignatureForFuture) ||
                                 isFormLocked ||
@@ -1235,11 +1243,11 @@ export default function EditContractPage({
                             <div className="space-y-1 flex-1">
                               <Label
                                 htmlFor="save-signature-toggle"
-                                className="cursor-pointer text-sm font-medium text-gray-700"
+                                className="cursor-pointer text-sm font-medium text-[var(--text-primary)]"
                               >
                                 Save signature for future use
                               </Label>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-[var(--text-secondary)]">
                                 Your signature will be securely stored and
                                 automatically loaded for future contracts
                               </p>
@@ -1255,7 +1263,7 @@ export default function EditContractPage({
                       </div>
                     </section>
 
-                    <div className="flex gap-3 pt-4 border-t">
+                    <div className="flex gap-3 pt-4 border-t border-[var(--border-color)]">
                       <Button
                         onClick={handleCancel}
                         variant="outline"
@@ -1268,7 +1276,7 @@ export default function EditContractPage({
                       <Button
                         onClick={handleUpdateContract}
                         size="lg"
-                        className="flex-1 bg-[#2b825b] text-white hover:bg-[#1e5d42]"
+                        className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
                         disabled={
                           saving || isFormLocked || isSigned
                         }

@@ -1,3 +1,4 @@
+// app/components/sign-contract-form-component/SignContractSelect.tsx
 import React from 'react'
 import { Button } from '../ui/button'
 import { sampleContracts } from '@/app/data/sampleContracts';
@@ -23,6 +24,7 @@ const SignContractSelect: React.FC<SignContractSelectProps> = ({ setContractTitl
             variant="outline"
             size="sm"
             onClick={() => handleLoadSample("employment")}
+            className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)] hover:border-[var(--color-accent-yellow)]"
         >
             Employment
         </Button>
@@ -31,6 +33,7 @@ const SignContractSelect: React.FC<SignContractSelectProps> = ({ setContractTitl
             variant="outline"
             size="sm"
             onClick={() => handleLoadSample("service")}
+            className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)] hover:border-[var(--color-accent-yellow)]"
         >
             Service
         </Button>
@@ -39,6 +42,7 @@ const SignContractSelect: React.FC<SignContractSelectProps> = ({ setContractTitl
             variant="outline"
             size="sm"
             onClick={() => handleLoadSample("loan")}
+            className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)] hover:border-[var(--color-accent-yellow)]"
         >
             Loan
         </Button>
@@ -47,6 +51,7 @@ const SignContractSelect: React.FC<SignContractSelectProps> = ({ setContractTitl
             variant="outline"
             size="sm"
             onClick={() => handleLoadSample("nda")}
+            className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)] hover:border-[var(--color-accent-yellow)]"
         >
             NDA
         </Button>

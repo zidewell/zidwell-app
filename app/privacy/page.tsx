@@ -22,7 +22,7 @@ export default function PrivacyPolicy() {
         <div className="mb-6">
           <button
             onClick={() => router.back()}
-            className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base flex items-center px-4 py-2 rounded-lg transition-colors duration-200"
+            className="text-(--color-accent-yellow) hover:bg-white/10 text-sm md:text-base flex items-center px-4 py-2 rounded-lg transition-colors duration-200"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             <span className="hidden md:block">Back</span>

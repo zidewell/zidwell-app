@@ -1,3 +1,4 @@
+// BlogSidebar.tsx
 "use client";
 
 import { useState, useMemo } from "react";
@@ -15,44 +16,21 @@ interface BlogSidebarProps {
   isSearching?: boolean;
 }
 
-// interface BlogPost {
-//   id: string;
-//   author: string;
-//   title: string;
-//   slug: string;
-//   excerpt: string | null;
-//   featured_image: string | null;
-//   author_name: string;
-//   published_at: string | null;
-//   created_at: string;
-//   view_count: number;
-//   likes_count: number;
-//   categories: string[];
-// }
-
-interface BlogCategory {
-  name: string;
-  count: number;
-}
-
 const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [email, setEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
 
-  // Get data from context
   const { recentPosts, popularPosts, categories, isLoading } = useBlog();
 
-  // Initialize SweetAlert
   const showAlert = Swal.mixin({
     customClass: {
       confirmButton:
-        "bg-[#2b825b] text-white hover:bg-[#2b825b]/90 px-4 py-2 rounded",
+        "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 px-4 py-2 rounded",
     },
     buttonsStyling: false,
   });
 
-  // Calculate archive data from recent posts
   const archives = useMemo(() => {
     if (!recentPosts.length) return [];
 
@@ -79,25 +57,14 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
         };
       })
       .sort((a, b) => {
-        // Sort by year and month descending
         if (a.year !== b.year) return parseInt(b.year) - parseInt(a.year);
         const months = [
-          "January",
-          "February",
-          "March",
-          "April",
-          "May",
-          "June",
-          "July",
-          "August",
-          "September",
-          "October",
-          "November",
-          "December",
+          "January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December",
         ];
         return months.indexOf(b.month) - months.indexOf(a.month);
       })
-      .slice(0, 6); // Limit to 6 archives
+      .slice(0, 6);
   }, [recentPosts]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -105,7 +72,6 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
     if (onSearch && searchQuery.trim()) {
       onSearch(searchQuery);
     } else if (searchQuery.trim()) {
-      // Navigate to search results page
       window.location.href = `/blog/search?q=${encodeURIComponent(searchQuery)}`;
     }
   };
@@ -134,10 +100,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
     setIsSubscribing(true);
 
     try {
-      // Simulate API call (replace with actual API)
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // For now, simulate success
       await showAlert.fire({
         title: "Subscribed Successfully!",
         text: "Thank you for subscribing to our newsletter.",
@@ -145,7 +108,6 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
         timer: 3000,
         showConfirmButton: false,
       });
-
       setEmail("");
     } catch (error) {
       console.error("Subscription error:", error);
@@ -164,21 +126,19 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
     return "Unknown Author";
   };
 
-  // Helper function for image error handling
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     img.style.display = "none";
 
-    // Find or create the fallback div
     const parent = img.parentElement;
     if (parent) {
       let fallbackDiv = parent.querySelector(".image-fallback") as HTMLElement;
       if (!fallbackDiv) {
         fallbackDiv = document.createElement("div");
         fallbackDiv.className =
-          "image-fallback w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center";
+          "image-fallback w-16 h-16 bg-[var(--bg-secondary)] rounded shrink-0 flex items-center justify-center";
         fallbackDiv.innerHTML =
-          '<span class="text-xs text-muted-foreground">No Image</span>';
+          '<span class="text-xs text-[var(--text-secondary)]">No Image</span>';
         parent.appendChild(fallbackDiv);
       }
       fallbackDiv.style.display = "flex";
@@ -188,52 +148,47 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
   if (isLoading) {
     return (
       <aside className="space-y-8">
-        {/* Search Skeleton */}
         <div className="space-y-3">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-5 w-24 bg-[var(--bg-secondary)]" />
+          <Skeleton className="h-10 w-full bg-[var(--bg-secondary)]" />
         </div>
 
-        {/* Subscribe Skeleton */}
-        <div className="bg-secondary/50 rounded-lg p-5 space-y-3">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-10 w-full" />
+        <div className="bg-[var(--bg-secondary)]/50 rounded-lg p-5 space-y-3">
+          <Skeleton className="h-5 w-24 bg-[var(--bg-secondary)]" />
+          <Skeleton className="h-16 w-full bg-[var(--bg-secondary)]" />
+          <Skeleton className="h-10 w-full bg-[var(--bg-secondary)]" />
         </div>
 
-        {/* Popular Posts Skeleton */}
         <div className="space-y-4">
-          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-5 w-32 bg-[var(--bg-secondary)]" />
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex gap-3">
-              <Skeleton className="w-16 h-16 rounded" />
+              <Skeleton className="w-16 h-16 rounded bg-[var(--bg-secondary)]" />
               <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-4 w-3/4 bg-[var(--bg-secondary)]" />
+                <Skeleton className="h-3 w-1/2 bg-[var(--bg-secondary)]" />
               </div>
             </div>
           ))}
         </div>
 
-        {/* Recent Posts Skeleton */}
         <div className="space-y-4">
-          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-5 w-32 bg-[var(--bg-secondary)]" />
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex gap-3">
-              <Skeleton className="w-16 h-16 rounded" />
+              <Skeleton className="w-16 h-16 rounded bg-[var(--bg-secondary)]" />
               <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-4 w-3/4 bg-[var(--bg-secondary)]" />
+                <Skeleton className="h-3 w-1/2 bg-[var(--bg-secondary)]" />
               </div>
             </div>
           ))}
         </div>
 
-        {/* Categories Skeleton */}
         <div className="space-y-3">
-          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-5 w-24 bg-[var(--bg-secondary)]" />
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-4 w-full" />
+            <Skeleton key={i} className="h-4 w-full bg-[var(--bg-secondary)]" />
           ))}
         </div>
       </aside>
@@ -244,7 +199,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
     <aside className="space-y-8">
       {/* Search */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           Search
         </h3>
         <form onSubmit={handleSearch} className="relative">
@@ -253,12 +208,13 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             placeholder="Search articles..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-10"
+            className="pr-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+            style={{ outline: "none", boxShadow: "none" }}
             disabled={isSearching}
           />
           <button
             type="submit"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isSearching}
             aria-label="Search"
           >
@@ -270,14 +226,14 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
       </div>
 
       {/* Subscribe */}
-      <div className="bg-secondary/50 rounded-lg p-5 space-y-3">
+      <div className="bg-[var(--bg-secondary)]/50 rounded-lg p-5 space-y-3 border border-[var(--border-color)]">
         <div className="flex items-center gap-2">
-          <Mail className="w-4 h-4 text-[#2b825b]" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <Mail className="w-4 h-4 text-[var(--color-accent-yellow)]" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Get Updates
           </h3>
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-secondary)]">
           Subscribe to receive the latest financial insights directly in your
           inbox.
         </p>
@@ -289,11 +245,12 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isSubscribing}
-            className="w-full"
+            className="w-full border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+            style={{ outline: "none", boxShadow: "none" }}
           />
           <Button
             type="submit"
-            className="w-full bg-[#2b825b] hover:bg-[#2b825b]/90 text-white"
+            className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
             disabled={isSubscribing}
           >
             {isSubscribing ? "Subscribing..." : "Subscribe"}
@@ -304,8 +261,8 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
       {/* Popular Posts */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-[#2b825b]" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <TrendingUp className="w-4 h-4 text-[var(--color-accent-yellow)]" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Popular Posts
           </h3>
         </div>
@@ -315,7 +272,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
               <Link
                 key={post.id}
                 href={`/blog/post-blog/${post.slug}`}
-                className="flex gap-3 group hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
+                className="flex gap-3 group hover:bg-[var(--bg-secondary)] p-2 rounded-lg transition-colors"
               >
                 {post.featured_image ? (
                   <Image
@@ -328,19 +285,19 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
                     loading="lazy"
                   />
                 ) : (
-                  <div className="w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center">
-                    <Hash className="w-6 h-6 text-muted-foreground" />
+                  <div className="w-16 h-16 bg-[var(--bg-secondary)] rounded shrink-0 flex items-center justify-center">
+                    <Hash className="w-6 h-6 text-[var(--text-secondary)]" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium line-clamp-2 group-hover:text-[#2b825b] transition-colors">
+                  <h4 className="text-sm font-medium text-[var(--text-primary)] line-clamp-2 group-hover:text-[var(--color-accent-yellow)] transition-colors">
                     {post.title}
                   </h4>
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[var(--text-secondary)]">
                       {getAuthorName(post)}
                     </p>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-[var(--text-secondary)]">
                       {post.view_count || 0} views
                     </span>
                   </div>
@@ -349,7 +306,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground italic">
+          <p className="text-sm text-[var(--text-secondary)] italic">
             No popular posts yet
           </p>
         )}
@@ -358,8 +315,8 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
       {/* Recent Posts */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-[#2b825b]" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <Clock className="w-4 h-4 text-[var(--color-accent-yellow)]" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Recent Posts
           </h3>
         </div>
@@ -369,7 +326,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
               <Link
                 key={post.id}
                 href={`/blog/post-blog/${post.slug}`}
-                className="flex gap-3 group hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
+                className="flex gap-3 group hover:bg-[var(--bg-secondary)] p-2 rounded-lg transition-colors"
               >
                 {post.featured_image ? (
                   <img
@@ -380,19 +337,19 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
                     loading="lazy"
                   />
                 ) : (
-                  <div className="w-16 h-16 bg-muted rounded shrink-0 flex items-center justify-center">
-                    <Hash className="w-6 h-6 text-muted-foreground" />
+                  <div className="w-16 h-16 bg-[var(--bg-secondary)] rounded shrink-0 flex items-center justify-center">
+                    <Hash className="w-6 h-6 text-[var(--text-secondary)]" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium line-clamp-2 group-hover:text-[#2b825b] transition-colors">
+                  <h4 className="text-sm font-medium text-[var(--text-primary)] line-clamp-2 group-hover:text-[var(--color-accent-yellow)] transition-colors">
                     {post.title}
                   </h4>
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[var(--text-secondary)]">
                       {getAuthorName(post)}
                     </p>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-[var(--text-secondary)]">
                       {new Date(post.created_at).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -404,7 +361,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground italic">
+          <p className="text-sm text-[var(--text-secondary)] italic">
             No recent posts yet
           </p>
         )}
@@ -412,7 +369,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
 
       {/* Categories */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           Categories
         </h3>
         {categories.length > 0 ? (
@@ -421,10 +378,10 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
               <li key={category.name}>
                 <Link
                   href={`/blog?category=${encodeURIComponent(category.name)}`}
-                  className="flex items-center justify-between text-sm hover:text-[#2b825b] transition-colors px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
+                  className="flex items-center justify-between text-sm text-[var(--text-primary)] hover:text-[var(--color-accent-yellow)] transition-colors px-2 py-1.5 hover:bg-[var(--bg-secondary)] rounded"
                 >
                   <span className="capitalize">{category.name}</span>
-                  <span className="text-muted-foreground text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                  <span className="text-[var(--text-secondary)] text-xs bg-[var(--bg-secondary)] px-2 py-0.5 rounded">
                     {category.count}
                   </span>
                 </Link>
@@ -432,7 +389,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground italic">
+          <p className="text-sm text-[var(--text-secondary)] italic">
             No categories yet
           </p>
         )}
@@ -440,7 +397,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
 
       {/* Archives */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           Archives
         </h3>
         {archives.length > 0 ? (
@@ -449,10 +406,10 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
               <li key={archive.label}>
                 <Link
                   href={`/blog?archive=${archive.year}-${archive.month.toLowerCase()}`}
-                  className="flex items-center justify-between text-sm hover:text-[#2b825b] transition-colors px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
+                  className="flex items-center justify-between text-sm text-[var(--text-primary)] hover:text-[var(--color-accent-yellow)] transition-colors px-2 py-1.5 hover:bg-[var(--bg-secondary)] rounded"
                 >
                   <span>{archive.label}</span>
-                  <span className="text-muted-foreground text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                  <span className="text-[var(--text-secondary)] text-xs bg-[var(--bg-secondary)] px-2 py-0.5 rounded">
                     {archive.count}
                   </span>
                 </Link>
@@ -460,22 +417,22 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground italic">
+          <p className="text-sm text-[var(--text-secondary)] italic">
             No archives yet
           </p>
         )}
       </div>
 
       {/* Ad Placeholder */}
-      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 text-center border border-gray-200 dark:border-gray-700">
-        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+      <div className="bg-[var(--bg-secondary)] rounded-lg p-6 text-center border border-[var(--border-color)]">
+        <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-2">
           Advertisement
         </p>
-        <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded flex flex-col items-center justify-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+        <div className="h-48 bg-[var(--bg-secondary)] rounded flex flex-col items-center justify-center border border-dashed border-[var(--border-color)]">
+          <span className="text-sm text-[var(--text-secondary)] mb-2">
             Ad Space Available
           </span>
-          <span className="text-xs text-gray-400 dark:text-gray-500">
+          <span className="text-xs text-[var(--text-secondary)]">
             300x250
           </span>
         </div>

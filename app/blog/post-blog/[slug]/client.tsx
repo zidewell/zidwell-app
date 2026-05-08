@@ -1,3 +1,4 @@
+// app/blog/post-blog/client.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -6,6 +7,7 @@ import { format } from "date-fns";
 import { ArrowLeft, Share2, Bookmark, Heart, Eye, Clock } from "lucide-react";
 import Swal from "sweetalert2";
 import Image from "next/image";
+import CommentSection from "@/app/components/blog-components/blog/CommentSection";
 
 // Types
 interface BlogPost {
@@ -32,13 +34,18 @@ interface BlogPost {
 }
 
 // Simple alert helper
-const showAlert = (title: string, text: string, icon: "success" | "error" | "info") => {
+const showAlert = (
+  title: string,
+  text: string,
+  icon: "success" | "error" | "info",
+) => {
   Swal.fire({
     title,
     text,
     icon,
     timer: 1500,
     showConfirmButton: false,
+    confirmButtonColor: "var(--color-accent-yellow)",
   });
 };
 
@@ -49,7 +56,11 @@ const calculateReadTime = (content: string): number => {
   return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
 };
 
-export default function BlogPostClient({ post: initialPost }: { post: BlogPost }) {
+export default function BlogPostClient({
+  post: initialPost,
+}: {
+  post: BlogPost;
+}) {
   const router = useRouter();
   const [post] = useState(initialPost);
   const [viewCount, setViewCount] = useState(initialPost.view_count || 0);
@@ -66,10 +77,10 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
     // Load from localStorage
     const likedPosts = JSON.parse(localStorage.getItem("likedPosts") || "[]");
     setIsLiked(likedPosts.includes(post.id));
-    
+
     const bookmarks = JSON.parse(localStorage.getItem("blogBookmarks") || "[]");
     setIsBookmarked(bookmarks.includes(post.id));
-    
+
     // Increment view count (only once per session)
     const viewedKey = `viewed_post_${post.id}`;
     if (!sessionStorage.getItem(viewedKey)) {
@@ -78,8 +89,8 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ increment_view: true }),
       })
-        .then(res => res.json())
-        .then(data => {
+        .then((res) => res.json())
+        .then((data) => {
           if (data.view_count) setViewCount(data.view_count);
         })
         .catch(console.error);
@@ -91,7 +102,7 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
     try {
       setIsSharing(true);
       const url = window.location.href;
-      
+
       if (navigator.share) {
         await navigator.share({
           title: post.title,
@@ -128,11 +139,11 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
   const handleLike = async () => {
     const newIsLiked = !isLiked;
     const newLikeCount = newIsLiked ? likeCount + 1 : likeCount - 1;
-    
+
     // Optimistic update
     setLikeCount(newLikeCount);
     setIsLiked(newIsLiked);
-    
+
     // Update localStorage
     const likedPosts = JSON.parse(localStorage.getItem("likedPosts") || "[]");
     if (newIsLiked) {
@@ -143,7 +154,7 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
       if (index > -1) likedPosts.splice(index, 1);
     }
     localStorage.setItem("likedPosts", JSON.stringify(likedPosts));
-    
+
     // Update server
     try {
       await fetch(`/api/blog/posts?id=${post.id}`, {
@@ -165,19 +176,19 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Simple Header */}
-      <header className="border-b border-gray-200 bg-white sticky top-0 z-10">
+      <header className="border-b border-[var(--border-color)] bg-[var(--bg-primary)] sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 max-w-6xl">
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.push("/blog")}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Blog</span>
             </button>
-            <div className="text-sm text-gray-500">Zidwell Blog</div>
+            <div className="text-sm text-[var(--text-secondary)]">Zidwell Blog</div>
           </div>
         </div>
       </header>
@@ -190,7 +201,7 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
               {post.categories.map((cat, i) => (
                 <span
                   key={i}
-                  className="text-xs uppercase tracking-wider text-[#2b825b] font-medium"
+                  className="text-xs uppercase tracking-wider text-[var(--color-accent-yellow)] font-medium"
                 >
                   {cat}
                 </span>
@@ -199,20 +210,20 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
           )}
 
           {/* Title */}
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[var(--text-primary)] mb-4 leading-tight">
             {post.title}
           </h1>
 
           {/* Excerpt */}
           {post.excerpt && (
-            <p className="text-lg text-gray-600 mb-6 italic border-l-4 border-[#2b825b] pl-4">
+            <p className="text-lg text-[var(--text-secondary)] mb-6 italic border-l-4 border-[var(--color-accent-yellow)] pl-4">
               {post.excerpt}
             </p>
           )}
 
           {/* Author & Meta */}
-          <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
-            <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+          <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[var(--border-color)]">
+            <div className="w-12 h-12 rounded-full bg-[var(--bg-secondary)] overflow-hidden flex-shrink-0">
               {post.author_avatar && (
                 <Image
                   src={post.author_avatar}
@@ -224,10 +235,10 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
               )}
             </div>
             <div>
-              <div className="font-semibold text-gray-900">
+              <div className="font-semibold text-[var(--text-primary)]">
                 {post.author_name || "Zidwell"}
               </div>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" /> {readTime} min read
                 </span>
@@ -240,11 +251,11 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3 py-4 border-b border-gray-200 mb-8">
+          <div className="flex flex-wrap gap-3 py-4 border-b border-[var(--border-color)] mb-8">
             <button
               onClick={handleShare}
               disabled={isSharing}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-gray-700"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-secondary)]/80 transition-colors text-[var(--text-primary)]"
             >
               <Share2 className="w-4 h-4" />
               <span>{isSharing ? "Sharing..." : "Share"}</span>
@@ -253,11 +264,13 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
               onClick={handleBookmark}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 isBookmarked
-                  ? "bg-[#2b825b] text-white"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                  : "bg-[var(--bg-secondary)] hover:bg-[var(--bg-secondary)]/80 text-[var(--text-primary)]"
               }`}
             >
-              <Bookmark className={`w-4 h-4 ${isBookmarked ? "fill-white" : ""}`} />
+              <Bookmark
+                className={`w-4 h-4 ${isBookmarked ? "fill-[var(--color-ink)]" : ""}`}
+              />
               <span>{isBookmarked ? "Bookmarked" : "Bookmark"}</span>
             </button>
             <button
@@ -265,17 +278,19 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 isLiked
                   ? "bg-red-500 text-white"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  : "bg-[var(--bg-secondary)] hover:bg-[var(--bg-secondary)]/80 text-[var(--text-primary)]"
               }`}
             >
               <Heart className={`w-4 h-4 ${isLiked ? "fill-white" : ""}`} />
-              <span>{likeCount} {isLiked ? "Liked" : "Like"}</span>
+              <span>
+                {likeCount} {isLiked ? "Liked" : "Like"}
+              </span>
             </button>
           </div>
 
           {/* Featured Image */}
           {post.featured_image && (
-            <div className="mb-8 rounded-xl overflow-hidden shadow-lg">
+            <div className="mb-8 rounded-xl overflow-hidden shadow-soft">
               <Image
                 src={post.featured_image}
                 alt={post.title}
@@ -283,26 +298,26 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
                 height={630}
                 className="w-full h-auto object-cover"
                 priority
-                unoptimized={post.featured_image.startsWith('http')}
+                unoptimized={post.featured_image.startsWith("http")}
               />
             </div>
           )}
 
           {/* Content */}
           <div
-            className="prose prose-lg prose-headings:font-bold prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-[#2b825b] prose-img:rounded-lg prose-img:shadow-md max-w-none mb-8"
+            className="prose prose-lg prose-headings:font-bold prose-headings:text-[var(--text-primary)] prose-p:text-[var(--text-primary)] prose-a:text-[var(--color-accent-yellow)] prose-img:rounded-lg prose-img:shadow-md max-w-none mb-8"
             dangerouslySetInnerHTML={renderContent()}
           />
 
           {/* Tags */}
           {post.tags.length > 0 && (
-            <div className="pt-6 border-t border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-3">Tags</h3>
+            <div className="pt-6 border-t border-[var(--border-color)]">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-3">Tags</h3>
               <div className="flex flex-wrap gap-2">
                 {post.tags.map((tag, i) => (
                   <span
                     key={i}
-                    className="px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-600"
+                    className="px-3 py-1 bg-[var(--bg-secondary)] rounded-full text-sm text-[var(--text-secondary)]"
                   >
                     #{tag}
                   </span>
@@ -312,22 +327,31 @@ export default function BlogPostClient({ post: initialPost }: { post: BlogPost }
           )}
 
           {/* Stats Footer */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
+          <div className="mt-8 pt-6 border-t border-[var(--border-color)]">
             <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-xl font-bold text-gray-900">{viewCount.toLocaleString()}</div>
-                <div className="text-xs text-gray-500">Views</div>
+              <div className="p-3 bg-[var(--bg-secondary)] rounded-lg">
+                <div className="text-xl font-bold text-[var(--text-primary)]">
+                  {viewCount.toLocaleString()}
+                </div>
+                <div className="text-xs text-[var(--text-secondary)]">Views</div>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-xl font-bold text-gray-900">{likeCount.toLocaleString()}</div>
-                <div className="text-xs text-gray-500">Likes</div>
+              <div className="p-3 bg-[var(--bg-secondary)] rounded-lg">
+                <div className="text-xl font-bold text-[var(--text-primary)]">
+                  {likeCount.toLocaleString()}
+                </div>
+                <div className="text-xs text-[var(--text-secondary)]">Likes</div>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-xl font-bold text-gray-900">{post.comments_count || 0}</div>
-                <div className="text-xs text-gray-500">Comments</div>
+              <div className="p-3 bg-[var(--bg-secondary)] rounded-lg">
+                <div className="text-xl font-bold text-[var(--text-primary)]">
+                  {post.comments_count || 0}
+                </div>
+                <div className="text-xs text-[var(--text-secondary)]">Comments</div>
               </div>
             </div>
           </div>
+
+          {/* Comments Section */}
+          <CommentSection postId={post.id} />
         </article>
       </main>
     </div>

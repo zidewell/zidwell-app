@@ -179,13 +179,35 @@ export default function Pricing() {
     }
   }, [upgradeParam]);
 
+  // Handle callback after login
+  useEffect(() => {
+    const upgradePlan = searchParams?.get("upgrade");
+    const billingParam = searchParams?.get("billing");
+    
+    if (upgradePlan && userData?.id) {
+      // Set the billing period if specified
+      if (billingParam === "yearly") {
+        setSelectedBilling("yearly");
+      }
+      
+      // Find and trigger subscription for the plan
+      const plan = plans.find(p => p.tier === upgradePlan);
+      if (plan && plan.tier !== "free" && plan.tier !== "elite") {
+        // Clear the URL parameters
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+        // Trigger subscription
+        handleSubscribe(plan);
+      }
+    }
+  }, [searchParams, userData?.id]);
+
   const createNombaCheckout = async (
     plan: (typeof plans)[0],
     amount: number,
   ) => {
     try {
       if (!userData?.id) {
-        sessionStorage.setItem("intendedUrl", "/pricing");
         router.push("/auth/login");
         return;
       }
@@ -235,11 +257,14 @@ export default function Pricing() {
         "mailto:sales@zidwell.com?subject=Elite%20Plan%20Inquiry";
       return;
     }
+    
+    // If not logged in, redirect to login with callback URL
     if (!userData?.id) {
-      sessionStorage.setItem("intendedUrl", "/pricing");
-      router.push("/auth/login");
+      const callbackUrl = `/pricing?upgrade=${plan.tier}&billing=${selectedBilling}`;
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
+    
     setProcessingTier(plan.tier);
     setError(null);
     try {

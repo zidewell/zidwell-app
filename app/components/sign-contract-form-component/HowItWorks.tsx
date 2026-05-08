@@ -1,9 +1,10 @@
+// app/components/sign-contract-form-component/HowItWorks.tsx
 import SignContractStep from "./SignContractStep";
 
 const HowItWorks: React.FC = () => (
-    <section className="border border-gray-100 rounded p-4 mb-6 bg-white">
-        <h3 className="text-sm font-medium">How It Works</h3>
-        <p className="text-xs text-gray-500 mt-1">Three simple steps to get your contract signed</p>
+    <section className="border border-[var(--border-color)] rounded p-4 mb-6 bg-[var(--bg-primary)]">
+        <h3 className="text-sm font-medium text-[var(--text-primary)]">How It Works</h3>
+        <p className="text-xs text-[var(--text-secondary)] mt-1">Three simple steps to get your contract signed</p>
         <ol className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
             <SignContractStep num={1} title="Create Contract">Write or use our templates to create your contract</SignContractStep>
             <SignContractStep num={2} title="Send for Signature">Add signers' details and send via email</SignContractStep>

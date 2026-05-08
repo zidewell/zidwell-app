@@ -19,7 +19,7 @@ const ConsultationModal = ({ open, onOpenChange }: ConsultationModalProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg border-2 border-foreground shadow-brutal p-0 overflow-hidden">
         {/* Header with gold gradient */}
-        <div className="bg-linear-to-br from-[#2b825b] via-[#2b825b] to-[#9a7506] p-5">
+        <div className="bg-linear-to-br from-(--color-accent-yellow) via-(--color-accent-yellow) to-[#9a7506] p-5">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black text-foreground">
               Expert Consultation

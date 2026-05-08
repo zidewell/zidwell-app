@@ -1,3 +1,4 @@
+// app/components/sign-contract-form-component/ContractSuccessModal.tsx
 "use client";
 
 import { useState } from "react";
@@ -55,21 +56,21 @@ export const ContractSuccessModal: React.FC<ContractSuccessModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full shadow-xl max-h-[90vh] overflow-y-auto relative">
+      <div className="bg-[var(--bg-primary)] rounded-lg p-6 max-w-2xl w-full shadow-xl max-h-[90vh] overflow-y-auto relative">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-[var(--bg-secondary)] transition-colors"
           aria-label="Close modal"
         >
-          <X className="h-5 w-5 text-gray-500" />
+          <X className="h-5 w-5 text-[var(--text-secondary)]" />
         </button>
 
         {/* Success animation */}
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-linear-to-br from-[#F9F4E5] to-[#ffed4e] rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
             <svg
-              className="w-8 h-8 text-[#2b825b]"
+              className="w-8 h-8 text-[var(--color-accent-yellow)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -83,10 +84,10 @@ export const ContractSuccessModal: React.FC<ContractSuccessModalProps> = ({
             </svg>
           </div>
 
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
+          <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">
             Contract Created Successfully! 🎉
           </h3>
-          <p className="text-gray-600">
+          <p className="text-[var(--text-secondary)]">
             Your contract has been generated and is ready to share.
           </p>
         </div>
@@ -95,11 +96,11 @@ export const ContractSuccessModal: React.FC<ContractSuccessModalProps> = ({
         <div className="space-y-4 mb-6">
           {/* Share Contract Link */}
           {signingLink && (
-            <div className="rounded-lg border border-gray-200 p-4 hover:border-[#2b825b] transition-colors bg-gray-50">
+            <div className="rounded-lg border border-[var(--border-color)] p-4 hover:border-[var(--color-accent-yellow)] transition-colors bg-[var(--bg-secondary)]">
               <div className="flex items-start gap-4">
-                <div className="h-10 w-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                <div className="h-10 w-10 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center shrink-0">
                   <svg
-                    className="h-5 w-5 text-gray-700"
+                    className="h-5 w-5 text-[var(--text-primary)]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -113,22 +114,22 @@ export const ContractSuccessModal: React.FC<ContractSuccessModalProps> = ({
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-medium text-gray-900">
+                  <h3 className="font-medium text-[var(--text-primary)]">
                     Share Contract Link
                   </h3>
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">
                     Send this link to the recipient. They can view, acknowledge,
                     and sign the contract.
                   </p>
                   <div className="flex gap-2 mt-3">
-                    <div className="flex-1 rounded-lg bg-white px-3 py-2 text-xs font-mono text-gray-600 truncate border">
+                    <div className="flex-1 rounded-lg bg-[var(--bg-primary)] px-3 py-2 text-xs font-mono text-[var(--text-secondary)] truncate border border-[var(--border-color)]">
                       {signingLink}
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleCopySigningLink}
-                      className="shrink-0 border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b] hover:text-white"
+                      className="shrink-0 border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)]"
                     >
                       {copied ? (
                         <Check className="h-4 w-4" />
@@ -146,37 +147,37 @@ export const ContractSuccessModal: React.FC<ContractSuccessModalProps> = ({
           <Button
             onClick={onNewContract}
             variant="outline"
-            className="w-full border-gray-300 hover:bg-gray-50 transition-colors duration-200"
+            className="w-full border-[var(--border-color)] hover:bg-[var(--bg-secondary)] transition-colors duration-200 text-[var(--text-primary)]"
           >
             Create New Contract
           </Button>
         </div>
 
         {/* Contract Details */}
-        <div className="p-4 bg-linear-to-r from-gray-50 to-[#F9F4E5]/30 rounded-lg border border-gray-100">
-          <p className="text-sm text-gray-700 text-center mb-2">
+        <div className="p-4 bg-linear-to-r from-[var(--bg-secondary)] to-[var(--color-accent-yellow)]/10 rounded-lg border border-[var(--border-color)]">
+          <p className="text-sm text-[var(--text-primary)] text-center mb-2">
             <strong>Contract ID:</strong> {contractId}
           </p>
-          <p className="text-sm text-gray-700 text-center mb-2">
+          <p className="text-sm text-[var(--text-primary)] text-center mb-2">
             <strong>Contract Date:</strong>{" "}
             {new Date(contractDate).toLocaleDateString()}
           </p>
           {attachmentsCount > 0 && (
-            <p className="text-sm text-gray-700 text-center mb-2">
+            <p className="text-sm text-[var(--text-primary)] text-center mb-2">
               <strong>Attachments:</strong> {attachmentsCount} file(s) included
             </p>
           )}
           {includeLawyerSignature && (
-            <p className="text-sm text-gray-700 text-center mb-2">
+            <p className="text-sm text-[var(--text-primary)] text-center mb-2">
               <strong>Lawyer Signature:</strong> Included ✓
             </p>
           )}
           {creatorSignature && (
-            <p className="text-sm text-gray-700 text-center mb-2">
+            <p className="text-sm text-[var(--text-primary)] text-center mb-2">
               <strong>Your Signature:</strong> Applied ✓
             </p>
           )}
-          <p className="text-xs text-gray-500 text-center mt-1">
+          <p className="text-xs text-[var(--text-secondary)] text-center mt-1">
             You can find this contract in your dashboard
           </p>
         </div>
@@ -186,7 +187,7 @@ export const ContractSuccessModal: React.FC<ContractSuccessModalProps> = ({
           <Button
             onClick={onClose}
             variant="ghost"
-            className="w-full hover:bg-gray-100"
+            className="w-full hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]"
           >
             Close
           </Button>

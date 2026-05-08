@@ -1,7 +1,7 @@
 // app/components/subscription-components/SubscriptionDashboard.tsx
 "use client";
 
-import { useSubscription } from "@/app/hooks/useSubscripion"; 
+import { useSubscription } from "@/app/hooks/useSubscripion";
 import { Button2 } from "../ui/button2";
 import {
   Check,
@@ -50,7 +50,7 @@ export function SubscriptionDashboard() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2b825b]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--color-accent-yellow)"></div>
       </div>
     );
   }
@@ -108,7 +108,7 @@ export function SubscriptionDashboard() {
       case "growth":
         return <Zap className="w-5 h-5 text-green-600" />;
       case "premium":
-        return <Crown className="w-5 h-5 text-[#2b825b]" />;
+        return <Crown className="w-5 h-5 text-(--color-accent-yellow)" />;
       case "elite":
         return <Sparkles className="w-5 h-5 text-purple-600" />;
       default:
@@ -280,10 +280,14 @@ export function SubscriptionDashboard() {
                           <span className="text-green-600 dark:text-green-400">
                             Trial ({bookkeepingTrial.daysRemaining} days)
                           </span>
-                        ) : isFeatureIncluded('bookkeepingAccess') ? (
-                          <span className="text-green-600 dark:text-green-400">Included</span>
+                        ) : isFeatureIncluded("bookkeepingAccess") ? (
+                          <span className="text-green-600 dark:text-green-400">
+                            Included
+                          </span>
                         ) : (
-                          <span className="text-gray-500 dark:text-gray-500">Not Available</span>
+                          <span className="text-gray-500 dark:text-gray-500">
+                            Not Available
+                          </span>
                         )}
                       </span>
                     </div>
@@ -296,14 +300,18 @@ export function SubscriptionDashboard() {
                           <span className="text-green-600 dark:text-green-400">
                             Trial ({taxCalculatorTrial.daysRemaining} days)
                           </span>
-                        ) : isFeatureIncluded('taxCalculator') ? (
-                          <span className="text-green-600 dark:text-green-400">Included</span>
+                        ) : isFeatureIncluded("taxCalculator") ? (
+                          <span className="text-green-600 dark:text-green-400">
+                            Included
+                          </span>
                         ) : (
-                          <span className="text-gray-500 dark:text-gray-500">Not Available</span>
+                          <span className="text-gray-500 dark:text-gray-500">
+                            Not Available
+                          </span>
                         )}
                       </span>
                     </div>
-                    {isFeatureIncluded('whatsappCommunity') && (
+                    {isFeatureIncluded("whatsappCommunity") && (
                       <div className="text-sm">
                         <span className="text-gray-600 dark:text-gray-400">
                           WhatsApp Community:
@@ -313,7 +321,7 @@ export function SubscriptionDashboard() {
                         </span>
                       </div>
                     )}
-                    {isFeatureIncluded('prioritySupport') && (
+                    {isFeatureIncluded("prioritySupport") && (
                       <div className="text-sm">
                         <span className="text-gray-600 dark:text-gray-400">
                           Priority Support:
@@ -347,7 +355,8 @@ export function SubscriptionDashboard() {
                     <span className="font-medium">Bookkeeping:</span> Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Tax Calculator:</span> Included
+                    <span className="font-medium">Tax Calculator:</span>{" "}
+                    Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Support:</span> WhatsApp
@@ -372,10 +381,12 @@ export function SubscriptionDashboard() {
                     <span className="font-medium">Contracts:</span> Unlimited
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Payment Reminders:</span> Included
+                    <span className="font-medium">Payment Reminders:</span>{" "}
+                    Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Financial Statements:</span> Included
+                    <span className="font-medium">Financial Statements:</span>{" "}
+                    Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Tax Support:</span> Included
@@ -461,38 +472,41 @@ export function SubscriptionDashboard() {
       </div>
 
       {/* Features List - Only for paid tiers */}
-      {!isFree && !isZidLite && subscription.features && Object.keys(subscription.features).length > 0 && (
-        <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
-          <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
-            All Features Included
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Object.entries(subscription.features || {}).map(
-              ([key, feature]: [string, any]) => (
-                <div key={key} className="flex items-start gap-2">
-                  <Check className="w-4 h-4 text-[#2b825b] shrink-0 mt-0.5" />
-                  <div>
-                    <span className="text-sm text-gray-900 dark:text-gray-50">
-                      {key
-                        .replace(/_/g, " ")
-                        .replace(/\b\w/g, (l) => l.toUpperCase())}
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 block">
-                      {feature.value === "true"
-                        ? "Included"
-                        : feature.value === "unlimited"
-                          ? "Unlimited"
-                          : feature.limit
-                            ? `${feature.limit} total`
-                            : feature.value}
-                    </span>
+      {!isFree &&
+        !isZidLite &&
+        subscription.features &&
+        Object.keys(subscription.features).length > 0 && (
+          <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
+            <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
+              All Features Included
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(subscription.features || {}).map(
+                ([key, feature]: [string, any]) => (
+                  <div key={key} className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-(--color-accent-yellow) shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-sm text-gray-900 dark:text-gray-50">
+                        {key
+                          .replace(/_/g, " ")
+                          .replace(/\b\w/g, (l) => l.toUpperCase())}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                        {feature.value === "true"
+                          ? "Included"
+                          : feature.value === "unlimited"
+                            ? "Unlimited"
+                            : feature.limit
+                              ? `${feature.limit} total`
+                              : feature.value}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ),
-            )}
+                ),
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Payment History - Placeholder for now */}
       {!isFree && !isZidLite && (
@@ -525,7 +539,7 @@ export function SubscriptionDashboard() {
               .map((tier) => (
                 <div
                   key={tier}
-                  className="border-2 border-gray-200 dark:border-gray-700 p-4 rounded-lg hover:border-[#2b825b] transition-colors"
+                  className="border-2 border-gray-200 dark:border-gray-700 p-4 rounded-lg hover:border-(--color-accent-yellow) transition-colors"
                 >
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                     <div className="flex-1">
@@ -538,18 +552,19 @@ export function SubscriptionDashboard() {
                       <ul className="space-y-1 mb-4 md:mb-0">
                         {getUpgradeBenefits(tier as any)
                           .slice(0, 4)
-                          .map((benefit:any, i:any) => (
+                          .map((benefit: any, i: any) => (
                             <li
                               key={i}
                               className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"
                             >
-                              <Check className="w-3 h-3 text-[#2b825b] shrink-0" />
+                              <Check className="w-3 h-3 text-(--color-accent-yellow) shrink-0" />
                               <span>{benefit}</span>
                             </li>
                           ))}
                         {getUpgradeBenefits(tier as any).length > 4 && (
-                          <li className="text-sm text-[#2b825b] mt-1">
-                            +{getUpgradeBenefits(tier as any).length - 4} more benefits
+                          <li className="text-sm text-(--color-accent-yellow) mt-1">
+                            +{getUpgradeBenefits(tier as any).length - 4} more
+                            benefits
                           </li>
                         )}
                       </ul>

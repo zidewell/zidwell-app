@@ -1,12 +1,7 @@
-// app/dashboard/services/contract/page.tsx
 "use client";
 import DashboardHeader from '@/app/components/dashboard-component/DashboardHeader';
 import DashboardSidebar from '@/app/components/dashboard-component/DashboardSidebar';
 import ContractGen from '@/app/components/sign-contract-form-component/ContractGen';
-import Features from '@/app/components/smart-contract-components/Features';
-import Pricing from '@/app/components/smart-contract-components/Pricing';
-import SmartContractHero from '@/app/components/smart-contract-components/SmartContractHero';
-import SmartContractStep from '@/app/components/smart-contract-components/SmartContractStep';
 import { useUserContextData } from '@/app/context/userData';
 import { SubscriptionPageGuard } from '@/app/components/subscription-components/SubscriptionGuard'; 
 import { useSubscription } from '@/app/hooks/useSubscripion'; 
@@ -14,7 +9,6 @@ import { ArrowLeft, Crown, Zap, Sparkles, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import Swal from 'sweetalert2'
-import Link from "next/link";
 import { Button } from '@/app/components/ui/button';
 import Loader from '@/app/components/Loader';
 
@@ -103,11 +97,11 @@ const Page = () => {
   }, [userTier, hasUnlimitedContracts, isZidLiteUser, contractCount]);
 
   const getTierInfo = () => {
-    if (isEliteUser) return { icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/20', label: 'Elite' };
-    if (isPremiumUser) return { icon: Crown, color: 'text-[#2b825b]', bg: 'bg-[#2b825b]/10', label: 'Premium' };
-    if (isGrowthUser) return { icon: Zap, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/20', label: 'Growth' };
-    if (isZidLiteUser) return { icon: Zap, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/20', label: 'ZidLite' };
-    return { icon: Star, color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-800', label: 'Free Trial' };
+    if (isEliteUser) return { icon: Sparkles, label: 'Elite' };
+    if (isPremiumUser) return { icon: Crown,  label: 'Premium' };
+    if (isGrowthUser) return { icon: Zap,  label: 'Growth' };
+    if (isZidLiteUser) return { icon: Zap,  label: 'ZidLite' };
+    return { icon: Star, label: 'Free Trial' };
   };
 
   const tierInfo = getTierInfo();
@@ -133,7 +127,7 @@ const Page = () => {
 
   if (!initialLoadDone && loading) {
     return (
-      <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e]">
+      <div className="min-h-screen bg-[var(--bg-secondary)] dark:bg-[#0e0e0e]">
         <DashboardSidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -157,7 +151,7 @@ const Page = () => {
       title="Smart Contract Generator"
       description="Create legally binding agreements, contracts, and NDAs with our easy-to-use contract generator"
     >
-      <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] fade-in relative">
+      <div className="min-h-screen bg-[var(--bg-secondary)] dark:bg-[#0e0e0e] fade-in relative">
         <DashboardSidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -174,7 +168,7 @@ const Page = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => router.back()}
-                  className="text-[#2b825b] hover:text-[#1e5d42] hover:bg-[#f0efe7] dark:hover:bg-[#242424] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[#242424] dark:hover:border-[#474747] transition-all"
+                  className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:bg-[var(--bg-secondary)] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[var(--border-color)] transition-all"
                 >
                   <ArrowLeft className="w-5 h-5 md:mr-2" />
                   <span className="hidden md:inline text-sm font-medium">Back</span>
@@ -182,17 +176,12 @@ const Page = () => {
 
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#141414] dark:text-[#f5f5f5]">
+                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)]">
                       Contract Management
                     </h1>
-                    <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}>
-                      <TierIcon className={`w-4 h-4 ${tierInfo.color}`} />
-                      <span className={`text-xs font-semibold ${tierInfo.color}`}>
-                        {tierInfo.label}
-                      </span>
-                    </div>
+                   
                   </div>
-                  <p className="text-sm md:text-base text-[#6b6b6b] dark:text-[#a6a6a6]">
+                  <p className="text-sm md:text-base text-[var(--text-secondary)]">
                     Create legally binding agreements, contracts, and NDAs
                   </p>
                 </div>
@@ -204,9 +193,9 @@ const Page = () => {
                   isEliteUser
                     ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800'
                     : isPremiumUser
-                    ? 'bg-[#2b825b]/10 border-[#2b825b]'
+                    ? 'bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]'
                     : isGrowthUser
-                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                    ? 'bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]'
                     : isZidLiteUser
                     ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
                     : ''
@@ -215,9 +204,9 @@ const Page = () => {
                     isEliteUser
                       ? 'text-purple-600 dark:text-purple-400'
                       : isPremiumUser
-                      ? 'text-[#2b825b]'
+                      ? 'text-[var(--color-accent-yellow)]'
                       : isGrowthUser
-                      ? 'text-green-600 dark:text-green-400'
+                      ? 'text-[var(--color-accent-yellow)]'
                       : isZidLiteUser
                       ? 'text-blue-600 dark:text-blue-400'
                       : ''
@@ -226,9 +215,9 @@ const Page = () => {
                       isEliteUser
                         ? 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800'
                         : isPremiumUser
-                        ? 'bg-[#2b825b] text-white'
+                        ? 'bg-[var(--color-accent-yellow)] text-[var(--color-ink)]'
                         : isGrowthUser
-                        ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800'
+                        ? 'bg-[var(--color-accent-yellow)] text-[var(--color-ink)]'
                         : isZidLiteUser
                         ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
                         : ''
@@ -240,25 +229,16 @@ const Page = () => {
                 </div>
               )}
 
-              {/* Show either the marketing components OR the contract list */}
-              {!hasContracts && !loading ? (
-                <>
-                  <SmartContractHero />
-                  <Features />
-                  <SmartContractStep />
-                  <Pricing />
-                </>
-              ) : (
-                <ContractGen 
-                  contracts={contracts} 
-                  loading={loading} 
-                  userTier={userTier}
-                  isPremium={isPremiumUser || isGrowthUser} 
-                  hasReachedLimit={hasReachedLimit}
-                  remainingContracts={remainingContracts}
-                  onRefresh={() => userData?.email && fetchContracts(userData.email)}
-                />
-              )}
+        
+              <ContractGen 
+                contracts={contracts} 
+                loading={loading} 
+                userTier={userTier}
+                isPremium={isPremiumUser || isGrowthUser} 
+                hasReachedLimit={hasReachedLimit}
+                remainingContracts={remainingContracts}
+                onRefresh={() => userData?.email && fetchContracts(userData.email)}
+              />
             </div>
           </main>
         </div>

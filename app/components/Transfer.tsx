@@ -18,7 +18,7 @@ import {
   CommandGroup,
   CommandItem,
 } from "./ui/command";
-import { Check, ChevronsUpDown, Loader2, Bookmark, User, Eye, EyeOff, Landmark, CopyIcon } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Bookmark, User, Eye, EyeOff, Landmark, CopyIcon, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -57,6 +57,16 @@ interface SavedP2PBeneficiary {
   account_name: string;
   is_default: boolean;
   created_at: string;
+}
+
+interface ExpenseCategory {
+  id: string;
+  name: string;
+  icon: string;
+  type: string;
+  isCustom: boolean;
+  is_favorite?: boolean;
+  favorite_order?: number;
 }
 
 type PaymentMethod = "checkout" | "virtual_account" | "bank_transfer" | "p2p";
@@ -100,6 +110,15 @@ export default function Transfer() {
   const [showSavedP2PBeneficiaries, setShowSavedP2PBeneficiaries] = useState(false);
   const [showAlltime, setShowAlltime] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
+  
+  // State for expense categories
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
+  const [expenseCategory, setExpenseCategory] = useState<string>("");
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [categorySearch, setCategorySearch] = useState("");
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  // Track pending favorite updates to avoid race conditions
+  const pendingFavoritesRef = useRef<Set<string>>(new Set());
 
   // Polling refs
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -127,6 +146,7 @@ export default function Transfer() {
     setSaveP2PBeneficiary(false);
     setSelectedSavedAccount(null);
     setSelectedSavedP2PBeneficiary(null);
+    setExpenseCategory("");
   };
 
   const stopPolling = () => {
@@ -289,6 +309,125 @@ export default function Transfer() {
     setSearch("");
   };
 
+  // Fetch expense categories from database
+  const fetchExpenseCategories = async () => {
+    if (!userData?.id) return;
+    
+    setLoadingCategories(true);
+    try {
+      const response = await fetch(`/api/journal/categories?userId=${userData.id}`);
+      const data = await response.json();
+      
+      // Filter only expense categories
+      const expenseCats = data.filter((cat: ExpenseCategory) => cat.type === 'expense');
+      setExpenseCategories(expenseCats);
+    } catch (error) {
+      console.error("Failed to fetch expense categories:", error);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Toggle favorite category with IMMEDIATE UI update
+  const toggleFavoriteCategory = async (category: ExpenseCategory, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Prevent multiple simultaneous updates for the same category
+    if (pendingFavoritesRef.current.has(category.id)) {
+      return;
+    }
+    
+    const newFavoriteStatus = !category.is_favorite;
+    
+    // IMMEDIATE UI UPDATE - Optimistic update
+    setExpenseCategories(prev =>
+      prev.map(cat =>
+        cat.id === category.id
+          ? { ...cat, is_favorite: newFavoriteStatus, favorite_order: newFavoriteStatus ? Date.now() : 0 }
+          : cat
+      )
+    );
+    
+    // Mark as pending
+    pendingFavoritesRef.current.add(category.id);
+    
+    // Call API in background
+    try {
+      const response = await fetch(`/api/journal/categories/${category.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userData?.id,
+          name: category.name,
+          icon: category.icon,
+          type: category.type,
+          is_favorite: newFavoriteStatus,
+          favorite_order: newFavoriteStatus ? Date.now() : 0,
+        }),
+      });
+      
+      if (!response.ok) {
+        // Revert on error
+        setExpenseCategories(prev =>
+          prev.map(cat =>
+            cat.id === category.id
+              ? { ...cat, is_favorite: !newFavoriteStatus, favorite_order: !newFavoriteStatus ? 0 : category.favorite_order }
+              : cat
+          )
+        );
+        console.error("Failed to update favorite status");
+      }
+    } catch (error) {
+      // Revert on error
+      setExpenseCategories(prev =>
+        prev.map(cat =>
+          cat.id === category.id
+            ? { ...cat, is_favorite: !newFavoriteStatus, favorite_order: !newFavoriteStatus ? 0 : category.favorite_order }
+            : cat
+        )
+      );
+      console.error("Failed to update favorite:", error);
+    } finally {
+      pendingFavoritesRef.current.delete(category.id);
+    }
+  };
+
+  // Sort categories: favorites first, then by name
+  const getSortedCategories = () => {
+    return [...expenseCategories].sort((a, b) => {
+      if (a.is_favorite && !b.is_favorite) return -1;
+      if (!a.is_favorite && b.is_favorite) return 1;
+      if (a.is_favorite && b.is_favorite) {
+        return (a.favorite_order || 0) - (b.favorite_order || 0);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  };
+
+  const filteredCategories = getSortedCategories().filter(cat =>
+    cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+  );
+
+  const handleSelectCategory = (category: ExpenseCategory) => {
+    setExpenseCategory(category.id);
+    // Auto-fill narration with category name if narration is empty
+    if (!narration) {
+      setNarration(category.name);
+    }
+    setShowCategoryDropdown(false);
+    setCategorySearch("");
+  };
+
+  const getSelectedCategoryName = () => {
+    const category = expenseCategories.find(c => c.id === expenseCategory);
+    return category ? category.name : "Select category";
+  };
+
+  const getSelectedCategoryIcon = () => {
+    const category = expenseCategories.find(c => c.id === expenseCategory);
+    return category ? category.icon : "📦";
+  };
+
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
@@ -339,6 +478,7 @@ export default function Transfer() {
     };
 
     fetchDetails();
+    fetchExpenseCategories();
   }, [userData?.id]);
 
   useEffect(() => {
@@ -566,6 +706,8 @@ export default function Transfer() {
     setLoading(true);
 
     try {
+      const selectedCategory = expenseCategories.find(c => c.id === expenseCategory);
+      
       const payload: any = {
         userId: userData?.id,
         senderName: userDetails.bank_details.bank_account_name,
@@ -577,6 +719,8 @@ export default function Transfer() {
         type: transferType,
         fee: calculatedFee,
         totalDebit,
+        category: selectedCategory?.name || narration,
+        categoryId: expenseCategory,
       };
 
       if (transferType === "my-account") {
@@ -705,6 +849,7 @@ export default function Transfer() {
       newErrors.amount = "Amount must be at least ₦100.";
     if (!narration) newErrors.narration = "Narration is required.";
     if (narration.length > 100) newErrors.narration = "Narration too long.";
+    if (!expenseCategory) newErrors.expenseCategory = "Please select an expense category.";
 
     if (transferType === "my-account" && (!userDetails.payment_details.p_account_number || !userDetails.payment_details.p_account_name)) {
       newErrors.myAccount = "Your bank details are incomplete.";
@@ -740,6 +885,7 @@ export default function Transfer() {
     loading ||
     !amount ||
     !narration ||
+    !expenseCategory ||
     Number(amount) <= 0 ||
     (transferType === "my-account" && !userDetails?.payment_details?.p_account_number) ||
     (transferType === "other-bank" && (!bankCode || !accountNumber || !accountName)) ||
@@ -1086,6 +1232,81 @@ export default function Transfer() {
               <Input type="text" value={narration} onChange={(e) => setNarration(e.target.value)} placeholder="e.g. Food" maxLength={100} className="bg-[var(--bg-primary)] border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]" />
             </div>
             {errors.narration && <p className="text-red-600 text-sm">{errors.narration}</p>}
+
+            {/* Expense Category Dropdown */}
+            <div className="space-y-1">
+              <Label className="text-[var(--text-primary)]">Expense Category <span className="text-sm text-red-500">*</span></Label>
+              
+              {loadingCategories ? (
+                <div className="flex items-center justify-center p-4 border border-[var(--border-color)] rounded-lg">
+                  <Loader2 className="h-5 w-5 animate-spin text-[var(--color-accent-yellow)]" />
+                  <span className="ml-2 text-[var(--text-secondary)]">Loading categories...</span>
+                </div>
+              ) : (
+                <Popover open={showCategoryDropdown} onOpenChange={setShowCategoryDropdown}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full flex justify-between items-center border border-[var(--border-color)] rounded-lg px-4 py-2.5 text-sm bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-xl">{getSelectedCategoryIcon()}</span>
+                        <span>{getSelectedCategoryName()}</span>
+                      </span>
+                      <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0 bg-[var(--bg-primary)] border-[var(--border-color)] max-h-[400px] overflow-y-auto" align="start">
+                    <Command className="bg-[var(--bg-primary)]">
+                      <CommandInput 
+                        placeholder="Search category..." 
+                        value={categorySearch} 
+                        onValueChange={setCategorySearch} 
+                        className="bg-[var(--bg-primary)] border-[var(--border-color)] text-[var(--text-primary)]" 
+                      />
+                      <CommandList>
+                        <CommandEmpty className="text-[var(--text-secondary)] p-4 text-center">No category found.</CommandEmpty>
+                        <CommandGroup>
+                          {filteredCategories.map((category) => (
+                            <CommandItem
+                              key={category.id}
+                              onSelect={() => handleSelectCategory(category)}
+                              className="flex items-center justify-between cursor-pointer hover:bg-[var(--bg-secondary)]"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-xl">{category.icon}</span>
+                                <span className="text-[var(--text-primary)]">{category.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => toggleFavoriteCategory(category, e)}
+                                  className="p-1 hover:scale-110 transition-transform"
+                                >
+                                  <Star 
+                                    className={cn(
+                                      "h-4 w-4",
+                                      category.is_favorite ? "fill-[#f59e0b] text-[#f59e0b]" : "text-[var(--text-secondary)]"
+                                    )} 
+                                  />
+                                </button>
+                                {expenseCategory === category.id && (
+                                  <Check className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              )}
+              {errors.expenseCategory && <p className="text-red-600 text-sm">{errors.expenseCategory}</p>}
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                ⭐ Click the star to favorite a category - favorites appear at the top for quick access
+              </p>
+            </div>
 
             <Button type="submit" disabled={isDisabled} className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 md:w-[200px]">
               {loading ? "Processing..." : "Transfer Now"}

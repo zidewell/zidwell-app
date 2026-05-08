@@ -30,10 +30,12 @@ export default function CreateReceiptPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[#2b825b] hover:text-[#1e5d42] hover:bg-[#f0efe7] dark:hover:bg-[#242424] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[#242424] dark:hover:border-[#474747] transition-all"
+                className="text-(--color-accent-yellow) hover:text-[#1e5d42] hover:bg-[#f0efe7] dark:hover:bg-[#242424] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[#242424] dark:hover:border-[#474747] transition-all"
               >
                 <ArrowLeft className="w-5 h-5 md:mr-2" />
-                <span className="hidden md:inline text-sm font-medium">Back</span>
+                <span className="hidden md:inline text-sm font-medium">
+                  Back
+                </span>
               </Button>
 
               <div className="flex-1">
@@ -41,7 +43,8 @@ export default function CreateReceiptPage() {
                   Create Receipt
                 </h1>
                 <p className="text-sm md:text-base text-[#6b6b6b] dark:text-[#a6a6a6]">
-                  Create and manage professional receipts for your business transactions
+                  Create and manage professional receipts for your business
+                  transactions
                 </p>
               </div>
             </div>

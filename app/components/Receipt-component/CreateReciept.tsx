@@ -1902,7 +1902,7 @@ function CreateReceiptPage({
                       onChange={handleSignatureChange}
                       label="Seller Signature (Optional)"
                       disabled={isFormLocked || isProcessing}
-                      onLoadSaved={loadSignatureManually}
+                    
                     />
 
                     {/* Toggle Button for Saving Signature */}

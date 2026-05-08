@@ -35,31 +35,36 @@ const preloadImage = (src: string): Promise<void> => {
 const Carousel: React.FC = () => {
   const [current, setCurrent] = useState(0);
   const [imagesLoaded, setImagesLoaded] = useState<Record<number, boolean>>({});
-  const [preloadedImages, setPreloadedImages] = useState<Set<number>>(new Set());
+  const [preloadedImages, setPreloadedImages] = useState<Set<number>>(
+    new Set(),
+  );
   const [isTransitioning, setIsTransitioning] = useState(false);
   const autoSlide = true;
   const autoSlideInterval = 15000;
   const touchStartX = useRef<number | null>(null);
 
   // Preload adjacent images for smoother transitions
-  const preloadAdjacentImages = useCallback((currentIndex: number) => {
-    const adjacentIndices = [
-      (currentIndex + 1) % slides.length,
-      (currentIndex + 2) % slides.length,
-      (currentIndex - 1 + slides.length) % slides.length,
-    ];
+  const preloadAdjacentImages = useCallback(
+    (currentIndex: number) => {
+      const adjacentIndices = [
+        (currentIndex + 1) % slides.length,
+        (currentIndex + 2) % slides.length,
+        (currentIndex - 1 + slides.length) % slides.length,
+      ];
 
-    adjacentIndices.forEach(async (index) => {
-      if (!preloadedImages.has(index)) {
-        try {
-          await preloadImage(slides[index]);
-          setPreloadedImages((prev) => new Set(prev).add(index));
-        } catch (error) {
-          console.error(`Failed to preload image ${slides[index]}:`, error);
+      adjacentIndices.forEach(async (index) => {
+        if (!preloadedImages.has(index)) {
+          try {
+            await preloadImage(slides[index]);
+            setPreloadedImages((prev) => new Set(prev).add(index));
+          } catch (error) {
+            console.error(`Failed to preload image ${slides[index]}:`, error);
+          }
         }
-      }
-    });
-  }, [preloadedImages]);
+      });
+    },
+    [preloadedImages],
+  );
 
   // Preload all images on mount (optional - uncomment if needed)
   useEffect(() => {
@@ -85,7 +90,7 @@ const Carousel: React.FC = () => {
         }
       }
     };
-    
+
     preloadRemaining();
   }, []);
 
@@ -129,7 +134,7 @@ const Carousel: React.FC = () => {
     if (touchStartX.current === null) return;
     const touchEndX = e.changedTouches[0].clientX;
     const diff = touchStartX.current - touchEndX;
-    
+
     if (Math.abs(diff) > 50) {
       if (diff > 0) {
         nextSlide();
@@ -141,7 +146,7 @@ const Carousel: React.FC = () => {
   };
 
   return (
-    <div 
+    <div
       className="relative hidden lg:block w-[50%] h-screen overflow-hidden bg-gray-100"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -174,10 +179,10 @@ const Carousel: React.FC = () => {
             {/* Skeleton Loader */}
             {!imagesLoaded[index] && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
-                <div className="w-12 h-12 border-4 border-[#2b825b] border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-12 h-12 border-4 border-(--color-accent-yellow) border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
-            
+
             {/* Image with Next.js optimization */}
             <Image
               src={slide}

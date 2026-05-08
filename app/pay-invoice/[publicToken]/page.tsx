@@ -1,3 +1,4 @@
+// app/invoice/[publicToken]/page.tsx
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { CreditCard } from "lucide-react";
@@ -135,17 +136,17 @@ export default async function InvoicePage({
 
     return (
       <ToastProvider>
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-[var(--bg-primary)]">
           <div className="container mx-auto py-12 px-4 max-w-3xl">
             {/* Header */}
             <HeaderSection invoice={invoice} />
 
             {/* Invoice Card */}
-            <Card className="p-8 mb-6">
+            <Card className="p-8 mb-6 bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft">
               {/* Business Header */}
               <BusinessHeaderSection invoice={invoice} />
 
-              <Separator className="my-6" />
+              <Separator className="my-6 bg-[var(--border-color)]" />
 
               {/* Payment Status */}
               {invoice.allow_multiple_payments && (
@@ -173,7 +174,7 @@ export default async function InvoicePage({
               {/* Items */}
               <InvoiceItemsSection items={items} />
 
-              <Separator className="my-6" />
+              <Separator className="my-6 bg-[var(--border-color)]" />
 
               {/* Totals */}
               <TotalsSection invoice={invoice} />
@@ -205,10 +206,10 @@ export default async function InvoicePage({
 function HeaderSection({ invoice }: { invoice: any }) {
   return (
     <div className="text-center mb-8">
-      <h1 className="text-3xl font-bold text-foreground mb-2">
+      <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
         Invoice Details
       </h1>
-      <p className="text-muted-foreground">
+      <p className="text-[var(--text-secondary)]">
         Review invoice and proceed with payment
       </p>
     </div>
@@ -226,16 +227,16 @@ function BusinessHeaderSection({ invoice }: { invoice: any }) {
             className="h-12 w-auto mb-2 rounded-lg"
           />
         )}
-        <h2 className="text-xl font-bold text-foreground">
+        <h2 className="text-xl font-bold text-[var(--text-primary)]">
           {invoice.business_name}
         </h2>
       </div>
       <div className="text-right">
-        <div className="text-sm">Invoice</div>
-        <div className="text-lg font-bold text-[#2b825b]">
+        <div className="text-sm text-[var(--text-secondary)]">Invoice</div>
+        <div className="text-lg font-bold text-[var(--color-accent-yellow)]">
           #{invoice.invoice_id}
         </div>
-        <div className="text-xs text-muted-foreground mt-1">
+        <div className="text-xs text-[var(--text-secondary)] mt-1">
           Due: {new Date(invoice.created_at).toLocaleDateString()}
         </div>
       </div>
@@ -245,22 +246,18 @@ function BusinessHeaderSection({ invoice }: { invoice: any }) {
 
 function MultiplePaymentsSection({ invoice }: { invoice: any }) {
   return (
-    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+    <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
       <div className="flex items-center">
-        <div className="bg-blue-100 p-2 rounded-full mr-3">
-          <CreditCard className="h-5 w-5 text-blue-600" />
+        <div className="bg-blue-100 dark:bg-blue-800 p-2 rounded-full mr-3">
+          <CreditCard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
         </div>
         <div>
-          <h3 className="font-semibold text-blue-800">
+          <h3 className="font-semibold text-blue-800 dark:text-blue-300">
             Multiple Payments Enabled
           </h3>
-          <p className="text-sm text-blue-600 mt-1">
+          <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
             This invoice allows multiple people to pay. Each person pays the
             full amount.
-            {/* {invoice.target_quantity &&
-              ` Target: ${invoice.paid_quantity || 0}/${
-                invoice.target_quantity
-              } paid`} */}
           </p>
         </div>
       </div>
@@ -272,11 +269,11 @@ function ClientInformationSection({ invoice }: { invoice: any }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       <div className="space-y-2">
-        <h3 className="font-semibold text-foreground">Bill To</h3>
-        <div className="text-sm text-muted-foreground">
+        <h3 className="font-semibold text-[var(--text-primary)]">Bill To</h3>
+        <div className="text-sm text-[var(--text-secondary)]">
           {invoice.client_name ? (
             <>
-              <p className="font-medium text-foreground">
+              <p className="font-medium text-[var(--text-primary)]">
                 {invoice.client_name}
               </p>
               {invoice.client_email && <p>{invoice.client_email}</p>}
@@ -288,9 +285,11 @@ function ClientInformationSection({ invoice }: { invoice: any }) {
         </div>
       </div>
       <div className="space-y-2">
-        <h3 className="font-semibold text-foreground">From</h3>
-        <div className="text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">{invoice.from_name}</p>
+        <h3 className="font-semibold text-[var(--text-primary)]">From</h3>
+        <div className="text-sm text-[var(--text-secondary)]">
+          <p className="font-medium text-[var(--text-primary)]">
+            {invoice.from_name}
+          </p>
           <p>{invoice.from_email}</p>
           {invoice.bill_to && <p className="mt-1">{invoice.bill_to}</p>}
         </div>
@@ -301,11 +300,11 @@ function ClientInformationSection({ invoice }: { invoice: any }) {
 
 function MessageSection({ invoice }: { invoice: any }) {
   return (
-    <div className="mb-6 p-4 bg-muted/50 rounded-lg border">
-      <h3 className="font-semibold text-foreground mb-2">
+    <div className="mb-6 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+      <h3 className="font-semibold text-[var(--text-primary)] mb-2">
         Message from {invoice.from_name}
       </h3>
-      <p className="text-sm text-muted-foreground">{invoice.message}</p>
+      <p className="text-sm text-[var(--text-secondary)]">{invoice.message}</p>
     </div>
   );
 }
@@ -313,19 +312,19 @@ function MessageSection({ invoice }: { invoice: any }) {
 function InvoiceItemsSection({ items }: { items: InvoiceItem[] }) {
   return (
     <div className="mb-6">
-      <h3 className="font-semibold mb-4 text-foreground">Invoice Items</h3>
+      <h3 className="font-semibold mb-4 text-[var(--text-primary)]">Invoice Items</h3>
       <div className="space-y-3">
         {items.map((item) => (
           <div key={item.id} className="flex justify-between text-sm">
             <div className="flex-1">
-              <div className="font-medium text-foreground">
+              <div className="font-medium text-[var(--text-primary)]">
                 {item.description}
               </div>
-              <div className="text-muted-foreground">
+              <div className="text-[var(--text-secondary)]">
                 {item.quantity} × ₦{item.unitPrice.toLocaleString()}
               </div>
             </div>
-            <div className="font-semibold text-foreground">
+            <div className="font-semibold text-[var(--text-primary)]">
               ₦{item.total.toLocaleString()}
             </div>
           </div>
@@ -338,12 +337,12 @@ function InvoiceItemsSection({ items }: { items: InvoiceItem[] }) {
 function TotalsSection({ invoice }: { invoice: any }) {
   return (
     <div className="space-y-2">
-      <div className="flex justify-between text-foreground">
+      <div className="flex justify-between text-[var(--text-primary)]">
         <span>Subtotal</span>
         <span>₦{invoice.subtotal.toLocaleString()}</span>
       </div>
       {invoice.fee_amount > 0 && (
-        <div className="flex justify-between text-sm text-muted-foreground">
+        <div className="flex justify-between text-sm text-[var(--text-secondary)]">
           <span>
             Processing Fee (
             {invoice.fee_option === "customer" ? "2%" : "Absorbed"})
@@ -351,10 +350,10 @@ function TotalsSection({ invoice }: { invoice: any }) {
           <span>₦{invoice.fee_amount.toLocaleString()}</span>
         </div>
       )}
-      <Separator className="my-3" />
+      <Separator className="my-3 bg-[var(--border-color)]" />
       <div className="flex justify-between text-xl font-bold">
-        <span className="text-foreground">Total Amount</span>
-        <span className="text-[#2b825b]">
+        <span className="text-[var(--text-primary)]">Total Amount</span>
+        <span className="text-[var(--color-accent-yellow)]">
           ₦{invoice.total_amount.toLocaleString()}
         </span>
       </div>
@@ -364,8 +363,8 @@ function TotalsSection({ invoice }: { invoice: any }) {
 
 function CustomerNoteSection({ invoice }: { invoice: any }) {
   return (
-    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-      <p className="text-sm text-blue-700">{invoice.customer_note}</p>
+    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      <p className="text-sm text-blue-700 dark:text-blue-300">{invoice.customer_note}</p>
     </div>
   );
 }
@@ -373,11 +372,13 @@ function CustomerNoteSection({ invoice }: { invoice: any }) {
 function FooterSection({ invoice }: { invoice: any }) {
   return (
     <div className="text-center mt-8">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-[var(--text-secondary)]">
         Secured by{" "}
-        <span className="text-[#2b825b] font-semibold">Zidwell Finance</span>
+        <span className="text-[var(--color-accent-yellow)] font-semibold">
+          Zidwell Finance
+        </span>
       </p>
-      <p className="text-xs text-muted-foreground mt-2">
+      <p className="text-xs text-[var(--text-secondary)] mt-2">
         Need help? Contact {invoice.from_email}
       </p>
     </div>

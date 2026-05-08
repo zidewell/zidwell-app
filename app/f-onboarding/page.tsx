@@ -78,7 +78,7 @@ const OnboardingPage = () => {
               style={{ animationDelay: "0s" }}
             >
               <Link href="/" className="flex items-center gap-2">
-                <div className="w-10 h-10 flex items-center justify-center border-2 border-[#2b825b] shadow-[4px_4px_0px_#111827] bg-black p-1">
+                <div className="w-10 h-10 flex items-center justify-center border-2 border-(--color-accent-yellow) shadow-[4px_4px_0px_#111827] bg-black p-1">
                   <span className="font-black text-xl text-white">Z</span>
                 </div>
                 <span className="font-black text-xl tracking-tight text-gray-900">
@@ -121,15 +121,15 @@ const OnboardingPage = () => {
               </p>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-start gap-2">
-                  <span className="text-[#2b825b] mt-0.5">•</span>
+                  <span className="text-(--color-accent-yellow) mt-0.5">•</span>
                   Review your business needs properly
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#2b825b] mt-0.5">•</span>
+                  <span className="text-(--color-accent-yellow) mt-0.5">•</span>
                   Identify gaps in your accounting or tax structure
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#2b825b] mt-0.5">•</span>
+                  <span className="text-(--color-accent-yellow) mt-0.5">•</span>
                   Recommend the right level of support
                 </li>
               </ul>
@@ -140,7 +140,7 @@ const OnboardingPage = () => {
               className="flex items-center gap-2 text-sm text-gray-600 mb-8 opacity-0 animate-fade-in"
               style={{ animationDelay: "0.4s" }}
             >
-              <Clock className="w-4 h-4 text-[#2b825b]" />
+              <Clock className="w-4 h-4 text-(--color-accent-yellow)" />
               <span>This form takes about 5–7 minutes to complete.</span>
             </div>
 
@@ -200,7 +200,7 @@ const OnboardingPage = () => {
               style={{ animationDelay: "0.4s" }}
             >
               <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                <span className="px-3 py-1.5 rounded-full bg-[#2b825b]/5 border border-[#2b825b]/10">
+                <span className="px-3 py-1.5 rounded-full bg-(--color-accent-yellow)/5 border border-(--color-accent-yellow)/10">
                   "There's no such thing as too small or too early."
                 </span>
                 <span className="px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200">
@@ -226,7 +226,7 @@ const OnboardingPage = () => {
                     href={`https://tally.so/r/${TALLY_FORM_ID}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#2b825b] hover:underline font-medium"
+                    className="text-(--color-accent-yellow) hover:underline font-medium"
                   >
                     Open form in new tab
                   </a>

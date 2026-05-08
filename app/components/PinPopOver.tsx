@@ -4,7 +4,7 @@
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "./ui/button";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, Mail, AlertCircle } from "lucide-react";
 
 interface PinPopOverProps {
   setIsOpen: (isOpen: boolean) => void;
@@ -31,6 +31,10 @@ export default function PinPopOver({
   const [isProcessing, setIsProcessing] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
+  const [isPinLocked, setIsPinLocked] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [lockedUntil, setLockedUntil] = useState<Date | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
 
   // Sync with parent error
   useEffect(() => {
@@ -50,21 +54,46 @@ export default function PinPopOver({
       setLocalError(null);
       setAttempts(0);
       setIsProcessing(false);
+      setIsPinLocked(false);
+      setResetEmailSent(false);
+      setLockedUntil(null);
       if (onClearError) onClearError();
     }
   }, [isOpen, onClearError]);
 
+  // Timer for locked state
+  useEffect(() => {
+    if (isPinLocked && lockedUntil) {
+      const updateTimer = () => {
+        const now = new Date();
+        const remaining = Math.max(0, lockedUntil.getTime() - now.getTime());
+        setTimeRemaining(Math.ceil(remaining / 60000));
+
+        if (remaining <= 0) {
+          setIsPinLocked(false);
+          setLockedUntil(null);
+          setLocalError(null);
+        }
+      };
+
+      updateTimer();
+      const interval = setInterval(updateTimer, 60000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isPinLocked, lockedUntil]);
+
   // Auto-focus first input when opened
   useEffect(() => {
-    if (isOpen && !isProcessing) {
+    if (isOpen && !isProcessing && !isPinLocked) {
       setTimeout(() => {
         inputsRef.current[0]?.focus();
       }, 100);
     }
-  }, [isOpen, isProcessing]);
+  }, [isOpen, isProcessing, isPinLocked]);
 
   const handleInput = (index: number, value: string) => {
-    if (isProcessing) return;
+    if (isProcessing || isPinLocked) return;
     if (!/^\d?$/.test(value)) return;
 
     const newPin = [...pin];
@@ -85,7 +114,7 @@ export default function PinPopOver({
     e: React.KeyboardEvent<HTMLInputElement>,
     index: number,
   ) => {
-    if (isProcessing) return;
+    if (isProcessing || isPinLocked) return;
 
     if (e.key === "Backspace" || e.key === "Delete") {
       if (!pin[index] && index > 0) {
@@ -99,7 +128,7 @@ export default function PinPopOver({
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    if (isProcessing) return;
+    if (isProcessing || isPinLocked) return;
     e.preventDefault();
 
     const text = e.clipboardData.getData("text").trim();
@@ -122,7 +151,7 @@ export default function PinPopOver({
     e.preventDefault();
     const code = pin.join("");
 
-    if (isProcessing || code.length !== inputCount) {
+    if (isProcessing || isPinLocked || code.length !== inputCount) {
       if (code.length !== inputCount) {
         setLocalError(`Please enter all ${inputCount} digits`);
       }
@@ -137,22 +166,37 @@ export default function PinPopOver({
       if (onConfirm) {
         await onConfirm(code);
       }
+      setAttempts(0);
     } catch (err: any) {
       console.error("Error during PIN confirmation:", err);
 
-      setAttempts((prev) => prev + 1);
+      if (err?.locked || err?.message?.includes("locked")) {
+        setIsPinLocked(true);
+        setResetEmailSent(err?.resetEmailSent || false);
+        setLockedUntil(err?.lockedUntil ? new Date(err.lockedUntil) : null);
+        setLocalError(err.message);
 
-      if (err?.message?.toLowerCase().includes("pin")) {
-        setLocalError(err.message || "Invalid PIN. Please try again.");
+        if (err?.attempts !== undefined) {
+          setAttempts(err.attempts);
+        }
       } else {
-        setLocalError(err?.message || "Transaction failed. Please try again.");
+        const newAttempts = attempts + 1;
+        setAttempts(newAttempts);
+
+        if (newAttempts >= 2) {
+          setLocalError(err?.message || `Invalid PIN. ${3 - newAttempts} attempt${3 - newAttempts !== 1 ? 's' : ''} remaining before PIN is locked.`);
+        } else {
+          setLocalError(err?.message || "Invalid PIN. Please try again.");
+        }
       }
 
       setPin(Array(inputCount).fill(""));
 
-      setTimeout(() => {
-        inputsRef.current[0]?.focus();
-      }, 100);
+      if (!isPinLocked) {
+        setTimeout(() => {
+          inputsRef.current[0]?.focus();
+        }, 100);
+      }
 
       setIsProcessing(false);
     }
@@ -164,6 +208,9 @@ export default function PinPopOver({
       setPin(Array(inputCount).fill(""));
       setLocalError(null);
       setAttempts(0);
+      setIsPinLocked(false);
+      setResetEmailSent(false);
+      setLockedUntil(null);
       if (onClearError) onClearError();
     }
   };
@@ -175,14 +222,113 @@ export default function PinPopOver({
     inputsRef.current[0]?.focus();
   };
 
+  const handleRequestReset = () => {
+    window.location.href = "/dashboard/profile?reset-pin=true";
+  };
+
   const isPinComplete = pin.join("").length === inputCount;
 
+  // Render locked state
+  if (isPinLocked) {
+    return (
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              className="fixed inset-0 bg-[var(--color-ink)]/50 backdrop-blur-sm z-40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleClose}
+            />
+
+            <motion.div
+              className="fixed inset-0 flex items-center justify-center z-50 px-4"
+              initial={{ opacity: 0, y: 60, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 260, damping: 22 }}
+            >
+              <div className="max-w-md w-full text-center bg-[var(--bg-primary)] px-4 sm:px-8 py-10 rounded-xl shadow-xl border border-[var(--border-color)] relative">
+                <button
+                  onClick={handleClose}
+                  disabled={isProcessing}
+                  className="absolute top-4 right-4 p-2 rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+
+                <header className="mb-6">
+                  <div className="flex justify-center mb-4">
+                    <div className="bg-red-100 p-3 rounded-full">
+                      <AlertCircle className="w-12 h-12 text-red-600" />
+                    </div>
+                  </div>
+                  <h1 className="text-2xl font-bold mb-2 text-[var(--text-primary)]">PIN Locked</h1>
+                  <p className="text-[15px] text-[var(--text-secondary)]">
+                    {localError || "Too many failed attempts"}
+                  </p>
+                </header>
+
+                <div className="space-y-4">
+                  {timeRemaining > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <p className="text-amber-800 font-medium">
+                        Locked for {timeRemaining} minute{timeRemaining !== 1 ? 's' : ''}
+                      </p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Please try again after the lock period or reset your PIN via email.
+                      </p>
+                    </div>
+                  )}
+
+                  {resetEmailSent && (
+                    <div className="bg-[var(--color-lemon-green)]/10 border border-[var(--color-lemon-green)]/20 rounded-lg p-4">
+                      <div className="flex items-center gap-2 justify-center mb-2">
+                        <Mail className="w-5 h-5 text-[var(--color-lemon-green)]" />
+                        <p className="text-[var(--color-lemon-green)] font-medium">Reset Email Sent!</p>
+                      </div>
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        A PIN reset link has been sent to your registered email.
+                        The link will expire in 1 hour.
+                      </p>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleRequestReset}
+                    className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3"
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    Request PIN Reset via Email
+                  </Button>
+
+                  {timeRemaining > 0 && (
+                    <Button
+                      onClick={handleClose}
+                      variant="outline"
+                      className="w-full border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                    >
+                      Close
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    );
+  }
+
+  // Normal PIN entry UI
   return (
     <AnimatePresence>
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-[var(--color-ink)]/50 backdrop-blur-sm z-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -196,14 +342,14 @@ export default function PinPopOver({
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
-            <div className="max-w-md w-full text-center bg-white px-4 sm:px-8 py-10 rounded-xl shadow-xl relative">
+            <div className="max-w-md w-full text-center bg-[var(--bg-primary)] px-4 sm:px-8 py-10 rounded-xl shadow-xl border border-[var(--border-color)] relative">
               <button
                 onClick={handleClose}
                 disabled={isProcessing}
                 className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${
                   isProcessing
-                    ? "text-gray-300 cursor-not-allowed"
-                    : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                    ? "text-[var(--text-secondary)]/50 cursor-not-allowed"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                 }`}
                 aria-label="Close"
               >
@@ -211,10 +357,10 @@ export default function PinPopOver({
               </button>
 
               <header className="mb-6">
-                <h1 className="text-2xl font-bold mb-1">Transaction PIN</h1>
-                <p className="text-[15px] text-slate-500">
+                <h1 className="text-2xl font-bold mb-1 text-[var(--text-primary)]">Transaction PIN</h1>
+                <p className="text-[15px] text-[var(--text-secondary)]">
                   {isProcessing ? (
-                    <span className="text-[#2b825b] font-medium flex items-center justify-center gap-2">
+                    <span className="text-[var(--color-accent-yellow)] font-medium flex items-center justify-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       Processing transaction...
                     </span>
@@ -224,10 +370,10 @@ export default function PinPopOver({
                     </span>
                   ) : (
                     <>
-                      Enter your 4-digit PIN to complete this transaction
+                      Enter your {inputCount}-digit PIN to complete this transaction
                       {attempts > 0 && (
-                        <span className="block text-xs text-red-400 mt-1">
-                          Attempt {attempts + 1}
+                        <span className="block text-xs text-amber-600 mt-1">
+                          {3 - attempts} attempt{3 - attempts !== 1 ? 's' : ''} remaining
                         </span>
                       )}
                     </>
@@ -255,10 +401,10 @@ export default function PinPopOver({
                       onPaste={handlePaste}
                       className={`w-14 h-14 text-center text-2xl font-extrabold rounded-lg outline-none transition-all ${
                         isProcessing
-                          ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                          ? "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)] cursor-not-allowed"
                           : localError
                             ? "bg-red-50 text-red-900 border-2 border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200"
-                            : "bg-slate-100 text-slate-900 border-2 border-transparent hover:border-slate-200 focus:border-[#2b825b] focus:ring-2 focus:ring-[#2b825b]/20"
+                            : "bg-[var(--bg-secondary)] text-[var(--text-primary)] border-2 border-transparent hover:border-[var(--color-accent-yellow)]/50 focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20"
                       }`}
                       disabled={isProcessing}
                       aria-label={`PIN digit ${i + 1}`}
@@ -277,7 +423,7 @@ export default function PinPopOver({
                       variant="outline"
                       size="sm"
                       onClick={handleRetry}
-                      className="text-[#2b825b] border-[#2b825b] hover:bg-[#2b825b]/10 mx-auto"
+                      className="text-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 mx-auto"
                     >
                       Try Again
                     </Button>
@@ -287,12 +433,12 @@ export default function PinPopOver({
                 <div className="max-w-[260px] mx-auto mt-6">
                   <Button
                     type="submit"
-                    className={`w-full inline-flex justify-center items-center whitespace-nowrap rounded-lg px-3.5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 ${
+                    className={`w-full inline-flex justify-center items-center whitespace-nowrap rounded-lg px-3.5 py-2.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 ${
                       isProcessing || !isPinComplete
-                        ? "bg-gray-400 cursor-not-allowed hover:bg-gray-400 focus:ring-gray-400"
+                        ? "bg-gray-400 cursor-not-allowed hover:bg-gray-400 focus:ring-gray-400 text-white"
                         : localError
-                          ? "bg-red-500 hover:bg-red-600 focus:ring-red-500"
-                          : "bg-[#2b825b] hover:bg-[#2b825b]/90 focus:ring-[#2b825b]"
+                          ? "bg-red-500 hover:bg-red-600 focus:ring-red-500 text-white"
+                          : "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] focus:ring-[var(--color-accent-yellow)]"
                     }`}
                     disabled={isProcessing || !isPinComplete}
                   >
@@ -308,21 +454,41 @@ export default function PinPopOver({
                     )}
                   </Button>
 
-                  {!isProcessing && !localError && (
+                  {!isProcessing && !localError && attempts < 2 && (
                     <p className="mt-4 text-sm">
                       <button
                         type="button"
-                        onClick={() => {
-                          window.location.href = "/dashboard/profile?reset-pin=true";
-                        }}
-                        className="text-[#2b825b] hover:underline focus:outline-none"
+                        onClick={handleRequestReset}
+                        className="text-[var(--color-accent-yellow)] hover:underline focus:outline-none"
                       >
                         Forgot PIN?
                       </button>
                     </p>
                   )}
+
+                  {!isProcessing && localError && attempts >= 2 && (
+                    <p className="mt-4 text-sm">
+                      <button
+                        type="button"
+                        onClick={handleRequestReset}
+                        className="text-red-600 hover:underline focus:outline-none font-medium"
+                      >
+                        Forgot PIN? Reset via Email
+                      </button>
+                    </p>
+                  )}
                 </div>
               </form>
+
+              {/* Security notice */}
+              {attempts > 0 && !isProcessing && !localError && (
+                <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
+                  <p className="text-xs text-[var(--text-secondary)] flex items-center justify-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>PIN will lock after {3 - attempts} more failed attempt{3 - attempts !== 1 ? 's' : ''}</span>
+                  </p>
+                </div>
+              )}
             </div>
           </motion.div>
         </>
@@ -330,10 +496,6 @@ export default function PinPopOver({
     </AnimatePresence>
   );
 }
-
-
-
-
 // // components/PinPopOver.tsx
 // "use client";
 
@@ -404,17 +566,17 @@ export default function PinPopOver({
 //         const now = new Date();
 //         const remaining = Math.max(0, lockedUntil.getTime() - now.getTime());
 //         setTimeRemaining(Math.ceil(remaining / 60000)); // minutes remaining
-        
+
 //         if (remaining <= 0) {
 //           setIsPinLocked(false);
 //           setLockedUntil(null);
 //           setLocalError(null);
 //         }
 //       };
-      
+
 //       updateTimer();
 //       const interval = setInterval(updateTimer, 60000); // Update every minute
-      
+
 //       return () => clearInterval(interval);
 //     }
 //   }, [isPinLocked, lockedUntil]);
@@ -513,7 +675,7 @@ export default function PinPopOver({
 //         setResetEmailSent(err?.resetEmailSent || false);
 //         setLockedUntil(err?.lockedUntil ? new Date(err.lockedUntil) : null);
 //         setLocalError(err.message);
-        
+
 //         // Update attempts if provided
 //         if (err?.attempts !== undefined) {
 //           setAttempts(err.attempts);
@@ -522,7 +684,7 @@ export default function PinPopOver({
 //         // Regular invalid PIN
 //         const newAttempts = attempts + 1;
 //         setAttempts(newAttempts);
-        
+
 //         // Check if this is the last attempt before lock
 //         if (newAttempts >= 2) {
 //           setLocalError(err?.message || `Invalid PIN. ${3 - newAttempts} attempt${3 - newAttempts !== 1 ? 's' : ''} remaining before PIN is locked.`);
@@ -632,7 +794,7 @@ export default function PinPopOver({
 //                         <p className="text-green-800 font-medium">Reset Email Sent!</p>
 //                       </div>
 //                       <p className="text-sm text-green-700">
-//                         A PIN reset link has been sent to your registered email. 
+//                         A PIN reset link has been sent to your registered email.
 //                         The link will expire in 1 hour.
 //                       </p>
 //                     </div>
@@ -640,7 +802,7 @@ export default function PinPopOver({
 
 //                   <Button
 //                     onClick={handleRequestReset}
-//                     className="w-full bg-[#2b825b] hover:bg-[#2b825b]/90 text-white py-3"
+//                     className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-white py-3"
 //                   >
 //                     <Mail className="w-4 h-4 mr-2" />
 //                     Request PIN Reset via Email
@@ -702,7 +864,7 @@ export default function PinPopOver({
 //                 <h1 className="text-2xl font-bold mb-1">Transaction PIN</h1>
 //                 <p className="text-[15px] text-slate-500">
 //                   {isProcessing ? (
-//                     <span className="text-[#2b825b] font-medium flex items-center justify-center gap-2">
+//                     <span className="text-(--color-accent-yellow) font-medium flex items-center justify-center gap-2">
 //                       <Loader2 className="w-4 h-4 animate-spin" />
 //                       Processing transaction...
 //                     </span>
@@ -746,7 +908,7 @@ export default function PinPopOver({
 //                           ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
 //                           : localError
 //                             ? "bg-red-50 text-red-900 border-2 border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200"
-//                             : "bg-slate-100 text-slate-900 border-2 border-transparent hover:border-slate-200 focus:border-[#2b825b] focus:ring-2 focus:ring-[#2b825b]/20"
+//                             : "bg-slate-100 text-slate-900 border-2 border-transparent hover:border-slate-200 focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20"
 //                       }`}
 //                       disabled={isProcessing}
 //                       aria-label={`PIN digit ${i + 1}`}
@@ -765,7 +927,7 @@ export default function PinPopOver({
 //                       variant="outline"
 //                       size="sm"
 //                       onClick={handleRetry}
-//                       className="text-[#2b825b] border-[#2b825b] hover:bg-[#2b825b]/10 mx-auto"
+//                       className="text-(--color-accent-yellow) border-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10 mx-auto"
 //                     >
 //                       Try Again
 //                     </Button>
@@ -780,7 +942,7 @@ export default function PinPopOver({
 //                         ? "bg-gray-400 cursor-not-allowed hover:bg-gray-400 focus:ring-gray-400"
 //                         : localError
 //                           ? "bg-red-500 hover:bg-red-600 focus:ring-red-500"
-//                           : "bg-[#2b825b] hover:bg-[#2b825b]/90 focus:ring-[#2b825b]"
+//                           : "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 focus:ring-(--color-accent-yellow)"
 //                     }`}
 //                     disabled={isProcessing || !isPinComplete}
 //                   >
@@ -801,7 +963,7 @@ export default function PinPopOver({
 //                       <button
 //                         type="button"
 //                         onClick={handleRequestReset}
-//                         className="text-[#2b825b] hover:underline focus:outline-none"
+//                         className="text-(--color-accent-yellow) hover:underline focus:outline-none"
 //                       >
 //                         Forgot PIN?
 //                       </button>

@@ -1,3 +1,4 @@
+// app/components/sign-contract-form-component/PreviewTab.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -70,7 +71,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
     <div className="">
       <div className="flex items-center justify-between">
         <div className="mb-5">
-          <CardTitle className="text-[#2b825b]">Contract Preview</CardTitle>
+          <CardTitle className="text-[var(--color-accent-yellow)]">Contract Preview</CardTitle>
           <CardDescription>
             Review your contract document before sending
           </CardDescription>
@@ -81,18 +82,18 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
         {contractContent ? (
           <div className="space-y-8">
             {/* Document/PDF View */}
-            <div className="bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden print:shadow-none print:border-none">
+            <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg shadow-lg overflow-hidden print:shadow-none print:border-none">
               {/* Document Header */}
-              <div id="contract-document" className="p-6 min-h-[80vh] bg-white">
+              <div id="contract-document" className="p-6 min-h-[80vh] bg-[var(--bg-primary)]">
                 {/* Contract Title */}
                 <div className="mb-12 text-center">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
                     {contractTitle || "Untitled Contract"}
                   </h2>
-                  <p className="text-gray-600">
+                  <p className="text-[var(--text-secondary)]">
                     Document ID: ZW-{Date.now().toString(36).toUpperCase()}
                   </p>
-                  <p className="text-gray-600 mt-1">
+                  <p className="text-[var(--text-secondary)] mt-1">
                     Date:{" "}
                     {contractDate
                       ? new Date(contractDate).toLocaleDateString("en-NG", {
@@ -110,20 +111,20 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
 
                 {/* Parties Section */}
                 <div className="mb-12">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b">
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-6 pb-2 border-b border-[var(--border-color)]">
                     PARTIES TO THIS AGREEMENT
                   </h3>
                   <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-4">
                       <div>
-                        <h4 className="font-medium text-gray-700 mb-2">
+                        <h4 className="font-medium text-[var(--text-secondary)] mb-2">
                           CONTRACT CREATOR (First Party)
                         </h4>
-                        <div className="bg-gray-50 p-4 rounded border">
-                          <p className="font-semibold text-gray-900">
+                        <div className="bg-[var(--bg-secondary)] p-4 rounded border border-[var(--border-color)]">
+                          <p className="font-semibold text-[var(--text-primary)]">
                             {localCreatorName || "[Your Name]"}
                           </p>
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm text-[var(--text-secondary)] mt-1">
                             Contract Initiator
                           </p>
                         </div>
@@ -131,20 +132,20 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                     </div>
                     <div className="space-y-4">
                       <div>
-                        <h4 className="font-medium text-gray-700 mb-2">
+                        <h4 className="font-medium text-[var(--text-secondary)] mb-2">
                           SIGNEE (Second Party)
                         </h4>
-                        <div className="bg-gray-50 p-4 rounded border">
-                          <p className="font-semibold text-gray-900">
+                        <div className="bg-[var(--bg-secondary)] p-4 rounded border border-[var(--border-color)]">
+                          <p className="font-semibold text-[var(--text-primary)]">
                             {receiverName || "[Signee Name]"}
                           </p>
                           {receiverEmail && (
-                            <p className="text-sm text-gray-600 mt-1">
+                            <p className="text-sm text-[var(--text-secondary)] mt-1">
                               {receiverEmail}
                             </p>
                           )}
                           {receiverPhone && (
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-[var(--text-secondary)]">
                               {receiverPhone}
                             </p>
                           )}
@@ -156,10 +157,10 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
 
                 {/* Contract Content */}
                 <div className="mb-12">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b">
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-6 pb-2 border-b border-[var(--border-color)]">
                     TERMS AND CONDITIONS
                   </h3>
-                  <div className="max-w-none text-gray-700 leading-relaxed font-serif bg-gray-50 p-6 rounded border">
+                  <div className="max-w-none text-[var(--text-primary)] leading-relaxed font-serif bg-[var(--bg-secondary)] p-6 rounded border border-[var(--border-color)]">
                     {contractContent ? (
                       <div
                         className="rich-text-content"
@@ -173,7 +174,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                         }}
                       />
                     ) : (
-                      <p className="text-gray-400 italic">
+                      <p className="text-[var(--text-secondary)] italic">
                         No contract content provided
                       </p>
                     )}
@@ -182,7 +183,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
 
                 {/* Signatures Section */}
                 <div className="mt-16">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-8 pb-2 border-b">
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-8 pb-2 border-b border-[var(--border-color)]">
                     SIGNATURES
                   </h3>
                   <div
@@ -194,11 +195,11 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                   >
                     {/* Contract Creator Signature */}
                     <div className="space-y-4">
-                      <div className="border-t border-gray-300 pt-4">
-                        <p className="text-sm font-medium text-gray-700 mb-4 text-center">
+                      <div className="border-t border-[var(--border-color)] pt-4">
+                        <p className="text-sm font-medium text-[var(--text-secondary)] mb-4 text-center">
                           PARTY A
                         </p>
-                        <div className="h-32 border-b border-gray-300 flex items-end justify-center mb-4">
+                        <div className="h-32 border-b border-[var(--border-color)] flex items-end justify-center mb-4">
                           {localSignature ? (
                             <div className="text-center">
                               <img
@@ -208,18 +209,18 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                               />
                             </div>
                           ) : (
-                            <div className="h-20 w-40 border border-dashed border-gray-300 rounded flex items-center justify-center">
-                              <p className="text-gray-400 text-sm">
+                            <div className="h-20 w-40 border border-dashed border-[var(--border-color)] rounded flex items-center justify-center">
+                              <p className="text-[var(--text-secondary)] text-sm">
                                 Signature Required
                               </p>
                             </div>
                           )}
                         </div>
                         <div className="text-center">
-                          <p className="font-semibold text-gray-900">
+                          <p className="font-semibold text-[var(--text-primary)]">
                             {localCreatorName || "[Your Name]"}
                           </p>
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm text-[var(--text-secondary)] mt-1">
                             First Party - Contract Creator
                           </p>
                         </div>
@@ -229,30 +230,30 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                     {/* Lawyer Signature (Conditional) */}
                     {includeLawyerSignature && (
                       <div className="space-y-4">
-                        <div className="border-t border-gray-300 pt-4">
+                        <div className="border-t border-[var(--border-color)] pt-4">
                           <div className="flex items-center mb-4">
-                            <div className="h-6 w-6 bg-[#2b825b] rounded-full flex items-center justify-center mr-2">
-                              <span className="text-white text-xs">✓</span>
+                            <div className="h-6 w-6 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center mr-2">
+                              <span className="text-[var(--color-ink)] text-xs">✓</span>
                             </div>
-                            <p className="text-sm font-medium text-[#2b825b]">
+                            <p className="text-sm font-medium text-[var(--color-accent-yellow)]">
                               LEGAL WITNESS SIGNATURE
                             </p>
                           </div>
-                          <div className="h-32 border-b border-gray-300 flex items-end justify-center mb-4">
+                          <div className="h-32 border-b border-[var(--border-color)] flex items-end justify-center mb-4">
                             <div className="text-center">
-                              <p className="text-gray-600 italic font-serif text-lg">
+                              <p className="text-[var(--text-secondary)] italic font-serif text-lg">
                                 Barr. Adewale Johnson
                               </p>
                             </div>
                           </div>
                           <div className="text-center">
-                            <p className="font-semibold text-gray-900">
+                            <p className="font-semibold text-[var(--text-primary)]">
                               Barr. Adewale Johnson
                             </p>
-                            <p className="text-sm text-gray-600 mt-1">
+                            <p className="text-sm text-[var(--text-secondary)] mt-1">
                               Legal Counsel
                             </p>
-                            <p className="text-xs bg-[#2b825b]/10 text-[#2b825b] px-2 py-1 rounded-full inline-block mt-2">
+                            <p className="text-xs bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] px-2 py-1 rounded-full inline-block mt-2">
                               Verified Lawyer
                             </p>
                           </div>
@@ -262,25 +263,25 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
 
                     {/* Signee Signature */}
                     <div className="space-y-4">
-                      <div className="border-t border-gray-300 pt-4">
-                        <p className="text-sm font-medium text-gray-700 mb-4 text-center">
+                      <div className="border-t border-[var(--border-color)] pt-4">
+                        <p className="text-sm font-medium text-[var(--text-secondary)] mb-4 text-center">
                           PARTY B
                         </p>
-                        <div className="h-32 border-b border-gray-300 flex items-end justify-center mb-4">
+                        <div className="h-32 border-b border-[var(--border-color)] flex items-end justify-center mb-4">
                           <div className="text-center">
-                            <p className="text-gray-400 italic font-serif text-lg">
+                            <p className="text-[var(--text-secondary)] italic font-serif text-lg">
                               {receiverName || "[Signee Name]"}
                             </p>
                           </div>
                         </div>
                         <div className="text-center">
-                          <p className="font-semibold text-gray-900">
+                          <p className="font-semibold text-[var(--text-primary)]">
                             {receiverName || "[Signee Name]"}
                           </p>
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm text-[var(--text-secondary)] mt-1">
                             Second Party - Signee
                           </p>
-                          <p className="text-xs text-gray-400 italic mt-2">
+                          <p className="text-xs text-[var(--text-secondary)] italic mt-2">
                             (Awaiting signature)
                           </p>
                         </div>
@@ -290,8 +291,8 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                 </div>
 
                 {/* Document Footer */}
-                <div className="mt-16 pt-8 border-t border-gray-300">
-                  <div className="flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
+                <div className="mt-16 pt-8 border-t border-[var(--border-color)]">
+                  <div className="flex flex-col md:flex-row justify-between items-center text-xs text-[var(--text-secondary)]">
                     <div className="mb-4 md:mb-0">
                       <p>Page 1 of 1</p>
                       <p className="mt-1">
@@ -310,24 +311,24 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
 
             {/* Attachments Section */}
             {attachments.length > 0 && (
-              <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
-                <h4 className="text-lg font-medium mb-4 text-gray-900 flex items-center">
-                  <FileIcon className="h-5 w-5 mr-2 text-gray-600" />
+              <div className="border border-[var(--border-color)] rounded-lg p-6 bg-[var(--bg-secondary)]">
+                <h4 className="text-lg font-medium mb-4 text-[var(--text-primary)] flex items-center">
+                  <FileIcon className="h-5 w-5 mr-2 text-[var(--text-secondary)]" />
                   Attached Documents ({attachments.length})
                 </h4>
                 <div className="space-y-3">
                   {attachments.map((attachment, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50"
+                      className="flex items-center justify-between p-4 border border-[var(--border-color)] rounded-lg bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)]"
                     >
                       <div className="flex items-center">
-                        <FileText className="h-5 w-5 text-gray-500 mr-3" />
+                        <FileText className="h-5 w-5 text-[var(--text-secondary)] mr-3" />
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-[var(--text-primary)]">
                             {attachment.name}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-[var(--text-secondary)]">
                             {(attachment.size / 1024).toFixed(0)} KB •{" "}
                             {attachment.type.split("/").pop()?.toUpperCase()}
                           </p>
@@ -343,7 +344,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
             )}
 
             {/* Navigation Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200 print:hidden">
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-[var(--border-color)] print:hidden">
               <div className="flex gap-3">
                 <Button
                   variant="outline"
@@ -360,20 +361,20 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
         ) : (
           <div className="text-center py-12">
             <div className="max-w-md mx-auto">
-              <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileText className="h-8 w-8 text-gray-400" />
+              <div className="h-16 w-16 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center mx-auto mb-4">
+                <FileText className="h-8 w-8 text-[var(--text-secondary)]" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
                 No contract content to preview
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-[var(--text-secondary)] mb-6">
                 Switch to the "Write Contract" tab to create your contract
                 document
               </p>
               <Button
                 variant="default"
                 onClick={() => setActiveTab("create")}
-                className="bg-[#2b825b] hover:bg-[#1e5d42]"
+                className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
                 disabled={disabled} // Apply disabled prop
               >
                 <Edit className="h-4 w-4 mr-2" />
@@ -388,30 +389,30 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
       <style jsx global>{`
         /* Rich text content styling for PreviewTab */
         .rich-text-content {
-          font-family: inherit;
+          font-family: var(--font-be-vietnam), inherit;
           line-height: 1.6;
-          color: #374151;
+          color: var(--text-primary);
         }
 
         .rich-text-content h1 {
           font-size: 1.875rem;
           font-weight: 700;
           margin: 1.5rem 0 1rem 0;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .rich-text-content h2 {
           font-size: 1.5rem;
           font-weight: 600;
           margin: 1.25rem 0 0.75rem 0;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .rich-text-content h3 {
           font-size: 1.25rem;
           font-weight: 600;
           margin: 1rem 0 0.5rem 0;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .rich-text-content p {
@@ -455,13 +456,13 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
         }
 
         .rich-text-content a {
-          color: #2563eb;
+          color: var(--color-accent-yellow);
           text-decoration: underline;
         }
 
         /* Selection */
         .rich-text-content ::selection {
-          background-color: rgba(37, 99, 235, 0.2);
+          background-color: rgba(var(--color-accent-yellow), 0.2);
         }
       `}</style>
     </div>

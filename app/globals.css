@@ -75,9 +75,9 @@
   --shadow-pop: 0 20px 35px -8px rgba(0, 0, 0, 0.15), 0 5px 12px -4px rgba(0, 0, 0, 0.1);
   --shadow-ink: 0 2px 4px rgba(25, 25, 25, 0.1);
 
-  /* Primary color - #2b825b converted to OKLCH */
-  --primary: oklch(0.55 0.12 160);
-  --primary-foreground: oklch(0.984 0.003 247.858);
+  /* Primary color - Zidwell accent yellow converted to OKLCH */
+  --primary: oklch(0.85 0.15 85);
+  --primary-foreground: oklch(0.129 0.042 264.695);
 
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
@@ -88,20 +88,20 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.929 0.013 255.508);
   --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.55 0.12 160);
-  --chart-1: oklch(0.55 0.12 160);
+  --ring: oklch(0.85 0.15 85);
+  --chart-1: oklch(0.85 0.15 85);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: #fe9a00;
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.55 0.12 160);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.85 0.15 85);
+  --sidebar-primary-foreground: oklch(0.129 0.042 264.695);
   --sidebar-accent: oklch(0.968 0.007 247.896);
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.55 0.12 160);
+  --sidebar-ring: oklch(0.85 0.15 85);
 }
 
 .dark {
@@ -123,8 +123,8 @@
   --shadow-pop: 0 20px 35px -8px rgba(0, 0, 0, 0.3);
   --shadow-ink: 0 2px 4px rgba(0, 0, 0, 0.3);
 
-  /* Primary color for dark mode - slightly lighter #2b825b */
-  --primary: oklch(0.62 0.14 160);
+  /* Primary color for dark mode - Zidwell accent yellow */
+  --primary: oklch(0.85 0.15 85);
   --primary-foreground: oklch(0.208 0.042 265.755);
 
   --secondary: oklch(0.279 0.041 260.031);
@@ -136,20 +136,20 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.62 0.14 160);
-  --chart-1: oklch(0.62 0.14 160);
+  --ring: oklch(0.85 0.15 85);
+  --chart-1: oklch(0.85 0.15 85);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.208 0.042 265.755);
   --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.62 0.14 160);
+  --sidebar-primary: oklch(0.85 0.15 85);
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
   --sidebar-accent: oklch(0.279 0.041 260.031);
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.62 0.14 160);
+  --sidebar-ring: oklch(0.85 0.15 85);
 }
 
 @layer base {
@@ -223,6 +223,7 @@ h1, h2, h3, h4, h5, h6 {
 .input:focus {
   outline: none;
   box-shadow: 0 0 0 2px var(--color-accent-yellow);
+  border-color: var(--color-accent-yellow);
 }
 
 /* Badge */
@@ -301,27 +302,27 @@ body {
   }
 }
 
-/* Updated patterns with #2b825b */
+/* Patterns using Zidwell accent yellow instead of green */
 .bg-patterns {
   background-color: #ffffff;
   opacity: 0.1;
   z-index: -1;
   background-image:
     repeating-radial-gradient(circle at 0 0, transparent 0, #ffffff 38px),
-    repeating-linear-gradient(#2b825b55, #2b825b);
+    repeating-linear-gradient(var(--color-accent-yellow)55, var(--color-accent-yellow));
 }
 
 .bg-primary-mesh {
   background:
-    radial-gradient(at 40% 20%, rgba(43, 130, 91, 0.15) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, rgba(43, 130, 91, 0.1) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, rgba(43, 130, 91, 0.08) 0px, transparent 50%);
+    radial-gradient(at 40% 20%, rgba(253, 192, 32, 0.15) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(253, 192, 32, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(253, 192, 32, 0.08) 0px, transparent 50%);
 }
 
 .bg-grid-pattern {
   background-image:
-    linear-gradient(rgba(43, 130, 91, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(43, 130, 91, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(253, 192, 32, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(253, 192, 32, 0.05) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
@@ -330,75 +331,75 @@ body {
   background-color: #1a1a1a;
   background-image:
     repeating-radial-gradient(circle at 0 0, transparent 0, #1a1a1a 38px),
-    repeating-linear-gradient(#2b825b33, #2b825b);
+    repeating-linear-gradient(var(--color-accent-yellow)33, var(--color-accent-yellow));
 }
 
 .dark .bg-primary-mesh {
   background:
-    radial-gradient(at 40% 20%, rgba(43, 130, 91, 0.25) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, rgba(43, 130, 91, 0.2) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, rgba(43, 130, 91, 0.15) 0px, transparent 50%);
+    radial-gradient(at 40% 20%, rgba(253, 192, 32, 0.25) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(253, 192, 32, 0.2) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(253, 192, 32, 0.15) 0px, transparent 50%);
 }
 
 .dark .bg-grid-pattern {
   background-image:
-    linear-gradient(rgba(43, 130, 91, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(43, 130, 91, 0.1) 1px, transparent 1px);
+    linear-gradient(rgba(253, 192, 32, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(253, 192, 32, 0.1) 1px, transparent 1px);
 }
 
-/* Utility classes for your primary color */
+/* Utility classes for Zidwell accent yellow */
 .bg-primary-custom {
-  background-color: #2b825b !important;
+  background-color: var(--color-accent-yellow) !important;
 }
 
 .bg-primary-dark {
-  background-color: #1e5f43 !important;
+  background-color: #e6a800 !important;
 }
 
 .bg-primary-light {
-  background-color: #3a9f72 !important;
+  background-color: #fed454 !important;
 }
 
 .text-primary-custom {
-  color: #2b825b !important;
+  color: var(--color-accent-yellow) !important;
 }
 
 .text-primary-dark {
-  color: #1e5f43 !important;
+  color: #e6a800 !important;
 }
 
 .border-primary-custom {
-  border-color: #2b825b !important;
+  border-color: var(--color-accent-yellow) !important;
 }
 
 .hover\:bg-primary-custom:hover {
-  background-color: #2b825b !important;
+  background-color: var(--color-accent-yellow) !important;
 }
 
 .hover\:text-primary-custom:hover {
-  color: #2b825b !important;
+  color: var(--color-accent-yellow) !important;
 }
 
-/* Focus ring with primary color */
+/* Focus ring with Zidwell accent yellow */
 .focus\:ring-primary-custom:focus {
-  --tw-ring-color: #2b825b !important;
+  --tw-ring-color: var(--color-accent-yellow) !important;
 }
 
-/* Gradient classes */
+/* Gradient classes using Zidwell accent yellow */
 .primary-gradient {
-  background: linear-gradient(135deg, #2b825b 0%, #1e5f43 100%);
+  background: linear-gradient(135deg, var(--color-accent-yellow) 0%, #e6a800 100%);
 }
 
 .primary-gradient-light {
-  background: linear-gradient(135deg, #3a9f72 0%, #2b825b 100%);
+  background: linear-gradient(135deg, #fed454 0%, var(--color-accent-yellow) 100%);
 }
 
 .primary-light-bg {
-  background-color: rgba(43, 130, 91, 0.1);
+  background-color: rgba(253, 192, 32, 0.1);
 }
 
 .dark .primary-light-bg {
-  background-color: rgba(43, 130, 91, 0.2);
+  background-color: rgba(253, 192, 32, 0.2);
 }
 
 @keyframes gradient-x {

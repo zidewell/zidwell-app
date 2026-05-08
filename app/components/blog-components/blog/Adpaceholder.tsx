@@ -1,3 +1,4 @@
+// AdPlaceholder.tsx
 interface AdPlaceholderProps {
   variant?: "horizontal" | "vertical" | "inline";
 }
@@ -15,11 +16,11 @@ const AdPlaceholder = ({ variant = "horizontal" }: AdPlaceholderProps) => {
   };
 
   return (
-    <div className={`bg-muted/50 rounded border border-dashed border-border flex flex-col items-center justify-center ${getStyles()}`}>
-      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+    <div className={`bg-[var(--bg-secondary)]/50 rounded border border-dashed border-[var(--border-color)] flex flex-col items-center justify-center ${getStyles()}`}>
+      <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">
         Advertisement
       </p>
-      <p className="text-xs text-muted-foreground mt-1">
+      <p className="text-xs text-[var(--text-secondary)] mt-1">
         Google Ads Placement
       </p>
     </div>

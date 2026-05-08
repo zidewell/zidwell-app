@@ -1,3 +1,4 @@
+// app/components/tax-filling-components/InfoTooltip.tsx
 import { Info } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
@@ -25,13 +26,13 @@ export function InfoTooltip({ content }: InfoTooltipProps) {
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="text-[#6b6b6b] dark:text-[#b3b3b3] hover:text-[#242424] dark:hover:text-[#ffffff] transition-colors"
+        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
         aria-label="More info"
       >
         <Info className="w-4 h-4" />
       </button>
       {open && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 w-64 p-3 rounded-lg bg-[#ffffff] dark:bg-[#161616] border border-[#e6e6e6] dark:border-[#2e2e2e] shadow-lg text-sm text-[#242424] dark:text-[#ffffff] animate-fade-in-up">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 w-64 p-3 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-lg text-sm text-[var(--text-primary)] animate-fade-in-up">
           {content}
         </div>
       )}

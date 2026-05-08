@@ -245,7 +245,7 @@ export function PayWithTransferModal({
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            {/* <span className="text-[#2b825b]">Pay via Bank Transfer</span> */}
+            {/* <span className="text-(--color-accent-yellow)">Pay via Bank Transfer</span> */}
             {paymentStatus === "verified" ? (
               <span className="text-sm px-2 py-1 bg-green-100 text-green-800 rounded-full">
                 ✅ Payment Verified

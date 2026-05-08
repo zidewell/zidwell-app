@@ -811,7 +811,7 @@ export default function NotificationsCenterPage() {
               🔄 Refresh
             </Button>
             <Button
-              className="bg-[#2b825b] text-white hover:bg-[#a87e06]"
+              className="bg-(--color-accent-yellow) text-white hover:bg-[#a87e06]"
               onClick={() => setShowCreateModal(true)}
             >
               📢 Create Notification
@@ -829,7 +829,7 @@ export default function NotificationsCenterPage() {
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Scheduled</h3>
-            <p className="text-2xl font-semibold text-[#2b825b]">
+            <p className="text-2xl font-semibold text-(--color-accent-yellow)">
               {scheduledNotifications.length}
             </p>
           </div>
@@ -1441,7 +1441,7 @@ export default function NotificationsCenterPage() {
                                   channels: updatedChannels,
                                 });
                               }}
-                              className="h-4 w-4 text-[#2b825b] focus:ring-[#2b825b] border-gray-300 rounded"
+                              className="h-4 w-4 text-(--color-accent-yellow) focus:ring-(--color-accent-yellow) border-gray-300 rounded"
                             />
                             <span className="text-sm capitalize">
                               {channel === "in_app"
@@ -1481,7 +1481,7 @@ export default function NotificationsCenterPage() {
                               is_urgent: checked,
                             })
                           }
-                          className="data-[state=checked]:bg-[#2b825b]"
+                          className="data-[state=checked]:bg-(--color-accent-yellow)"
                         />
                         <label className="text-sm font-medium">
                           Mark as Urgent
@@ -1556,7 +1556,7 @@ export default function NotificationsCenterPage() {
                             selectedUsers.length === 0) ||
                           isSubmitting
                         }
-                        className="bg-[#2b825b] text-white hover:bg-[#a87e06]"
+                        className="bg-(--color-accent-yellow) text-white hover:bg-[#a87e06]"
                       >
                         {isSubmitting ? (
                           <>

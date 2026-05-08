@@ -4,7 +4,7 @@ import { Upload, Plus, X, HelpCircle, AlertCircle } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
-import type { Student, FeeItem } from "@/app/hooks/useStore"; 
+import type { Student, FeeItem } from "@/app/hooks/useStore";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -31,7 +31,7 @@ const SchoolFields = ({
   requiredFields,
   setRequiredFields,
   price,
-  onPriceChange
+  onPriceChange,
 }: Props) => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -53,10 +53,10 @@ const SchoolFields = ({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setUploading(true);
     setUploadError(null);
-    
+
     const ext = file.name.split(".").pop()?.toLowerCase();
     const parsedStudents: Student[] = [];
 
@@ -68,26 +68,45 @@ const SchoolFields = ({
           skipEmptyLines: true,
           complete: (results) => {
             console.log("CSV Parse Results:", results);
-            
+
             if (results.errors && results.errors.length > 0) {
               console.warn("CSV parsing warnings:", results.errors);
             }
-            
+
             // Map the data to Student objects
             const mapped = results.data
               .filter((row: any) => {
                 // Check if row has any student data
                 const hasData = Object.values(row).some(
-                  val => val && String(val).trim()
+                  (val) => val && String(val).trim(),
                 );
                 return hasData;
               })
               .map((row: any) => {
                 // Try different possible column names
-                const name = row.name || row.Name || row["Student Name"] || row["student_name"] || row["STUDENT_NAME"] || "";
-                const studentClass = row.class || row.Class || row.className || row["Class Name"] || row["CLASS"] || className || "";
-                const regNumber = row.regNumber || row["Reg Number"] || row["Registration Number"] || row["reg_number"] || row["REG_NUMBER"] || "";
-                
+                const name =
+                  row.name ||
+                  row.Name ||
+                  row["Student Name"] ||
+                  row["student_name"] ||
+                  row["STUDENT_NAME"] ||
+                  "";
+                const studentClass =
+                  row.class ||
+                  row.Class ||
+                  row.className ||
+                  row["Class Name"] ||
+                  row["CLASS"] ||
+                  className ||
+                  "";
+                const regNumber =
+                  row.regNumber ||
+                  row["Reg Number"] ||
+                  row["Registration Number"] ||
+                  row["reg_number"] ||
+                  row["REG_NUMBER"] ||
+                  "";
+
                 return {
                   name: String(name).trim(),
                   className: String(studentClass).trim(),
@@ -95,11 +114,13 @@ const SchoolFields = ({
                 };
               })
               .filter((student: Student) => student.name); // Only keep students with names
-              
+
             console.log("Mapped students:", mapped);
-            
+
             if (mapped.length === 0) {
-              setUploadError("No valid student data found in the file. Please ensure at least a 'Name' column exists.");
+              setUploadError(
+                "No valid student data found in the file. Please ensure at least a 'Name' column exists.",
+              );
             } else {
               setStudents([...students, ...mapped]);
               setUploadError(null);
@@ -108,9 +129,11 @@ const SchoolFields = ({
           },
           error: (error) => {
             console.error("CSV Parse Error:", error);
-            setUploadError("Failed to parse CSV file. Please check the file format.");
+            setUploadError(
+              "Failed to parse CSV file. Please check the file format.",
+            );
             setUploading(false);
-          }
+          },
         });
       } else if (ext === "xlsx" || ext === "xls") {
         // Parse Excel file
@@ -121,24 +144,43 @@ const SchoolFields = ({
             const workbook = XLSX.read(data, { type: "array" });
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData = XLSX.utils.sheet_to_json(firstSheet) as any[];
-            
+
             console.log("Excel Parse Results:", jsonData);
-            
+
             // Map the data to Student objects
             const mapped = jsonData
               .filter((row) => {
                 // Check if row has any student data
                 const hasData = Object.values(row).some(
-                  val => val && String(val).trim()
+                  (val) => val && String(val).trim(),
                 );
                 return hasData;
               })
               .map((row) => {
                 // Try different possible column names
-                const name = row.name || row.Name || row["Student Name"] || row["student_name"] || row["STUDENT_NAME"] || "";
-                const studentClass = row.class || row.Class || row.className || row["Class Name"] || row["CLASS"] || className || "";
-                const regNumber = row.regNumber || row["Reg Number"] || row["Registration Number"] || row["reg_number"] || row["REG_NUMBER"] || "";
-                
+                const name =
+                  row.name ||
+                  row.Name ||
+                  row["Student Name"] ||
+                  row["student_name"] ||
+                  row["STUDENT_NAME"] ||
+                  "";
+                const studentClass =
+                  row.class ||
+                  row.Class ||
+                  row.className ||
+                  row["Class Name"] ||
+                  row["CLASS"] ||
+                  className ||
+                  "";
+                const regNumber =
+                  row.regNumber ||
+                  row["Reg Number"] ||
+                  row["Registration Number"] ||
+                  row["reg_number"] ||
+                  row["REG_NUMBER"] ||
+                  "";
+
                 return {
                   name: String(name).trim(),
                   className: String(studentClass).trim(),
@@ -146,11 +188,13 @@ const SchoolFields = ({
                 };
               })
               .filter((student) => student.name); // Only keep students with names
-              
+
             console.log("Mapped students from Excel:", mapped);
-            
+
             if (mapped.length === 0) {
-              setUploadError("No valid student data found in the Excel file. Please ensure at least a 'Name' column exists.");
+              setUploadError(
+                "No valid student data found in the Excel file. Please ensure at least a 'Name' column exists.",
+              );
             } else {
               setStudents([...students, ...mapped]);
               setUploadError(null);
@@ -158,7 +202,9 @@ const SchoolFields = ({
             setUploading(false);
           } catch (error) {
             console.error("Excel Parse Error:", error);
-            setUploadError("Failed to parse Excel file. Please check the file format.");
+            setUploadError(
+              "Failed to parse Excel file. Please check the file format.",
+            );
             setUploading(false);
           }
         };
@@ -168,7 +214,9 @@ const SchoolFields = ({
         };
         reader.readAsArrayBuffer(file);
       } else {
-        setUploadError("Unsupported file format. Please upload CSV or Excel files.");
+        setUploadError(
+          "Unsupported file format. Please upload CSV or Excel files.",
+        );
         setUploading(false);
       }
     } catch (error) {
@@ -176,7 +224,7 @@ const SchoolFields = ({
       setUploadError("An error occurred while processing the file.");
       setUploading(false);
     }
-    
+
     // Reset the file input
     e.target.value = "";
   };
@@ -196,8 +244,12 @@ const SchoolFields = ({
   const addFeeItem = () => {
     setFeeBreakdown([...feeBreakdown, { label: "", amount: 0 }]);
   };
-  
-  const updateFeeItem = (i: number, field: keyof FeeItem, val: string | number) => {
+
+  const updateFeeItem = (
+    i: number,
+    field: keyof FeeItem,
+    val: string | number,
+  ) => {
     const updated = [...feeBreakdown];
     if (field === "amount") {
       updated[i] = { ...updated[i], amount: Number(val) || 0 };
@@ -206,7 +258,7 @@ const SchoolFields = ({
     }
     setFeeBreakdown(updated);
   };
-  
+
   const removeFeeItem = (i: number) => {
     setFeeBreakdown(feeBreakdown.filter((_, idx) => idx !== i));
   };
@@ -226,14 +278,14 @@ const SchoolFields = ({
     const sampleData = [
       ["John Doe", "JSS 1", "REG001"],
       ["Jane Smith", "JSS 2", "REG002"],
-      ["Bob Johnson", "SSS 1", "REG003"]
+      ["Bob Johnson", "SSS 1", "REG003"],
     ];
-    
+
     const csvContent = [
       headers.join(","),
-      ...sampleData.map(row => row.join(","))
+      ...sampleData.map((row) => row.join(",")),
     ].join("\n");
-    
+
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -272,7 +324,8 @@ const SchoolFields = ({
           </div>
         </div>
         <p className="text-xs text-[#3e7465] mb-3">
-          Add all fee items that make up the total amount (e.g., Tuition, uniform, textbooks, sports, exam fee)
+          Add all fee items that make up the total amount (e.g., Tuition,
+          uniform, textbooks, sports, exam fee)
         </p>
         <div className="space-y-2">
           {feeBreakdown.map((item, i) => (
@@ -312,10 +365,16 @@ const SchoolFields = ({
         {calculateTotal() > 0 && (
           <div className="mt-3 p-3 bg-[#e1bf46]/10 rounded-lg">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-semibold text-[#023528]">Total Amount:</span>
-              <span className="text-lg font-bold text-[#e1bf46]">₦{calculateTotal().toLocaleString()}</span>
+              <span className="text-sm font-semibold text-[#023528]">
+                Total Amount:
+              </span>
+              <span className="text-lg font-bold text-[#e1bf46]">
+                ₦{calculateTotal().toLocaleString()}
+              </span>
             </div>
-            <p className="text-xs text-[#3e7465] mt-1">This total will be automatically set as your page price</p>
+            <p className="text-xs text-[#3e7465] mt-1">
+              This total will be automatically set as your page price
+            </p>
           </div>
         )}
       </div>
@@ -329,12 +388,12 @@ const SchoolFields = ({
             variant="ghost"
             size="sm"
             onClick={downloadTemplate}
-            className="text-xs text-[#3e7465] hover:text-[#2b825b]"
+            className="text-xs text-[#3e7465] hover:text-(--color-accent-yellow)"
           >
             Download Template sample
           </Button>
         </div>
-        
+
         <input
           type="file"
           ref={fileRef}
@@ -342,7 +401,7 @@ const SchoolFields = ({
           accept=".csv,.xlsx,.xls"
           onChange={handleFileUpload}
         />
-        
+
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -380,7 +439,10 @@ const SchoolFields = ({
         {students.length > 0 && (
           <div className="space-y-2 mb-3 max-h-64 overflow-y-auto border border-[#ded4c3] rounded-lg p-2">
             {students.map((s, i) => (
-              <div key={i} className="flex gap-2 items-center bg-white p-2 rounded-lg">
+              <div
+                key={i}
+                className="flex gap-2 items-center bg-white p-2 rounded-lg"
+              >
                 <Input
                   placeholder="Student name"
                   value={s.name}
@@ -406,11 +468,11 @@ const SchoolFields = ({
             ))}
           </div>
         )}
-        
+
         <Button type="button" variant="outline" size="sm" onClick={addStudent}>
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Student Manually
         </Button>
-        
+
         {students.length > 0 && (
           <p className="text-xs text-[#3e7465] mt-2">
             Total students: {students.length}
@@ -424,7 +486,8 @@ const SchoolFields = ({
           Additional Questions for the customer
         </Label>
         <p className="text-xs text-[#3e7465] mb-3">
-          Ask customers to provide additional information during checkout (e.g., House/Hostel, Sport choice, Medical info)
+          Ask customers to provide additional information during checkout (e.g.,
+          House/Hostel, Sport choice, Medical info)
         </p>
         <div className="space-y-2">
           {requiredFields.map((f, i) => (

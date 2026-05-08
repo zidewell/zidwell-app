@@ -31,7 +31,7 @@ const WhyUsSection = () => {
           {/* Content */}
           <div className="space-y-8">
             <div>
-              <div className="inline-block px-4 py-1 bg-[#2b825b]/20 border border-[#2b825b] text-sm font-semibold mb-4">
+              <div className="inline-block px-4 py-1 bg-(--color-accent-yellow)/20 border border-(--color-accent-yellow) text-sm font-semibold mb-4">
                 WHY ZIDWELL
               </div>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6">
@@ -46,7 +46,7 @@ const WhyUsSection = () => {
                   key={index}
                   className="flex items-center gap-4 p-4 bg-white border-2 border-neutral-900 transition-all hover:shadow-[4px_4px_0px_#2b825b]"
                 >
-                  <div className="w-12 h-12 bg-[#2b825b] border-2 border-neutral-900 flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 bg-(--color-accent-yellow) border-2 border-neutral-900 flex items-center justify-center shrink-0">
                     <reason.icon className="w-6 h-6" />
                   </div>
                   <p className="font-semibold">{reason.title}</p>
@@ -54,7 +54,7 @@ const WhyUsSection = () => {
               ))}
             </div>
 
-            <p className="text-lg text-muted-neutral-900 border-l-4 border-[#2b825b] pl-6">
+            <p className="text-lg text-muted-neutral-900 border-l-4 border-(--color-accent-yellow) pl-6">
               Zidwell gives you peace of mind so you can focus on growing your
               business.
             </p>
@@ -71,7 +71,7 @@ const WhyUsSection = () => {
             </div>
 
             {/* Decorative element */}
-            <div className="absolute -bottom-6 -left-6 w-24 h-24 border-2 border-[#2b825b] bg-[#2b825b]/20" />
+            <div className="absolute -bottom-6 -left-6 w-24 h-24 border-2 border-(--color-accent-yellow) bg-(--color-accent-yellow)/20" />
           </div>
         </div>
 
@@ -89,7 +89,7 @@ const WhyUsSection = () => {
             ].map((item, index) => (
               <div
                 key={index}
-                className="px-6 py-3 bg-white border-2 border-neutral-900 font-medium hover:bg-[#2b825b] transition-colors cursor-default"
+                className="px-6 py-3 bg-white border-2 border-neutral-900 font-medium hover:bg-(--color-accent-yellow) transition-colors cursor-default"
               >
                 {item}
               </div>

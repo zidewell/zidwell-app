@@ -1,3 +1,4 @@
+// GlobalVerificationModal.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -29,7 +30,6 @@ const GlobalVerificationModal = () => {
   // Reset all form state when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Reset form when modal opens
       setBvn("");
       setPin("");
       setConfirmPin("");
@@ -70,12 +70,10 @@ const GlobalVerificationModal = () => {
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-    
-    // Prevent multiple submissions
     if (loading) return;
-    
+
     setLoading(true);
-    
+
     try {
       const response = await fetch("/api/verify-bvn", {
         method: "POST",
@@ -94,7 +92,6 @@ const GlobalVerificationModal = () => {
         throw new Error(result.error || "Verification failed");
       }
 
-      // Update user data in context
       setUserData({
         ...userData,
         bvnVerification: "verified",
@@ -105,17 +102,14 @@ const GlobalVerificationModal = () => {
         pinSet: true,
       });
 
-      // Close modal first
       closeVerificationModal();
-      
-      // Reset form state
+
       setBvn("");
       setPin("");
       setConfirmPin("");
       setErrors({});
       setLoading(false);
-      
-      // Show success message that auto-closes
+
       Swal.fire({
         icon: "success",
         title: "Verification Successful!",
@@ -124,19 +118,15 @@ const GlobalVerificationModal = () => {
         showConfirmButton: false,
         allowOutsideClick: false,
         didOpen: () => {
-          // Auto close after 2 seconds
           setTimeout(() => {
             Swal.close();
           }, 2000);
-        }
+        },
       });
     } catch (error: any) {
       console.error("Verification error:", error);
-      
-      // Reset loading state first so button becomes clickable
       setLoading(false);
-      
-      // Show error message that auto-closes after 3 seconds
+
       Swal.fire({
         icon: "error",
         title: "Verification Failed",
@@ -145,11 +135,10 @@ const GlobalVerificationModal = () => {
         showConfirmButton: false,
         allowOutsideClick: false,
         didOpen: () => {
-          // Auto close after 3 seconds
           setTimeout(() => {
             Swal.close();
           }, 3000);
-        }
+        },
       });
     }
   };
@@ -157,7 +146,6 @@ const GlobalVerificationModal = () => {
   const handleClose = () => {
     if (!loading) {
       closeVerificationModal();
-      // Reset all state
       setBvn("");
       setPin("");
       setConfirmPin("");
@@ -166,7 +154,6 @@ const GlobalVerificationModal = () => {
     }
   };
 
-  // Handle dialog open state change
   const handleOpenChange = (open: boolean) => {
     if (!open && !loading) {
       handleClose();
@@ -175,10 +162,12 @@ const GlobalVerificationModal = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-[var(--bg-primary)] border border-[var(--border-color)]">
         <DialogHeader>
-          <DialogTitle>Complete Your BVN Verification</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-[var(--text-primary)]">
+            Complete Your BVN Verification
+          </DialogTitle>
+          <DialogDescription className="text-[var(--text-secondary)]">
             Set up your wallet by verifying your BVN and creating a transaction
             PIN.
           </DialogDescription>
@@ -187,14 +176,19 @@ const GlobalVerificationModal = () => {
         <div className="space-y-4 py-4">
           {/* BVN Field */}
           <div className="space-y-2">
-            <Label htmlFor="global-bvn">Bank Verification Number (BVN) *</Label>
+            <Label htmlFor="global-bvn" className="text-[var(--text-primary)]">
+              Bank Verification Number (BVN) *
+            </Label>
             <Input
               id="global-bvn"
               placeholder="Enter 11-digit BVN"
               value={bvn}
               onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))}
               maxLength={11}
-              className={errors.bvn ? "border-red-500" : ""}
+              className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${
+                errors.bvn ? "border-red-500" : ""
+              }`}
+              style={{ outline: "none", boxShadow: "none" }}
               disabled={loading}
             />
             {errors.bvn && <p className="text-xs text-red-500">{errors.bvn}</p>}
@@ -202,7 +196,9 @@ const GlobalVerificationModal = () => {
 
           {/* PIN Field */}
           <div className="space-y-2">
-            <Label htmlFor="global-pin">Transaction PIN *</Label>
+            <Label htmlFor="global-pin" className="text-[var(--text-primary)]">
+              Transaction PIN *
+            </Label>
             <Input
               id="global-pin"
               type="password"
@@ -210,7 +206,10 @@ const GlobalVerificationModal = () => {
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
               maxLength={4}
-              className={errors.pin ? "border-red-500" : ""}
+              className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${
+                errors.pin ? "border-red-500" : ""
+              }`}
+              style={{ outline: "none", boxShadow: "none" }}
               disabled={loading}
             />
             {errors.pin && <p className="text-xs text-red-500">{errors.pin}</p>}
@@ -218,7 +217,9 @@ const GlobalVerificationModal = () => {
 
           {/* Confirm PIN Field */}
           <div className="space-y-2">
-            <Label htmlFor="global-confirmPin">Confirm PIN *</Label>
+            <Label htmlFor="global-confirmPin" className="text-[var(--text-primary)]">
+              Confirm PIN *
+            </Label>
             <Input
               id="global-confirmPin"
               type="password"
@@ -226,7 +227,10 @@ const GlobalVerificationModal = () => {
               value={confirmPin}
               onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
               maxLength={4}
-              className={errors.confirmPin ? "border-red-500" : ""}
+              className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${
+                errors.confirmPin ? "border-red-500" : ""
+              }`}
+              style={{ outline: "none", boxShadow: "none" }}
               disabled={loading}
             />
             {errors.confirmPin && (
@@ -234,8 +238,8 @@ const GlobalVerificationModal = () => {
             )}
           </div>
 
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <p className="text-xs text-green-800">
+          <div className="bg-[var(--color-lemon-green)]/10 border border-[var(--color-lemon-green)]/20 rounded-lg p-3">
+            <p className="text-xs text-[var(--color-lemon-green)]">
               <strong>CBN Regulation:</strong> BVN verification is required
               before we can issue your virtual account number. Your information
               is encrypted and secure.
@@ -244,11 +248,12 @@ const GlobalVerificationModal = () => {
         </div>
 
         <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={handleClose} 
+          <Button
+            variant="outline"
+            onClick={handleClose}
             disabled={loading}
             type="button"
+            className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
           >
             Later
           </Button>
@@ -256,7 +261,7 @@ const GlobalVerificationModal = () => {
             onClick={handleSubmit}
             disabled={loading || !bvn || !pin || !confirmPin}
             type="button"
-            className="flex-1 bg-[#2b825b] hover:bg-[#2b825b]/90 text-white dark:bg-[#236b49] dark:hover:bg-[#174c36] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>

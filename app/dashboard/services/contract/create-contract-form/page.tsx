@@ -1,3 +1,4 @@
+// app/dashboard/services/contract/create-contract-form/page.tsx
 "use client";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
@@ -8,7 +9,7 @@ const ContractForm = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] fade-in relative">
+    <div className="min-h-screen bg-[var(--bg-secondary)] dark:bg-[#0e0e0e] fade-in relative">
       <DashboardSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

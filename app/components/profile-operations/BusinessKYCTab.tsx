@@ -26,12 +26,33 @@ const BusinessKYCTab: React.FC = () => {
   });
 
   const businessCategories = [
-    "Fintech", "E-commerce", "Technology", "Consulting", "Healthcare",
-    "Education", "Real Estate", "Transportation", "Agriculture", "Manufacturing",
-    "Media & Entertainment", "Hospitality", "Retail", "Construction",
-    "Telecommunications", "Legal Services", "Non-profit", "Logistics",
-    "Beauty & Wellness", "Energy & Utilities", "Finance", "Food & Beverage",
-    "Automotive", "Insurance", "Gaming", "Cybersecurity", "Other"
+    "Fintech",
+    "E-commerce",
+    "Technology",
+    "Consulting",
+    "Healthcare",
+    "Education",
+    "Real Estate",
+    "Transportation",
+    "Agriculture",
+    "Manufacturing",
+    "Media & Entertainment",
+    "Hospitality",
+    "Retail",
+    "Construction",
+    "Telecommunications",
+    "Legal Services",
+    "Non-profit",
+    "Logistics",
+    "Beauty & Wellness",
+    "Energy & Utilities",
+    "Finance",
+    "Food & Beverage",
+    "Automotive",
+    "Insurance",
+    "Gaming",
+    "Cybersecurity",
+    "Other",
   ];
 
   useEffect(() => {
@@ -75,7 +96,7 @@ const BusinessKYCTab: React.FC = () => {
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
@@ -228,96 +249,125 @@ const BusinessKYCTab: React.FC = () => {
     }
   };
 
-  const descWordCount = formData.businessDescription.trim().split(/\s+/).filter(Boolean).length;
+  const descWordCount = formData.businessDescription
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
 
   const inputClassName = (field: string) => `
-    w-full bg-background border-2 px-3 py-2 text-sm font-body text-foreground 
-    placeholder:text-muted-foreground focus:outline-none transition-colors rounded-md
-    ${errors[field] ? 'border-red-500' : 'border-[#2b825b]'}
-    focus:border-[#2b825b] focus:ring-2 focus:ring-[#2b825b]/20 disabled:opacity-50 disabled:cursor-not-allowed
+    w-full bg-[var(--bg-primary)] border-2 px-3 py-2 text-sm font-body text-[var(--text-primary)] 
+    placeholder:text-[var(--text-secondary)] focus:outline-none transition-colors rounded-md
+    ${errors[field] ? "border-red-500" : "border-[var(--color-accent-yellow)]"}
+    focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 disabled:opacity-50 disabled:cursor-not-allowed
   `;
 
   if (fetchLoading) {
     return (
-      <div className="neo-card bg-card p-6 flex justify-center items-center h-64">
+      <div className="neo-card bg-[var(--bg-primary)] p-6 flex justify-center items-center h-64 border border-[var(--border-color)] rounded-xl shadow-soft">
         <Loader />
       </div>
     );
   }
 
   return (
-    <div className="neo-card bg-card p-6 space-y-5">
+    <div className="neo-card bg-[var(--bg-primary)] p-6 space-y-5 border border-[var(--border-color)] rounded-xl shadow-soft">
       <div>
-        <label className="text-sm font-body text-muted-foreground block mb-1.5">Business Name</label>
+        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+          Business Name
+        </label>
         <input
           type="text"
           value={formData.businessName}
           onChange={(e) => handleChange("businessName", e.target.value)}
-          className={inputClassName('businessName')}
+          className={inputClassName("businessName")}
           placeholder="Enter business name"
           disabled={loading}
         />
-        {errors.businessName && <p className="text-xs text-red-500 mt-1">{errors.businessName}</p>}
+        {errors.businessName && (
+          <p className="text-xs text-red-500 mt-1">{errors.businessName}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="text-sm font-body text-muted-foreground block mb-1.5">Business Type</label>
+          <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+            Business Type
+          </label>
           <select
             value={formData.businessType}
             onChange={(e) => handleChange("businessType", e.target.value)}
-            className={`w-full bg-background border-2 px-3 py-2 text-sm font-body text-foreground focus:outline-none focus:border-[#2b825b] focus:ring-2 focus:ring-[#2b825b]/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed appearance-none ${
-              errors.businessType ? 'border-red-500' : 'border-[#2b825b]'
+            className={`w-full bg-[var(--bg-primary)] border-2 px-3 py-2 text-sm font-body text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed appearance-none ${
+              errors.businessType
+                ? "border-red-500"
+                : "border-[var(--color-accent-yellow)]"
             }`}
             disabled={loading}
           >
             <option value="">Select type</option>
             {businessCategories.map((category) => (
-              <option key={category} value={category}>{category}</option>
+              <option key={category} value={category}>
+                {category}
+              </option>
             ))}
           </select>
-          {errors.businessType && <p className="text-xs text-red-500 mt-1">{errors.businessType}</p>}
+          {errors.businessType && (
+            <p className="text-xs text-red-500 mt-1">{errors.businessType}</p>
+          )}
         </div>
         <div>
-          <label className="text-sm font-body text-muted-foreground block mb-1.5">BN/RC Number</label>
+          <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+            BN/RC Number
+          </label>
           <input
             type="text"
             value={formData.bnRcNumber}
             onChange={(e) => handleChange("bnRcNumber", e.target.value)}
-            className={inputClassName('bnRcNumber')}
+            className={inputClassName("bnRcNumber")}
             placeholder="BN or RC number"
             disabled={loading}
           />
-          {errors.bnRcNumber && <p className="text-xs text-red-500 mt-1">{errors.bnRcNumber}</p>}
+          {errors.bnRcNumber && (
+            <p className="text-xs text-red-500 mt-1">{errors.bnRcNumber}</p>
+          )}
         </div>
       </div>
 
       <div>
-        <label className="text-sm font-body text-muted-foreground block mb-1.5">Tax ID (TIN)</label>
+        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+          Tax ID (TIN)
+        </label>
         <input
           type="text"
           value={formData.taxId}
           onChange={(e) => handleChange("taxId", e.target.value)}
-          className={inputClassName('taxId')}
+          className={inputClassName("taxId")}
           placeholder="Enter Tax Identification Number"
           disabled={loading}
         />
-        {errors.taxId && <p className="text-xs text-red-500 mt-1">{errors.taxId}</p>}
+        {errors.taxId && (
+          <p className="text-xs text-red-500 mt-1">{errors.taxId}</p>
+        )}
       </div>
 
       {/* CAC Upload */}
       <div>
-        <label className="text-sm font-body text-muted-foreground block mb-1.5">CAC Certificate</label>
+        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+          CAC Certificate
+        </label>
         <div
           onClick={() => !loading && fileRef.current?.click()}
-          className={`w-full border-2 border-dashed p-4 text-center cursor-pointer hover:border-[#2b825b] transition-colors rounded-md ${
-            loading ? 'opacity-50 cursor-not-allowed border-[#2b825b]' : 'border-[#2b825b]'
+          className={`w-full border-2 border-dashed p-4 text-center cursor-pointer hover:border-[var(--color-accent-yellow)] transition-colors rounded-md ${
+            loading
+              ? "opacity-50 cursor-not-allowed border-[var(--color-accent-yellow)]"
+              : "border-[var(--color-accent-yellow)]"
           }`}
         >
           {cacFileName ? (
-            <span className="text-sm font-body text-foreground">{cacFileName}</span>
+            <span className="text-sm font-body text-[var(--text-primary)]">
+              {cacFileName}
+            </span>
           ) : (
-            <span className="text-sm font-body text-muted-foreground">
+            <span className="text-sm font-body text-[var(--text-secondary)]">
               Click to upload CAC certificate (PDF, JPG, PNG) - Max 5MB
             </span>
           )}
@@ -333,33 +383,41 @@ const BusinessKYCTab: React.FC = () => {
       </div>
 
       <div>
-        <label className="text-sm font-body text-muted-foreground block mb-1.5">Business Address</label>
+        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+          Business Address
+        </label>
         <input
           type="text"
           value={formData.businessAddress}
           onChange={(e) => handleChange("businessAddress", e.target.value)}
-          className={inputClassName('businessAddress')}
+          className={inputClassName("businessAddress")}
           placeholder="Full business address"
           disabled={loading}
         />
-        {errors.businessAddress && <p className="text-xs text-red-500 mt-1">{errors.businessAddress}</p>}
+        {errors.businessAddress && (
+          <p className="text-xs text-red-500 mt-1">{errors.businessAddress}</p>
+        )}
       </div>
 
       {/* Utility Bill Upload - Address Verification */}
       <div>
-        <label className="text-sm font-body text-muted-foreground block mb-1.5">
+        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
           Utility Bill (Address Verification)
         </label>
         <div
           onClick={() => !loading && utilityRef.current?.click()}
-          className={`w-full border-2 border-dashed p-4 text-center cursor-pointer hover:border-[#2b825b] transition-colors rounded-md ${
-            loading ? 'opacity-50 cursor-not-allowed border-[#2b825b]' : 'border-[#2b825b]'
+          className={`w-full border-2 border-dashed p-4 text-center cursor-pointer hover:border-[var(--color-accent-yellow)] transition-colors rounded-md ${
+            loading
+              ? "opacity-50 cursor-not-allowed border-[var(--color-accent-yellow)]"
+              : "border-[var(--color-accent-yellow)]"
           }`}
         >
           {utilityFileName ? (
-            <span className="text-sm font-body text-foreground">{utilityFileName}</span>
+            <span className="text-sm font-body text-[var(--text-primary)]">
+              {utilityFileName}
+            </span>
           ) : (
-            <span className="text-sm font-body text-muted-foreground">
+            <span className="text-sm font-body text-[var(--text-secondary)]">
               Upload a recent utility bill (PDF, JPG, PNG — max 5MB)
             </span>
           )}
@@ -372,26 +430,31 @@ const BusinessKYCTab: React.FC = () => {
           onChange={handleUtilityUpload}
           disabled={loading}
         />
-        <p className="text-xs font-body text-muted-foreground mt-1.5">
+        <p className="text-xs font-body text-[var(--text-secondary)] mt-1.5">
           Electricity, water, or waste bill matching your business address.
         </p>
       </div>
 
       <div>
-        <label className="text-sm font-body text-muted-foreground block mb-1.5">
+        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
           Business Description
-          <span className="ml-2 text-xs text-muted-foreground">({descWordCount}/100 words)</span>
+          <span className="ml-2 text-xs text-[var(--text-secondary)]">
+            ({descWordCount}/100 words)
+          </span>
         </label>
         <textarea
           value={formData.businessDescription}
           onChange={(e) => {
             const words = e.target.value.trim().split(/\s+/).filter(Boolean);
-            if (words.length <= 100 || e.target.value.length < formData.businessDescription.length) {
+            if (
+              words.length <= 100 ||
+              e.target.value.length < formData.businessDescription.length
+            ) {
               handleChange("businessDescription", e.target.value);
             }
           }}
           rows={4}
-          className="w-full bg-background border-2 border-[#2b825b] px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#2b825b] focus:ring-2 focus:ring-[#2b825b]/20 transition-colors rounded-md resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-[var(--bg-primary)] border-2 border-[var(--color-accent-yellow)] px-3 py-2 text-sm font-body text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 transition-colors rounded-md resize-none disabled:opacity-50 disabled:cursor-not-allowed"
           placeholder="Describe your business activities"
           disabled={loading}
         />
@@ -402,7 +465,7 @@ const BusinessKYCTab: React.FC = () => {
         type="button"
         onClick={handleSave}
         disabled={loading}
-        className="w-full bg-[#2b825b] hover:bg-[#2b825b]/90 text-white md:w-[200px] dark:bg-[#236b49] dark:hover:bg-[#174c36] py-3 px-4 rounded-md transition-all disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+        className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] md:w-[200px] py-3 px-4 rounded-md transition-all disabled:opacity-50 font-medium flex items-center justify-center gap-2"
       >
         {loading ? (
           <>

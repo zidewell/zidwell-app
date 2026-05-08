@@ -131,7 +131,7 @@ export default function ContractsPage() {
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-            <p className="text-2xl font-semibold text-[#2b825b]">
+            <p className="text-2xl font-semibold text-(--color-accent-yellow)">
               {filtered.filter((c: any) => c.status === "pending").length}
             </p>
           </div>

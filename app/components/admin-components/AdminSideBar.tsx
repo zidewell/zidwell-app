@@ -97,7 +97,7 @@ const navSections = [
 export default function AdminSidebar() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    const logoutInProgress = useRef(false); 
+  const logoutInProgress = useRef(false);
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
@@ -120,94 +120,93 @@ export default function AdminSidebar() {
     }
   }, [pathname]);
 
-   const handleLogout = async () => {
-     // Prevent multiple logout attempts
-     if (logoutInProgress.current || isLoggingOut) return;
-     
-     logoutInProgress.current = true;
-     setIsLoggingOut(true);
- 
-     try {
-       console.log("🔵 Attempting logout...");
-       
-       // Call logout API
-       const response = await fetch("/api/logout", { method: "POST" });
-       const data = await response.json();
-       
-       console.log("🔵 Logout response:", data);
- 
-       // Track last logout activity if user data exists
-       if (userData) {
-         try {
-           await fetch("/api/activity/last-logout", {
-             method: "POST",
-             headers: {
-               'Content-Type': 'application/json',
-             },
-             body: JSON.stringify({
-               user_id: userData.id,
-               email: userData.email,
-               login_history_id: userData.currentLoginSession 
-             }),
-           });
-         } catch (activityError) {
-           console.error("Error tracking logout activity:", activityError);
-         
-         }
-       }
- 
-       // Clear client-side storage
-       if (typeof window !== "undefined") {
-         localStorage.removeItem("userData");
-         // Only clear specific items, not everything
-         // localStorage.clear(); // Remove this line - it's too aggressive
-       }
- 
-       // Clear context
-       setUserData(null);
- 
-       // Show success message
-       await Swal.fire({
-         icon: "success",
-         title: "Logged Out",
-         text: "You have been signed out successfully.",
-         timer: 1500,
-         showConfirmButton: false,
-       });
- 
-       // Redirect after a short delay to show the success message
-       setTimeout(() => {
-         router.push("/auth/login");
-       }, 1500);
-       
-     } catch (error: any) {
-       console.error("Logout error:", error);
-       
-       // Even if API fails, clear local state
-       localStorage.removeItem("userData");
-       setUserData(null);
-       
-       await Swal.fire({
-         icon: "error",
-         title: "Logout Failed",
-         text: error?.message || "An error occurred during logout. You have been logged out locally.",
-         timer: 2000,
-         showConfirmButton: false,
-       });
-       
-       // Still redirect after error
-       setTimeout(() => {
-         router.push("/auth/login");
-       }, 2000);
-     } finally {
-       // Reset logout flags after delay
-       setTimeout(() => {
-         logoutInProgress.current = false;
-         setIsLoggingOut(false);
-       }, 2000);
-     }
-   };
+  const handleLogout = async () => {
+    // Prevent multiple logout attempts
+    if (logoutInProgress.current || isLoggingOut) return;
 
+    logoutInProgress.current = true;
+    setIsLoggingOut(true);
+
+    try {
+      console.log("🔵 Attempting logout...");
+
+      // Call logout API
+      const response = await fetch("/api/logout", { method: "POST" });
+      const data = await response.json();
+
+      console.log("🔵 Logout response:", data);
+
+      // Track last logout activity if user data exists
+      if (userData) {
+        try {
+          await fetch("/api/activity/last-logout", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: userData.id,
+              email: userData.email,
+              login_history_id: userData.currentLoginSession,
+            }),
+          });
+        } catch (activityError) {
+          console.error("Error tracking logout activity:", activityError);
+        }
+      }
+
+      // Clear client-side storage
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("userData");
+        // Only clear specific items, not everything
+        // localStorage.clear(); // Remove this line - it's too aggressive
+      }
+
+      // Clear context
+      setUserData(null);
+
+      // Show success message
+      await Swal.fire({
+        icon: "success",
+        title: "Logged Out",
+        text: "You have been signed out successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      // Redirect after a short delay to show the success message
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 1500);
+    } catch (error: any) {
+      console.error("Logout error:", error);
+
+      // Even if API fails, clear local state
+      localStorage.removeItem("userData");
+      setUserData(null);
+
+      await Swal.fire({
+        icon: "error",
+        title: "Logout Failed",
+        text:
+          error?.message ||
+          "An error occurred during logout. You have been logged out locally.",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      // Still redirect after error
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 2000);
+    } finally {
+      // Reset logout flags after delay
+      setTimeout(() => {
+        logoutInProgress.current = false;
+        setIsLoggingOut(false);
+      }, 2000);
+    }
+  };
 
   const handleBackToUserDashboard = () => {
     setIsMobileMenuOpen(false);
@@ -262,7 +261,7 @@ export default function AdminSidebar() {
       href={href}
       className={`flex items-center gap-3 p-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
         isLinkActive(href)
-          ? "bg-[#2b825b] text-white shadow-sm"
+          ? "bg-(--color-accent-yellow) text-white shadow-sm"
           : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
       }`}
     >
@@ -356,7 +355,7 @@ export default function AdminSidebar() {
         <div className="p-4 border-b border-gray-200 bg-blue-50">
           <Button
             onClick={handleBackToUserDashboard}
-            className="w-full cursor-pointer flex items-center justify-center gap-2 border  bg-white text-black  hover:text-white hover:bg-[#2b825b]  transition-all duration-200"
+            className="w-full cursor-pointer flex items-center justify-center gap-2 border  bg-white text-black  hover:text-white hover:bg-(--color-accent-yellow)  transition-all duration-200"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to User Dashboard</span>
@@ -388,7 +387,7 @@ export default function AdminSidebar() {
         {/* 👤 User & Logout Section */}
         <div className="p-4 border-t border-gray-200 bg-gray-50 shrink-0">
           <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-white border border-gray-200">
-            <div className="w-8 h-8 bg-[#2b825b] rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-(--color-accent-yellow) rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-semibold">
                 {userData?.email?.charAt(0).toUpperCase() || "A"}
               </span>

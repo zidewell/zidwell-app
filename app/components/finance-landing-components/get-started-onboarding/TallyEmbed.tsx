@@ -64,7 +64,7 @@ export function TallyEmbed({ formId }: TallyEmbedProps) {
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-lg z-10">
           <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-[#2b825b]/20 border-t-[#2b825b] rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-2 border-(--color-accent-yellow)/20 border-t-(--color-accent-yellow) rounded-full animate-spin"></div>
             <p className="text-sm text-gray-600">Loading form...</p>
           </div>
         </div>

@@ -145,7 +145,6 @@ const BlogPage = () => {
       setPage(2);
       setHasMore(INITIAL_POSTS_COUNT < filteredPosts.length);
     } else if (isClient && !searchQuery) {
-      // Handle empty state when no search
       setDisplayedPosts([]);
       setPage(1);
       setHasMore(false);
@@ -189,7 +188,6 @@ const BlogPage = () => {
     
     setLoadingMore(true);
     
-    // Simulate network delay
     setTimeout(() => {
       const start = (page - 1) * POSTS_PER_PAGE;
       const end = start + POSTS_PER_PAGE;
@@ -259,13 +257,13 @@ const BlogPage = () => {
   // Loading skeleton - show during SSR and initial client load
   if (isLoading || !isClient || !isInitialized) {
     return (
-      <div className="min-h-screen bg-[#FFFFFF]">
+      <div className="min-h-screen bg-[var(--bg-primary)]">
         {/* Simple static header for SSR */}
-        <div className="border-b border-[#E6E6E6]">
+        <div className="border-b border-[var(--border-color)]">
           <div className="container mx-auto px-4 py-6">
             <div className="flex justify-between items-center">
-              <div className="h-10 w-32 bg-[#E6E6E6] rounded animate-pulse" />
-              <div className="h-10 w-64 bg-[#E6E6E6] rounded animate-pulse" />
+              <div className="h-10 w-32 bg-[var(--bg-secondary)] rounded animate-pulse" />
+              <div className="h-10 w-64 bg-[var(--bg-secondary)] rounded animate-pulse" />
             </div>
           </div>
         </div>
@@ -275,29 +273,29 @@ const BlogPage = () => {
             <div>
               {/* Featured Post Skeleton */}
               <div className="mb-12">
-                <div className="bg-[#FFFFFF] rounded-lg overflow-hidden shadow-sm border border-[#E6E6E6]">
-                  <Skeleton className="h-64 w-full bg-[#E6E6E6]" />
+                <div className="bg-[var(--bg-primary)] rounded-lg overflow-hidden shadow-soft border border-[var(--border-color)]">
+                  <Skeleton className="h-64 w-full bg-[var(--bg-secondary)]" />
                   <div className="p-6">
-                    <Skeleton className="h-8 w-3/4 mb-4 bg-[#E6E6E6]" />
-                    <Skeleton className="h-4 w-full mb-2 bg-[#E6E6E6]" />
-                    <Skeleton className="h-4 w-2/3 bg-[#E6E6E6]" />
+                    <Skeleton className="h-8 w-3/4 mb-4 bg-[var(--bg-secondary)]" />
+                    <Skeleton className="h-4 w-full mb-2 bg-[var(--bg-secondary)]" />
+                    <Skeleton className="h-4 w-2/3 bg-[var(--bg-secondary)]" />
                   </div>
                 </div>
               </div>
               
               {/* Ad Skeleton */}
-              <Skeleton className="h-32 w-full mb-8 bg-[#E6E6E6]" />
+              <Skeleton className="h-32 w-full mb-8 bg-[var(--bg-secondary)]" />
               
               {/* Posts Grid Skeleton */}
               <div className="grid md:grid-cols-2 gap-8">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i}>
-                    <div className="bg-[#FFFFFF] rounded-lg overflow-hidden shadow-sm border border-[#E6E6E6]">
-                      <Skeleton className="h-48 w-full bg-[#E6E6E6]" />
+                    <div className="bg-[var(--bg-primary)] rounded-lg overflow-hidden shadow-soft border border-[var(--border-color)]">
+                      <Skeleton className="h-48 w-full bg-[var(--bg-secondary)]" />
                       <div className="p-4">
-                        <Skeleton className="h-6 w-3/4 mb-2 bg-[#E6E6E6]" />
-                        <Skeleton className="h-4 w-full mb-2 bg-[#E6E6E6]" />
-                        <Skeleton className="h-4 w-2/3 bg-[#E6E6E6]" />
+                        <Skeleton className="h-6 w-3/4 mb-2 bg-[var(--bg-secondary)]" />
+                        <Skeleton className="h-4 w-full mb-2 bg-[var(--bg-secondary)]" />
+                        <Skeleton className="h-4 w-2/3 bg-[var(--bg-secondary)]" />
                       </div>
                     </div>
                   </div>
@@ -309,12 +307,12 @@ const BlogPage = () => {
             <div className="hidden lg:block">
               <div className="sticky top-24 space-y-8">
                 <div className="space-y-3">
-                  <Skeleton className="h-5 w-24 bg-[#E6E6E6]" />
-                  <Skeleton className="h-10 w-full bg-[#E6E6E6]" />
+                  <Skeleton className="h-5 w-24 bg-[var(--bg-secondary)]" />
+                  <Skeleton className="h-10 w-full bg-[var(--bg-secondary)]" />
                 </div>
-                <Skeleton className="h-64 w-full bg-[#E6E6E6]" />
-                <Skeleton className="h-48 w-full bg-[#E6E6E6]" />
-                <Skeleton className="h-48 w-full bg-[#E6E6E6]" />
+                <Skeleton className="h-64 w-full bg-[var(--bg-secondary)]" />
+                <Skeleton className="h-48 w-full bg-[var(--bg-secondary)]" />
+                <Skeleton className="h-48 w-full bg-[var(--bg-secondary)]" />
               </div>
             </div>
           </div>
@@ -324,7 +322,7 @@ const BlogPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF]">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <BlogHeader onSearch={handleSearch} />
       
       <main className="container mx-auto px-4 py-8">
@@ -336,13 +334,13 @@ const BlogPage = () => {
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <h2 
-                    className="text-xl font-semibold text-[#242424]"
+                    className="text-xl font-semibold text-[var(--text-primary)]"
                     style={{ fontFamily: "'Clash Display', sans-serif" }}
                   >
                     Search Results for &quot;{searchQuery}&quot;
                   </h2>
                   <p 
-                    className="text-[#6B6B6B] text-sm mt-1"
+                    className="text-[var(--text-secondary)] text-sm mt-1"
                     style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                   >
                     Found {filteredPosts.length} article{filteredPosts.length !== 1 ? 's' : ''}
@@ -351,7 +349,7 @@ const BlogPage = () => {
                 <Button
                   variant="ghost"
                   onClick={() => handleSearch("")}
-                  className="text-[#242424] hover:bg-[#E6E6E6]"
+                  className="text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                   style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                 >
                   Clear Search
@@ -382,12 +380,12 @@ const BlogPage = () => {
               <div className="grid md:grid-cols-2 gap-8 mt-12">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i}>
-                    <div className="bg-[#FFFFFF] rounded-lg overflow-hidden shadow-sm border border-[#E6E6E6] animate-pulse">
-                      <div className="h-48 bg-[#E6E6E6]" />
+                    <div className="bg-[var(--bg-primary)] rounded-lg overflow-hidden shadow-soft border border-[var(--border-color)] animate-pulse">
+                      <div className="h-48 bg-[var(--bg-secondary)]" />
                       <div className="p-4">
-                        <div className="h-6 bg-[#E6E6E6] rounded w-3/4 mb-2" />
-                        <div className="h-4 bg-[#E6E6E6] rounded w-full mb-2" />
-                        <div className="h-4 bg-[#E6E6E6] rounded w-2/3" />
+                        <div className="h-6 bg-[var(--bg-secondary)] rounded w-3/4 mb-2" />
+                        <div className="h-4 bg-[var(--bg-secondary)] rounded w-full mb-2" />
+                        <div className="h-4 bg-[var(--bg-secondary)] rounded w-2/3" />
                       </div>
                     </div>
                   </div>
@@ -421,20 +419,20 @@ const BlogPage = () => {
                 <div className="text-center py-16">
                   <div className="max-w-md mx-auto">
                     <h3 
-                      className="text-xl font-semibold mb-4 text-[#242424]"
+                      className="text-xl font-semibold mb-4 text-[var(--text-primary)]"
                       style={{ fontFamily: "'Clash Display', sans-serif" }}
                     >
                       No articles published yet
                     </h3>
                     <p 
-                      className="text-[#6B6B6B] mb-6"
+                      className="text-[var(--text-secondary)] mb-6"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
                       Check back soon for new content or contact the administrator.
                     </p>
                     <Button 
                       onClick={handleRefresh}
-                      className="bg-[#242424] hover:bg-[#242424]/90 text-white"
+                      className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
                       Refresh
@@ -447,7 +445,7 @@ const BlogPage = () => {
             {/* Loading more indicator */}
             {loadingMore && (
               <div className="flex justify-center py-8">
-                <div className="w-8 h-8 border-2 border-[#242424] border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-[var(--color-accent-yellow)] border-t-transparent rounded-full animate-spin" />
               </div>
             )}
 
@@ -457,7 +455,7 @@ const BlogPage = () => {
                 <Button 
                   onClick={loadMorePosts} 
                   variant="outline"
-                  className="border-[#E6E6E6] text-[#242424] hover:bg-[#E6E6E6]"
+                  className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                   style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                 >
                   Load More Articles
@@ -468,7 +466,7 @@ const BlogPage = () => {
             {/* No more posts */}
             {!hasMore && displayedPosts.length > 0 && !isSearching && (
               <p 
-                className="text-center text-[#6B6B6B] py-8"
+                className="text-center text-[var(--text-secondary)] py-8"
                 style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
               >
                 You&apos;ve reached the end
@@ -479,20 +477,20 @@ const BlogPage = () => {
             {!loadingMore && !isSearching && searchQuery && filteredPosts.length === 0 && (
               <div className="text-center py-16">
                 <h3 
-                  className="text-xl font-semibold mb-4 text-[#242424]"
+                  className="text-xl font-semibold mb-4 text-[var(--text-primary)]"
                   style={{ fontFamily: "'Clash Display', sans-serif" }}
                 >
                   No articles found for &quot;{searchQuery}&quot;
                 </h3>
                 <p 
-                  className="text-[#6B6B6B] mb-6"
+                  className="text-[var(--text-secondary)] mb-6"
                   style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                 >
                   Try different keywords or browse our categories.
                 </p>
                 <Button 
                   onClick={() => handleSearch("")}
-                  className="bg-[#242424] hover:bg-[#242424]/90 text-white"
+                  className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
                   style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                 >
                   View All Articles

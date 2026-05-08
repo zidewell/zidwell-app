@@ -1,3 +1,4 @@
+// app/components/sign-contract-form-component/SuggestEditsModal.tsx
 "use client";
 
 import { useState } from "react";
@@ -93,7 +94,7 @@ export const SuggestEditsModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Suggest Edits to Contract</DialogTitle>
+          <DialogTitle className="text-[var(--text-primary)]">Suggest Edits to Contract</DialogTitle>
           <DialogDescription>
             Provide your suggested changes to "{contractTitle}". The contract
             creator will be notified and can accept the edits for ₦500.
@@ -116,14 +117,15 @@ export const SuggestEditsModal = ({
           </div>
 
           <div className="space-y-2">
-            <Label>Suggested Edits *</Label>
+            <Label className="text-[var(--text-primary)]">Suggested Edits *</Label>
             <Textarea
               value={edits}
               onChange={(e) => setEdits(e.target.value)}
               placeholder="Describe the changes you'd like to see in the contract. Be as specific as possible..."
-              className="min-h-[200px]"
+              className="min-h-[200px] border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+              style={{ outline: "none", boxShadow: "none" }}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[var(--text-secondary)]">
               Provide detailed suggestions for changes, additions, or deletions
               to the contract terms
             </p>
@@ -142,7 +144,7 @@ export const SuggestEditsModal = ({
           </Button>
           <Button
             type="button"
-            className="flex-1 bg-[#2b825b] hover:bg-[#1e5d42]"
+            className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
             onClick={handleSubmit}
             disabled={isSubmitting}
           >

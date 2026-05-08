@@ -74,15 +74,15 @@ export default function ContractGen({
     if (isPremiumUser)
       return {
         icon: Crown,
-        color: "text-[#2b825b]",
-        bg: "bg-[#2b825b]/10",
+        color: "text-[var(--color-accent-yellow)]",
+        bg: "bg-[var(--color-accent-yellow)]/10",
         label: "Premium",
       };
     if (isGrowth)
       return {
         icon: Zap,
-        color: "text-green-600",
-        bg: "bg-green-100",
+        color: "text-[var(--color-accent-yellow)]",
+        bg: "bg-[var(--color-accent-yellow)]/10",
         label: "Growth",
       };
     if (isZidLite)
@@ -94,8 +94,8 @@ export default function ContractGen({
       };
     return {
       icon: Star,
-      color: "text-gray-600",
-      bg: "bg-gray-100",
+    
+     
       label: "Free Trial",
     };
   };
@@ -166,14 +166,14 @@ export default function ContractGen({
       {/* Upgrade Prompt Modal */}
       {showUpgradePrompt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+          <div className="bg-[var(--bg-primary)] rounded-xl max-w-md w-full p-6">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Crown className="w-6 h-6 text-red-600" />
             </div>
-            <h3 className="text-xl font-bold text-center mb-2">
+            <h3 className="text-xl font-bold text-center mb-2 text-[var(--text-primary)]">
               Contract Limit Reached
             </h3>
-            <p className="text-gray-600 text-center mb-6">
+            <p className="text-[var(--text-secondary)] text-center mb-6">
               {isZidLite
                 ? "You've used all your ZidLite contracts. Upgrade to continue creating more contracts!"
                 : "You've used all your free contracts. Upgrade to continue creating unlimited contracts!"}
@@ -187,7 +187,7 @@ export default function ContractGen({
                 Cancel
               </Button>
               <Link href="/pricing?upgrade=growth" className="flex-1">
-                <Button className="w-full bg-[#2b825b] hover:bg-[#1e5d42] text-white">
+                <Button className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]">
                   View Plans
                 </Button>
               </Link>
@@ -214,7 +214,7 @@ export default function ContractGen({
               isPremiumUser || isElite
                 ? "bg-purple-50 border-purple-200"
                 : isGrowth
-                  ? "bg-green-50 border-green-200"
+                  ? "bg-[var(--color-accent-yellow)]/5 border-[var(--color-accent-yellow)]/20"
                   : isZidLite
                     ? "bg-blue-50 border-blue-200"
                     : ""
@@ -225,7 +225,7 @@ export default function ContractGen({
                 isPremiumUser || isElite
                   ? "text-purple-600"
                   : isGrowth
-                    ? "text-green-600"
+                    ? "text-[var(--color-accent-yellow)]"
                     : isZidLite
                       ? "text-blue-600"
                       : ""
@@ -236,7 +236,7 @@ export default function ContractGen({
                   isPremiumUser || isElite
                     ? "bg-purple-100 text-purple-600 border border-purple-200"
                     : isGrowth
-                      ? "bg-green-100 text-green-600 border border-green-200"
+                      ? "bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] border border-[var(--color-accent-yellow)]/20"
                       : isZidLite
                         ? "bg-blue-100 text-blue-600 border border-blue-200"
                         : ""
@@ -251,7 +251,7 @@ export default function ContractGen({
             {!hasUnlimitedContracts && (
               <div className="mt-3 flex justify-end">
                 <Link href="/pricing?upgrade=growth">
-                  <Button size="sm" className="bg-[#2b825b] hover:bg-[#1e5d42] text-white">
+                  <Button size="sm" className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]">
                     <ArrowUpCircle className="w-4 h-4 mr-1" />
                     Upgrade Plan
                   </Button>
@@ -264,40 +264,40 @@ export default function ContractGen({
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <Card>
+        <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Total Contracts</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm text-[var(--text-secondary)] mb-1">Total Contracts</p>
+              <p className="text-2xl font-bold text-[var(--text-primary)]">
                 {contracts.length.toLocaleString()}
               </p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Signed Contracts</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-sm text-[var(--text-secondary)] mb-1">Signed Contracts</p>
+              <p className="text-2xl font-bold text-[var(--color-lemon-green)]">
                 {stats.signed}
               </p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Pending Contracts</p>
-              <p className="text-2xl font-bold text-yellow-600">
+              <p className="text-sm text-[var(--text-secondary)] mb-1">Pending Contracts</p>
+              <p className="text-2xl font-bold text-[var(--color-accent-yellow)]">
                 {stats.pending}
               </p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Draft Contracts</p>
+              <p className="text-sm text-[var(--text-secondary)] mb-1">Draft Contracts</p>
               <p className="text-2xl font-bold text-blue-600">{stats.draft}</p>
             </div>
           </CardContent>
@@ -307,28 +307,28 @@ export default function ContractGen({
       {/* Free Tier Usage and Upgrade Banner */}
       {isFree && (
         <Card className={`border-2 ${
-          reachedLimit ? 'border-red-200 bg-red-50' : 'border-blue-200 bg-blue-50'
+          reachedLimit ? 'border-red-200 bg-red-50' : ''
         }`}>
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
                 <div className={`p-2 rounded-full ${
-                  reachedLimit ? 'bg-red-100' : 'bg-blue-100'
+                  reachedLimit ? 'bg-red-100' : ''
                 }`}>
                   {reachedLimit ? (
                     <AlertCircle className="w-5 h-5 text-red-600" />
                   ) : (
-                    <Crown className="w-5 h-5 text-blue-600" />
+                    <Crown className="w-5 h-5 " />
                   )}
                 </div>
                 <div>
                   <h3 className={`font-semibold ${
-                    reachedLimit ? 'text-red-800' : 'text-blue-800'
+                    reachedLimit ? 'text-red-800' : ''
                   }`}>
                     {reachedLimit ? 'Free Contract Limit Reached' : 'Free Trial'}
                   </h3>
                   <p className={`text-sm ${
-                    reachedLimit ? 'text-red-600' : 'text-blue-600'
+                    reachedLimit ? 'text-red-600' : ''
                   }`}>
                     {reachedLimit 
                       ? `You've used all ${contractCount}/${contractLimit} free contracts.`
@@ -344,8 +344,8 @@ export default function ContractGen({
                   className={`w-full md:w-auto ${
                     reachedLimit 
                       ? 'bg-red-600 hover:bg-red-700' 
-                      : 'bg-[#2b825b] hover:bg-[#1e5d42]'
-                  } text-white`}
+                      : 'bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90'
+                  } text-[var(--color-ink)]`}
                 >
                   <ArrowUpCircle className="w-4 h-4 mr-1" />
                   {reachedLimit ? 'Upgrade Now' : 'Upgrade for More'}
@@ -390,18 +390,18 @@ export default function ContractGen({
 
       {/* Growth Upgrade Banner - Show when close to limit */}
       {isGrowth && !reachedLimit && contractCount >= 3 && (
-        <Card className="border-2 border-green-200 bg-green-50">
+        <Card className="border-2 border-[var(--color-accent-yellow)]/30 bg-[var(--color-accent-yellow)]/5">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="p-2 rounded-full bg-green-100">
-                  <Zap className="w-5 h-5 text-green-600" />
+                <div className="p-2 rounded-full bg-[var(--color-accent-yellow)]/20">
+                  <Zap className="w-5 h-5 text-[var(--color-accent-yellow)]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-green-800">
+                  <h3 className="font-semibold text-[var(--color-accent-yellow)]">
                     {contractCount === 4 ? 'Last Contract' : 'Limited Contracts Remaining'}
                   </h3>
-                  <p className="text-sm text-green-600">
+                  <p className="text-sm text-[var(--color-accent-yellow)]/80">
                     You have {getRemainingDisplay()} Growth contract{getRemainingDisplay() !== 1 ? 's' : ''} left. 
                     Upgrade to Premium for unlimited contracts!
                   </p>
@@ -410,7 +410,7 @@ export default function ContractGen({
               
               {/* Upgrade Button for Growth */}
               <Link href="/pricing?upgrade=premium" className="w-full md:w-auto">
-                <Button className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white">
+                <Button className="w-full md:w-auto bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]">
                   <ArrowUpCircle className="w-4 h-4 mr-1" />
                   Upgrade to Premium
                 </Button>
@@ -442,17 +442,18 @@ export default function ContractGen({
       )}
 
       {/* Search and Filter Section */}
-      <Card>
+      <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             {/* Search Input */}
             <div className="relative w-full sm:flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
               <Input
                 placeholder="Search by contract title..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full"
+                className="pl-10 w-full border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
 
@@ -463,8 +464,8 @@ export default function ContractGen({
                   key={status}
                   variant={selectedStatus === status ? "default" : "outline"}
                   size="sm"
-                  className={`hover:bg-[#2b825b] hover:text-white border hover:shadow-xl transition-all duration-300 ${
-                    selectedStatus === status ? "bg-[#2b825b] text-white" : ""
+                  className={`hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)] border hover:shadow-xl transition-all duration-300 ${
+                    selectedStatus === status ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]" : ""
                   }`}
                   onClick={() => setSelectedStatus(status)}
                 >
@@ -478,8 +479,8 @@ export default function ContractGen({
               <Button
                 className={`w-full sm:w-auto hover:shadow-xl transition-all duration-300 ${
                   reachedLimit && !hasUnlimitedContracts
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-[#2b825b] hover:bg-black"
+                    ? "bg-[var(--text-secondary)] cursor-not-allowed"
+                    : "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
                 }`}
                 onClick={handleCreateClick}
                 disabled={reachedLimit && !hasUnlimitedContracts}

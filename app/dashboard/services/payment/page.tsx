@@ -82,16 +82,16 @@ const Landing = () => {
               transition={{ duration: 0.7 }}
               className="max-w-3xl mx-auto text-center"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#e1bf46]/20 text-[#023528] dark:text-[#f5f5f5] text-sm font-medium mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)] text-sm font-medium mb-6">
                 <Zap className="h-3.5 w-3.5" />
                 New Feature
               </div>
-              <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-tight mb-6 text-[#141414] dark:text-[#f5f5f5]">
+              <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-tight mb-6 text-[var(--text-primary)]">
                 Create a Payment Page.
                 <br />
-                <span className="text-[#e1bf46]">Collect Money Instantly.</span>
+                <span className="text-[var(--color-accent-yellow)]">Collect Money Instantly.</span>
               </h1>
-              <p className="text-lg md:text-xl text-[#6b6b6b] dark:text-[#a6a6a6] max-w-xl mx-auto mb-10">
+              <p className="text-lg md:text-xl text-[var(--text-secondary)] max-w-xl mx-auto mb-10">
                 Set up a beautiful payment page in 2 minutes. Share on WhatsApp.
                 Start collecting school fees, service payments, event tickets
                 anything.
@@ -100,7 +100,7 @@ const Landing = () => {
                 <Button
                   variant="default"
                   size="lg"
-                  className="text-base px-8 py-6"
+                  className="text-base px-8 py-6 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                   onClick={() =>
                     router.push("/dashboard/services/payment/dashboard")
                   }
@@ -111,7 +111,7 @@ const Landing = () => {
                 <Button
                   variant="outline"
                   size="lg"
-                  className="text-base px-8 py-6"
+                  className="text-base px-8 py-6 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                   onClick={() => {
                     document
                       .getElementById("how-it-works")
@@ -133,7 +133,7 @@ const Landing = () => {
               {useCases.map((u) => (
                 <span
                   key={u.label}
-                  className="px-4 py-2 rounded-full bg-[#f9f6ef] dark:bg-[#121212] border border-[#ded4c3] dark:border-[#474747] text-sm font-medium text-[#141414] dark:text-[#f5f5f5]"
+                  className="px-4 py-2 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm font-medium text-[var(--text-primary)]"
                 >
                   {u.emoji} {u.label}
                 </span>
@@ -143,10 +143,10 @@ const Landing = () => {
 
           {/* How it works */}
           <section id="how-it-works" className="container py-16 md:py-24">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-4 text-[#141414] dark:text-[#f5f5f5]">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-4 text-[var(--text-primary)]">
               How It Works
             </h2>
-            <p className="text-[#6b6b6b] dark:text-[#a6a6a6] text-center mb-14 max-w-md mx-auto">
+            <p className="text-[var(--text-secondary)] text-center mb-14 max-w-md mx-auto">
               Three simple steps to start collecting payments
             </p>
             <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
@@ -157,15 +157,15 @@ const Landing = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.15, duration: 0.5 }}
-                  className="relative p-6 rounded-2xl bg-[#f9f6ef] dark:bg-[#121212] border border-[#ded4c3] dark:border-[#474747] group hover:border-[#e1bf46] transition-colors"
+                  className="relative p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] group hover:border-[var(--color-accent-yellow)] transition-colors"
                 >
-                  <span className="text-5xl font-['Space_Grotesk',sans-serif] font-bold text-[#e1bf46]/30 group-hover:text-[#e1bf46]/50 transition-colors">
+                  <span className="text-5xl font-['Space_Grotesk',sans-serif] font-bold text-[var(--color-accent-yellow)]/30 group-hover:text-[var(--color-accent-yellow)]/50 transition-colors">
                     {s.num}
                   </span>
-                  <h3 className="text-xl font-bold mt-3 mb-2 text-[#141414] dark:text-[#f5f5f5]">
+                  <h3 className="text-xl font-bold mt-3 mb-2 text-[var(--text-primary)]">
                     {s.title}
                   </h3>
-                  <p className="text-[#6b6b6b] dark:text-[#a6a6a6] text-sm leading-relaxed">
+                  <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
                     {s.desc}
                   </p>
                 </motion.div>
@@ -175,7 +175,7 @@ const Landing = () => {
 
           {/* Features */}
           <section id="features" className="container py-16 md:py-24">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-14 text-[#141414] dark:text-[#f5f5f5]">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-14 text-[var(--text-primary)]">
               Everything You Need
             </h2>
             <div className="px-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
@@ -186,15 +186,15 @@ const Landing = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
-                  className="p-6 rounded-2xl bg-[#f9f6ef] dark:bg-[#121212] border border-[#ded4c3] dark:border-[#474747] text-center"
+                  className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-center"
                 >
-                  <div className="h-12 w-12 rounded-xl bg-[#e1bf46]/20 flex items-center justify-center mx-auto mb-4">
-                    <f.icon className="h-6 w-6 text-[#023528] dark:text-[#e1bf46]" />
+                  <div className="h-12 w-12 rounded-xl bg-[var(--color-accent-yellow)]/20 flex items-center justify-center mx-auto mb-4">
+                    <f.icon className="h-6 w-6 text-[var(--color-accent-yellow)]" />
                   </div>
-                  <h3 className="font-bold mb-1 text-[#141414] dark:text-[#f5f5f5]">
+                  <h3 className="font-bold mb-1 text-[var(--text-primary)]">
                     {f.title}
                   </h3>
-                  <p className="text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {f.desc}
                   </p>
                 </motion.div>
@@ -208,19 +208,19 @@ const Landing = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="max-w-2xl mx-auto text-center p-10 md:p-16 rounded-3xl bg-[#034936] dark:bg-[#023528] text-[#f7f0e2]"
+              className="max-w-2xl mx-auto text-center p-10 md:p-16 rounded-3xl bg-[var(--color-ink)] text-[var(--bg-secondary)]"
             >
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
                 Ready to start collecting payments?
               </h2>
-              <p className="text-[#f7f0e2]/70 mb-8">
+              <p className="text-[var(--bg-secondary)]/70 mb-8">
                 Join thousands of freelancers, schools, and vendors already
                 using Zidwell Pay.
               </p>
               <Button
                 variant="default"
                 size="lg"
-                className="text-base px-10 py-6 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90"
+                className="text-base px-10 py-6 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                 onClick={() =>
                   router.push("/dashboard/services/payment/create")
                 }
@@ -232,8 +232,8 @@ const Landing = () => {
           </section>
 
           {/* Footer */}
-          <footer className="border-t border-[#ded4c3] dark:border-[#474747] py-8">
-            <div className="container text-center text-sm text-[#6b6b6b] dark:text-[#a6a6a6]">
+          <footer className="border-t border-[var(--border-color)] py-8">
+            <div className="container text-center text-sm text-[var(--text-secondary)]">
               © 2026 Zidwell. All rights reserved.
             </div>
           </footer>

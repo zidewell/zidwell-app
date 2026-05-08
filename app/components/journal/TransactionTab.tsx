@@ -55,19 +55,24 @@ const outflowTypes = [
 const TRANSACTIONS_PER_PAGE = 10;
 
 export function TransactionsTab() {
-  const { categories, activeJournalType, refetch, entries, updateEntry } = useJournal();
+  const { categories, activeJournalType, refetch, entries, updateEntry } =
+    useJournal();
   const { userData } = useUserContextData();
 
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [editingEntry, setEditingEntry] = useState<{ transactionId: string; entryId: string } | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<Transaction | null>(null);
+  const [editingEntry, setEditingEntry] = useState<{
+    transactionId: string;
+    entryId: string;
+  } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -80,7 +85,9 @@ export function TransactionsTab() {
         page: page.toString(),
         limit: TRANSACTIONS_PER_PAGE.toString(),
       });
-      const response = await fetch(`/api/bill-transactions?${params.toString()}`);
+      const response = await fetch(
+        `/api/bill-transactions?${params.toString()}`,
+      );
       const data = await response.json();
       return data;
     } catch (err) {
@@ -108,7 +115,9 @@ export function TransactionsTab() {
         }
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load transactions");
+        setError(
+          err instanceof Error ? err.message : "Failed to load transactions",
+        );
       } finally {
         setLoading(false);
       }
@@ -148,7 +157,7 @@ export function TransactionsTab() {
   };
 
   const getJournalEntryForTransaction = (transactionId: string) => {
-    return entries.find(entry => entry.note?.includes(transactionId));
+    return entries.find((entry) => entry.note?.includes(transactionId));
   };
 
   const openEditDialog = (transaction: Transaction) => {
@@ -163,7 +172,7 @@ export function TransactionsTab() {
 
   const handleUpdateCategory = async () => {
     if (!editingEntry || !selectedCategory) return;
-    
+
     setUpdating(true);
     try {
       await updateEntry(editingEntry.entryId, {
@@ -183,7 +192,9 @@ export function TransactionsTab() {
 
   const getFilteredCategories = () => {
     if (!selectedTransaction) return [];
-    const isCredit = inflowTypes.includes(selectedTransaction.type?.toLowerCase());
+    const isCredit = inflowTypes.includes(
+      selectedTransaction.type?.toLowerCase(),
+    );
     const type = isCredit ? "income" : "expense";
     return categories.filter((cat) => cat.type === type || cat.type === "both");
   };
@@ -193,18 +204,27 @@ export function TransactionsTab() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-[#2b825b]/10">
-              <Wallet className="h-5 w-5 text-[#2b825b]" />
+            <div className="p-2 rounded-xl bg-(--color-accent-yellow)/10">
+              <Wallet className="h-5 w-5 text-(--color-accent-yellow)" />
             </div>
             <div>
-              <h3 className="font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              <h3
+                className="font-medium dark:text-gray-100"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+              >
                 Wallet Transactions
               </h3>
-              <p className="text-sm text-[#e11d48] dark:text-red-400">Error loading transactions</p>
+              <p className="text-sm text-[#e11d48] dark:text-red-400">
+                Error loading transactions
+              </p>
             </div>
           </div>
-          <Button onClick={() => window.location.reload()} size="sm" className="dark:bg-[#2b825b]"
-            style={{ backgroundColor: "#2b825b", color: "#ffffff" }}>
+          <Button
+            onClick={() => window.location.reload()}
+            size="sm"
+            className="dark:bg-(--color-accent-yellow)"
+            style={{ backgroundColor: "#2b825b", color: "#ffffff" }}
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Retry
           </Button>
@@ -228,14 +248,20 @@ export function TransactionsTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-[#2b825b]/10">
-            <Wallet className="h-5 w-5 text-[#2b825b]" />
+          <div className="p-2 rounded-xl bg-(--color-accent-yellow)/10">
+            <Wallet className="h-5 w-5 text-(--color-accent-yellow)" />
           </div>
           <div>
-            <h3 className="font-medium dark:text-gray-100" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            <h3
+              className="font-medium dark:text-gray-100"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
               Wallet Transactions
             </h3>
-            <p className="text-sm dark:text-gray-400" style={{ color: "#80746e" }}>
+            <p
+              className="text-sm dark:text-gray-400"
+              style={{ color: "#80746e" }}
+            >
               Transactions are automatically synced to your journal
             </p>
           </div>
@@ -243,7 +269,10 @@ export function TransactionsTab() {
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-[#f5f1ea] dark:bg-gray-700">
             <span className="text-xs font-medium text-[#80746e] dark:text-gray-400">
-              Journal: <span className="text-[#2b825b] dark:text-[#3aa873]">{activeJournalType}</span>
+              Journal:{" "}
+              <span className="text-(--color-accent-yellow) dark:text-[#3aa873]">
+                {activeJournalType}
+              </span>
             </span>
           </div>
           <Button
@@ -253,9 +282,10 @@ export function TransactionsTab() {
               if (userData?.id) {
                 setLoading(true);
                 const data = await fetchTransactions(1);
-                const completedTransactions = data?.transactions?.filter(
-                  (tx: Transaction) => tx.status?.toLowerCase() === "success",
-                ) || [];
+                const completedTransactions =
+                  data?.transactions?.filter(
+                    (tx: Transaction) => tx.status?.toLowerCase() === "success",
+                  ) || [];
                 setAllTransactions(completedTransactions);
                 setHasMore(data?.hasMore || false);
                 setCurrentPage(1);
@@ -264,7 +294,11 @@ export function TransactionsTab() {
               }
             }}
             className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
-            style={{ borderColor: "#e6dfd6", color: "#80746e", backgroundColor: "#f5f1ea" }}
+            style={{
+              borderColor: "#e6dfd6",
+              color: "#80746e",
+              backgroundColor: "#f5f1ea",
+            }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -275,22 +309,42 @@ export function TransactionsTab() {
       {/* Loading State */}
       {loading ? (
         <div className="h-64 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#2b825b]" />
+          <Loader2 className="h-8 w-8 animate-spin text-(--color-accent-yellow)" />
         </div>
       ) : allTransactions.length === 0 ? (
-        <div className="p-8 rounded-2xl text-center border" style={{ backgroundColor: "#fcfbf9", borderColor: "#e6dfd6" }}>
-          <Wallet className="h-12 w-12 mx-auto mb-4" style={{ color: "#e6dfd6" }} />
-          <h4 className="font-medium mb-2" style={{ color: "#26121c" }}>No Transactions Yet</h4>
-          <p className="text-sm" style={{ color: "#80746e" }}>Your wallet transactions will appear here automatically</p>
+        <div
+          className="p-8 rounded-2xl text-center border"
+          style={{ backgroundColor: "#fcfbf9", borderColor: "#e6dfd6" }}
+        >
+          <Wallet
+            className="h-12 w-12 mx-auto mb-4"
+            style={{ color: "#e6dfd6" }}
+          />
+          <h4 className="font-medium mb-2" style={{ color: "#26121c" }}>
+            No Transactions Yet
+          </h4>
+          <p className="text-sm" style={{ color: "#80746e" }}>
+            Your wallet transactions will appear here automatically
+          </p>
         </div>
       ) : (
         <>
-          <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: "rgba(252, 251, 249, 0.5)", borderColor: "#e6dfd6" }}>
+          <div
+            className="rounded-2xl border overflow-hidden"
+            style={{
+              backgroundColor: "rgba(252, 251, 249, 0.5)",
+              borderColor: "#e6dfd6",
+            }}
+          >
             <div className="divide-y" style={{ borderColor: "#e6dfd6" }}>
               {allTransactions.map((transaction) => {
-                const isCredit = inflowTypes.includes(transaction.type?.toLowerCase());
+                const isCredit = inflowTypes.includes(
+                  transaction.type?.toLowerCase(),
+                );
                 const isSynced = transaction.synced_to_journal === true;
-                const journalEntry = getJournalEntryForTransaction(transaction.id);
+                const journalEntry = getJournalEntryForTransaction(
+                  transaction.id,
+                );
 
                 return (
                   <div
@@ -298,28 +352,52 @@ export function TransactionsTab() {
                     className="flex items-center gap-4 p-4 hover:bg-[#f5f1ea]/50 transition-colors group"
                   >
                     <div
-                      className={cn("shrink-0 w-10 h-10 rounded-xl flex items-center justify-center")}
+                      className={cn(
+                        "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center",
+                      )}
                       style={{
-                        backgroundColor: isCredit ? "rgba(22, 163, 74, 0.1)" : "rgba(225, 29, 72, 0.1)",
+                        backgroundColor: isCredit
+                          ? "rgba(22, 163, 74, 0.1)"
+                          : "rgba(225, 29, 72, 0.1)",
                       }}
                     >
                       {isCredit ? (
-                        <ArrowDownLeft className="h-5 w-5" style={{ color: "#16a34a" }} />
+                        <ArrowDownLeft
+                          className="h-5 w-5"
+                          style={{ color: "#16a34a" }}
+                        />
                       ) : (
-                        <ArrowUpRight className="h-5 w-5" style={{ color: "#e11d48" }} />
+                        <ArrowUpRight
+                          className="h-5 w-5"
+                          style={{ color: "#e11d48" }}
+                        />
                       )}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate" style={{ color: "#26121c" }}>
-                        {transaction.description || `${transaction.type} transaction`}
+                      <p
+                        className="font-medium truncate"
+                        style={{ color: "#26121c" }}
+                      >
+                        {transaction.description ||
+                          `${transaction.type} transaction`}
                       </p>
-                      <div className="flex items-center gap-2 text-xs" style={{ color: "#80746e" }}>
-                        <span>{format(new Date(transaction.created_at), "MMM d, yyyy, h:mm a")}</span>
+                      <div
+                        className="flex items-center gap-2 text-xs"
+                        style={{ color: "#80746e" }}
+                      >
+                        <span>
+                          {format(
+                            new Date(transaction.created_at),
+                            "MMM d, yyyy, h:mm a",
+                          )}
+                        </span>
                         {transaction.reference && (
                           <>
                             <span>•</span>
-                            <span className="truncate max-w-[100px]">{transaction.reference}</span>
+                            <span className="truncate max-w-[100px]">
+                              {transaction.reference}
+                            </span>
                           </>
                         )}
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700">
@@ -333,7 +411,10 @@ export function TransactionsTab() {
                       </div>
                     </div>
 
-                    <p className={cn("font-semibold tabular-nums")} style={{ color: isCredit ? "#16a34a" : "#e11d48" }}>
+                    <p
+                      className={cn("font-semibold tabular-nums")}
+                      style={{ color: isCredit ? "#16a34a" : "#e11d48" }}
+                    >
                       {isCredit ? "+" : "-"}
                       {formatCurrency(transaction.amount)}
                     </p>
@@ -344,7 +425,11 @@ export function TransactionsTab() {
                         size="sm"
                         onClick={() => openEditDialog(transaction)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{ borderColor: "#e6dfd6", backgroundColor: "#fcfbf9", color: "#2b825b" }}
+                        style={{
+                          borderColor: "#e6dfd6",
+                          backgroundColor: "#fcfbf9",
+                          color: "#2b825b",
+                        }}
                       >
                         <Edit2 className="h-4 w-4 mr-1" />
                         Edit Category
@@ -363,7 +448,11 @@ export function TransactionsTab() {
                 onClick={handleLoadMore}
                 disabled={isLoadingMore}
                 className="px-8"
-                style={{ borderColor: "#e6dfd6", color: "#80746e", backgroundColor: "#f5f1ea" }}
+                style={{
+                  borderColor: "#e6dfd6",
+                  color: "#80746e",
+                  backgroundColor: "#f5f1ea",
+                }}
               >
                 {isLoadingMore ? (
                   <>
@@ -384,29 +473,53 @@ export function TransactionsTab() {
 
       {/* Edit Category Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-md" style={{ backgroundColor: "#fcfbf9", borderColor: "#e6dfd6" }}>
+        <DialogContent
+          className="sm:max-w-md"
+          style={{ backgroundColor: "#fcfbf9", borderColor: "#e6dfd6" }}
+        >
           <DialogHeader>
-            <DialogTitle className="text-xl" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            <DialogTitle
+              className="text-xl"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
               Edit Journal Category
             </DialogTitle>
           </DialogHeader>
 
           {selectedTransaction && (
             <div className="space-y-5 mt-4">
-              <div className="p-4 rounded-xl" style={{ backgroundColor: "#f5f1ea" }}>
+              <div
+                className="p-4 rounded-xl"
+                style={{ backgroundColor: "#f5f1ea" }}
+              >
                 <p className="font-medium" style={{ color: "#26121c" }}>
                   {selectedTransaction.description || "Wallet Transaction"}
                 </p>
-                <p className="text-xl font-semibold mt-1" style={{ color: inflowTypes.includes(selectedTransaction.type?.toLowerCase()) ? "#16a34a" : "#e11d48" }}>
+                <p
+                  className="text-xl font-semibold mt-1"
+                  style={{
+                    color: inflowTypes.includes(
+                      selectedTransaction.type?.toLowerCase(),
+                    )
+                      ? "#16a34a"
+                      : "#e11d48",
+                  }}
+                >
                   {formatCurrency(selectedTransaction.amount)}
                 </p>
                 <p className="text-sm mt-1" style={{ color: "#80746e" }}>
-                  {format(new Date(selectedTransaction.created_at), "MMMM d, yyyy, h:mm a")}
+                  {format(
+                    new Date(selectedTransaction.created_at),
+                    "MMMM d, yyyy, h:mm a",
+                  )}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium" style={{ color: "#80746e" }}>
+                <label
+                  className="text-sm font-medium"
+                  style={{ color: "#80746e" }}
+                >
                   Select New Category
                 </label>
                 <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
@@ -419,12 +532,19 @@ export function TransactionsTab() {
                         "flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center",
                       )}
                       style={{
-                        borderColor: selectedCategory === cat.id ? "#2b825b" : "#e6dfd6",
-                        backgroundColor: selectedCategory === cat.id ? "rgba(43, 130, 91, 0.1)" : "#fcfbf9",
+                        borderColor:
+                          selectedCategory === cat.id ? "#2b825b" : "#e6dfd6",
+                        backgroundColor:
+                          selectedCategory === cat.id
+                            ? "rgba(43, 130, 91, 0.1)"
+                            : "#fcfbf9",
                       }}
                     >
                       <span className="text-2xl">{cat.icon}</span>
-                      <span className="text-xs font-medium truncate w-full" style={{ color: "#26121c" }}>
+                      <span
+                        className="text-xs font-medium truncate w-full"
+                        style={{ color: "#26121c" }}
+                      >
                         {cat.name}
                       </span>
                     </button>
@@ -437,7 +557,8 @@ export function TransactionsTab() {
                 disabled={!selectedCategory || updating}
                 className="w-full font-semibold h-12"
                 style={{
-                  background: !selectedCategory || updating ? "#e6dfd6" : "#2b825b",
+                  background:
+                    !selectedCategory || updating ? "#e6dfd6" : "#2b825b",
                   color: !selectedCategory || updating ? "#80746e" : "#ffffff",
                 }}
               >

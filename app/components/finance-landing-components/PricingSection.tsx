@@ -143,13 +143,13 @@ const PricingSection = () => {
       <div className="absolute inset-0 bg-grid-pattern pointer-events-none opacity-50" />
 
       {/* Gold accents */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-linear-to-br from-[#2b825b]/10 to-transparent rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-gradient-to-tl from-[#2b825b]/15 to-transparent rounded-full blur-2xl" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-linear-to-br from-(--color-accent-yellow)/10 to-transparent rounded-full blur-3xl" />
+      <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-gradient-to-tl from-(--color-accent-yellow)/15 to-transparent rounded-full blur-2xl" />
 
       <div className="container-custom relative">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-10">
-          <div className="inline-block px-4 py-1 bg-[#2b825b]/20 border border-[#2b825b] text-sm font-semibold mb-4">
+          <div className="inline-block px-4 py-1 bg-(--color-accent-yellow)/20 border border-(--color-accent-yellow) text-sm font-semibold mb-4">
             PRICING
           </div>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6">
@@ -171,25 +171,25 @@ const PricingSection = () => {
             <TabsList className="bg-secondary/50 border-2 border-foreground p-1 h-auto flex-wrap">
               <TabsTrigger
                 value="monthly"
-                className="px-6 py-2 font-bold data-[state=active]:bg-[#2b825b] data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                className="px-6 py-2 font-bold data-[state=active]:bg-(--color-accent-yellow) data-[state=active]:text-foreground data-[state=active]:shadow-none"
               >
                 Monthly
               </TabsTrigger>
               <TabsTrigger
                 value="quarterly"
-                className="px-6 py-2 font-bold data-[state=active]:bg-[#2b825b] data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                className="px-6 py-2 font-bold data-[state=active]:bg-(--color-accent-yellow) data-[state=active]:text-foreground data-[state=active]:shadow-none"
               >
                 Quarterly
               </TabsTrigger>
               <TabsTrigger
                 value="biannually"
-                className="px-6 py-2 font-bold data-[state=active]:bg-[#2b825b] data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                className="px-6 py-2 font-bold data-[state=active]:bg-(--color-accent-yellow) data-[state=active]:text-foreground data-[state=active]:shadow-none"
               >
                 Biannually
               </TabsTrigger>
               <TabsTrigger
                 value="yearly"
-                className="px-6 py-2 font-bold data-[state=active]:bg-[#2b825b] data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                className="px-6 py-2 font-bold data-[state=active]:bg-(--color-accent-yellow) data-[state=active]:text-foreground data-[state=active]:shadow-none"
               >
                 Yearly
               </TabsTrigger>
@@ -217,7 +217,7 @@ const PricingSection = () => {
                     >
                       {/* Popular badge */}
                       {plan.popular && (
-                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#2b825b] border-2 border-foreground px-4 py-1 flex items-center gap-2">
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-(--color-accent-yellow) border-2 border-foreground px-4 py-1 flex items-center gap-2">
                           <Star className="w-4 h-4 fill-foreground" />
                           <span className="text-sm font-bold">
                             MOST POPULAR
@@ -255,7 +255,7 @@ const PricingSection = () => {
                       <ul className="space-y-3 py-6">
                         {plan.features.map((feature, i) => (
                           <li key={i} className="flex items-start gap-3">
-                            <span className="w-5 h-5 bg-[#2b825b] shrink-0 flex items-center justify-center mt-0.5">
+                            <span className="w-5 h-5 bg-(--color-accent-yellow) shrink-0 flex items-center justify-center mt-0.5">
                               <Check className="w-3 h-3" />
                             </span>
                             <span className="text-sm">{feature}</span>

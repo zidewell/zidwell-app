@@ -1,14 +1,15 @@
+// app/components/smart-contract/Features.tsx
 import React from "react";
 import FeatureCard from "./FeatureCard";
 import { FileText, Shield, Zap } from "lucide-react";
 
 const Features: React.FC = () => (
-  <section className="py-12 bg-gray-50">
+  <section className="py-12 bg-[var(--bg-secondary)]">
     <div className="container mx-auto px-6 md:px-12 lg:px-20">
-      <h1 className="text-center text-xl lg:text-4xl mb-6">
+      <h1 className="text-center text-xl lg:text-4xl mb-6 text-[var(--text-primary)]">
         Why Choose Zidwell Contracts?
       </h1>
-      <p className="text-center text-sm text-gray-500 mb-8">
+      <p className="text-center text-sm text-[var(--text-secondary)] mb-8">
         Everything you need for professional contract management
       </p>
 
@@ -16,17 +17,17 @@ const Features: React.FC = () => (
         <FeatureCard
           title="Lightning Fast"
           desc="Create and share contracts in minutes, not hours. Our templates and signing flows cut time to signature."
-          icon={<Zap color="#2b825b" />}
+          icon={<Zap className="text-[var(--color-accent-yellow)]" />}
         />
         <FeatureCard
           title="Legally Binding"
           desc="Secure e-signatures and compliant audit trails ensure your contracts are enforceable."
-          icon={<Shield color="#2b825b" />}
+          icon={<Shield className="text-[var(--color-accent-yellow)]" />}
         />
         <FeatureCard
           title="Professional Templates"
           desc="Ready-made templates for NDAs, employment, service agreements and more."
-          icon={<FileText color="#2b825b" />}
+          icon={<FileText className="text-[var(--color-accent-yellow)]" />}
         />
       </div>
     </div>

@@ -378,8 +378,6 @@
 // }
 
 
-
-
 import { NextRequest, NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
@@ -417,6 +415,8 @@ export async function POST(req: NextRequest) {
       pin,
       fee,
       totalDebit,
+      category,      // NEW: Category name
+      categoryId,    // NEW: Category ID from journal_categories
     } = await req.json();
 
     if (userId !== user.id) {
@@ -574,7 +574,7 @@ export async function POST(req: NextRequest) {
 
     const merchantTxRef = `WD_${Date.now()}_${userId.slice(0, 8)}`;
 
-    // ✅ Create PENDING transaction FIRST (NO balance deduction)
+    // ✅ Create PENDING transaction FIRST (NO balance deduction) - INCLUDING CATEGORY
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
@@ -598,6 +598,9 @@ export async function POST(req: NextRequest) {
         merchant_tx_ref: merchantTxRef,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        // NEW: Add category fields
+        category: category || null,
+        category_id: categoryId || null,
       })
       .select("*")
       .single();
@@ -615,7 +618,7 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
-    console.log(`📝 Created pending transaction ${pendingTx.id} for user ${userId}`);
+    console.log(`📝 Created pending transaction ${pendingTx.id} for user ${userId} with category: ${category || 'none'}`);
 
     // ✅ Call Nomba API
     const nombaResponse = await fetch(`${process.env.NOMBA_URL}/v1/transfers/bank`, {
@@ -643,7 +646,7 @@ export async function POST(req: NextRequest) {
       nombaReference: nombaData?.data?.reference,
     });
 
-    // ✅ Update transaction to PROCESSING state
+    // ✅ Update transaction to PROCESSING state (preserve category)
     await supabase
       .from("transactions")
       .update({
@@ -666,6 +669,7 @@ export async function POST(req: NextRequest) {
       merchantTxRef,
       status: "processing",
       requiresPolling: true,
+      category: category || null,  // Include category in response
     };
 
     if (newTokens) {

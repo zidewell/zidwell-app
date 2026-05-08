@@ -58,9 +58,9 @@ const ContractList: React.FC<Props> = ({
   };
 
   const statusColors: Record<ContractStatus, string> = useMemo(() => ({
-    signed: "bg-green-100 text-green-800",
-    pending: "bg-yellow-100 text-yellow-800",
-    draft: "bg-gray-100 text-gray-800",
+    signed: "bg-[var(--color-lemon-green)]/20 text-[var(--color-lemon-green)]",
+    pending: "bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)]",
+    draft: "bg-[var(--bg-secondary)] text-[var(--text-secondary)]",
   }), []);
 
   const handleContinueDraft = useCallback((contract: any) => {
@@ -185,9 +185,9 @@ const ContractList: React.FC<Props> = ({
   if (contracts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <FileText className="w-16 h-16 text-gray-300 mb-4" />
-        <p className="text-gray-500 text-lg mb-2">No contracts found</p>
-        <p className="text-gray-400 text-sm mb-6">Create your first contract to get started</p>
+        <FileText className="w-16 h-16 text-[var(--text-secondary)] mb-4" />
+        <p className="text-[var(--text-secondary)] text-lg mb-2">No contracts found</p>
+        <p className="text-[var(--text-secondary)] text-sm mb-6">Create your first contract to get started</p>
       </div>
     );
   }
@@ -207,13 +207,13 @@ const ContractList: React.FC<Props> = ({
           : 'draft';
 
         return (
-          <Card key={contract.id} className="hover:shadow-md transition-shadow">
+          <Card key={contract.id} className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg hover:shadow-md transition-shadow">
             <CardContent className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-semibold text-lg">{title}</h3>
+                    <FileText className="w-5 h-5 text-[var(--color-accent-yellow)]" />
+                    <h3 className="font-semibold text-lg text-[var(--text-primary)]">{title}</h3>
                     <Badge className={statusColors[validStatus]}>{status}</Badge>
                     
                     {/* Show lawyer signature badge if present */}
@@ -224,12 +224,12 @@ const ContractList: React.FC<Props> = ({
                     )}
 
                     {/* Show tier badge on contract */}
-                    <Badge variant="outline" className="bg-gray-50">
+                    <Badge variant="outline" className="bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)]">
                       {getTierIcon(userTier)}
                       <span className="ml-1 text-xs capitalize">{userTier}</span>
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)]">
                     <span>Issue Date: {createdAt.toLocaleDateString()}</span>
                     {status === "signed" && (
                       <span>Signed Date: {sentAt.toLocaleDateString()}</span>
@@ -255,7 +255,7 @@ const ContractList: React.FC<Props> = ({
                       variant="outline"
                       size="sm"
                       onClick={() => handleContinueDraft(contract)}
-                      className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                      className="border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10"
                     >
                       <Play className="w-4 h-4 mr-1" />
                       Continue Draft

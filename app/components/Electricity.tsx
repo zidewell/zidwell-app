@@ -187,7 +187,7 @@ export default function ElectricityBills() {
       Swal.fire({
         icon: "success",
         title: "Power Purchase Successful",
-        confirmButtonColor: "#0f172a",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
 
       return { success: true };
@@ -205,7 +205,8 @@ export default function ElectricityBills() {
       const response = await fetch("/api/electricity-providers");
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || "Failed to fetch providers");
+      if (!response.ok)
+        throw new Error(data.error || "Failed to fetch providers");
 
       const prefixLogos: Record<string, string> = {
         ikedc: "/disco-img/ikeja.png",
@@ -282,7 +283,8 @@ export default function ElectricityBills() {
       setIsVerified(false);
       setUserInfo(null);
       setErrors({
-        meterNumber: "Meter number validation failed. Please check and try again.",
+        meterNumber:
+          "Meter number validation failed. Please check and try again.",
       });
     } finally {
       setLoading2(false);
@@ -301,7 +303,7 @@ export default function ElectricityBills() {
           <Zap className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Coming Soon</h2>
           <p className="text-gray-600">
-            Electricity bill payment service is currently under development. 
+            Electricity bill payment service is currently under development.
             Please check back later.
           </p>
         </div>
@@ -318,7 +320,9 @@ export default function ElectricityBills() {
             setPinError(null);
             await handlePayment(pinCode);
           } catch (error: any) {
-            setPinError(error.message || "Transaction failed. Please try again.");
+            setPinError(
+              error.message || "Transaction failed. Please try again.",
+            );
             throw error;
           }
         }}
@@ -331,15 +335,17 @@ export default function ElectricityBills() {
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
+          className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:bg-[var(--bg-secondary)] text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           <span className="hidden md:block">Back</span>
         </Button>
 
         <div className="">
-          <h1 className="md:text-3xl text-xl font-bold mb-2">Pay Electricity Bills</h1>
-          <p className="text-muted-foreground">
+          <h1 className="md:text-3xl text-xl font-bold mb-2 text-[var(--text-primary)]">
+            Pay Electricity Bills
+          </h1>
+          <p className="text-[var(--text-secondary)]">
             Pay your electricity bills instantly across all DISCOs in Nigeria
           </p>
         </div>
@@ -347,10 +353,10 @@ export default function ElectricityBills() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
+          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2Icon className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-[var(--text-primary)]">
+                <Building2Icon className="w-5 h-5 text-[var(--color-accent-yellow)]" />
                 Select Network Provider
               </CardTitle>
             </CardHeader>
@@ -379,8 +385,8 @@ export default function ElectricityBills() {
                         onClick={() => setSelectedProvider(provider)}
                         className={`relative p-4 border-2 rounded-md transition-all duration-200 cursor-pointer ${
                           isSelected
-                            ? "bg-gray-100 border-[#2b825b] text-gray-900 shadow-md"
-                            : "bg-white border-gray-200 hover:border-gray-300"
+                            ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)] text-[var(--text-primary)] shadow-md"
+                            : "bg-[var(--bg-primary)] border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
                         }`}
                       >
                         <div className="text-center">
@@ -392,14 +398,14 @@ export default function ElectricityBills() {
                               className="rounded-lg object-contain"
                             />
                           </div>
-                          <h3 className="font-semibold text-gray-900 text-sm">
+                          <h3 className="font-semibold text-[var(--text-primary)] text-sm">
                             {provider.name}
                           </h3>
                         </div>
                         {isSelected && (
                           <div className="absolute -top-2 -right-2">
-                            <div className="w-6 h-6 bg-[#2b825b] rounded-full flex items-center justify-center">
-                              <Check className="w-4 h-4 text-white" />
+                            <div className="w-6 h-6 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center">
+                              <Check className="w-4 h-4 text-[var(--color-ink)]" />
                             </div>
                           </div>
                         )}
@@ -419,14 +425,14 @@ export default function ElectricityBills() {
           </Card>
 
           {selectedProvider && (
-            <Card>
+            <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
               <CardHeader>
-                <CardTitle>Meter Information</CardTitle>
+                <CardTitle className="text-[var(--text-primary)]">Meter Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="meterType">Meter Type</Label>
+                    <Label htmlFor="meterType" className="text-[var(--text-primary)]">Meter Type</Label>
                     <Select
                       value={meterType}
                       onValueChange={(value) => {
@@ -435,7 +441,7 @@ export default function ElectricityBills() {
                         setMeterNumber("");
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)]">
                         <SelectValue placeholder="Select meter type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -455,22 +461,25 @@ export default function ElectricityBills() {
                   </div>
 
                   <div>
-                    <Label htmlFor="meterNumber">Meter Number</Label>
+                    <Label htmlFor="meterNumber" className="text-[var(--text-primary)]">Meter Number</Label>
                     <div className="flex items-center gap-3">
                       <Input
                         id="meterNumber"
                         type="text"
                         placeholder="Enter meter number"
                         value={meterNumber}
-                        onChange={(e) => handleMeterNumberChange(e.target.value)}
-                        className={errors.meterNumber ? "border-destructive" : ""}
+                        onChange={(e) =>
+                          handleMeterNumberChange(e.target.value)
+                        }
+                        className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${errors.meterNumber ? "border-destructive" : ""}`}
+                        style={{ outline: "none", boxShadow: "none" }}
                         onBlur={validateMeterNumber}
                         maxLength={13}
                       />
                       {loading2 ? (
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-accent-yellow)]"></div>
                       ) : isVerified ? (
-                        <div className="text-green-600" title="Verified">
+                        <div className="text-[var(--color-lemon-green)]" title="Verified">
                           <Check className="w-6 h-6" />
                         </div>
                       ) : (
@@ -479,6 +488,7 @@ export default function ElectricityBills() {
                           size="sm"
                           onClick={validateMeterNumber}
                           disabled={!meterNumber || !meterType}
+                          className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                         >
                           Verify
                         </Button>
@@ -496,9 +506,9 @@ export default function ElectricityBills() {
             </Card>
           )}
 
-          <Card>
+          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle>Select Amount</CardTitle>
+              <CardTitle className="text-[var(--text-primary)]">Select Amount</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
@@ -509,17 +519,19 @@ export default function ElectricityBills() {
                     className={`relative p-4 border-2 rounded-lg cursor-pointer transition-all duration-200
                             ${
                               selectedAmount === amount.value && !isCustomAmount
-                                ? "border-[#2b825b] bg-blue-50 text-[#2b825b]"
-                                : "border-gray-100 hover:border-gray-200"
+                                ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)]"
+                                : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
                             }`}
                   >
                     <div className="text-center">
-                      <p className="font-bold">₦{amount.value.toLocaleString()}</p>
+                      <p className="font-bold text-[var(--text-primary)]">
+                        ₦{amount.value.toLocaleString()}
+                      </p>
                     </div>
                     {selectedAmount === amount.value && !isCustomAmount && (
                       <div className="absolute -top-2 -right-2">
-                        <div className="w-6 h-6 bg-[#2b825b] rounded-full flex items-center justify-center">
-                          <Check className="w-4 h-4 text-white" />
+                        <div className="w-6 h-6 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center">
+                          <Check className="w-4 h-4 text-[var(--color-ink)]" />
                         </div>
                       </div>
                     )}
@@ -527,10 +539,10 @@ export default function ElectricityBills() {
                 ))}
               </div>
 
-              <div className="border-t pt-4">
-                <Label htmlFor="customAmount">Or Enter Amount</Label>
+              <div className="border-t border-[var(--border-color)] pt-4">
+                <Label htmlFor="customAmount" className="text-[var(--text-primary)]">Or Enter Amount</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)]">
                     ₦
                   </span>
                   <Input
@@ -539,7 +551,8 @@ export default function ElectricityBills() {
                     placeholder="Enter amount (min ₦1000)"
                     value={customAmount || ""}
                     onChange={(e) => handleCustomAmountChange(e.target.value)}
-                    className={`pl-8 ${errors.amount ? "border-red-500" : ""}`}
+                    className={`pl-8 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${errors.amount ? "border-red-500" : ""}`}
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
               </div>

@@ -85,7 +85,9 @@ function DetailRow({
         <p className="text-xs text-muted-foreground mb-1">{label}</p>
         <p
           className={`font-medium ${
-            highlight ? "text-[#2b825b] font-mono" : "text-foreground"
+            highlight
+              ? "text-(--color-accent-yellow) font-mono"
+              : "text-foreground"
           } ${isInvalidValue ? "text-gray-500 italic" : ""}`}
         >
           {isInvalidValue ? "Not provided in invoice" : value}
@@ -380,7 +382,7 @@ export function TransferCheckout({
     <div className="w-full max-w-lg mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold mb-2 text-[#2b825b]">
+        <h1 className="text-2xl font-bold mb-2 text-(--color-accent-yellow)">
           Bank Transfer Payment
         </h1>
         <p className="text-muted-foreground">
@@ -456,12 +458,12 @@ export function TransferCheckout({
         <div className="flex items-center justify-between mb-4">
           <span className="text-muted-foreground text-sm">Amount Due</span>
           {safeInvoiceDetails.dueDate && (
-            <span className="text-xs text-[#2b825b]">
+            <span className="text-xs text-(--color-accent-yellow)">
               Due: {safeInvoiceDetails.dueDate}
             </span>
           )}
         </div>
-        <div className="text-4xl font-bold text-[#2b825b] mb-2">
+        <div className="text-4xl font-bold text-(--color-accent-yellow) mb-2">
           {formatCurrency(
             safeInvoiceDetails.amount,
             safeInvoiceDetails.currency,
@@ -473,13 +475,13 @@ export function TransferCheckout({
       </div>
 
       {/* Invoice ID */}
-      <div className="bg-[#2b825b]/10 border-2 border-[#2b825b] rounded-xl p-5 mb-6">
+      <div className="bg-(--color-accent-yellow)/10 border-2 border-(--color-accent-yellow) rounded-xl p-5 mb-6">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-[#2b825b]/20 flex items-center justify-center">
-            <FileText className="w-5 h-5 text-[#2b825b]" />
+          <div className="w-10 h-10 rounded-full bg-(--color-accent-yellow)/20 flex items-center justify-center">
+            <FileText className="w-5 h-5 text-(--color-accent-yellow)" />
           </div>
           <div>
-            <p className="text-xs text-[#2b825b] font-medium uppercase tracking-wide">
+            <p className="text-xs text-(--color-accent-yellow) font-medium uppercase tracking-wide">
               Invoice ID (Add to Narration)
             </p>
             <p className="text-xs text-muted-foreground">
@@ -497,13 +499,13 @@ export function TransferCheckout({
             onClick={() =>
               copyToClipboard(safeInvoiceDetails.invoiceId, "Invoice ID")
             }
-            className="hover:bg-[#2b825b]/20"
+            className="hover:bg-(--color-accent-yellow)/20"
             disabled={!safeInvoiceDetails.invoiceId}
           >
             {copiedField === "Invoice ID" ? (
-              <Check className="w-5 h-5 text-[#2b825b]" />
+              <Check className="w-5 h-5 text-(--color-accent-yellow)" />
             ) : (
-              <Copy className="w-5 h-5 text-[#2b825b]" />
+              <Copy className="w-5 h-5 text-(--color-accent-yellow)" />
             )}
           </Button>
         </div>
@@ -517,7 +519,7 @@ export function TransferCheckout({
               <Building2 className="w-5 h-5 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="font-semibold text-[#2b825b]">
+              <h3 className="font-semibold text-(--color-accent-yellow)">
                 Bank Transfer Details
               </h3>
               <p className="text-xs text-muted-foreground">
@@ -567,31 +569,39 @@ export function TransferCheckout({
 
       {/* Transfer Instructions */}
       <div className="bg-secondary/50 rounded-xl p-5 mb-6">
-        <h4 className="font-semibold text-[#2b825b] mb-3 flex items-center gap-2">
-          <CreditCard className="w-4 h-4 text-[#2b825b]" />
+        <h4 className="font-semibold text-(--color-accent-yellow) mb-3 flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-(--color-accent-yellow)" />
           How to Complete Your Transfer
         </h4>
         <ol className="space-y-2 text-sm text-muted-foreground">
           <li className="flex gap-2">
-            <span className="text-[#2b825b] font-semibold">1.</span>
+            <span className="text-(--color-accent-yellow) font-semibold">
+              1.
+            </span>
             Open your banking app or visit your bank
           </li>
           <li className="flex gap-2">
-            <span className="text-[#2b825b] font-semibold">2.</span>
+            <span className="text-(--color-accent-yellow) font-semibold">
+              2.
+            </span>
             Enter the bank details provided above
           </li>
           <li className="flex gap-2">
-            <span className="text-[#2b825b] font-semibold">3.</span>
+            <span className="text-(--color-accent-yellow) font-semibold">
+              3.
+            </span>
             <span>
               Add{" "}
-              <strong className="text-[#2b825b]">
+              <strong className="text-(--color-accent-yellow)">
                 {safeInvoiceDetails.invoiceId}
               </strong>{" "}
               as the transfer narration/reference
             </span>
           </li>
           <li className="flex gap-2">
-            <span className="text-[#2b825b] font-semibold">4.</span>
+            <span className="text-(--color-accent-yellow) font-semibold">
+              4.
+            </span>
             Complete the transfer and click confirm below
           </li>
         </ol>
@@ -603,7 +613,7 @@ export function TransferCheckout({
           onClick={handleManualCheck}
           disabled={isCheckingPayment || !payerInfo?.email}
           variant="outline"
-          className="w-full border-[#2b825b] text-[#2b825b] hover:bg-[#2b825b]/10"
+          className="w-full border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
           size="lg"
         >
           {isCheckingPayment ? (
@@ -629,7 +639,7 @@ export function TransferCheckout({
       <Button
         onClick={handleConfirmTransfer}
         disabled={isConfirmed || !hasValidAccountDetails || isCheckingPayment}
-        className="w-full mb-4 bg-[#2b825b] hover:bg-[#1e5d42] text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
+        className="w-full mb-4 bg-(--color-accent-yellow) hover:bg-[#1e5d42] text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
         size="lg"
       >
         {isConfirmed ? (
@@ -704,8 +714,8 @@ export function TransferCheckout({
       )}
 
       {/* Security Badge */}
-      <div className="flex items-center justify-center gap-2 text-xs text-[#2b825b] mt-6">
-        <Shield className="w-4 h-4 text-[#2b825b]" />
+      <div className="flex items-center justify-center gap-2 text-xs text-(--color-accent-yellow) mt-6">
+        <Shield className="w-4 h-4 text-(--color-accent-yellow)" />
         <span>Secured by Zidwell Payment Protection</span>
       </div>
     </div>

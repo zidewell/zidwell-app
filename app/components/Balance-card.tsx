@@ -134,7 +134,7 @@ export default function BalanceCard() {
           <div className="flex items-center justify-center md:space-x-4 space-x-2 pt-4">
             <Button
               onClick={handleAddMoney}
-              className={`bg-[#2b825b] hover:bg-[#2b825b] text-white md:px-8 md:py-3 ${
+              className={`bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow) text-white md:px-8 md:py-3 ${
                 !isVerified ? "relative overflow-hidden" : ""
               }`}
             >

@@ -1,3 +1,4 @@
+// app/tax-filing-info/page.tsx
 "use client";
 
 import React from "react";
@@ -23,7 +24,6 @@ import {
 
 const TaxFilingInfoPage = () => {
   const router = useRouter();
-  const primaryColor = "#2b825b";
 
   const reasons = [
     "You'll get a detailed financial report every month of the financial health of your business",
@@ -37,7 +37,7 @@ const TaxFilingInfoPage = () => {
       icon: <Download />,
       title: "Download Your Bank Statement",
       description: (
-        <ul className="text-muted-foreground space-y-1">
+        <ul className="text-[var(--text-secondary)] space-y-1">
           <li>
             • If this is your first time tax filing, download the last 6 months
             of statements from your business bank app (or request it from your
@@ -53,7 +53,7 @@ const TaxFilingInfoPage = () => {
       icon: <File />,
       title: "Choose Your Filing Type",
       description: (
-        <ul className="text-muted-foreground space-y-1">
+        <ul className="text-[var(--text-secondary)] space-y-1">
           <li>
             • Click "First-Time Tax Filing" if this is your first submission
             with us.
@@ -69,7 +69,7 @@ const TaxFilingInfoPage = () => {
       icon: <Upload />,
       title: "Upload Your Documents",
       description: (
-        <p className="text-muted-foreground">
+        <p className="text-[var(--text-secondary)]">
           Upload your bank statement (and any required documents if you're a
           first-time filer).
         </p>
@@ -79,7 +79,7 @@ const TaxFilingInfoPage = () => {
       icon: <CreditCard />,
       title: "Submit & Make Payment",
       description: (
-        <p className="text-muted-foreground">
+        <p className="text-[var(--text-secondary)]">
           Click Submit and Pay to process your request securely.
         </p>
       ),
@@ -88,7 +88,7 @@ const TaxFilingInfoPage = () => {
       icon: <CheckCircle />,
       title: "Get Confirmation",
       description: (
-        <p className="text-muted-foreground">
+        <p className="text-[var(--text-secondary)]">
           You'll receive an instant success message on screen and a confirmation
           email.
         </p>
@@ -98,7 +98,7 @@ const TaxFilingInfoPage = () => {
       icon: <Mail />,
       title: "Receive Your Filing Summary",
       description: (
-        <ul className="text-muted-foreground space-y-1 ml-4">
+        <ul className="text-[var(--text-secondary)] space-y-1 ml-4">
           <li>
             • A summarized financial statement for the month, explaining how
             your business is doing financially from an accountant's perspective.
@@ -114,7 +114,7 @@ const TaxFilingInfoPage = () => {
       icon: <ListChecks />,
       title: "Complete Your Tax Filing",
       description: (
-        <p className="text-muted-foreground">
+        <p className="text-[var(--text-secondary)]">
           Once you pay the tax invoice, we'll file your taxes and send you the
           official tax receipt via email.
         </p>
@@ -123,26 +123,26 @@ const TaxFilingInfoPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
-      <header className=" py-6">
+      <header className="py-6">
         <div className="container mx-auto px-4 flex items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push("/")}
-            className="text-[#2b825b] hover:bg-white/10"
+            className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
-          <h1 className="text-2xl font-bold">Tax Manager Information</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Tax Manager Information</h1>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-12 max-w-5xl">
         {/* Hero Section */}
-        <div className="mb-12 rounded-2xl overflow-hidden shadow-md">
+        <div className="mb-12 rounded-2xl overflow-hidden shadow-soft">
           <div className="relative h-[400px]">
             <Image
               src="https://plus.unsplash.com/premium_photo-1679923906285-386991e8d862?ixlib=rb-4.1.0&auto=format&fit=crop&q=80&w=870"
@@ -166,16 +166,16 @@ const TaxFilingInfoPage = () => {
 
         {/* Value Proposition */}
         <div className="text-center mb-12">
-          <p className="text-lg text-foreground max-w-4xl mx-auto leading-relaxed">
+          <p className="text-lg text-[var(--text-primary)] max-w-4xl mx-auto leading-relaxed">
             We have standby professionals to help you with your basic accounting
             and tax filing for the state and federal government.
           </p>
         </div>
 
         {/* 4 Reasons Section */}
-        <Card className="mb-12 shadow-card">
+        <Card className="mb-12 shadow-soft bg-[var(--bg-primary)] border border-[var(--border-color)]">
           <CardHeader>
-            <CardTitle className="text-2xl text-tax-navy">
+            <CardTitle className="text-2xl text-[var(--text-primary)]">
               4 Reasons You Need Proper Accounting and Tax Filing With Us
             </CardTitle>
           </CardHeader>
@@ -183,12 +183,12 @@ const TaxFilingInfoPage = () => {
             <div className="grid md:grid-cols-2 gap-6">
               {reasons.map((text, i) => (
                 <div key={i} className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-[#2b825b] rounded-full flex items-center justify-center shrink-0 mt-1">
-                    <span className="text-white font-bold text-sm">
+                  <div className="w-8 h-8 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center shrink-0 mt-1">
+                    <span className="text-[var(--color-ink)] font-bold text-sm">
                       {i + 1}
                     </span>
                   </div>
-                  <p className="text-muted-foreground">{text}</p>
+                  <p className="text-[var(--text-secondary)]">{text}</p>
                 </div>
               ))}
             </div>
@@ -196,9 +196,9 @@ const TaxFilingInfoPage = () => {
         </Card>
 
         {/* How It Works Section */}
-        <Card className="mb-12 shadow-card">
+        <Card className="mb-12 shadow-soft bg-[var(--bg-primary)] border border-[var(--border-color)]">
           <CardHeader>
-            <CardTitle className="text-2xl text-tax-navy">
+            <CardTitle className="text-2xl text-[var(--text-primary)]">
               How It Works (Tax Filing Made Easy)
             </CardTitle>
           </CardHeader>
@@ -207,19 +207,19 @@ const TaxFilingInfoPage = () => {
               {steps.map((step, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <div
-                    className={`w-12 h-12 bg-[#2b825b] rounded-full flex items-center justify-center shrink-0`}
+                    className={`w-12 h-12 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center shrink-0`}
                   >
                     {React.isValidElement(step.icon)
                       ? React.cloneElement(
                           step.icon as React.ReactElement<
                             React.SVGProps<SVGSVGElement>
                           >,
-                          { className: "w-6 h-6 text-white" },
+                          { className: "w-6 h-6 text-[var(--color-ink)]" },
                         )
                       : step.icon}
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-tax-navy mb-2">{`Step ${
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">{`Step ${
                       i + 1
                     }: ${step.title}`}</h3>
                     {step.description}
@@ -231,9 +231,9 @@ const TaxFilingInfoPage = () => {
         </Card>
 
         {/* Call to Action */}
-        <Card className="bg-[#2b825b] text-white shadow-elevated">
+        <Card className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] shadow-pop">
           <CardContent className="p-8 text-center">
-            <CheckCircle className="w-16 h-16 mx-auto mb-4 text-white" />
+            <CheckCircle className="w-16 h-16 mx-auto mb-4 text-[var(--color-ink)]" />
             <h2 className="text-2xl font-bold mb-4">
               Just like that, your business taxes are up to date, with no
               stress.
@@ -241,7 +241,7 @@ const TaxFilingInfoPage = () => {
             <Button
               size="lg"
               onClick={() => router.push("/dashboard")}
-              className="bg-white text-[#2b825b] hover:bg-gray-100"
+              className="bg-[var(--color-ink)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-ink)]/90"
             >
               Start Tax Filing Process
             </Button>

@@ -63,19 +63,19 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
             <motion.div
-              className="relative overflow-hidden rounded-2xl shadow-[0_10px_40px_-10px_rgba(43,130,91,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(43,130,91,0.5)] border border-[#2b825b]/20"
+              className="relative overflow-hidden rounded-2xl shadow-[0_10px_40px_-10px_rgba(43,130,91,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(43,130,91,0.5)] border border-(--color-accent-yellow)/20"
               whileHover={{ scale: 1.01 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             >
               {/* Animated gradient background */}
-              <div className="absolute inset-0 bg-linear-to-r from-[#2b825b] via-[#3a9b6e] to-[#2b825b] bg-size-[200%_100%] animate-gradient-x opacity-10 dark:opacity-20" />
+              <div className="absolute inset-0 bg-linear-to-r from-(--color-accent-yellow) via-[#3a9b6e] to-(--color-accent-yellow) bg-size-[200%_100%] animate-gradient-x opacity-10 dark:opacity-20" />
 
               {/* Main gradient overlay */}
-              <div className="absolute inset-0 bg-linear-to-br from-[#2b825b]/5 via-transparent to-[#2b825b]/10 dark:from-[#2b825b]/20 dark:via-transparent dark:to-[#2b825b]/30" />
+              <div className="absolute inset-0 bg-linear-to-br from-(--color-accent-yellow)/5 via-transparent to-(--color-accent-yellow)/10 dark:from-(--color-accent-yellow)/20 dark:via-transparent dark:to-(--color-accent-yellow)/30" />
 
               {/* Glow effect */}
-              <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#2b825b]/20 rounded-full blur-3xl animate-pulse" />
-              <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-[#2b825b]/10 rounded-full blur-3xl animate-pulse delay-1000" />
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-(--color-accent-yellow)/20 rounded-full blur-3xl animate-pulse" />
+              <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-(--color-accent-yellow)/10 rounded-full blur-3xl animate-pulse delay-1000" />
 
               {/* Content */}
               <div className="relative bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-4 py-3 sm:px-6">
@@ -90,7 +90,7 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
                       ease: "easeInOut",
                     }}
                   >
-                    <div className="h-8 w-8 rounded-xl bg-linear-to-br from-[#2b825b] to-[#1e5f43] flex items-center justify-center shadow-lg shadow-[#2b825b]/30">
+                    <div className="h-8 w-8 rounded-xl bg-linear-to-br from-(--color-accent-yellow) to-[#1e5f43] flex items-center justify-center shadow-lg shadow-(--color-accent-yellow)/30">
                       <Sparkles className="h-4 w-4 text-white" />
                     </div>
                   </motion.div>
@@ -101,7 +101,7 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
                       <h4 className="text-sm sm:text-base font-bold text-gray-900 dark:text-gray-50 flex items-center gap-2">
                         You're on the Free Trial Plan
                         <motion.span
-                          className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#2b825b]/10 text-[#2b825b] text-[10px] font-semibold"
+                          className="inline-flex items-center px-2 py-0.5 rounded-full bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) text-[10px] font-semibold"
                           animate={{ opacity: [0.7, 1, 0.7] }}
                           transition={{ duration: 2, repeat: Infinity }}
                         >
@@ -122,7 +122,7 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
                       <Button
                         onClick={handleUpgrade}
                         size="sm"
-                        className="bg-linear-to-r from-[#2b825b] to-[#1e5f43] hover:from-[#1e5f43] hover:to-[#2b825b] text-white h-8 sm:h-9 text-xs sm:text-sm whitespace-nowrap shadow-lg shadow-[#2b825b]/30 border border-[#2b825b]/50"
+                        className="bg-linear-to-r from-(--color-accent-yellow) to-[#1e5f43] hover:from-[#1e5f43] hover:to-(--color-accent-yellow) text-white h-8 sm:h-9 text-xs sm:text-sm whitespace-nowrap shadow-lg shadow-(--color-accent-yellow)/30 border border-(--color-accent-yellow)/50"
                       >
                         Upgrade to ZidLite
                         <Zap className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5" />

@@ -10,7 +10,10 @@ interface SignaturePanelProps {
   onSaveEnd?: () => void;
 }
 
-const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd }) => {
+const SignaturePanel: React.FC<SignaturePanelProps> = ({
+  onSaveStart,
+  onSaveEnd,
+}) => {
   const { userData } = useUserContextData();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const signaturePadRef = useRef<SignaturePad | null>(null);
@@ -30,7 +33,9 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
       }
 
       try {
-        const response = await fetch(`/api/saved-signature?userId=${userData.id}`);
+        const response = await fetch(
+          `/api/saved-signature?userId=${userData.id}`,
+        );
         const result = await response.json();
 
         if (result.success && result.signature) {
@@ -53,30 +58,30 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    
+
     const resizeCanvas = () => {
       const ratio = Math.max(window.devicePixelRatio || 1, 1);
       const width = canvas.offsetWidth;
       const height = canvas.offsetHeight;
-      
+
       canvas.width = width * ratio;
       canvas.height = height * ratio;
-      
+
       if (ctx) {
         ctx.scale(ratio, ratio);
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        ctx.strokeStyle = "#2b825b";
+        ctx.strokeStyle = "var(--color-accent-yellow)";
         ctx.lineWidth = 2;
       }
     };
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
 
     signaturePadRef.current = new SignaturePad(canvas, {
       backgroundColor: "rgb(255, 255, 255)",
-      penColor: "#2b825b",
+      penColor: "var(--color-accent-yellow)",
       minWidth: 1,
       maxWidth: 2.5,
       throttle: 16,
@@ -103,7 +108,7 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
     }
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener("resize", resizeCanvas);
       if (signaturePadRef.current) {
         signaturePadRef.current.off();
       }
@@ -128,6 +133,7 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
         icon: "warning",
         title: "No Signature",
         text: "Please draw your signature first",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
       return;
     }
@@ -170,6 +176,7 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
         icon: "error",
         title: "Error",
         text: error.message,
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
     } finally {
       setLoading(false);
@@ -183,6 +190,7 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
         icon: "warning",
         title: "No Signature",
         text: "Please draw your signature first",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
       return;
     }
@@ -208,7 +216,6 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
 
       if (!response.ok) {
         if (response.status === 404) {
-          // No signature to update, try POST instead
           return handleSave();
         }
         throw new Error(result.error || "Failed to update signature");
@@ -228,6 +235,7 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
         icon: "error",
         title: "Error",
         text: error.message,
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
     } finally {
       setLoading(false);
@@ -238,9 +246,11 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
   if (!isMounted || initialLoading) {
     return (
       <div className="space-y-3">
-        <label className="text-sm font-body text-muted-foreground block">Signature</label>
-        <div className="h-32 bg-gray-100 animate-pulse rounded-md border-2 border-[#2b825b] flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-[#2b825b]" />
+        <label className="text-sm font-body text-[var(--text-secondary)] block">
+          Signature
+        </label>
+        <div className="h-32 bg-[var(--bg-secondary)] animate-pulse rounded-md border-2 border-[var(--color-accent-yellow)] flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-[var(--color-accent-yellow)]" />
         </div>
       </div>
     );
@@ -249,44 +259,48 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-body text-muted-foreground block">Signature</label>
+        <label className="text-sm font-body text-[var(--text-secondary)] block">
+          Signature
+        </label>
         {hasSavedSignature && (
-          <span className="text-xs flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-full">
+          <span className="text-xs flex items-center gap-1 text-[var(--color-lemon-green)] bg-[var(--color-lemon-green)]/10 px-2 py-1 rounded-full">
             <Check className="w-3 h-3" />
             Saved signature loaded
           </span>
         )}
       </div>
-      
+
       <div className="relative">
         <canvas
           ref={canvasRef}
-          className="w-full h-32 bg-white border-2 border-[#2b825b] rounded-md cursor-crosshair"
-          style={{ touchAction: 'none' }}
+          className="w-full h-32 bg-white border-2 border-[var(--color-accent-yellow)] rounded-md cursor-crosshair"
+          style={{ touchAction: "none" }}
         />
-        {(!signaturePadRef.current || signaturePadRef.current.isEmpty()) && !isDrawing && !hasSavedSignature && (
-          <p className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground pointer-events-none">
-            Draw your signature here
-          </p>
-        )}
+        {(!signaturePadRef.current || signaturePadRef.current.isEmpty()) &&
+          !isDrawing &&
+          !hasSavedSignature && (
+            <p className="absolute inset-0 flex items-center justify-center text-sm text-[var(--text-secondary)] pointer-events-none">
+              Draw your signature here
+            </p>
+          )}
       </div>
-      
+
       <div className="flex gap-2">
         <button
           type="button"
           onClick={handleClear}
           disabled={loading}
-          className="flex-1 bg-transparent text-foreground border-2 border-[#2b825b] hover:bg-[#2b825b]/5 py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50"
+          className="flex-1 bg-transparent text-[var(--text-primary)] border-2 border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5 py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50"
         >
           Clear
         </button>
-        
+
         {hasSavedSignature ? (
           <button
             type="button"
             onClick={handleUpdate}
             disabled={loading}
-            className="flex-1 bg-[#2b825b] hover:bg-[#2b825b]/90 text-white dark:bg-[#236b49] dark:hover:bg-[#174c36] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -302,7 +316,7 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({ onSaveStart, onSaveEnd 
             type="button"
             onClick={handleSave}
             disabled={loading}
-            className="flex-1 bg-[#2b825b] hover:bg-[#2b825b]/90 text-white dark:bg-[#236b49] dark:hover:bg-[#174c36] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>

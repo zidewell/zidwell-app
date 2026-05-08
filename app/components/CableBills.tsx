@@ -165,7 +165,7 @@ export default function CableBills() {
       Swal.fire({
         icon: "success",
         title: "Cable Purchase Successful",
-        confirmButtonColor: "#0f172a",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
 
       return { success: true };
@@ -221,7 +221,8 @@ export default function CableBills() {
         `/api/cable-tv-bouquet?service=${selectedProvider?.id}`,
       );
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to fetch bundles");
+      if (!response.ok)
+        throw new Error(data.error || "Failed to fetch bundles");
       setBundles(data.data);
     } catch (error: any) {
       console.error("Fetch error:", error.message);
@@ -267,7 +268,9 @@ export default function CableBills() {
             setPinError(null);
             await handlePayment(pinCode);
           } catch (error: any) {
-            setPinError(error.message || "Transaction failed. Please try again.");
+            setPinError(
+              error.message || "Transaction failed. Please try again.",
+            );
             throw error;
           }
         }}
@@ -280,26 +283,29 @@ export default function CableBills() {
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[#2b825b] hover:bg-white/10 text-sm md:text-base"
+          className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:bg-[var(--bg-secondary)] text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           <span className="hidden md:block">Back</span>
         </Button>
 
         <div className="">
-          <h1 className="md:text-3xl text-xl font-bold mb-2">Pay Cable Bills</h1>
-          <p className="text-muted-foreground">
-            Pay your Cable bills instantly across all Cable/tv providers in Nigeria
+          <h1 className="md:text-3xl text-xl font-bold mb-2 text-[var(--text-primary)]">
+            Pay Cable Bills
+          </h1>
+          <p className="text-[var(--text-secondary)]">
+            Pay your Cable bills instantly across all Cable/tv providers in
+            Nigeria
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
+          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2Icon className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-[var(--text-primary)]">
+                <Building2Icon className="w-5 h-5 text-[var(--color-accent-yellow)]" />
                 Select Network Provider
               </CardTitle>
             </CardHeader>
@@ -314,8 +320,8 @@ export default function CableBills() {
                       onClick={() => setSelectedProvider(provider)}
                       className={`relative p-4 border-2 rounded-md transition-all duration-200 cursor-pointer ${
                         isSelected
-                          ? "bg-gray-100 border-[#2b825b] text-gray-900 shadow-md"
-                          : "bg-white border-gray-200 hover:border-gray-300"
+                          ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)] text-[var(--text-primary)] shadow-md"
+                          : "bg-[var(--bg-primary)] border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
                       }`}
                     >
                       <div className="text-center">
@@ -327,15 +333,15 @@ export default function CableBills() {
                             className="rounded-lg object-contain"
                           />
                         </div>
-                        <h3 className="font-semibold text-gray-900 text-sm md:text-base">
+                        <h3 className="font-semibold text-[var(--text-primary)] text-sm md:text-base">
                           {provider.name}
                         </h3>
                       </div>
 
                       {isSelected && (
                         <div className="absolute -top-2 -right-2">
-                          <div className="w-6 h-6 bg-[#2b825b] rounded-full flex items-center justify-center">
-                            <Check className="w-4 h-4 text-white" />
+                          <div className="w-6 h-6 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center">
+                            <Check className="w-4 h-4 text-[var(--color-ink)]" />
                           </div>
                         </div>
                       )}
@@ -353,27 +359,30 @@ export default function CableBills() {
           </Card>
 
           {selectedProvider && (
-            <Card>
+            <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
               <CardHeader>
-                <CardTitle>Decoder Information</CardTitle>
+                <CardTitle className="text-[var(--text-primary)]">Decoder Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="decorderNumber">Decoder Number</Label>
+                  <Label htmlFor="decorderNumber" className="text-[var(--text-primary)]">Decoder Number</Label>
                   <div className="flex items-center gap-3">
                     <Input
                       id="decorderNumber"
                       type="text"
                       placeholder="Enter decoder number"
                       value={decorderNumber}
-                      onChange={(e) => handledecorderNumberChange(e.target.value)}
-                      className={errors.decorderNumber ? "border-destructive" : ""}
+                      onChange={(e) =>
+                        handledecorderNumberChange(e.target.value)
+                      }
+                      className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${errors.decorderNumber ? "border-destructive" : ""}`}
+                      style={{ outline: "none", boxShadow: "none" }}
                       maxLength={13}
                     />
                     {loading ? (
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-accent-yellow)]"></div>
                     ) : isVerified ? (
-                      <div className="text-green-600" title="Verified">
+                      <div className="text-[var(--color-lemon-green)]" title="Verified">
                         <Check className="w-6 h-6" />
                       </div>
                     ) : (
@@ -382,6 +391,7 @@ export default function CableBills() {
                         size="sm"
                         onClick={validatedecorderNumber}
                         disabled={!decorderNumber}
+                        className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                       >
                         Verify
                       </Button>
@@ -401,7 +411,7 @@ export default function CableBills() {
 
           {isVerified && (
             <div>
-              <Label>Select Plan</Label>
+              <Label className="text-[var(--text-primary)]">Select Plan</Label>
               <BouquePlanSelector
                 plans={bundles}
                 selectedPlan={selectedPlan}
