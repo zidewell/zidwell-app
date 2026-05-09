@@ -24,30 +24,36 @@ export default function ElectricityCustomerCard({
       {/* Customer Info Card */}
 
       {customerName && (
-        <Card className="w-full shadow-md rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)]">
+        <Card className="w-full shadow-md rounded-xl border border-(--border-color) bg-(--bg-primary)">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-[var(--text-primary)]">
+            <CardTitle className="text-lg font-semibold text-(--text-primary)">
               Customer Info
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-[var(--text-primary)]">
+          <CardContent className="space-y-2 text-sm text-(--text-primary)">
             {customerName && (
               <div className="flex gap-2">
-                <span className="font-medium text-[var(--text-secondary)]">Name:</span>
+                <span className="font-medium text-(--text-secondary)">
+                  Name:
+                </span>
                 <p className="font-semibold">{customerName}</p>
               </div>
             )}
 
             {meterNumber && (
               <div className="flex gap-2">
-                <span className="font-medium text-[var(--text-secondary)]">Meter Number:</span>
+                <span className="font-medium text-(--text-secondary)">
+                  Meter Number:
+                </span>
                 <p className="font-semibold">{meterNumber}</p>
               </div>
             )}
 
             {meterType && (
               <div className="flex gap-2">
-                <span className="font-medium text-[var(--text-secondary)]">Meter Type:</span>
+                <span className="font-medium text-(--text-secondary)">
+                  Meter Type:
+                </span>
                 <p className="font-semibold">{meterType}</p>
               </div>
             )}
@@ -56,10 +62,10 @@ export default function ElectricityCustomerCard({
       )}
 
       {/* Payment Summary Card */}
-      <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+      <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-[var(--text-primary)]">
-            <Receipt className="w-5 h-5 text-[var(--color-accent-yellow)]" />
+          <CardTitle className="flex items-center gap-2 text-(--text-primary)">
+            <Receipt className="w-5 h-5 text-(--color-accent-yellow)" />
             Payment Summary
           </CardTitle>
         </CardHeader>
@@ -76,9 +82,11 @@ export default function ElectricityCustomerCard({
                 />
               </div>
               <div>
-                <p className="font-medium text-[var(--text-primary)]">{selectedProvider.name}</p>
+                <p className="font-medium text-(--text-primary)">
+                  {selectedProvider.name}
+                </p>
                 {selectedProvider.description && (
-                  <p className="text-sm text-[var(--text-secondary)]">
+                  <p className="text-sm text-(--text-secondary)">
                     {selectedProvider.description}
                   </p>
                 )}
@@ -88,21 +96,25 @@ export default function ElectricityCustomerCard({
 
           {/* Payment Amount */}
           {parsedAmount && parsedAmount > 0 && (
-            <div className="border-t border-[var(--border-color)] pt-4 space-y-2">
+            <div className="border-t border-(--border-color) pt-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-[var(--text-secondary)]">
+                <span className="text-(--text-secondary)">
                   {selectedPlan
                     ? `${selectedPlan.name} (${selectedPlan.duration})`
                     : meterType === "prepaid"
                       ? "Recharge Amount"
                       : "Payment Amount"}
                 </span>
-                <span className="text-[var(--text-primary)]">₦{parsedAmount?.toLocaleString()}</span>
+                <span className="text-(--text-primary)">
+                  ₦{parsedAmount?.toLocaleString()}
+                </span>
               </div>
 
-              <div className="flex justify-between font-bold border-t border-[var(--border-color)] pt-2">
-                <span className="text-[var(--text-primary)]">Total</span>
-                <span className="text-[var(--text-primary)]">₦{total?.toLocaleString()}</span>
+              <div className="flex justify-between font-bold border-t border-(--border-color) pt-2">
+                <span className="text-(--text-primary)">Total</span>
+                <span className="text-(--text-primary)">
+                  ₦{total?.toLocaleString()}
+                </span>
               </div>
             </div>
           )}
@@ -115,11 +127,11 @@ export default function ElectricityCustomerCard({
               }
             }}
             disabled={!parsedAmount || loading}
-            className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 font-semibold rounded-lg shadow-electric-glow transition-all duration-300"
+            className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) py-3 font-semibold rounded-lg shadow-electric-glow transition-all duration-300"
           >
             {loading ? (
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-[var(--color-ink)] border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-(--color-ink) border-t-transparent rounded-full animate-spin" />
                 Processing Payment...
               </div>
             ) : (
@@ -139,7 +151,7 @@ export default function ElectricityCustomerCard({
           )}
 
           {/* Security Info */}
-          <div className="text-center text-xs text-[var(--text-secondary)] mt-4">
+          <div className="text-center text-xs text-(--text-secondary) mt-4">
             <p>🔒 Secure payment powered by Zidwell</p>
             <p>Instant token generation • 24/7 support</p>
           </div>

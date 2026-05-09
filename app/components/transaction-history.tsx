@@ -31,9 +31,8 @@ const statusConfig: any = {
   success: {
     label: "Completed",
     className:
-      "bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]/30 dark:bg-[var(--color-accent-yellow)]/20 dark:text-[var(--color-accent-yellow)] dark:border-[var(--color-accent-yellow)]/30",
-    dotColor:
-      "bg-[var(--color-accent-yellow)] dark:bg-[var(--color-accent-yellow)]",
+      "bg-(--color-accent-yellow)/20 text-(--color-accent-yellow) border-(--color-accent-yellow)/30 dark:bg-(--color-accent-yellow)/20 dark:text-(--color-accent-yellow) dark:border-(--color-accent-yellow)/30",
+    dotColor: "bg-(--color-accent-yellow) dark:bg-(--color-accent-yellow)",
   },
   pending: {
     label: "Pending",
@@ -125,30 +124,30 @@ const MobileCard = ({
     "Transaction";
 
   return (
-    <div className="border-b border-[var(--border-color)] dark:border-gray-700 p-4 last:border-0">
+    <div className="border-b border-(--border-color) dark:border-gray-700 p-4 last:border-0">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <p className="font-medium text-[var(--text-primary)] dark:text-gray-100">
+          <p className="font-medium text-(--text-primary) dark:text-gray-100">
             {description}
           </p>
-          <p className="text-xs text-[var(--text-secondary)] dark:text-gray-400">
+          <p className="text-xs text-(--text-secondary) dark:text-gray-400">
             {new Date(tx.created_at).toLocaleDateString()}
           </p>
           {tx.reference && (
-            <p className="text-xs text-[var(--text-secondary)] dark:text-gray-400 mt-1">
+            <p className="text-xs text-(--text-secondary) dark:text-gray-400 mt-1">
               Ref: {tx.reference.substring(0, 8)}...
             </p>
           )}
         </div>
         <span
-          className={`font-semibold ${amountInfo.isOutflow ? "text-red-600 dark:text-red-400" : "text-[var(--color-accent-yellow)] dark:text-[var(--color-accent-yellow)]"}`}
+          className={`font-semibold ${amountInfo.isOutflow ? "text-red-600 dark:text-red-400" : "text-(--color-accent-yellow) dark:text-(--color-accent-yellow)"}`}
         >
           {amountInfo.signedDisplay}
         </span>
       </div>
 
       {tx.fee > 0 && (
-        <p className="text-xs text-[var(--text-secondary)] dark:text-gray-400 mb-2">
+        <p className="text-xs text-(--text-secondary) dark:text-gray-400 mb-2">
           Fee: ₦
           {Number(tx.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
         </p>
@@ -581,7 +580,7 @@ export default function TransactionHistory() {
 
       const notification = document.createElement("div");
       notification.className =
-        "fixed top-4 right-4 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-4 py-2 rounded-lg shadow-lg z-50";
+        "fixed top-4 right-4 bg-(--color-accent-yellow) text-(--color-ink) px-4 py-2 rounded-lg shadow-lg z-50";
       notification.innerHTML = `
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -865,13 +864,13 @@ export default function TransactionHistory() {
   }
 
   return (
-    <Card className="w-full max-w-5xl mx-auto bg-[var(--bg-primary)]">
+    <Card className="w-full max-w-5xl mx-auto bg-(--bg-primary)">
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle className="text-2xl font-bold text-[var(--text-primary)]">
+          <CardTitle className="text-2xl font-bold text-(--text-primary)">
             Transaction History
             {allTransactions.length > 0 && (
-              <span className="text-sm font-normal text-[var(--text-secondary)] ml-2">
+              <span className="text-sm font-normal text-(--text-secondary) ml-2">
                 ({allTransactions.length} loaded)
               </span>
             )}
@@ -879,12 +878,12 @@ export default function TransactionHistory() {
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) w-4 h-4" />
               <Input
                 placeholder="Search transactions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="pl-10 w-full border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
@@ -893,7 +892,7 @@ export default function TransactionHistory() {
               <Button
                 variant="outline"
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                className="flex items-center gap-2 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
               >
                 <Filter className="w-4 h-4" />
                 <span className="hidden xs:inline">Filters</span>
@@ -908,7 +907,7 @@ export default function TransactionHistory() {
                     to: getToday(),
                   });
                 }}
-                className="flex items-center gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                className="flex items-center gap-2 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
               >
                 <Download className="w-4 h-4" />
                 <span className="xs:hidden">Statement</span>
@@ -918,16 +917,16 @@ export default function TransactionHistory() {
         </div>
 
         {showFilters && (
-          <div className="mt-4 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+          <div className="mt-4 p-4 bg-(--bg-secondary) rounded-lg border border-(--border-color)">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-[var(--text-primary)]">
+              <h3 className="font-semibold text-(--text-primary)">
                 Filter Transactions
               </h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleResetFilters}
-                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                className="text-(--text-secondary) hover:text-(--text-primary)"
               >
                 Reset All
               </Button>
@@ -935,13 +934,13 @@ export default function TransactionHistory() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium mb-2 block text-[var(--text-primary)]">
+                <label className="text-sm font-medium mb-2 block text-(--text-primary)">
                   Status
                 </label>
                 <select
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                  className="w-full border border-(--border-color) rounded-md px-3 py-2 text-(--text-primary) bg-(--bg-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 >
                   <option value="All transactions">All transactions</option>
                   <option value="success">Success</option>
@@ -952,7 +951,7 @@ export default function TransactionHistory() {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block text-[var(--text-primary)]">
+                <label className="text-sm font-medium mb-2 block text-(--text-primary)">
                   Time Period
                 </label>
                 <select
@@ -963,7 +962,7 @@ export default function TransactionHistory() {
                       setDateRange({ from: "", to: "" });
                     }
                   }}
-                  className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                  className="w-full border border-(--border-color) rounded-md px-3 py-2 text-(--text-primary) bg-(--bg-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 >
                   {durationOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -975,12 +974,12 @@ export default function TransactionHistory() {
 
               {durationFilter === "custom" && (
                 <div>
-                  <label className="text-sm font-medium mb-2 block text-[var(--text-primary)]">
+                  <label className="text-sm font-medium mb-2 block text-(--text-primary)">
                     Custom Date Range
                   </label>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex-1">
-                      <label className="text-xs text-[var(--text-secondary)] mb-1 block">
+                      <label className="text-xs text-(--text-secondary) mb-1 block">
                         From
                       </label>
                       <input
@@ -989,12 +988,12 @@ export default function TransactionHistory() {
                         onChange={(e) =>
                           setDateRange({ ...dateRange, from: e.target.value })
                         }
-                        className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        className="w-full border border-(--border-color) rounded-md px-3 py-2 text-(--text-primary) bg-(--bg-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                         max={dateRange.to || getToday()}
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="text-xs text-[var(--text-secondary)] mb-1 block">
+                      <label className="text-xs text-(--text-secondary) mb-1 block">
                         To
                       </label>
                       <input
@@ -1003,7 +1002,7 @@ export default function TransactionHistory() {
                         onChange={(e) =>
                           setDateRange({ ...dateRange, to: e.target.value })
                         }
-                        className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        className="w-full border border-(--border-color) rounded-md px-3 py-2 text-(--text-primary) bg-(--bg-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                         min={dateRange.from}
                         max={getToday()}
                       />
@@ -1013,8 +1012,8 @@ export default function TransactionHistory() {
               )}
             </div>
 
-            <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
-              <p className="text-sm text-[var(--text-secondary)]">
+            <div className="mt-4 pt-4 border-t border-(--border-color)">
+              <p className="text-sm text-(--text-secondary)">
                 Showing {durationFilteredTransactions.length} transactions
                 {filter !== "All transactions" && ` with status: ${filter}`}
                 {durationFilter !== "all" && (
@@ -1042,14 +1041,12 @@ export default function TransactionHistory() {
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
-              <p className="text-[var(--text-secondary)]">
-                Loading transactions...
-              </p>
+              <Loader2 className="w-8 h-8 animate-spin text-(--color-accent-yellow)" />
+              <p className="text-(--text-secondary)">Loading transactions...</p>
             </div>
           </div>
         ) : durationFilteredTransactions.length === 0 ? (
-          <div className="text-center py-12 text-[var(--text-secondary)]">
+          <div className="text-center py-12 text-(--text-secondary)">
             <p className="mb-2">No transactions found.</p>
             {allTransactions.length === 0 ? (
               <p className="text-sm">No transactions have been loaded yet.</p>
@@ -1077,23 +1074,23 @@ export default function TransactionHistory() {
           <>
             <Table>
               <TableHeader>
-                <TableRow className="border-[var(--border-color)]">
-                  <TableHead className="text-[var(--text-secondary)]">
+                <TableRow className="border-(--border-color)">
+                  <TableHead className="text-(--text-secondary)">
                     Date
                   </TableHead>
-                  <TableHead className="text-[var(--text-secondary)]">
+                  <TableHead className="text-(--text-secondary)">
                     Description
                   </TableHead>
-                  <TableHead className="text-right text-[var(--text-secondary)]">
+                  <TableHead className="text-right text-(--text-secondary)">
                     Amount
                   </TableHead>
-                  <TableHead className="text-right text-[var(--text-secondary)]">
+                  <TableHead className="text-right text-(--text-secondary)">
                     Fee
                   </TableHead>
-                  <TableHead className="text-center text-[var(--text-secondary)]">
+                  <TableHead className="text-center text-(--text-secondary)">
                     Status
                   </TableHead>
-                  <TableHead className="text-right text-[var(--text-secondary)]">
+                  <TableHead className="text-right text-(--text-secondary)">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -1110,25 +1107,25 @@ export default function TransactionHistory() {
                   return (
                     <TableRow
                       key={tx.id}
-                      className={`${i % 2 === 0 ? "bg-[var(--bg-secondary)]/30" : ""} border-[var(--border-color)]`}
+                      className={`${i % 2 === 0 ? "bg-(--bg-secondary)/30" : ""} border-(--border-color)`}
                     >
-                      <TableCell className="text-[var(--text-secondary)]">
+                      <TableCell className="text-(--text-secondary)">
                         {new Date(tx.created_at).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="font-medium text-[var(--text-primary)]">
+                      <TableCell className="font-medium text-(--text-primary)">
                         {description}
                         {tx.reference && (
-                          <div className="text-xs text-[var(--text-secondary)] mt-1">
+                          <div className="text-xs text-(--text-secondary) mt-1">
                             Ref: {tx.reference}
                           </div>
                         )}
                       </TableCell>
                       <TableCell
-                        className={`text-right font-semibold ${amountInfo.isOutflow ? "text-red-600 dark:text-red-400" : "text-[var(--color-accent-yellow)]"}`}
+                        className={`text-right font-semibold ${amountInfo.isOutflow ? "text-red-600 dark:text-red-400" : "text-(--color-accent-yellow)"}`}
                       >
                         {amountInfo.signedDisplay}
                       </TableCell>
-                      <TableCell className="text-right text-[var(--text-secondary)]">
+                      <TableCell className="text-right text-(--text-secondary)">
                         {tx.fee > 0
                           ? `₦${Number(tx.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`
                           : "—"}
@@ -1142,7 +1139,7 @@ export default function TransactionHistory() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleViewTransaction(tx)}
-                            className="h-8 px-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            className="h-8 px-2 text-(--text-secondary) hover:text-(--text-primary)"
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
@@ -1152,7 +1149,7 @@ export default function TransactionHistory() {
                               size="sm"
                               onClick={() => handleDownloadReceipt(tx)}
                               disabled={isDownloading}
-                              className="h-8 px-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                              className="h-8 px-2 text-(--text-secondary) hover:text-(--text-primary)"
                             >
                               {isDownloading ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1170,12 +1167,12 @@ export default function TransactionHistory() {
             </Table>
 
             {hasMore && durationFilteredTransactions.length > 0 && (
-              <div className="text-center py-6 border-t border-[var(--border-color)]">
+              <div className="text-center py-6 border-t border-(--border-color)">
                 <Button
                   variant="outline"
                   onClick={handleLoadMore}
                   disabled={isLoadingMore}
-                  className="px-8 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  className="px-8 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                 >
                   {isLoadingMore ? (
                     <>
@@ -1193,8 +1190,8 @@ export default function TransactionHistory() {
             )}
 
             {!hasMore && durationFilteredTransactions.length > 0 && (
-              <div className="text-center py-6 border-t border-[var(--border-color)]">
-                <p className="text-[var(--text-secondary)] text-sm">
+              <div className="text-center py-6 border-t border-(--border-color)">
+                <p className="text-(--text-secondary) text-sm">
                   You've reached the end of your transaction history
                 </p>
               </div>
@@ -1205,33 +1202,33 @@ export default function TransactionHistory() {
 
       {showStatementModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--bg-primary)] rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-[var(--border-color)]">
+          <div className="bg-(--bg-primary) rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-(--border-color)">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-[var(--text-primary)]">
+                <h3 className="text-xl font-bold text-(--text-primary)">
                   Download Bank Statement
                 </h3>
                 <button
                   onClick={() => setShowStatementModal(false)}
-                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  className="text-(--text-secondary) hover:text-(--text-primary)"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <p className="text-[var(--text-secondary)] text-sm">
+                <p className="text-(--text-secondary) text-sm">
                   Select a date range to download your transaction statement as
                   PDF.
                 </p>
 
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium mb-1 block text-[var(--text-primary)]">
+                    <label className="text-sm font-medium mb-1 block text-(--text-primary)">
                       From Date
                     </label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-(--text-secondary)" />
                       <input
                         type="date"
                         value={statementDateRange.from}
@@ -1241,18 +1238,18 @@ export default function TransactionHistory() {
                             from: e.target.value,
                           }))
                         }
-                        className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 pl-10 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        className="w-full border border-(--border-color) rounded-md px-3 py-2 pl-10 text-(--text-primary) bg-(--bg-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                         max={statementDateRange.to || getToday()}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-1 block text-[var(--text-primary)]">
+                    <label className="text-sm font-medium mb-1 block text-(--text-primary)">
                       To Date
                     </label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-(--text-secondary)" />
                       <input
                         type="date"
                         value={statementDateRange.to}
@@ -1262,7 +1259,7 @@ export default function TransactionHistory() {
                             to: e.target.value,
                           }))
                         }
-                        className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 pl-10 text-[var(--text-primary)] bg-[var(--bg-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        className="w-full border border-(--border-color) rounded-md px-3 py-2 pl-10 text-(--text-primary) bg-(--bg-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                         min={statementDateRange.from}
                         max={getToday()}
                       />
@@ -1281,7 +1278,7 @@ export default function TransactionHistory() {
                       const from = fromDate.toISOString().split("T")[0];
                       setStatementDateRange({ from, to });
                     }}
-                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                    className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                   >
                     Last 7 days
                   </Button>
@@ -1295,7 +1292,7 @@ export default function TransactionHistory() {
                       const from = fromDate.toISOString().split("T")[0];
                       setStatementDateRange({ from, to });
                     }}
-                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                    className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                   >
                     Last 30 days
                   </Button>
@@ -1309,13 +1306,13 @@ export default function TransactionHistory() {
                       const from = fromDate.toISOString().split("T")[0];
                       setStatementDateRange({ from, to });
                     }}
-                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                    className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                   >
                     Last 3 months
                   </Button>
                 </div>
 
-                <div className="pt-4 border-t border-[var(--border-color)]">
+                <div className="pt-4 border-t border-(--border-color)">
                   <Button
                     onClick={handleDownloadStatement}
                     disabled={
@@ -1323,7 +1320,7 @@ export default function TransactionHistory() {
                       !statementDateRange.to ||
                       downloadingStatement
                     }
-                    className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                    className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                   >
                     {downloadingStatement ? (
                       <>

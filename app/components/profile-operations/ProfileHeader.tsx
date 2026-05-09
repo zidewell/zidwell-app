@@ -83,10 +83,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   };
 
   return (
-    <div className="neo-card bg-[var(--bg-primary)] p-6 md:p-8 border border-[var(--border-color)] rounded-xl shadow-soft">
+    <div className="neo-card bg-(--bg-primary) p-6 md:p-8 border border-(--border-color) rounded-xl shadow-soft">
       <div className="flex items-center gap-5">
         <div className="relative shrink-0">
-          <div className="w-16 h-16 md:w-20 md:h-20 bg-[var(--bg-secondary)] border-2 border-[var(--color-accent-yellow)] flex items-center justify-center overflow-hidden rounded-full">
+          <div className="w-16 h-16 md:w-20 md:h-20 bg-(--bg-secondary) border-2 border-(--color-accent-yellow) flex items-center justify-center overflow-hidden rounded-full">
             {avatar ? (
               <img
                 src={avatar}
@@ -94,7 +94,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <span className="text-2xl md:text-3xl font-heading text-[var(--text-primary)]">
+              <span className="text-2xl md:text-3xl font-heading text-(--text-primary)">
                 {name.charAt(0).toUpperCase()}
               </span>
             )}
@@ -103,10 +103,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="absolute -bottom-1 -right-1 w-7 h-7 bg-[var(--color-accent-yellow)] border-2 border-[var(--border-color)] rounded-full flex items-center justify-center disabled:opacity-50 hover:bg-[var(--color-accent-yellow)]/90 transition-colors"
+            className="absolute -bottom-1 -right-1 w-7 h-7 bg-(--color-accent-yellow) border-2 border-(--border-color) rounded-full flex items-center justify-center disabled:opacity-50 hover:bg-(--color-accent-yellow)/90 transition-colors"
             aria-label="Change profile picture"
           >
-            <Camera className="w-3.5 h-3.5 text-[var(--color-ink)]" />
+            <Camera className="w-3.5 h-3.5 text-(--color-ink)" />
           </button>
           <input
             ref={fileRef}
@@ -117,18 +117,18 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-lg md:text-xl font-heading text-[var(--text-primary)] truncate">
+          <h2 className="text-lg md:text-xl font-heading text-(--text-primary) truncate">
             {name}
           </h2>
-          <p className="text-sm font-body text-[var(--text-secondary)] truncate">
+          <p className="text-sm font-body text-(--text-secondary) truncate">
             {email}
           </p>
           <div className="flex items-center gap-3 mt-2">
-            <span className="text-xs text-[var(--color-accent-yellow)] border-2 border-[var(--color-accent-yellow)] px-2 py-0.5 rounded">
+            <span className="text-xs text-(--color-accent-yellow) border-2 border-(--color-accent-yellow) px-2 py-0.5 rounded">
               {tierLabels[subscription]}
             </span>
             {walletActivated && (
-              <span className="text-xs text-[var(--color-lemon-green)]">
+              <span className="text-xs text-(--color-lemon-green)">
                 Wallet Active
               </span>
             )}

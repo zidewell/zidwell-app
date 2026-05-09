@@ -94,9 +94,9 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
       return {
         icon: Zap,
         text: "Growth Plan - Basic Tax Calculator",
-        bgColor: "bg-[var(--color-accent-yellow)]/10",
-        textColor: "text-[var(--color-accent-yellow)]",
-        borderColor: "border-[var(--color-accent-yellow)]/30",
+        bgColor: "bg-(--color-accent-yellow)/10",
+        textColor: "text-(--color-accent-yellow)",
+        borderColor: "border-(--color-accent-yellow)/30",
         action: "Upgrade to Premium",
         actionLink: "/pricing?upgrade=premium",
       };
@@ -105,9 +105,9 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
       return {
         icon: Crown,
         text: "Premium Plan - Full Tax Tools",
-        bgColor: "bg-[var(--color-accent-yellow)]/10",
-        textColor: "text-[var(--color-accent-yellow)]",
-        borderColor: "border-[var(--color-accent-yellow)]",
+        bgColor: "bg-(--color-accent-yellow)/10",
+        textColor: "text-(--color-accent-yellow)",
+        borderColor: "border-(--color-accent-yellow)",
         action: "Upgrade to Elite",
         actionLink: "/pricing?upgrade=elite",
       };
@@ -142,13 +142,13 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
                 {tierInfo.text}
               </p>
               {isGrowth && (
-                <p className="text-sm text-[var(--color-accent-yellow)] mt-1">
+                <p className="text-sm text-(--color-accent-yellow) mt-1">
                   You have access to basic tax calculations. Upgrade to Premium
                   for tax filing support.
                 </p>
               )}
               {isPremium && (
-                <p className="text-sm text-[var(--color-accent-yellow)] mt-1">
+                <p className="text-sm text-(--color-accent-yellow) mt-1">
                   You have access to all tax calculations and filing support.
                 </p>
               )}
@@ -159,7 +159,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
                 </p>
               )}
               {(isFree || isZidLite) && (
-                <p className="text-sm text-[var(--text-secondary)] mt-1">
+                <p className="text-sm text-(--text-secondary) mt-1">
                   Get accurate tax estimates and filing support with our Growth
                   plan and above.
                 </p>
@@ -172,9 +172,9 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors
                 ${
                   isFree || isZidLite
-                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                    ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                     : isGrowth
-                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                      ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                       : "bg-purple-600 text-white hover:bg-purple-700"
                 }`}
               >
@@ -189,7 +189,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
       {!hasTaxCalculatorAccess && (
         <button
           onClick={openModal}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)] text-xs font-semibold hover:bg-[var(--color-accent-yellow)]/30 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-(--color-accent-yellow)/20 text-(--color-accent-yellow) text-xs font-semibold hover:bg-(--color-accent-yellow)/30 transition-colors"
         >
           <Sparkles className="w-3.5 h-3.5" /> Premium Feature - Upgrade to
           Access
@@ -198,25 +198,25 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
 
       {/* Title */}
       <div>
-        <h1 className="text-4xl md:text-5xl font-heading text-[var(--text-primary)]">
+        <h1 className="text-4xl md:text-5xl font-heading text-(--text-primary)">
           SME Tax Dashboard
         </h1>
-        <p className="mt-2 text-[var(--text-secondary)]">
+        <p className="mt-2 text-(--text-secondary)">
           Estimate your business taxes in minutes.
         </p>
-        <p className="mt-3 text-xs text-[var(--text-secondary)]/70 italic">
+        <p className="mt-3 text-xs text-(--text-secondary)/70 italic">
           Answer accurately. You can't lie to the government.
         </p>
       </div>
 
       {/* DEV toggle for testing - only show in development */}
       {process.env.NODE_ENV === "development" && (
-        <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer select-none">
+        <label className="flex items-center gap-2 text-xs text-(--text-secondary) cursor-pointer select-none">
           <input
             type="checkbox"
             checked={hasTaxCalculatorAccess}
             onChange={() => {}} // Read-only in dev
-            className="accent-[var(--color-accent-yellow)]"
+            className="accent-(--color-accent-yellow)"
           />
           Current tier: {userTier}{" "}
           {hasTaxCalculatorAccess ? "(has access)" : "(no access)"}
@@ -262,9 +262,9 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         }
         result={
           citResult !== null ? (
-            <p className="text-lg font-heading text-[var(--text-primary)]">
+            <p className="text-lg font-heading text-(--text-primary)">
               Estimated CIT:{" "}
-              <span className="text-[var(--color-accent-yellow)]">
+              <span className="text-(--color-accent-yellow)">
                 {formatNaira(citResult)}
               </span>
             </p>
@@ -291,7 +291,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
           }
         />
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-[var(--text-primary)] flex items-center gap-1">
+          <label className="text-sm font-medium text-(--text-primary) flex items-center gap-1">
             Company Type
             <InfoTooltip content="Small companies have ≤ ₦100m turnover and pay 0% CIT. Medium/Large companies pay 25%." />
           </label>
@@ -299,7 +299,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
             value={citCompanyType}
             onChange={(e) => setCitCompanyType(e.target.value)}
             disabled={!hasTaxCalculatorAccess}
-            className="w-full px-4 py-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)]"
+            className="w-full px-4 py-3 rounded-lg border border-(--border-color) bg-(--bg-primary) text-(--text-primary) text-sm disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow)"
             style={{ outline: "none", boxShadow: "none" }}
           >
             <option value="small">Small Company (≤ ₦100m turnover)</option>
@@ -342,19 +342,19 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         result={
           vatResult !== null ? (
             <div className="space-y-1">
-              <p className="text-sm text-[var(--text-secondary)]">
+              <p className="text-sm text-(--text-secondary)">
                 Output VAT: {formatNaira(vatResult.outputVAT)}
               </p>
-              <p className="text-lg font-heading text-[var(--text-primary)]">
+              <p className="text-lg font-heading text-(--text-primary)">
                 VAT Payable:{" "}
-                <span className="text-[var(--color-accent-yellow)]">
+                <span className="text-(--color-accent-yellow)">
                   {vatResult.vatPayable > 0
                     ? formatNaira(vatResult.vatPayable)
                     : "₦0"}
                 </span>
               </p>
               {vatResult.vatPayable < 0 && (
-                <p className="text-xs text-[var(--text-secondary)]">
+                <p className="text-xs text-(--text-secondary)">
                   No VAT payable. Excess carried forward.
                 </p>
               )}
@@ -404,13 +404,13 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         result={
           whtResult !== null ? (
             <div className="space-y-1">
-              <p className="text-lg font-heading text-[var(--text-primary)]">
+              <p className="text-lg font-heading text-(--text-primary)">
                 WHT Deducted:{" "}
-                <span className="text-[var(--color-accent-yellow)]">
+                <span className="text-(--color-accent-yellow)">
                   {formatNaira(whtResult.wht)}
                 </span>
               </p>
-              <p className="text-sm text-[var(--text-secondary)]">
+              <p className="text-sm text-(--text-secondary)">
                 Net Amount Receivable: {formatNaira(whtResult.netAmount)}
               </p>
             </div>
@@ -425,14 +425,14 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
           disabled={!hasTaxCalculatorAccess}
         />
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-[var(--text-primary)]">
+          <label className="text-sm font-medium text-(--text-primary)">
             Transaction Type
           </label>
           <select
             value={whtType}
             onChange={(e) => setWhtType(e.target.value)}
             disabled={!hasTaxCalculatorAccess}
-            className="w-full px-4 py-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)]"
+            className="w-full px-4 py-3 rounded-lg border border-(--border-color) bg-(--bg-primary) text-(--text-primary) text-sm disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow)"
             style={{ outline: "none", boxShadow: "none" }}
           >
             <option value="consultancy">Consultancy (10%)</option>
@@ -473,9 +473,9 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         }
         result={
           pitResult !== null ? (
-            <p className="text-lg font-heading text-[var(--text-primary)]">
+            <p className="text-lg font-heading text-(--text-primary)">
               Estimated PIT:{" "}
-              <span className="text-[var(--color-accent-yellow)]">
+              <span className="text-(--color-accent-yellow)">
                 {formatNaira(pitResult)}
               </span>
             </p>
@@ -495,11 +495,11 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
       </TaxCard>
 
       {/* Filing Integration Notice */}
-      <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-6 space-y-3">
-        <h4 className="font-subheading text-[var(--text-primary)] flex items-center gap-2">
+      <div className="rounded-2xl border border-(--border-color) bg-(--bg-primary) p-6 space-y-3">
+        <h4 className="font-subheading text-(--text-primary) flex items-center gap-2">
           🔗 Tax Filing Integration
           {hasTaxSupport && (
-            <span className="text-xs bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-2 py-1 rounded-full">
+            <span className="text-xs bg-(--color-accent-yellow) text-(--color-ink) px-2 py-1 rounded-full">
               Available in Premium
             </span>
           )}
@@ -509,7 +509,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
             </span>
           )}
         </h4>
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+        <p className="text-sm text-(--text-secondary) leading-relaxed">
           Zidwell Finance provides tax estimates based on user inputs. These
           calculations are not legally binding.
           {hasTaxSupport
@@ -519,12 +519,12 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         {hasTaxSupport && (
           <div className="mt-4 flex gap-3">
             <Link href="/dashboard/services/tax-filing/file">
-              <button className="px-4 py-2 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] rounded-lg text-sm font-semibold hover:bg-[var(--color-accent-yellow)]/90 transition-colors">
+              <button className="px-4 py-2 bg-(--color-accent-yellow) text-(--color-ink) rounded-lg text-sm font-semibold hover:bg-(--color-accent-yellow)/90 transition-colors">
                 File Your Taxes
               </button>
             </Link>
             <Link href="/dashboard/services/tax-filing/consultation">
-              <button className="px-4 py-2 border border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] rounded-lg text-sm font-semibold hover:bg-[var(--color-accent-yellow)]/10 transition-colors">
+              <button className="px-4 py-2 border border-(--color-accent-yellow) text-(--color-accent-yellow) rounded-lg text-sm font-semibold hover:bg-(--color-accent-yellow)/10 transition-colors">
                 Book Consultation
               </button>
             </Link>

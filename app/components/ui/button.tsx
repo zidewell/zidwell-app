@@ -26,7 +26,7 @@ const buttonVariants = cva(
         "zidwell-primary":
           "bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 squircle-md",
         "zidwell-success":
-          "bg-[var(--color-lemon-green)] text-white hover:opacity-90 squircle-md",
+          "bg-(--color-lemon-green) text-white hover:opacity-90 squircle-md",
         "zidwell-outline":
           "border-2 border-(--color-accent-yellow) text-(--color-accent-yellow) bg-transparent hover:bg-(--color-accent-yellow) hover:text-(--color-ink) squircle-md",
       },

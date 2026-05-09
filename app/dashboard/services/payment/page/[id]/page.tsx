@@ -108,25 +108,25 @@ const getRecipientLabel = (pageType: string): string => {
 const getPageTypeIcon = (pageType: string) => {
   switch (pageType) {
     case "school":
-      return <GraduationCap className="h-4 w-4 text-[var(--color-accent-yellow)]" />;
+      return <GraduationCap className="h-4 w-4 text-(--color-accent-yellow)" />;
     case "donation":
-      return <Heart className="h-4 w-4 text-[var(--color-accent-yellow)]" />;
+      return <Heart className="h-4 w-4 text-(--color-accent-yellow)" />;
     case "physical":
-      return <Package className="h-4 w-4 text-[var(--color-accent-yellow)]" />;
+      return <Package className="h-4 w-4 text-(--color-accent-yellow)" />;
     case "digital":
-      return <FileDown className="h-4 w-4 text-[var(--color-accent-yellow)]" />;
+      return <FileDown className="h-4 w-4 text-(--color-accent-yellow)" />;
     case "services":
-      return <Briefcase className="h-4 w-4 text-[var(--color-accent-yellow)]" />;
+      return <Briefcase className="h-4 w-4 text-(--color-accent-yellow)" />;
     case "real_estate":
-      return <Building2 className="h-4 w-4 text-[var(--color-accent-yellow)]" />;
+      return <Building2 className="h-4 w-4 text-(--color-accent-yellow)" />;
     case "stock":
-      return <LineChart className="h-4 w-4 text-[var(--color-accent-yellow)]" />;
+      return <LineChart className="h-4 w-4 text-(--color-accent-yellow)" />;
     case "savings":
-      return <PiggyBank className="h-4 w-4 text-[var(--color-accent-yellow)]" />;
+      return <PiggyBank className="h-4 w-4 text-(--color-accent-yellow)" />;
     case "crypto":
-      return <Bitcoin className="h-4 w-4 text-[var(--color-accent-yellow)]" />;
+      return <Bitcoin className="h-4 w-4 text-(--color-accent-yellow)" />;
     default:
-      return <CreditCard className="h-4 w-4 text-[var(--color-accent-yellow)]" />;
+      return <CreditCard className="h-4 w-4 text-(--color-accent-yellow)" />;
   }
 };
 
@@ -306,15 +306,17 @@ const PageDetail = () => {
 
   if (!page) {
     return (
-      <div className="min-h-screen bg-[var(--bg-secondary)] dark:bg-[#0e0e0e] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-(--bg-secondary) dark:bg-[#0e0e0e] flex items-center justify-center p-4">
         <div className="text-center">
-          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] mb-2">Page not found</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-(--text-primary) mb-2">
+            Page not found
+          </h1>
           <Button
             variant="default"
             onClick={() =>
               router.push("/dashboard/services/payment/payment/dashboard")
             }
-            className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+            className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
           >
             Back to Dashboard
           </Button>
@@ -333,25 +335,25 @@ const PageDetail = () => {
       label: "Page Views",
       value: page.pageViews || 0,
       icon: Eye,
-      color: "text-[var(--color-accent-yellow)]",
+      color: "text-(--color-accent-yellow)",
     },
     {
       label: "Total Payments",
       value: page.totalPayments || 0,
       icon: CreditCard,
-      color: "text-[var(--color-lemon-green)]",
+      color: "text-(--color-lemon-green)",
     },
     {
       label: "Page Balance",
       value: `₦${(page.pageBalance || 0).toLocaleString()}`,
       icon: Wallet,
-      color: "text-[var(--color-accent-yellow)]",
+      color: "text-(--color-accent-yellow)",
     },
     {
       label: "Total Revenue",
       value: `₦${(page.totalRevenue || 0).toLocaleString()}`,
       icon: TrendingUp,
-      color: "text-[var(--color-lemon-green)]",
+      color: "text-(--color-lemon-green)",
     },
   ];
 
@@ -419,7 +421,7 @@ const PageDetail = () => {
             {/* Back Button */}
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors mb-2 sm:mb-4"
+              className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors mb-2 sm:mb-4"
             >
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
@@ -438,26 +440,26 @@ const PageDetail = () => {
                       alt="Logo"
                     />
                   ) : (
-                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-[var(--bg-secondary)] flex items-center justify-center">
+                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-(--bg-secondary) flex items-center justify-center">
                       {pageTypeIcon}
                     </div>
                   )}
                   <div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
-                      <h1 className="text-xl sm:text-2xl font-bold wrap-break-word text-[var(--text-primary)]">
+                      <h1 className="text-xl sm:text-2xl font-bold wrap-break-word text-(--text-primary)">
                         {page.title}
                       </h1>
-                      <span className="px-2 py-0.5 rounded-full bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] text-xs font-medium self-start sm:self-center">
+                      <span className="px-2 py-0.5 rounded-full bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) text-xs font-medium self-start sm:self-center">
                         {typeLabels[page.pageType]}
                       </span>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <span className="text-xs sm:text-sm text-[var(--text-secondary)] break-all">
+                      <span className="text-xs sm:text-sm text-(--text-secondary) break-all">
                         {pageUrl}
                       </span>
                       <button
                         onClick={() => navigator.clipboard.writeText(pageUrl)}
-                        className="text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors self-start sm:self-center"
+                        className="text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors self-start sm:self-center"
                       >
                         <Copy className="h-3.5 w-3.5" />
                       </button>
@@ -472,7 +474,7 @@ const PageDetail = () => {
                 >
                   <Button
                     variant="default"
-                    className="self-start sm:self-center bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                    className="self-start sm:self-center bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                   >
                     <ExternalLink className="h-4 w-4 mr-1" /> View Page
                   </Button>
@@ -488,13 +490,13 @@ const PageDetail = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  className="p-3 sm:p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft"
+                  className="p-3 sm:p-4 rounded-2xl bg-(--bg-primary) border border-(--border-color) shadow-soft"
                 >
                   <s.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${s.color} mb-2`} />
-                  <div className="text-lg sm:text-2xl font-bold truncate text-[var(--text-primary)]">
+                  <div className="text-lg sm:text-2xl font-bold truncate text-(--text-primary)">
                     {s.value}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-[var(--text-secondary)]">
+                  <div className="text-[10px] sm:text-xs text-(--text-secondary)">
                     {s.label}
                   </div>
                 </motion.div>
@@ -502,20 +504,20 @@ const PageDetail = () => {
             </div>
 
             {/* Recent Payments */}
-            <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] overflow-hidden shadow-soft">
-              <div className="p-4 sm:p-5 border-b border-[var(--border-color)]">
-                <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 text-[var(--text-primary)]">
+            <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) overflow-hidden shadow-soft">
+              <div className="p-4 sm:p-5 border-b border-(--border-color)">
+                <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 text-(--text-primary)">
                   {pageTypeIcon}
                   Recent {typeLabels[page.pageType]} Payments
                 </h3>
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
+                <p className="text-xs sm:text-sm text-(--text-secondary) mt-1">
                   {stats.totalCount} payment{stats.totalCount !== 1 ? "s" : ""}{" "}
                   • Total: ₦{stats.totalAmount.toLocaleString()}
                 </p>
               </div>
               <div className="divide-y divide-[var(--border-color)]">
                 {stats.payments.length === 0 ? (
-                  <div className="p-6 sm:p-8 text-center text-[var(--text-secondary)]">
+                  <div className="p-6 sm:p-8 text-center text-(--text-secondary)">
                     <DollarSign className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 opacity-30" />
                     <p className="text-sm sm:text-base">No payments yet</p>
                   </div>
@@ -533,31 +535,31 @@ const PageDetail = () => {
                     return (
                       <div
                         key={payment.id}
-                        className="p-4 hover:bg-[var(--bg-secondary)] transition-colors"
+                        className="p-4 hover:bg-(--bg-secondary) transition-colors"
                       >
                         <div className="space-y-3">
                           {/* Payer Information */}
                           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <User className="h-3 w-3 sm:h-4 sm:w-4 text-[var(--color-accent-yellow)]" />
-                                <p className="font-semibold text-sm sm:text-base text-[var(--text-primary)]">
+                                <User className="h-3 w-3 sm:h-4 sm:w-4 text-(--color-accent-yellow)" />
+                                <p className="font-semibold text-sm sm:text-base text-(--text-primary)">
                                   {payerLabel}: {payerName}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2 ml-5 sm:ml-6">
-                                <Mail className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-[var(--text-secondary)]" />
-                                <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                                <Mail className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-(--text-secondary)" />
+                                <p className="text-xs sm:text-sm text-(--text-secondary)">
                                   {payerEmail || "No email provided"}
                                 </p>
                               </div>
                             </div>
                             <div className="text-left sm:text-right">
-                              <p className="font-bold text-[var(--color-lemon-green)] text-base sm:text-lg">
+                              <p className="font-bold text-(--color-lemon-green) text-base sm:text-lg">
                                 ₦{payment.amount.toLocaleString()}
                               </p>
                               {payment.fee > 0 && (
-                                <p className="text-xs text-[var(--text-secondary)]">
+                                <p className="text-xs text-(--text-secondary)">
                                   Fee: ₦{payment.fee.toLocaleString()}
                                 </p>
                               )}
@@ -566,11 +568,11 @@ const PageDetail = () => {
 
                           {/* Recipient Information */}
                           {isSchoolPage && studentName && (
-                            <div className="ml-3 sm:ml-6 pl-3 sm:pl-4 border-l-2 border-[var(--color-accent-yellow)]/30">
+                            <div className="ml-3 sm:ml-6 pl-3 sm:pl-4 border-l-2 border-(--color-accent-yellow)/30">
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
                                 <div className="flex items-center gap-2">
-                                  <GraduationCap className="h-3 w-3 sm:h-4 sm:w-4 text-[var(--color-lemon-green)]" />
-                                  <p className="font-medium text-sm sm:text-base text-[var(--text-primary)]">
+                                  <GraduationCap className="h-3 w-3 sm:h-4 sm:w-4 text-(--color-lemon-green)" />
+                                  <p className="font-medium text-sm sm:text-base text-(--text-primary)">
                                     {recipientLabel}: {studentName}
                                   </p>
                                 </div>
@@ -587,10 +589,10 @@ const PageDetail = () => {
                           )}
 
                           {!isSchoolPage && productName && (
-                            <div className="ml-3 sm:ml-6 pl-3 sm:pl-4 border-l-2 border-[var(--color-accent-yellow)]/30">
+                            <div className="ml-3 sm:ml-6 pl-3 sm:pl-4 border-l-2 border-(--color-accent-yellow)/30">
                               <div className="flex items-center gap-2">
                                 {pageTypeIcon}
-                                <p className="font-medium text-sm sm:text-base text-[var(--text-primary)]">
+                                <p className="font-medium text-sm sm:text-base text-(--text-primary)">
                                   {recipientLabel}: {productName}
                                 </p>
                               </div>
@@ -598,7 +600,7 @@ const PageDetail = () => {
                           )}
 
                           {/* Payment Date */}
-                          <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] ml-3 sm:ml-6">
+                          <div className="flex items-center gap-2 text-xs text-(--text-secondary) ml-3 sm:ml-6">
                             <Calendar className="h-3 w-3" />
                             {new Date(
                               payment.paid_at || payment.created_at,
@@ -620,9 +622,9 @@ const PageDetail = () => {
 
             {/* Student Payment Status - Only for School Pages */}
             {page.pageType === "school" && students.length > 0 && (
-              <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-4 sm:p-5 shadow-soft">
-                <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 mb-4 text-[var(--text-primary)]">
-                  <GraduationCap className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+              <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-4 sm:p-5 shadow-soft">
+                <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 mb-4 text-(--text-primary)">
+                  <GraduationCap className="h-4 w-4 text-(--color-accent-yellow)" />
                   Student Payment Status
                 </h3>
 
@@ -632,7 +634,7 @@ const PageDetail = () => {
                     <div className="text-lg sm:text-xl font-bold text-green-600">
                       {paidStudentsCount}
                     </div>
-                    <div className="text-[10px] sm:text-xs text-[var(--text-secondary)]">
+                    <div className="text-[10px] sm:text-xs text-(--text-secondary)">
                       Paid
                     </div>
                   </div>
@@ -640,7 +642,7 @@ const PageDetail = () => {
                     <div className="text-lg sm:text-xl font-bold text-yellow-600">
                       {unpaidStudentsCount}
                     </div>
-                    <div className="text-[10px] sm:text-xs text-[var(--text-secondary)]">
+                    <div className="text-[10px] sm:text-xs text-(--text-secondary)">
                       Unpaid
                     </div>
                   </div>
@@ -648,7 +650,7 @@ const PageDetail = () => {
                     <div className="text-lg sm:text-xl font-bold text-blue-600">
                       ₦{totalPaidAmount.toLocaleString()}
                     </div>
-                    <div className="text-[10px] sm:text-xs text-[var(--text-secondary)]">
+                    <div className="text-[10px] sm:text-xs text-(--text-secondary)">
                       Total Paid
                     </div>
                   </div>
@@ -656,7 +658,7 @@ const PageDetail = () => {
 
                 {/* Student List */}
                 <div className="mt-4">
-                  <h4 className="font-medium text-xs sm:text-sm mb-3 text-[var(--text-primary)]">
+                  <h4 className="font-medium text-xs sm:text-sm mb-3 text-(--text-primary)">
                     Student List
                   </h4>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -682,16 +684,16 @@ const PageDetail = () => {
                           className={`flex flex-col p-3 rounded-lg gap-2 transition-all ${
                             hasPaid
                               ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"
-                              : "bg-[var(--bg-secondary)] border border-transparent"
+                              : "bg-(--bg-secondary) border border-transparent"
                           }`}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <GraduationCap
-                                  className={`h-3 w-3 sm:h-4 sm:w-4 ${hasPaid ? "text-green-600" : "text-[var(--text-secondary)]"}`}
+                                  className={`h-3 w-3 sm:h-4 sm:w-4 ${hasPaid ? "text-green-600" : "text-(--text-secondary)"}`}
                                 />
-                                <p className="font-medium text-xs sm:text-sm text-[var(--text-primary)]">
+                                <p className="font-medium text-xs sm:text-sm text-(--text-primary)">
                                   {studentName}
                                 </p>
                                 {hasPaid && (
@@ -703,12 +705,12 @@ const PageDetail = () => {
                                 )}
                               </div>
                               {student.className && (
-                                <p className="text-[10px] sm:text-xs text-[var(--text-secondary)] ml-5 sm:ml-6 mt-0.5">
+                                <p className="text-[10px] sm:text-xs text-(--text-secondary) ml-5 sm:ml-6 mt-0.5">
                                   📚 Class: {student.className}
                                 </p>
                               )}
                               {student.regNumber && (
-                                <p className="text-[10px] sm:text-xs text-[var(--text-secondary)] ml-5 sm:ml-6">
+                                <p className="text-[10px] sm:text-xs text-(--text-secondary) ml-5 sm:ml-6">
                                   🔢 Reg: {student.regNumber}
                                 </p>
                               )}
@@ -720,13 +722,13 @@ const PageDetail = () => {
                                       ` / ₦${expectedAmount.toLocaleString()}`}
                                   </p>
                                   {paidDate && (
-                                    <p className="text-[10px] text-[var(--text-secondary)] flex items-center gap-1">
+                                    <p className="text-[10px] text-(--text-secondary) flex items-center gap-1">
                                       <Calendar className="h-2.5 w-2.5" />
                                       Paid on: {paidDate}
                                     </p>
                                   )}
                                   {parentName && (
-                                    <p className="text-[10px] text-[var(--text-secondary)] flex items-center gap-1">
+                                    <p className="text-[10px] text-(--text-secondary) flex items-center gap-1">
                                       <User className="h-2.5 w-2.5" />
                                       Paid by: {parentName}
                                     </p>
@@ -761,7 +763,7 @@ const PageDetail = () => {
                 {/* Summary Note */}
                 {paidStudentsCount > 0 && (
                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
-                    <p className="text-xs text-[var(--text-secondary)] flex items-center gap-2">
+                    <p className="text-xs text-(--text-secondary) flex items-center gap-2">
                       <FileText className="h-3 w-3" />
                       Total of {paidStudentsCount} student
                       {paidStudentsCount !== 1 ? "s have" : " has"} paid ₦
@@ -776,7 +778,7 @@ const PageDetail = () => {
 
             {/* Withdraw Button */}
             {page.pageBalance > 0 && (
-              <div className="bg-[var(--color-ink)] rounded-2xl p-4 sm:p-5 text-white">
+              <div className="bg-(--color-ink) rounded-2xl p-4 sm:p-5 text-white">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <h3 className="font-bold text-base sm:text-lg">
@@ -791,7 +793,7 @@ const PageDetail = () => {
                   </div>
                   <Button
                     variant="secondary"
-                    className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 w-full sm:w-auto"
+                    className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 w-full sm:w-auto"
                     onClick={() => setShowWithdrawal(true)}
                   >
                     <Wallet className="h-4 w-4 mr-1" /> Withdraw Funds
@@ -809,11 +811,13 @@ const PageDetail = () => {
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="max-w-md w-full bg-[var(--bg-primary)] rounded-2xl mx-4 sm:mx-0 border border-[var(--border-color)] shadow-xl"
+            className="max-w-md w-full bg-(--bg-primary) rounded-2xl mx-4 sm:mx-0 border border-(--border-color) shadow-xl"
           >
-            <div className="p-4 sm:p-6 border-b border-[var(--border-color)]">
-              <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">Withdraw Funds</h2>
-              <p className="text-[var(--text-secondary)] text-xs sm:text-sm mt-1">
+            <div className="p-4 sm:p-6 border-b border-(--border-color)">
+              <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
+                Withdraw Funds
+              </h2>
+              <p className="text-(--text-secondary) text-xs sm:text-sm mt-1">
                 Withdraw from "{page.title}" to your main wallet
               </p>
             </div>
@@ -824,10 +828,10 @@ const PageDetail = () => {
                   <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
                     <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
                   </div>
-                  <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] mb-2">
+                  <h3 className="text-base sm:text-lg font-bold text-(--text-primary) mb-2">
                     Withdrawal Successful!
                   </h3>
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                  <p className="text-xs sm:text-sm text-(--text-secondary)">
                     ₦{netAmount.toLocaleString()} has been transferred to your
                     main wallet.
                   </p>
@@ -835,21 +839,21 @@ const PageDetail = () => {
               ) : (
                 <>
                   <div>
-                    <label className="text-xs sm:text-sm font-medium mb-1 block text-[var(--text-primary)]">
+                    <label className="text-xs sm:text-sm font-medium mb-1 block text-(--text-primary)">
                       Available Balance
                     </label>
-                    <p className="text-xl sm:text-2xl font-bold text-[var(--color-accent-yellow)]">
+                    <p className="text-xl sm:text-2xl font-bold text-(--color-accent-yellow)">
                       ₦{page.pageBalance.toLocaleString()}
                     </p>
                   </div>
 
                   <div>
-                    <label className="text-xs sm:text-sm font-medium mb-1 block text-[var(--text-primary)]">
+                    <label className="text-xs sm:text-sm font-medium mb-1 block text-(--text-primary)">
                       Withdrawal Amount (₦)
                     </label>
                     <input
                       type="number"
-                      className="w-full p-2 sm:p-3 border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm sm:text-base"
+                      className="w-full p-2 sm:p-3 border border-(--border-color) rounded-xl focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) bg-(--bg-primary) text-(--text-primary) text-sm sm:text-base"
                       style={{ outline: "none", boxShadow: "none" }}
                       placeholder="Enter amount"
                       value={withdrawalAmount}
@@ -857,26 +861,34 @@ const PageDetail = () => {
                       min={1000}
                       max={page.pageBalance}
                     />
-                    <p className="text-[10px] sm:text-xs text-[var(--text-secondary)] mt-1">
+                    <p className="text-[10px] sm:text-xs text-(--text-secondary) mt-1">
                       Minimum: ₦1,000 | Fee: ₦200
                     </p>
                   </div>
 
                   {Number(withdrawalAmount) >= 1000 && (
-                    <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 space-y-2">
+                    <div className="bg-(--bg-secondary) rounded-xl p-3 sm:p-4 space-y-2">
                       <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-[var(--text-secondary)]">Withdrawal amount:</span>
-                        <span className="text-[var(--text-primary)]">
+                        <span className="text-(--text-secondary)">
+                          Withdrawal amount:
+                        </span>
+                        <span className="text-(--text-primary)">
                           ₦{Number(withdrawalAmount).toLocaleString()}
                         </span>
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-[var(--text-secondary)]">Processing fee:</span>
-                        <span className="text-[var(--text-primary)]">₦{withdrawalFee.toLocaleString()}</span>
+                        <span className="text-(--text-secondary)">
+                          Processing fee:
+                        </span>
+                        <span className="text-(--text-primary)">
+                          ₦{withdrawalFee.toLocaleString()}
+                        </span>
                       </div>
-                      <div className="flex justify-between font-bold pt-2 border-t border-[var(--border-color)] text-sm sm:text-base">
-                        <span className="text-[var(--text-primary)]">You'll receive:</span>
-                        <span className="text-[var(--color-lemon-green)]">
+                      <div className="flex justify-between font-bold pt-2 border-t border-(--border-color) text-sm sm:text-base">
+                        <span className="text-(--text-primary)">
+                          You'll receive:
+                        </span>
+                        <span className="text-(--color-lemon-green)">
                           ₦{netAmount.toLocaleString()}
                         </span>
                       </div>
@@ -903,7 +915,7 @@ const PageDetail = () => {
                     </Button>
                     <Button
                       variant="default"
-                      className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                      className="flex-1 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                       onClick={handleWithdraw}
                       disabled={
                         withdrawing ||

@@ -394,8 +394,10 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
   if (disabled && value) {
     return (
       <div className="space-y-2">
-        <label className="text-sm font-medium text-[var(--text-primary)]">{label}</label>
-        <div className="h-48 rounded-lg border-2 border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
+        <label className="text-sm font-medium text-(--text-primary)">
+          {label}
+        </label>
+        <div className="h-48 rounded-lg border-2 border-(--border-color) bg-(--bg-primary) p-4">
           <img
             src={value}
             alt="Signature"
@@ -411,14 +413,16 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-[var(--text-primary)]">{label}</label>
+          <label className="text-sm font-medium text-(--text-primary)">
+            {label}
+          </label>
           <div className="flex gap-2">
             <Button
               type="button"
               variant="ghost"
               size="sm"
               disabled
-              className="border-[var(--border-color)] text-[var(--text-secondary)]"
+              className="border-(--border-color) text-(--text-secondary)"
             >
               Draw
             </Button>
@@ -427,13 +431,13 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               variant="ghost"
               size="sm"
               disabled
-              className="border-[var(--border-color)] text-[var(--text-secondary)]"
+              className="border-(--border-color) text-(--text-secondary)"
             >
               <Upload className="h-4 w-4" />
             </Button>
           </div>
         </div>
-        <div className="h-48 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] animate-pulse" />
+        <div className="h-48 rounded-lg border border-(--border-color) bg-(--bg-secondary) animate-pulse" />
       </div>
     );
   }
@@ -441,7 +445,9 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-[var(--text-primary)]">{label}</label>
+        <label className="text-sm font-medium text-(--text-primary)">
+          {label}
+        </label>
         <div className="flex gap-2">
           {/* Load Signature Button */}
           {onLoadSaved && (
@@ -451,7 +457,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               size="sm"
               onClick={handleLoadSavedSignature}
               disabled={disabled || isLoadingSignature}
-              className="text-xs border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10"
+              className="text-xs border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
             >
               <Download className="h-3 w-3 mr-1" />
               {isLoadingSignature ? "Loading..." : "Load"}
@@ -465,8 +471,8 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
             disabled={disabled}
             className={
               mode === "draw"
-                ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-                : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+                : "border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
             }
           >
             Draw
@@ -479,8 +485,8 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
             disabled={disabled}
             className={
               mode === "upload"
-                ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-                : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+                : "border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
             }
           >
             <Upload className="h-4 w-4" />
@@ -492,12 +498,12 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
         <div className="relative h-48">
           <canvas
             ref={canvasRef}
-            className="w-full h-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] cursor-crosshair touch-none"
+            className="w-full h-full rounded-lg border border-(--border-color) bg-(--bg-primary) cursor-crosshair touch-none"
             onMouseLeave={handleCanvasMouseLeave}
             onTouchEnd={handleCanvasMouseLeave}
           />
           {(!value || (padRef.current && padRef.current.isEmpty())) && (
-            <p className="absolute inset-0 flex items-center justify-center text-sm text-[var(--text-secondary)] pointer-events-none">
+            <p className="absolute inset-0 flex items-center justify-center text-sm text-(--text-secondary) pointer-events-none">
               Draw your signature here
             </p>
           )}
@@ -507,7 +513,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               variant="ghost"
               size="icon"
               onClick={handleClear}
-              className="absolute top-2 right-2 h-8 w-8 bg-[var(--bg-primary)]/80 hover:bg-[var(--bg-primary)] border border-[var(--border-color)]"
+              className="absolute top-2 right-2 h-8 w-8 bg-(--bg-primary)/80 hover:bg-(--bg-primary) border border-(--border-color)"
               disabled={disabled}
             >
               <Eraser className="h-4 w-4" />
@@ -523,14 +529,14 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               id="signature-upload"
               accept="image/*"
               onChange={handleUpload}
-              className="block w-full text-sm text-[var(--text-secondary)]
+              className="block w-full text-sm text-(--text-secondary)
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-lg file:border-0
                 file:text-sm file:font-medium
-                file:bg-[var(--color-accent-yellow)] file:text-[var(--color-ink)]
-                hover:file:bg-[var(--color-accent-yellow)]/90
+                file:bg-(--color-accent-yellow) file:text-(--color-ink)
+                hover:file:bg-(--color-accent-yellow)/90
                 disabled:opacity-50 disabled:cursor-not-allowed
-                focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
               style={{ outline: "none", boxShadow: "none" }}
               disabled={disabled}
             />
@@ -540,7 +546,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
                 variant="ghost"
                 size="icon"
                 onClick={handleClear}
-                className="absolute -right-2 -top-2 h-6 w-6 bg-[var(--bg-primary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-full"
+                className="absolute -right-2 -top-2 h-6 w-6 bg-(--bg-primary) hover:bg-(--bg-primary) border border-(--border-color) rounded-full"
                 disabled={disabled}
               >
                 <X className="h-3 w-3" />
@@ -549,7 +555,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
           </div>
 
           {value ? (
-            <div className="h-48 rounded-lg border-2 border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
+            <div className="h-48 rounded-lg border-2 border-(--border-color) bg-(--bg-primary) p-4">
               <img
                 src={value}
                 alt="Uploaded signature"
@@ -557,12 +563,12 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               />
             </div>
           ) : (
-            <div className="h-48 rounded-lg border-2 border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col items-center justify-center">
-              <Upload className="h-10 w-10 text-[var(--text-secondary)] mb-2" />
-              <p className="text-sm text-[var(--text-secondary)]">
+            <div className="h-48 rounded-lg border-2 border-dashed border-(--border-color) bg-(--bg-secondary) flex flex-col items-center justify-center">
+              <Upload className="h-10 w-10 text-(--text-secondary) mb-2" />
+              <p className="text-sm text-(--text-secondary)">
                 Upload a signature image
               </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
+              <p className="text-xs text-(--text-secondary) mt-1">
                 PNG, JPG, GIF • Max 2MB
               </p>
             </div>

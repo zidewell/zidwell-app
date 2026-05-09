@@ -349,35 +349,41 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
   `;
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
+    <div className="min-h-screen bg-(--bg-primary)">
       <style>{contractStyles}</style>
       <div className="max-w-4xl mx-auto px-3 md:px-4 py-4 md:py-8">
         {/* Header - matches image design */}
         <div className="text-center mb-6 md:mb-10">
-          <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-[var(--color-accent-yellow)] bg-[var(--color-ink)] uppercase mb-2 py-2 px-2 md:px-0 overflow-hidden">
+          <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-(--color-accent-yellow) bg-(--color-ink) uppercase mb-2 py-2 px-2 md:px-0 overflow-hidden">
             {contract.title || "SERVICE CONTRACT"}
           </h1>
-          <p className="text-sm md:text-base text-[var(--text-secondary)] mb-6 md:mb-8">
+          <p className="text-sm md:text-base text-(--text-secondary) mb-6 md:mb-8">
             This is a service agreement entered into between:
           </p>
 
           {/* Party Information */}
           <div className="space-y-3 md:space-y-4 mb-6 md:mb-8 text-left px-2 md:px-0">
             <div className="flex flex-col sm:flex-row sm:items-center">
-              <span className="font-bold text-sm md:text-base text-[var(--text-primary)]">PARTY A:</span>
-              <span className="sm:ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-[var(--text-primary)] mt-1 sm:mt-0 text-[var(--text-primary)]">
+              <span className="font-bold text-sm md:text-base text-(--text-primary)">
+                PARTY A:
+              </span>
+              <span className="sm:ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-(--text-primary) mt-1 sm:mt-0 text-(--text-primary)">
                 {contract.initiatorName}
               </span>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center">
-              <span className="font-bold text-sm md:text-base text-[var(--text-primary)]">PARTY B:</span>
-              <span className="sm:ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-[var(--text-primary)] mt-1 sm:mt-0 text-[var(--text-primary)]">
+              <span className="font-bold text-sm md:text-base text-(--text-primary)">
+                PARTY B:
+              </span>
+              <span className="sm:ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-(--text-primary) mt-1 sm:mt-0 text-(--text-primary)">
                 {contract.signeeName || "Signee Name"}
               </span>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center">
-              <span className="font-bold text-sm md:text-base text-[var(--text-primary)]">DATE:</span>
-              <span className="sm:ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-[var(--text-primary)] mt-1 sm:mt-0 text-[var(--text-primary)]">
+              <span className="font-bold text-sm md:text-base text-(--text-primary)">
+                DATE:
+              </span>
+              <span className="sm:ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-(--text-primary) mt-1 sm:mt-0 text-(--text-primary)">
                 {formatDate(contract.contractDate || contract.createdAt)}
               </span>
             </div>
@@ -387,11 +393,11 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
         {/* Terms Section */}
         <div className="mb-6 md:mb-10">
           <div className="flex items-center gap-3 md:gap-4 my-4 md:my-6">
-            <div className="flex-1 h-0.5 md:h-1 bg-[var(--color-accent-yellow)] rounded-2xl" />
-            <h2 className="text-base md:text-lg lg:text-xl font-bold text-center px-2 text-[var(--text-primary)]">
+            <div className="flex-1 h-0.5 md:h-1 bg-(--color-accent-yellow) rounded-2xl" />
+            <h2 className="text-base md:text-lg lg:text-xl font-bold text-center px-2 text-(--text-primary)">
               THE TERMS OF AGREEMENT ARE AS FOLLOWS
             </h2>
-            <div className="flex-1 h-0.5 md:h-1 bg-[var(--color-accent-yellow)] rounded-2xl" />
+            <div className="flex-1 h-0.5 md:h-1 bg-(--color-accent-yellow) rounded-2xl" />
           </div>
 
           {cleanContent ? (
@@ -402,7 +408,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
               />
             </div>
           ) : (
-            <div className="text-[var(--text-secondary)] italic text-sm text-center py-6 md:py-8">
+            <div className="text-(--text-secondary) italic text-sm text-center py-6 md:py-8">
               No contract content provided
             </div>
           )}
@@ -412,11 +418,11 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
         {paymentTerms && (
           <div className="mb-6 md:mb-10">
             <div className="flex items-center gap-3 md:gap-4 my-4 md:my-6">
-              <div className="flex-1 h-0.5 md:h-1 bg-[var(--color-accent-yellow)] rounded-2xl" />
-              <h2 className="text-base md:text-lg lg:text-xl font-bold text-center whitespace-nowrap px-2 text-[var(--text-primary)]">
+              <div className="flex-1 h-0.5 md:h-1 bg-(--color-accent-yellow) rounded-2xl" />
+              <h2 className="text-base md:text-lg lg:text-xl font-bold text-center whitespace-nowrap px-2 text-(--text-primary)">
                 PAYMENT TERMS
               </h2>
-              <div className="flex-1 h-0.5 md:h-1 bg-[var(--color-accent-yellow)] rounded-2xl" />
+              <div className="flex-1 h-0.5 md:h-1 bg-(--color-accent-yellow) rounded-2xl" />
             </div>
 
             <div className="space-y-3 md:space-y-4 px-2 md:px-0">
@@ -438,13 +444,13 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
         )}
 
         {/* Signature Section */}
-        <div className="mb-6 md:mb-10 pt-4 md:pt-6 border-t border-[var(--border-color)]">
+        <div className="mb-6 md:mb-10 pt-4 md:pt-6 border-t border-(--border-color)">
           <div className="flex items-center gap-3 md:gap-4 my-4 md:my-6">
-            <div className="flex-1 h-0.5 md:h-1 bg-[var(--color-accent-yellow)] rounded-2xl" />
-            <h2 className="text-base md:text-lg lg:text-xl font-bold text-center whitespace-nowrap px-2 text-[var(--text-primary)]">
+            <div className="flex-1 h-0.5 md:h-1 bg-(--color-accent-yellow) rounded-2xl" />
+            <h2 className="text-base md:text-lg lg:text-xl font-bold text-center whitespace-nowrap px-2 text-(--text-primary)">
               SIGNATURES
             </h2>
-            <div className="flex-1 h-0.5 md:h-1 bg-[var(--color-accent-yellow)] rounded-2xl" />
+            <div className="flex-1 h-0.5 md:h-1 bg-(--color-accent-yellow) rounded-2xl" />
           </div>
 
           <div className="overflow-x-auto px-2 md:px-0 -mx-2 md:mx-0">
@@ -453,15 +459,15 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                 {/* Table Headers - Hidden on mobile, shown on desktop */}
                 <div className="hidden md:table-row-group">
                   <div className="table-row">
-                    <div className="table-cell py-3 px-4 text-center font-bold text-[var(--text-primary)]">
+                    <div className="table-cell py-3 px-4 text-center font-bold text-(--text-primary)">
                       PARTY A
                     </div>
                     {contract.hasLawyerSignature && (
-                      <div className="table-cell py-3 px-4 text-center font-bold text-[var(--text-primary)]">
+                      <div className="table-cell py-3 px-4 text-center font-bold text-(--text-primary)">
                         LEGAL WITNESS
                       </div>
                     )}
-                    <div className="table-cell py-3 px-4 text-center font-bold text-[var(--text-primary)]">
+                    <div className="table-cell py-3 px-4 text-center font-bold text-(--text-primary)">
                       PARTY B
                     </div>
                   </div>
@@ -470,15 +476,15 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                 {/* Mobile Signature Cards */}
                 <div className="md:hidden space-y-6">
                   {/* Party A Mobile Card */}
-                  <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-4">
-                    <div className="font-bold text-center text-sm mb-3 text-[var(--text-secondary)]">
+                  <div className="bg-(--bg-primary) border border-(--border-color) rounded-lg p-4">
+                    <div className="font-bold text-center text-sm mb-3 text-(--text-secondary)">
                       PARTY A
                     </div>
                     <div className="flex flex-col items-center justify-start">
-                      <div className="font-bold text-sm text-[var(--text-primary)]">
+                      <div className="font-bold text-sm text-(--text-primary)">
                         {contract.initiatorName}
                       </div>
-                      <div className="h-10 w-32 border-b-2 border-dotted border-[var(--border-color)] my-3 flex items-center justify-center">
+                      <div className="h-10 w-32 border-b-2 border-dotted border-(--border-color) my-3 flex items-center justify-center">
                         {contract.creatorSignature ? (
                           <img
                             src={contract.creatorSignature}
@@ -486,7 +492,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                             className="h-8 object-contain"
                           />
                         ) : (
-                          <span className="text-[var(--text-secondary)] text-xs">
+                          <span className="text-(--text-secondary) text-xs">
                             Signature
                           </span>
                         )}
@@ -496,24 +502,24 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
 
                   {/* Lawyer Witness Mobile Card */}
                   {contract.hasLawyerSignature && (
-                    <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-4">
-                      <div className="font-bold text-center text-sm mb-3 text-[var(--text-secondary)]">
+                    <div className="bg-(--bg-primary) border border-(--border-color) rounded-lg p-4">
+                      <div className="font-bold text-center text-sm mb-3 text-(--text-secondary)">
                         LEGAL WITNESS
                       </div>
                       <div className="flex flex-col items-center justify-start">
-                        <div className="font-bold text-sm text-[var(--text-primary)]">
+                        <div className="font-bold text-sm text-(--text-primary)">
                           Barr. Adewale Johnson
                         </div>
-                        <div className="h-10 w-32 border-b-2 border-dotted border-[var(--border-color)] my-3 flex items-center justify-center">
-                          <span className="text-[var(--text-secondary)] italic font-serif text-sm">
+                        <div className="h-10 w-32 border-b-2 border-dotted border-(--border-color) my-3 flex items-center justify-center">
+                          <span className="text-(--text-secondary) italic font-serif text-sm">
                             Barr. Adewale Johnson
                           </span>
                         </div>
                         <div className="text-center">
-                          <p className="text-xs text-[var(--text-secondary)] mt-1">
+                          <p className="text-xs text-(--text-secondary) mt-1">
                             Legal Counsel
                           </p>
-                          <p className="text-xs bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] px-2 py-1 rounded-full inline-block mt-2">
+                          <p className="text-xs bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) px-2 py-1 rounded-full inline-block mt-2">
                             Verified Lawyer
                           </p>
                         </div>
@@ -522,15 +528,15 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                   )}
 
                   {/* Party B Mobile Card */}
-                  <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-4">
-                    <div className="font-bold text-center text-sm mb-3 text-[var(--text-secondary)]">
+                  <div className="bg-(--bg-primary) border border-(--border-color) rounded-lg p-4">
+                    <div className="font-bold text-center text-sm mb-3 text-(--text-secondary)">
                       PARTY B
                     </div>
                     <div className="flex flex-col items-center justify-start">
-                      <div className="font-bold text-sm text-[var(--text-primary)]">
+                      <div className="font-bold text-sm text-(--text-primary)">
                         {contract.signeeName || "Signee Name"}
                       </div>
-                      <div className="h-10 w-32 border-b-2 border-dotted border-[var(--border-color)] my-3 flex items-center justify-center">
+                      <div className="h-10 w-32 border-b-2 border-dotted border-(--border-color) my-3 flex items-center justify-center">
                         {contract.signeeSignature ? (
                           <img
                             src={contract.signeeSignature}
@@ -538,7 +544,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                             className="h-8 object-contain"
                           />
                         ) : (
-                          <span className="text-[var(--text-secondary)] text-xs">
+                          <span className="text-(--text-secondary) text-xs">
                             Signature
                           </span>
                         )}
@@ -551,12 +557,12 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                 <div className="hidden md:table-row-group">
                   <div className="table-row">
                     {/* Party A Signature Cell */}
-                    <div className="table-cell py-4 md:py-6 px-2 md:px-4 text-center align-top border-t border-[var(--border-color)]">
+                    <div className="table-cell py-4 md:py-6 px-2 md:px-4 text-center align-top border-t border-(--border-color)">
                       <div className="min-h-[100px] md:min-h-[120px] flex flex-col items-center justify-start">
-                        <div className="font-bold text-sm md:text-base text-[var(--text-primary)]">
+                        <div className="font-bold text-sm md:text-base text-(--text-primary)">
                           {contract.initiatorName}
                         </div>
-                        <div className="h-10 md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-[var(--border-color)] my-3 md:mb-4 flex items-center justify-center">
+                        <div className="h-10 md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-(--border-color) my-3 md:mb-4 flex items-center justify-center">
                           {contract.creatorSignature ? (
                             <img
                               src={contract.creatorSignature}
@@ -564,7 +570,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                               className="h-8 md:h-10 object-contain"
                             />
                           ) : (
-                            <span className="text-[var(--text-secondary)] text-xs md:text-sm">
+                            <span className="text-(--text-secondary) text-xs md:text-sm">
                               Signature
                             </span>
                           )}
@@ -574,21 +580,21 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
 
                     {/* Lawyer Witness Signature Cell */}
                     {contract.hasLawyerSignature && (
-                      <div className="table-cell py-4 md:py-6 px-2 md:px-4 text-center align-top border-t border-[var(--border-color)]">
+                      <div className="table-cell py-4 md:py-6 px-2 md:px-4 text-center align-top border-t border-(--border-color)">
                         <div className="min-h-[100px] md:min-h-[120px] flex flex-col items-center justify-start">
-                          <div className="font-bold text-sm md:text-base text-[var(--text-primary)]">
+                          <div className="font-bold text-sm md:text-base text-(--text-primary)">
                             Barr. Adewale Johnson
                           </div>
-                          <div className="h-10 md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-[var(--border-color)] my-3 md:mb-4 flex items-center justify-center">
-                            <span className="text-[var(--text-secondary)] italic font-serif text-sm md:text-lg">
+                          <div className="h-10 md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-(--border-color) my-3 md:mb-4 flex items-center justify-center">
+                            <span className="text-(--text-secondary) italic font-serif text-sm md:text-lg">
                               Barr. Adewale Johnson
                             </span>
                           </div>
                           <div className="text-center">
-                            <p className="text-xs md:text-sm text-[var(--text-secondary)] mt-1">
+                            <p className="text-xs md:text-sm text-(--text-secondary) mt-1">
                               Legal Counsel
                             </p>
-                            <p className="text-xs bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] px-2 py-1 rounded-full inline-block mt-2">
+                            <p className="text-xs bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) px-2 py-1 rounded-full inline-block mt-2">
                               Verified Lawyer
                             </p>
                           </div>
@@ -597,12 +603,12 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                     )}
 
                     {/* Party B Signature Cell */}
-                    <div className="table-cell py-4 md:py-6 px-2 md:px-4 text-center align-top border-t border-[var(--border-color)]">
+                    <div className="table-cell py-4 md:py-6 px-2 md:px-4 text-center align-top border-t border-(--border-color)">
                       <div className="min-h-[100px] md:min-h-[120px] flex flex-col items-center justify-start">
-                        <div className="font-bold text-sm md:text-base text-[var(--text-primary)]">
+                        <div className="font-bold text-sm md:text-base text-(--text-primary)">
                           {contract.signeeName || "Signee Name"}
                         </div>
-                        <div className="h-10 md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-[var(--border-color)] my-3 md:mb-4 flex items-center justify-center">
+                        <div className="h-10 md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-(--border-color) my-3 md:mb-4 flex items-center justify-center">
                           {contract.signeeSignature ? (
                             <img
                               src={contract.signeeSignature}
@@ -610,7 +616,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                               className="h-8 md:h-10 object-contain"
                             />
                           ) : (
-                            <span className="text-[var(--text-secondary)] text-xs md:text-sm">
+                            <span className="text-(--text-secondary) text-xs md:text-sm">
                               Signature
                             </span>
                           )}
@@ -626,15 +632,15 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
 
         {/* Action Buttons - Only show if not signed */}
         {contract.status !== "signed" && (
-          <div className="mt-8 md:mt-12 p-4 md:p-8 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)]">
-            <h3 className="text-base md:text-lg font-semibold text-center mb-4 md:mb-6 text-[var(--text-primary)]">
+          <div className="mt-8 md:mt-12 p-4 md:p-8 border border-(--border-color) rounded-lg bg-(--bg-secondary)">
+            <h3 className="text-base md:text-lg font-semibold text-center mb-4 md:mb-6 text-(--text-primary)">
               Review & Sign Contract
             </h3>
 
             <div className="space-y-4 max-w-2xl mx-auto">
               <Button
                 onClick={handleSign}
-                className="w-full h-auto py-3 md:py-4 flex items-center justify-center gap-2 md:gap-3 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+                className="w-full h-auto py-3 md:py-4 flex items-center justify-center gap-2 md:gap-3 bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
               >
                 <PenTool className="h-4 w-4 md:h-5 md:w-5" />
                 <div className="text-left">
@@ -646,8 +652,8 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
               </Button>
             </div>
 
-            <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-[var(--border-color)]">
-              <div className="flex items-start gap-2 md:gap-3 text-xs md:text-sm text-[var(--text-secondary)]">
+            <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-(--border-color)">
+              <div className="flex items-start gap-2 md:gap-3 text-xs md:text-sm text-(--text-secondary)">
                 <XCircle className="h-4 w-4 md:h-5 md:w-5 shrink-0 mt-0.5" />
                 <p>
                   By signing this contract, you agree to be legally bound by its
@@ -662,13 +668,13 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
 
         {/* Already Signed Message */}
         {contract.status === "signed" && (
-          <div className="mt-6 md:mt-8 p-4 md:p-6 border border-[var(--color-lemon-green)]/30 bg-[var(--color-lemon-green)]/10 rounded-lg">
+          <div className="mt-6 md:mt-8 p-4 md:p-6 border border-(--color-lemon-green)/30 bg-(--color-lemon-green)/10 rounded-lg">
             <div className="text-center">
-              <CheckCircle className="h-8 w-8 md:h-12 md:w-12 text-[var(--color-lemon-green)] mx-auto mb-2 md:mb-4" />
-              <h3 className="text-lg md:text-xl font-semibold text-[var(--color-lemon-green)] mb-1 md:mb-2">
+              <CheckCircle className="h-8 w-8 md:h-12 md:w-12 text-(--color-lemon-green) mx-auto mb-2 md:mb-4" />
+              <h3 className="text-lg md:text-xl font-semibold text-(--color-lemon-green) mb-1 md:mb-2">
                 Contract Already Signed
               </h3>
-              <p className="text-[var(--text-secondary)] text-sm md:text-base">
+              <p className="text-(--text-secondary) text-sm md:text-base">
                 This contract has been signed and is legally binding. Check your
                 email for the signed document.
               </p>
@@ -677,7 +683,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
         )}
 
         {/* Footer */}
-        <div className="text-center text-[10px] md:text-xs text-[var(--text-secondary)] pt-4 md:pt-6 border-t border-[var(--border-color)] px-2 md:px-0">
+        <div className="text-center text-[10px] md:text-xs text-(--text-secondary) pt-4 md:pt-6 border-t border-(--border-color) px-2 md:px-0">
           THIS CONTRACT WAS CREATED AND SIGNED ON zidwell.com
           <br />
           Contract ID: {contract.token.substring(0, 8).toUpperCase()}

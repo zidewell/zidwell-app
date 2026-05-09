@@ -58,12 +58,12 @@ const HowItWorks = () => {
   return (
     <section
       id="how-it-works"
-      className="relative overflow-hidden border-t border-[var(--border-color)] bg-[var(--bg-primary)] py-20 md:py-32"
+      className="relative overflow-hidden border-t border-(--border-color) bg-(--bg-primary) py-20 md:py-32"
     >
       {/* Background blobs */}
-      <div className="absolute -left-32 top-20 -z-10 h-80 w-80 rounded-full bg-[var(--color-accent-yellow)]/20 blur-3xl animate-blob" />
+      <div className="absolute -left-32 top-20 -z-10 h-80 w-80 rounded-full bg-(--color-accent-yellow)/20 blur-3xl animate-blob" />
       <div
-        className="absolute -right-32 bottom-10 -z-10 h-80 w-80 rounded-full bg-[var(--color-accent-yellow)]/15 blur-3xl animate-blob"
+        className="absolute -right-32 bottom-10 -z-10 h-80 w-80 rounded-full bg-(--color-accent-yellow)/15 blur-3xl animate-blob"
         style={{ animationDelay: "-4s" }}
       />
 
@@ -71,17 +71,17 @@ const HowItWorks = () => {
         {/* Header Section */}
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
           <div className="max-w-xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-secondary)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--text-secondary)">
               Simple Process
             </p>
-            <h2 className="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl text-balance text-[var(--text-primary)]">
+            <h2 className="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl text-balance text-(--text-primary)">
               How Zidwell{" "}
-              <span className="bg-gradient-to-r from-[var(--color-accent-yellow)] to-[var(--color-accent-yellow)] bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-(--color-accent-yellow) to-(--color-accent-yellow) bg-clip-text text-transparent">
                 Works
               </span>
             </h2>
           </div>
-          <p className="max-w-sm text-sm text-[var(--text-secondary)]">
+          <p className="max-w-sm text-sm text-(--text-secondary)">
             Three simple steps to financial clarity. From setup to growth,
             Zidwell handles the structure while you focus on what matters.
           </p>
@@ -100,12 +100,12 @@ const HowItWorks = () => {
                 key={index}
                 className={`reveal hover-lift group relative flex flex-col overflow-hidden rounded-2xl border transition-all hover:shadow-soft ${
                   isInk
-                    ? "border-[var(--border-color)] bg-[var(--color-ink)] text-[var(--color-white)]"
-                    : "border-[var(--border-color)] bg-[var(--bg-primary)]"
+                    ? "border-(--border-color) bg-(--color-ink) text-white"
+                    : "border-(--border-color) bg-(--bg-primary)"
                 }`}
               >
                 {/* Life-size image */}
-                <div className="relative aspect-[4/3] w-full overflow-hidden">
+                <div className="relative aspect-4/3 w-full overflow-hidden">
                   <Image
                     src={step.image}
                     alt={`${step.title} illustration`}
@@ -116,16 +116,16 @@ const HowItWorks = () => {
                   />
                   {/* Gradient overlay */}
                   <div
-                    className={`absolute inset-0 bg-gradient-to-t ${
+                    className={`absolute inset-0 bg-linear-to-t ${
                       isInk
-                        ? "from-[var(--color-ink)] via-[var(--color-ink)]/30"
-                        : "from-[var(--bg-primary)] via-[var(--bg-primary)]/10"
+                        ? "from-(--color-ink) via-(--color-ink)/30"
+                        : "from-(--bg-primary) via-(--bg-primary)/10"
                     } to-transparent`}
                   />
 
                   {/* Step Number Badge - Overlay on image */}
-                  <div className="absolute left-5 top-5 grid h-12 w-12 place-items-center rounded-xl shadow-soft bg-[var(--color-accent-yellow)] border-2 border-[var(--border-color)]">
-                    <span className="font-black text-[var(--color-ink)] text-lg">
+                  <div className="absolute left-5 top-5 grid h-12 w-12 place-items-center rounded-xl shadow-soft bg-(--color-accent-yellow) border-2 border-(--border-color)">
+                    <span className="font-black text-(--color-ink) text-lg">
                       {step.number}
                     </span>
                   </div>
@@ -133,14 +133,14 @@ const HowItWorks = () => {
 
                 {/* Card Content */}
                 <div
-                  className={`flex flex-1 flex-col p-6 ${isInk ? "bg-[var(--color-ink)]" : "bg-[var(--bg-primary)]"}`}
+                  className={`flex flex-1 flex-col p-6 ${isInk ? "bg-(--color-ink)" : "bg-(--bg-primary)"}`}
                 >
                   {/* Icon */}
                   <div
                     className={`mb-4 grid h-12 w-12 place-items-center rounded-xl shadow-soft ${
                       isInk
-                        ? "bg-[var(--color-white)]/10 text-[var(--color-white)]"
-                        : "bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)]"
+                        ? "bg-white/10 text-white"
+                        : "bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)"
                     }`}
                   >
                     <IconComponent className="h-6 w-6" />
@@ -148,14 +148,14 @@ const HowItWorks = () => {
 
                   {/* Title */}
                   <h3
-                    className={`font-display text-xl font-bold ${isInk ? "text-[var(--color-white)]" : "text-[var(--text-primary)]"}`}
+                    className={`font-display text-xl font-bold ${isInk ? "text-white" : "text-(--text-primary)"}`}
                   >
                     {step.title}
                   </h3>
 
                   {/* Description */}
                   <p
-                    className={`mt-2 text-sm ${isInk ? "text-[var(--color-white)]/75" : "text-[var(--text-secondary)]"}`}
+                    className={`mt-2 text-sm ${isInk ? "text-white/75" : "text-(--text-secondary)"}`}
                   >
                     {step.description}
                   </p>
@@ -165,10 +165,10 @@ const HowItWorks = () => {
                     <span
                       className={`group/btn inline-flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-bold transition-transform hover:-translate-y-0.5 ${
                         isInk
-                          ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                          ? "bg-(--color-accent-yellow) text-(--color-ink)"
                           : isFresh
-                            ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                            : "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                            ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                            : "bg-(--color-accent-yellow) text-(--color-ink)"
                       }`}
                     >
                       {step.cta}
@@ -182,8 +182,8 @@ const HowItWorks = () => {
         </div>
 
         {/* Features Footer */}
-        <div className="mt-10 rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)]/60 p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
+        <div className="mt-10 rounded-2xl border border-dashed border-(--border-color) bg-(--bg-secondary)/60 p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--text-secondary)">
             Everything included
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -197,9 +197,9 @@ const HowItWorks = () => {
             ].map((feature) => (
               <div
                 key={feature}
-                className="flex items-center gap-2.5 text-sm font-medium text-[var(--text-primary)]"
+                className="flex items-center gap-2.5 text-sm font-medium text-(--text-primary)"
               >
-                <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-(--color-accent-yellow) text-(--color-ink)">
                   <Check className="h-3 w-3" />
                 </span>
                 {feature}

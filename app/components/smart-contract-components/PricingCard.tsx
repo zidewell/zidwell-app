@@ -15,20 +15,23 @@ const PricingCard: React.FC<{
 
   return (
     <div
-      className={`p-6 rounded-lg shadow-soft ${featured ? "border-2 border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/5" : "bg-[var(--bg-primary)] border border-[var(--border-color)]"} `}
+      className={`p-6 rounded-lg shadow-soft ${featured ? "border-2 border-(--color-accent-yellow) bg-(--color-accent-yellow)/5" : "bg-(--bg-primary) border border-(--border-color)"} `}
     >
-      <h4 className="text-2xl text-[var(--text-primary)]">{title}</h4>
-      <p className="text-[var(--text-secondary)]">{desc}</p>
+      <h4 className="text-2xl text-(--text-primary)">{title}</h4>
+      <p className="text-(--text-secondary)">{desc}</p>
 
-      <div className="mt-4 text-4xl text-[var(--text-primary)]">
+      <div className="mt-4 text-4xl text-(--text-primary)">
         {price}
-        <span className="text-sm font-normal text-[var(--text-secondary)]">/contracts</span>
+        <span className="text-sm font-normal text-(--text-secondary)">
+          /contracts
+        </span>
       </div>
 
-      <ul className="mt-4 space-y-2 text-sm text-[var(--text-secondary)]">
+      <ul className="mt-4 space-y-2 text-sm text-(--text-secondary)">
         {features.map((f, i) => (
           <li className="flex gap-1" key={i}>
-            <CircleCheck className="text-[var(--color-accent-yellow)]" size={16} /> {f}
+            <CircleCheck className="text-(--color-accent-yellow)" size={16} />{" "}
+            {f}
           </li>
         ))}
       </ul>

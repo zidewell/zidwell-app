@@ -162,12 +162,12 @@ const GlobalVerificationModal = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md bg-[var(--bg-primary)] border border-[var(--border-color)]">
+      <DialogContent className="sm:max-w-md bg-(--bg-primary) border border-(--border-color)">
         <DialogHeader>
-          <DialogTitle className="text-[var(--text-primary)]">
+          <DialogTitle className="text-(--text-primary)">
             Complete Your BVN Verification
           </DialogTitle>
-          <DialogDescription className="text-[var(--text-secondary)]">
+          <DialogDescription className="text-(--text-secondary)">
             Set up your wallet by verifying your BVN and creating a transaction
             PIN.
           </DialogDescription>
@@ -176,7 +176,7 @@ const GlobalVerificationModal = () => {
         <div className="space-y-4 py-4">
           {/* BVN Field */}
           <div className="space-y-2">
-            <Label htmlFor="global-bvn" className="text-[var(--text-primary)]">
+            <Label htmlFor="global-bvn" className="text-(--text-primary)">
               Bank Verification Number (BVN) *
             </Label>
             <Input
@@ -185,7 +185,7 @@ const GlobalVerificationModal = () => {
               value={bvn}
               onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))}
               maxLength={11}
-              className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${
+              className={`border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${
                 errors.bvn ? "border-red-500" : ""
               }`}
               style={{ outline: "none", boxShadow: "none" }}
@@ -196,7 +196,7 @@ const GlobalVerificationModal = () => {
 
           {/* PIN Field */}
           <div className="space-y-2">
-            <Label htmlFor="global-pin" className="text-[var(--text-primary)]">
+            <Label htmlFor="global-pin" className="text-(--text-primary)">
               Transaction PIN *
             </Label>
             <Input
@@ -206,7 +206,7 @@ const GlobalVerificationModal = () => {
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
               maxLength={4}
-              className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${
+              className={`border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${
                 errors.pin ? "border-red-500" : ""
               }`}
               style={{ outline: "none", boxShadow: "none" }}
@@ -217,7 +217,10 @@ const GlobalVerificationModal = () => {
 
           {/* Confirm PIN Field */}
           <div className="space-y-2">
-            <Label htmlFor="global-confirmPin" className="text-[var(--text-primary)]">
+            <Label
+              htmlFor="global-confirmPin"
+              className="text-(--text-primary)"
+            >
               Confirm PIN *
             </Label>
             <Input
@@ -227,7 +230,7 @@ const GlobalVerificationModal = () => {
               value={confirmPin}
               onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
               maxLength={4}
-              className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${
+              className={`border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${
                 errors.confirmPin ? "border-red-500" : ""
               }`}
               style={{ outline: "none", boxShadow: "none" }}
@@ -238,8 +241,8 @@ const GlobalVerificationModal = () => {
             )}
           </div>
 
-          <div className="bg-[var(--color-lemon-green)]/10 border border-[var(--color-lemon-green)]/20 rounded-lg p-3">
-            <p className="text-xs text-[var(--color-lemon-green)]">
+          <div className="bg-(--color-lemon-green)/10 border border-(--color-lemon-green)/20 rounded-lg p-3">
+            <p className="text-xs text-(--color-lemon-green)">
               <strong>CBN Regulation:</strong> BVN verification is required
               before we can issue your virtual account number. Your information
               is encrypted and secure.
@@ -253,7 +256,7 @@ const GlobalVerificationModal = () => {
             onClick={handleClose}
             disabled={loading}
             type="button"
-            className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+            className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
           >
             Later
           </Button>
@@ -261,7 +264,7 @@ const GlobalVerificationModal = () => {
             onClick={handleSubmit}
             disabled={loading || !bvn || !pin || !confirmPin}
             type="button"
-            className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>

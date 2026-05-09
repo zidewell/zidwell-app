@@ -174,7 +174,7 @@ export default function InvoicePage() {
         </div>
 
         {/* Pricing Section */}
-        <div className="bg-gradient-to-r from-[var(--color-accent-yellow)]/5 to-[var(--color-accent-yellow)]/10 squircle-lg p-8 md:p-12 mb-20">
+        <div className="bg-linear-to-r from-(--color-accent-yellow)/5 to-(--color-accent-yellow)/10 squircle-lg p-8 md:p-12 mb-20">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl font-bold mb-4 text-(--text-primary)">
               Simple, Transparent Pricing
@@ -201,17 +201,17 @@ export default function InvoicePage() {
 
             <div className="mt-8 grid md:grid-cols-3 gap-6">
               <div className="flex items-center justify-center gap-2">
-                <CheckCircle className="h-5 w-5 text-[var(--color-lemon-green)]" />
+                <CheckCircle className="h-5 w-5 text-(--color-lemon-green)" />
                 <span className="text-(--text-secondary)">No setup fees</span>
               </div>
               <div className="flex items-center justify-center gap-2">
-                <CheckCircle className="h-5 w-5 text-[var(--color-lemon-green)]" />
+                <CheckCircle className="h-5 w-5 text-(--color-lemon-green)" />
                 <span className="text-(--text-secondary)">
                   No monthly charges
                 </span>
               </div>
               <div className="flex items-center justify-center gap-2">
-                <CheckCircle className="h-5 w-5 text-[var(--color-lemon-green)]" />
+                <CheckCircle className="h-5 w-5 text-(--color-lemon-green)" />
                 <span className="text-(--text-secondary)">Pay-as-you-go</span>
               </div>
             </div>

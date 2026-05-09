@@ -20,12 +20,15 @@ const SignContractToggle: React.FC<SignContractToggleProps> = ({
 }) => {
   return (
     <>
-      <div className="flex items-center justify-between p-4 border border-[var(--border-color)] rounded-lg bg-[var(--bg-primary)]">
+      <div className="flex items-center justify-between p-4 border border-(--border-color) rounded-lg bg-(--bg-primary)">
         <div className="space-y-1">
-          <Label htmlFor="age-consent" className="cursor-pointer text-[var(--text-primary)]">
+          <Label
+            htmlFor="age-consent"
+            className="cursor-pointer text-(--text-primary)"
+          >
             I confirm that I am 18 years or older
           </Label>
-          <p className="text-xs text-[var(--text-secondary)]">
+          <p className="text-xs text-(--text-secondary)">
             You must be of legal age to create binding contracts
           </p>
         </div>
@@ -33,24 +36,27 @@ const SignContractToggle: React.FC<SignContractToggleProps> = ({
           id="age-consent"
           checked={ageConsent}
           onCheckedChange={setAgeConsent}
-          className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
+          className="data-[state=checked]:bg-(--color-accent-yellow)"
           disabled={disabled} // Apply disabled prop
         />
       </div>
-      <div className="flex items-center justify-between p-4 border border-[var(--border-color)] rounded-lg bg-[var(--bg-primary)]">
+      <div className="flex items-center justify-between p-4 border border-(--border-color) rounded-lg bg-(--bg-primary)">
         <div className="space-y-1">
-          <Label htmlFor="terms-consent" className="cursor-pointer text-[var(--text-primary)]">
+          <Label
+            htmlFor="terms-consent"
+            className="cursor-pointer text-(--text-primary)"
+          >
             I agree to be bound by the terms stated in this contract
           </Label>
-          <p className="text-xs text-[var(--text-secondary)]">
+          <p className="text-xs text-(--text-secondary)">
             By checking this, you acknowledge and accept the contract terms
-          </p>
+          </p>bg-(--color-accent-yellow)
         </div>
         <Switch
           id="terms-consent"
           checked={termsConsent}
           onCheckedChange={setTermsConsent}
-          className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
+          className="data-[state=checked]:bg-(--color-accent-yellow)"
           disabled={disabled} // Apply disabled prop
         />
       </div>

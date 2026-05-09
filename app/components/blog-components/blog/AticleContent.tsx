@@ -18,41 +18,41 @@ const ArticleContent = ({ content }: ArticleContentProps) => {
 
   const formatContent = (html: string) => {
     if (!html)
-      return '<p class="text-[var(--text-secondary)] italic">No content available.</p>';
+      return '<p class="text-(--text-secondary) italic">No content available.</p>';
 
     let formatted = html
       .replace(
         /<p>/g,
-        '<p class="mb-4 sm:mb-6 leading-relaxed text-[var(--text-primary)]">',
+        '<p class="mb-4 sm:mb-6 leading-relaxed text-(--text-primary)">',
       )
       .replace(
         /<h1>/g,
-        '<h1 class="text-3xl sm:text-4xl font-bold mt-8 mb-4 text-[var(--text-primary)]">',
+        '<h1 class="text-3xl sm:text-4xl font-bold mt-8 mb-4 text-(--text-primary)">',
       )
       .replace(
         /<h2>/g,
-        '<h2 class="text-2xl sm:text-3xl font-semibold mt-6 mb-3 text-[var(--text-primary)]">',
+        '<h2 class="text-2xl sm:text-3xl font-semibold mt-6 mb-3 text-(--text-primary)">',
       )
       .replace(
         /<h3>/g,
-        '<h3 class="text-xl sm:text-2xl font-semibold mt-5 mb-3 text-[var(--text-primary)]">',
+        '<h3 class="text-xl sm:text-2xl font-semibold mt-5 mb-3 text-(--text-primary)">',
       )
       .replace(
         /<ul>/g,
-        '<ul class="list-disc pl-5 sm:pl-8 mb-4 sm:mb-6 text-[var(--text-primary)]">',
+        '<ul class="list-disc pl-5 sm:pl-8 mb-4 sm:mb-6 text-(--text-primary)">',
       )
       .replace(
         /<ol>/g,
-        '<ol class="list-decimal pl-5 sm:pl-8 mb-4 sm:mb-6 text-[var(--text-primary)]">',
+        '<ol class="list-decimal pl-5 sm:pl-8 mb-4 sm:mb-6 text-(--text-primary)">',
       )
       .replace(/<li>/g, '<li class="mb-2">')
       .replace(
         /<blockquote>/g,
-        '<blockquote class="border-l-4 border-[var(--color-accent-yellow)] pl-4 sm:pl-6 py-2 my-4 sm:my-6 italic bg-[var(--bg-secondary)] text-[var(--text-secondary)]">',
+        '<blockquote class="border-l-4 border-(--color-accent-yellow) pl-4 sm:pl-6 py-2 my-4 sm:my-6 italic bg-(--bg-secondary) text-(--text-secondary)">',
       )
       .replace(
         /<a /g,
-        '<a class="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:underline transition-colors" ',
+        '<a class="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 hover:underline transition-colors" ',
       )
       .replace(/<strong>/g, '<strong class="font-semibold">')
       .replace(/<em>/g, '<em class="italic">');

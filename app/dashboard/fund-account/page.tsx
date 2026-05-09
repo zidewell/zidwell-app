@@ -1,6 +1,6 @@
 "use client";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
-import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader"; 
+import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import FundAccountMethods from "@/app/components/FundAccount";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -12,7 +12,7 @@ export default function FundAccountPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] fade-in relative">
+    <div className="min-h-screen bg-(--bg-primary) fade-in relative">
       {/* Sidebar - handles mobile and desktop */}
       <DashboardSidebar
         open={sidebarOpen}
@@ -23,7 +23,7 @@ export default function FundAccountPage() {
       <div className="lg:pl-72 min-h-screen flex flex-col">
         {/* Header with menu button */}
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-        
+
         {/* Main content area */}
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-4xl mx-auto">
@@ -33,17 +33,19 @@ export default function FundAccountPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[var(--border-color)] transition-all"
+                className="text-(--color-accent-yellow) hover:bg-(--bg-secondary) p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-(--border-color) transition-all"
               >
                 <ArrowLeft className="w-5 h-5 md:mr-2" />
-                <span className="hidden md:inline text-sm font-medium">Back</span>
+                <span className="hidden md:inline text-sm font-medium">
+                  Back
+                </span>
               </Button>
 
               <div className="flex-1">
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)] mb-2">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-(--text-primary) mb-2">
                   Fund Account
                 </h1>
-                <p className="text-sm md:text-base text-[var(--text-secondary)]">
+                <p className="text-sm md:text-base text-(--text-secondary)">
                   Add money to your Zidwell Wallet instantly and securely
                 </p>
               </div>

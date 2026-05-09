@@ -12,10 +12,10 @@ interface LogoUploadProps {
   userFullName?: string;
 }
 
-const LogoUpload: React.FC<LogoUploadProps> = ({ 
-  logo, 
-  onLogoChange, 
-  userProfilePicture
+const LogoUpload: React.FC<LogoUploadProps> = ({
+  logo,
+  onLogoChange,
+  userProfilePicture,
 }) => {
   const [uploading, setUploading] = useState(false);
   const [displayLogo, setDisplayLogo] = useState<string>("");
@@ -31,7 +31,7 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
   }, [logo, userProfilePicture]);
 
   const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     try {
       setUploading(true);
@@ -76,7 +76,7 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
 
   return (
     <div className="mb-6">
-      <Label htmlFor="logo" className="block mb-2 text-[var(--text-secondary)]">
+      <Label htmlFor="logo" className="block mb-2 text-(--text-secondary)">
         Business Logo / Profile Picture
       </Label>
       <div className="flex items-center gap-4">
@@ -85,31 +85,31 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
             <img
               src={displayLogo}
               alt={isProfilePicture ? "Profile picture" : "Business Logo"}
-              className={`h-16 w-16 rounded-lg object-cover border border-[var(--border-color)] ${isProfilePicture ? 'rounded-full' : 'squircle-md'}`}
+              className={`h-16 w-16 rounded-lg object-cover border border-(--border-color) ${isProfilePicture ? "rounded-full" : "squircle-md"}`}
             />
             {logo && (
               <button
                 type="button"
                 onClick={handleRemoveLogo}
-                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-[var(--destructive)] hover:bg-[var(--destructive)]/80 text-white flex items-center justify-center text-xs"
+                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive hover:bg-destructive/80 text-white flex items-center justify-center text-xs"
               >
                 <X className="h-3 w-3" />
               </button>
             )}
             {isProfilePicture && (
-              <div className="absolute -bottom-2 -right-2 h-5 w-5 rounded-full bg-[var(--color-lemon-green)] text-white flex items-center justify-center text-xs">
+              <div className="absolute -bottom-2 -right-2 h-5 w-5 rounded-full bg-(--color-lemon-green) text-white flex items-center justify-center text-xs">
                 <User className="h-3 w-3" />
               </div>
             )}
           </div>
         )}
-        
+
         {!displayLogo && (
-          <div className="h-16 w-16 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center">
-            <User className="h-8 w-8 text-[var(--text-secondary)]" />
+          <div className="h-16 w-16 rounded-lg bg-(--bg-secondary) border border-(--border-color) flex items-center justify-center">
+            <User className="h-8 w-8 text-(--text-secondary)" />
           </div>
         )}
-        
+
         <div className="flex-1">
           <Input
             id="logo"
@@ -123,31 +123,36 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
             htmlFor="logo"
             className={`
               flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors
-              ${uploading
-                ? "bg-gray-100 cursor-not-allowed"
-                : "hover:bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)]"
+              ${
+                uploading
+                  ? "bg-gray-100 cursor-not-allowed"
+                  : "hover:bg-(--bg-secondary) border-(--border-color) text-(--text-secondary)"
               }
             `}
           >
             {uploading ? (
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-[var(--color-accent-yellow)] border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-(--color-accent-yellow) border-t-transparent rounded-full animate-spin"></div>
                 Processing...
               </div>
             ) : (
               <>
                 <Upload className="h-4 w-4" />
-                {logo ? "Change Logo" : userProfilePicture ? "Upload Custom Logo" : "Upload Logo"}
+                {logo
+                  ? "Change Logo"
+                  : userProfilePicture
+                    ? "Upload Custom Logo"
+                    : "Upload Logo"}
               </>
             )}
           </Label>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">
-            {userProfilePicture && !logo 
-              ? "Currently using your profile picture. Upload a custom logo to replace it." 
+          <p className="text-xs text-(--text-secondary) mt-1">
+            {userProfilePicture && !logo
+              ? "Currently using your profile picture. Upload a custom logo to replace it."
               : "PNG, JPG, GIF up to 5MB. Logo will be saved when invoice is generated."}
           </p>
           {isProfilePicture && (
-            <p className="text-xs text-[var(--color-lemon-green)] mt-1">
+            <p className="text-xs text-(--color-lemon-green) mt-1">
               ✓ Using your profile picture as the business logo
             </p>
           )}

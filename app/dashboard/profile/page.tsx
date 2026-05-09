@@ -49,7 +49,7 @@ function NewProfilePage() {
             bvnSection.scrollIntoView({ behavior: "smooth", block: "center" });
             bvnSection.classList.add(
               "ring-2",
-              "ring-[var(--color-accent-yellow)]",
+              "ring-(--color-accent-yellow)",
               "ring-offset-2",
               "transition-all",
               "duration-500",
@@ -57,7 +57,7 @@ function NewProfilePage() {
             setTimeout(() => {
               bvnSection.classList.remove(
                 "ring-2",
-                "ring-[var(--color-accent-yellow)]",
+                "ring-(--color-accent-yellow)",
                 "ring-offset-2",
               );
             }, 2000);
@@ -79,14 +79,14 @@ function NewProfilePage() {
   // Show loading state while data is being fetched
   if (userLoading || subscriptionLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-secondary)] dark:bg-[#0e0e0e]">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
+      <div className="min-h-screen flex items-center justify-center bg-(--bg-secondary) dark:bg-[#0e0e0e]">
+        <Loader2 className="w-8 h-8 animate-spin text-(--color-accent-yellow)" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)] dark:bg-[#0e0e0e] fade-in relative">
+    <div className="min-h-screen bg-(--bg-secondary) dark:bg-[#0e0e0e] fade-in relative">
       <DashboardSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -103,7 +103,7 @@ function NewProfilePage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:bg-[var(--bg-secondary)] p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-[var(--border-color)] transition-all"
+                className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 hover:bg-(--bg-secondary) p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-(--border-color) transition-all"
               >
                 <ArrowLeft className="w-5 h-5 md:mr-2" />
                 <span className="hidden md:inline text-sm font-medium">
@@ -112,10 +112,10 @@ function NewProfilePage() {
               </Button>
 
               <div className="flex-1">
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)] mb-2">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-(--text-primary) mb-2">
                   Profile Settings
                 </h1>
-                <p className="text-sm md:text-base text-[var(--text-secondary)]">
+                <p className="text-sm md:text-base text-(--text-secondary)">
                   Manage your account settings and preferences
                 </p>
               </div>
@@ -140,13 +140,13 @@ function NewProfilePage() {
             />
 
             {/* Tabs Navigation */}
-            <div className="neo-card bg-[var(--bg-primary)] p-1 flex gap-1 rounded-lg border border-[var(--border-color)]">
+            <div className="neo-card bg-(--bg-primary) p-1 flex gap-1 rounded-lg border border-(--border-color)">
               <button
                 onClick={() => setActiveTab("personal")}
                 className={`flex-1 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === "personal"
-                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary)"
                 }`}
               >
                 PERSONAL KYC
@@ -155,8 +155,8 @@ function NewProfilePage() {
                 onClick={() => setActiveTab("business")}
                 className={`flex-1 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === "business"
-                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary)"
                 }`}
               >
                 BUSINESS KYC
@@ -165,8 +165,8 @@ function NewProfilePage() {
                 onClick={() => setActiveTab("security")}
                 className={`flex-1 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === "security"
-                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary)"
                 }`}
               >
                 SECURITY
@@ -193,8 +193,8 @@ export default function Profile() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-secondary)] dark:bg-[#0e0e0e]">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
+        <div className="min-h-screen flex items-center justify-center bg-(--bg-secondary) dark:bg-[#0e0e0e]">
+          <Loader2 className="w-8 h-8 animate-spin text-(--color-accent-yellow)" />
         </div>
       }
     >

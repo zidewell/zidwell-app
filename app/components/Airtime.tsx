@@ -45,7 +45,17 @@ const prefixColorMap = [
     name: "MTN",
     src: "/networks-img/mtn.png",
     prefix: [
-      "0803", "0806", "0703", "0706", "0813", "0816", "0810", "0814", "0903", "0906", "0913",
+      "0803",
+      "0806",
+      "0703",
+      "0706",
+      "0813",
+      "0816",
+      "0810",
+      "0814",
+      "0903",
+      "0906",
+      "0913",
     ],
   },
   {
@@ -93,9 +103,12 @@ export default function AirtimePurchase() {
   const { userData, setUserData } = useUserContextData();
   const router = useRouter();
 
-  const [savedBeneficiaries, setSavedBeneficiaries] = useState<SavedBeneficiary[]>([]);
+  const [savedBeneficiaries, setSavedBeneficiaries] = useState<
+    SavedBeneficiary[]
+  >([]);
   const [saveBeneficiary, setSaveBeneficiary] = useState(false);
-  const [selectedSavedBeneficiary, setSelectedSavedBeneficiary] = useState<SavedBeneficiary | null>(null);
+  const [selectedSavedBeneficiary, setSelectedSavedBeneficiary] =
+    useState<SavedBeneficiary | null>(null);
   const [showSavedBeneficiaries, setShowSavedBeneficiaries] = useState(false);
   const [loadingBeneficiaries, setLoadingBeneficiaries] = useState(false);
 
@@ -127,7 +140,10 @@ export default function AirtimePurchase() {
     const cleanValue = value.replace(/\D/g, "");
     setPhoneNumber(cleanValue);
 
-    if (selectedSavedBeneficiary && cleanValue !== selectedSavedBeneficiary.phoneNumber) {
+    if (
+      selectedSavedBeneficiary &&
+      cleanValue !== selectedSavedBeneficiary.phoneNumber
+    ) {
       setSelectedSavedBeneficiary(null);
     }
 
@@ -238,18 +254,22 @@ export default function AirtimePurchase() {
     const newErrors: { [key: string]: string } = {};
     const phoneError = validatePhoneNumber(phoneNumber);
     if (phoneError) newErrors.phoneNumber = phoneError;
-    if (!selectedProvider) newErrors.provider = "Please select a network provider";
+    if (!selectedProvider)
+      newErrors.provider = "Please select a network provider";
 
     const amount = isCustomAmount ? parseInt(customAmount) : selectedAmount;
 
-    if (!amount || amount < 100) newErrors.amount = "Amount must be at least ₦100";
+    if (!amount || amount < 100)
+      newErrors.amount = "Amount must be at least ₦100";
     else if (amount > 50000) newErrors.amount = "Maximum amount is ₦50,000";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const finalAmount = isCustomAmount ? parseInt(customAmount) || 0 : selectedAmount || 0;
+  const finalAmount = isCustomAmount
+    ? parseInt(customAmount) || 0
+    : selectedAmount || 0;
 
   const purchaseAirtime = async (pinCode: string) => {
     if (!validateForm()) return;
@@ -344,7 +364,9 @@ export default function AirtimePurchase() {
             setPinError(null);
             await purchaseAirtime(pinCode);
           } catch (error: any) {
-            setPinError(error.message || "Transaction failed. Please try again.");
+            setPinError(
+              error.message || "Transaction failed. Please try again.",
+            );
             throw error;
           }
         }}
@@ -357,15 +379,17 @@ export default function AirtimePurchase() {
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:bg-[var(--bg-secondary)] text-sm md:text-base"
+          className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 hover:bg-(--bg-secondary) text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 md:mr-2" />
           <span className="hidden md:block">Back</span>
         </Button>
 
         <div className="">
-          <h1 className="md:text-3xl text-xl font-bold mb-2 text-[var(--text-primary)]">Buy Airtime</h1>
-          <p className="text-[var(--text-secondary)]">
+          <h1 className="md:text-3xl text-xl font-bold mb-2 text-(--text-primary)">
+            Buy Airtime
+          </h1>
+          <p className="text-(--text-secondary)">
             Instant airtime top-up for all Nigerian networks
           </p>
         </div>
@@ -375,10 +399,10 @@ export default function AirtimePurchase() {
         {/* Main Purchase Form */}
         <div className="lg:col-span-2 space-y-6">
           {/* Network Provider Selection */}
-          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-[var(--text-primary)]">
-                <Smartphone className="w-5 h-5 text-[var(--color-accent-yellow)]" />
+              <CardTitle className="flex items-center gap-2 text-(--text-primary)">
+                <Smartphone className="w-5 h-5 text-(--color-accent-yellow)" />
                 Select Network Provider
               </CardTitle>
             </CardHeader>
@@ -393,8 +417,8 @@ export default function AirtimePurchase() {
                       onClick={() => setSelectedProvider(provider)}
                       className={`relative p-4 border-2 rounded-md transition-all duration-200 cursor-pointer ${
                         isSelected
-                          ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)] text-[var(--text-primary)] shadow-md"
-                          : "bg-[var(--bg-primary)] border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
+                          ? "bg-(--color-accent-yellow)/10 border-(--color-accent-yellow) text-(--text-primary) shadow-md"
+                          : "bg-(--bg-primary) border-(--border-color) hover:border-(--color-accent-yellow)/50"
                       }`}
                     >
                       <div className="text-center">
@@ -406,15 +430,15 @@ export default function AirtimePurchase() {
                             height={64}
                           />
                         </div>
-                        <h3 className="font-semibold text-[var(--text-primary)]">
+                        <h3 className="font-semibold text-(--text-primary)">
                           {provider.name}
                         </h3>
                       </div>
 
                       {isSelected && (
                         <div className="absolute -top-2 -right-2">
-                          <div className="w-6 h-6 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center">
-                            <Check className="w-4 h-4 text-[var(--color-ink)]" />
+                          <div className="w-6 h-6 bg-(--color-accent-yellow) rounded-full flex items-center justify-center">
+                            <Check className="w-4 h-4 text-(--color-ink)" />
                           </div>
                         </div>
                       )}
@@ -432,23 +456,27 @@ export default function AirtimePurchase() {
           </Card>
 
           {/* Phone Number Input */}
-          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="text-[var(--text-primary)]">Enter Phone Number</CardTitle>
+              <CardTitle className="text-(--text-primary)">
+                Enter Phone Number
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {savedBeneficiaries.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium text-[var(--text-primary)]">
+                    <Label className="text-sm font-medium text-(--text-primary)">
                       Saved Beneficiaries
                     </Label>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowSavedBeneficiaries(!showSavedBeneficiaries)}
-                      className="flex items-center gap-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                      onClick={() =>
+                        setShowSavedBeneficiaries(!showSavedBeneficiaries)
+                      }
+                      className="flex items-center gap-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                     >
                       <Bookmark className="h-4 w-4" />
                       {showSavedBeneficiaries ? "Hide" : "Show"} Saved
@@ -456,11 +484,11 @@ export default function AirtimePurchase() {
                   </div>
 
                   {showSavedBeneficiaries && (
-                    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
+                    <div className="bg-(--bg-secondary) border border-(--border-color) rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
                       {loadingBeneficiaries ? (
                         <div className="flex items-center justify-center py-4">
-                          <Loader2 className="h-5 w-5 animate-spin text-[var(--color-accent-yellow)]" />
-                          <span className="ml-2 text-sm text-[var(--text-secondary)]">
+                          <Loader2 className="h-5 w-5 animate-spin text-(--color-accent-yellow)" />
+                          <span className="ml-2 text-sm text-(--text-secondary)">
                             Loading beneficiaries...
                           </span>
                         </div>
@@ -468,29 +496,31 @@ export default function AirtimePurchase() {
                         savedBeneficiaries.map((beneficiary) => (
                           <div
                             key={beneficiary.id}
-                            onClick={() => handleSelectSavedBeneficiary(beneficiary)}
+                            onClick={() =>
+                              handleSelectSavedBeneficiary(beneficiary)
+                            }
                             className={`p-3 rounded cursor-pointer transition-colors ${
                               selectedSavedBeneficiary?.id === beneficiary.id
-                                ? "bg-[var(--color-accent-yellow)]/10 border border-[var(--color-accent-yellow)]/30"
-                                : "bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-[var(--border-color)]"
+                                ? "bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/30"
+                                : "bg-(--bg-primary) hover:bg-(--bg-secondary) border border-(--border-color)"
                             }`}
                           >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <p className="font-medium text-[var(--text-primary)] text-sm">
+                                <p className="font-medium text-(--text-primary) text-sm">
                                   {beneficiary.phoneNumber}
                                 </p>
-                                <p className="text-xs text-[var(--text-secondary)]">
+                                <p className="text-xs text-(--text-secondary)">
                                   {beneficiary.networkName}
                                   {beneficiary.amount && (
-                                    <span className="ml-1 text-[var(--color-lemon-green)] font-medium">
+                                    <span className="ml-1 text-(--color-lemon-green) font-medium">
                                       • ₦{beneficiary.amount.toLocaleString()}
                                     </span>
                                   )}
                                 </p>
                               </div>
                               {beneficiary.isDefault && (
-                                <span className="px-2 py-1 text-xs bg-[var(--color-lemon-green)]/20 text-[var(--color-lemon-green)] rounded-full ml-2">
+                                <span className="px-2 py-1 text-xs bg-(--color-lemon-green)/20 text-(--color-lemon-green) rounded-full ml-2">
                                   Default
                                 </span>
                               )}
@@ -504,7 +534,9 @@ export default function AirtimePurchase() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber" className="text-[var(--text-primary)]">Mobile Number</Label>
+                <Label htmlFor="phoneNumber" className="text-(--text-primary)">
+                  Mobile Number
+                </Label>
                 <div className="relative">
                   <Input
                     id="phoneNumber"
@@ -512,11 +544,13 @@ export default function AirtimePurchase() {
                     placeholder="0803 123 4567"
                     value={phoneNumber}
                     onChange={(e) => handlePhoneNumberChange(e.target.value)}
-                    className={`pl-14 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${errors.phoneNumber ? "border-red-500" : ""}`}
+                    className={`pl-14 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${errors.phoneNumber ? "border-red-500" : ""}`}
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                   <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <span className="text-[var(--text-secondary)] font-medium">+234</span>
+                    <span className="text-(--text-secondary) font-medium">
+                      +234
+                    </span>
                   </div>
                 </div>
                 {errors.phoneNumber && (
@@ -526,36 +560,40 @@ export default function AirtimePurchase() {
                   </div>
                 )}
                 {selectedProvider && (
-                  <div className="mt-2 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                    <Check className="w-4 h-4 text-[var(--color-lemon-green)]" />
+                  <div className="mt-2 flex items-center gap-2 text-sm text-(--text-secondary)">
+                    <Check className="w-4 h-4 text-(--color-lemon-green)" />
                     <span>{selectedProvider.name} detected</span>
                   </div>
                 )}
 
-                {!selectedSavedBeneficiary && phoneNumber.length === 11 && selectedProvider && (
-                  <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] mt-3">
-                    <span className="text-sm font-medium text-[var(--text-primary)]">
-                      Save to beneficiaries
-                    </span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={saveBeneficiary}
-                        onChange={(e) => setSaveBeneficiary(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-accent-yellow)]"></div>
-                    </label>
-                  </div>
-                )}
+                {!selectedSavedBeneficiary &&
+                  phoneNumber.length === 11 &&
+                  selectedProvider && (
+                    <div className="flex items-center justify-between p-3 bg-(--bg-secondary) rounded-lg border border-(--border-color) mt-3">
+                      <span className="text-sm font-medium text-(--text-primary)">
+                        Save to beneficiaries
+                      </span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveBeneficiary}
+                          onChange={(e) => setSaveBeneficiary(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--color-accent-yellow)"></div>
+                      </label>
+                    </div>
+                  )}
               </div>
             </CardContent>
           </Card>
 
           {/* Amount Selection */}
-          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="text-[var(--text-primary)]">Select Amount</CardTitle>
+              <CardTitle className="text-(--text-primary)">
+                Select Amount
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
@@ -566,17 +604,19 @@ export default function AirtimePurchase() {
                     className={`relative p-4 border-2 rounded-lg cursor-pointer transition-all duration-200
                   ${
                     selectedAmount === amount.value && !isCustomAmount
-                      ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)]"
-                      : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
+                      ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)"
+                      : "border-(--border-color) hover:border-(--color-accent-yellow)/50"
                   }`}
                   >
                     <div className="text-center">
-                      <p className="font-bold text-[var(--text-primary)]">₦{amount.value.toLocaleString()}</p>
+                      <p className="font-bold text-(--text-primary)">
+                        ₦{amount.value.toLocaleString()}
+                      </p>
                     </div>
                     {selectedAmount === amount.value && !isCustomAmount && (
                       <div className="absolute -top-2 -right-2">
-                        <div className="w-6 h-6 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center">
-                          <Check className="w-4 h-4 text-[var(--color-ink)]" />
+                        <div className="w-6 h-6 bg-(--color-accent-yellow) rounded-full flex items-center justify-center">
+                          <Check className="w-4 h-4 text-(--color-ink)" />
                         </div>
                       </div>
                     )}
@@ -584,10 +624,12 @@ export default function AirtimePurchase() {
                 ))}
               </div>
 
-              <div className="border-t border-[var(--border-color)] pt-4">
-                <Label htmlFor="customAmount" className="text-[var(--text-primary)]">Or Enter Amount</Label>
+              <div className="border-t border-(--border-color) pt-4">
+                <Label htmlFor="customAmount" className="text-(--text-primary)">
+                  Or Enter Amount
+                </Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)]">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary)">
                     ₦
                   </span>
                   <Input
@@ -596,7 +638,7 @@ export default function AirtimePurchase() {
                     placeholder="Enter amount (min ₦100)"
                     value={customAmount}
                     onChange={(e) => handleCustomAmountChange(e.target.value)}
-                    className={`pl-8 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${errors.amount ? "border-red-500" : ""}`}
+                    className={`pl-8 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${errors.amount ? "border-red-500" : ""}`}
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
@@ -614,27 +656,33 @@ export default function AirtimePurchase() {
 
         {/* Purchase Summary */}
         <div className="lg:col-span-1">
-          <Card className="sticky top-6 bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="sticky top-6 bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-[var(--text-primary)]">
-                <CreditCard className="w-5 h-5 text-[var(--color-accent-yellow)]" />
+              <CardTitle className="flex items-center gap-2 text-(--text-primary)">
+                <CreditCard className="w-5 h-5 text-(--color-accent-yellow)" />
                 Purchase Summary
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {selectedProvider && (
-                <div className="flex items-center gap-3 p-3 bg-[var(--bg-secondary)] rounded-lg">
+                <div className="flex items-center gap-3 p-3 bg-(--bg-secondary) rounded-lg">
                   <div>
-                    <p className="font-medium text-[var(--text-primary)]">{selectedProvider.id.toUpperCase()}</p>
-                    <p className="text-sm text-[var(--text-secondary)]">VTU Airtime</p>
+                    <p className="font-medium text-(--text-primary)">
+                      {selectedProvider.id.toUpperCase()}
+                    </p>
+                    <p className="text-sm text-(--text-secondary)">
+                      VTU Airtime
+                    </p>
                   </div>
                 </div>
               )}
 
               {phoneNumber && (
                 <div>
-                  <p className="text-sm text-[var(--text-secondary)]">Phone Number</p>
-                  <p className="font-medium text-[var(--text-primary)]">
+                  <p className="text-sm text-(--text-secondary)">
+                    Phone Number
+                  </p>
+                  <p className="font-medium text-(--text-primary)">
                     +234 {phoneNumber.replace(/\D/g, "").substring(1)}
                   </p>
                 </div>
@@ -642,27 +690,38 @@ export default function AirtimePurchase() {
 
               {finalAmount > 0 && (
                 <div>
-                  <p className="text-sm text-[var(--text-secondary)]">Amount</p>
-                  <p className="text-2xl font-bold text-[var(--text-primary)]">
+                  <p className="text-sm text-(--text-secondary)">Amount</p>
+                  <p className="text-2xl font-bold text-(--text-primary)">
                     ₦{finalAmount.toLocaleString()}
                   </p>
                 </div>
               )}
 
-              <div className="border-t border-[var(--border-color)] pt-4 space-y-2">
+              <div className="border-t border-(--border-color) pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-[var(--text-secondary)]">Airtime Amount</span>
-                  <span className="text-[var(--text-primary)]">₦{finalAmount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[var(--text-secondary)]">Wallet balance after</span>
-                  <span className="text-[var(--color-lemon-green)]">
-                    ₦{((userData?.walletBalance || 0) - (finalAmount || 0)).toLocaleString()}
+                  <span className="text-(--text-secondary)">
+                    Airtime Amount
+                  </span>
+                  <span className="text-(--text-primary)">
+                    ₦{finalAmount.toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between font-bold border-t border-[var(--border-color)] pt-2">
-                  <span className="text-[var(--text-primary)]">Total</span>
-                  <span className="text-[var(--text-primary)]">₦{finalAmount.toLocaleString()}</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-(--text-secondary)">
+                    Wallet balance after
+                  </span>
+                  <span className="text-(--color-lemon-green)">
+                    ₦
+                    {(
+                      (userData?.walletBalance || 0) - (finalAmount || 0)
+                    ).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between font-bold border-t border-(--border-color) pt-2">
+                  <span className="text-(--text-primary)">Total</span>
+                  <span className="text-(--text-primary)">
+                    ₦{finalAmount.toLocaleString()}
+                  </span>
                 </div>
               </div>
 
@@ -672,12 +731,14 @@ export default function AirtimePurchase() {
                     setIsOpen(true);
                   }
                 }}
-                disabled={!selectedProvider || !phoneNumber || !finalAmount || loading}
-                className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
+                disabled={
+                  !selectedProvider || !phoneNumber || !finalAmount || loading
+                }
+                className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) py-3 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-[var(--color-ink)] border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-(--color-ink) border-t-transparent rounded-full animate-spin" />
                     Processing...
                   </div>
                 ) : (
@@ -688,7 +749,7 @@ export default function AirtimePurchase() {
                 )}
               </Button>
 
-              <div className="text-center text-xs text-[var(--text-secondary)] mt-4">
+              <div className="text-center text-xs text-(--text-secondary) mt-4">
                 <p>🔒 Secure payment powered by Zidwell</p>
                 <p>Instant delivery • 24/7 support</p>
               </div>

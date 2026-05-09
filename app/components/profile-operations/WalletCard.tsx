@@ -83,17 +83,17 @@ const WalletCard: React.FC<WalletCardProps> = ({
 
   if (!activated) {
     return (
-      <div className="neo-card bg-[var(--bg-primary)] p-6 md:p-8 border border-[var(--border-color)] rounded-xl shadow-soft">
-        <h3 className="font-heading text-[var(--text-primary)] text-base mb-2">
+      <div className="neo-card bg-(--bg-primary) p-6 md:p-8 border border-(--border-color) rounded-xl shadow-soft">
+        <h3 className="font-heading text-(--text-primary) text-base mb-2">
           ACTIVATE YOUR WALLET
         </h3>
-        <p className="text-sm font-body text-[var(--text-secondary)] mb-5">
+        <p className="text-sm font-body text-(--text-secondary) mb-5">
           Complete your KYC verification to activate your wallet and start
           transacting.
         </p>
         <button
           onClick={handleActivate}
-          className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 px-6 rounded-md transition-all font-medium"
+          className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) py-3 px-6 rounded-md transition-all font-medium"
         >
           Start Verification
         </button>
@@ -104,7 +104,7 @@ const WalletCard: React.FC<WalletCardProps> = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Card 1: All-time Balance */}
-      <Card className="bg-linear-to-r from-[var(--color-accent-yellow)] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#1e5f43] dark:to-[#b37f1a]">
+      <Card className="bg-linear-to-r from-(--color-accent-yellow) to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#1e5f43] dark:to-[#b37f1a]">
         <CardHeader className="p-0">
           <CardTitle className="text-base font-medium">
             All-time Balance
@@ -152,18 +152,18 @@ const WalletCard: React.FC<WalletCardProps> = ({
       </Card>
 
       {/* Card 3: Account Number */}
-      <Card className="flex items-center justify-between bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-md rounded-xl p-4 dark:bg-gray-800 dark:border-gray-700">
+      <Card className="flex items-center justify-between bg-(--bg-primary) border border-(--border-color) shadow-md rounded-xl p-4 dark:bg-gray-800 dark:border-gray-700">
         <CardHeader className="p-0">
-          <CardTitle className="text-base font-medium text-[var(--text-primary)]">
+          <CardTitle className="text-base font-medium text-(--text-primary)">
             Your Account Number
-            <div className="font-semibold flex items-center gap-4 mt-1 text-[var(--text-primary)]">
+            <div className="font-semibold flex items-center gap-4 mt-1 text-(--text-primary)">
               {showAccountNumber
                 ? details?.bank_details?.bank_account_number || "Not available"
                 : "*****"}
               {showAccountNumber &&
                 details?.bank_details?.bank_account_number && (
                   <button
-                    className="text-sm border px-3 py-2 rounded-md cursor-pointer hover:bg-[var(--bg-secondary)] transition dark:border-gray-600 dark:hover:bg-gray-700"
+                    className="text-sm border px-3 py-2 rounded-md cursor-pointer hover:bg-(--bg-secondary) transition dark:border-gray-600 dark:hover:bg-gray-700"
                     onClick={handleCopyAccountNumber}
                   >
                     {copyText ? "Copied" : <CopyIcon className="w-4 h-4" />}
@@ -171,7 +171,7 @@ const WalletCard: React.FC<WalletCardProps> = ({
                 )}
             </div>
             {showAccountNumber && (
-              <p className="text-sm text-[var(--text-secondary)]">
+              <p className="text-sm text-(--text-secondary)">
                 {details?.bank_details?.bank_name || "Providus Bank"}
               </p>
             )}
@@ -180,12 +180,12 @@ const WalletCard: React.FC<WalletCardProps> = ({
         <CardContent className="p-0">
           <button
             onClick={() => setShowAccountNumber((prev) => !prev)}
-            className="bg-[var(--bg-secondary)] p-3 rounded-full hover:bg-[var(--bg-secondary)]/80 transition"
+            className="bg-(--bg-secondary) p-3 rounded-full hover:bg-(--bg-secondary)/80 transition"
           >
             {showAccountNumber ? (
-              <EyeOff className="text-[var(--text-secondary)]" />
+              <EyeOff className="text-(--text-secondary)" />
             ) : (
-              <Eye className="text-[var(--text-secondary)]" />
+              <Eye className="text-(--text-secondary)" />
             )}
           </button>
         </CardContent>

@@ -48,7 +48,10 @@ export default function DataPlanSelector({
         {/* Skeleton Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((item) => (
-            <Card key={item} className="border-2 rounded-xl animate-pulse bg-[var(--bg-primary)] border-[var(--border-color)]">
+            <Card
+              key={item}
+              className="border-2 rounded-xl animate-pulse bg-(--bg-primary) border-(--border-color)"
+            >
               <CardHeader>
                 <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
               </CardHeader>
@@ -65,7 +68,7 @@ export default function DataPlanSelector({
   // If no plans after loading
   if (!plans?.length) {
     return (
-      <div className="text-sm text-[var(--text-secondary)] py-6 text-center">
+      <div className="text-sm text-(--text-secondary) py-6 text-center">
         No data plans available. Please select a provider.
       </div>
     );
@@ -94,8 +97,8 @@ export default function DataPlanSelector({
             className={cn(
               "px-4 py-1 whitespace-nowrap rounded-full text-sm border transition",
               activeTab === tab
-                ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] border-[var(--color-accent-yellow)]"
-                : "bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] hover:bg-[var(--bg-secondary)]",
+                ? "bg-(--color-accent-yellow) text-(--color-ink) border-(--color-accent-yellow)"
+                : "bg-(--bg-primary) text-(--text-primary) border-(--border-color) hover:bg-(--bg-secondary)",
             )}
           >
             {tab}
@@ -106,7 +109,7 @@ export default function DataPlanSelector({
       {/* Plans */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {filteredPlans.length === 0 ? (
-          <div className="col-span-full text-sm text-[var(--text-secondary)] text-center py-4">
+          <div className="col-span-full text-sm text-(--text-secondary) text-center py-4">
             No {activeTab.toLowerCase()} plans available.
           </div>
         ) : (
@@ -117,26 +120,26 @@ export default function DataPlanSelector({
               <Card
                 key={index}
                 onClick={() => onSelect(plan)}
-                className={`relative cursor-pointer transition-all border-2 rounded-xl bg-[var(--bg-primary)] ${
+                className={`relative cursor-pointer transition-all border-2 rounded-xl bg-(--bg-primary) ${
                   isSelected
-                    ? "border-[var(--color-accent-yellow)] ring-1 ring-[var(--color-accent-yellow)]"
-                    : "hover:border-[var(--color-accent-yellow)]/50 border-[var(--border-color)]"
+                    ? "border-(--color-accent-yellow) ring-1 ring-(--color-accent-yellow)"
+                    : "hover:border-(--color-accent-yellow)/50 border-(--border-color)"
                 }`}
               >
                 {isSelected && (
-                  <div className="absolute top-2 right-2 text-[var(--color-accent-yellow)]">
+                  <div className="absolute top-2 right-2 text-(--color-accent-yellow)">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                 )}
 
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-[var(--text-primary)]">
+                  <CardTitle className="text-lg font-semibold text-(--text-primary)">
                     ₦{formatNumber(plan.amount)}
                   </CardTitle>
                 </CardHeader>
 
                 <CardContent>
-                  <p className="text-sm text-[var(--text-secondary)]">{plan.plan}</p>
+                  <p className="text-sm text-(--text-secondary)">{plan.plan}</p>
                 </CardContent>
               </Card>
             );

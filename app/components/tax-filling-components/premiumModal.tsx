@@ -65,9 +65,9 @@ const tierDetails: Record<TierType, TierDetail> = {
     nextTier: "premium",
     icon: Zap,
     color: "green",
-    bgColor: "bg-[var(--color-accent-yellow)]/10",
-    borderColor: "border-[var(--color-accent-yellow)]/30",
-    textColor: "text-[var(--color-accent-yellow)]",
+    bgColor: "bg-(--color-accent-yellow)/10",
+    borderColor: "border-(--color-accent-yellow)/30",
+    textColor: "text-(--color-accent-yellow)",
     price: "₦9,900/month",
     yearlyPrice: "₦99,000/year",
     features: [
@@ -84,9 +84,9 @@ const tierDetails: Record<TierType, TierDetail> = {
     nextTier: "elite",
     icon: Crown,
     color: "amber",
-    bgColor: "bg-[var(--color-accent-yellow)]/10",
-    borderColor: "border-[var(--color-accent-yellow)]",
-    textColor: "text-[var(--color-accent-yellow)]",
+    bgColor: "bg-(--color-accent-yellow)/10",
+    borderColor: "border-(--color-accent-yellow)",
+    textColor: "text-(--color-accent-yellow)",
     price: "₦49,900/month",
     yearlyPrice: "₦499,000/year",
     features: [
@@ -189,31 +189,29 @@ export function PremiumModal({
       onClick={onClose}
     >
       <div
-        className="bg-[var(--bg-primary)] rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative border border-[var(--border-color)]"
+        className="bg-(--bg-primary) rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative border border-(--border-color)"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with close button */}
-        <div className="sticky top-0 bg-[var(--bg-primary)] border-b border-[var(--border-color)] p-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-[var(--text-primary)]">
+        <div className="sticky top-0 bg-(--bg-primary) border-b border-(--border-color) p-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-(--text-primary)">
             Unlock Premium Features
           </h2>
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-[var(--bg-secondary)] rounded-full transition-colors"
+            className="p-2 hover:bg-(--bg-secondary) rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-[var(--text-secondary)]" />
+            <X className="w-5 h-5 text-(--text-secondary)" />
           </button>
         </div>
 
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Current Plan Indicator */}
-          <div className="flex items-center justify-between p-4 bg-[var(--bg-secondary)] rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-(--bg-secondary) rounded-lg">
             <div>
-              <p className="text-sm text-[var(--text-secondary)]">
-                Current Plan
-              </p>
-              <p className="text-lg font-bold text-[var(--text-primary)] capitalize">
+              <p className="text-sm text-(--text-secondary)">Current Plan</p>
+              <p className="text-lg font-bold text-(--text-primary) capitalize">
                 {currentTier === "zidlite"
                   ? "ZidLite"
                   : currentTier === "free"
@@ -223,9 +221,7 @@ export function PremiumModal({
             </div>
             {currentTier !== "elite" && nextTierData && (
               <div className="text-right">
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Upgrade to
-                </p>
+                <p className="text-sm text-(--text-secondary)">Upgrade to</p>
                 <p
                   className={`text-lg font-bold capitalize ${nextTierData.textColor}`}
                 >
@@ -258,7 +254,7 @@ export function PremiumModal({
                   />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-[var(--text-primary)] capitalize">
+                  <h3 className="text-xl font-bold text-(--text-primary) capitalize">
                     {nextTier === "zidlite" ? "ZidLite" : nextTier} Plan
                   </h3>
                   <p
@@ -276,8 +272,8 @@ export function PremiumModal({
                     onClick={() => setSelectedBilling("monthly")}
                     className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
                       selectedBilling === "monthly"
-                        ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                        : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]/80"
+                        ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                        : "bg-(--bg-secondary) text-(--text-secondary) hover:bg-(--bg-secondary)/80"
                     }`}
                   >
                     Monthly
@@ -286,8 +282,8 @@ export function PremiumModal({
                     onClick={() => setSelectedBilling("yearly")}
                     className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
                       selectedBilling === "yearly"
-                        ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                        : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]/80"
+                        ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                        : "bg-(--bg-secondary) text-(--text-secondary) hover:bg-(--bg-secondary)/80"
                     }`}
                   >
                     Yearly <span className="text-xs ml-1">Save 20%</span>
@@ -302,7 +298,7 @@ export function PremiumModal({
                     <Check
                       className={`w-5 h-5 ${nextTierData.textColor} shrink-0 mt-0.5`}
                     />
-                    <span className="text-sm text-[var(--text-secondary)]">
+                    <span className="text-sm text-(--text-secondary)">
                       {feature}
                     </span>
                   </li>
@@ -311,15 +307,15 @@ export function PremiumModal({
 
               {/* Price Details */}
               {nextTier !== "elite" && (
-                <div className="mb-6 p-4 bg-[var(--bg-secondary)] rounded-lg">
-                  <p className="text-sm text-[var(--text-secondary)] mb-1">
+                <div className="mb-6 p-4 bg-(--bg-secondary) rounded-lg">
+                  <p className="text-sm text-(--text-secondary) mb-1">
                     {selectedBilling === "yearly"
                       ? "Yearly billing"
                       : "Monthly billing"}
                   </p>
-                  <p className="text-2xl font-bold text-[var(--text-primary)]">
+                  <p className="text-2xl font-bold text-(--text-primary)">
                     {getDisplayPrice()}
-                    <span className="text-sm font-normal text-[var(--text-secondary)] ml-1">
+                    <span className="text-sm font-normal text-(--text-secondary) ml-1">
                       /{selectedBilling === "yearly" ? "year" : "month"}
                     </span>
                   </p>
@@ -335,7 +331,7 @@ export function PremiumModal({
               <div className="flex gap-3">
                 <button
                   onClick={onClose}
-                  className="flex-1 px-4 py-3 border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors font-medium"
+                  className="flex-1 px-4 py-3 border border-(--border-color) rounded-lg text-(--text-primary) hover:bg-(--bg-secondary) transition-colors font-medium"
                 >
                   Cancel
                 </button>
@@ -357,9 +353,9 @@ export function PremiumModal({
                         nextTier === "zidlite"
                           ? "bg-blue-600 hover:bg-blue-700"
                           : nextTier === "growth"
-                            ? "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+                            ? "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
                             : nextTier === "premium"
-                              ? "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+                              ? "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
                               : "bg-purple-600 hover:bg-purple-700"
                       }`}
                     >
@@ -375,16 +371,16 @@ export function PremiumModal({
           {/* No Upgrade Path (Elite) */}
           {currentTier === "elite" && (
             <div className="text-center py-8">
-              <Crown className="w-16 h-16 text-[var(--color-accent-yellow)] mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+              <Crown className="w-16 h-16 text-(--color-accent-yellow) mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-(--text-primary) mb-2">
                 You're on Elite!
               </h3>
-              <p className="text-[var(--text-secondary)] mb-6">
+              <p className="text-(--text-secondary) mb-6">
                 Contact our enterprise team for custom solutions and dedicated
                 support.
               </p>
               <Link href="/contact">
-                <button className="px-6 py-3 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] rounded-lg hover:bg-[var(--color-accent-yellow)]/90 transition-colors font-medium">
+                <button className="px-6 py-3 bg-(--color-accent-yellow) text-(--color-ink) rounded-lg hover:bg-(--color-accent-yellow)/90 transition-colors font-medium">
                   Contact Account Manager
                 </button>
               </Link>
@@ -392,8 +388,8 @@ export function PremiumModal({
           )}
 
           {/* Trust Badges */}
-          <div className="pt-4 border-t border-[var(--border-color)]">
-            <p className="text-xs text-center text-[var(--text-secondary)]">
+          <div className="pt-4 border-t border-(--border-color)">
+            <p className="text-xs text-center text-(--text-secondary)">
               🔒 Secure payment • Cancel anytime • 14-day money-back guarantee
             </p>
           </div>

@@ -84,7 +84,9 @@ export default function FundAccountMethods() {
   const handleCopyReferral = async () => {
     if (details) {
       setCopyText(true);
-      await navigator.clipboard.writeText(details?.bank_details.bank_account_number);
+      await navigator.clipboard.writeText(
+        details?.bank_details.bank_account_number,
+      );
       setTimeout(() => setCopyText(false), 3000);
     }
   };
@@ -122,7 +124,7 @@ export default function FundAccountMethods() {
       {/* 💳 Account Balance */}
       <div className="flex flex-col md:flex-row gap-4">
         {/* Alltime Balance */}
-        <Card className="bg-linear-to-r from-[var(--color-accent-yellow)] to-[#E3A521] text-[var(--color-ink)] flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#b87d00] dark:to-[#d49400]">
+        <Card className="bg-linear-to-r from-(--color-accent-yellow) to-[#E3A521] text-(--color-ink) flex items-center justify-between shadow-lg rounded-xl p-4 dark:from-[#b87d00] dark:to-[#d49400]">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium">
               Alltime Balance
@@ -137,9 +139,9 @@ export default function FundAccountMethods() {
               className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
             >
               {showAlltime ? (
-                <EyeOff className="text-[var(--color-ink)] md:text-2xl" />
+                <EyeOff className="text-(--color-ink) md:text-2xl" />
               ) : (
-                <Eye className="text-[var(--color-ink)] md:text-2xl" />
+                <Eye className="text-(--color-ink) md:text-2xl" />
               )}
             </button>
           </CardContent>
@@ -219,12 +221,12 @@ export default function FundAccountMethods() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="e.g. 5000"
-              className="w-full p-3 border rounded-lg mb-4 text-center focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+              className="w-full p-3 border rounded-lg mb-4 text-center focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
               min={100}
             />
 
             <Button
-              className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 dark:bg-[var(--color-accent-yellow)] dark:hover:bg-[#d49400]"
+              className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 dark:bg-(--color-accent-yellow) dark:hover:bg-[#d49400]"
               disabled={loading || !amount}
               onClick={initializePayment}
             >

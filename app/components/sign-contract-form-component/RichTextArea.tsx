@@ -1,13 +1,13 @@
 // app/components/sign-contract-form-component/RichTextArea.tsx
-import React, { useRef, useEffect, useState } from 'react';
-import 'quill/dist/quill.snow.css';
-import { Trash2, Eraser } from 'lucide-react';
-import { Button } from '../ui/button';
+import React, { useRef, useEffect, useState } from "react";
+import "quill/dist/quill.snow.css";
+import { Trash2, Eraser } from "lucide-react";
+import { Button } from "../ui/button";
 
 // Load Quill only on client side
 let Quill: any = null;
-if (typeof window !== 'undefined') {
-  import('quill').then(module => {
+if (typeof window !== "undefined") {
+  import("quill").then((module) => {
     Quill = module.default;
   });
 }
@@ -23,9 +23,9 @@ interface RichTextAreaProps {
 const RichTextArea = ({
   value,
   onChange,
-  placeholder = 'Enter your contract details here...',
+  placeholder = "Enter your contract details here...",
   readOnly = false,
-  minHeight = '300px',
+  minHeight = "300px",
 }: RichTextAreaProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const quillInstance = useRef<any>(null);
@@ -33,11 +33,11 @@ const RichTextArea = ({
 
   // Load Quill dynamically
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     const loadQuill = async () => {
       if (!Quill) {
-        const module = await import('quill');
+        const module = await import("quill");
         Quill = module.default;
       }
       setIsQuillLoaded(true);
@@ -58,17 +58,17 @@ const RichTextArea = ({
 
     // Configure Quill
     const toolbarOptions = [
-      ['bold', 'italic', 'underline'],
+      ["bold", "italic", "underline"],
       [{ header: [1, 2, 3, false] }],
-      [{ list: 'ordered' }, { list: 'bullet' }],
+      [{ list: "ordered" }, { list: "bullet" }],
       [{ align: [] }],
-      ['link'],
-      ['clean'], // Add clean button for clearing formatting
+      ["link"],
+      ["clean"], // Add clean button for clearing formatting
     ];
 
     try {
       const quill = new Quill(editorRef.current, {
-        theme: 'snow',
+        theme: "snow",
         placeholder,
         readOnly,
         modules: {
@@ -79,15 +79,15 @@ const RichTextArea = ({
           keyboard: {
             bindings: {
               // Fix for list handling
-              'list autofill': {
-                key: ' ',
+              "list autofill": {
+                key: " ",
                 prefix: /^(\d+\.|-|\*|\+)$/,
                 handler: function (range: any, context: any) {
                   return true;
-                }
-              }
-            }
-          }
+                },
+              },
+            },
+          },
         },
       });
 
@@ -99,14 +99,14 @@ const RichTextArea = ({
       }
 
       // Handle text changes
-      quill.on('text-change', () => {
+      quill.on("text-change", () => {
         const content = quill.root.innerHTML;
         onChange(content);
       });
 
       // Fix for backspace/delete issues
-      quill.root.addEventListener('keydown', (e: KeyboardEvent) => {
-        if (e.key === 'Backspace' || e.key === 'Delete') {
+      quill.root.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.key === "Backspace" || e.key === "Delete") {
           // Allow default behavior
           setTimeout(() => {
             const content = quill.root.innerHTML;
@@ -114,9 +114,8 @@ const RichTextArea = ({
           }, 0);
         }
       });
-
     } catch (error) {
-      console.error('Error initializing Quill:', error);
+      console.error("Error initializing Quill:", error);
     }
 
     return () => {
@@ -129,7 +128,7 @@ const RichTextArea = ({
   // Update content when value prop changes
   useEffect(() => {
     if (!quillInstance.current || !value) return;
-    
+
     const currentContent = quillInstance.current.root.innerHTML;
     if (value !== currentContent) {
       quillInstance.current.root.innerHTML = value;
@@ -144,16 +143,16 @@ const RichTextArea = ({
 
   const handleClearAll = () => {
     if (!quillInstance.current) return;
-    quillInstance.current.setText('');
-    onChange('');
+    quillInstance.current.setText("");
+    onChange("");
   };
 
   const handleClearFormatting = () => {
     if (!quillInstance.current) return;
-    
+
     const quill = quillInstance.current;
     const range = quill.getSelection();
-    
+
     if (range && range.length > 0) {
       // Clear formatting on selected text
       quill.removeFormat(range.index, range.length);
@@ -164,7 +163,7 @@ const RichTextArea = ({
         quill.removeFormat(0, length - 1);
       }
     }
-    
+
     // Get updated content
     const content = quill.root.innerHTML;
     onChange(content);
@@ -246,54 +245,52 @@ const RichTextArea = ({
 
   if (!isQuillLoaded) {
     return (
-      <div 
-        className="border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] flex items-center justify-center"
+      <div
+        className="border border-(--border-color) rounded-lg bg-(--bg-secondary) flex items-center justify-center"
         style={{ minHeight }}
       >
-        <p className="text-[var(--text-secondary)]">Loading editor...</p>
+        <p className="text-(--text-secondary)">Loading editor...</p>
       </div>
     );
   }
 
   return (
-    <div className="border border-[var(--border-color)] rounded-lg overflow-hidden bg-[var(--bg-primary)]">
+    <div className="border border-(--border-color) rounded-lg overflow-hidden bg-(--bg-primary)">
       <style>{editorStyles}</style>
-      
+
       {/* Toolbar wrapper */}
-      <div className="flex items-center justify-between bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
+      <div className="flex items-center justify-between bg-(--bg-secondary) border-b border-(--border-color)">
         <div className="flex-1">
-          <div 
-            ref={editorRef} 
+          <div
+            ref={editorRef}
             className="[&_.ql-toolbar]:border-0 [&_.ql-toolbar]:bg-transparent [&_.ql-toolbar]:p-2"
           />
-           {/* Custom buttons */}
-        <div className="flex gap-2 px-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleClearFormatting}
-            className="h-8 px-2 text-xs text-[var(--text-primary)] hover:text-[var(--color-accent-yellow)]"
-            title="Clear formatting"
-            type="button"
-          >
-            <Eraser className="h-3 w-3 mr-1" />
-            Clear Format
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleClearAll}
-            className="h-8 px-2 text-xs text-[var(--text-primary)] hover:text-[var(--color-accent-yellow)]"
-            title="Clear all content"
-            type="button"
-          >
-            <Trash2 className="h-3 w-3 mr-1" />
-            Clear All
-          </Button>
+          {/* Custom buttons */}
+          <div className="flex gap-2 px-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleClearFormatting}
+              className="h-8 px-2 text-xs text-(--text-primary) hover:text-(--color-accent-yellow)"
+              title="Clear formatting"
+              type="button"
+            >
+              <Eraser className="h-3 w-3 mr-1" />
+              Clear Format
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleClearAll}
+              className="h-8 px-2 text-xs text-(--text-primary) hover:text-(--color-accent-yellow)"
+              title="Clear all content"
+              type="button"
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Clear All
+            </Button>
+          </div>
         </div>
-        </div>
-        
-       
       </div>
     </div>
   );

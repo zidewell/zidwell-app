@@ -54,7 +54,7 @@ const Testimonials = () => {
             {testimonials.map((testimonial, index) => (
               <div
                 key={index}
-                className="relative w-16 h-16 md:w-20 md:h-20 squircle-full border-4 border-[var(--bg-primary)] overflow-hidden "
+                className="relative w-16 h-16 md:w-20 md:h-20 squircle-full border-4 border-(--bg-primary) overflow-hidden "
                 style={{ zIndex: testimonials.length - index }}
               >
                 <Image

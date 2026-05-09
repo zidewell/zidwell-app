@@ -25,14 +25,17 @@ export function InfoTooltip({ content }: InfoTooltipProps) {
     <span className="relative inline-block ml-1.5" ref={ref}>
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="text-(--text-secondary) hover:text-(--text-primary) transition-colors"
         aria-label="More info"
       >
         <Info className="w-4 h-4" />
       </button>
       {open && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 w-64 p-3 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-lg text-sm text-[var(--text-primary)] animate-fade-in-up">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 w-64 p-3 rounded-lg bg-(--bg-primary) border border-(--border-color) shadow-lg text-sm text-(--text-primary) animate-fade-in-up">
           {content}
         </div>
       )}

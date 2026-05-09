@@ -26,7 +26,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
   const showAlert = Swal.mixin({
     customClass: {
       confirmButton:
-        "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 px-4 py-2 rounded",
+        "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 px-4 py-2 rounded",
     },
     buttonsStyling: false,
   });
@@ -59,8 +59,18 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
       .sort((a, b) => {
         if (a.year !== b.year) return parseInt(b.year) - parseInt(a.year);
         const months = [
-          "January", "February", "March", "April", "May", "June",
-          "July", "August", "September", "October", "November", "December",
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
         ];
         return months.indexOf(b.month) - months.indexOf(a.month);
       })
@@ -136,9 +146,9 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
       if (!fallbackDiv) {
         fallbackDiv = document.createElement("div");
         fallbackDiv.className =
-          "image-fallback w-16 h-16 bg-[var(--bg-secondary)] rounded shrink-0 flex items-center justify-center";
+          "image-fallback w-16 h-16 bg-(--bg-secondary) rounded shrink-0 flex items-center justify-center";
         fallbackDiv.innerHTML =
-          '<span class="text-xs text-[var(--text-secondary)]">No Image</span>';
+          '<span class="text-xs text-(--text-secondary)">No Image</span>';
         parent.appendChild(fallbackDiv);
       }
       fallbackDiv.style.display = "flex";
@@ -149,46 +159,46 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
     return (
       <aside className="space-y-8">
         <div className="space-y-3">
-          <Skeleton className="h-5 w-24 bg-[var(--bg-secondary)]" />
-          <Skeleton className="h-10 w-full bg-[var(--bg-secondary)]" />
+          <Skeleton className="h-5 w-24 bg-(--bg-secondary)" />
+          <Skeleton className="h-10 w-full bg-(--bg-secondary)" />
         </div>
 
-        <div className="bg-[var(--bg-secondary)]/50 rounded-lg p-5 space-y-3">
-          <Skeleton className="h-5 w-24 bg-[var(--bg-secondary)]" />
-          <Skeleton className="h-16 w-full bg-[var(--bg-secondary)]" />
-          <Skeleton className="h-10 w-full bg-[var(--bg-secondary)]" />
+        <div className="bg-(--bg-secondary)/50 rounded-lg p-5 space-y-3">
+          <Skeleton className="h-5 w-24 bg-(--bg-secondary)" />
+          <Skeleton className="h-16 w-full bg-(--bg-secondary)" />
+          <Skeleton className="h-10 w-full bg-(--bg-secondary)" />
         </div>
 
         <div className="space-y-4">
-          <Skeleton className="h-5 w-32 bg-[var(--bg-secondary)]" />
+          <Skeleton className="h-5 w-32 bg-(--bg-secondary)" />
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex gap-3">
-              <Skeleton className="w-16 h-16 rounded bg-[var(--bg-secondary)]" />
+              <Skeleton className="w-16 h-16 rounded bg-(--bg-secondary)" />
               <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4 bg-[var(--bg-secondary)]" />
-                <Skeleton className="h-3 w-1/2 bg-[var(--bg-secondary)]" />
+                <Skeleton className="h-4 w-3/4 bg-(--bg-secondary)" />
+                <Skeleton className="h-3 w-1/2 bg-(--bg-secondary)" />
               </div>
             </div>
           ))}
         </div>
 
         <div className="space-y-4">
-          <Skeleton className="h-5 w-32 bg-[var(--bg-secondary)]" />
+          <Skeleton className="h-5 w-32 bg-(--bg-secondary)" />
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex gap-3">
-              <Skeleton className="w-16 h-16 rounded bg-[var(--bg-secondary)]" />
+              <Skeleton className="w-16 h-16 rounded bg-(--bg-secondary)" />
               <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4 bg-[var(--bg-secondary)]" />
-                <Skeleton className="h-3 w-1/2 bg-[var(--bg-secondary)]" />
+                <Skeleton className="h-4 w-3/4 bg-(--bg-secondary)" />
+                <Skeleton className="h-3 w-1/2 bg-(--bg-secondary)" />
               </div>
             </div>
           ))}
         </div>
 
         <div className="space-y-3">
-          <Skeleton className="h-5 w-24 bg-[var(--bg-secondary)]" />
+          <Skeleton className="h-5 w-24 bg-(--bg-secondary)" />
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-4 w-full bg-[var(--bg-secondary)]" />
+            <Skeleton key={i} className="h-4 w-full bg-(--bg-secondary)" />
           ))}
         </div>
       </aside>
@@ -199,7 +209,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
     <aside className="space-y-8">
       {/* Search */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-(--text-secondary)">
           Search
         </h3>
         <form onSubmit={handleSearch} className="relative">
@@ -208,13 +218,13 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             placeholder="Search articles..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+            className="pr-10 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
             style={{ outline: "none", boxShadow: "none" }}
             disabled={isSearching}
           />
           <button
             type="submit"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-(--text-secondary) hover:text-(--text-primary) disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isSearching}
             aria-label="Search"
           >
@@ -226,14 +236,14 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
       </div>
 
       {/* Subscribe */}
-      <div className="bg-[var(--bg-secondary)]/50 rounded-lg p-5 space-y-3 border border-[var(--border-color)]">
+      <div className="bg-(--bg-secondary)/50 rounded-lg p-5 space-y-3 border border-(--border-color)">
         <div className="flex items-center gap-2">
-          <Mail className="w-4 h-4 text-[var(--color-accent-yellow)]" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+          <Mail className="w-4 h-4 text-(--color-accent-yellow)" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-(--text-secondary)">
             Get Updates
           </h3>
         </div>
-        <p className="text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-(--text-secondary)">
           Subscribe to receive the latest financial insights directly in your
           inbox.
         </p>
@@ -245,12 +255,12 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isSubscribing}
-            className="w-full border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+            className="w-full border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
             style={{ outline: "none", boxShadow: "none" }}
           />
           <Button
             type="submit"
-            className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+            className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
             disabled={isSubscribing}
           >
             {isSubscribing ? "Subscribing..." : "Subscribe"}
@@ -261,8 +271,8 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
       {/* Popular Posts */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-[var(--color-accent-yellow)]" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+          <TrendingUp className="w-4 h-4 text-(--color-accent-yellow)" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-(--text-secondary)">
             Popular Posts
           </h3>
         </div>
@@ -272,7 +282,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
               <Link
                 key={post.id}
                 href={`/blog/post-blog/${post.slug}`}
-                className="flex gap-3 group hover:bg-[var(--bg-secondary)] p-2 rounded-lg transition-colors"
+                className="flex gap-3 group hover:bg-(--bg-secondary) p-2 rounded-lg transition-colors"
               >
                 {post.featured_image ? (
                   <Image
@@ -285,19 +295,19 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
                     loading="lazy"
                   />
                 ) : (
-                  <div className="w-16 h-16 bg-[var(--bg-secondary)] rounded shrink-0 flex items-center justify-center">
-                    <Hash className="w-6 h-6 text-[var(--text-secondary)]" />
+                  <div className="w-16 h-16 bg-(--bg-secondary) rounded shrink-0 flex items-center justify-center">
+                    <Hash className="w-6 h-6 text-(--text-secondary)" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium text-[var(--text-primary)] line-clamp-2 group-hover:text-[var(--color-accent-yellow)] transition-colors">
+                  <h4 className="text-sm font-medium text-(--text-primary) line-clamp-2 group-hover:text-(--color-accent-yellow) transition-colors">
                     {post.title}
                   </h4>
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-[var(--text-secondary)]">
+                    <p className="text-xs text-(--text-secondary)">
                       {getAuthorName(post)}
                     </p>
-                    <span className="text-xs text-[var(--text-secondary)]">
+                    <span className="text-xs text-(--text-secondary)">
                       {post.view_count || 0} views
                     </span>
                   </div>
@@ -306,7 +316,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[var(--text-secondary)] italic">
+          <p className="text-sm text-(--text-secondary) italic">
             No popular posts yet
           </p>
         )}
@@ -315,8 +325,8 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
       {/* Recent Posts */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-[var(--color-accent-yellow)]" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+          <Clock className="w-4 h-4 text-(--color-accent-yellow)" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-(--text-secondary)">
             Recent Posts
           </h3>
         </div>
@@ -326,7 +336,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
               <Link
                 key={post.id}
                 href={`/blog/post-blog/${post.slug}`}
-                className="flex gap-3 group hover:bg-[var(--bg-secondary)] p-2 rounded-lg transition-colors"
+                className="flex gap-3 group hover:bg-(--bg-secondary) p-2 rounded-lg transition-colors"
               >
                 {post.featured_image ? (
                   <img
@@ -337,19 +347,19 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
                     loading="lazy"
                   />
                 ) : (
-                  <div className="w-16 h-16 bg-[var(--bg-secondary)] rounded shrink-0 flex items-center justify-center">
-                    <Hash className="w-6 h-6 text-[var(--text-secondary)]" />
+                  <div className="w-16 h-16 bg-(--bg-secondary) rounded shrink-0 flex items-center justify-center">
+                    <Hash className="w-6 h-6 text-(--text-secondary)" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium text-[var(--text-primary)] line-clamp-2 group-hover:text-[var(--color-accent-yellow)] transition-colors">
+                  <h4 className="text-sm font-medium text-(--text-primary) line-clamp-2 group-hover:text-(--color-accent-yellow) transition-colors">
                     {post.title}
                   </h4>
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-[var(--text-secondary)]">
+                    <p className="text-xs text-(--text-secondary)">
                       {getAuthorName(post)}
                     </p>
-                    <span className="text-xs text-[var(--text-secondary)]">
+                    <span className="text-xs text-(--text-secondary)">
                       {new Date(post.created_at).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -361,7 +371,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[var(--text-secondary)] italic">
+          <p className="text-sm text-(--text-secondary) italic">
             No recent posts yet
           </p>
         )}
@@ -369,7 +379,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
 
       {/* Categories */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-(--text-secondary)">
           Categories
         </h3>
         {categories.length > 0 ? (
@@ -378,10 +388,10 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
               <li key={category.name}>
                 <Link
                   href={`/blog?category=${encodeURIComponent(category.name)}`}
-                  className="flex items-center justify-between text-sm text-[var(--text-primary)] hover:text-[var(--color-accent-yellow)] transition-colors px-2 py-1.5 hover:bg-[var(--bg-secondary)] rounded"
+                  className="flex items-center justify-between text-sm text-(--text-primary) hover:text-(--color-accent-yellow) transition-colors px-2 py-1.5 hover:bg-(--bg-secondary) rounded"
                 >
                   <span className="capitalize">{category.name}</span>
-                  <span className="text-[var(--text-secondary)] text-xs bg-[var(--bg-secondary)] px-2 py-0.5 rounded">
+                  <span className="text-(--text-secondary) text-xs bg-(--bg-secondary) px-2 py-0.5 rounded">
                     {category.count}
                   </span>
                 </Link>
@@ -389,7 +399,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-[var(--text-secondary)] italic">
+          <p className="text-sm text-(--text-secondary) italic">
             No categories yet
           </p>
         )}
@@ -397,7 +407,7 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
 
       {/* Archives */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-(--text-secondary)">
           Archives
         </h3>
         {archives.length > 0 ? (
@@ -406,10 +416,10 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
               <li key={archive.label}>
                 <Link
                   href={`/blog?archive=${archive.year}-${archive.month.toLowerCase()}`}
-                  className="flex items-center justify-between text-sm text-[var(--text-primary)] hover:text-[var(--color-accent-yellow)] transition-colors px-2 py-1.5 hover:bg-[var(--bg-secondary)] rounded"
+                  className="flex items-center justify-between text-sm text-(--text-primary) hover:text-(--color-accent-yellow) transition-colors px-2 py-1.5 hover:bg-(--bg-secondary) rounded"
                 >
                   <span>{archive.label}</span>
-                  <span className="text-[var(--text-secondary)] text-xs bg-[var(--bg-secondary)] px-2 py-0.5 rounded">
+                  <span className="text-(--text-secondary) text-xs bg-(--bg-secondary) px-2 py-0.5 rounded">
                     {archive.count}
                   </span>
                 </Link>
@@ -417,24 +427,22 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-[var(--text-secondary)] italic">
+          <p className="text-sm text-(--text-secondary) italic">
             No archives yet
           </p>
         )}
       </div>
 
       {/* Ad Placeholder */}
-      <div className="bg-[var(--bg-secondary)] rounded-lg p-6 text-center border border-[var(--border-color)]">
-        <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+      <div className="bg-(--bg-secondary) rounded-lg p-6 text-center border border-(--border-color)">
+        <p className="text-xs text-(--text-secondary) uppercase tracking-wider mb-2">
           Advertisement
         </p>
-        <div className="h-48 bg-[var(--bg-secondary)] rounded flex flex-col items-center justify-center border border-dashed border-[var(--border-color)]">
-          <span className="text-sm text-[var(--text-secondary)] mb-2">
+        <div className="h-48 bg-(--bg-secondary) rounded flex flex-col items-center justify-center border border-dashed border-(--border-color)">
+          <span className="text-sm text-(--text-secondary) mb-2">
             Ad Space Available
           </span>
-          <span className="text-xs text-[var(--text-secondary)]">
-            300x250
-          </span>
+          <span className="text-xs text-(--text-secondary)">300x250</span>
         </div>
       </div>
     </aside>

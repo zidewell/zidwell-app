@@ -202,7 +202,7 @@ const Carousel: React.FC = () => {
             />
 
             {/* Gradient Overlay - Made lighter for better text visibility */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
           </div>
         ))}
       </div>

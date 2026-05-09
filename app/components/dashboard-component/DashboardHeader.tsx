@@ -32,21 +32,21 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
 
   const handleLogout = async () => {
     if (logoutInProgress.current || isLoggingOut) return;
-    
+
     const result = await Swal.fire({
-      title: 'Are you sure?',
+      title: "Are you sure?",
       text: "You will be logged out of your account",
-      icon: 'question',
+      icon: "question",
       showCancelButton: true,
-      confirmButtonColor: 'var(--color-accent-yellow)',
-      cancelButtonColor: '#6b6b6b',
-      confirmButtonText: 'Yes, logout',
-      cancelButtonText: 'Cancel',
-      reverseButtons: true
+      confirmButtonColor: "var(--color-accent-yellow)",
+      cancelButtonColor: "#6b6b6b",
+      confirmButtonText: "Yes, logout",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
     });
 
     if (!result.isConfirmed) return;
-    
+
     logoutInProgress.current = true;
     setIsLoggingOut(true);
 
@@ -63,7 +63,7 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
       if (typeof window !== "undefined") {
         localStorage.removeItem("userData");
         sessionStorage.removeItem("userData");
-        document.cookie.split(";").forEach(cookie => {
+        document.cookie.split(";").forEach((cookie) => {
           const [name] = cookie.split("=");
           if (name.trim() === "verified" || name.trim() === "session") {
             document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
@@ -78,31 +78,33 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
     const apiCalls = [];
 
     apiCalls.push(
-      fetch("/api/logout", { method: "POST" }).catch(err => 
-        console.error("Logout API error:", err)
-      )
+      fetch("/api/logout", { method: "POST" }).catch((err) =>
+        console.error("Logout API error:", err),
+      ),
     );
 
     if (userData) {
       apiCalls.push(
         fetch("/api/activity/last-logout", {
           method: "POST",
-          headers: { 'Content-Type': 'application/json' },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: userData.id,
             email: userData.email,
-            login_history_id: userData.currentLoginSession
+            login_history_id: userData.currentLoginSession,
           }),
-        }).catch(err => console.error("Error tracking logout activity:", err))
+        }).catch((err) =>
+          console.error("Error tracking logout activity:", err),
+        ),
       );
     }
 
-    Promise.allSettled(apiCalls).catch(err => 
-      console.error("Background logout tasks failed:", err)
+    Promise.allSettled(apiCalls).catch((err) =>
+      console.error("Background logout tasks failed:", err),
     );
 
     Swal.close();
-    
+
     await Swal.fire({
       icon: "success",
       title: "Logged Out!",
@@ -120,22 +122,22 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-[var(--bg-primary)] border-b-2 border-[var(--border-color)]">
+    <header className="sticky top-0 z-30 bg-(--bg-primary) border-b-2 border-(--border-color)">
       <div className="flex items-center justify-between h-20 px-6 md:px-10">
         <div className="flex items-center gap-4">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2.5 rounded-md border-2 border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] shadow-[2px_2px_0px_var(--border-color)] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all"
+            className="lg:hidden p-2.5 rounded-md border-2 border-(--border-color) text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary) shadow-[2px_2px_0px_var(--border-color)] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all"
             aria-label="Open menu"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="text-xl font-bold lg:hidden uppercase tracking-tight text-[var(--text-primary)]">
+          <span className="text-xl font-bold lg:hidden uppercase tracking-tight text-(--text-primary)">
             Zidwell
           </span>
-          
+
           {userData?.fullName && (
-            <h1 className="hidden lg:block text-lg font-bold text-[var(--text-primary)]">
+            <h1 className="hidden lg:block text-lg font-bold text-(--text-primary)">
               Hello, {userData.fullName}
             </h1>
           )}
@@ -143,8 +145,8 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
 
         <div className="flex items-center gap-3">
           {userData?.fullName && (
-            <span className="lg:hidden text-sm text-[var(--text-secondary)]">
-              Hi, {userData.fullName.split(' ')[0]}
+            <span className="lg:hidden text-sm text-(--text-secondary)">
+              Hi, {userData.fullName.split(" ")[0]}
             </span>
           )}
 
@@ -153,8 +155,8 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-md border-2 border-[var(--border-color)] bg-destructive text-white hover:bg-destructive/80 shadow-[2px_2px_0px_var(--border-color)] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all ${
-              isLoggingOut ? 'opacity-50 cursor-not-allowed' : ''
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-md border-2 border-(--border-color) bg-destructive text-white hover:bg-destructive/80 shadow-[2px_2px_0px_var(--border-color)] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all ${
+              isLoggingOut ? "opacity-50 cursor-not-allowed" : ""
             }`}
             aria-label="Logout"
           >
@@ -168,8 +170,11 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
 
       {userData?.fullName && (
         <div className="lg:hidden px-6 pb-3 -mt-2">
-          <p className="text-sm text-[var(--text-secondary)]">
-            Welcome back, <span className="font-bold text-[var(--text-primary)]">{userData.fullName}</span>
+          <p className="text-sm text-(--text-secondary)">
+            Welcome back,{" "}
+            <span className="font-bold text-(--text-primary)">
+              {userData.fullName}
+            </span>
           </p>
         </div>
       )}

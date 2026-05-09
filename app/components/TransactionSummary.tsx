@@ -39,7 +39,7 @@ export default function TransactionSummary({
         <>
           {/* 🔲 Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-[var(--color-ink)]/50 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-(--color-ink)/50 backdrop-blur-sm z-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -54,21 +54,21 @@ export default function TransactionSummary({
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
-            <div className="max-w-md w-full mx-auto bg-[var(--bg-primary)] rounded-2xl shadow-lg p-6 space-y-3 border border-[var(--border-color)]">
+            <div className="max-w-md w-full mx-auto bg-(--bg-primary) rounded-2xl shadow-lg p-6 space-y-3 border border-(--border-color)">
               {/* P2P Badge */}
               {isP2P && (
                 <div className="flex justify-center mb-2">
-                  <span className="px-3 py-1 rounded-full bg-[var(--color-lemon-green)]/10 text-[var(--color-lemon-green)] text-xs font-semibold border border-[var(--color-lemon-green)]/20">
+                  <span className="px-3 py-1 rounded-full bg-(--color-lemon-green)/10 text-(--color-lemon-green) text-xs font-semibold border border-(--color-lemon-green)/20">
                     P2P Transfer
                   </span>
                 </div>
               )}
 
               <div className="flex flex-col items-center ">
-                <div className="text-[var(--text-secondary)] text-sm">
+                <div className="text-(--text-secondary) text-sm">
                   You're sending
                 </div>
-                <div className="text-3xl font-bold text-[var(--text-primary)]">
+                <div className="text-3xl font-bold text-(--text-primary)">
                   ₦
                   {typeof amount === "number"
                     ? amount.toLocaleString()
@@ -86,7 +86,7 @@ export default function TransactionSummary({
                 )}
                 {/* For P2P, show that it's free */}
                 {isP2P && (
-                  <div className="mt-2 text-sm text-[var(--color-lemon-green)] font-medium">
+                  <div className="mt-2 text-sm text-(--color-lemon-green) font-medium">
                     ✓ No transfer fees for P2P
                   </div>
                 )}
@@ -94,23 +94,21 @@ export default function TransactionSummary({
 
               {/* FROM Section */}
               <div>
-                <h3 className="text-[var(--text-primary)] text-sm font-semibold mb-2">
+                <h3 className="text-(--text-primary) text-sm font-semibold mb-2">
                   From
                 </h3>
-                <div className="bg-[var(--bg-secondary)] rounded-lg p-3 space-y-1 text-sm">
+                <div className="bg-(--bg-secondary) rounded-lg p-3 space-y-1 text-sm">
                   <p className="flex justify-between">
-                    <span className="text-[var(--text-secondary)]">
+                    <span className="text-(--text-secondary)">
                       Account Name
                     </span>
-                    <span className="text-[var(--text-primary)]">
-                      {senderName}
-                    </span>
+                    <span className="text-(--text-primary)">{senderName}</span>
                   </p>
                   <p className="flex justify-between">
-                    <span className="text-[var(--text-secondary)]">
+                    <span className="text-(--text-secondary)">
                       Account Number
                     </span>
-                    <span className="text-[var(--text-primary)]">
+                    <span className="text-(--text-primary)">
                       {senderAccount}
                     </span>
                   </p>
@@ -119,53 +117,45 @@ export default function TransactionSummary({
 
               {/* TO Section */}
               <div>
-                <h3 className="text-[var(--text-primary)] text-sm font-semibold mb-2">
+                <h3 className="text-(--text-primary) text-sm font-semibold mb-2">
                   {isP2P ? "To (Zidwell User)" : "To"}
                 </h3>
-                <div className="bg-[var(--bg-secondary)] rounded-lg p-3 space-y-1 text-sm">
+                <div className="bg-(--bg-secondary) rounded-lg p-3 space-y-1 text-sm">
                   <p className="flex justify-between">
-                    <span className="text-[var(--text-secondary)]">
+                    <span className="text-(--text-secondary)">
                       Account Name
                     </span>
-                    <span className="text-[var(--text-primary)]">
+                    <span className="text-(--text-primary)">
                       {recipientName}
                     </span>
                   </p>
                   <p className="flex justify-between">
-                    <span className="text-[var(--text-secondary)]">
+                    <span className="text-(--text-secondary)">
                       {isP2P ? "Zidwell Account" : "Account Number"}
                     </span>
-                    <span className="text-[var(--text-primary)]">
+                    <span className="text-(--text-primary)">
                       {recipientAccount}
                     </span>
                   </p>
                   {!isP2P && (
                     <p className="flex justify-between">
-                      <span className="text-[var(--text-secondary)]">
-                        Bank Name
-                      </span>
-                      <span className="text-[var(--text-primary)]">
+                      <span className="text-(--text-secondary)">Bank Name</span>
+                      <span className="text-(--text-primary)">
                         {recipientBank}
                       </span>
                     </p>
                   )}
                   {isP2P && (
                     <p className="flex justify-between">
-                      <span className="text-[var(--text-secondary)]">
-                        Platform
-                      </span>
-                      <span className="text-[var(--text-primary)]">
+                      <span className="text-(--text-secondary)">Platform</span>
+                      <span className="text-(--text-primary)">
                         Zidwell Wallet
                       </span>
                     </p>
                   )}
                   <p className="flex justify-between">
-                    <span className="text-[var(--text-secondary)]">
-                      Purpose
-                    </span>
-                    <span className="text-[var(--text-primary)]">
-                      {purpose}
-                    </span>
+                    <span className="text-(--text-secondary)">Purpose</span>
+                    <span className="text-(--text-primary)">{purpose}</span>
                   </p>
                 </div>
               </div>
@@ -174,14 +164,14 @@ export default function TransactionSummary({
               <div
                 className={`rounded-lg p-3 text-sm flex items-start gap-2 ${
                   isP2P
-                    ? "bg-[var(--color-lemon-green)]/10 border border-[var(--color-lemon-green)]/20 text-[var(--color-lemon-green)]"
+                    ? "bg-(--color-lemon-green)/10 border border-(--color-lemon-green)/20 text-(--color-lemon-green)"
                     : "bg-amber-50 border border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400"
                 }`}
               >
                 {isP2P ? (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 mt-0.5 text-[var(--color-lemon-green)]"
+                    className="h-4 w-4 mt-0.5 text-(--color-lemon-green)"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -221,7 +211,7 @@ export default function TransactionSummary({
                 <Button
                   variant="outline"
                   onClick={onBack}
-                  className="border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  className="border border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                 >
                   Back
                 </Button>
@@ -229,8 +219,8 @@ export default function TransactionSummary({
                   onClick={onConfirm}
                   className={`${
                     isP2P
-                      ? "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
-                      : "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+                      ? "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
+                      : "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
                   }`}
                 >
                   {isP2P ? "Send to User" : "Make Payment"}

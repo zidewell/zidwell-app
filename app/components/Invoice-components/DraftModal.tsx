@@ -37,12 +37,14 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[var(--bg-primary)] rounded-lg shadow-pop max-w-4xl w-full max-h-[85vh] overflow-hidden border border-[var(--border-color)] squircle-lg">
+      <Card className="bg-(--bg-primary) rounded-lg shadow-pop max-w-4xl w-full max-h-[85vh] overflow-hidden border border-(--border-color) squircle-lg">
         {/* Header */}
-        <div className="sticky top-0 bg-[var(--bg-primary)] border-b border-[var(--border-color)] p-6 flex justify-between items-center">
+        <div className="sticky top-0 bg-(--bg-primary) border-b border-(--border-color) p-6 flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-[var(--text-primary)]">Saved Drafts</h2>
-            <p className="text-[var(--text-secondary)] text-sm mt-1">
+            <h2 className="text-2xl font-bold text-(--text-primary)">
+              Saved Drafts
+            </h2>
+            <p className="text-(--text-secondary) text-sm mt-1">
               You have {drafts.length} saved draft
               {drafts.length !== 1 ? "s" : ""}. Choose an action:
             </p>
@@ -51,7 +53,7 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-10 w-10 hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
+            className="h-10 w-10 hover:bg-(--bg-secondary) text-(--text-secondary)"
           >
             <X className="h-5 w-5" />
           </Button>
@@ -66,8 +68,8 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
                 key={draft.id}
                 className={`p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer ${
                   selectedDraftId === draft.id
-                    ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10"
-                    : "border-[var(--border-color)]"
+                    ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10"
+                    : "border-(--border-color)"
                 }`}
                 onClick={() => setSelectedDraftId(draft.id)}
               >
@@ -78,19 +80,19 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
                         <Clock className="h-3 w-3 mr-1" />
                         Draft
                       </span>
-                      <span className="text-sm font-medium text-[var(--text-secondary)]">
+                      <span className="text-sm font-medium text-(--text-secondary)">
                         {draft.invoice_id}
                       </span>
                     </div>
-                    <h3 className="font-semibold text-[var(--text-primary)] mb-1">
+                    <h3 className="font-semibold text-(--text-primary) mb-1">
                       {draft.business_name || "Untitled Invoice"}
                     </h3>
                     {draft.client_name && (
-                      <p className="text-sm text-[var(--text-secondary)] mb-1">
+                      <p className="text-sm text-(--text-secondary) mb-1">
                         Client: {draft.client_name}
                       </p>
                     )}
-                    <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)]">
+                    <div className="flex items-center gap-4 text-sm text-(--text-secondary)">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {formatDate(draft.created_at)}
@@ -109,7 +111,7 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
                       onLoadDraft(draft);
                       onClose();
                     }}
-                    className="ml-4 border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10"
+                    className="ml-4 border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
                   >
                     <Eye className="h-4 w-4 mr-2" />
                     Load
@@ -121,14 +123,14 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
 
           {drafts.length > 3 && (
             <div className="text-center mb-6">
-              <p className="text-[var(--text-secondary)]">
+              <p className="text-(--text-secondary)">
                 ...and {drafts.length - 3} more draft
                 {drafts.length - 3 !== 1 ? "s" : ""}
               </p>
               <Button
                 variant="link"
                 onClick={onViewAll}
-                className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80"
+                className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80"
               >
                 View All Drafts
               </Button>
@@ -137,12 +139,12 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] p-6">
+        <div className="sticky bottom-0 bg-(--bg-primary) border-t border-(--border-color) p-6">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button 
-              variant="outline" 
-              onClick={onStartFresh} 
-              className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+            <Button
+              variant="outline"
+              onClick={onStartFresh}
+              className="flex-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
             >
               Start Fresh
             </Button>
@@ -150,11 +152,11 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
               <Button
                 onClick={() => {
                   const selectedDraft = drafts.find(
-                    (d) => d.id === selectedDraftId
+                    (d) => d.id === selectedDraftId,
                   );
                   if (selectedDraft) onLoadDraft(selectedDraft);
                 }}
-                className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                className="flex-1 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
               >
                 Load Selected Draft
               </Button>

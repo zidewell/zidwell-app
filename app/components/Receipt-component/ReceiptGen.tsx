@@ -134,13 +134,13 @@ export default function ReceiptGen({
         return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
       if (receiptCount >= 8)
         return "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400";
-      return "bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)] dark:bg-[var(--color-accent-yellow)]/20 dark:text-[var(--color-accent-yellow)]";
+      return "bg-(--color-accent-yellow)/20 text-(--color-accent-yellow) dark:bg-(--color-accent-yellow)/20 dark:text-(--color-accent-yellow)";
     }
     if (receiptCount >= 5)
       return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
     if (receiptCount >= 4)
       return "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400";
-    return "bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)] dark:bg-[var(--color-accent-yellow)]/20 dark:text-[var(--color-accent-yellow)]";
+    return "bg-(--color-accent-yellow)/20 text-(--color-accent-yellow) dark:bg-(--color-accent-yellow)/20 dark:text-(--color-accent-yellow)";
   };
 
   return (
@@ -148,14 +148,14 @@ export default function ReceiptGen({
       {/* Upgrade Prompt Modal */}
       {showUpgradePrompt && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--bg-primary)] dark:bg-gray-900 rounded-xl max-w-md w-full p-6 shadow-pop border border-[var(--border-color)] squircle-lg">
+          <div className="bg-(--bg-primary) dark:bg-gray-900 rounded-xl max-w-md w-full p-6 shadow-pop border border-(--border-color) squircle-lg">
             <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
               <Crown className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
-            <h3 className="text-xl font-bold text-center mb-2 text-[var(--text-primary)]">
+            <h3 className="text-xl font-bold text-center mb-2 text-(--text-primary)">
               Upgrade Required
             </h3>
-            <p className="text-[var(--text-secondary)] text-center mb-6">
+            <p className="text-(--text-secondary) text-center mb-6">
               {isZidLite
                 ? "You've used all your ZidLite receipts. Upgrade to continue creating unlimited receipts!"
                 : "You've used all your free receipts. Upgrade to continue creating unlimited receipts!"}
@@ -163,13 +163,13 @@ export default function ReceiptGen({
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+                className="flex-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) squircle-md"
                 onClick={() => setShowUpgradePrompt(false)}
               >
                 Cancel
               </Button>
               <Link href="/pricing?upgrade=growth" className="flex-1">
-                <Button className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
+                <Button className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md">
                   View Plans
                 </Button>
               </Link>
@@ -181,49 +181,45 @@ export default function ReceiptGen({
       {/* Summary Cards */}
       {activeTab === "Receipts" && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-[var(--text-secondary)] mb-1">
+                <p className="text-sm text-(--text-secondary) mb-1">
                   Total Receipts
                 </p>
-                <p className="text-2xl font-bold text-[var(--text-primary)]">
+                <p className="text-2xl font-bold text-(--text-primary)">
                   {receipts.length}
                 </p>
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-[var(--text-secondary)] mb-1">
+                <p className="text-sm text-(--text-secondary) mb-1">
                   Total Value
                 </p>
-                <p className="text-2xl font-bold text-[var(--text-primary)]">
+                <p className="text-2xl font-bold text-(--text-primary)">
                   ₦{totalAmount.toLocaleString()}
                 </p>
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-[var(--text-secondary)] mb-1">
-                  Signed
-                </p>
-                <p className="text-2xl font-bold text-[var(--color-lemon-green)]">
+                <p className="text-sm text-(--text-secondary) mb-1">Signed</p>
+                <p className="text-2xl font-bold text-(--color-lemon-green)">
                   {signedReceipt}
                 </p>
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm text-[var(--text-secondary)] mb-1">
-                  Pending
-                </p>
-                <p className="text-2xl font-bold text-[var(--color-accent-yellow)]">
+                <p className="text-sm text-(--text-secondary) mb-1">Pending</p>
+                <p className="text-2xl font-bold text-(--color-accent-yellow)">
                   {pendingReceipt + draftReceipt}
                 </p>
               </div>
@@ -233,10 +229,10 @@ export default function ReceiptGen({
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex flex-wrap gap-2 mb-4 bg-[var(--bg-secondary)] p-1 rounded-xl">
-          <TabsTrigger 
+        <TabsList className="flex flex-wrap gap-2 mb-4 bg-(--bg-secondary) p-1 rounded-xl">
+          <TabsTrigger
             value="Receipts"
-            className="data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--color-accent-yellow)] text-[var(--text-secondary)] squircle-md"
+            className="data-[state=active]:bg-(--bg-primary) data-[state=active]:text-(--color-accent-yellow) text-(--text-secondary) squircle-md"
           >
             All Receipts
           </TabsTrigger>
@@ -246,7 +242,7 @@ export default function ReceiptGen({
             className={`squircle-md ${
               hasReachedLimit && !hasUnlimitedReceipts
                 ? "opacity-50 cursor-not-allowed"
-                : "data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--color-accent-yellow)] text-[var(--text-secondary)]"
+                : "data-[state=active]:bg-(--bg-primary) data-[state=active]:text-(--color-accent-yellow) text-(--text-secondary)"
             }`}
           >
             Create Receipt
@@ -255,17 +251,17 @@ export default function ReceiptGen({
 
         <TabsContent value="Receipts" className="space-y-6">
           {/* Search and Filter */}
-          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardContent className="pt-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 {/* Search Input */}
                 <div className="relative w-full sm:flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) w-4 h-4" />
                   <Input
                     placeholder="Search by client name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-full border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="pl-10 w-full border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
@@ -281,8 +277,8 @@ export default function ReceiptGen({
                       size="sm"
                       className={`transition-all duration-300 ${
                         selectedStatus === status
-                          ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-                          : "border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                          ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+                          : "border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
                       } squircle-sm`}
                       onClick={() => setSelectedStatus(status)}
                     >
@@ -297,7 +293,7 @@ export default function ReceiptGen({
                     className={`w-full sm:w-auto transition-all duration-300 squircle-md ${
                       hasReachedLimit && !hasUnlimitedReceipts
                         ? "bg-gray-400 cursor-not-allowed dark:bg-gray-600"
-                        : "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                        : "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                     }`}
                     onClick={handleCreateClick}
                     disabled={hasReachedLimit && !hasUnlimitedReceipts}

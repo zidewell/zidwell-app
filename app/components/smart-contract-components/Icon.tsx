@@ -9,7 +9,7 @@ interface IconProps {
 const Icon: React.FC<IconProps> = ({ children, className }) => {
   return (
     <div
-      className={`w-12 h-12 rounded-full bg-[var(--color-accent-yellow)]/10 flex items-center justify-center ${className}`}
+      className={`w-12 h-12 rounded-full bg-(--color-accent-yellow)/10 flex items-center justify-center ${className}`}
     >
       {children}
     </div>

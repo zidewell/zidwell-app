@@ -52,7 +52,7 @@ import Link from "next/link";
 
 // Import separated components
 import { ReceiptSummary } from "./ReceiptSummary";
-import { SignaturePad } from "./SignaturePanel"; 
+import { SignaturePad } from "./SignaturePanel";
 import { ReceiptItemsForm } from "./ReceiptItemsForm";
 import { ReceiptTypeSelector } from "./ReceiptTypeSelector";
 
@@ -1356,7 +1356,7 @@ function CreateReceiptPage({
   };
 
   const customFocusStyle =
-    "focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:ring-offset-2 focus:border-[var(--color-accent-yellow)] transition-all duration-200 outline-none";
+    "focus:ring-2 focus:ring-(--color-accent-yellow) focus:ring-offset-2 focus:border-(--color-accent-yellow) transition-all duration-200 outline-none";
 
   // Get tier display name
   const getTierDisplayName = () => {
@@ -1372,14 +1372,14 @@ function CreateReceiptPage({
       {/* Upgrade Prompt Modal - Only show for free and ZidLite tiers */}
       {showUpgradePrompt && !hasUnlimitedReceipts && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--bg-primary)] rounded-xl max-w-md w-full p-6 shadow-pop border border-[var(--border-color)] squircle-lg">
+          <div className="bg-(--bg-primary) rounded-xl max-w-md w-full p-6 shadow-pop border border-(--border-color) squircle-lg">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Crown className="w-6 h-6 text-red-600" />
             </div>
-            <h3 className="text-xl font-bold text-center mb-2 text-[var(--text-primary)]">
+            <h3 className="text-xl font-bold text-center mb-2 text-(--text-primary)">
               Upgrade Required
             </h3>
-            <p className="text-[var(--text-secondary)] text-center mb-6">
+            <p className="text-(--text-secondary) text-center mb-6">
               {isZidLiteUser
                 ? "You've used all your ZidLite receipts. Upgrade to continue creating receipts with unlimited access!"
                 : "You've used all your free receipts. Upgrade to continue creating receipts with unlimited access!"}
@@ -1387,13 +1387,13 @@ function CreateReceiptPage({
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+                className="flex-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) squircle-md"
                 onClick={() => setShowUpgradePrompt(false)}
               >
                 Cancel
               </Button>
               <Link href="/pricing?upgrade=growth" className="flex-1">
-                <Button className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
+                <Button className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md">
                   View Plans
                 </Button>
               </Link>
@@ -1439,7 +1439,7 @@ function CreateReceiptPage({
                   : typeof receiptUsage.remaining === "number" &&
                       receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
                     ? "bg-yellow-50 border-yellow-200"
-                    : "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]"
+                    : "bg-(--color-accent-yellow)/10 border-(--color-accent-yellow)"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -1450,7 +1450,7 @@ function CreateReceiptPage({
                       : typeof receiptUsage.remaining === "number" &&
                           receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
                         ? "text-yellow-500"
-                        : "text-[var(--color-accent-yellow)]"
+                        : "text-(--color-accent-yellow)"
                   }`}
                 />
                 <div className="flex-1">
@@ -1461,7 +1461,7 @@ function CreateReceiptPage({
                         : typeof receiptUsage.remaining === "number" &&
                             receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
                           ? "text-yellow-700"
-                          : "text-[var(--color-accent-yellow)]"
+                          : "text-(--color-accent-yellow)"
                     }`}
                   >
                     {receiptUsage.requiresUpgrade
@@ -1470,7 +1470,7 @@ function CreateReceiptPage({
                         : "Free receipts exhausted - Upgrade required"
                       : `${receiptUsage.remaining} receipt${receiptUsage.remaining !== 1 ? "s" : ""} remaining`}
                   </p>
-                  <p className="text-sm text-[var(--text-secondary)] mt-1">
+                  <p className="text-sm text-(--text-secondary) mt-1">
                     {receiptUsage.requiresUpgrade
                       ? "Upgrade to Growth plan or higher for unlimited receipts."
                       : `You have ${receiptUsage.remaining} ${isZidLiteUser ? "ZidLite" : "free"} ${receiptUsage.remaining === 1 ? "receipt" : "receipts"} left.`}
@@ -1487,9 +1487,9 @@ function CreateReceiptPage({
                 isEliteUser
                   ? "bg-purple-50 border-purple-200"
                   : isPremiumUser
-                    ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]"
+                    ? "bg-(--color-accent-yellow)/10 border-(--color-accent-yellow)"
                     : isGrowthUser
-                      ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]"
+                      ? "bg-(--color-accent-yellow)/10 border-(--color-accent-yellow)"
                       : "bg-blue-50 border-blue-200"
               } border rounded-lg max-w-3xl mx-auto squircle-md`}
             >
@@ -1498,9 +1498,9 @@ function CreateReceiptPage({
                   isEliteUser
                     ? "text-purple-600"
                     : isPremiumUser
-                      ? "text-[var(--color-accent-yellow)]"
+                      ? "text-(--color-accent-yellow)"
                       : isGrowthUser
-                        ? "text-[var(--color-accent-yellow)]"
+                        ? "text-(--color-accent-yellow)"
                         : "text-blue-600"
                 } font-medium flex items-center gap-2 text-sm`}
               >
@@ -1509,9 +1509,9 @@ function CreateReceiptPage({
                     isEliteUser
                       ? "bg-purple-600"
                       : isPremiumUser
-                        ? "bg-[var(--color-accent-yellow)]"
+                        ? "bg-(--color-accent-yellow)"
                         : isGrowthUser
-                          ? "bg-[var(--color-accent-yellow)]"
+                          ? "bg-(--color-accent-yellow)"
                           : "bg-blue-600"
                   } text-white px-2 py-0.5 rounded text-xs uppercase`}
                 >
@@ -1532,17 +1532,17 @@ function CreateReceiptPage({
             }
             className="w-full mb-6"
           >
-            <TabsList className="grid w-full grid-cols-2 bg-[var(--bg-secondary)] p-1 rounded-xl">
-              <TabsTrigger 
-                value="create" 
-                className="flex items-center gap-2 data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--color-accent-yellow)] text-[var(--text-secondary)] squircle-md"
+            <TabsList className="grid w-full grid-cols-2 bg-(--bg-secondary) p-1 rounded-xl">
+              <TabsTrigger
+                value="create"
+                className="flex items-center gap-2 data-[state=active]:bg-(--bg-primary) data-[state=active]:text-(--color-accent-yellow) text-(--text-secondary) squircle-md"
               >
                 <FileText className="w-4 h-4" />
                 Create Receipt
               </TabsTrigger>
-              <TabsTrigger 
-                value="preview" 
-                className="flex items-center gap-2 data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--color-accent-yellow)] text-[var(--text-secondary)] squircle-md"
+              <TabsTrigger
+                value="preview"
+                className="flex items-center gap-2 data-[state=active]:bg-(--bg-primary) data-[state=active]:text-(--color-accent-yellow) text-(--text-secondary) squircle-md"
               >
                 <Eye className="w-4 h-4" />
                 Preview Receipt
@@ -1570,7 +1570,7 @@ function CreateReceiptPage({
                       }
                       router.back();
                     }}
-                    className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
+                    className="text-(--color-accent-yellow) hover:bg-(--bg-secondary)"
                     disabled={isProcessing}
                   >
                     <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1578,10 +1578,10 @@ function CreateReceiptPage({
                   </Button>
 
                   <div>
-                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+                    <h1 className="text-2xl font-bold text-(--text-primary)">
                       Create Receipt
                     </h1>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-(--text-secondary)">
                       Generate a receipt for your transaction
                     </p>
                   </div>
@@ -1597,7 +1597,7 @@ function CreateReceiptPage({
                           : typeof receiptUsage.remaining === "number" &&
                               receiptUsage.remaining <= (isZidLiteUser ? 3 : 2)
                             ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                            : "bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]"
+                            : "bg-(--color-accent-yellow)/20 text-(--color-accent-yellow) border-(--color-accent-yellow)"
                       }
                     >
                       {receiptUsage.requiresUpgrade
@@ -1640,7 +1640,7 @@ function CreateReceiptPage({
                   {sellerSignature && (
                     <Badge
                       variant="outline"
-                      className="bg-[var(--color-lemon-green)]/20 text-[var(--color-lemon-green)] border-[var(--color-lemon-green)]"
+                      className="bg-(--color-lemon-green)/20 text-(--color-lemon-green) border-(--color-lemon-green)"
                     >
                       ✓ Signed
                     </Badge>
@@ -1649,7 +1649,7 @@ function CreateReceiptPage({
               </div>
 
               {/* Create Receipt Form */}
-              <div className="md:max-w-3xl mx-auto bg-[var(--bg-primary)] p-6 rounded-lg shadow-soft border border-[var(--border-color)] squircle-lg">
+              <div className="md:max-w-3xl mx-auto bg-(--bg-primary) p-6 rounded-lg shadow-soft border border-(--border-color) squircle-lg">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -1671,8 +1671,8 @@ function CreateReceiptPage({
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.1s" }}
                   >
-                    <h2 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
+                    <h2 className="text-lg font-semibold text-(--text-primary) flex items-center gap-2">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-(--color-accent-yellow) text-(--color-ink)">
                         1
                       </span>
                       Seller Information
@@ -1681,7 +1681,7 @@ function CreateReceiptPage({
                       <div className="sm:col-span-2">
                         <Label
                           htmlFor="seller-name"
-                          className="flex items-center gap-1 text-[var(--text-secondary)]"
+                          className="flex items-center gap-1 text-(--text-secondary)"
                         >
                           Business / Individual Name{" "}
                           <span className="text-red-500">*</span>
@@ -1694,14 +1694,19 @@ function CreateReceiptPage({
                           onChange={(e) =>
                             setSeller({ ...seller, name: e.target.value })
                           }
-                          className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                          className={`mt-1.5 bg-(--bg-primary) text-(--text-primary) border-(--border-color) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${customFocusStyle}`}
                           disabled={isFormLocked || isProcessing}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="seller-phone" className="text-[var(--text-secondary)]">Phone (Optional)</Label>
+                        <Label
+                          htmlFor="seller-phone"
+                          className="text-(--text-secondary)"
+                        >
+                          Phone (Optional)
+                        </Label>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-4 w-4" />
+                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) h-4 w-4" />
                           <Input
                             id="seller-phone"
                             ref={sellerPhoneRef}
@@ -1710,7 +1715,7 @@ function CreateReceiptPage({
                             onChange={(e) =>
                               setSeller({ ...seller, phone: e.target.value })
                             }
-                            className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pl-10 ${customFocusStyle}`}
+                            className={`mt-1.5 bg-(--bg-primary) text-(--text-primary) border-(--border-color) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) pl-10 ${customFocusStyle}`}
                             disabled={isFormLocked || isProcessing}
                           />
                         </div>
@@ -1718,12 +1723,12 @@ function CreateReceiptPage({
                       <div>
                         <Label
                           htmlFor="seller-email"
-                          className="flex items-center gap-1 text-[var(--text-secondary)]"
+                          className="flex items-center gap-1 text-(--text-secondary)"
                         >
                           Email <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-4 w-4" />
+                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) h-4 w-4" />
                           <Input
                             id="seller-email"
                             ref={sellerEmailRef}
@@ -1733,7 +1738,7 @@ function CreateReceiptPage({
                             onChange={(e) =>
                               setSeller({ ...seller, email: e.target.value })
                             }
-                            className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pl-10 ${customFocusStyle}`}
+                            className={`mt-1.5 bg-(--bg-primary) text-(--text-primary) border-(--border-color) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) pl-10 ${customFocusStyle}`}
                             disabled={isFormLocked || isProcessing}
                           />
                         </div>
@@ -1746,8 +1751,8 @@ function CreateReceiptPage({
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.15s" }}
                   >
-                    <h2 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
+                    <h2 className="text-lg font-semibold text-(--text-primary) flex items-center gap-2">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-(--color-accent-yellow) text-(--color-ink)">
                         2
                       </span>
                       Receiver Information
@@ -1757,7 +1762,7 @@ function CreateReceiptPage({
                       <div>
                         <Label
                           htmlFor="receiver-name"
-                          className="flex items-center gap-1 text-[var(--text-secondary)]"
+                          className="flex items-center gap-1 text-(--text-secondary)"
                         >
                           Name (Individual or Business){" "}
                           <span className="text-red-500">*</span>
@@ -1765,21 +1770,26 @@ function CreateReceiptPage({
                         <Input
                           id="receiver-name"
                           ref={receiverNameRef}
-                          placeholder="Enter receiver's full name"
+                          placeholder="Enter name"
                           value={receiver.name}
                           onChange={(e) =>
                             setReceiver({ ...receiver, name: e.target.value })
                           }
-                          className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                          className={`mt-1.5 bg-(--bg-primary) text-(--text-primary) border-(--border-color) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${customFocusStyle}`}
                           disabled={isFormLocked || isProcessing}
                         />
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="receiver-email" className="text-[var(--text-secondary)]">Email (Optional)</Label>
+                          <Label
+                            htmlFor="receiver-email"
+                            className="text-(--text-secondary)"
+                          >
+                            Email (Optional)
+                          </Label>
                           <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-4 w-4" />
+                            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) h-4 w-4" />
                             <Input
                               id="receiver-email"
                               ref={receiverEmailRef}
@@ -1792,7 +1802,7 @@ function CreateReceiptPage({
                                   email: e.target.value,
                                 })
                               }
-                              className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pl-10 ${customFocusStyle}`}
+                              className={`mt-1.5 bg-(--bg-primary) text-(--text-primary) border-(--border-color) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) pl-10 ${customFocusStyle}`}
                               disabled={isFormLocked || isProcessing}
                             />
                           </div>
@@ -1807,9 +1817,14 @@ function CreateReceiptPage({
                         </div>
 
                         <div>
-                          <Label htmlFor="receiver-phone" className="text-[var(--text-secondary)]">Phone (Optional)</Label>
+                          <Label
+                            htmlFor="receiver-phone"
+                            className="text-(--text-secondary)"
+                          >
+                            Phone (Optional)
+                          </Label>
                           <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] h-4 w-4" />
+                            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) h-4 w-4" />
                             <Input
                               id="receiver-phone"
                               ref={receiverPhoneRef}
@@ -1821,7 +1836,7 @@ function CreateReceiptPage({
                                   phone: e.target.value,
                                 })
                               }
-                              className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] pl-10 ${customFocusStyle}`}
+                              className={`mt-1.5 bg-(--bg-primary) text-(--text-primary) border-(--border-color) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) pl-10 ${customFocusStyle}`}
                               disabled={isFormLocked || isProcessing}
                             />
                           </div>
@@ -1835,8 +1850,8 @@ function CreateReceiptPage({
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.2s" }}
                   >
-                    <h2 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
+                    <h2 className="text-lg font-semibold text-(--text-primary) flex items-center gap-2">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-(--color-accent-yellow) text-(--color-ink)">
                         3
                       </span>
                       Transaction Details
@@ -1849,10 +1864,10 @@ function CreateReceiptPage({
 
                     <div className="p-4">
                       <div className="flex justify-between items-center">
-                        <span className="text-lg text-[var(--text-secondary)] font-semibold">
+                        <span className="text-lg text-(--text-secondary) font-semibold">
                           Total
                         </span>
-                        <span className="text-2xl font-bold text-[var(--color-accent-yellow)]">
+                        <span className="text-2xl font-bold text-(--color-accent-yellow)">
                           ₦
                           {calculateTotal().toLocaleString("en-NG", {
                             minimumFractionDigits: 2,
@@ -1863,7 +1878,12 @@ function CreateReceiptPage({
                     </div>
 
                     <div className="pt-2">
-                      <Label htmlFor="payment-method" className="text-[var(--text-secondary)]">Payment Method</Label>
+                      <Label
+                        htmlFor="payment-method"
+                        className="text-(--text-secondary)"
+                      >
+                        Payment Method
+                      </Label>
                       <Select
                         value={paymentMethod}
                         onValueChange={(v) =>
@@ -1872,13 +1892,15 @@ function CreateReceiptPage({
                         disabled={isFormLocked || isProcessing}
                       >
                         <SelectTrigger
-                          className={`mt-1.5 bg-[var(--bg-primary)] text-[var(--text-primary)] border-[var(--border-color)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${customFocusStyle}`}
+                          className={`mt-1.5 bg-(--bg-primary) text-(--text-primary) border-(--border-color) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${customFocusStyle}`}
                         >
                           <SelectValue placeholder="Select payment method" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                        <SelectContent className="bg-(--bg-primary) border border-(--border-color)">
                           <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="transfer">Bank Transfer</SelectItem>
+                          <SelectItem value="transfer">
+                            Bank Transfer
+                          </SelectItem>
                           <SelectItem value="card">Card</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
@@ -1891,8 +1913,8 @@ function CreateReceiptPage({
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.25s" }}
                   >
-                    <h2 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
+                    <h2 className="text-lg font-semibold text-(--text-primary) flex items-center gap-2">
+                      <span className="h-6 w-6 rounded-full text-xs flex items-center justify-center font-bold bg-(--color-accent-yellow) text-(--color-ink)">
                         4
                       </span>
                       Your Signature
@@ -1902,20 +1924,19 @@ function CreateReceiptPage({
                       onChange={handleSignatureChange}
                       label="Seller Signature (Optional)"
                       disabled={isFormLocked || isProcessing}
-                    
                     />
 
                     {/* Toggle Button for Saving Signature */}
-                    <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] squircle-md">
+                    <div className="flex items-center justify-between p-3 bg-(--bg-secondary) rounded-lg border border-(--border-color) squircle-md">
                       <div className="flex items-center space-x-3">
                         <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
                           <Save className="h-4 w-4 text-blue-600" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-[var(--text-primary)]">
+                          <p className="text-sm font-medium text-(--text-primary)">
                             Save this signature for future use
                           </p>
-                          <p className="text-xs text-[var(--text-secondary)]">
+                          <p className="text-xs text-(--text-secondary)">
                             Your signature will be securely stored
                           </p>
                         </div>
@@ -1924,37 +1945,38 @@ function CreateReceiptPage({
                         checked={saveSignatureForFuture}
                         onCheckedChange={handleSaveSignatureToggle}
                         disabled={!sellerSignature || isProcessing}
-                        className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
+                        className="data-[state=checked]:bg-(--color-accent-yellow)"
                       />
                     </div>
                   </div>
 
                   {/* Email Automation Toggle */}
                   <div
-                    className="space-y-4 animate-fade-in border-t border-[var(--border-color)] pt-6"
+                    className="space-y-4 animate-fade-in border-t border-(--border-color) pt-6"
                     style={{ animationDelay: "0.3s" }}
                   >
-                    <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] squircle-md">
+                    <div className="flex items-center justify-between p-3 bg-(--bg-secondary) rounded-lg border border-(--border-color) squircle-md">
                       <div className="flex items-center space-x-3">
-                        <div className="h-8 w-8 rounded-full bg-[var(--color-lemon-green)]/20 flex items-center justify-center">
+                        <div className="h-8 w-8 rounded-full bg-(--color-lemon-green)/20 flex items-center justify-center">
                           {sendEmailAutomatically ? (
-                            <Mail className="h-4 w-4 text-[var(--color-lemon-green)]" />
+                            <Mail className="h-4 w-4 text-(--color-lemon-green)" />
                           ) : (
-                            <Mail className="h-4 w-4 text-[var(--text-secondary)]" />
+                            <Mail className="h-4 w-4 text-(--text-secondary)" />
                           )}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-[var(--text-primary)]">
+                          <p className="text-sm font-medium text-(--text-primary)">
                             Send receipt automatically to client
                           </p>
-                          <p className="text-xs text-[var(--text-secondary)]">
+                          <p className="text-xs text-(--text-secondary)">
                             {sendEmailAutomatically
                               ? "An email will be sent to the client with the receipt link"
                               : "You'll need to share the receipt link manually with the client"}
                           </p>
                           {sendEmailAutomatically && !receiver.email && (
                             <p className="text-xs text-yellow-600 mt-1">
-                              ⚠️ Client email is required for automatic email sending
+                              ⚠️ Client email is required for automatic email
+                              sending
                             </p>
                           )}
                         </div>
@@ -1963,7 +1985,7 @@ function CreateReceiptPage({
                         checked={sendEmailAutomatically}
                         onCheckedChange={setSendEmailAutomatically}
                         disabled={isProcessing}
-                        className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
+                        className="data-[state=checked]:bg-(--color-accent-yellow)"
                       />
                     </div>
                   </div>
@@ -1980,7 +2002,7 @@ function CreateReceiptPage({
                         isFormLocked ||
                         isSubmitting
                       }
-                      className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 squircle-md"
+                      className="flex-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 squircle-md"
                     >
                       {draftLoading ? (
                         <>
@@ -1998,7 +2020,7 @@ function CreateReceiptPage({
                       type="submit"
                       variant="default"
                       size="lg"
-                      className={`flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 focus:ring-2 focus:ring-offset-2 focus:ring-[var(--color-accent-yellow)] squircle-md`}
+                      className={`flex-1 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 focus:ring-2 focus:ring-offset-2 focus:ring-(--color-accent-yellow) squircle-md`}
                       disabled={
                         isProcessing ||
                         isSubmitting ||
@@ -2029,7 +2051,7 @@ function CreateReceiptPage({
                             <Link href="/pricing?upgrade=growth">
                               <Button
                                 size="sm"
-                                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-sm"
+                                className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-sm"
                               >
                                 Upgrade Now
                               </Button>
@@ -2064,7 +2086,7 @@ function CreateReceiptPage({
                       }
                       router.back();
                     }}
-                    className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
+                    className="text-(--color-accent-yellow) hover:bg-(--bg-secondary)"
                     disabled={isProcessing}
                   >
                     <ArrowLeft className="w-4 h-4 mr-2" />
@@ -2072,10 +2094,10 @@ function CreateReceiptPage({
                   </Button>
 
                   <div>
-                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+                    <h1 className="text-2xl font-bold text-(--text-primary)">
                       Receipt Preview
                     </h1>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-(--text-secondary)">
                       Live preview of your receipt as you fill out the form
                     </p>
                   </div>
@@ -2113,8 +2135,8 @@ function CreateReceiptPage({
                 />
 
                 {/* Action Buttons */}
-                <div className="flex justify-between items-center pt-4 border-t border-[var(--border-color)]">
-                  <div className="text-sm text-[var(--text-secondary)]">
+                <div className="flex justify-between items-center pt-4 border-t border-(--border-color)">
+                  <div className="text-sm text-(--text-secondary)">
                     <p>
                       Switch to the "Create Receipt" tab to edit your receipt
                     </p>
@@ -2122,7 +2144,7 @@ function CreateReceiptPage({
                   <Button
                     variant="outline"
                     onClick={() => setActiveTab("create")}
-                    className="border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 squircle-md"
+                    className="border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10 squircle-md"
                   >
                     <EyeOff className="h-4 w-4 mr-2" />
                     Back to Editor
@@ -2145,7 +2167,7 @@ export default function CreateReceipt({
     <Suspense
       fallback={
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-accent-yellow)]"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--color-accent-yellow)"></div>
         </div>
       }
     >

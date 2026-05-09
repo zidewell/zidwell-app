@@ -255,24 +255,24 @@ const BusinessKYCTab: React.FC = () => {
     .filter(Boolean).length;
 
   const inputClassName = (field: string) => `
-    w-full bg-[var(--bg-primary)] border-2 px-3 py-2 text-sm font-body text-[var(--text-primary)] 
-    placeholder:text-[var(--text-secondary)] focus:outline-none transition-colors rounded-md
-    ${errors[field] ? "border-red-500" : "border-[var(--color-accent-yellow)]"}
-    focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 disabled:opacity-50 disabled:cursor-not-allowed
+    w-full bg-(--bg-primary) border-2 px-3 py-2 text-sm font-body text-(--text-primary) 
+    placeholder:text-(--text-secondary) focus:outline-none transition-colors rounded-md
+    ${errors[field] ? "border-red-500" : "border-(--color-accent-yellow)"}
+    focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20 disabled:opacity-50 disabled:cursor-not-allowed
   `;
 
   if (fetchLoading) {
     return (
-      <div className="neo-card bg-[var(--bg-primary)] p-6 flex justify-center items-center h-64 border border-[var(--border-color)] rounded-xl shadow-soft">
+      <div className="neo-card bg-(--bg-primary) p-6 flex justify-center items-center h-64 border border-(--border-color) rounded-xl shadow-soft">
         <Loader />
       </div>
     );
   }
 
   return (
-    <div className="neo-card bg-[var(--bg-primary)] p-6 space-y-5 border border-[var(--border-color)] rounded-xl shadow-soft">
+    <div className="neo-card bg-(--bg-primary) p-6 space-y-5 border border-(--border-color) rounded-xl shadow-soft">
       <div>
-        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+        <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
           Business Name
         </label>
         <input
@@ -290,16 +290,16 @@ const BusinessKYCTab: React.FC = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+          <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
             Business Type
           </label>
           <select
             value={formData.businessType}
             onChange={(e) => handleChange("businessType", e.target.value)}
-            className={`w-full bg-[var(--bg-primary)] border-2 px-3 py-2 text-sm font-body text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed appearance-none ${
+            className={`w-full bg-(--bg-primary) border-2 px-3 py-2 text-sm font-body text-(--text-primary) focus:outline-none focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed appearance-none ${
               errors.businessType
                 ? "border-red-500"
-                : "border-[var(--color-accent-yellow)]"
+                : "border-(--color-accent-yellow)"
             }`}
             disabled={loading}
           >
@@ -315,7 +315,7 @@ const BusinessKYCTab: React.FC = () => {
           )}
         </div>
         <div>
-          <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+          <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
             BN/RC Number
           </label>
           <input
@@ -333,7 +333,7 @@ const BusinessKYCTab: React.FC = () => {
       </div>
 
       <div>
-        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+        <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
           Tax ID (TIN)
         </label>
         <input
@@ -351,23 +351,23 @@ const BusinessKYCTab: React.FC = () => {
 
       {/* CAC Upload */}
       <div>
-        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+        <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
           CAC Certificate
         </label>
         <div
           onClick={() => !loading && fileRef.current?.click()}
-          className={`w-full border-2 border-dashed p-4 text-center cursor-pointer hover:border-[var(--color-accent-yellow)] transition-colors rounded-md ${
+          className={`w-full border-2 border-dashed p-4 text-center cursor-pointer hover:border-(--color-accent-yellow) transition-colors rounded-md ${
             loading
-              ? "opacity-50 cursor-not-allowed border-[var(--color-accent-yellow)]"
-              : "border-[var(--color-accent-yellow)]"
+              ? "opacity-50 cursor-not-allowed border-(--color-accent-yellow)"
+              : "border-(--color-accent-yellow)"
           }`}
         >
           {cacFileName ? (
-            <span className="text-sm font-body text-[var(--text-primary)]">
+            <span className="text-sm font-body text-(--text-primary)">
               {cacFileName}
             </span>
           ) : (
-            <span className="text-sm font-body text-[var(--text-secondary)]">
+            <span className="text-sm font-body text-(--text-secondary)">
               Click to upload CAC certificate (PDF, JPG, PNG) - Max 5MB
             </span>
           )}
@@ -383,7 +383,7 @@ const BusinessKYCTab: React.FC = () => {
       </div>
 
       <div>
-        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+        <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
           Business Address
         </label>
         <input
@@ -401,23 +401,23 @@ const BusinessKYCTab: React.FC = () => {
 
       {/* Utility Bill Upload - Address Verification */}
       <div>
-        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+        <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
           Utility Bill (Address Verification)
         </label>
         <div
           onClick={() => !loading && utilityRef.current?.click()}
-          className={`w-full border-2 border-dashed p-4 text-center cursor-pointer hover:border-[var(--color-accent-yellow)] transition-colors rounded-md ${
+          className={`w-full border-2 border-dashed p-4 text-center cursor-pointer hover:border-(--color-accent-yellow) transition-colors rounded-md ${
             loading
-              ? "opacity-50 cursor-not-allowed border-[var(--color-accent-yellow)]"
-              : "border-[var(--color-accent-yellow)]"
+              ? "opacity-50 cursor-not-allowed border-(--color-accent-yellow)"
+              : "border-(--color-accent-yellow)"
           }`}
         >
           {utilityFileName ? (
-            <span className="text-sm font-body text-[var(--text-primary)]">
+            <span className="text-sm font-body text-(--text-primary)">
               {utilityFileName}
             </span>
           ) : (
-            <span className="text-sm font-body text-[var(--text-secondary)]">
+            <span className="text-sm font-body text-(--text-secondary)">
               Upload a recent utility bill (PDF, JPG, PNG — max 5MB)
             </span>
           )}
@@ -430,15 +430,15 @@ const BusinessKYCTab: React.FC = () => {
           onChange={handleUtilityUpload}
           disabled={loading}
         />
-        <p className="text-xs font-body text-[var(--text-secondary)] mt-1.5">
+        <p className="text-xs font-body text-(--text-secondary) mt-1.5">
           Electricity, water, or waste bill matching your business address.
         </p>
       </div>
 
       <div>
-        <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+        <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
           Business Description
-          <span className="ml-2 text-xs text-[var(--text-secondary)]">
+          <span className="ml-2 text-xs text-(--text-secondary)">
             ({descWordCount}/100 words)
           </span>
         </label>
@@ -454,7 +454,7 @@ const BusinessKYCTab: React.FC = () => {
             }
           }}
           rows={4}
-          className="w-full bg-[var(--bg-primary)] border-2 border-[var(--color-accent-yellow)] px-3 py-2 text-sm font-body text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 transition-colors rounded-md resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-(--bg-primary) border-2 border-(--color-accent-yellow) px-3 py-2 text-sm font-body text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20 transition-colors rounded-md resize-none disabled:opacity-50 disabled:cursor-not-allowed"
           placeholder="Describe your business activities"
           disabled={loading}
         />
@@ -465,7 +465,7 @@ const BusinessKYCTab: React.FC = () => {
         type="button"
         onClick={handleSave}
         disabled={loading}
-        className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] md:w-[200px] py-3 px-4 rounded-md transition-all disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+        className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) md:w-[200px] py-3 px-4 rounded-md transition-all disabled:opacity-50 font-medium flex items-center justify-center gap-2"
       >
         {loading ? (
           <>

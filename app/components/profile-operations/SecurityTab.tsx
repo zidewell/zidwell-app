@@ -22,10 +22,10 @@ const SecurityTab: React.FC = () => {
   const isBvnNotSubmitted = userData?.bvnVerification === "not_submitted";
 
   const inputClassName = (field: string) => `
-    w-full bg-[var(--bg-primary)] border-2 px-3 py-2 text-sm font-body text-[var(--text-primary)] 
-    placeholder:text-[var(--text-secondary)] focus:outline-none transition-colors rounded-md
-    ${errors[field] ? "border-red-500" : "border-[var(--color-accent-yellow)]"}
-    focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 disabled:opacity-50 disabled:cursor-not-allowed
+    w-full bg-(--bg-primary) border-2 px-3 py-2 text-sm font-body text-(--text-primary) 
+    placeholder:text-(--text-secondary) focus:outline-none transition-colors rounded-md
+    ${errors[field] ? "border-red-500" : "border-(--color-accent-yellow)"}
+    focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20 disabled:opacity-50 disabled:cursor-not-allowed
   `;
 
   const handlePasswordChange = async () => {
@@ -183,12 +183,12 @@ const SecurityTab: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Change Password */}
-      <div className="neo-card bg-[var(--bg-primary)] p-6 space-y-4 border border-[var(--border-color)] rounded-xl shadow-soft">
-        <h3 className="font-heading text-[var(--text-primary)] text-sm">
+      <div className="neo-card bg-(--bg-primary) p-6 space-y-4 border border-(--border-color) rounded-xl shadow-soft">
+        <h3 className="font-heading text-(--text-primary) text-sm">
           CHANGE PASSWORD
         </h3>
         <div>
-          <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+          <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
             Current Password
           </label>
           <input
@@ -208,7 +208,7 @@ const SecurityTab: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+            <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
               New Password
             </label>
             <input
@@ -225,7 +225,7 @@ const SecurityTab: React.FC = () => {
             )}
           </div>
           <div>
-            <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+            <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
               Confirm Password
             </label>
             <input
@@ -248,7 +248,7 @@ const SecurityTab: React.FC = () => {
           type="button"
           onClick={handlePasswordChange}
           disabled={loading.password}
-          className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] md:w-[200px] py-3 px-4 rounded-md transition-all disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+          className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) md:w-[200px] py-3 px-4 rounded-md transition-all disabled:opacity-50 font-medium flex items-center justify-center gap-2"
         >
           {loading.password ? (
             <>
@@ -262,9 +262,9 @@ const SecurityTab: React.FC = () => {
       </div>
 
       {/* Change PIN */}
-      <div className="neo-card bg-[var(--bg-primary)] p-6 space-y-4 border border-[var(--border-color)] rounded-xl shadow-soft">
+      <div className="neo-card bg-(--bg-primary) p-6 space-y-4 border border-(--border-color) rounded-xl shadow-soft">
         <div className="flex items-center justify-between">
-          <h3 className="font-heading text-[var(--text-primary)] text-sm">
+          <h3 className="font-heading text-(--text-primary) text-sm">
             CHANGE TRANSACTION PIN
           </h3>
           {isBvnNotSubmitted && (
@@ -289,7 +289,7 @@ const SecurityTab: React.FC = () => {
         )}
 
         <div>
-          <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+          <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
             Current PIN
           </label>
           <input
@@ -312,7 +312,7 @@ const SecurityTab: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+            <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
               New PIN
             </label>
             <input
@@ -334,7 +334,7 @@ const SecurityTab: React.FC = () => {
             )}
           </div>
           <div>
-            <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+            <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
               Confirm PIN
             </label>
             <input
@@ -363,7 +363,7 @@ const SecurityTab: React.FC = () => {
           className={`w-full md:w-[200px] py-3 px-4 rounded-md transition-all font-medium flex items-center justify-center gap-2 ${
             isBvnNotSubmitted
               ? "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-              : "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+              : "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
           }`}
         >
           {loading.pin ? (
@@ -380,8 +380,8 @@ const SecurityTab: React.FC = () => {
       </div>
 
       {/* Change Signature */}
-      <div className="neo-card bg-[var(--bg-primary)] p-6 space-y-4 border border-[var(--border-color)] rounded-xl shadow-soft">
-        <h3 className="font-heading text-[var(--text-primary)] text-sm">
+      <div className="neo-card bg-(--bg-primary) p-6 space-y-4 border border-(--border-color) rounded-xl shadow-soft">
+        <h3 className="font-heading text-(--text-primary) text-sm">
           CHANGE SIGNATURE
         </h3>
         <SignaturePanel

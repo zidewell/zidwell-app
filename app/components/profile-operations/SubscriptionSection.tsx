@@ -136,14 +136,14 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
         borderColor = "border-purple-200 dark:border-purple-800";
         break;
       case "premium":
-        bgColor = "bg-[var(--color-accent-yellow)]/10";
-        textColor = "text-[var(--color-accent-yellow)]";
-        borderColor = "border-[var(--color-accent-yellow)]";
+        bgColor = "bg-(--color-accent-yellow)/10";
+        textColor = "text-(--color-accent-yellow)";
+        borderColor = "border-(--color-accent-yellow)";
         break;
       case "growth":
-        bgColor = "bg-[var(--color-accent-yellow)]/10";
-        textColor = "text-[var(--color-accent-yellow)]";
-        borderColor = "border-[var(--color-accent-yellow)]/30";
+        bgColor = "bg-(--color-accent-yellow)/10";
+        textColor = "text-(--color-accent-yellow)";
+        borderColor = "border-(--color-accent-yellow)/30";
         break;
       case "zidlite":
         bgColor = "bg-blue-100 dark:bg-blue-900/20";
@@ -181,9 +181,9 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
   const currentPlanInfo = getTierInfo(currentTier as Tier);
 
   return (
-    <div className="neo-card bg-[var(--bg-primary)] p-6 border border-[var(--border-color)] rounded-xl shadow-soft">
+    <div className="neo-card bg-(--bg-primary) p-6 border border-(--border-color) rounded-xl shadow-soft">
       {/* Current Plan Summary */}
-      <div className="mb-6 p-4 rounded-lg border-2 border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/5">
+      <div className="mb-6 p-4 rounded-lg border-2 border-(--color-accent-yellow) bg-(--color-accent-yellow)/5">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             {currentPlanInfo?.icon && (
@@ -194,14 +194,14 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
               </div>
             )}
             <div>
-              <h4 className="font-semibold text-[var(--text-primary)]">
+              <h4 className="font-semibold text-(--text-primary)">
                 Current Plan: {currentPlanInfo?.name}
               </h4>
-              <p className="text-sm text-[var(--text-secondary)] mt-1">
+              <p className="text-sm text-(--text-secondary) mt-1">
                 {currentPlanInfo?.price} • {currentPlanInfo?.features[0]}
               </p>
               {currentPlanInfo?.yearlyPrice && (
-                <p className="text-xs text-[var(--color-accent-yellow)] mt-1">
+                <p className="text-xs text-(--color-accent-yellow) mt-1">
                   {currentPlanInfo.yearlyPrice}
                 </p>
               )}
@@ -211,7 +211,7 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
           {currentTier !== "elite" && (
             <button
               onClick={() => handleSubscribe("elite")}
-              className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+              className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
               Upgrade to Elite
@@ -220,7 +220,7 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
         </div>
       </div>
 
-      <h3 className="font-heading text-[var(--text-primary)] text-sm mb-5">
+      <h3 className="font-heading text-(--text-primary) text-sm mb-5">
         AVAILABLE PLANS
       </h3>
 
@@ -241,35 +241,35 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
               key={tier.id}
               className={`border-2 p-4 transition-all rounded-lg ${
                 isCurrent
-                  ? "border-[var(--color-accent-yellow)] shadow-[4px_4px_0px_rgba(253,192,32,0.3)]"
-                  : "border-[var(--border-color)] hover:shadow-[2px_2px_0px_rgba(253,192,32,0.2)]"
+                  ? "border-(--color-accent-yellow) shadow-[4px_4px_0px_rgba(253,192,32,0.3)]"
+                  : "border-(--border-color) hover:shadow-[2px_2px_0px_rgba(253,192,32,0.2)]"
               }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   {tier.icon && (
                     <tier.icon
-                      className={`w-4 h-4 ${isCurrent ? tierInfo?.textColor : "text-[var(--text-secondary)]"}`}
+                      className={`w-4 h-4 ${isCurrent ? tierInfo?.textColor : "text-(--text-secondary)"}`}
                     />
                   )}
                   <span
-                    className={`text-sm ${isCurrent ? "text-[var(--text-primary)] font-bold" : "text-[var(--text-secondary)]"}`}
+                    className={`text-sm ${isCurrent ? "text-(--text-primary) font-bold" : "text-(--text-secondary)"}`}
                   >
                     {tier.name}
                   </span>
                 </div>
                 {isCurrent && (
-                  <span className="text-[10px] text-[var(--color-accent-yellow)] border-2 border-[var(--color-accent-yellow)] px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] text-(--color-accent-yellow) border-2 border-(--color-accent-yellow) px-1.5 py-0.5 rounded">
                     CURRENT
                   </span>
                 )}
               </div>
 
-              <span className="text-lg font-heading text-[var(--text-primary)] block mb-1">
+              <span className="text-lg font-heading text-(--text-primary) block mb-1">
                 {tier.price}
               </span>
               {tier.yearlyPrice && (
-                <span className="text-[10px] text-[var(--color-accent-yellow)] block mb-3">
+                <span className="text-[10px] text-(--color-accent-yellow) block mb-3">
                   {tier.yearlyPrice}
                 </span>
               )}
@@ -278,9 +278,9 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
                 {tier.features.map((f, index) => (
                   <li
                     key={index}
-                    className="text-xs font-body text-[var(--text-secondary)] flex items-start gap-1"
+                    className="text-xs font-body text-(--text-secondary) flex items-start gap-1"
                   >
-                    <span className="text-[var(--color-accent-yellow)]">•</span>
+                    <span className="text-(--color-accent-yellow)">•</span>
                     <span>{f}</span>
                   </li>
                 ))}
@@ -292,10 +292,10 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
                   onClick={() => handleSubscribe(tier.id)}
                   className={`w-full mt-4 text-xs py-2 px-4 rounded-md transition-all font-medium ${
                     isUpgrade
-                      ? "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+                      ? "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
                       : isDowngrade
-                        ? "bg-transparent text-[var(--text-primary)] border-2 border-[var(--border-color)] hover:bg-[var(--bg-secondary)]"
-                        : "bg-transparent text-[var(--text-primary)] border-2 border-[var(--border-color)] hover:bg-[var(--bg-secondary)]"
+                        ? "bg-transparent text-(--text-primary) border-2 border-(--border-color) hover:bg-(--bg-secondary)"
+                        : "bg-transparent text-(--text-primary) border-2 border-(--border-color) hover:bg-(--bg-secondary)"
                   }`}
                 >
                   {isUpgrade ? "Upgrade" : "Switch to This Plan"}
@@ -304,7 +304,7 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
 
               {/* Show trial available for free users */}
               {isFree && tier.id === "zidlite" && (
-                <p className="text-[10px] text-center mt-2 text-[var(--color-accent-yellow)]">
+                <p className="text-[10px] text-center mt-2 text-(--color-accent-yellow)">
                   2-week free trial available
                 </p>
               )}
@@ -314,12 +314,12 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
       </div>
 
       {/* Plan Comparison Note */}
-      <p className="text-xs text-[var(--text-secondary)] text-center mt-6">
+      <p className="text-xs text-(--text-secondary) text-center mt-6">
         All plans include core features. Upgrade anytime to unlock more
         capabilities.
         <button
           onClick={() => router.push("/pricing")}
-          className="ml-1 text-[var(--color-accent-yellow)] hover:underline font-medium"
+          className="ml-1 text-(--color-accent-yellow) hover:underline font-medium"
         >
           View full comparison
         </button>

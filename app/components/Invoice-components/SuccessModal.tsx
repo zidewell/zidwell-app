@@ -27,11 +27,11 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-[var(--bg-primary)] rounded-lg p-6 max-w-2xl w-full mx-4 shadow-pop max-h-[90vh] overflow-y-auto border border-[var(--border-color)] squircle-lg">
+      <div className="bg-(--bg-primary) rounded-lg p-6 max-w-2xl w-full mx-4 shadow-pop max-h-[90vh] overflow-y-auto border border-(--border-color) squircle-lg">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-[var(--color-lemon-green)]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-(--color-lemon-green)/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-8 h-8 text-[var(--color-lemon-green)]"
+              className="w-8 h-8 text-(--color-lemon-green)"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -45,10 +45,10 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
             </svg>
           </div>
 
-          <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+          <h3 className="text-xl font-bold text-(--text-primary) mb-2">
             Invoice Created Successfully! 🎉
           </h3>
-          <p className="text-[var(--text-secondary)]">
+          <p className="text-(--text-secondary)">
             Your invoice has been generated and is ready to share.
           </p>
         </div>
@@ -57,7 +57,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
           <Button
             onClick={onDownloadPDF}
             disabled={pdfLoading}
-            className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
+            className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
           >
             <Download className="w-4 h-4 mr-2" />
             {pdfLoading ? "Generating PDF..." : "Download PDF"}
@@ -68,12 +68,12 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
               <Button
                 onClick={onCopyLink}
                 variant="outline"
-                className="w-full border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 squircle-md"
+                className="w-full border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10 squircle-md"
               >
                 <Link className="w-4 h-4 mr-2" />
                 Copy Invoice Link
               </Button>
-              <div className="text-xs text-[var(--text-secondary)] text-center">
+              <div className="text-xs text-(--text-secondary) text-center">
                 {allowMultiplePayments
                   ? "Share this link with multiple people - each provides their info and pays"
                   : "Share this invoice link with your client to view details and pay"}
@@ -84,7 +84,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
           <Button
             onClick={onClose}
             variant="outline"
-            className="w-full border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+            className="w-full border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) squircle-md"
           >
             Close
           </Button>

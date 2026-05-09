@@ -72,7 +72,10 @@ const Dashboard = () => {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
                 {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="p-3 sm:p-4 rounded-2xl bg-white dark:bg-[#121212] border border-[var(--border-color)]">
+                  <div
+                    key={i}
+                    className="p-3 sm:p-4 rounded-2xl bg-white dark:bg-[#121212] border border-(--border-color)"
+                  >
                     <div className="h-5 w-5 bg-gray-200 dark:bg-gray-700 rounded mb-2 animate-pulse"></div>
                     <div className="h-7 sm:h-8 w-20 sm:w-24 bg-gray-200 dark:bg-gray-700 rounded mb-1 animate-pulse"></div>
                     <div className="h-3 w-14 sm:w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
@@ -81,7 +84,10 @@ const Dashboard = () => {
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#121212] border border-[var(--border-color)]">
+                  <div
+                    key={i}
+                    className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#121212] border border-(--border-color)"
+                  >
                     <div className="h-32 rounded-xl bg-gray-200 dark:bg-gray-700 mb-4 animate-pulse"></div>
                     <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded mb-2 animate-pulse"></div>
                     <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded mb-4 animate-pulse"></div>
@@ -114,7 +120,7 @@ const Dashboard = () => {
             {/* Back Button */}
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors mb-4"
+              className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors mb-4"
             >
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
@@ -122,10 +128,10 @@ const Dashboard = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
               <div>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)]">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-(--text-primary)">
                   Payment Pages
                 </h1>
-                <p className="text-[var(--text-secondary)] text-xs sm:text-sm mt-1">
+                <p className="text-(--text-secondary) text-xs sm:text-sm mt-1">
                   {pages.length === 0
                     ? "Create your first payment page to start collecting money"
                     : `${pages.length} page${pages.length > 1 ? "s" : ""} created`}
@@ -136,19 +142,23 @@ const Dashboard = () => {
                   variant="outline"
                   onClick={handleRefresh}
                   disabled={isRefreshing}
-                  className="flex-1 sm:flex-none border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  className="flex-1 sm:flex-none border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                 >
-                  <RefreshCw className={`h-4 w-4 sm:mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+                  <RefreshCw
+                    className={`h-4 w-4 sm:mr-1 ${isRefreshing ? "animate-spin" : ""}`}
+                  />
+                  <span className="hidden sm:inline">
+                    {isRefreshing ? "Refreshing..." : "Refresh"}
+                  </span>
                 </Button>
                 <Button
                   variant="default"
                   onClick={() =>
                     router.push("/dashboard/services/payment/create")
                   }
-                  className="flex-1 sm:flex-none bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                  className="flex-1 sm:flex-none bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                 >
-                  <Plus className="h-4 w-4 sm:mr-1" /> 
+                  <Plus className="h-4 w-4 sm:mr-1" />
                   <span className="hidden sm:inline">New Page</span>
                 </Button>
               </div>
@@ -157,31 +167,41 @@ const Dashboard = () => {
             {/* Overview Stats */}
             {pages.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
-                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft">
-                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)] mb-2" />
-                  <div className="text-lg sm:text-2xl font-bold text-[var(--text-primary)]">
+                <div className="p-3 sm:p-4 rounded-2xl bg-(--bg-primary) border border-(--border-color) shadow-soft">
+                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-(--color-accent-yellow) mb-2" />
+                  <div className="text-lg sm:text-2xl font-bold text-(--text-primary)">
                     ₦{totalBalance.toLocaleString()}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-[var(--text-secondary)]">Total Balance</div>
+                  <div className="text-[10px] sm:text-xs text-(--text-secondary)">
+                    Total Balance
+                  </div>
                 </div>
-                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft">
-                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)] mb-2" />
-                  <div className="text-lg sm:text-2xl font-bold text-[var(--text-primary)]">
+                <div className="p-3 sm:p-4 rounded-2xl bg-(--bg-primary) border border-(--border-color) shadow-soft">
+                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-(--color-lemon-green) mb-2" />
+                  <div className="text-lg sm:text-2xl font-bold text-(--text-primary)">
                     ₦{totalRevenue.toLocaleString()}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-[var(--text-secondary)]">Total Revenue</div>
+                  <div className="text-[10px] sm:text-xs text-(--text-secondary)">
+                    Total Revenue
+                  </div>
                 </div>
-                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft">
-                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)] mb-2" />
-                  <div className="text-lg sm:text-2xl font-bold text-[var(--text-primary)]">{totalPayments}</div>
-                  <div className="text-[10px] sm:text-xs text-[var(--text-secondary)]">Total Payments</div>
+                <div className="p-3 sm:p-4 rounded-2xl bg-(--bg-primary) border border-(--border-color) shadow-soft">
+                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-(--color-accent-yellow) mb-2" />
+                  <div className="text-lg sm:text-2xl font-bold text-(--text-primary)">
+                    {totalPayments}
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-(--text-secondary)">
+                    Total Payments
+                  </div>
                 </div>
-                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft">
-                  <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)] mb-2" />
-                  <div className="text-lg sm:text-2xl font-bold text-[var(--text-primary)]">
+                <div className="p-3 sm:p-4 rounded-2xl bg-(--bg-primary) border border-(--border-color) shadow-soft">
+                  <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-(--color-accent-yellow) mb-2" />
+                  <div className="text-lg sm:text-2xl font-bold text-(--text-primary)">
                     {totalViews.toLocaleString()}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-[var(--text-secondary)]">Total Views</div>
+                  <div className="text-[10px] sm:text-xs text-(--text-secondary)">
+                    Total Views
+                  </div>
                 </div>
               </div>
             )}
@@ -211,15 +231,22 @@ const EmptyState = ({ onCreateClick }: { onCreateClick: () => void }) => (
   >
     <button
       onClick={onCreateClick}
-      className="group relative h-24 w-24 sm:h-32 sm:w-32 rounded-full bg-[var(--bg-secondary)] border-2 border-dashed border-[var(--border-color)] hover:border-[var(--color-accent-yellow)] flex items-center justify-center transition-all duration-300 mb-6"
+      className="group relative h-24 w-24 sm:h-32 sm:w-32 rounded-full bg-(--bg-secondary) border-2 border-dashed border-(--border-color) hover:border-(--color-accent-yellow) flex items-center justify-center transition-all duration-300 mb-6"
     >
-      <Plus className="h-8 w-8 sm:h-10 sm:w-10 text-[var(--text-secondary)] group-hover:text-[var(--color-accent-yellow)] transition-colors" />
+      <Plus className="h-8 w-8 sm:h-10 sm:w-10 text-(--text-secondary) group-hover:text-(--color-accent-yellow) transition-colors" />
     </button>
-    <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] mb-2">No pages yet</h2>
-    <p className="text-[var(--text-secondary)] text-xs sm:text-sm mb-6 text-center max-w-xs">
+    <h2 className="text-lg sm:text-xl font-bold text-(--text-primary) mb-2">
+      No pages yet
+    </h2>
+    <p className="text-(--text-secondary) text-xs sm:text-sm mb-6 text-center max-w-xs">
       Create a payment page to start collecting money from your customers
     </p>
-    <Button variant="default" size="default" onClick={onCreateClick} className="sm:text-base bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90">
+    <Button
+      variant="default"
+      size="default"
+      onClick={onCreateClick}
+      className="sm:text-base bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+    >
       <Plus className="h-4 w-4 mr-1" />
       Create Payment Page
     </Button>
@@ -244,7 +271,7 @@ const PageGrid = ({ pages }: { pages: any[] }) => {
           onClick={() =>
             router.push(`/dashboard/services/payment/page/${page.id}`)
           }
-          className="cursor-pointer group p-4 sm:p-5 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] hover:border-[var(--color-accent-yellow)] hover:shadow-lg transition-all duration-300"
+          className="cursor-pointer group p-4 sm:p-5 rounded-2xl bg-(--bg-primary) border border-(--border-color) hover:border-(--color-accent-yellow) hover:shadow-lg transition-all duration-300"
         >
           {page.coverImage ? (
             <div className="h-28 sm:h-32 rounded-xl bg-gray-100 mb-4 overflow-hidden">
@@ -256,17 +283,17 @@ const PageGrid = ({ pages }: { pages: any[] }) => {
               />
             </div>
           ) : (
-            <div className="h-28 sm:h-32 rounded-xl bg-[var(--bg-secondary)] mb-4 flex items-center justify-center">
-              <CreditCard className="h-7 w-7 sm:h-8 sm:w-8 text-[var(--text-secondary)]" />
+            <div className="h-28 sm:h-32 rounded-xl bg-(--bg-secondary) mb-4 flex items-center justify-center">
+              <CreditCard className="h-7 w-7 sm:h-8 sm:w-8 text-(--text-secondary)" />
             </div>
           )}
-          <h3 className="font-bold text-base sm:text-lg mb-1 text-[var(--text-primary)] group-hover:text-[var(--color-accent-yellow)] transition-colors line-clamp-1">
+          <h3 className="font-bold text-base sm:text-lg mb-1 text-(--text-primary) group-hover:text-(--color-accent-yellow) transition-colors line-clamp-1">
             {page.title}
           </h3>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-4 line-clamp-2">
+          <p className="text-xs sm:text-sm text-(--text-secondary) mb-4 line-clamp-2">
             {page.description || "No description"}
           </p>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-[var(--text-secondary)]">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-(--text-secondary)">
             <span className="flex items-center gap-1">
               <Wallet className="h-3 w-3" />₦
               {(page.pageBalance || 0).toLocaleString()}

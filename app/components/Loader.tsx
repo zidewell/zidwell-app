@@ -22,16 +22,16 @@ function Loader() {
     <div className="flex flex-col items-center justify-center h-52">
       <div className="w-64">
         {/* Ultra-thin progress bar */}
-        <div className="bg-[var(--bg-secondary)] rounded-full h-0.5 mb-2 overflow-hidden">
+        <div className="bg-(--bg-secondary) rounded-full h-0.5 mb-2 overflow-hidden">
           <div
-            className="bg-[var(--color-accent-yellow)] h-full rounded-full transition-all duration-100 ease-linear"
+            className="bg-(--color-accent-yellow) h-full rounded-full transition-all duration-100 ease-linear"
             style={{ width: `${progress}%` }}
           />
         </div>
 
         {/* Centered percentage only */}
         <div className="text-center">
-          <span className="text-[var(--color-accent-yellow)] text-sm font-medium">
+          <span className="text-(--color-accent-yellow) text-sm font-medium">
             {progress}%
           </span>
         </div>

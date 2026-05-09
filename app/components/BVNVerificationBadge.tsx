@@ -42,14 +42,14 @@ const BVNVerificationBadge = ({
       <div
         className={`w-full px-4 py-3 border-b shadow-sm ${
           isPending
-            ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]/30"
+            ? "bg-(--color-accent-yellow)/10 border-(--color-accent-yellow)/30"
             : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
         }`}
       >
         <div className="max-w-7xl mx-auto flex items-center gap-3">
           <div className="shrink-0">
             {isPending ? (
-              <Loader2 className="h-5 w-5 text-[var(--color-accent-yellow)] animate-spin" />
+              <Loader2 className="h-5 w-5 text-(--color-accent-yellow) animate-spin" />
             ) : (
               <AlertCircle className="h-5 w-5 text-red-500" />
             )}
@@ -59,7 +59,7 @@ const BVNVerificationBadge = ({
               <h4
                 className={`text-sm font-semibold ${
                   isPending
-                    ? "text-[var(--color-accent-yellow)]"
+                    ? "text-(--color-accent-yellow)"
                     : "text-red-800 dark:text-red-400"
                 }`}
               >
@@ -70,7 +70,7 @@ const BVNVerificationBadge = ({
               <p
                 className={`text-xs ${
                   isPending
-                    ? "text-[var(--text-secondary)]"
+                    ? "text-(--text-secondary)"
                     : "text-red-700 dark:text-red-500"
                 }`}
               >
@@ -83,7 +83,7 @@ const BVNVerificationBadge = ({
               <Button
                 onClick={handleVerifyClick}
                 size="sm"
-                className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] h-8 text-xs whitespace-nowrap"
+                className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) h-8 text-xs whitespace-nowrap"
                 type="button"
               >
                 <Banknote className="h-3 w-3 mr-1" />

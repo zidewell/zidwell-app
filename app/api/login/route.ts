@@ -59,6 +59,20 @@ export async function POST(req: Request) {
       );
     }
 
+    // Fetch user's business information
+    const { data: businessData, error: businessError } = await supabase
+      .from("businesses")
+      .select("business_name")
+      .eq("user_id", userId)
+      .maybeSingle(); 
+
+    if (businessError && businessError.code !== "PGRST116") { 
+      console.error("Error fetching business:", businessError.message);
+    }
+
+  
+    const displayName = businessData?.business_name || userProfile.full_name;
+
     // 2️⃣ Set HTTP-only cookies
     const cookieStore = await cookies();
     
@@ -67,14 +81,14 @@ export async function POST(req: Request) {
       cookieStore.set("sb-access-token", access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax", // Changed from "strict" to "lax"
+        sameSite: "lax",
         path: "/",
         maxAge: expires_in,
       }),
       cookieStore.set("sb-refresh-token", refresh_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax", // Changed from "strict" to "lax"
+        sameSite: "lax",
         path: "/",
         maxAge: 60 * 60 * 24 * 30,
       }),
@@ -88,11 +102,10 @@ export async function POST(req: Request) {
       }),
     ]);
 
-    // 3️⃣ Format profile response
+  
     const profile = {
       id: userProfile.id,
-      name: userProfile.full_name,
-      fullName: userProfile.full_name,
+      fullName: displayName,
       email: userProfile.email,
       phone: userProfile.phone,
       currentLoginSession: userProfile.current_login_session,
@@ -110,19 +123,20 @@ export async function POST(req: Request) {
       subscriptionExpiresAt: userProfile.subscription_expires_at,
       isBlocked: userProfile.is_blocked,
       pinSet: userProfile.pin_set,
+      
     };
 
     const responseTime = Date.now() - startTime;
     console.log(`Login API completed in ${responseTime}ms`);
 
-   return NextResponse.json({
-  profile,
-  isVerified: profile.bvnVerification === "verified",
-  sessionEstablished: true,
-  access_token,  
-  refresh_token, 
-  expires_in,    
-});
+    return NextResponse.json({
+      profile,
+      isVerified: profile.bvnVerification === "verified",
+      sessionEstablished: true,
+      access_token,  
+      refresh_token, 
+      expires_in,    
+    });
     
   } catch (err: any) {
     console.error("Login API Error:", err.message);

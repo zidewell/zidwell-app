@@ -60,8 +60,8 @@ const Header = () => {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         hasScrolled
-          ? "bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-[var(--border-color)] shadow-soft"
-          : "bg-[var(--bg-primary)] border-b border-transparent"
+          ? "bg-(--bg-primary)/80 backdrop-blur-md border-b border-(--border-color) shadow-soft"
+          : "bg-(--bg-primary) border-b border-transparent"
       }`}
     >
       <div className="container mx-auto px-4">
@@ -75,7 +75,7 @@ const Header = () => {
               height={40}
               className="w-10 object-contain transition-transform group-hover:scale-105"
             />
-            <span className="text-xl font-bold tracking-tight text-[var(--text-primary)] uppercase">
+            <span className="text-xl font-bold tracking-tight text-(--text-primary) uppercase">
               Zidwell
             </span>
           </Link>
@@ -86,10 +86,10 @@ const Header = () => {
               <button
                 key={link.name}
                 onClick={() => handleNavigation(link.href)}
-                className="font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors relative group"
+                className="font-medium text-(--text-secondary) hover:text-(--text-primary) transition-colors relative group"
               >
                 {link.name}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[var(--color-accent-yellow)] transition-all duration-300 group-hover:w-full" />
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-(--color-accent-yellow) transition-all duration-300 group-hover:w-full" />
               </button>
             ))}
           </nav>
@@ -97,13 +97,13 @@ const Header = () => {
           {/* Right Section - Theme Toggle & Auth Buttons */}
           <div className="flex items-center gap-3">
             {/* Theme Toggle */}
-            <div className="hidden md:flex items-center gap-1 p-1 bg-[var(--bg-secondary)] rounded-xl">
+            <div className="hidden md:flex items-center gap-1 p-1 bg-(--bg-secondary) rounded-xl">
               <button
                 onClick={() => setTheme("light")}
                 className={`p-2 rounded-lg transition-all ${
                   theme === "light"
-                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                    : "text-(--text-secondary) hover:bg-(--bg-secondary)"
                 }`}
                 aria-label="Light mode"
               >
@@ -113,8 +113,8 @@ const Header = () => {
                 onClick={() => setTheme("dark")}
                 className={`p-2 rounded-lg transition-all ${
                   theme === "dark"
-                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                    : "text-(--text-secondary) hover:bg-(--bg-secondary)"
                 }`}
                 aria-label="Dark mode"
               >
@@ -127,7 +127,7 @@ const Header = () => {
               <Button
                 onClick={() => router.push("/dashboard")}
                 size="sm"
-                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 rounded-xl"
+                className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 rounded-xl"
               >
                 Dashboard
               </Button>
@@ -137,7 +137,7 @@ const Header = () => {
                   variant="ghost"
                   onClick={() => router.push("/auth/login")}
                   size="sm"
-                  className="text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-xl"
+                  className="text-(--text-primary) hover:bg-(--bg-secondary) rounded-xl"
                 >
                   Log In
                 </Button>
@@ -145,7 +145,7 @@ const Header = () => {
                   variant="default"
                   onClick={() => router.push("/auth/signup")}
                   size="sm"
-                  className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 rounded-xl"
+                  className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 rounded-xl"
                 >
                   Get Started Free
                 </Button>
@@ -155,7 +155,7 @@ const Header = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)]"
+              className="lg:hidden p-2 rounded-xl border border-(--border-color) bg-(--bg-secondary) text-(--text-primary)"
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -164,28 +164,30 @@ const Header = () => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-[var(--border-color)] animate-slide-in">
+          <div className="lg:hidden py-4 border-t border-(--border-color) animate-slide-in">
             <nav className="flex flex-col gap-4">
               {navLinks.map((link) => (
                 <button
                   key={link.name}
                   onClick={() => handleNavigation(link.href)}
-                  className="w-full text-left font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors py-2"
+                  className="w-full text-left font-medium text-(--text-secondary) hover:text-(--text-primary) transition-colors py-2"
                 >
                   {link.name}
                 </button>
               ))}
 
               {/* Mobile Theme Toggle */}
-              <div className="flex items-center gap-2 pt-4 border-t border-[var(--border-color)]">
-                <span className="text-sm text-[var(--text-secondary)]">Theme:</span>
-                <div className="flex items-center gap-1 p-1 bg-[var(--bg-secondary)] rounded-xl">
+              <div className="flex items-center gap-2 pt-4 border-t border-(--border-color)">
+                <span className="text-sm text-(--text-secondary)">
+                  Theme:
+                </span>
+                <div className="flex items-center gap-1 p-1 bg-(--bg-secondary) rounded-xl">
                   <button
                     onClick={() => setTheme("light")}
                     className={`p-2 rounded-lg transition-all ${
                       theme === "light"
-                        ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                        ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                        : "text-(--text-secondary) hover:bg-(--bg-secondary)"
                     }`}
                   >
                     <Sun size={16} />
@@ -194,8 +196,8 @@ const Header = () => {
                     onClick={() => setTheme("dark")}
                     className={`p-2 rounded-lg transition-all ${
                       theme === "dark"
-                        ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                        ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                        : "text-(--text-secondary) hover:bg-(--bg-secondary)"
                     }`}
                   >
                     <Moon size={16} />
@@ -211,7 +213,7 @@ const Header = () => {
                       router.push("/dashboard");
                       setIsMenuOpen(false);
                     }}
-                    className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 rounded-xl"
+                    className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 rounded-xl"
                   >
                     Dashboard
                   </Button>
@@ -219,7 +221,7 @@ const Header = () => {
                   <>
                     <Button
                       variant="ghost"
-                      className="w-full justify-center text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-xl"
+                      className="w-full justify-center text-(--text-primary) hover:bg-(--bg-secondary) rounded-xl"
                       onClick={() => {
                         router.push("/auth/login");
                         setIsMenuOpen(false);
@@ -229,7 +231,7 @@ const Header = () => {
                     </Button>
                     <Button
                       variant="default"
-                      className="w-full justify-center bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 rounded-xl"
+                      className="w-full justify-center bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 rounded-xl"
                       onClick={() => {
                         router.push("/auth/signup");
                         setIsMenuOpen(false);

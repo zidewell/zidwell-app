@@ -335,17 +335,17 @@ export default function ElectricityBills() {
           variant="ghost"
           size="sm"
           onClick={() => router.back()}
-          className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 hover:bg-[var(--bg-secondary)] text-sm md:text-base"
+          className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 hover:bg-(--bg-secondary) text-sm md:text-base"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           <span className="hidden md:block">Back</span>
         </Button>
 
         <div className="">
-          <h1 className="md:text-3xl text-xl font-bold mb-2 text-[var(--text-primary)]">
+          <h1 className="md:text-3xl text-xl font-bold mb-2 text-(--text-primary)">
             Pay Electricity Bills
           </h1>
-          <p className="text-[var(--text-secondary)]">
+          <p className="text-(--text-secondary)">
             Pay your electricity bills instantly across all DISCOs in Nigeria
           </p>
         </div>
@@ -353,10 +353,10 @@ export default function ElectricityBills() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-[var(--text-primary)]">
-                <Building2Icon className="w-5 h-5 text-[var(--color-accent-yellow)]" />
+              <CardTitle className="flex items-center gap-2 text-(--text-primary)">
+                <Building2Icon className="w-5 h-5 text-(--color-accent-yellow)" />
                 Select Network Provider
               </CardTitle>
             </CardHeader>
@@ -385,8 +385,8 @@ export default function ElectricityBills() {
                         onClick={() => setSelectedProvider(provider)}
                         className={`relative p-4 border-2 rounded-md transition-all duration-200 cursor-pointer ${
                           isSelected
-                            ? "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)] text-[var(--text-primary)] shadow-md"
-                            : "bg-[var(--bg-primary)] border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
+                            ? "bg-(--color-accent-yellow)/10 border-(--color-accent-yellow) text-(--text-primary) shadow-md"
+                            : "bg-(--bg-primary) border-(--border-color) hover:border-(--color-accent-yellow)/50"
                         }`}
                       >
                         <div className="text-center">
@@ -398,14 +398,14 @@ export default function ElectricityBills() {
                               className="rounded-lg object-contain"
                             />
                           </div>
-                          <h3 className="font-semibold text-[var(--text-primary)] text-sm">
+                          <h3 className="font-semibold text-(--text-primary) text-sm">
                             {provider.name}
                           </h3>
                         </div>
                         {isSelected && (
                           <div className="absolute -top-2 -right-2">
-                            <div className="w-6 h-6 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center">
-                              <Check className="w-4 h-4 text-[var(--color-ink)]" />
+                            <div className="w-6 h-6 bg-(--color-accent-yellow) rounded-full flex items-center justify-center">
+                              <Check className="w-4 h-4 text-(--color-ink)" />
                             </div>
                           </div>
                         )}
@@ -425,14 +425,21 @@ export default function ElectricityBills() {
           </Card>
 
           {selectedProvider && (
-            <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+            <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
               <CardHeader>
-                <CardTitle className="text-[var(--text-primary)]">Meter Information</CardTitle>
+                <CardTitle className="text-(--text-primary)">
+                  Meter Information
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="meterType" className="text-[var(--text-primary)]">Meter Type</Label>
+                    <Label
+                      htmlFor="meterType"
+                      className="text-(--text-primary)"
+                    >
+                      Meter Type
+                    </Label>
                     <Select
                       value={meterType}
                       onValueChange={(value) => {
@@ -441,7 +448,7 @@ export default function ElectricityBills() {
                         setMeterNumber("");
                       }}
                     >
-                      <SelectTrigger className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)]">
+                      <SelectTrigger className="border-(--border-color) bg-(--bg-primary) text-(--text-primary)">
                         <SelectValue placeholder="Select meter type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -461,7 +468,12 @@ export default function ElectricityBills() {
                   </div>
 
                   <div>
-                    <Label htmlFor="meterNumber" className="text-[var(--text-primary)]">Meter Number</Label>
+                    <Label
+                      htmlFor="meterNumber"
+                      className="text-(--text-primary)"
+                    >
+                      Meter Number
+                    </Label>
                     <div className="flex items-center gap-3">
                       <Input
                         id="meterNumber"
@@ -471,15 +483,18 @@ export default function ElectricityBills() {
                         onChange={(e) =>
                           handleMeterNumberChange(e.target.value)
                         }
-                        className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${errors.meterNumber ? "border-destructive" : ""}`}
+                        className={`border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${errors.meterNumber ? "border-destructive" : ""}`}
                         style={{ outline: "none", boxShadow: "none" }}
                         onBlur={validateMeterNumber}
                         maxLength={13}
                       />
                       {loading2 ? (
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-accent-yellow)]"></div>
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-(--color-accent-yellow)"></div>
                       ) : isVerified ? (
-                        <div className="text-[var(--color-lemon-green)]" title="Verified">
+                        <div
+                          className="text-(--color-lemon-green)"
+                          title="Verified"
+                        >
                           <Check className="w-6 h-6" />
                         </div>
                       ) : (
@@ -488,7 +503,7 @@ export default function ElectricityBills() {
                           size="sm"
                           onClick={validateMeterNumber}
                           disabled={!meterNumber || !meterType}
-                          className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                          className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                         >
                           Verify
                         </Button>
@@ -506,9 +521,11 @@ export default function ElectricityBills() {
             </Card>
           )}
 
-          <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+          <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="text-[var(--text-primary)]">Select Amount</CardTitle>
+              <CardTitle className="text-(--text-primary)">
+                Select Amount
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
@@ -519,19 +536,19 @@ export default function ElectricityBills() {
                     className={`relative p-4 border-2 rounded-lg cursor-pointer transition-all duration-200
                             ${
                               selectedAmount === amount.value && !isCustomAmount
-                                ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)]"
-                                : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
+                                ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)"
+                                : "border-(--border-color) hover:border-(--color-accent-yellow)/50"
                             }`}
                   >
                     <div className="text-center">
-                      <p className="font-bold text-[var(--text-primary)]">
+                      <p className="font-bold text-(--text-primary)">
                         ₦{amount.value.toLocaleString()}
                       </p>
                     </div>
                     {selectedAmount === amount.value && !isCustomAmount && (
                       <div className="absolute -top-2 -right-2">
-                        <div className="w-6 h-6 bg-[var(--color-accent-yellow)] rounded-full flex items-center justify-center">
-                          <Check className="w-4 h-4 text-[var(--color-ink)]" />
+                        <div className="w-6 h-6 bg-(--color-accent-yellow) rounded-full flex items-center justify-center">
+                          <Check className="w-4 h-4 text-(--color-ink)" />
                         </div>
                       </div>
                     )}
@@ -539,10 +556,12 @@ export default function ElectricityBills() {
                 ))}
               </div>
 
-              <div className="border-t border-[var(--border-color)] pt-4">
-                <Label htmlFor="customAmount" className="text-[var(--text-primary)]">Or Enter Amount</Label>
+              <div className="border-t border-(--border-color) pt-4">
+                <Label htmlFor="customAmount" className="text-(--text-primary)">
+                  Or Enter Amount
+                </Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)]">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary)">
                     ₦
                   </span>
                   <Input
@@ -551,7 +570,7 @@ export default function ElectricityBills() {
                     placeholder="Enter amount (min ₦1000)"
                     value={customAmount || ""}
                     onChange={(e) => handleCustomAmountChange(e.target.value)}
-                    className={`pl-8 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${errors.amount ? "border-red-500" : ""}`}
+                    className={`pl-8 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${errors.amount ? "border-red-500" : ""}`}
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>

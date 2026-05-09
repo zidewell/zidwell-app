@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useBlog } from "@/app/context/BlogContext";
-import BlogHeader from "../components/blog-components/blog/BlogHeader"; 
+import BlogHeader from "../components/blog-components/blog/BlogHeader";
 import BlogSidebar from "../components/blog-components/blog/BlogSideBar";
-import BlogCard from "../components/blog-components/blog/BlogCard"; 
-import AdPlaceholder from "../components/blog-components/blog/Adpaceholder"; 
+import BlogCard from "../components/blog-components/blog/BlogCard";
+import AdPlaceholder from "../components/blog-components/blog/Adpaceholder";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 import { BlogPost as BlogPostType } from "../components/blog-components/blog/types/blog";
@@ -16,7 +16,7 @@ const INITIAL_POSTS_COUNT = 4;
 // Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
   func: T,
-  wait: number
+  wait: number,
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout;
   return (...args: Parameters<T>) => {
@@ -26,12 +26,7 @@ function debounce<T extends (...args: any[]) => any>(
 }
 
 const BlogPage = () => {
-  const { 
-    posts, 
-    isLoading, 
-    refreshPosts, 
-    isInitialized 
-  } = useBlog();
+  const { posts, isLoading, refreshPosts, isInitialized } = useBlog();
   const [displayedPosts, setDisplayedPosts] = useState<BlogPostType[]>([]);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -44,15 +39,17 @@ const BlogPage = () => {
   // Add font links to head
   useEffect(() => {
     // Add Be Vietnam font
-    const beVietnamLink = document.createElement('link');
-    beVietnamLink.href = 'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap';
-    beVietnamLink.rel = 'stylesheet';
+    const beVietnamLink = document.createElement("link");
+    beVietnamLink.href =
+      "https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap";
+    beVietnamLink.rel = "stylesheet";
     document.head.appendChild(beVietnamLink);
 
     // Add Clash Display as Neue Machina alternative
-    const clashDisplayLink = document.createElement('link');
-    clashDisplayLink.href = 'https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap';
-    clashDisplayLink.rel = 'stylesheet';
+    const clashDisplayLink = document.createElement("link");
+    clashDisplayLink.href =
+      "https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap";
+    clashDisplayLink.rel = "stylesheet";
     document.head.appendChild(clashDisplayLink);
 
     return () => {
@@ -68,72 +65,88 @@ const BlogPage = () => {
   }, []);
 
   // Transform API posts to BlogPost format
-  const transformApiPostToBlogPost = useCallback((apiPost: any): BlogPostType => {
-    return {
-      id: apiPost.id,
-      title: apiPost.title,
-      slug: apiPost.slug,
-      excerpt: apiPost.excerpt || "",
-      content: apiPost.content || "",
-      featuredImage: apiPost.featured_image || apiPost.featuredImage || "/default-blog-image.png",
-      author: {
-        id: apiPost.author_id || apiPost.author?.id || "default-author-id",
-        name: apiPost.author_name || apiPost.author?.name || "Author",
-        avatar: apiPost.author_avatar || apiPost.author?.avatar || "/default-avatar.png",
-        bio: apiPost.author_bio || apiPost.author?.bio || null,
-      },
-      categories: Array.isArray(apiPost.categories) 
-        ? apiPost.categories.map((cat: string | any, index: number) => ({
-            id: typeof cat === 'object' ? cat.id : `cat-${index}`,
-            name: typeof cat === 'object' ? cat.name : cat,
-            slug: typeof cat === 'object' ? cat.slug : cat.toLowerCase().replace(/\s+/g, '-'),
-            postCount: 0
-          }))
-        : [],
-      tags: apiPost.tags || [],
-      createdAt: apiPost.created_at || apiPost.createdAt,
-      updatedAt: apiPost.updated_at || apiPost.updatedAt,
-      readTime: apiPost.readTime || apiPost.read_time || 5,
-      isPublished: apiPost.is_published,
-      viewCount: apiPost.view_count,
-      likeCount: apiPost.likes_count,
-      commentCount: apiPost.comments_count,
-    };
-  }, []);
+  const transformApiPostToBlogPost = useCallback(
+    (apiPost: any): BlogPostType => {
+      return {
+        id: apiPost.id,
+        title: apiPost.title,
+        slug: apiPost.slug,
+        excerpt: apiPost.excerpt || "",
+        content: apiPost.content || "",
+        featuredImage:
+          apiPost.featured_image ||
+          apiPost.featuredImage ||
+          "/default-blog-image.png",
+        author: {
+          id: apiPost.author_id || apiPost.author?.id || "default-author-id",
+          name: apiPost.author_name || apiPost.author?.name || "Author",
+          avatar:
+            apiPost.author_avatar ||
+            apiPost.author?.avatar ||
+            "/default-avatar.png",
+          bio: apiPost.author_bio || apiPost.author?.bio || null,
+        },
+        categories: Array.isArray(apiPost.categories)
+          ? apiPost.categories.map((cat: string | any, index: number) => ({
+              id: typeof cat === "object" ? cat.id : `cat-${index}`,
+              name: typeof cat === "object" ? cat.name : cat,
+              slug:
+                typeof cat === "object"
+                  ? cat.slug
+                  : cat.toLowerCase().replace(/\s+/g, "-"),
+              postCount: 0,
+            }))
+          : [],
+        tags: apiPost.tags || [],
+        createdAt: apiPost.created_at || apiPost.createdAt,
+        updatedAt: apiPost.updated_at || apiPost.updatedAt,
+        readTime: apiPost.readTime || apiPost.read_time || 5,
+        isPublished: apiPost.is_published,
+        viewCount: apiPost.view_count,
+        likeCount: apiPost.likes_count,
+        commentCount: apiPost.comments_count,
+      };
+    },
+    [],
+  );
 
   // Filter published posts only and transform to BlogPost format
   const publishedPosts = useMemo(() => {
     if (!isClient || !isInitialized) return [];
-    
+
     return posts
-      .filter(post => post.is_published)
+      .filter((post) => post.is_published)
       .map(transformApiPostToBlogPost);
   }, [posts, isClient, isInitialized, transformApiPostToBlogPost]);
 
   // Search function
-  const searchPosts = useCallback((query: string) => {
-    if (!query.trim()) return publishedPosts;
-    
-    const lowercaseQuery = query.toLowerCase();
-    return publishedPosts.filter(post => 
-      post.title?.toLowerCase().includes(lowercaseQuery) ||
-      post.excerpt?.toLowerCase().includes(lowercaseQuery) ||
-      post.content?.toLowerCase().includes(lowercaseQuery) ||
-      post.author?.name?.toLowerCase().includes(lowercaseQuery) ||
-      post.categories?.some((cat: any) => 
-        typeof cat === 'string' 
-          ? cat.toLowerCase().includes(lowercaseQuery)
-          : cat.name?.toLowerCase().includes(lowercaseQuery)
-      )
-    );
-  }, [publishedPosts]);
+  const searchPosts = useCallback(
+    (query: string) => {
+      if (!query.trim()) return publishedPosts;
+
+      const lowercaseQuery = query.toLowerCase();
+      return publishedPosts.filter(
+        (post) =>
+          post.title?.toLowerCase().includes(lowercaseQuery) ||
+          post.excerpt?.toLowerCase().includes(lowercaseQuery) ||
+          post.content?.toLowerCase().includes(lowercaseQuery) ||
+          post.author?.name?.toLowerCase().includes(lowercaseQuery) ||
+          post.categories?.some((cat: any) =>
+            typeof cat === "string"
+              ? cat.toLowerCase().includes(lowercaseQuery)
+              : cat.name?.toLowerCase().includes(lowercaseQuery),
+          ),
+      );
+    },
+    [publishedPosts],
+  );
 
   // Filter posts based on search
   const filteredPosts = useMemo(() => {
     if (!isClient || !isInitialized) return [];
-    
+
     if (!searchQuery.trim()) return publishedPosts;
-    
+
     return searchPosts(searchQuery);
   }, [publishedPosts, searchQuery, searchPosts, isClient, isInitialized]);
 
@@ -152,52 +165,56 @@ const BlogPage = () => {
   }, [filteredPosts, isClient, searchQuery]);
 
   // Debounced search handler
-  const debouncedSearch = useMemo(() => 
-    debounce((query: string) => {
-      setIsSearching(false);
-      if (!query.trim()) {
-        setDisplayedPosts(publishedPosts.slice(0, INITIAL_POSTS_COUNT));
-        setPage(2);
-        setHasMore(INITIAL_POSTS_COUNT < publishedPosts.length);
-      } else {
-        const filtered = searchPosts(query);
-        setDisplayedPosts(filtered.slice(0, INITIAL_POSTS_COUNT));
-        setPage(2);
-        setHasMore(INITIAL_POSTS_COUNT < filtered.length);
-      }
-    }, 300),
-    [publishedPosts, searchPosts]
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((query: string) => {
+        setIsSearching(false);
+        if (!query.trim()) {
+          setDisplayedPosts(publishedPosts.slice(0, INITIAL_POSTS_COUNT));
+          setPage(2);
+          setHasMore(INITIAL_POSTS_COUNT < publishedPosts.length);
+        } else {
+          const filtered = searchPosts(query);
+          setDisplayedPosts(filtered.slice(0, INITIAL_POSTS_COUNT));
+          setPage(2);
+          setHasMore(INITIAL_POSTS_COUNT < filtered.length);
+        }
+      }, 300),
+    [publishedPosts, searchPosts],
   );
 
   // Handle search
-  const handleSearch = useCallback((query: string) => {
-    if (!isClient) return;
-    
-    setSearchQuery(query);
-    
-    if (query.trim()) {
-      setIsSearching(true);
-    }
-    
-    debouncedSearch(query);
-  }, [isClient, debouncedSearch]);
+  const handleSearch = useCallback(
+    (query: string) => {
+      if (!isClient) return;
+
+      setSearchQuery(query);
+
+      if (query.trim()) {
+        setIsSearching(true);
+      }
+
+      debouncedSearch(query);
+    },
+    [isClient, debouncedSearch],
+  );
 
   // Load more posts
   const loadMorePosts = useCallback(() => {
     if (!isClient || loadingMore || !hasMore || isSearching) return;
-    
+
     setLoadingMore(true);
-    
+
     setTimeout(() => {
       const start = (page - 1) * POSTS_PER_PAGE;
       const end = start + POSTS_PER_PAGE;
       const newPosts = filteredPosts.slice(start, end);
-      
+
       if (newPosts.length === 0) {
         setHasMore(false);
       } else {
-        setDisplayedPosts(prev => [...prev, ...newPosts]);
-        setPage(prev => prev + 1);
+        setDisplayedPosts((prev) => [...prev, ...newPosts]);
+        setPage((prev) => prev + 1);
         setHasMore(end < filteredPosts.length);
       }
       setLoadingMore(false);
@@ -207,7 +224,7 @@ const BlogPage = () => {
   // Handle refresh
   const handleRefresh = useCallback(() => {
     if (!isClient) return;
-    
+
     refreshPosts();
     setDisplayedPosts([]);
     setPage(1);
@@ -219,7 +236,7 @@ const BlogPage = () => {
   // Infinite scroll - only on client
   useEffect(() => {
     if (!isClient || loadingMore || !hasMore || isSearching) return;
-    
+
     const handleScroll = () => {
       if (
         window.innerHeight + document.documentElement.scrollTop >=
@@ -245,7 +262,12 @@ const BlogPage = () => {
 
   // Initialize displayed posts once when data is ready
   useEffect(() => {
-    if (isClient && isInitialized && !hasInitializedRef.current && publishedPosts.length > 0) {
+    if (
+      isClient &&
+      isInitialized &&
+      !hasInitializedRef.current &&
+      publishedPosts.length > 0
+    ) {
       const initialPosts = publishedPosts.slice(0, INITIAL_POSTS_COUNT);
       setDisplayedPosts(initialPosts);
       setPage(2);
@@ -257,62 +279,62 @@ const BlogPage = () => {
   // Loading skeleton - show during SSR and initial client load
   if (isLoading || !isClient || !isInitialized) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)]">
+      <div className="min-h-screen bg-(--bg-primary)">
         {/* Simple static header for SSR */}
-        <div className="border-b border-[var(--border-color)]">
+        <div className="border-b border-(--border-color)">
           <div className="container mx-auto px-4 py-6">
             <div className="flex justify-between items-center">
-              <div className="h-10 w-32 bg-[var(--bg-secondary)] rounded animate-pulse" />
-              <div className="h-10 w-64 bg-[var(--bg-secondary)] rounded animate-pulse" />
+              <div className="h-10 w-32 bg-(--bg-secondary) rounded animate-pulse" />
+              <div className="h-10 w-64 bg-(--bg-secondary) rounded animate-pulse" />
             </div>
           </div>
         </div>
-        
+
         <main className="container mx-auto px-4 py-8">
           <div className="grid lg:grid-cols-[1fr_320px] gap-12">
             <div>
               {/* Featured Post Skeleton */}
               <div className="mb-12">
-                <div className="bg-[var(--bg-primary)] rounded-lg overflow-hidden shadow-soft border border-[var(--border-color)]">
-                  <Skeleton className="h-64 w-full bg-[var(--bg-secondary)]" />
+                <div className="bg-(--bg-primary) rounded-lg overflow-hidden shadow-soft border border-(--border-color)">
+                  <Skeleton className="h-64 w-full bg-(--bg-secondary)" />
                   <div className="p-6">
-                    <Skeleton className="h-8 w-3/4 mb-4 bg-[var(--bg-secondary)]" />
-                    <Skeleton className="h-4 w-full mb-2 bg-[var(--bg-secondary)]" />
-                    <Skeleton className="h-4 w-2/3 bg-[var(--bg-secondary)]" />
+                    <Skeleton className="h-8 w-3/4 mb-4 bg-(--bg-secondary)" />
+                    <Skeleton className="h-4 w-full mb-2 bg-(--bg-secondary)" />
+                    <Skeleton className="h-4 w-2/3 bg-(--bg-secondary)" />
                   </div>
                 </div>
               </div>
-              
+
               {/* Ad Skeleton */}
-              <Skeleton className="h-32 w-full mb-8 bg-[var(--bg-secondary)]" />
-              
+              <Skeleton className="h-32 w-full mb-8 bg-(--bg-secondary)" />
+
               {/* Posts Grid Skeleton */}
               <div className="grid md:grid-cols-2 gap-8">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i}>
-                    <div className="bg-[var(--bg-primary)] rounded-lg overflow-hidden shadow-soft border border-[var(--border-color)]">
-                      <Skeleton className="h-48 w-full bg-[var(--bg-secondary)]" />
+                    <div className="bg-(--bg-primary) rounded-lg overflow-hidden shadow-soft border border-(--border-color)">
+                      <Skeleton className="h-48 w-full bg-(--bg-secondary)" />
                       <div className="p-4">
-                        <Skeleton className="h-6 w-3/4 mb-2 bg-[var(--bg-secondary)]" />
-                        <Skeleton className="h-4 w-full mb-2 bg-[var(--bg-secondary)]" />
-                        <Skeleton className="h-4 w-2/3 bg-[var(--bg-secondary)]" />
+                        <Skeleton className="h-6 w-3/4 mb-2 bg-(--bg-secondary)" />
+                        <Skeleton className="h-4 w-full mb-2 bg-(--bg-secondary)" />
+                        <Skeleton className="h-4 w-2/3 bg-(--bg-secondary)" />
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-            
+
             {/* Sidebar Skeleton */}
             <div className="hidden lg:block">
               <div className="sticky top-24 space-y-8">
                 <div className="space-y-3">
-                  <Skeleton className="h-5 w-24 bg-[var(--bg-secondary)]" />
-                  <Skeleton className="h-10 w-full bg-[var(--bg-secondary)]" />
+                  <Skeleton className="h-5 w-24 bg-(--bg-secondary)" />
+                  <Skeleton className="h-10 w-full bg-(--bg-secondary)" />
                 </div>
-                <Skeleton className="h-64 w-full bg-[var(--bg-secondary)]" />
-                <Skeleton className="h-48 w-full bg-[var(--bg-secondary)]" />
-                <Skeleton className="h-48 w-full bg-[var(--bg-secondary)]" />
+                <Skeleton className="h-64 w-full bg-(--bg-secondary)" />
+                <Skeleton className="h-48 w-full bg-(--bg-secondary)" />
+                <Skeleton className="h-48 w-full bg-(--bg-secondary)" />
               </div>
             </div>
           </div>
@@ -322,9 +344,9 @@ const BlogPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
+    <div className="min-h-screen bg-(--bg-primary)">
       <BlogHeader onSearch={handleSearch} />
-      
+
       <main className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-[1fr_320px] gap-12">
           {/* Main Content */}
@@ -333,23 +355,24 @@ const BlogPage = () => {
             {searchQuery && (
               <div className="mb-6 flex items-center justify-between">
                 <div>
-                  <h2 
-                    className="text-xl font-semibold text-[var(--text-primary)]"
+                  <h2
+                    className="text-xl font-semibold text-(--text-primary)"
                     style={{ fontFamily: "'Clash Display', sans-serif" }}
                   >
                     Search Results for &quot;{searchQuery}&quot;
                   </h2>
-                  <p 
-                    className="text-[var(--text-secondary)] text-sm mt-1"
+                  <p
+                    className="text-(--text-secondary) text-sm mt-1"
                     style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                   >
-                    Found {filteredPosts.length} article{filteredPosts.length !== 1 ? 's' : ''}
+                    Found {filteredPosts.length} article
+                    {filteredPosts.length !== 1 ? "s" : ""}
                   </p>
                 </div>
                 <Button
                   variant="ghost"
                   onClick={() => handleSearch("")}
-                  className="text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  className="text-(--text-primary) hover:bg-(--bg-secondary)"
                   style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                 >
                   Clear Search
@@ -360,12 +383,12 @@ const BlogPage = () => {
             {/* Featured Post */}
             {featuredPost && !searchQuery && !isSearching && (
               <div className="mb-12">
-                <BlogCard 
+                <BlogCard
                   post={{
                     ...featuredPost,
-                    readTime: calculateReadTime(featuredPost.content || "")
-                  }} 
-                  variant="featured" 
+                    readTime: calculateReadTime(featuredPost.content || ""),
+                  }}
+                  variant="featured"
                 />
               </div>
             )}
@@ -380,12 +403,12 @@ const BlogPage = () => {
               <div className="grid md:grid-cols-2 gap-8 mt-12">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i}>
-                    <div className="bg-[var(--bg-primary)] rounded-lg overflow-hidden shadow-soft border border-[var(--border-color)] animate-pulse">
-                      <div className="h-48 bg-[var(--bg-secondary)]" />
+                    <div className="bg-(--bg-primary) rounded-lg overflow-hidden shadow-soft border border-(--border-color) animate-pulse">
+                      <div className="h-48 bg-(--bg-secondary)" />
                       <div className="p-4">
-                        <div className="h-6 bg-[var(--bg-secondary)] rounded w-3/4 mb-2" />
-                        <div className="h-4 bg-[var(--bg-secondary)] rounded w-full mb-2" />
-                        <div className="h-4 bg-[var(--bg-secondary)] rounded w-2/3" />
+                        <div className="h-6 bg-(--bg-secondary) rounded w-3/4 mb-2" />
+                        <div className="h-4 bg-(--bg-secondary) rounded w-full mb-2" />
+                        <div className="h-4 bg-(--bg-secondary) rounded w-2/3" />
                       </div>
                     </div>
                   </div>
@@ -395,44 +418,48 @@ const BlogPage = () => {
               <>
                 {(searchQuery ? displayedPosts : regularPosts).length > 0 && (
                   <div className="grid md:grid-cols-2 gap-8 mt-12">
-                    {(searchQuery ? displayedPosts : regularPosts).map((post, index) => (
-                      <div key={post.id}>
-                        <BlogCard 
-                          post={{
-                            ...post,
-                            readTime: calculateReadTime(post.content || "")
-                          }} 
-                        />
-                        {/* Insert ad every 4 posts */}
-                        {(index + 1) % 4 === 0 && (
-                          <div className="mt-8">
-                            <AdPlaceholder variant="inline" />
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    {(searchQuery ? displayedPosts : regularPosts).map(
+                      (post, index) => (
+                        <div key={post.id}>
+                          <BlogCard
+                            post={{
+                              ...post,
+                              readTime: calculateReadTime(post.content || ""),
+                            }}
+                          />
+                          {/* Insert ad every 4 posts */}
+                          {(index + 1) % 4 === 0 && (
+                            <div className="mt-8">
+                              <AdPlaceholder variant="inline" />
+                            </div>
+                          )}
+                        </div>
+                      ),
+                    )}
                   </div>
                 )}
               </>
             ) : (
-              !isLoading && !isSearching && (
+              !isLoading &&
+              !isSearching && (
                 <div className="text-center py-16">
                   <div className="max-w-md mx-auto">
-                    <h3 
-                      className="text-xl font-semibold mb-4 text-[var(--text-primary)]"
+                    <h3
+                      className="text-xl font-semibold mb-4 text-(--text-primary)"
                       style={{ fontFamily: "'Clash Display', sans-serif" }}
                     >
                       No articles published yet
                     </h3>
-                    <p 
-                      className="text-[var(--text-secondary)] mb-6"
+                    <p
+                      className="text-(--text-secondary) mb-6"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
-                      Check back soon for new content or contact the administrator.
+                      Check back soon for new content or contact the
+                      administrator.
                     </p>
-                    <Button 
+                    <Button
                       onClick={handleRefresh}
-                      className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+                      className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
                       Refresh
@@ -445,28 +472,31 @@ const BlogPage = () => {
             {/* Loading more indicator */}
             {loadingMore && (
               <div className="flex justify-center py-8">
-                <div className="w-8 h-8 border-2 border-[var(--color-accent-yellow)] border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-(--color-accent-yellow) border-t-transparent rounded-full animate-spin" />
               </div>
             )}
 
             {/* Load More Button (alternative to infinite scroll) */}
-            {hasMore && !loadingMore && !isSearching && displayedPosts.length > 0 && (
-              <div className="flex justify-center mt-8">
-                <Button 
-                  onClick={loadMorePosts} 
-                  variant="outline"
-                  className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
-                  style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
-                >
-                  Load More Articles
-                </Button>
-              </div>
-            )}
+            {hasMore &&
+              !loadingMore &&
+              !isSearching &&
+              displayedPosts.length > 0 && (
+                <div className="flex justify-center mt-8">
+                  <Button
+                    onClick={loadMorePosts}
+                    variant="outline"
+                    className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
+                    style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                  >
+                    Load More Articles
+                  </Button>
+                </div>
+              )}
 
             {/* No more posts */}
             {!hasMore && displayedPosts.length > 0 && !isSearching && (
-              <p 
-                className="text-center text-[var(--text-secondary)] py-8"
+              <p
+                className="text-center text-(--text-secondary) py-8"
                 style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
               >
                 You&apos;ve reached the end
@@ -474,38 +504,38 @@ const BlogPage = () => {
             )}
 
             {/* No search results */}
-            {!loadingMore && !isSearching && searchQuery && filteredPosts.length === 0 && (
-              <div className="text-center py-16">
-                <h3 
-                  className="text-xl font-semibold mb-4 text-[var(--text-primary)]"
-                  style={{ fontFamily: "'Clash Display', sans-serif" }}
-                >
-                  No articles found for &quot;{searchQuery}&quot;
-                </h3>
-                <p 
-                  className="text-[var(--text-secondary)] mb-6"
-                  style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
-                >
-                  Try different keywords or browse our categories.
-                </p>
-                <Button 
-                  onClick={() => handleSearch("")}
-                  className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
-                  style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
-                >
-                  View All Articles
-                </Button>
-              </div>
-            )}
+            {!loadingMore &&
+              !isSearching &&
+              searchQuery &&
+              filteredPosts.length === 0 && (
+                <div className="text-center py-16">
+                  <h3
+                    className="text-xl font-semibold mb-4 text-(--text-primary)"
+                    style={{ fontFamily: "'Clash Display', sans-serif" }}
+                  >
+                    No articles found for &quot;{searchQuery}&quot;
+                  </h3>
+                  <p
+                    className="text-(--text-secondary) mb-6"
+                    style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                  >
+                    Try different keywords or browse our categories.
+                  </p>
+                  <Button
+                    onClick={() => handleSearch("")}
+                    className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
+                    style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                  >
+                    View All Articles
+                  </Button>
+                </div>
+              )}
           </div>
 
           {/* Sidebar */}
           <div className="hidden lg:block">
             <div className="sticky top-24">
-              <BlogSidebar 
-                onSearch={handleSearch} 
-                isSearching={isSearching}
-              />
+              <BlogSidebar onSearch={handleSearch} isSearching={isSearching} />
             </div>
           </div>
         </div>

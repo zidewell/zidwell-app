@@ -35,7 +35,7 @@ function PaymentCallbackContent() {
     } else if (statusParam === "failed" || errorParam) {
       setStatus("failed");
       setMessage(
-        reasonParam || errorParam || "Payment failed. Please try again."
+        reasonParam || errorParam || "Payment failed. Please try again.",
       );
     } else if (statusParam === "pending" || statusParam === "processing") {
       setStatus("processing");
@@ -55,7 +55,7 @@ function PaymentCallbackContent() {
 
   const verifyPaymentStatus = async (
     invoiceId: string,
-    orderReference: string
+    orderReference: string,
   ) => {
     if (isVerifying) return;
 
@@ -63,7 +63,7 @@ function PaymentCallbackContent() {
 
     try {
       const response = await fetch(
-        `/api/payments/verify-payment?invoiceId=${invoiceId}&orderReference=${orderReference}`
+        `/api/payments/verify-payment?invoiceId=${invoiceId}&orderReference=${orderReference}`,
       );
       const data = await response.json();
 
@@ -111,9 +111,9 @@ function PaymentCallbackContent() {
       case "success":
         return (
           <div className="text-center">
-            <div className="w-16 h-16 bg-[var(--color-lemon-green)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-(--color-lemon-green)/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg
-                className="w-8 h-8 text-[var(--color-lemon-green)]"
+                className="w-8 h-8 text-(--color-lemon-green)"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -126,20 +126,20 @@ function PaymentCallbackContent() {
                 ></path>
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-[var(--color-lemon-green)] mb-2">
+            <h1 className="text-2xl font-bold text-(--color-lemon-green) mb-2">
               Payment Successful!
             </h1>
-            <p className="text-[var(--text-secondary)] mb-6">
+            <p className="text-(--text-secondary) mb-6">
               Your payment has been processed successfully.
             </p>
 
-            <div className="bg-[var(--color-lemon-green)]/10 border border-[var(--color-lemon-green)]/20 rounded-lg p-4 mb-6">
-              <p className="text-[var(--color-lemon-green)] text-sm">
+            <div className="bg-(--color-lemon-green)/10 border border-(--color-lemon-green)/20 rounded-lg p-4 mb-6">
+              <p className="text-(--color-lemon-green) text-sm">
                 Thank you for your payment. You will receive a confirmation
                 email shortly.
               </p>
               {invoiceId && (
-                <p className="text-[var(--color-lemon-green)] text-sm mt-2">
+                <p className="text-(--color-lemon-green) text-sm mt-2">
                   Invoice: <strong>{invoiceId}</strong>
                 </p>
               )}
@@ -149,7 +149,7 @@ function PaymentCallbackContent() {
               {redirectionLink && (
                 <Link
                   href={redirectionLink as string}
-                  className="inline-block ml-4 text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 underline"
+                  className="inline-block ml-4 text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 underline"
                 >
                   Click here
                 </Link>
@@ -179,7 +179,7 @@ function PaymentCallbackContent() {
             <h1 className="text-2xl font-bold text-red-600 mb-2">
               Payment Failed
             </h1>
-            <p className="text-[var(--text-secondary)] mb-6">{message}</p>
+            <p className="text-(--text-secondary) mb-6">{message}</p>
 
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <p className="text-red-800 text-sm">
@@ -213,7 +213,7 @@ function PaymentCallbackContent() {
             <h1 className="text-2xl font-bold text-blue-600 mb-2">
               Processing Payment
             </h1>
-            <p className="text-[var(--text-secondary)] mb-4">{message}</p>
+            <p className="text-(--text-secondary) mb-4">{message}</p>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-blue-800 text-sm">
@@ -235,7 +235,7 @@ function PaymentCallbackContent() {
               >
                 {isVerifying ? "Checking..." : "Check Status Again"}
               </button>
-              <p className="text-sm text-[var(--text-secondary)]">
+              <p className="text-sm text-(--text-secondary)">
                 Page will update automatically...
               </p>
             </div>
@@ -245,13 +245,13 @@ function PaymentCallbackContent() {
       default:
         return (
           <div className="text-center">
-            <div className="w-16 h-16 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center mx-auto mb-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-accent-yellow)]"></div>
+            <div className="w-16 h-16 bg-(--bg-secondary) rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--color-accent-yellow)"></div>
             </div>
-            <h1 className="text-2xl font-bold text-[var(--text-secondary)] mb-2">
+            <h1 className="text-2xl font-bold text-(--text-secondary) mb-2">
               Checking Payment Status
             </h1>
-            <p className="text-[var(--text-secondary)]">
+            <p className="text-(--text-secondary)">
               Please wait while we verify your payment...
             </p>
           </div>
@@ -260,8 +260,8 @@ function PaymentCallbackContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-[var(--bg-primary)] rounded-lg shadow-soft p-6 border border-[var(--border-color)]">
+    <div className="min-h-screen bg-(--bg-secondary) flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-(--bg-primary) rounded-lg shadow-soft p-6 border border-(--border-color)">
         {renderContent()}
       </div>
     </div>
@@ -272,10 +272,10 @@ export default function PaymentCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <div className="min-h-screen bg-(--bg-secondary) flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-accent-yellow)] mx-auto mb-4"></div>
-            <p className="text-[var(--text-secondary)]">Loading payment status...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-(--color-accent-yellow) mx-auto mb-4"></div>
+            <p className="text-(--text-secondary)">Loading payment status...</p>
           </div>
         </div>
       }

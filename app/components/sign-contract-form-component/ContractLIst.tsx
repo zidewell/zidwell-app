@@ -26,18 +26,18 @@ import Link from "next/link";
 type Props = {
   contracts: any[];
   loading: boolean;
-  userTier?: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite';
+  userTier?: "free" | "zidlite" | "growth" | "premium" | "elite";
   isPremium?: boolean;
   hasReachedLimit?: boolean;
   onRefresh?: () => void;
 };
 
-type ContractStatus = 'signed' | 'pending' | 'draft';
+type ContractStatus = "signed" | "pending" | "draft";
 
-const ContractList: React.FC<Props> = ({ 
-  contracts, 
-  loading, 
-  userTier = 'free',
+const ContractList: React.FC<Props> = ({
+  contracts,
+  loading,
+  userTier = "free",
   isPremium = false,
   hasReachedLimit = false,
 }) => {
@@ -49,40 +49,56 @@ const ContractList: React.FC<Props> = ({
   // Get tier icon
   const getTierIcon = (tier: string) => {
     switch (tier) {
-      case 'elite': return <Sparkles className="w-3 h-3" />;
-      case 'premium': return <Crown className="w-3 h-3" />;
-      case 'growth': return <Zap className="w-3 h-3" />;
-      case 'zidlite': return <Zap className="w-3 h-3" />;
-      default: return <Star className="w-3 h-3" />;
+      case "elite":
+        return <Sparkles className="w-3 h-3" />;
+      case "premium":
+        return <Crown className="w-3 h-3" />;
+      case "growth":
+        return <Zap className="w-3 h-3" />;
+      case "zidlite":
+        return <Zap className="w-3 h-3" />;
+      default:
+        return <Star className="w-3 h-3" />;
     }
   };
 
-  const statusColors: Record<ContractStatus, string> = useMemo(() => ({
-    signed: "bg-[var(--color-lemon-green)]/20 text-[var(--color-lemon-green)]",
-    pending: "bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)]",
-    draft: "bg-[var(--bg-secondary)] text-[var(--text-secondary)]",
-  }), []);
+  const statusColors: Record<ContractStatus, string> = useMemo(
+    () => ({
+      signed: "bg-(--color-lemon-green)/20 text-(--color-lemon-green)",
+      pending: "bg-(--color-accent-yellow)/20 text-(--color-accent-yellow)",
+      draft: "bg-(--bg-secondary) text-(--text-secondary)",
+    }),
+    [],
+  );
 
-  const handleContinueDraft = useCallback((contract: any) => {
-    // Store contract data in sessionStorage to load it in the form
-    sessionStorage.setItem('draftToLoad', JSON.stringify({
-      id: contract.id,
-      contract_title: contract.contract_title,
-      contract_text: contract.contract_text,
-      signee_name: contract.signee_name,
-      signee_email: contract.signee_email,
-      phone_number: contract.phone_number,
-      age_consent: contract.age_consent,
-      terms_consent: contract.terms_consent,
-      creator_name: contract.creator_name,
-      creator_signature: contract.creator_signature,
-      include_lawyer_signature: contract.include_lawyer_signature,
-      metadata: contract.metadata
-    }));
-    
-    // Navigate to the create contract page with draft ID
-    router.push(`/dashboard/services/contract/create-contract-form?draftId=${contract.id}`);
-  }, [router]);
+  const handleContinueDraft = useCallback(
+    (contract: any) => {
+      // Store contract data in sessionStorage to load it in the form
+      sessionStorage.setItem(
+        "draftToLoad",
+        JSON.stringify({
+          id: contract.id,
+          contract_title: contract.contract_title,
+          contract_text: contract.contract_text,
+          signee_name: contract.signee_name,
+          signee_email: contract.signee_email,
+          phone_number: contract.phone_number,
+          age_consent: contract.age_consent,
+          terms_consent: contract.terms_consent,
+          creator_name: contract.creator_name,
+          creator_signature: contract.creator_signature,
+          include_lawyer_signature: contract.include_lawyer_signature,
+          metadata: contract.metadata,
+        }),
+      );
+
+      // Navigate to the create contract page with draft ID
+      router.push(
+        `/dashboard/services/contract/create-contract-form?draftId=${contract.id}`,
+      );
+    },
+    [router],
+  );
 
   const handleDownload = useCallback(async (contract: any) => {
     // Don't allow download for draft contracts
@@ -90,7 +106,7 @@ const ContractList: React.FC<Props> = ({
       Swal.fire(
         "Cannot Download Draft",
         "Please complete and send the contract before downloading.",
-        "warning"
+        "warning",
       );
       return;
     }
@@ -99,7 +115,7 @@ const ContractList: React.FC<Props> = ({
       Swal.fire(
         "Empty Contract",
         "This contract has no text to download.",
-        "warning"
+        "warning",
       );
       return;
     }
@@ -158,7 +174,7 @@ const ContractList: React.FC<Props> = ({
       Swal.fire(
         "Download Successful",
         "The signed contract has been downloaded.",
-        "success"
+        "success",
       );
     } catch (err) {
       console.error(err);
@@ -167,7 +183,7 @@ const ContractList: React.FC<Props> = ({
         err instanceof Error
           ? err.message
           : "An error occurred while generating the PDF.",
-        "error"
+        "error",
       );
     } finally {
       setLoadingMap((prev) => ({ ...prev, [contract.id]: false }));
@@ -181,13 +197,17 @@ const ContractList: React.FC<Props> = ({
       </div>
     );
   }
-  
+
   if (contracts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <FileText className="w-16 h-16 text-[var(--text-secondary)] mb-4" />
-        <p className="text-[var(--text-secondary)] text-lg mb-2">No contracts found</p>
-        <p className="text-[var(--text-secondary)] text-sm mb-6">Create your first contract to get started</p>
+        <FileText className="w-16 h-16 text-(--text-secondary) mb-4" />
+        <p className="text-(--text-secondary) text-lg mb-2">
+          No contracts found
+        </p>
+        <p className="text-(--text-secondary) text-sm mb-6">
+          Create your first contract to get started
+        </p>
       </div>
     );
   }
@@ -197,25 +217,35 @@ const ContractList: React.FC<Props> = ({
       {contracts?.map((contract) => {
         const title = contract.contract_title || "Untitled Contract";
         const status = contract.status || "draft";
-        const createdAt = contract.created_at?.toDate?.() || new Date(contract.created_at);
-        const sentAt = contract.sent_at?.toDate?.() || new Date(contract.sent_at);
+        const createdAt =
+          contract.created_at?.toDate?.() || new Date(contract.created_at);
+        const sentAt =
+          contract.sent_at?.toDate?.() || new Date(contract.sent_at);
         const isDownloading = loadingMap[contract.id];
 
         // Ensure status is a valid key for statusColors
-        const validStatus = (status === 'signed' || status === 'pending' || status === 'draft') 
-          ? status as ContractStatus 
-          : 'draft';
+        const validStatus =
+          status === "signed" || status === "pending" || status === "draft"
+            ? (status as ContractStatus)
+            : "draft";
 
         return (
-          <Card key={contract.id} className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg hover:shadow-md transition-shadow">
+          <Card
+            key={contract.id}
+            className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg hover:shadow-md transition-shadow"
+          >
             <CardContent className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <FileText className="w-5 h-5 text-[var(--color-accent-yellow)]" />
-                    <h3 className="font-semibold text-lg text-[var(--text-primary)]">{title}</h3>
-                    <Badge className={statusColors[validStatus]}>{status}</Badge>
-                    
+                    <FileText className="w-5 h-5 text-(--color-accent-yellow)" />
+                    <h3 className="font-semibold text-lg text-(--text-primary)">
+                      {title}
+                    </h3>
+                    <Badge className={statusColors[validStatus]}>
+                      {status}
+                    </Badge>
+
                     {/* Show lawyer signature badge if present */}
                     {contract.has_lawyer_signature && (
                       <Badge className="bg-purple-100 text-purple-800">
@@ -224,12 +254,17 @@ const ContractList: React.FC<Props> = ({
                     )}
 
                     {/* Show tier badge on contract */}
-                    <Badge variant="outline" className="bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)]">
+                    <Badge
+                      variant="outline"
+                      className="bg-(--bg-secondary) border-(--border-color) text-(--text-secondary)"
+                    >
                       {getTierIcon(userTier)}
-                      <span className="ml-1 text-xs capitalize">{userTier}</span>
+                      <span className="ml-1 text-xs capitalize">
+                        {userTier}
+                      </span>
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)]">
+                  <div className="flex items-center gap-4 text-sm text-(--text-secondary)">
                     <span>Issue Date: {createdAt.toLocaleDateString()}</span>
                     {status === "signed" && (
                       <span>Signed Date: {sentAt.toLocaleDateString()}</span>
@@ -248,36 +283,37 @@ const ContractList: React.FC<Props> = ({
                     <Eye className="w-4 h-4 mr-1" />
                     View
                   </Button>
-                  
+
                   {/* Continue Draft Button - Only for draft status */}
                   {status === "draft" && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleContinueDraft(contract)}
-                      className="border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10"
+                      className="border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
                     >
                       <Play className="w-4 h-4 mr-1" />
                       Continue Draft
                     </Button>
                   )}
-                  
+
                   {/* Edit Button - Only for draft or pending */}
-                  {(status === "draft" || status === "pending") && status !== "draft" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/services/contract/edit/${contract.id}`
-                        )
-                      }
-                    >
-                      <Edit className="w-4 h-4 mr-1" />
-                      Edit
-                    </Button>
-                  )}
-                  
+                  {(status === "draft" || status === "pending") &&
+                    status !== "draft" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/services/contract/edit/${contract.id}`,
+                          )
+                        }
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                    )}
+
                   {/* Download Button - Only for signed or completed contracts */}
                   {status !== "draft" && (
                     <Button

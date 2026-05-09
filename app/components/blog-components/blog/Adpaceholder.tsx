@@ -16,7 +16,9 @@ const AdPlaceholder = ({ variant = "horizontal" }: AdPlaceholderProps) => {
   };
 
   return (
-    <div className={`bg-[var(--bg-secondary)]/50 rounded border border-dashed border-[var(--border-color)] flex flex-col items-center justify-center ${getStyles()}`}>
+    <div
+      className={`bg-[var(--bg-secondary)]/50 rounded border border-dashed border-(--border-color) flex flex-col items-center justify-center ${getStyles()}`}
+    >
       <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">
         Advertisement
       </p>

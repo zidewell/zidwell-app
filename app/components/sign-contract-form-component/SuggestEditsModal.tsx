@@ -94,7 +94,9 @@ export const SuggestEditsModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-[var(--text-primary)]">Suggest Edits to Contract</DialogTitle>
+          <DialogTitle className="text-(--text-primary)">
+            Suggest Edits to Contract
+          </DialogTitle>
           <DialogDescription>
             Provide your suggested changes to "{contractTitle}". The contract
             creator will be notified and can accept the edits for ₦500.
@@ -117,15 +119,15 @@ export const SuggestEditsModal = ({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[var(--text-primary)]">Suggested Edits *</Label>
+            <Label className="text-(--text-primary)">Suggested Edits *</Label>
             <Textarea
               value={edits}
               onChange={(e) => setEdits(e.target.value)}
               placeholder="Describe the changes you'd like to see in the contract. Be as specific as possible..."
-              className="min-h-[200px] border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+              className="min-h-[200px] border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
               style={{ outline: "none", boxShadow: "none" }}
             />
-            <p className="text-xs text-[var(--text-secondary)]">
+            <p className="text-xs text-(--text-secondary)">
               Provide detailed suggestions for changes, additions, or deletions
               to the contract terms
             </p>
@@ -144,7 +146,7 @@ export const SuggestEditsModal = ({
           </Button>
           <Button
             type="button"
-            className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+            className="flex-1 bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
             onClick={handleSubmit}
             disabled={isSubmitting}
           >

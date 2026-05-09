@@ -36,9 +36,9 @@ export function ProgressIndicator({
       : 0;
 
   return (
-    <div className="p-4 rounded-xl border bg-[var(--bg-primary)] border-[var(--border-color)] shadow-soft squircle-lg">
+    <div className="p-4 rounded-xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-[var(--text-secondary)]">
+        <span className="text-sm font-medium text-(--text-secondary)">
           {label}
         </span>
         <div
@@ -50,7 +50,10 @@ export function ProgressIndicator({
               summary.net >= 0
                 ? "rgba(0, 182, 79, 0.1)"
                 : "rgba(239, 68, 68, 0.1)",
-            color: summary.net >= 0 ? "var(--color-lemon-green)" : "var(--destructive)",
+            color:
+              summary.net >= 0
+                ? "var(--color-lemon-green)"
+                : "var(--destructive)",
           }}
         >
           <TrendIcon className="h-3 w-3" />
@@ -60,7 +63,7 @@ export function ProgressIndicator({
       </div>
 
       <div className="space-y-2">
-        <div className="flex justify-between text-xs text-[var(--text-secondary)]">
+        <div className="flex justify-between text-xs text-(--text-secondary)">
           <span>
             Income: {currency}
             {formatAmount(summary.income)}
@@ -71,12 +74,15 @@ export function ProgressIndicator({
           </span>
         </div>
 
-        <div className="h-2 rounded-full overflow-hidden bg-[var(--bg-secondary)]">
+        <div className="h-2 rounded-full overflow-hidden bg-(--bg-secondary)">
           <div
             className={cn("h-full rounded-full transition-all duration-500")}
             style={{
               width: `${Math.abs(netPercentage)}%`,
-              background: summary.net >= 0 ? "var(--color-accent-yellow)" : "var(--destructive)",
+              background:
+                summary.net >= 0
+                  ? "var(--color-accent-yellow)"
+                  : "var(--destructive)",
             }}
           />
         </div>

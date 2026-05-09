@@ -10,7 +10,7 @@ const ButtonPrimary = ({ children, className = "", ...props }: ButtonProps) => {
   return (
     <Button
       {...props}
-      className={`bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] shadow-sm ${className}`}
+      className={`bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) shadow-sm ${className}`}
     >
       {children}
     </Button>

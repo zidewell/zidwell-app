@@ -289,7 +289,7 @@ export const IdentityVerificationModal = ({
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-[var(--color-accent-yellow)]" />
+            <Shield className="h-5 w-5 text-(--color-accent-yellow)" />
             Identity Verification
           </DialogTitle>
           <DialogDescription>
@@ -308,7 +308,7 @@ export const IdentityVerificationModal = ({
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Enter your first name"
                 required
-                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
@@ -321,7 +321,7 @@ export const IdentityVerificationModal = ({
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Enter your last name"
                 required
-                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
@@ -339,10 +339,10 @@ export const IdentityVerificationModal = ({
                 placeholder="Enter your 11-digit NIN"
                 required
                 maxLength={11}
-                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
-              <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)] mt-1">
+              <div className="flex items-start gap-2 text-xs text-(--text-secondary) mt-1">
                 <AlertCircle className="h-3 w-3 shrink-0 mt-0.5" />
                 <p>
                   Your NIN is used to verify your identity and prevent
@@ -353,7 +353,7 @@ export const IdentityVerificationModal = ({
 
             <Button
               type="submit"
-              className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+              className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
             >
               Continue to Signature
             </Button>
@@ -364,7 +364,7 @@ export const IdentityVerificationModal = ({
           <div className="space-y-6">
             <div className="space-y-2">
               <Label>Draw Your Signature *</Label>
-              <div className="border-2 border-dashed border-[var(--border-color)] rounded-lg p-4 bg-[var(--bg-secondary)]">
+              <div className="border-2 border-dashed border-(--border-color) rounded-lg p-4 bg-(--bg-secondary)">
                 <canvas
                   ref={canvasRef}
                   width={canvasSize.width}
@@ -385,7 +385,7 @@ export const IdentityVerificationModal = ({
                 >
                   Clear Signature
                 </Button>
-                <span className="text-xs text-[var(--text-secondary)] self-center">
+                <span className="text-xs text-(--text-secondary) self-center">
                   Click and drag to draw your signature
                 </span>
               </div>
@@ -403,7 +403,7 @@ export const IdentityVerificationModal = ({
                   }
                   placeholder="Enter 6-digit code"
                   maxLength={6}
-                  className="flex-1 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                  className="flex-1 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
                 <Button
@@ -414,7 +414,7 @@ export const IdentityVerificationModal = ({
                   Send Code
                 </Button>
               </div>
-              <p className="text-xs text-[var(--text-secondary)]">
+              <p className="text-xs text-(--text-secondary)">
                 A 6-digit verification code has been sent to your email
               </p>
             </div>
@@ -430,7 +430,7 @@ export const IdentityVerificationModal = ({
               </Button>
               <Button
                 type="button"
-                className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+                className="flex-1 bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
                 onClick={handleAuthenticate}
               >
                 Authenticate & Sign
@@ -441,11 +441,11 @@ export const IdentityVerificationModal = ({
 
         {step === "verifying" && (
           <div className="py-8 text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-[var(--color-accent-yellow)] mx-auto mb-4" />
-            <p className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+            <Loader2 className="h-12 w-12 animate-spin text-(--color-accent-yellow) mx-auto mb-4" />
+            <p className="text-lg font-semibold text-(--text-primary) mb-2">
               Verifying Your Identity
             </p>
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-sm text-(--text-secondary)">
               Checking NIN and verifying your signature...
             </p>
           </div>
@@ -453,16 +453,16 @@ export const IdentityVerificationModal = ({
 
         {step === "success" && (
           <div className="py-8 text-center">
-            <CheckCircle className="h-16 w-16 text-[var(--color-lemon-green)] mx-auto mb-4" />
-            <p className="text-xl font-bold text-[var(--text-primary)] mb-2">
+            <CheckCircle className="h-16 w-16 text-(--color-lemon-green) mx-auto mb-4" />
+            <p className="text-xl font-bold text-(--text-primary) mb-2">
               Contract Signed Successfully!
             </p>
-            <p className="text-sm text-[var(--text-secondary)] mb-4">
+            <p className="text-sm text-(--text-secondary) mb-4">
               Check your email for the signed contract document
             </p>
             <Badge
               variant="outline"
-              className="bg-[var(--color-lemon-green)]/10 text-[var(--color-lemon-green)] border-[var(--color-lemon-green)]/20"
+              className="bg-(--color-lemon-green)/10 text-(--color-lemon-green) border-(--color-lemon-green)/20"
             >
               Legally Binding
             </Badge>

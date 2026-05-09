@@ -48,7 +48,7 @@ const ALLOWED_PAYMENT_EMAILS = new Set([
   "abdullahtimilehin15@gmail.com",
   "ebrusikefavour@gmail.com",
   "skillfidelafrica@gmail.com",
-  "abbalolo360@gmail.com"
+  "abbalolo360@gmail.com",
 ]);
 
 const canAccessPaymentPage = (userEmail?: string | null) => {
@@ -106,8 +106,8 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
 
     const commonClassName = `flex items-center gap-4 p-3 rounded-md text-sm font-bold uppercase tracking-wide border-2 transition-all duration-150 ${
       isActive
-        ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] border-[var(--border-color)] shadow-[2px_2px_0px_var(--border-color)]"
-        : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)] hover:shadow-[2px_2px_0px_var(--border-color)]"
+        ? "bg-(--color-accent-yellow) text-[var(--color-ink)] border-(--border-color) shadow-[2px_2px_0px_var(--border-color)]"
+        : "border-transparent text-[var(--text-secondary)] hover:bg-(--bg-secondary) hover:text-(--text-primary) hover:border-(--border-color) hover:shadow-[2px_2px_0px_var(--border-color)]"
     }`;
 
     if (isProtected) {
@@ -148,15 +148,27 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
 
       <div className="space-y-2">
         <NavItem
-          item={{ name: "Fund Wallet", href: "/dashboard/fund-account", icon: Wallet }}
+          item={{
+            name: "Fund Wallet",
+            href: "/dashboard/fund-account",
+            icon: Wallet,
+          }}
           isActive={pathname === "/dashboard/fund-account"}
         />
         <NavItem
-          item={{ name: "Transfer", href: "/dashboard/fund-account/transfer-page", icon: Send }}
+          item={{
+            name: "Transfer",
+            href: "/dashboard/fund-account/transfer-page",
+            icon: Send,
+          }}
           isActive={pathname === "/dashboard/fund-account/transfer-page"}
         />
         <NavItem
-          item={{ name: "Transactions", href: "/dashboard/transactions", icon: ArrowLeftRight }}
+          item={{
+            name: "Transactions",
+            href: "/dashboard/transactions",
+            icon: ArrowLeftRight,
+          }}
           isActive={pathname === "/dashboard/transactions"}
         />
       </div>
@@ -167,29 +179,56 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         </h3>
         <div className="space-y-2">
           <NavItem
-            item={{ name: "Bookkeeping", href: "/dashboard/services/bookkeeping", icon: BookOpen }}
+            item={{
+              name: "Bookkeeping",
+              href: "/dashboard/services/bookkeeping",
+              icon: BookOpen,
+            }}
             isActive={pathname === "/dashboard/services/bookkeeping"}
           />
           <NavItem
-            item={{ name: "Invoices", href: "/dashboard/services/create-invoice", icon: FileText }}
+            item={{
+              name: "Invoices",
+              href: "/dashboard/services/create-invoice",
+              icon: FileText,
+            }}
             isActive={pathname === "/dashboard/services/create-invoice"}
           />
           <NavItem
-            item={{ name: "Receipts", href: "/dashboard/services/receipt", icon: Receipt }}
+            item={{
+              name: "Receipts",
+              href: "/dashboard/services/receipt",
+              icon: Receipt,
+            }}
             isActive={pathname === "/dashboard/services/receipt"}
           />
           <NavItem
-            item={{ name: "Contracts", href: "/dashboard/services/contract", icon: FileSignature }}
-            isActive={pathname === "/dashboard/services/contract" || pathname === "/dashboard/services/contract/create-contract-form"}
+            item={{
+              name: "Contracts",
+              href: "/dashboard/services/contract",
+              icon: FileSignature,
+            }}
+            isActive={
+              pathname === "/dashboard/services/contract" ||
+              pathname === "/dashboard/services/contract/create-contract-form"
+            }
           />
           {showPaymentPage && (
             <NavItem
-              item={{ name: "Payment Pages", href: "/dashboard/services/payment/dashboard", icon: CreditCard }}
+              item={{
+                name: "Payment Pages",
+                href: "/dashboard/services/payment/dashboard",
+                icon: CreditCard,
+              }}
               isActive={pathname === "/dashboard/services/payment"}
             />
           )}
           <NavItem
-            item={{ name: "Tax Management", href: "/dashboard/services/tax-filing", icon: Calculator }}
+            item={{
+              name: "Tax Management",
+              href: "/dashboard/services/tax-filing",
+              icon: Calculator,
+            }}
             isActive={pathname === "/dashboard/services/tax-filing"}
           />
         </div>
@@ -201,19 +240,35 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         </h3>
         <div className="space-y-2">
           <NavItem
-            item={{ name: "Buy Airtime", href: "/dashboard/services/buy-airtime", icon: Smartphone }}
+            item={{
+              name: "Buy Airtime",
+              href: "/dashboard/services/buy-airtime",
+              icon: Smartphone,
+            }}
             isActive={pathname === "/dashboard/services/buy-airtime"}
           />
           <NavItem
-            item={{ name: "Buy Data", href: "/dashboard/services/buy-data", icon: Wifi }}
+            item={{
+              name: "Buy Data",
+              href: "/dashboard/services/buy-data",
+              icon: Wifi,
+            }}
             isActive={pathname === "/dashboard/services/buy-data"}
           />
           <NavItem
-            item={{ name: "Buy Light", href: "/dashboard/services/buy-power", icon: Lightbulb }}
+            item={{
+              name: "Buy Light",
+              href: "/dashboard/services/buy-power",
+              icon: Lightbulb,
+            }}
             isActive={pathname === "/dashboard/services/buy-power"}
           />
           <NavItem
-            item={{ name: "Cable TV", href: "/dashboard/services/buy-cable-tv", icon: Tv }}
+            item={{
+              name: "Cable TV",
+              href: "/dashboard/services/buy-cable-tv",
+              icon: Tv,
+            }}
             isActive={pathname === "/dashboard/services/buy-cable-tv"}
           />
         </div>
@@ -229,18 +284,30 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   const PreferencesContent = () => (
     <div className="space-y-2">
       {preferenceItems.map((item) => (
-        <NavItem key={item.name} item={item} isActive={pathname === item.href} />
+        <NavItem
+          key={item.name}
+          item={item}
+          isActive={pathname === item.href}
+        />
       ))}
 
       {userData && (
         <>
-          {["super_admin", "finance_admin", "operations_admin", "support_admin", "legal_admin"].includes(userData?.role) && (
+          {[
+            "super_admin",
+            "finance_admin",
+            "operations_admin",
+            "support_admin",
+            "legal_admin",
+          ].includes(userData?.role) && (
             <NavItem
               item={{ name: "Admin Panel", href: "/admin", icon: Settings }}
               isActive={pathname === "/admin" || pathname.startsWith("/admin/")}
             />
           )}
-          {["super_admin", "operations_admin", "blog_admin"].includes(userData?.role) && (
+          {["super_admin", "operations_admin", "blog_admin"].includes(
+            userData?.role,
+          ) && (
             <NavItem
               item={{ name: "Blog Admin", href: "/blog/admin", icon: Captions }}
               isActive={pathname === "/blog/admin"}
@@ -285,14 +352,14 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
 
       <aside
         className={`
-          fixed top-0 left-0 z-50 h-full w-72 bg-[var(--bg-primary)] border-r-2 border-[var(--border-color)]
+          fixed top-0 left-0 z-50 h-full w-72 bg-(--bg-primary) border-r-2 border-(--border-color)
           transition-transform duration-300 ease-in-out overflow-y-auto tiny-scrollbar
           ${open ? "translate-x-0" : "-translate-x-full"}
         `}
       >
         <style>{scrollbarStyles}</style>
         <div className="flex flex-col min-h-full">
-          <div className="flex items-center justify-between h-20 px-7 border-b-2 border-[var(--border-color)]">
+          <div className="flex items-center justify-between h-20 px-7 border-b-2 border-(--border-color)">
             <Link href="/dashboard" className="flex items-center gap-2">
               <Image
                 src="/logo.png"
@@ -301,20 +368,20 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
                 height={32}
                 className="w-8 object-contain"
               />
-              <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)] uppercase">
+              <span className="text-2xl font-bold tracking-tight text-(--text-primary) uppercase">
                 Zidwell
               </span>
             </Link>
             <button
               onClick={onClose}
-              className="lg:hidden text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="lg:hidden text-[var(--text-secondary)] hover:text-(--text-primary) transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {userData && userData.fullName && (
-            <div className="p-5 border-b-2 border-[var(--border-color)]">
+            <div className="p-5 border-b-2 border-(--border-color)">
               <div className="space-y-2">
                 <p className="text-[var(--text-secondary)] text-sm">
                   Welcome Back, {userData.fullName}
@@ -326,13 +393,15 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
                         Wallet Balance
                       </p>
                       <div className="flex items-center gap-1">
-                        <span className="text-[var(--text-primary)] text-sm font-bold">
+                        <span className="text-(--text-primary) text-sm font-bold">
                           ₦{formatBalance()}
                         </span>
                         <button
                           onClick={() => setShowBalance(!showBalance)}
-                          className="p-1 hover:bg-[var(--bg-secondary)] rounded-md transition-colors duration-200"
-                          aria-label={showBalance ? "Hide balance" : "Show balance"}
+                          className="p-1 hover:bg-(--bg-secondary) rounded-md transition-colors duration-200"
+                          aria-label={
+                            showBalance ? "Hide balance" : "Show balance"
+                          }
                         >
                           {showBalance ? (
                             <Eye className="w-4 h-4 text-[var(--text-secondary)]" />
@@ -352,7 +421,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             <NavigationContent />
           </nav>
 
-          <div className="p-5 border-t-2 border-[var(--border-color)]">
+          <div className="p-5 border-t-2 border-(--border-color)">
             <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
               Preferences
             </h3>
@@ -364,10 +433,10 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   );
 
   const DesktopSidebar = () => (
-    <aside className="hidden lg:block fixed top-0 left-0 z-40 h-screen w-72 bg-[var(--bg-primary)] border-r-2 border-[var(--border-color)] overflow-y-auto tiny-scrollbar">
+    <aside className="hidden lg:block fixed top-0 left-0 z-40 h-screen w-72 bg-(--bg-primary) border-r-2 border-(--border-color) overflow-y-auto tiny-scrollbar">
       <style>{scrollbarStyles}</style>
       <div className="flex flex-col min-h-full">
-        <div className="flex items-center h-20 px-7 border-b-2 border-[var(--border-color)]">
+        <div className="flex items-center h-20 px-7 border-b-2 border-(--border-color)">
           <Link href="/dashboard" className="flex items-center gap-2">
             <Image
               src="/logo.png"
@@ -376,14 +445,14 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
               height={32}
               className="w-8 object-contain"
             />
-            <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)] uppercase">
+            <span className="text-2xl font-bold tracking-tight text-(--text-primary) uppercase">
               Zidwell
             </span>
           </Link>
         </div>
 
         {userData && userData.fullName && (
-          <div className="p-5 border-b-2 border-[var(--border-color)]">
+          <div className="p-5 border-b-2 border-(--border-color)">
             <div className="space-y-2">
               <p className="text-[var(--text-secondary)] text-sm">
                 Welcome Back, {userData.fullName}
@@ -395,13 +464,15 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
                       Wallet Balance
                     </p>
                     <div className="flex items-center gap-1">
-                      <span className="text-[var(--text-primary)] text-sm font-bold">
+                      <span className="text-(--text-primary) text-sm font-bold">
                         ₦{formatBalance()}
                       </span>
                       <button
                         onClick={() => setShowBalance(!showBalance)}
-                        className="p-1 hover:bg-[var(--bg-secondary)] rounded-md transition-colors duration-200"
-                        aria-label={showBalance ? "Hide balance" : "Show balance"}
+                        className="p-1 hover:bg-(--bg-secondary) rounded-md transition-colors duration-200"
+                        aria-label={
+                          showBalance ? "Hide balance" : "Show balance"
+                        }
                       >
                         {showBalance ? (
                           <Eye className="w-4 h-4 text-[var(--text-secondary)]" />
@@ -421,7 +492,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           <NavigationContent />
         </nav>
 
-        <div className="p-5 border-t-2 border-[var(--border-color)]">
+        <div className="p-5 border-t-2 border-(--border-color)">
           <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
             Preferences
           </h3>
@@ -433,8 +504,12 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
 
   return (
     <>
-      <div className="lg:hidden"><MobileSidebar /></div>
-      <div className="hidden lg:block"><DesktopSidebar /></div>
+      <div className="lg:hidden">
+        <MobileSidebar />
+      </div>
+      <div className="hidden lg:block">
+        <DesktopSidebar />
+      </div>
     </>
   );
 };

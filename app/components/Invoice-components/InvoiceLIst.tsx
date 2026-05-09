@@ -83,7 +83,8 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
     const items = (invoiceItems || []).map((item: any, index: number) => ({
       id: item.id || `item-${index}-${Math.random()}`,
-      description: item.item_description || item.description || "Item description",
+      description:
+        item.item_description || item.description || "Item description",
       quantity: Number(item.quantity) || 1,
       unitPrice: Number(item.unit_price || item.unitPrice || 0),
       total: Number(
@@ -306,7 +307,10 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
       Swal.fire({
         icon: "error",
         title: "Download Failed",
-        text: error instanceof Error ? error.message : "Failed to download PDF. Please try again.",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Failed to download PDF. Please try again.",
         confirmButtonColor: "var(--color-accent-yellow)",
         background: "var(--bg-primary)",
         color: "var(--text-primary)",
@@ -332,7 +336,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
   if (invoices.length === 0) {
     return (
-      <div className="flex items-center justify-center text-semibold text-[var(--text-secondary)]">
+      <div className="flex items-center justify-center text-semibold text-(--text-secondary)">
         No invoices records
       </div>
     );
@@ -358,22 +362,32 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
         const paymentCountText = getPaymentCountText(invoice);
 
         return (
-          <Card key={invoice.id} className="hover:shadow-md transition-shadow bg-[var(--bg-primary)] border border-[var(--border-color)] squircle-lg">
+          <Card
+            key={invoice.id}
+            className="hover:shadow-md transition-shadow bg-(--bg-primary) border border-(--border-color) squircle-lg"
+          >
             <CardContent className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-lg text-[var(--text-primary)]">
+                    <h3 className="font-semibold text-lg text-(--text-primary)">
                       {invoice.invoice_id}
                     </h3>
-                    <Badge className={statusColors[invoice.status] || "bg-gray-100 text-gray-800"}>
+                    <Badge
+                      className={
+                        statusColors[invoice.status] ||
+                        "bg-gray-100 text-gray-800"
+                      }
+                    >
                       {invoice.status?.toUpperCase()}
                     </Badge>
                   </div>
-                  <p className="text-[var(--text-primary)] font-medium mb-1">
+                  <p className="text-(--text-primary) font-medium mb-1">
                     {invoice.client_name || invoice.bill_to || "No client name"}
                   </p>
-                  <p className="text-[var(--text-secondary)] mb-2">{invoice.client_email}</p>
+                  <p className="text-(--text-secondary) mb-2">
+                    {invoice.client_email}
+                  </p>
 
                   {invoice.allow_multiple_payments &&
                     !paymentProgress &&
@@ -387,12 +401,12 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                       </div>
                     )}
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--text-secondary)]">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-(--text-secondary)">
                     <span>
                       Date: {new Date(invoice.issue_date).toLocaleDateString()}
                     </span>
 
-                    <span className="font-semibold text-[var(--text-primary)]">
+                    <span className="font-semibold text-(--text-primary)">
                       ₦{formatNumber(totalAmount)}
                     </span>
                   </div>
@@ -421,7 +435,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                     }
                     variant="outline"
                     size="sm"
-                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                    className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                   >
                     <Eye className="w-4 h-4 mr-1" />
                     View
@@ -438,7 +452,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                     disabled={
                       invoice.status === "paid" || invoice.status === "draft"
                     }
-                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                    className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                   >
                     <Edit className="w-4 h-4 mr-1" />
                     Edit
@@ -452,7 +466,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                       processingInvoiceId === invoice.id ||
                       invoice.status === "draft"
                     }
-                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                    className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                   >
                     {processingInvoiceId === invoice.id ? (
                       <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -470,14 +484,16 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--bg-primary)] rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto squircle-lg shadow-pop">
-            <div className="sticky top-0 bg-[var(--bg-primary)] border-b border-[var(--border-color)] p-4 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Invoice Preview</h3>
+          <div className="bg-(--bg-primary) rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto squircle-lg shadow-pop">
+            <div className="sticky top-0 bg-(--bg-primary) border-b border-(--border-color) p-4 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-(--text-primary)">
+                Invoice Preview
+              </h3>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedInvoice(null)}
-                className="border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
               >
                 Close
               </Button>

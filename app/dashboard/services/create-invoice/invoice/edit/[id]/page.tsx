@@ -254,7 +254,10 @@ export default function Page() {
   if (!form) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
-        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <DashboardSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
         <div className="lg:pl-72 min-h-screen flex flex-col">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -269,11 +272,14 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-        
+
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center justify-between mb-6">
@@ -281,42 +287,42 @@ export default function Page() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
-                className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)] text-sm md:text-base"
+                className="text-(--color-accent-yellow) hover:bg-(--bg-secondary) text-sm md:text-base"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 <span className="hidden md:block">Back</span>
               </Button>
-              <h1 className="text-2xl md:text-3xl font-bold text-center flex-1 text-[var(--text-primary)]">
+              <h1 className="text-2xl md:text-3xl font-bold text-center flex-1 text-(--text-primary)">
                 Edit Invoice
               </h1>
               <div className="w-20"></div>
             </div>
 
-            <div className="bg-[var(--bg-primary)] rounded-lg shadow-soft border border-[var(--border-color)] p-4 md:p-6 space-y-6 squircle-lg">
+            <div className="bg-(--bg-primary) rounded-lg shadow-soft border border-(--border-color) p-4 md:p-6 space-y-6 squircle-lg">
               {/* Business Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Business Name
                   </label>
                   <Input
                     name="business_name"
                     value={form.business_name}
                     onChange={handleChange}
-                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Invoice ID
                   </label>
                   <Input
                     name="invoice_id"
                     value={form.invoice_id}
                     disabled
-                    className="border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
+                    className="border-(--border-color) bg-(--bg-secondary) text-(--text-secondary)"
                   />
                 </div>
               </div>
@@ -324,20 +330,20 @@ export default function Page() {
               {/* Client Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Client Name
                   </label>
                   <Input
                     name="client_name"
                     value={form.client_name}
                     onChange={handleChange}
-                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Client Email
                   </label>
                   <Input
@@ -345,7 +351,7 @@ export default function Page() {
                     type="email"
                     value={form.client_email}
                     onChange={handleChange}
-                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
@@ -353,27 +359,27 @@ export default function Page() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Client Phone
                   </label>
                   <Input
                     name="client_phone"
                     value={form.client_phone || ""}
                     onChange={handleChange}
-                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Bill To
                   </label>
                   <Input
                     name="bill_to"
                     value={form.bill_to}
                     onChange={handleChange}
-                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
@@ -382,7 +388,7 @@ export default function Page() {
               {/* Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Issue Date
                   </label>
                   <Input
@@ -390,13 +396,13 @@ export default function Page() {
                     type="date"
                     value={form.issue_date}
                     onChange={handleChange}
-                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Due Date
                   </label>
                   <Input
@@ -404,23 +410,23 @@ export default function Page() {
                     type="date"
                     value={form.due_date}
                     onChange={handleChange}
-                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
               </div>
 
               {/* Payment Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-[var(--bg-secondary)] rounded-lg squircle-md">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-(--bg-secondary) rounded-lg squircle-md">
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Payment Type
                   </label>
                   <select
                     name="payment_type"
                     value={form.payment_type}
                     onChange={handleChange}
-                    className="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="w-full p-2 border border-(--border-color) rounded-md bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   >
                     <option value="single">Single Payment</option>
@@ -429,14 +435,14 @@ export default function Page() {
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Fee Option
                   </label>
                   <select
                     name="fee_option"
                     value={form.fee_option}
                     onChange={handleChange}
-                    className="w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="w-full p-2 border border-(--border-color) rounded-md bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   >
                     <option value="customer">Customer Pays Fee</option>
@@ -445,7 +451,7 @@ export default function Page() {
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                  <label className="block font-medium mb-2 text-(--text-secondary)">
                     Target Quantity
                   </label>
                   <Input
@@ -455,26 +461,26 @@ export default function Page() {
                     value={form.target_quantity}
                     onChange={handleChange}
                     placeholder="1"
-                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
-                  <p className="text-xs text-[var(--text-secondary)] mt-1">
+                  <p className="text-xs text-(--text-secondary) mt-1">
                     Number of times this invoice should be paid
                   </p>
                 </div>
               </div>
 
               {/* Multiple Payments Toggle */}
-              <div className="flex items-center space-x-2 p-4 bg-[var(--bg-secondary)] rounded-lg squircle-md">
+              <div className="flex items-center space-x-2 p-4 bg-(--bg-secondary) rounded-lg squircle-md">
                 <input
                   type="checkbox"
                   id="allow_multiple_payments"
                   name="allow_multiple_payments"
                   checked={form.allow_multiple_payments}
                   onChange={handleChange}
-                  className="w-4 h-4 text-[var(--color-accent-yellow)] border-[var(--border-color)] rounded focus:ring-[var(--color-accent-yellow)]"
+                  className="w-4 h-4 text-(--color-accent-yellow) border-(--border-color) rounded focus:ring-(--color-accent-yellow)"
                 />
-                <label className="font-medium text-[var(--text-secondary)]">
+                <label className="font-medium text-(--text-secondary)">
                   Allow Multiple Payments
                 </label>
               </div>
@@ -482,13 +488,15 @@ export default function Page() {
               {/* Invoice Items */}
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <label className="block font-medium text-[var(--text-secondary)]">Invoice Items</label>
+                  <label className="block font-medium text-(--text-secondary)">
+                    Invoice Items
+                  </label>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={addItem}
-                    className="border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                    className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
                   >
                     + Add Item
                   </Button>
@@ -506,7 +514,7 @@ export default function Page() {
                           updateItem(index, "description", e.target.value)
                         }
                         placeholder="Item description"
-                        className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                         style={{ outline: "none", boxShadow: "none" }}
                       />
                     </div>
@@ -519,7 +527,7 @@ export default function Page() {
                         }
                         placeholder="Qty"
                         min="1"
-                        className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                         style={{ outline: "none", boxShadow: "none" }}
                       />
                     </div>
@@ -533,7 +541,7 @@ export default function Page() {
                         placeholder="Price"
                         min="0"
                         step="0.01"
-                        className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                         style={{ outline: "none", boxShadow: "none" }}
                       />
                     </div>
@@ -542,7 +550,7 @@ export default function Page() {
                         value={`₦${item.total.toLocaleString()}`}
                         disabled
                         placeholder="Total"
-                        className="border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
+                        className="border-(--border-color) bg-(--bg-secondary) text-(--text-secondary)"
                       />
                     </div>
                     <div className="col-span-1">
@@ -551,7 +559,7 @@ export default function Page() {
                         variant="outline"
                         size="sm"
                         onClick={() => removeItem(index)}
-                        className="text-[var(--destructive)] hover:text-[var(--destructive)] border-[var(--border-color)] hover:bg-[var(--bg-secondary)]"
+                        className="text-destructive hover:text-destructive border-(--border-color) hover:bg-(--bg-secondary)"
                       >
                         ×
                       </Button>
@@ -560,30 +568,38 @@ export default function Page() {
                 ))}
 
                 {/* Totals Summary */}
-                <div className="mt-4 p-4 bg-[var(--bg-secondary)] rounded-lg squircle-md">
+                <div className="mt-4 p-4 bg-(--bg-secondary) rounded-lg squircle-md">
                   <div className="flex justify-between text-sm">
-                    <span className="text-[var(--text-secondary)]">Subtotal:</span>
-                    <span className="text-[var(--text-primary)]">₦{form.subtotal.toLocaleString()}</span>
+                    <span className="text-(--text-secondary)">Subtotal:</span>
+                    <span className="text-(--text-primary)">
+                      ₦{form.subtotal.toLocaleString()}
+                    </span>
                   </div>
                   {form.fee_amount > 0 && (
                     <div className="flex justify-between text-sm mt-1">
-                      <span className="text-[var(--text-secondary)]">
+                      <span className="text-(--text-secondary)">
                         Processing Fee (
                         {form.fee_option === "customer" ? "2%" : "Absorbed"}):
                       </span>
-                      <span className="text-[var(--text-primary)]">₦{form.fee_amount.toLocaleString()}</span>
+                      <span className="text-(--text-primary)">
+                        ₦{form.fee_amount.toLocaleString()}
+                      </span>
                     </div>
                   )}
-                  <div className="flex justify-between font-bold mt-2 pt-2 border-t border-[var(--border-color)]">
-                    <span className="text-[var(--text-secondary)]">Total Amount:</span>
-                    <span className="text-[var(--color-accent-yellow)]">
+                  <div className="flex justify-between font-bold mt-2 pt-2 border-t border-(--border-color)">
+                    <span className="text-(--text-secondary)">
+                      Total Amount:
+                    </span>
+                    <span className="text-(--color-accent-yellow)">
                       ₦{form.total_amount.toLocaleString()}
                     </span>
                   </div>
                   {form.allow_multiple_payments && (
-                    <div className="flex justify-between text-sm mt-2 pt-2 border-t border-[var(--border-color)]">
-                      <span className="text-[var(--text-secondary)]">Target Quantity:</span>
-                      <span className="font-medium text-[var(--text-primary)]">
+                    <div className="flex justify-between text-sm mt-2 pt-2 border-t border-(--border-color)">
+                      <span className="text-(--text-secondary)">
+                        Target Quantity:
+                      </span>
+                      <span className="font-medium text-(--text-primary)">
                         {form.target_quantity}
                       </span>
                     </div>
@@ -593,7 +609,7 @@ export default function Page() {
 
               {/* Message */}
               <div>
-                <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                <label className="block font-medium mb-2 text-(--text-secondary)">
                   Message
                 </label>
                 <Textarea
@@ -602,14 +618,14 @@ export default function Page() {
                   onChange={handleChange}
                   placeholder="Message to client"
                   rows={3}
-                  className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] resize-none"
+                  className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) resize-none"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
 
               {/* Redirect URL */}
               <div>
-                <label className="block font-medium mb-2 text-[var(--text-secondary)]">
+                <label className="block font-medium mb-2 text-(--text-secondary)">
                   Redirect URL (Optional)
                 </label>
                 <Input
@@ -618,16 +634,16 @@ export default function Page() {
                   value={form.redirect_url || ""}
                   onChange={handleChange}
                   placeholder="https://example.com/thankyou"
-                  className="border-[var(--border-color)] bg-[var(--bg-primary)]text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                  className="border-(--border-color) bg-(--bg-primary)text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
-                <p className="text-sm text-[var(--text-secondary)] mt-1">
+                <p className="text-sm text-(--text-secondary) mt-1">
                   Redirect clients to this URL after successful payment
                 </p>
               </div>
 
               <Button
-                className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
+                className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
                 onClick={handleUpdate}
                 disabled={loading}
                 size="lg"

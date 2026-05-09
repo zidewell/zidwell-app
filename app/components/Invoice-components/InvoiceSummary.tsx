@@ -2,7 +2,14 @@
 
 import { Button } from "../ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crown, Zap, Sparkles, Star, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Crown,
+  Zap,
+  Sparkles,
+  Star,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 
 interface InvoiceItem {
   id: string;
@@ -74,7 +81,9 @@ export default function InvoiceSummary({
 
   const getRemaining = (): number => {
     if (usageInfo) {
-      return typeof usageInfo.remaining === "number" ? usageInfo.remaining : 999;
+      return typeof usageInfo.remaining === "number"
+        ? usageInfo.remaining
+        : 999;
     }
     return 0;
   };
@@ -85,42 +94,47 @@ export default function InvoiceSummary({
 
   const getTierIcon = () => {
     if (isElite) return <Sparkles className="w-5 h-5 text-purple-600" />;
-    if (isPremium) return <Crown className="w-5 h-5 text-[var(--color-accent-yellow)]" />;
+    if (isPremium)
+      return <Crown className="w-5 h-5 text-(--color-accent-yellow)" />;
     if (isGrowth) return <Zap className="w-5 h-5 text-green-600" />;
     if (isZidLite) return <Zap className="w-5 h-5 text-blue-600" />;
     return <Star className="w-5 h-5 text-gray-600" />;
   };
 
   const getTierColors = () => {
-    if (isElite) return {
-      bg: "bg-purple-50 dark:bg-purple-900/20",
-      border: "border-purple-200 dark:border-purple-800",
-      text: "text-purple-700 dark:text-purple-400",
-      btn: "bg-purple-600 hover:bg-purple-700",
-    };
-    if (isPremium) return {
-      bg: "bg-[var(--color-accent-yellow)]/10",
-      border: "border-[var(--color-accent-yellow)]",
-      text: "text-[var(--color-accent-yellow)]",
-      btn: "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]",
-    };
-    if (isGrowth) return {
-      bg: "bg-green-50 dark:bg-green-900/20",
-      border: "border-green-200 dark:border-green-800",
-      text: "text-green-700 dark:text-green-400",
-      btn: "bg-green-600 hover:bg-green-700 text-white",
-    };
-    if (isZidLite) return {
-      bg: "bg-blue-50 dark:bg-blue-900/20",
-      border: "border-blue-200 dark:border-blue-800",
-      text: "text-blue-700 dark:text-blue-400",
-      btn: "bg-blue-600 hover:bg-blue-700 text-white",
-    };
+    if (isElite)
+      return {
+        bg: "bg-purple-50 dark:bg-purple-900/20",
+        border: "border-purple-200 dark:border-purple-800",
+        text: "text-purple-700 dark:text-purple-400",
+        btn: "bg-purple-600 hover:bg-purple-700",
+      };
+    if (isPremium)
+      return {
+        bg: "bg-(--color-accent-yellow)/10",
+        border: "border-(--color-accent-yellow)",
+        text: "text-(--color-accent-yellow)",
+        btn: "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)",
+      };
+    if (isGrowth)
+      return {
+        bg: "bg-green-50 dark:bg-green-900/20",
+        border: "border-green-200 dark:border-green-800",
+        text: "text-green-700 dark:text-green-400",
+        btn: "bg-green-600 hover:bg-green-700 text-white",
+      };
+    if (isZidLite)
+      return {
+        bg: "bg-blue-50 dark:bg-blue-900/20",
+        border: "border-blue-200 dark:border-blue-800",
+        text: "text-blue-700 dark:text-blue-400",
+        btn: "bg-blue-600 hover:bg-blue-700 text-white",
+      };
     return {
       bg: "bg-gray-50 dark:bg-gray-800",
       border: "border-gray-200 dark:border-gray-700",
       text: "text-gray-700 dark:text-gray-400",
-      btn: "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]",
+      btn: "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)",
     };
   };
 
@@ -159,7 +173,7 @@ export default function InvoiceSummary({
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
-            <div className="max-w-2xl w-full mx-auto bg-[var(--bg-primary)] rounded-2xl shadow-pop p-6 space-y-4 max-h-[90vh] overflow-y-auto border border-[var(--border-color)] squircle-lg">
+            <div className="max-w-2xl w-full mx-auto bg-(--bg-primary) rounded-2xl shadow-pop p-6 space-y-4 max-h-[90vh] overflow-y-auto border border-(--border-color) squircle-lg">
               {/* Invoice Status Banner */}
               {!isChecking && (
                 <div
@@ -182,21 +196,22 @@ export default function InvoiceSummary({
                             <p className={`font-semibold ${colors.text}`}>
                               {getTierDisplayName()} Plan
                             </p>
-                            <p className="text-sm text-[var(--text-secondary)]">
+                            <p className="text-sm text-(--text-secondary)">
                               Unlimited invoices included
                             </p>
                           </div>
                         </>
                       ) : hasFreeInvoices ? (
                         <>
-                          <CheckCircle2 className="text-[var(--color-lemon-green)] mr-3 w-6 h-6" />
+                          <CheckCircle2 className="text-(--color-lemon-green) mr-3 w-6 h-6" />
                           <div>
                             <p className="font-semibold text-green-800 dark:text-green-400">
                               Free Invoice Available
                             </p>
                             <p className="text-sm text-green-600 dark:text-green-400">
                               You have {remainingInvoices} free{" "}
-                              {remainingInvoices === 1 ? "invoice" : "invoices"} remaining
+                              {remainingInvoices === 1 ? "invoice" : "invoices"}{" "}
+                              remaining
                             </p>
                           </div>
                         </>
@@ -224,9 +239,13 @@ export default function InvoiceSummary({
                               : "text-yellow-600"
                         }`}
                       >
-                        {hasUnlimited ? "FREE" : hasFreeInvoices ? "FREE" : "LIMIT REACHED"}
+                        {hasUnlimited
+                          ? "FREE"
+                          : hasFreeInvoices
+                            ? "FREE"
+                            : "LIMIT REACHED"}
                       </p>
-                      <p className="text-xs text-[var(--text-secondary)]">
+                      <p className="text-xs text-(--text-secondary)">
                         {usageInfo?.used || 0} used
                       </p>
                     </div>
@@ -235,8 +254,8 @@ export default function InvoiceSummary({
               )}
 
               {/* Header */}
-              <div className="flex flex-col items-center border-b border-[var(--border-color)] pb-4">
-                <div className="text-[var(--text-secondary)] text-sm">
+              <div className="flex flex-col items-center border-b border-(--border-color) pb-4">
+                <div className="text-(--text-secondary) text-sm">
                   Invoice Summary
                 </div>
                 <div
@@ -250,7 +269,7 @@ export default function InvoiceSummary({
                 >
                   ₦{totals.totalAmount.toLocaleString()}
                 </div>
-                <div className="text-sm text-[var(--text-secondary)] mt-1">
+                <div className="text-sm text-(--text-secondary) mt-1">
                   {invoiceData.payment_type === "multiple"
                     ? "Multiple Buyers Invoice"
                     : "Single Buyer Invoice"}
@@ -259,32 +278,32 @@ export default function InvoiceSummary({
 
               {/* INVOICE DETAILS Section */}
               <div>
-                <h3 className="text-[var(--text-secondary)] text-sm font-semibold mb-3">
+                <h3 className="text-(--text-secondary) text-sm font-semibold mb-3">
                   Invoice Details
                 </h3>
-                <div className="bg-[var(--bg-secondary)] rounded-lg p-4 space-y-3 text-sm squircle-md">
+                <div className="bg-(--bg-secondary) rounded-lg p-4 space-y-3 text-sm squircle-md">
                   <div className="flex justify-between">
-                    <span className="text-[var(--text-secondary)]">
+                    <span className="text-(--text-secondary)">
                       Invoice Number
                     </span>
-                    <span className="text-[var(--text-primary)] font-medium">
+                    <span className="text-(--text-primary) font-medium">
                       {invoiceData.invoice_id}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[var(--text-secondary)]">
+                    <span className="text-(--text-secondary)">
                       Issue Date
                     </span>
-                    <span className="text-[var(--text-primary)]">
+                    <span className="text-(--text-primary)">
                       {invoiceData.issue_date}
                     </span>
                   </div>
                   {invoiceData.payment_type === "multiple" && (
                     <div className="flex justify-between">
-                      <span className="text-[var(--text-secondary)]">
+                      <span className="text-(--text-secondary)">
                         Total Units
                       </span>
-                      <span className="text-[var(--text-primary)]">
+                      <span className="text-(--text-primary)">
                         {invoiceData?.targetQuantity}
                       </span>
                     </div>
@@ -295,31 +314,31 @@ export default function InvoiceSummary({
               {/* PARTIES INVOLVED Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-[var(--text-secondary)] text-sm font-semibold mb-2">
+                  <h3 className="text-(--text-secondary) text-sm font-semibold mb-2">
                     From
                   </h3>
-                  <div className="bg-[var(--bg-secondary)] rounded-lg p-3 space-y-2 text-sm squircle-md">
+                  <div className="bg-(--bg-secondary) rounded-lg p-3 space-y-2 text-sm squircle-md">
                     <div>
-                      <span className="text-[var(--text-secondary)] block text-xs">
+                      <span className="text-(--text-secondary) block text-xs">
                         Name
                       </span>
-                      <span className="text-[var(--text-primary)] font-medium">
-                        {initiatorName || invoiceData.business_name || invoiceData.from}
+                      <span className="text-(--text-primary) font-medium">
+                        {initiatorName ||
+                          invoiceData.business_name ||
+                          invoiceData.from}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[var(--text-secondary)] block text-xs">
+                      <span className="text-(--text-secondary) block text-xs">
                         Email
                       </span>
-                      <span className="text-[var(--text-primary)]">
-                        {safeEmail}
-                      </span>
+                      <span className="text-(--text-primary)">{safeEmail}</span>
                     </div>
                     <div>
-                      <span className="text-[var(--text-secondary)] block text-xs">
+                      <span className="text-(--text-secondary) block text-xs">
                         Bill To
                       </span>
-                      <span className="text-[var(--text-primary)]">
+                      <span className="text-(--text-primary)">
                         {invoiceData.bill_to || "Not specified"}
                       </span>
                     </div>
@@ -327,23 +346,23 @@ export default function InvoiceSummary({
                 </div>
 
                 <div>
-                  <h3 className="text-[var(--text-secondary)] text-sm font-semibold mb-2">
+                  <h3 className="text-(--text-secondary) text-sm font-semibold mb-2">
                     To
                   </h3>
-                  <div className="bg-[var(--bg-secondary)] rounded-lg p-3 space-y-2 text-sm squircle-md">
+                  <div className="bg-(--bg-secondary) rounded-lg p-3 space-y-2 text-sm squircle-md">
                     <div>
-                      <span className="text-[var(--text-secondary)] block text-xs">
+                      <span className="text-(--text-secondary) block text-xs">
                         Client Name
                       </span>
-                      <span className="text-[var(--text-primary)] font-medium">
+                      <span className="text-(--text-primary) font-medium">
                         {invoiceData.name || "Not specified"}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[var(--text-secondary)] block text-xs">
+                      <span className="text-(--text-secondary) block text-xs">
                         Email
                       </span>
-                      <span className="text-[var(--text-primary)]">
+                      <span className="text-(--text-primary)">
                         {invoiceData.email || "Not specified"}
                       </span>
                     </div>
@@ -353,40 +372,40 @@ export default function InvoiceSummary({
 
               {/* ITEMS & TOTALS */}
               <div>
-                <h3 className="text-[var(--text-secondary)] text-sm font-semibold mb-2">
+                <h3 className="text-(--text-secondary) text-sm font-semibold mb-2">
                   Items & Amount
                 </h3>
-                <div className="bg-[var(--bg-secondary)] rounded-lg p-4 squircle-md">
+                <div className="bg-(--bg-secondary) rounded-lg p-4 squircle-md">
                   <div className="space-y-2 mb-3">
                     {invoiceData.invoice_items.map((item, index) => (
                       <div
                         key={item.id}
                         className="flex justify-between text-sm"
                       >
-                        <span className="text-[var(--text-primary)]">
+                        <span className="text-(--text-primary)">
                           {item.description} (Qty: {item.quantity})
                         </span>
-                        <span className="text-[var(--text-primary)]">
+                        <span className="text-(--text-primary)">
                           ₦{item.total.toLocaleString()}
                         </span>
                       </div>
                     ))}
                   </div>
 
-                  <div className="border-t border-[var(--border-color)] pt-3 space-y-2 text-sm">
+                  <div className="border-t border-(--border-color) pt-3 space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-[var(--text-secondary)]">
+                      <span className="text-(--text-secondary)">
                         Subtotal
                       </span>
-                      <span className="text-[var(--text-primary)]">
+                      <span className="text-(--text-primary)">
                         ₦{totals.subtotal.toLocaleString()}
                       </span>
                     </div>
-                    <div className="flex justify-between font-semibold border-t border-[var(--border-color)] pt-2">
-                      <span className="text-[var(--text-primary)]">
+                    <div className="flex justify-between font-semibold border-t border-(--border-color) pt-2">
+                      <span className="text-(--text-primary)">
                         Total Amount
                       </span>
-                      <span className="text-[var(--color-accent-yellow)]">
+                      <span className="text-(--color-accent-yellow)">
                         ₦{totals.totalAmount.toLocaleString()}
                       </span>
                     </div>
@@ -405,8 +424,10 @@ export default function InvoiceSummary({
                 } squircle-md`}
               >
                 <div className="space-y-1">
-                  <p className="font-medium text-[var(--text-primary)]">Important Information</p>
-                  <ul className="list-disc list-inside space-y-1 text-xs text-[var(--text-secondary)]">
+                  <p className="font-medium text-(--text-primary)">
+                    Important Information
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-xs text-(--text-secondary)">
                     <li>This invoice will be sent to the client's email</li>
                     <li>Client can pay via multiple payment methods</li>
 
@@ -423,15 +444,16 @@ export default function InvoiceSummary({
                     ) : hasFreeInvoices ? (
                       <>
                         <li>
-                          This invoice is <strong className="text-green-600">FREE</strong> (within plan limit)
+                          This invoice is{" "}
+                          <strong className="text-green-600">FREE</strong>{" "}
+                          (within plan limit)
                         </li>
                         <li>
                           You have {remainingInvoices - 1} free{" "}
-                          {remainingInvoices - 1 === 1 ? "invoice" : "invoices"} remaining
+                          {remainingInvoices - 1 === 1 ? "invoice" : "invoices"}{" "}
+                          remaining
                         </li>
-                        <li>
-                          Upgrade to a higher tier for unlimited invoices
-                        </li>
+                        <li>Upgrade to a higher tier for unlimited invoices</li>
                       </>
                     ) : (
                       <>
@@ -444,8 +466,10 @@ export default function InvoiceSummary({
                         <li>
                           <Button
                             variant="link"
-                            className="p-0 h-auto text-[var(--color-accent-yellow)] font-semibold underline"
-                            onClick={() => window.location.href = "/pricing?upgrade=growth"}
+                            className="p-0 h-auto text-(--color-accent-yellow) font-semibold underline"
+                            onClick={() =>
+                              (window.location.href = "/pricing?upgrade=growth")
+                            }
                           >
                             Upgrade to Growth
                           </Button>{" "}
@@ -460,19 +484,21 @@ export default function InvoiceSummary({
               </div>
 
               {/* Buttons */}
-              <div className="flex justify-between pt-4 border-t border-[var(--border-color)]">
+              <div className="flex justify-between pt-4 border-t border-(--border-color)">
                 <Button
                   variant="outline"
                   onClick={onBack}
-                  className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+                  className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) squircle-md"
                 >
                   Back to Edit
                 </Button>
-                
+
                 {hasReachedLimit ? (
                   <Button
-                    onClick={() => window.location.href = "/pricing?upgrade=growth"}
-                    className="px-8 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
+                    onClick={() =>
+                      (window.location.href = "/pricing?upgrade=growth")
+                    }
+                    className="px-8 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
                   >
                     Upgrade Plan
                   </Button>
@@ -482,7 +508,7 @@ export default function InvoiceSummary({
                     className={`px-8 text-white ${
                       hasUnlimited
                         ? colors.btn
-                        : "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                        : "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                     } squircle-md`}
                   >
                     Create Invoice

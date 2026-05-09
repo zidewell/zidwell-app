@@ -56,7 +56,7 @@ export default function TransactionDetailsPage() {
       setLoading(true);
       try {
         const transactionId = params.id;
-        
+
         let foundTransaction: any = null;
         let page = 1;
         const limit = 50;
@@ -64,26 +64,28 @@ export default function TransactionDetailsPage() {
 
         while (hasMore && !foundTransaction) {
           const response = await fetch(
-            `/api/bill-transactions?userId=${userData.id}&page=${page}&limit=${limit}`
+            `/api/bill-transactions?userId=${userData.id}&page=${page}&limit=${limit}`,
           );
-          
+
           if (!response.ok) {
             throw new Error(`Failed to fetch transactions: ${response.status}`);
           }
 
           const data = await response.json();
-          
+
           if (data.transactions && Array.isArray(data.transactions)) {
             foundTransaction = data.transactions.find(
-              (tx: any) => tx.id === transactionId
+              (tx: any) => tx.id === transactionId,
             );
           }
 
           hasMore = data.hasMore || false;
           page++;
-          
+
           if (page > 10) {
-            console.warn("Exceeded maximum page limit while searching for transaction");
+            console.warn(
+              "Exceeded maximum page limit while searching for transaction",
+            );
             break;
           }
         }
@@ -92,16 +94,18 @@ export default function TransactionDetailsPage() {
           setTransaction(foundTransaction);
         } else {
           const searchResponse = await fetch(
-            `/api/bill-transactions?userId=${userData.id}&search=${transactionId}&page=1&limit=10`
+            `/api/bill-transactions?userId=${userData.id}&search=${transactionId}&page=1&limit=10`,
           );
-          
+
           if (searchResponse.ok) {
             const searchData = await searchResponse.json();
             if (searchData.transactions && searchData.transactions.length > 0) {
               const foundByReference = searchData.transactions.find(
-                (tx: any) => tx.reference === transactionId || tx.merchant_tx_ref === transactionId
+                (tx: any) =>
+                  tx.reference === transactionId ||
+                  tx.merchant_tx_ref === transactionId,
               );
-              
+
               if (foundByReference) {
                 setTransaction(foundByReference);
               } else {
@@ -114,7 +118,6 @@ export default function TransactionDetailsPage() {
             setTransaction(null);
           }
         }
-        
       } catch (error) {
         console.error("Error fetching transaction details:", error);
         setTransaction(null);
@@ -131,8 +134,14 @@ export default function TransactionDetailsPage() {
   };
 
   const formatAmount = (transaction: any) => {
-    if (!transaction) return { display: "₦0.00", isOutflow: false, rawAmount: 0, signedDisplay: "₦0.00" };
-    
+    if (!transaction)
+      return {
+        display: "₦0.00",
+        isOutflow: false,
+        rawAmount: 0,
+        signedDisplay: "₦0.00",
+      };
+
     const isOutflowTransaction = isOutflow(transaction.type);
     const amount = Number(transaction.amount) || 0;
 
@@ -152,18 +161,18 @@ export default function TransactionDetailsPage() {
 
   const getNarration = (transaction: any) => {
     if (!transaction) return null;
-    
+
     if (transaction.narration) {
       return transaction.narration;
     }
-    
+
     if (transaction.external_response?.data?.transaction?.narration) {
       return transaction.external_response.data.transaction.narration;
     }
     if (transaction.external_response?.narration) {
       return transaction.external_response.narration;
     }
- 
+
     return null;
   };
 
@@ -180,45 +189,53 @@ export default function TransactionDetailsPage() {
     const externalData = transaction.external_response || {};
 
     const displaySender = {
-      name: senderData.name || 
-            externalData?.withdrawal_details?.account_name || 
-            externalData?.data?.customer?.senderName || 
-            externalData?.metadata?.sender_name ||
-            "N/A",
-      accountNumber: senderData.accountNumber || 
-                    externalData?.withdrawal_details?.account_number || 
-                    externalData?.data?.customer?.accountNumber || 
-                    "N/A",
-      bankName: senderData.bankName || 
-               externalData?.withdrawal_details?.bank_name || 
-               externalData?.data?.customer?.bankName || 
-               "N/A",
-      bankCode: senderData.bankCode || 
-               externalData?.withdrawal_details?.bank_code || 
-               externalData?.data?.customer?.bankCode || 
-               "N/A"
+      name:
+        senderData.name ||
+        externalData?.withdrawal_details?.account_name ||
+        externalData?.data?.customer?.senderName ||
+        externalData?.metadata?.sender_name ||
+        "N/A",
+      accountNumber:
+        senderData.accountNumber ||
+        externalData?.withdrawal_details?.account_number ||
+        externalData?.data?.customer?.accountNumber ||
+        "N/A",
+      bankName:
+        senderData.bankName ||
+        externalData?.withdrawal_details?.bank_name ||
+        externalData?.data?.customer?.bankName ||
+        "N/A",
+      bankCode:
+        senderData.bankCode ||
+        externalData?.withdrawal_details?.bank_code ||
+        externalData?.data?.customer?.bankCode ||
+        "N/A",
     };
 
     const displayReceiver = {
-      name: receiverData.name || 
-            externalData?.receiver_details?.account_name || 
-            externalData?.data?.customer?.recipientName || 
-            externalData?.data?.transaction?.aliasAccountName ||
-            externalData?.data?.meta?.recipientName ||
-            "N/A",
-      accountNumber: receiverData.accountNumber || 
-                    externalData?.receiver_details?.account_number || 
-                    externalData?.data?.customer?.accountNumber || 
-                    externalData?.data?.transaction?.aliasAccountNumber ||
-                    "N/A",
-      bankName: receiverData.bankName || 
-               externalData?.receiver_details?.bank_name || 
-               externalData?.data?.customer?.bankName || 
-               "N/A",
-      bankCode: receiverData.bankCode || 
-               externalData?.receiver_details?.bank_code || 
-               externalData?.data?.customer?.bankCode || 
-               "N/A"
+      name:
+        receiverData.name ||
+        externalData?.receiver_details?.account_name ||
+        externalData?.data?.customer?.recipientName ||
+        externalData?.data?.transaction?.aliasAccountName ||
+        externalData?.data?.meta?.recipientName ||
+        "N/A",
+      accountNumber:
+        receiverData.accountNumber ||
+        externalData?.receiver_details?.account_number ||
+        externalData?.data?.customer?.accountNumber ||
+        externalData?.data?.transaction?.aliasAccountNumber ||
+        "N/A",
+      bankName:
+        receiverData.bankName ||
+        externalData?.receiver_details?.bank_name ||
+        externalData?.data?.customer?.bankName ||
+        "N/A",
+      bankCode:
+        receiverData.bankCode ||
+        externalData?.receiver_details?.bank_code ||
+        externalData?.data?.customer?.bankCode ||
+        "N/A",
     };
 
     const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
@@ -273,12 +290,16 @@ export default function TransactionDetailsPage() {
         </div>
       </div>
 
-      ${narration ? `
+      ${
+        narration
+          ? `
       <div class="narration-section">
         <div class="section-title">Transaction Narration</div>
         <div class="narration-text">"${narration}"</div>
       </div>
-      ` : ''}
+      `
+          : ""
+      }
 
       <div class="section">
         <div class="section-title">Transaction Details</div>
@@ -357,8 +378,11 @@ export default function TransactionDetailsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] fade-in relative">
-        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="min-h-screen bg-(--bg-primary) fade-in relative">
+        <DashboardSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
         <div className="lg:pl-72 min-h-screen flex flex-col">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -373,22 +397,25 @@ export default function TransactionDetailsPage() {
 
   if (!transaction) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] fade-in relative">
-        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="min-h-screen bg-(--bg-primary) fade-in relative">
+        <DashboardSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
         <div className="lg:pl-72 min-h-screen flex flex-col">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="max-w-4xl mx-auto">
               <div className="text-center py-8 sm:py-12">
-                <h2 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] mb-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-(--text-primary) mb-4">
                   Transaction Not Found
                 </h2>
-                <p className="text-[var(--text-secondary)] mb-4">
+                <p className="text-(--text-secondary) mb-4">
                   The transaction with ID "{params.id}" could not be found.
                 </p>
-                <Button 
+                <Button
                   onClick={() => router.back()}
-                  className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                  className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to Transactions
@@ -409,56 +436,67 @@ export default function TransactionDetailsPage() {
   const externalData = transaction.external_response || {};
 
   const displaySender = {
-    name: senderData.name || 
-          externalData?.withdrawal_details?.account_name || 
-          externalData?.data?.customer?.senderName || 
-          externalData?.metadata?.sender_name ||
-          "N/A",
-    accountNumber: senderData.accountNumber || 
-                  externalData?.withdrawal_details?.account_number || 
-                  externalData?.data?.customer?.accountNumber || 
-                  "N/A",
-    bankName: senderData.bankName || 
-             externalData?.withdrawal_details?.bank_name || 
-             externalData?.data?.customer?.bankName || 
-             "N/A",
-    bankCode: senderData.bankCode || 
-             externalData?.withdrawal_details?.bank_code || 
-             externalData?.data?.customer?.bankCode || 
-             "N/A"
+    name:
+      senderData.name ||
+      externalData?.withdrawal_details?.account_name ||
+      externalData?.data?.customer?.senderName ||
+      externalData?.metadata?.sender_name ||
+      "N/A",
+    accountNumber:
+      senderData.accountNumber ||
+      externalData?.withdrawal_details?.account_number ||
+      externalData?.data?.customer?.accountNumber ||
+      "N/A",
+    bankName:
+      senderData.bankName ||
+      externalData?.withdrawal_details?.bank_name ||
+      externalData?.data?.customer?.bankName ||
+      "N/A",
+    bankCode:
+      senderData.bankCode ||
+      externalData?.withdrawal_details?.bank_code ||
+      externalData?.data?.customer?.bankCode ||
+      "N/A",
   };
 
   const displayReceiver = {
-    name: receiverData.name || 
-          externalData?.receiver_details?.account_name || 
-          externalData?.data?.customer?.recipientName || 
-          externalData?.data?.transaction?.aliasAccountName ||
-          externalData?.data?.meta?.recipientName ||
-          "N/A",
-    accountNumber: receiverData.accountNumber || 
-                  externalData?.receiver_details?.account_number || 
-                  externalData?.data?.customer?.accountNumber || 
-                  externalData?.data?.transaction?.aliasAccountNumber ||
-                  "N/A",
-    bankName: receiverData.bankName || 
-             externalData?.receiver_details?.bank_name || 
-             externalData?.data?.customer?.bankName || 
-             "N/A",
-    bankCode: receiverData.bankCode || 
-             externalData?.receiver_details?.bank_code || 
-             externalData?.data?.customer?.bankCode || 
-             "N/A"
+    name:
+      receiverData.name ||
+      externalData?.receiver_details?.account_name ||
+      externalData?.data?.customer?.recipientName ||
+      externalData?.data?.transaction?.aliasAccountName ||
+      externalData?.data?.meta?.recipientName ||
+      "N/A",
+    accountNumber:
+      receiverData.accountNumber ||
+      externalData?.receiver_details?.account_number ||
+      externalData?.data?.customer?.accountNumber ||
+      externalData?.data?.transaction?.aliasAccountNumber ||
+      "N/A",
+    bankName:
+      receiverData.bankName ||
+      externalData?.receiver_details?.bank_name ||
+      externalData?.data?.customer?.bankName ||
+      "N/A",
+    bankCode:
+      receiverData.bankCode ||
+      externalData?.receiver_details?.bank_code ||
+      externalData?.data?.customer?.bankCode ||
+      "N/A",
   };
 
   const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] fade-in relative">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
+    <div className="min-h-screen bg-(--bg-primary) fade-in relative">
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-        
+
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto">
             {/* Header Section */}
@@ -468,16 +506,16 @@ export default function TransactionDetailsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => router.back()}
-                  className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)] text-sm md:text-base"
+                  className="text-(--color-accent-yellow) hover:bg-(--bg-secondary) text-sm md:text-base"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   <span className="hidden md:block">Back</span>
                 </Button>
                 <div className="min-w-0">
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[var(--text-primary)] truncate">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-(--text-primary) truncate">
                     Transaction Details
                   </h1>
-                  <p className="text-[var(--text-secondary)] text-sm sm:text-base">
+                  <p className="text-(--text-secondary) text-sm sm:text-base">
                     View complete transaction information
                   </p>
                 </div>
@@ -487,7 +525,7 @@ export default function TransactionDetailsPage() {
                 <Button
                   onClick={handleDownloadReceipt}
                   disabled={downloading}
-                  className="flex items-center gap-2 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 w-full sm:w-auto justify-center"
+                  className="flex items-center gap-2 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 w-full sm:w-auto justify-center"
                 >
                   {downloading ? (
                     <Loader2 className="animate-spin w-4 h-4" />
@@ -506,9 +544,9 @@ export default function TransactionDetailsPage() {
               {/* Left Column */}
               <div className="space-y-4 sm:space-y-6">
                 {/* Amount Card */}
-                <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <Card className="bg-(--bg-primary) border border-(--border-color)">
                   <CardHeader className="pb-3">
-                    <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+                    <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
                       Amount
                     </h2>
                   </CardHeader>
@@ -518,18 +556,18 @@ export default function TransactionDetailsPage() {
                         className={`text-2xl sm:text-3xl lg:text-4xl font-bold ${
                           amountInfo.isOutflow
                             ? "text-red-500 dark:text-red-400"
-                            : "text-[var(--color-accent-yellow)]"
+                            : "text-(--color-accent-yellow)"
                         }`}
                       >
                         {amountInfo.signedDisplay}
                       </div>
 
-                      <p className="text-[var(--text-secondary)] mt-2 text-sm sm:text-base capitalize">
+                      <p className="text-(--text-secondary) mt-2 text-sm sm:text-base capitalize">
                         {transaction.status?.toLowerCase() === "success"
                           ? "Transaction Successful"
                           : transaction.status?.toLowerCase() === "pending"
-                          ? "Transaction Pending"
-                          : "Transaction Failed"}
+                            ? "Transaction Pending"
+                            : "Transaction Failed"}
                       </p>
                     </div>
                   </CardContent>
@@ -537,10 +575,10 @@ export default function TransactionDetailsPage() {
 
                 {/* Narration Card */}
                 {narration && (
-                  <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                  <Card className="bg-(--bg-primary) border border-(--border-color)">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                      <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--text-secondary)]" />
-                      <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+                      <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-secondary)" />
+                      <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
                         Transaction Narration
                       </h2>
                     </CardHeader>
@@ -555,85 +593,93 @@ export default function TransactionDetailsPage() {
                 )}
 
                 {/* Sender Information */}
-                {(displaySender.name !== "N/A" || displaySender.accountNumber !== "N/A") && (
-                  <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                {(displaySender.name !== "N/A" ||
+                  displaySender.accountNumber !== "N/A") && (
+                  <Card className="bg-(--bg-primary) border border-(--border-color)">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--text-secondary)]" />
-                      <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-secondary)" />
+                      <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
                         {isWithdrawal ? "From (Zidwell)" : "Sender Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                        <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                        <span className="text-(--text-secondary) text-sm sm:text-base">
                           Name
                         </span>
-                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-[var(--text-primary)]">
+                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
                           {displaySender.name}
                         </span>
                       </div>
-                      {displaySender.accountNumber && displaySender.accountNumber !== "N/A" && (
-                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-[var(--text-secondary)] text-sm sm:text-base">
-                            Account Number
-                          </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-[var(--text-primary)]">
-                            {displaySender.accountNumber}
-                          </span>
-                        </div>
-                      )}
-                      {displaySender.bankName && displaySender.bankName !== "N/A" && (
-                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-[var(--text-secondary)] text-sm sm:text-base">
-                            Bank Name
-                          </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-[var(--text-primary)]">
-                            {displaySender.bankName}
-                          </span>
-                        </div>
-                      )}
+                      {displaySender.accountNumber &&
+                        displaySender.accountNumber !== "N/A" && (
+                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                            <span className="text-(--text-secondary) text-sm sm:text-base">
+                              Account Number
+                            </span>
+                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                              {displaySender.accountNumber}
+                            </span>
+                          </div>
+                        )}
+                      {displaySender.bankName &&
+                        displaySender.bankName !== "N/A" && (
+                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                            <span className="text-(--text-secondary) text-sm sm:text-base">
+                              Bank Name
+                            </span>
+                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                              {displaySender.bankName}
+                            </span>
+                          </div>
+                        )}
                     </CardContent>
                   </Card>
                 )}
 
                 {/* Receiver Information */}
-                {(displayReceiver.name !== "N/A" || displayReceiver.accountNumber !== "N/A") && (
-                  <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                {(displayReceiver.name !== "N/A" ||
+                  displayReceiver.accountNumber !== "N/A") && (
+                  <Card className="bg-(--bg-primary) border border-(--border-color)">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                      <Building className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--text-secondary)]" />
-                      <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
-                        {isWithdrawal ? "To (Recipient)" : "Receiver Information"}
+                      <Building className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-secondary)" />
+                      <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
+                        {isWithdrawal
+                          ? "To (Recipient)"
+                          : "Receiver Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                        <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                        <span className="text-(--text-secondary) text-sm sm:text-base">
                           {isWithdrawal ? "Recipient Name" : "Account Name"}
                         </span>
-                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-[var(--text-primary)]">
+                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
                           {displayReceiver.name}
                         </span>
                       </div>
-                      {displayReceiver.accountNumber && displayReceiver.accountNumber !== "N/A" && (
-                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-[var(--text-secondary)] text-sm sm:text-base">
-                            Account Number
-                          </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-[var(--text-primary)]">
-                            {displayReceiver.accountNumber}
-                          </span>
-                        </div>
-                      )}
-                      {displayReceiver.bankName && displayReceiver.bankName !== "N/A" && (
-                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-[var(--text-secondary)] text-sm sm:text-base">
-                            Bank Name
-                          </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-[var(--text-primary)]">
-                            {displayReceiver.bankName}
-                          </span>
-                        </div>
-                      )}
+                      {displayReceiver.accountNumber &&
+                        displayReceiver.accountNumber !== "N/A" && (
+                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                            <span className="text-(--text-secondary) text-sm sm:text-base">
+                              Account Number
+                            </span>
+                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                              {displayReceiver.accountNumber}
+                            </span>
+                          </div>
+                        )}
+                      {displayReceiver.bankName &&
+                        displayReceiver.bankName !== "N/A" && (
+                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                            <span className="text-(--text-secondary) text-sm sm:text-base">
+                              Bank Name
+                            </span>
+                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                              {displayReceiver.bankName}
+                            </span>
+                          </div>
+                        )}
                     </CardContent>
                   </Card>
                 )}
@@ -642,49 +688,51 @@ export default function TransactionDetailsPage() {
               {/* Right Column */}
               <div className="space-y-4 sm:space-y-6">
                 {/* Transaction Details */}
-                <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <Card className="bg-(--bg-primary) border border-(--border-color)">
                   <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--text-secondary)]" />
-                    <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-secondary)" />
+                    <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
                       Transaction Details
                     </h2>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                      <span className="text-(--text-secondary) text-sm sm:text-base">
                         Type
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left capitalize text-[var(--text-primary)]">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left capitalize text-(--text-primary)">
                         {transaction.type || "N/A"}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                      <span className="text-(--text-secondary) text-sm sm:text-base">
                         Description
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-[var(--text-primary)]">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
                         {transaction.description || "N/A"}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                      <span className="text-(--text-secondary) text-sm sm:text-base">
                         Reference
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-[var(--text-primary)]">
-                        {transaction.reference || transaction.merchant_tx_ref || transaction.id}
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                        {transaction.reference ||
+                          transaction.merchant_tx_ref ||
+                          transaction.id}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                      <span className="text-(--text-secondary) text-sm sm:text-base">
                         Status
                       </span>
                       <span
                         className={`font-medium text-sm sm:text-base text-right xs:text-left capitalize ${
                           transaction.status?.toLowerCase() === "success"
-                            ? "text-[var(--color-accent-yellow)]"
+                            ? "text-(--color-accent-yellow)"
                             : transaction.status?.toLowerCase() === "pending"
-                            ? "text-blue-600 dark:text-blue-400"
-                            : "text-red-600 dark:text-red-400"
+                              ? "text-blue-600 dark:text-blue-400"
+                              : "text-red-600 dark:text-red-400"
                         }`}
                       >
                         {transaction.status}
@@ -693,10 +741,10 @@ export default function TransactionDetailsPage() {
 
                     {transaction.fee > 0 && (
                       <div className="flex items-center justify-between gap-1 xs:gap-2">
-                        <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                        <span className="text-(--text-secondary) text-sm sm:text-base">
                           Transaction Fee
                         </span>
-                        <span className="font-medium text-sm text-[var(--text-primary)]">
+                        <span className="font-medium text-sm text-(--text-primary)">
                           ₦
                           {Number(transaction.fee).toLocaleString("en-NG", {
                             minimumFractionDigits: 2,
@@ -708,16 +756,16 @@ export default function TransactionDetailsPage() {
                     {transaction.total_deduction > 0 &&
                     transaction.total_deduction !== transaction.amount ? (
                       <div className="flex items-center justify-between gap-1 xs:gap-2">
-                        <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                        <span className="text-(--text-secondary) text-sm sm:text-base">
                           Total Deduction
                         </span>
-                        <span className="font-medium text-sm text-[var(--text-primary)]">
+                        <span className="font-medium text-sm text-(--text-primary)">
                           ₦
                           {Number(transaction.total_deduction).toLocaleString(
                             "en-NG",
                             {
                               minimumFractionDigits: 2,
-                            }
+                            },
                           )}
                         </span>
                       </div>
@@ -726,35 +774,35 @@ export default function TransactionDetailsPage() {
                 </Card>
 
                 {/* Date & Time */}
-                <Card className="bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <Card className="bg-(--bg-primary) border border-(--border-color)">
                   <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--text-secondary)]" />
-                    <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-secondary)" />
+                    <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
                       Date & Time
                     </h2>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                      <span className="text-(--text-secondary) text-sm sm:text-base">
                         Date
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left text-[var(--text-primary)]">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left text-(--text-primary)">
                         {new Date(transaction.created_at).toLocaleDateString()}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                      <span className="text-(--text-secondary) text-sm sm:text-base">
                         Time
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left text-[var(--text-primary)]">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left text-(--text-primary)">
                         {new Date(transaction.created_at).toLocaleTimeString()}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-[var(--text-secondary)] text-sm sm:text-base">
+                      <span className="text-(--text-secondary) text-sm sm:text-base">
                         Full Date
                       </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left text-[var(--text-primary)]">
+                      <span className="font-medium text-sm sm:text-base text-right xs:text-left text-(--text-primary)">
                         {new Date(transaction.created_at).toLocaleString()}
                       </span>
                     </div>

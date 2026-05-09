@@ -113,8 +113,9 @@ export function JournalDashboard() {
       // Use unifiedEntries instead of entries to include wallet transactions
       let filteredEntries = unifiedEntries.filter((entry) => {
         const entryDate = new Date(entry.date);
-        const matchesDate = entryDate >= fromDateTime && entryDate <= toDateTime;
-        
+        const matchesDate =
+          entryDate >= fromDateTime && entryDate <= toDateTime;
+
         if (entry.journalType && activeJournalType) {
           return matchesDate && entry.journalType === activeJournalType;
         }
@@ -124,7 +125,8 @@ export function JournalDashboard() {
       // Also include manual entries that might not be in unifiedEntries
       const manualFiltered = entries.filter((entry) => {
         const entryDate = new Date(entry.date);
-        const matchesDate = entryDate >= fromDateTime && entryDate <= toDateTime;
+        const matchesDate =
+          entryDate >= fromDateTime && entryDate <= toDateTime;
         if (entry.journalType && activeJournalType) {
           return matchesDate && entry.journalType === activeJournalType;
         }
@@ -134,27 +136,29 @@ export function JournalDashboard() {
       // Merge and deduplicate by id
       const allFiltered = [...filteredEntries, ...manualFiltered];
       const uniqueEntries = Array.from(
-        new Map(allFiltered.map(entry => [entry.id, entry])).values()
+        new Map(allFiltered.map((entry) => [entry.id, entry])).values(),
       );
 
       if (uniqueEntries.length === 0) {
-        alert(`No journal entries found in the selected date range (${formatDateDisplay(dateRange.from)} to ${formatDateDisplay(dateRange.to)}) for ${activeJournalType} journal.`);
+        alert(
+          `No journal entries found in the selected date range (${formatDateDisplay(dateRange.from)} to ${formatDateDisplay(dateRange.to)}) for ${activeJournalType} journal.`,
+        );
         setExporting(false);
         return;
       }
 
       // Sort entries by date (newest first)
       const sortedEntries = [...uniqueEntries].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
 
       // Calculate summaries
       const totalIncome = uniqueEntries
-        .filter((e) => e.type === 'income')
+        .filter((e) => e.type === "income")
         .reduce((sum, e) => sum + e.amount, 0);
 
       const totalExpenses = uniqueEntries
-        .filter((e) => e.type === 'expense')
+        .filter((e) => e.type === "expense")
         .reduce((sum, e) => sum + e.amount, 0);
 
       const netTotal = totalIncome - totalExpenses;
@@ -167,14 +171,18 @@ export function JournalDashboard() {
 
       uniqueEntries.forEach((entry) => {
         const category = categories.find((c) => c.id === entry.categoryId);
-        const categoryName = category?.name || 'Other';
-        const categoryIcon = category?.icon || '📦';
+        const categoryName = category?.name || "Other";
+        const categoryIcon = category?.icon || "📦";
 
         if (!categoryBreakdown[categoryName]) {
-          categoryBreakdown[categoryName] = { income: 0, expense: 0, icon: categoryIcon };
+          categoryBreakdown[categoryName] = {
+            income: 0,
+            expense: 0,
+            icon: categoryIcon,
+          };
         }
 
-        if (entry.type === 'income') {
+        if (entry.type === "income") {
           categoryBreakdown[categoryName].income += entry.amount;
         } else {
           categoryBreakdown[categoryName].expense += entry.amount;
@@ -588,7 +596,8 @@ export function JournalDashboard() {
               const categoryIcon = category?.icon || "📦";
               const categoryName = category?.name || "Other";
               const isIncome = entry.type === "income";
-              const displayNote = entry.note || (entry.type === 'income' ? 'Income' : 'Expense');
+              const displayNote =
+                entry.note || (entry.type === "income" ? "Income" : "Expense");
 
               return `
               <tr>
@@ -667,7 +676,7 @@ export function JournalDashboard() {
       // Success notification
       const notification = document.createElement("div");
       notification.className =
-        "fixed top-4 right-4 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-4 py-2 rounded-lg shadow-pop z-50 animate-in fade-in slide-in-from-top-2 squircle-sm";
+        "fixed top-4 right-4 bg-(--color-accent-yellow) text-(--color-ink) px-4 py-2 rounded-lg shadow-pop z-50 animate-in fade-in slide-in-from-top-2 squircle-sm";
       notification.innerHTML = `
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -692,7 +701,7 @@ export function JournalDashboard() {
         <JournalHeader />
 
         {/* Navigation */}
-        <nav className="flex gap-2 pb-4 flex-wrap border-b border-[var(--border-color)]">
+        <nav className="flex gap-2 pb-4 flex-wrap border-b border-(--border-color)">
           <button
             onClick={() => setActiveView("dashboard")}
             className={cn(
@@ -700,8 +709,13 @@ export function JournalDashboard() {
             )}
             style={{
               backgroundColor:
-                activeView === "dashboard" ? "var(--color-accent-yellow)" : "transparent",
-              color: activeView === "dashboard" ? "var(--color-ink)" : "var(--text-secondary)",
+                activeView === "dashboard"
+                  ? "var(--color-accent-yellow)"
+                  : "transparent",
+              color:
+                activeView === "dashboard"
+                  ? "var(--color-ink)"
+                  : "var(--text-secondary)",
               boxShadow:
                 activeView === "dashboard"
                   ? "0 4px 20px -4px rgba(253, 192, 32, 0.3)"
@@ -718,8 +732,13 @@ export function JournalDashboard() {
             )}
             style={{
               backgroundColor:
-                activeView === "insights" ? "var(--color-accent-yellow)" : "transparent",
-              color: activeView === "insights" ? "var(--color-ink)" : "var(--text-secondary)",
+                activeView === "insights"
+                  ? "var(--color-accent-yellow)"
+                  : "transparent",
+              color:
+                activeView === "insights"
+                  ? "var(--color-ink)"
+                  : "var(--text-secondary)",
               boxShadow:
                 activeView === "insights"
                   ? "0 4px 20px -4px rgba(253, 192, 32, 0.3)"
@@ -736,8 +755,13 @@ export function JournalDashboard() {
             )}
             style={{
               backgroundColor:
-                activeView === "entries" ? "var(--color-accent-yellow)" : "transparent",
-              color: activeView === "entries" ? "var(--color-ink)" : "var(--text-secondary)",
+                activeView === "entries"
+                  ? "var(--color-accent-yellow)"
+                  : "transparent",
+              color:
+                activeView === "entries"
+                  ? "var(--color-ink)"
+                  : "var(--text-secondary)",
               boxShadow:
                 activeView === "entries"
                   ? "0 4px 20px -4px rgba(253, 192, 32, 0.3)"
@@ -750,7 +774,7 @@ export function JournalDashboard() {
 
           <button
             onClick={() => setShowCategoryManager(true)}
-            className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-[var(--bg-secondary)]"
+            className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-(--bg-secondary)"
             style={{
               color: "var(--text-secondary)",
               backgroundColor: "var(--bg-secondary)",
@@ -759,10 +783,10 @@ export function JournalDashboard() {
             <Settings2 className="h-4 w-4" />
             Categories
           </button>
-          
+
           <button
             onClick={() => setShowExportModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-[var(--bg-secondary)]"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-(--bg-secondary)"
             style={{
               color: "var(--text-secondary)",
               backgroundColor: "var(--bg-secondary)",
@@ -778,7 +802,7 @@ export function JournalDashboard() {
             {/* ALL-TIME Summary Cards */}
             <section className="space-y-4">
               <h2
-                className="text-xl font-medium text-[var(--text-primary)]"
+                className="text-xl font-medium text-(--text-primary)"
                 style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
               >
                 Account Summary
@@ -812,14 +836,14 @@ export function JournalDashboard() {
             <section className="flex gap-4">
               <Button
                 onClick={() => openEntryForm("income")}
-                className="flex-1 h-14 text-base font-semibold bg-[var(--color-lemon-green)] text-white hover:bg-[var(--color-lemon-green)]/90 squircle-md shadow-soft"
+                className="flex-1 h-14 text-base font-semibold bg-(--color-lemon-green) text-white hover:bg-(--color-lemon-green)/90 squircle-md shadow-soft"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Add Income
               </Button>
               <Button
                 onClick={() => openEntryForm("expense")}
-                className="flex-1 h-14 text-base font-semibold bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 squircle-md shadow-soft"
+                className="flex-1 h-14 text-base font-semibold bg-destructive text-white hover:bg-destructive/90 squircle-md shadow-soft"
               >
                 <Minus className="h-5 w-5 mr-2" />
                 Add Expense
@@ -829,7 +853,7 @@ export function JournalDashboard() {
             {/* Progress Indicators */}
             <section className="space-y-4">
               <h2
-                className="text-xl font-medium text-[var(--text-primary)]"
+                className="text-xl font-medium text-(--text-primary)"
                 style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
               >
                 Progress
@@ -857,14 +881,14 @@ export function JournalDashboard() {
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2
-                  className="text-xl font-medium text-[var(--text-primary)]"
+                  className="text-xl font-medium text-(--text-primary)"
                   style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
                 >
                   Recent Entries
                 </h2>
                 <button
                   onClick={() => setActiveView("entries")}
-                  className="text-sm hover:underline transition-all text-[var(--color-accent-yellow)]"
+                  className="text-sm hover:underline transition-all text-(--color-accent-yellow)"
                 >
                   View all →
                 </button>
@@ -886,15 +910,13 @@ export function JournalDashboard() {
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
               <h2
-                className="text-xl font-medium text-[var(--text-primary)]"
+                className="text-xl font-medium text-(--text-primary)"
                 style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
               >
                 All Transactions
               </h2>
               <div className="flex gap-3">
-                <div
-                  className="text-sm px-3 py-1.5 rounded-md bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
-                >
+                <div className="text-sm px-3 py-1.5 rounded-md bg-(--bg-secondary) text-(--text-secondary)">
                   <span className="font-medium">Total: </span>
                   {unifiedEntries?.length || 0} entries
                 </div>
@@ -904,21 +926,21 @@ export function JournalDashboard() {
             <div className="flex gap-3">
               <Button
                 onClick={() => openEntryForm("income")}
-                className="bg-[var(--color-lemon-green)] text-white hover:bg-[var(--color-lemon-green)]/90 squircle-md shadow-soft"
+                className="bg-(--color-lemon-green) text-white hover:bg-(--color-lemon-green)/90 squircle-md shadow-soft"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Income
               </Button>
               <Button
                 onClick={() => openEntryForm("expense")}
-                className="bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 squircle-md shadow-soft"
+                className="bg-destructive text-white hover:bg-destructive/90 squircle-md shadow-soft"
               >
                 <Minus className="h-4 w-4 mr-2" />
                 Add Expense
               </Button>
             </div>
 
-            <div className="rounded-2xl border overflow-hidden bg-[var(--bg-primary)] border-[var(--border-color)] shadow-soft squircle-lg">
+            <div className="rounded-2xl border overflow-hidden bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
               <RecentEntries onEdit={handleEdit} />
             </div>
           </div>

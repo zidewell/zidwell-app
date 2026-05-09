@@ -242,26 +242,26 @@ const PersonalKYCTab: React.FC = () => {
   };
 
   const inputClassName = (field: string) => `
-    w-full bg-[var(--bg-primary)] border-2 px-3 py-2 text-sm font-body text-[var(--text-primary)] 
-    placeholder:text-[var(--text-secondary)] focus:outline-none transition-colors rounded-md
-    ${errors[field] ? "border-red-500" : "border-[var(--color-accent-yellow)]"}
-    focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 disabled:opacity-50 disabled:cursor-not-allowed
+    w-full bg-(--bg-primary) border-2 px-3 py-2 text-sm font-body text-(--text-primary) 
+    placeholder:text-(--text-secondary) focus:outline-none transition-colors rounded-md
+    ${errors[field] ? "border-red-500" : "border-(--color-accent-yellow)"}
+    focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20 disabled:opacity-50 disabled:cursor-not-allowed
   `;
 
   return (
     <div className="space-y-6">
-      <div className="neo-card bg-[var(--bg-primary)] p-6 space-y-5 border border-[var(--border-color)] rounded-xl shadow-soft">
+      <div className="neo-card bg-(--bg-primary) p-6 space-y-5 border border-(--border-color) rounded-xl shadow-soft">
         {/* Display existing personal bank account if available */}
         {userBankDetails?.p_account_name && (
-          <div className="bg-[var(--color-accent-yellow)]/5 border-2 border-[var(--color-accent-yellow)] rounded-md p-4 mb-4">
+          <div className="bg-(--color-accent-yellow)/5 border-2 border-(--color-accent-yellow) rounded-md p-4 mb-4">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="font-heading text-[var(--text-primary)] text-sm">
+              <h4 className="font-heading text-(--text-primary) text-sm">
                 YOUR PERSONAL BANK ACCOUNT
               </h4>
               <button
                 onClick={() => fetchUserBankDetails(true)}
                 disabled={fetchingBankDetails}
-                className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]/80 text-xs flex items-center gap-1"
+                className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 text-xs flex items-center gap-1"
               >
                 <RefreshCw
                   className={`w-3 h-3 ${fetchingBankDetails ? "animate-spin" : ""}`}
@@ -271,24 +271,24 @@ const PersonalKYCTab: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <div>
-                <span className="text-[var(--text-secondary)] text-xs">Bank:</span>
-                <p className="font-medium text-[var(--text-primary)]">
+                <span className="text-(--text-secondary) text-xs">Bank:</span>
+                <p className="font-medium text-(--text-primary)">
                   {userBankDetails.p_bank_name || "Not set"}
                 </p>
               </div>
               <div>
-                <span className="text-[var(--text-secondary)] text-xs">
+                <span className="text-(--text-secondary) text-xs">
                   Account Number:
                 </span>
-                <p className="font-medium text-[var(--text-primary)]">
+                <p className="font-medium text-(--text-primary)">
                   {userBankDetails.p_account_number || "Not set"}
                 </p>
               </div>
               <div>
-                <span className="text-[var(--text-secondary)] text-xs">
+                <span className="text-(--text-secondary) text-xs">
                   Account Name:
                 </span>
-                <p className="font-medium text-[var(--text-primary)]">
+                <p className="font-medium text-(--text-primary)">
                   {userBankDetails.p_account_name || "Not set"}
                 </p>
               </div>
@@ -298,7 +298,7 @@ const PersonalKYCTab: React.FC = () => {
 
         {/* NIN Number */}
         <div>
-          <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+          <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
             NIN Number (Optional)
           </label>
           <input
@@ -320,7 +320,7 @@ const PersonalKYCTab: React.FC = () => {
 
         {/* Address */}
         <div>
-          <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+          <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
             Address
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -328,7 +328,7 @@ const PersonalKYCTab: React.FC = () => {
               type="text"
               value={formData.country}
               onChange={(e) => handleChange("country", e.target.value)}
-              className="w-full bg-[var(--bg-primary)] border-2 border-[var(--color-accent-yellow)] px-3 py-2 text-sm font-body text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-(--bg-primary) border-2 border-(--color-accent-yellow) px-3 py-2 text-sm font-body text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Country"
               disabled={loading || fetchingBankDetails}
             />
@@ -336,7 +336,7 @@ const PersonalKYCTab: React.FC = () => {
               type="text"
               value={formData.city}
               onChange={(e) => handleChange("city", e.target.value)}
-              className="w-full bg-[var(--bg-primary)] border-2 border-[var(--color-accent-yellow)] px-3 py-2 text-sm font-body text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-(--bg-primary) border-2 border-(--color-accent-yellow) px-3 py-2 text-sm font-body text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="City"
               disabled={loading || fetchingBankDetails}
             />
@@ -344,7 +344,7 @@ const PersonalKYCTab: React.FC = () => {
               type="text"
               value={formData.street}
               onChange={(e) => handleChange("street", e.target.value)}
-              className="w-full bg-[var(--bg-primary)] border-2 border-[var(--color-accent-yellow)] px-3 py-2 text-sm font-body text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-(--bg-primary) border-2 border-(--color-accent-yellow) px-3 py-2 text-sm font-body text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Street Address"
               disabled={loading || fetchingBankDetails}
             />
@@ -352,13 +352,13 @@ const PersonalKYCTab: React.FC = () => {
         </div>
 
         {/* Personal Bank Details */}
-        <div className="border-t-2 border-[var(--color-accent-yellow)] pt-4">
+        <div className="border-t-2 border-(--color-accent-yellow) pt-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-heading text-[var(--text-primary)] text-sm">
+            <h3 className="font-heading text-(--text-primary) text-sm">
               PERSONAL BANK ACCOUNT DETAILS
             </h3>
             {fetchingBankDetails && (
-              <span className="text-xs text-[var(--color-accent-yellow)] flex items-center gap-1">
+              <span className="text-xs text-(--color-accent-yellow) flex items-center gap-1">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 Fetching...
               </span>
@@ -367,7 +367,7 @@ const PersonalKYCTab: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+              <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
                 Bank Name
               </label>
               <select
@@ -377,7 +377,7 @@ const PersonalKYCTab: React.FC = () => {
                   handleChange("bankCode", e.target.value);
                   handleChange("bankName", bank?.name || "");
                 }}
-                className="w-full bg-[var(--bg-primary)] border-2 border-[var(--color-accent-yellow)] px-3 py-2 text-sm font-body text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed appearance-none"
+                className="w-full bg-(--bg-primary) border-2 border-(--color-accent-yellow) px-3 py-2 text-sm font-body text-(--text-primary) focus:outline-none focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed appearance-none"
                 disabled={loading || fetchingBankDetails}
               >
                 <option value="">Select bank</option>
@@ -388,13 +388,13 @@ const PersonalKYCTab: React.FC = () => {
                 ))}
               </select>
               {formData.bankName && (
-                <p className="text-xs text-[var(--color-lemon-green)] mt-1">
+                <p className="text-xs text-(--color-lemon-green) mt-1">
                   Selected: {formData.bankName}
                 </p>
               )}
             </div>
             <div>
-              <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+              <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
                 Account Number
               </label>
               <input
@@ -420,14 +420,14 @@ const PersonalKYCTab: React.FC = () => {
             </div>
           </div>
           <div className="mt-3">
-            <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+            <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
               Account Name
             </label>
             <input
               type="text"
               value={formData.accountName}
               onChange={(e) => handleChange("accountName", e.target.value)}
-              className="w-full bg-[var(--bg-primary)] border-2 border-[var(--color-accent-yellow)] px-3 py-2 text-sm font-body text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)]/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-(--bg-primary) border-2 border-(--color-accent-yellow) px-3 py-2 text-sm font-body text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20 transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Account holder name"
               disabled={loading || fetchingBankDetails}
             />
@@ -435,14 +435,14 @@ const PersonalKYCTab: React.FC = () => {
         </div>
 
         {/* KYC Uploads */}
-        <div className="border-t-2 border-[var(--color-accent-yellow)] pt-4">
-          <h3 className="font-heading text-[var(--text-primary)] text-sm mb-3">
+        <div className="border-t-2 border-(--color-accent-yellow) pt-4">
+          <h3 className="font-heading text-(--text-primary) text-sm mb-3">
             KYC DOCUMENTS
           </h3>
 
           {/* ID Card Upload */}
           <div className="mb-4">
-            <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+            <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
               ID Card (National ID, Voter's Card, Driver's License, Passport)
             </label>
             <input
@@ -451,14 +451,14 @@ const PersonalKYCTab: React.FC = () => {
               onChange={(e) =>
                 handleFileChange("idCardFile", e.target.files?.[0] || null)
               }
-              className="w-full bg-[var(--bg-primary)] border-2 border-[var(--color-accent-yellow)] p-2 text-sm font-body text-[var(--text-primary)] rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-[var(--color-accent-yellow)] file:text-[var(--color-ink)] hover:file:bg-[var(--color-accent-yellow)]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-(--bg-primary) border-2 border-(--color-accent-yellow) p-2 text-sm font-body text-(--text-primary) rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-(--color-accent-yellow) file:text-(--color-ink) hover:file:bg-(--color-accent-yellow)/90 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading || fetchingBankDetails}
             />
           </div>
 
           {/* Utility Bill Upload */}
           <div>
-            <label className="text-sm font-body text-[var(--text-secondary)] block mb-1.5">
+            <label className="text-sm font-body text-(--text-secondary) block mb-1.5">
               Utility Bill (NEPA Bill, Water Bill, or Bank Statement)
             </label>
             <input
@@ -467,7 +467,7 @@ const PersonalKYCTab: React.FC = () => {
               onChange={(e) =>
                 handleFileChange("utilityBillFile", e.target.files?.[0] || null)
               }
-              className="w-full bg-[var(--bg-primary)] border-2 border-[var(--color-accent-yellow)] p-2 text-sm font-body text-[var(--text-primary)] rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-[var(--color-accent-yellow)] file:text-[var(--color-ink)] hover:file:bg-[var(--color-accent-yellow)]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-(--bg-primary) border-2 border-(--color-accent-yellow) p-2 text-sm font-body text-(--text-primary) rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-(--color-accent-yellow) file:text-(--color-ink) hover:file:bg-(--color-accent-yellow)/90 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading || fetchingBankDetails}
             />
           </div>
@@ -478,7 +478,7 @@ const PersonalKYCTab: React.FC = () => {
           type="button"
           onClick={handleSave}
           disabled={loading || fetchingBankDetails}
-          className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] md:w-[200px] py-3 px-4 rounded-md transition-all disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+          className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) md:w-[200px] py-3 px-4 rounded-md transition-all disabled:opacity-50 font-medium flex items-center justify-center gap-2"
         >
           {loading ? (
             <>

@@ -1,10 +1,10 @@
-"use client"
-import { useState } from 'react';
-import { X, Download, Calendar, Loader2 } from 'lucide-react';
-import { Button } from '../ui/button';
-import { format } from 'date-fns';
-import { useJournal } from '@/app/context/JournalContext';
-import { useUserContextData } from '@/app/context/userData';
+"use client";
+import { useState } from "react";
+import { X, Download, Calendar, Loader2 } from "lucide-react";
+import { Button } from "../ui/button";
+import { format } from "date-fns";
+import { useJournal } from "@/app/context/JournalContext";
+import { useUserContextData } from "@/app/context/userData";
 
 interface ExportStatementModalProps {
   isOpen: boolean;
@@ -13,11 +13,11 @@ interface ExportStatementModalProps {
   journalType: string;
 }
 
-export function ExportStatementModal({ 
-  isOpen, 
-  onClose, 
+export function ExportStatementModal({
+  isOpen,
+  onClose,
   onExport,
-  journalType 
+  journalType,
 }: ExportStatementModalProps) {
   const { entries, categories, activeJournalType } = useJournal();
   const { userData } = useUserContextData();
@@ -25,15 +25,17 @@ export function ExportStatementModal({
     from: string;
     to: string;
   }>({
-    from: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
-    to: new Date().toISOString().split('T')[0],
+    from: new Date(new Date().setDate(new Date().getDate() - 30))
+      .toISOString()
+      .split("T")[0],
+    to: new Date().toISOString().split("T")[0],
   });
   const [downloadingStatement, setDownloadingStatement] = useState(false);
 
   if (!isOpen) return null;
 
   const getToday = () => {
-    return new Date().toISOString().split('T')[0];
+    return new Date().toISOString().split("T")[0];
   };
 
   const formatDateDisplay = (dateString: string) => {
@@ -67,7 +69,7 @@ export function ExportStatementModal({
     try {
       // Use the onExport prop from parent
       await onExport(statementDateRange);
-      
+
       // Close modal
       onClose();
     } catch (error: any) {
@@ -75,7 +77,7 @@ export function ExportStatementModal({
       alert(
         `Error: ${
           error.message || "Failed to download statement. Please try again."
-        }`
+        }`,
       );
     } finally {
       setDownloadingStatement(false);
@@ -84,33 +86,37 @@ export function ExportStatementModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-(--bg-primary) border border-(--border-color) shadow-pop squircle-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            <h3
+              className="text-xl font-bold text-(--text-primary)"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
               Download Journal Statement
             </h3>
             <button
               onClick={onClose}
-              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="text-(--text-secondary) hover:text-(--text-primary) transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           <div className="space-y-4">
-            <p className="text-[var(--text-secondary)] text-sm">
-              Select a date range to download your journal entries as a professional PDF statement.
-              The statement will include ALL journal entries from the selected period.
+            <p className="text-(--text-secondary) text-sm">
+              Select a date range to download your journal entries as a
+              professional PDF statement. The statement will include ALL journal
+              entries from the selected period.
             </p>
 
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium mb-1 block text-[var(--text-secondary)]">
+                <label className="text-sm font-medium mb-1 block text-(--text-secondary)">
                   From Date
                 </label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-(--text-secondary)" />
                   <input
                     type="date"
                     value={statementDateRange.from}
@@ -120,7 +126,7 @@ export function ExportStatementModal({
                         from: e.target.value,
                       }))
                     }
-                    className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 pl-10 bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="w-full border border-(--border-color) rounded-md px-3 py-2 pl-10 bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                     max={statementDateRange.to || getToday()}
                   />
@@ -128,11 +134,11 @@ export function ExportStatementModal({
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-1 block text-[var(--text-secondary)]">
+                <label className="text-sm font-medium mb-1 block text-(--text-secondary)">
                   To Date
                 </label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-(--text-secondary)" />
                   <input
                     type="date"
                     value={statementDateRange.to}
@@ -142,7 +148,7 @@ export function ExportStatementModal({
                         to: e.target.value,
                       }))
                     }
-                    className="w-full border border-[var(--border-color)] rounded-md px-3 py-2 pl-10 bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="w-full border border-(--border-color) rounded-md px-3 py-2 pl-10 bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                     min={statementDateRange.from}
                     max={getToday()}
@@ -163,7 +169,7 @@ export function ExportStatementModal({
                   const from = fromDate.toISOString().split("T")[0];
                   setStatementDateRange({ from, to });
                 }}
-                className="border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
               >
                 Last 7 days
               </Button>
@@ -177,7 +183,7 @@ export function ExportStatementModal({
                   const from = fromDate.toISOString().split("T")[0];
                   setStatementDateRange({ from, to });
                 }}
-                className="border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
               >
                 Last 30 days
               </Button>
@@ -191,7 +197,7 @@ export function ExportStatementModal({
                   const from = fromDate.toISOString().split("T")[0];
                   setStatementDateRange({ from, to });
                 }}
-                className="border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
               >
                 Last 3 months
               </Button>
@@ -205,7 +211,7 @@ export function ExportStatementModal({
                   const from = fromDate.toISOString().split("T")[0];
                   setStatementDateRange({ from, to });
                 }}
-                className="border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
               >
                 Last 6 months
               </Button>
@@ -219,26 +225,26 @@ export function ExportStatementModal({
                   const from = fromDate.toISOString().split("T")[0];
                   setStatementDateRange({ from, to });
                 }}
-                className="border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
               >
                 Last 12 months
               </Button>
             </div>
 
             {statementDateRange.from && statementDateRange.to && (
-              <div className="p-3 bg-[var(--bg-secondary)] rounded-md border border-[var(--border-color)]">
-                <p className="text-sm text-[var(--text-primary)]">
-                  Selected range:{" "}
-                  {formatDateDisplay(statementDateRange.from)} to{" "}
-                  {formatDateDisplay(statementDateRange.to)}
+              <div className="p-3 bg-(--bg-secondary) rounded-md border border-(--border-color)">
+                <p className="text-sm text-(--text-primary)">
+                  Selected range: {formatDateDisplay(statementDateRange.from)}{" "}
+                  to {formatDateDisplay(statementDateRange.to)}
                 </p>
-                <p className="text-xs text-[var(--text-secondary)] mt-1">
-                  Journal Type: {journalType.charAt(0).toUpperCase() + journalType.slice(1)}
+                <p className="text-xs text-(--text-secondary) mt-1">
+                  Journal Type:{" "}
+                  {journalType.charAt(0).toUpperCase() + journalType.slice(1)}
                 </p>
               </div>
             )}
 
-            <div className="pt-4 border-t border-[var(--border-color)]">
+            <div className="pt-4 border-t border-(--border-color)">
               <Button
                 onClick={handleDownloadStatement}
                 disabled={
@@ -246,7 +252,7 @@ export function ExportStatementModal({
                   !statementDateRange.to ||
                   downloadingStatement
                 }
-                className="w-full font-semibold h-11 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
+                className="w-full font-semibold h-11 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
               >
                 {downloadingStatement ? (
                   <>
@@ -260,7 +266,7 @@ export function ExportStatementModal({
                   </>
                 )}
               </Button>
-              <p className="text-xs text-[var(--text-secondary)] mt-2 text-center">
+              <p className="text-xs text-(--text-secondary) mt-2 text-center">
                 This may take a moment for large date ranges
               </p>
             </div>

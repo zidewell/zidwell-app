@@ -75,8 +75,8 @@ export default function InvoicePage() {
     if (isPremiumUser)
       return {
         icon: Crown,
-        color: "text-[var(--color-accent-yellow)]",
-        bg: "bg-[var(--color-accent-yellow)]/10",
+        color: "text-(--color-accent-yellow)",
+        bg: "bg-(--color-accent-yellow)/10",
         label: "Premium",
       };
     if (isGrowthUser)
@@ -146,7 +146,7 @@ export default function InvoicePage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => router.back()}
-                  className="text-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)] p-2 md:p-2.5 rounded-md transition-all"
+                  className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow) hover:bg-(--bg-secondary) p-2 md:p-2.5 rounded-md transition-all"
                 >
                   <ArrowLeft className="w-5 h-5 md:mr-2" />
                   <span className="hidden md:inline text-sm font-medium">
@@ -156,7 +156,7 @@ export default function InvoicePage() {
 
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)]">
+                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-(--text-primary)">
                       Invoice & Payment System
                     </h1>
                     <div
@@ -170,7 +170,7 @@ export default function InvoicePage() {
                       </span>
                     </div>
                   </div>
-                  <p className="text-sm md:text-base text-[var(--text-secondary)]">
+                  <p className="text-sm md:text-base text-(--text-secondary)">
                     Create professional invoices and accept payments seamlessly.
                     Get paid faster with our elegant payment links.
                   </p>
@@ -179,9 +179,11 @@ export default function InvoicePage() {
 
               {/* Tier Message - For paid tiers */}
               {tierMessage && !isFree && (
-                <div className="mb-6 p-4 rounded-md border-2 bg-[var(--bg-secondary)] border-[var(--border-color)] shadow-soft squircle-lg">
-                  <p className={`font-medium flex items-center gap-2 text-[var(--text-primary)]`}>
-                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
+                <div className="mb-6 p-4 rounded-md border-2 bg-(--bg-secondary) border-(--border-color) shadow-soft squircle-lg">
+                  <p
+                    className={`font-medium flex items-center gap-2 text-(--text-primary)`}
+                  >
+                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-(--color-accent-yellow) text-(--color-ink)">
                       {tierInfo.label.toUpperCase()}
                     </span>
                     {tierMessage}
@@ -189,21 +191,20 @@ export default function InvoicePage() {
                 </div>
               )}
 
-            
               {/* {isFree && (
-                <div className="mb-6 bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-md p-4 shadow-soft squircle-lg">
+                <div className="mb-6 bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-soft squircle-lg">
                   <div className="flex items-center justify-between flex-wrap gap-4">
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-[var(--text-secondary)]">
+                      <span className="text-sm font-medium text-(--text-secondary)">
                         Free Trial Invoice Usage:
                       </span>
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-bold ${
                           hasReachedLimit
-                            ? "bg-[var(--destructive)]/20 text-[var(--destructive)]"
+                            ? "bg-destructive/20 text-destructive"
                             : remaining <= 2
                               ? "bg-yellow-100 text-yellow-600"
-                              : "bg-[var(--color-lemon-green)]/20 text-[var(--color-lemon-green)]"
+                              : "bg-(--color-lemon-green)/20 text-(--color-lemon-green)"
                         }`}
                       >
                         {usedInvoices}/5 used
@@ -214,7 +215,7 @@ export default function InvoicePage() {
                       <Link href="/pricing?upgrade=growth">
                         <Button
                           size="sm"
-                          className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
+                          className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
                         >
                           Upgrade for more invoices
                         </Button>
@@ -224,19 +225,19 @@ export default function InvoicePage() {
 
                
                   <div className="w-full mt-3">
-                    <div className="w-full h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-(--bg-secondary) rounded-full overflow-hidden">
                       <div
                         className={`h-full ${
                           hasReachedLimit
-                            ? "bg-[var(--destructive)]"
+                            ? "bg-destructive"
                             : remaining <= 2
-                              ? "bg-[var(--color-lemon-green)]"
-                              : "bg-[var(--color-accent-yellow)]"
+                              ? "bg-(--color-lemon-green)"
+                              : "bg-(--color-accent-yellow)"
                         }`}
                         style={{ width: `${(usedInvoices / 5) * 100}%` }}
                       />
                     </div>
-                    <p className="text-xs text-[var(--text-secondary)] mt-1">
+                    <p className="text-xs text-(--text-secondary) mt-1">
                       {remaining} invoice{remaining !== 1 ? "s" : ""} remaining
                     </p>
                   </div>
@@ -245,43 +246,43 @@ export default function InvoicePage() {
 
               {/* CTA Section */}
               <div className="max-w-4xl mx-auto">
-                <Card className="bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-md p-8 md:p-12 shadow-soft squircle-lg">
+                <Card className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-8 md:p-12 shadow-soft squircle-lg">
                   <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-4">
-                      <div className="h-12 w-12 rounded-lg bg-[var(--color-accent-yellow)]/10 flex items-center justify-center mb-4">
-                        <FileText className="h-6 w-6 text-[var(--color-accent-yellow)]" />
+                      <div className="h-12 w-12 rounded-lg bg-(--color-accent-yellow)/10 flex items-center justify-center mb-4">
+                        <FileText className="h-6 w-6 text-(--color-accent-yellow)" />
                       </div>
 
-                      <h3 className="text-2xl font-bold text-[var(--text-primary)]">
+                      <h3 className="text-2xl font-bold text-(--text-primary)">
                         Create Invoice
                       </h3>
-                      <p className="text-[var(--text-secondary)]">
+                      <p className="text-(--text-secondary)">
                         Generate professional invoices with itemized billing,
                         automatic calculations, and instant payment links.
                       </p>
 
-                      <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
+                      <ul className="space-y-2 text-sm text-(--text-secondary)">
                         <li className="flex items-center">
-                          <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent-yellow)] mr-2" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-(--color-accent-yellow) mr-2" />
                           Live preview as you create
                         </li>
                         <li className="flex items-center">
-                          <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent-yellow)] mr-2" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-(--color-accent-yellow) mr-2" />
                           Custom business branding
                         </li>
                         <li className="flex items-center">
-                          <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent-yellow)] mr-2" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-(--color-accent-yellow) mr-2" />
                           Shareable payment links
                         </li>
                         <li className="flex items-center">
-                          <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent-yellow)] mr-2" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-(--color-accent-yellow) mr-2" />
                           PDF download option
                         </li>
                       </ul>
 
                       <Link href="/dashboard/services/create-invoice/create">
                         <Button
-                          className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
+                          className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
                           size="lg"
                           disabled={isFree && hasReachedLimit}
                         >
@@ -294,12 +295,12 @@ export default function InvoicePage() {
                     </div>
 
                     <div className="space-y-4">
-                      <div className="bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-md p-6 shadow-soft squircle-lg">
-                        <h4 className="font-semibold text-[var(--text-primary)] mb-3">
+                      <div className="bg-(--bg-secondary) border-2 border-(--border-color) rounded-md p-6 shadow-soft squircle-lg">
+                        <h4 className="font-semibold text-(--text-primary) mb-3">
                           How it works
                         </h4>
 
-                        <ol className="space-y-3 text-sm text-[var(--text-secondary)]">
+                        <ol className="space-y-3 text-sm text-(--text-secondary)">
                           {[
                             "Fill in your business details and add invoice items",
                             "Generate invoice and copy the payment link",
@@ -307,7 +308,7 @@ export default function InvoicePage() {
                             "Client pays securely and you get instant notification",
                           ].map((text, i) => (
                             <li key={i} className="flex gap-3">
-                              <span className="shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] text-xs font-bold">
+                              <span className="shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-(--color-accent-yellow) text-(--color-ink) text-xs font-bold">
                                 {i + 1}
                               </span>
                               <span>{text}</span>

@@ -155,15 +155,15 @@ const FormBody: React.FC = () => {
     if (isPremium)
       return {
         icon: Crown,
-        color: "text-[var(--color-accent-yellow)]",
-        bg: "bg-[var(--color-accent-yellow)]/10",
+        color: "text-(--color-accent-yellow)",
+        bg: "bg-(--color-accent-yellow)/10",
         label: "Premium",
       };
     if (isGrowth)
       return {
         icon: Zap,
-        color: "text-[var(--color-accent-yellow)]",
-        bg: "bg-[var(--color-accent-yellow)]/10",
+        color: "text-(--color-accent-yellow)",
+        bg: "bg-(--color-accent-yellow)/10",
         label: "Growth",
       };
     if (isZidLite)
@@ -175,8 +175,8 @@ const FormBody: React.FC = () => {
       };
     return {
       icon: Star,
-      color: "text-[var(--text-secondary)]",
-      bg: "bg-[var(--bg-secondary)]",
+      color: "text-(--text-secondary)",
+      bg: "bg-(--bg-secondary)",
       label: "Free Trial",
     };
   };
@@ -258,7 +258,13 @@ const FormBody: React.FC = () => {
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["var(--color-accent-yellow)", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: [
+        "var(--color-accent-yellow)",
+        "#ffd700",
+        "#ffed4e",
+        "#ffffff",
+        "#fbbf24",
+      ],
     });
 
     setTimeout(() => {
@@ -504,105 +510,104 @@ const FormBody: React.FC = () => {
     setCreatorSignature(null);
   };
 
-const loadDraftIntoForm = (draft: ContractDraft) => {
-  const draftContractId =
-    draft.metadata?.contract_id ||
-    draft.contract_id ||
-    draft.id ||
-    generateContractId();
+  const loadDraftIntoForm = (draft: ContractDraft) => {
+    const draftContractId =
+      draft.metadata?.contract_id ||
+      draft.contract_id ||
+      draft.id ||
+      generateContractId();
 
-  const paymentTerms = draft.metadata?.payment_terms || "";
-  
-  // Get the contract content
-  let contractContent = draft.contract_content || draft.contract_text || "";
-  
-  // Log the raw content for debugging
-  console.log('Raw draft content:', {
-    contract_content: draft.contract_content,
-    contract_text: draft.contract_text,
-    type: typeof contractContent,
-    length: contractContent.length
-  });
-  
-  // Check if the content is wrapped in quotes (JSON string)
-  if (typeof contractContent === 'string') {
-    // Remove any extra quotes that might be wrapping the content
-    if (contractContent.startsWith('"') && contractContent.endsWith('"')) {
-      try {
-        contractContent = JSON.parse(contractContent);
-      } catch (e) {
-        // If parsing fails, just remove the quotes
-        contractContent = contractContent.slice(1, -1);
-      }
-    }
-    
-    // If it's a JSON string that contains HTML, ensure it's properly decoded
-    try {
-      const parsed = JSON.parse(contractContent);
-      if (typeof parsed === 'string') {
-        contractContent = parsed;
-      }
-    } catch {
-      // Not JSON, keep as is
-    }
-    
-    // Decode HTML entities if present
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = contractContent;
-    if (textarea.innerHTML !== contractContent) {
-      contractContent = textarea.value;
-    }
-  }
+    const paymentTerms = draft.metadata?.payment_terms || "";
 
-  setForm({
-    receiverName: draft.receiver_name || draft.signee_name || "",
-    receiverEmail: draft.receiver_email || draft.signee_email || "",
-    receiverPhone:
-      draft.receiver_phone || draft.phone_number?.toString() || "",
-    contractTitle: draft.contract_title || "",
-    contractContent: contractContent, // Use the processed content
-    paymentTerms: paymentTerms,
-    ageConsent: draft.age_consent || false,
-    termsConsent: draft.terms_consent || false,
-    status: (draft.status as "pending" | "draft") || "draft",
-    contractId: draftContractId,
-    contractType: "custom",
-    contractDate:
-      draft.contract_date || new Date().toISOString().split("T")[0],
-  });
+    // Get the contract content
+    let contractContent = draft.contract_content || draft.contract_text || "";
 
-  setHasUnsavedChanges(false);
-
-  if (draft.creator_name) {
-    setCreatorName(draft.creator_name);
-    setLocalCreatorName(draft.creator_name);
-  }
-  if (draft.creator_signature) {
-    setCreatorSignature(draft.creator_signature);
-    setLocalSignature(draft.creator_signature);
-  }
-  if (draft.include_lawyer_signature) {
-    setIncludeLawyerSignature(draft.include_lawyer_signature);
-  }
-
-
-  setTimeout(() => {
-    Swal.fire({
-      icon: "success",
-      title: "Draft Loaded!",
-      text: "Your draft has been loaded into the form successfully.",
-      confirmButtonColor: "var(--color-accent-yellow)",
-      timer: 2000,
-      showConfirmButton: false,
+    // Log the raw content for debugging
+    console.log("Raw draft content:", {
+      contract_content: draft.contract_content,
+      contract_text: draft.contract_text,
+      type: typeof contractContent,
+      length: contractContent.length,
     });
-  }, 300);
-};
+
+    // Check if the content is wrapped in quotes (JSON string)
+    if (typeof contractContent === "string") {
+      // Remove any extra quotes that might be wrapping the content
+      if (contractContent.startsWith('"') && contractContent.endsWith('"')) {
+        try {
+          contractContent = JSON.parse(contractContent);
+        } catch (e) {
+          // If parsing fails, just remove the quotes
+          contractContent = contractContent.slice(1, -1);
+        }
+      }
+
+      // If it's a JSON string that contains HTML, ensure it's properly decoded
+      try {
+        const parsed = JSON.parse(contractContent);
+        if (typeof parsed === "string") {
+          contractContent = parsed;
+        }
+      } catch {
+        // Not JSON, keep as is
+      }
+
+      // Decode HTML entities if present
+      const textarea = document.createElement("textarea");
+      textarea.innerHTML = contractContent;
+      if (textarea.innerHTML !== contractContent) {
+        contractContent = textarea.value;
+      }
+    }
+
+    setForm({
+      receiverName: draft.receiver_name || draft.signee_name || "",
+      receiverEmail: draft.receiver_email || draft.signee_email || "",
+      receiverPhone:
+        draft.receiver_phone || draft.phone_number?.toString() || "",
+      contractTitle: draft.contract_title || "",
+      contractContent: contractContent, // Use the processed content
+      paymentTerms: paymentTerms,
+      ageConsent: draft.age_consent || false,
+      termsConsent: draft.terms_consent || false,
+      status: (draft.status as "pending" | "draft") || "draft",
+      contractId: draftContractId,
+      contractType: "custom",
+      contractDate:
+        draft.contract_date || new Date().toISOString().split("T")[0],
+    });
+
+    setHasUnsavedChanges(false);
+
+    if (draft.creator_name) {
+      setCreatorName(draft.creator_name);
+      setLocalCreatorName(draft.creator_name);
+    }
+    if (draft.creator_signature) {
+      setCreatorSignature(draft.creator_signature);
+      setLocalSignature(draft.creator_signature);
+    }
+    if (draft.include_lawyer_signature) {
+      setIncludeLawyerSignature(draft.include_lawyer_signature);
+    }
+
+    setTimeout(() => {
+      Swal.fire({
+        icon: "success",
+        title: "Draft Loaded!",
+        text: "Your draft has been loaded into the form successfully.",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    }, 300);
+  };
   const showDraftsList = (draftsList: ContractDraft[]) => {
     const draftListHTML = draftsList
       .map(
         (draft, index) => `
         <div style="padding: 12px; border-bottom: 1px solid var(--border-color); cursor: pointer;" 
-             data-draft-index="${index}" class="hover:bg-[var(--bg-secondary)]">
+             data-draft-index="${index}" class="hover:bg-(--bg-secondary)">
           <strong>${draft.contract_title || "Untitled Contract"}</strong><br>
           <small>To: ${draft.receiver_name || draft.signee_name || "No recipient"}</small><br>
           <small>Created: ${new Date(draft.created_at).toLocaleDateString()}</small>
@@ -1258,14 +1263,14 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
       {/* Upgrade Prompt Modal */}
       {showUpgradePrompt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--bg-primary)] rounded-xl max-w-md w-full p-6">
+          <div className="bg-(--bg-primary) rounded-xl max-w-md w-full p-6">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Crown className="w-6 h-6 text-red-600" />
             </div>
-            <h3 className="text-xl font-bold text-center mb-2 text-[var(--text-primary)]">
+            <h3 className="text-xl font-bold text-center mb-2 text-(--text-primary)">
               Contract Limit Reached
             </h3>
-            <p className="text-[var(--text-secondary)] text-center mb-6">
+            <p className="text-(--text-secondary) text-center mb-6">
               {isZidLiteUser
                 ? "You've used all your ZidLite contracts. Upgrade to continue creating unlimited contracts!"
                 : "You've used all your free contracts. Upgrade to continue creating unlimited contracts!"}
@@ -1279,7 +1284,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                 Cancel
               </Button>
               <Link href="/pricing?upgrade=growth" className="flex-1">
-                <Button className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]">
+                <Button className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)">
                   View Plans
                 </Button>
               </Link>
@@ -1330,7 +1335,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
         onCopyLink={handleCopySigningLink}
       />
 
-      <div className="min-h-screen bg-[var(--bg-primary)]">
+      <div className="min-h-screen bg-(--bg-primary)">
         <div className="container mx-auto py-8 px-4">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-start space-x-4">
@@ -1349,7 +1354,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                   }
                   router.back();
                 }}
-                className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
+                className="text-(--color-accent-yellow) hover:bg-(--bg-secondary)"
                 disabled={isSubmitting}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1358,7 +1363,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
 
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                  <h1 className="md:text-3xl text-xl font-bold text-[var(--text-primary)]">
+                  <h1 className="md:text-3xl text-xl font-bold text-(--text-primary)">
                     Create Contract
                   </h1>
                   {/* Single Tier Badge */}
@@ -1371,7 +1376,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                     </span>
                   </div>
                 </div>
-                <p className="text-[var(--text-secondary)]">
+                <p className="text-(--text-secondary)">
                   Generate a professional contract and send for signatures
                 </p>
               </div>
@@ -1397,7 +1402,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
               {hasUnsavedChanges && (
                 <Badge
                   variant="outline"
-                  className="bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]/20"
+                  className="bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) border-(--color-accent-yellow)/20"
                 >
                   Unsaved changes
                 </Badge>
@@ -1422,7 +1427,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
               {localSignature && (
                 <Badge
                   variant="outline"
-                  className="bg-[var(--color-lemon-green)]/10 text-[var(--color-lemon-green)] border-[var(--color-lemon-green)]/20"
+                  className="bg-(--color-lemon-green)/10 text-(--color-lemon-green) border-(--color-lemon-green)/20"
                 >
                   ✓ Signed
                 </Badge>
@@ -1437,7 +1442,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                 isPremiumUser
                   ? "bg-purple-50 border-purple-200"
                   : isGrowthUser
-                    ? "bg-[var(--color-accent-yellow)]/5 border-[var(--color-accent-yellow)]/20"
+                    ? "bg-(--color-accent-yellow)/5 border-(--color-accent-yellow)/20"
                     : isZidLiteUser
                       ? "bg-blue-50 border-blue-200"
                       : ""
@@ -1448,7 +1453,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                   isPremiumUser
                     ? "text-purple-600"
                     : isGrowthUser
-                      ? "text-[var(--color-accent-yellow)]"
+                      ? "text-(--color-accent-yellow)"
                       : isZidLiteUser
                         ? "text-blue-600"
                         : ""
@@ -1459,7 +1464,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                     isPremiumUser
                       ? "bg-purple-100 text-purple-600 border border-purple-200"
                       : isGrowthUser
-                        ? "bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] border border-[var(--color-accent-yellow)]/20"
+                        ? "bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) border border-(--color-accent-yellow)/20"
                         : isZidLiteUser
                           ? "bg-blue-100 text-blue-600 border border-blue-200"
                           : ""
@@ -1480,7 +1485,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                 className={`mb-6 p-4 rounded-lg border ${
                   contractCount >= contractLimit
                     ? "bg-red-50 border-red-200"
-                    : "bg-[var(--color-accent-yellow)]/5 border-[var(--color-accent-yellow)]/20"
+                    : "bg-(--color-accent-yellow)/5 border-(--color-accent-yellow)/20"
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -1488,7 +1493,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                     className={`w-5 h-5 mt-0.5 ${
                       contractCount >= contractLimit
                         ? "text-red-500"
-                        : "text-[var(--color-accent-yellow)]"
+                        : "text-(--color-accent-yellow)"
                     }`}
                   />
                   <div className="flex-1">
@@ -1496,14 +1501,14 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                       className={`font-medium ${
                         contractCount >= contractLimit
                           ? "text-red-700"
-                          : "text-[var(--color-accent-yellow)]"
+                          : "text-(--color-accent-yellow)"
                       }`}
                     >
                       {contractCount >= contractLimit
                         ? "Free contract limit reached"
                         : `Only ${contractLimit - contractCount} contract${contractLimit - contractCount !== 1 ? "s" : ""} remaining`}
                     </p>
-                    <p className="text-sm text-[var(--text-secondary)] mt-1">
+                    <p className="text-sm text-(--text-secondary) mt-1">
                       {contractCount >= contractLimit
                         ? "You've reached your free contract limit. Upgrade to continue creating contracts."
                         : `You have ${contractLimit - contractCount} free ${contractLimit - contractCount === 1 ? "contract" : "contracts"} left.`}
@@ -1560,12 +1565,12 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                 variant="outline"
                 size="sm"
                 onClick={resetForm}
-                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                className="text-(--text-secondary) hover:text-(--text-primary)"
               >
                 Clear Form
               </Button>
             </div>
-            <div className="text-sm text-[var(--text-secondary)]">
+            <div className="text-sm text-(--text-secondary)">
               Contract ID: {form.contractId}
             </div>
           </div>
@@ -1592,7 +1597,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
             <TabsContent value="create" className="space-y-6">
               <section className="space-y-4">
                 <div className="w-full">
-                  <Label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
+                  <Label className="block text-xs font-medium text-(--text-secondary) mb-2">
                     Contract Title <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -1602,7 +1607,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                     }
                     placeholder="Enter contract title"
                     disabled={isSubmitting}
-                    className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                   {errors.contractTitle && (
@@ -1616,7 +1621,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                   <div className="space-y-2 w-full">
                     <Label
                       htmlFor="creator-name"
-                      className="text-[var(--text-primary)] font-medium"
+                      className="text-(--text-primary) font-medium"
                     >
                       PARTY A (Creator) *
                     </Label>
@@ -1626,7 +1631,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                       onChange={handleCreatorNameChange}
                       placeholder="Enter your full legal name"
                       disabled={isSubmitting}
-                      className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                      className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                       style={{ outline: "none", boxShadow: "none" }}
                     />
                   </div>
@@ -1634,7 +1639,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                   <div className="space-y-2 w-full">
                     <Label
                       htmlFor="receiver-name"
-                      className="text-[var(--text-primary)] font-medium"
+                      className="text-(--text-primary) font-medium"
                     >
                       PARTY B (Signee) *
                     </Label>
@@ -1646,7 +1651,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                       }
                       placeholder="John Doe"
                       disabled={isSubmitting}
-                      className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                      className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                       style={{ outline: "none", boxShadow: "none" }}
                     />
                     {errors.receiverName && (
@@ -1661,7 +1666,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                   <div>
                     <Label
                       htmlFor="contract-date"
-                      className="text-xs font-medium text-[var(--text-secondary)]"
+                      className="text-xs font-medium text-(--text-secondary)"
                     >
                       Contract Date*
                     </Label>
@@ -1672,7 +1677,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                       onChange={(e) =>
                         handleFormChange("contractDate", e.target.value)
                       }
-                      className="w-full mt-1.5 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                      className="w-full mt-1.5 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                       style={{ outline: "none", boxShadow: "none" }}
                       max={new Date().toISOString().split("T")[0]}
                       disabled={isSubmitting}
@@ -1686,7 +1691,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                   <div>
                     <Label
                       htmlFor="receiver-email"
-                      className="text-xs font-medium text-[var(--text-secondary)]"
+                      className="text-xs font-medium text-(--text-secondary)"
                     >
                       Email Address*
                     </Label>
@@ -1698,7 +1703,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                       onChange={(e) =>
                         handleFormChange("receiverEmail", e.target.value)
                       }
-                      className="mt-1.5 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                      className="mt-1.5 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                       style={{ outline: "none", boxShadow: "none" }}
                       disabled={isSubmitting}
                     />
@@ -1711,7 +1716,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                   <div>
                     <Label
                       htmlFor="receiver-phone"
-                      className="text-xs font-medium text-[var(--text-secondary)]"
+                      className="text-xs font-medium text-(--text-secondary)"
                     >
                       Phone Number
                     </Label>
@@ -1722,7 +1727,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                       onChange={(e) =>
                         handleFormChange("receiverPhone", e.target.value)
                       }
-                      className="mt-1.5 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                      className="mt-1.5 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                       style={{ outline: "none", boxShadow: "none" }}
                       disabled={isSubmitting}
                     />
@@ -1731,10 +1736,10 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
 
                 <div>
                   <div className="flex justify-between items-between mb-2">
-                    <Label className="block text-xs font-medium text-[var(--text-secondary)]">
+                    <Label className="block text-xs font-medium text-(--text-secondary)">
                       Contract Content <span className="text-red-500">*</span>
                     </Label>
-                    <span className="text-xs text-[var(--text-secondary)]">
+                    <span className="text-xs text-(--text-secondary)">
                       {form.contractContent.length} characters
                     </span>
                   </div>
@@ -1754,10 +1759,10 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
 
                 <div className="mt-6">
                   <div className="flex justify-between items-between mb-2">
-                    <Label className="block text-xs font-medium text-[var(--text-secondary)]">
+                    <Label className="block text-xs font-medium text-(--text-secondary)">
                       PAYMENT TERMS (if any)
                     </Label>
-                    <span className="text-xs text-[var(--text-secondary)]">
+                    <span className="text-xs text-(--text-secondary)">
                       {form.paymentTerms.length} characters
                     </span>
                   </div>
@@ -1767,7 +1772,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                       handleFormChange("paymentTerms", e.target.value)
                     }
                     placeholder="Specify payment terms, schedules, amounts, methods, and deadlines if applicable..."
-                    className="w-full h-20 p-4 text-sm resize-none border border-[var(--border-color)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:border-transparent disabled:bg-[var(--bg-secondary)] bg-[var(--bg-primary)] text-[var(--text-primary)]"
+                    className="w-full h-20 p-4 text-sm resize-none border border-(--border-color) rounded-md focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-transparent disabled:bg-(--bg-secondary) bg-(--bg-primary) text-(--text-primary)"
                     rows={6}
                     disabled={isSubmitting}
                   />
@@ -1775,7 +1780,9 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
               </section>
 
               <section className="space-y-4">
-                <h4 className="text-lg font-medium text-[var(--text-primary)]">Consent Declarations</h4>
+                <h4 className="text-lg font-medium text-(--text-primary)">
+                  Consent Declarations
+                </h4>
                 <SignContractToggle
                   ageConsent={form.ageConsent}
                   setAgeConsent={(value) =>
@@ -1804,13 +1811,13 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
               </section>
 
               {/* Signature Section */}
-              <section className="md:border md:border-[var(--border-color)] rounded-lg md:p-6 md:bg-[var(--bg-secondary)]">
+              <section className="md:border md:border-(--border-color) rounded-lg md:p-6 md:bg-(--bg-secondary)">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
                   <div className="mb-4 sm:mb-0">
-                    <h4 className="text-lg font-semibold text-[var(--text-primary)]">
+                    <h4 className="text-lg font-semibold text-(--text-primary)">
                       Add Your Signature
                     </h4>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-(--text-secondary)">
                       Draw or upload your signature to complete the contract
                     </p>
                   </div>
@@ -1862,12 +1869,12 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                   />
 
                   {userData?.id && (
-                    <div className="flex items-center space-x-3 p-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg">
+                    <div className="flex items-center space-x-3 p-4 bg-(--bg-primary) border border-(--border-color) rounded-lg">
                       <Switch
                         id="save-signature-toggle"
                         checked={saveSignatureForFuture}
                         onCheckedChange={handleSaveSignatureToggle}
-                        className="data-[state=checked]:bg-[var(--color-accent-yellow)]"
+                        className="data-[state=checked]:bg-(--color-accent-yellow)"
                         disabled={
                           (!localSignature && saveSignatureForFuture) ||
                           isSubmitting
@@ -1876,11 +1883,11 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                       <div className="space-y-1 flex-1">
                         <Label
                           htmlFor="save-signature-toggle"
-                          className="cursor-pointer text-sm font-medium text-[var(--text-primary)]"
+                          className="cursor-pointer text-sm font-medium text-(--text-primary)"
                         >
                           Save signature for future use
                         </Label>
-                        <p className="text-xs text-[var(--text-secondary)]">
+                        <p className="text-xs text-(--text-secondary)">
                           Your signature will be securely stored for future
                           contracts
                         </p>
@@ -1913,7 +1920,7 @@ const loadDraftIntoForm = (draft: ContractDraft) => {
                 <Button
                   onClick={() => handleSubmit(false)}
                   size="lg"
-                  className="md:flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+                  className="md:flex-1 bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
                   disabled={isSubmitting || isSavingDraft}
                 >
                   {getSendButtonText()}

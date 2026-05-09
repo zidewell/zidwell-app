@@ -4,11 +4,30 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { 
-  ArrowLeft, ChevronLeft, ChevronRight, Shield, Clock, TrendingUp, 
-  AlertTriangle, CreditCard, Loader2, Package, FileDown, Briefcase, 
-  Heart, GraduationCap, Building2, LineChart, PiggyBank, Bitcoin, 
-  CheckCircle, UserCheck, Calendar, ToggleLeft, ToggleRight 
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Shield,
+  Clock,
+  TrendingUp,
+  AlertTriangle,
+  CreditCard,
+  Loader2,
+  Package,
+  FileDown,
+  Briefcase,
+  Heart,
+  GraduationCap,
+  Building2,
+  LineChart,
+  PiggyBank,
+  Bitcoin,
+  CheckCircle,
+  UserCheck,
+  Calendar,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -74,7 +93,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [payInInstallments, setPayInInstallments] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -101,7 +120,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     const loadPage = async () => {
       try {
         const response = await fetch(`/api/payment-page/public/${slug}`);
-        
+
         if (!response.ok) {
           if (response.status === 404) {
             setError("Page not found");
@@ -110,7 +129,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           }
           return;
         }
-        
+
         const data = await response.json();
         setPage(data.page);
       } catch (err) {
@@ -120,29 +139,29 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         setLoading(false);
       }
     };
-    
+
     loadPage();
   }, [slug]);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleCustomFieldChange = (field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      customFields: { ...prev.customFields, [field]: value }
+      customFields: { ...prev.customFields, [field]: value },
     }));
   };
 
   const handleStudentSelect = (studentName: string) => {
-    const student = page?.students?.find(s => s.name === studentName);
+    const student = page?.students?.find((s) => s.name === studentName);
     if (student) {
       setSelectedStudent(student);
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         childName: student.name,
-        regNumber: student.regNumber || ""
+        regNumber: student.regNumber || "",
       }));
     }
   };
@@ -170,9 +189,11 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         alert("Please select or enter child's name");
         return false;
       }
-      
+
       if (selectedStudent?.paid) {
-        alert(`This student (${selectedStudent.name}) has already been marked as paid. Please contact the school if you believe this is an error.`);
+        alert(
+          `This student (${selectedStudent.name}) has already been marked as paid. Please contact the school if you believe this is an error.`,
+        );
         return false;
       }
     }
@@ -193,13 +214,20 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     }
 
     if (page?.pageType === "services") {
-      if (page.bookingEnabled && (!formData.bookingDate || !formData.bookingTime)) {
+      if (
+        page.bookingEnabled &&
+        (!formData.bookingDate || !formData.bookingTime)
+      ) {
         alert("Please select booking date and time");
         return false;
       }
     }
 
-    if (page?.pageType === "donation" && page.priceType === "open" && !formData.amount) {
+    if (
+      page?.pageType === "donation" &&
+      page.priceType === "open" &&
+      !formData.amount
+    ) {
       alert("Please enter donation amount");
       return false;
     }
@@ -211,18 +239,18 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     if (page?.feeBreakdown && page.feeBreakdown.length > 0) {
       return page.feeBreakdown.reduce((sum, item) => sum + item.amount, 0);
     }
-    
+
     if (page?.priceType === "open" || page?.pageType === "donation") {
       if (page?.pageType === "donation" && formData.amount) {
         return Number(formData.amount);
       }
       return Number(formData.amount) || page?.price || 0;
     }
-    
+
     if (page?.pageType === "physical") {
       return (page?.price || 0) * (Number(formData.quantity) || 1);
     }
-    
+
     return page?.price || 0;
   };
 
@@ -235,7 +263,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         totalAmount,
         installmentCount,
         installmentAmount,
-        remainingInstallments: page.remainingInstallments || installmentCount
+        remainingInstallments: page.remainingInstallments || installmentCount,
       };
     }
     return null;
@@ -243,14 +271,14 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
   const getChargeAmount = () => {
     const totalAmount = getTotalAmount();
-    
+
     if (payInInstallments) {
       const installmentInfo = getInstallmentInfo();
       if (installmentInfo) {
         return installmentInfo.installmentAmount;
       }
     }
-    
+
     return totalAmount;
   };
 
@@ -258,14 +286,18 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     if (!validateForm()) return;
 
     setIsProcessing(true);
-    
+
     try {
       const totalAmount = getTotalAmount();
       const chargeAmount = getChargeAmount();
-      const isInstallmentPayment = payInInstallments && page?.installmentCount && page.installmentCount > 1;
-      
+      const isInstallmentPayment =
+        payInInstallments &&
+        page?.installmentCount &&
+        page.installmentCount > 1;
+
       const fee = Math.min(chargeAmount * 0.02, 2000);
-      const totalWithFee = page?.feeMode === "customer" ? chargeAmount + fee : chargeAmount;
+      const totalWithFee =
+        page?.feeMode === "customer" ? chargeAmount + fee : chargeAmount;
 
       const metadata: any = {
         pageType: page?.pageType,
@@ -281,7 +313,8 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         metadata.totalInstallments = installmentInfo?.installmentCount;
         metadata.installmentAmount = installmentInfo?.installmentAmount;
         metadata.currentInstallment = 1;
-        metadata.remainingInstallments = (installmentInfo?.installmentCount || 1) - 1;
+        metadata.remainingInstallments =
+          (installmentInfo?.installmentCount || 1) - 1;
       }
 
       if (page?.pageType === "school") {
@@ -341,19 +374,27 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-accent-yellow)]"></div>
+      <div className="min-h-screen bg-(--bg-secondary) flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-(--color-accent-yellow)"></div>
       </div>
     );
   }
 
   if (error || !page) {
     return (
-      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+      <div className="min-h-screen bg-(--bg-secondary) flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Page not found</h1>
-          <p className="text-[var(--text-secondary)] mb-4">This payment page doesn't exist or has been removed.</p>
-          <Button variant="default" onClick={() => router.push("/")} className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90">
+          <h1 className="text-2xl font-bold text-(--text-primary) mb-2">
+            Page not found
+          </h1>
+          <p className="text-(--text-secondary) mb-4">
+            This payment page doesn't exist or has been removed.
+          </p>
+          <Button
+            variant="default"
+            onClick={() => router.push("/")}
+            className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+          >
             Go Home
           </Button>
         </div>
@@ -364,40 +405,59 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const totalAmount = getTotalAmount();
   const chargeAmount = getChargeAmount();
   const fee = Math.min(chargeAmount * 0.02, 2000);
-  const totalWithFee = page.feeMode === "customer" ? chargeAmount + fee : chargeAmount;
+  const totalWithFee =
+    page.feeMode === "customer" ? chargeAmount + fee : chargeAmount;
   const installmentInfo = getInstallmentInfo();
-  const canDoInstallments = page.installmentCount && page.installmentCount > 1 && !page.feeBreakdown;
+  const canDoInstallments =
+    page.installmentCount && page.installmentCount > 1 && !page.feeBreakdown;
 
-  const allImages = [...(page.coverImage ? [page.coverImage] : []), ...page.productImages];
-  const unpaidStudents = page.students?.filter(s => !s.paid) || [];
-  const paidStudents = page.students?.filter(s => s.paid) || [];
+  const allImages = [
+    ...(page.coverImage ? [page.coverImage] : []),
+    ...page.productImages,
+  ];
+  const unpaidStudents = page.students?.filter((s) => !s.paid) || [];
+  const paidStudents = page.students?.filter((s) => s.paid) || [];
 
   const getPageTypeIcon = () => {
     switch (page.pageType) {
-      case "school": return <GraduationCap className="h-5 w-5" />;
-      case "donation": return <Heart className="h-5 w-5" />;
-      case "physical": return <Package className="h-5 w-5" />;
-      case "digital": return <FileDown className="h-5 w-5" />;
-      case "services": return <Briefcase className="h-5 w-5" />;
-      case "real_estate": return <Building2 className="h-5 w-5" />;
-      case "stock": return <LineChart className="h-5 w-5" />;
-      case "savings": return <PiggyBank className="h-5 w-5" />;
-      case "crypto": return <Bitcoin className="h-5 w-5" />;
-      default: return <CreditCard className="h-5 w-5" />;
+      case "school":
+        return <GraduationCap className="h-5 w-5" />;
+      case "donation":
+        return <Heart className="h-5 w-5" />;
+      case "physical":
+        return <Package className="h-5 w-5" />;
+      case "digital":
+        return <FileDown className="h-5 w-5" />;
+      case "services":
+        return <Briefcase className="h-5 w-5" />;
+      case "real_estate":
+        return <Building2 className="h-5 w-5" />;
+      case "stock":
+        return <LineChart className="h-5 w-5" />;
+      case "savings":
+        return <PiggyBank className="h-5 w-5" />;
+      case "crypto":
+        return <Bitcoin className="h-5 w-5" />;
+      default:
+        return <CreditCard className="h-5 w-5" />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
+    <div className="min-h-screen bg-(--bg-secondary)">
       {/* Header */}
-      <div className="bg-[var(--color-ink)] text-white sticky top-0 z-10">
+      <div className="bg-(--color-ink) text-white sticky top-0 z-10">
         <div className="container py-4 flex items-center gap-3">
           <button onClick={() => router.back()} className="hover:opacity-80">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-3">
             {page.logo && (
-              <img src={page.logo} className="h-10 w-10 rounded-xl object-cover" alt="Logo" />
+              <img
+                src={page.logo}
+                className="h-10 w-10 rounded-xl object-cover"
+                alt="Logo"
+              />
             )}
             <div>
               <h1 className="font-bold text-lg leading-tight">{page.title}</h1>
@@ -418,13 +478,21 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           {allImages.length > 1 && (
             <>
               <button
-                onClick={() => setCurrentImage((c) => (c === 0 ? allImages.length - 1 : c - 1))}
+                onClick={() =>
+                  setCurrentImage((c) =>
+                    c === 0 ? allImages.length - 1 : c - 1,
+                  )
+                }
                 className="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 flex items-center justify-center hover:bg-black/60 transition"
               >
                 <ChevronLeft className="h-4 w-4 text-white" />
               </button>
               <button
-                onClick={() => setCurrentImage((c) => (c === allImages.length - 1 ? 0 : c + 1))}
+                onClick={() =>
+                  setCurrentImage((c) =>
+                    c === allImages.length - 1 ? 0 : c + 1,
+                  )
+                }
                 className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 flex items-center justify-center hover:bg-black/60 transition"
               >
                 <ChevronRight className="h-4 w-4 text-white" />
@@ -449,46 +517,67 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         {/* Title & Description */}
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <div className="text-[var(--color-accent-yellow)]">{getPageTypeIcon()}</div>
-            <h2 className="text-2xl font-bold text-[var(--text-primary)]">{page.title}</h2>
+            <div className="text-(--color-accent-yellow)">
+              {getPageTypeIcon()}
+            </div>
+            <h2 className="text-2xl font-bold text-(--text-primary)">
+              {page.title}
+            </h2>
           </div>
           {page.className && (
-            <span className="inline-block px-3 py-1 rounded-full bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] text-sm font-medium mb-2">
+            <span className="inline-block px-3 py-1 rounded-full bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) text-sm font-medium mb-2">
               {page.className}
             </span>
           )}
           {page.description && (
-            <p className="text-[var(--text-secondary)] text-sm leading-relaxed">{page.description}</p>
+            <p className="text-(--text-secondary) text-sm leading-relaxed">
+              {page.description}
+            </p>
           )}
         </div>
 
         {/* Fee Breakdown for School */}
-        {page.pageType === "school" && page.feeBreakdown && page.feeBreakdown.length > 0 && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 shadow-soft">
-            <h3 className="font-bold text-lg mb-4 text-[var(--text-primary)]">Fee Breakdown</h3>
-            <div className="space-y-3">
-              {page.feeBreakdown.map((item, index) => (
-                <div key={index} className="flex justify-between items-center py-2 border-b border-[var(--border-color)]">
-                  <span className="text-[var(--text-secondary)]">{item.label}</span>
-                  <span className="font-semibold text-[var(--text-primary)]">₦{item.amount.toLocaleString()}</span>
+        {page.pageType === "school" &&
+          page.feeBreakdown &&
+          page.feeBreakdown.length > 0 && (
+            <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 shadow-soft">
+              <h3 className="font-bold text-lg mb-4 text-(--text-primary)">
+                Fee Breakdown
+              </h3>
+              <div className="space-y-3">
+                {page.feeBreakdown.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex justify-between items-center py-2 border-b border-(--border-color)"
+                  >
+                    <span className="text-(--text-secondary)">
+                      {item.label}
+                    </span>
+                    <span className="font-semibold text-(--text-primary)">
+                      ₦{item.amount.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-3 font-bold text-lg">
+                  <span className="text-(--text-primary)">Total</span>
+                  <span className="text-(--color-accent-yellow)">
+                    ₦{totalAmount.toLocaleString()}
+                  </span>
                 </div>
-              ))}
-              <div className="flex justify-between items-center pt-3 font-bold text-lg">
-                <span className="text-[var(--text-primary)]">Total</span>
-                <span className="text-[var(--color-accent-yellow)]">₦{totalAmount.toLocaleString()}</span>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Toggle Button for Installment/Full Payment */}
         {canDoInstallments && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 shadow-soft">
+          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 shadow-soft">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-lg text-[var(--text-primary)]">Payment Option</h3>
-                <p className="text-sm text-[var(--text-secondary)] mt-1">
-                  {payInInstallments 
+                <h3 className="font-bold text-lg text-(--text-primary)">
+                  Payment
+                </h3>
+                <p className="text-sm text-(--text-secondary) mt-1">
+                  {payInInstallments
                     ? `Pay in ${page.installmentCount} monthly installments of ₦${installmentInfo?.installmentAmount.toLocaleString()}`
                     : `Pay full amount of ₦${totalAmount.toLocaleString()} once`}
                 </p>
@@ -498,12 +587,12 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 className="focus:outline-none"
               >
                 {payInInstallments ? (
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)]">
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)">
                     <ToggleRight className="h-6 w-6" />
                     <span className="text-sm font-medium">Installments</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-(--bg-secondary) text-(--text-secondary)">
                     <ToggleLeft className="h-6 w-6" />
                     <span className="text-sm font-medium">Pay in Full</span>
                   </div>
@@ -516,14 +605,19 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 <div className="flex items-start gap-2">
                   <Calendar className="h-4 w-4 text-blue-600 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-blue-800">Installment Plan Details</p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Total: ₦{installmentInfo?.totalAmount.toLocaleString()} • 
-                      {page.installmentCount} installments of ₦{installmentInfo?.installmentAmount.toLocaleString()}
+                    <p className="text-sm font-medium text-blue-800">
+                      Installment Plan Details
                     </p>
                     <p className="text-xs text-blue-600 mt-1">
-                      You'll be charged ₦{installmentInfo?.installmentAmount.toLocaleString()} today.
-                      Remaining {page.installmentCount - 1} payments will be charged monthly.
+                      Total: ₦{installmentInfo?.totalAmount.toLocaleString()} •
+                      {page.installmentCount} installments of ₦
+                      {installmentInfo?.installmentAmount.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      You'll be charged ₦
+                      {installmentInfo?.installmentAmount.toLocaleString()}{" "}
+                      today. Remaining {page.installmentCount - 1} payments will
+                      be charged monthly.
                     </p>
                   </div>
                 </div>
@@ -533,40 +627,48 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         )}
 
         {/* Customer Information */}
-        <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 space-y-4 shadow-soft">
-          <h3 className="font-bold text-lg text-[var(--text-primary)]">Your Information</h3>
-          
+        <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
+          <h3 className="font-bold text-lg text-(--text-primary)">
+            Your Information
+          </h3>
+
           <div>
-            <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Full Name *</Label>
+            <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+              Full Name *
+            </Label>
             <Input
               placeholder="Enter your full name"
               value={formData.fullName}
               onChange={(e) => handleInputChange("fullName", e.target.value)}
-              className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+              className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
 
           <div>
-            <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Email Address *</Label>
+            <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+              Email Address
+            </Label>
             <Input
               type="email"
               placeholder="john@example.com"
               value={formData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
-              className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+              className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
 
           <div>
-            <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Phone Number *</Label>
+            <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+              Phone Number *
+            </Label>
             <Input
               type="tel"
               placeholder="08012345678"
               value={formData.phone}
               onChange={(e) => handleInputChange("phone", e.target.value)}
-              className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+              className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
@@ -574,105 +676,138 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* School Page Specific Fields */}
         {page.pageType === "school" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 space-y-4 shadow-soft">
-            <h3 className="font-bold text-lg text-[var(--text-primary)]">Student Information</h3>
-            
+          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
+            <h3 className="font-bold text-lg text-(--text-primary)">
+              Student Information
+            </h3>
+
             {unpaidStudents.length > 0 && (
               <div>
-                <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Select Student *</Label>
+                <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                  Select Student *
+                </Label>
                 <Select onValueChange={handleStudentSelect}>
-                  <SelectTrigger className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)]">
+                  <SelectTrigger className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary)">
                     <SelectValue placeholder="Choose a student" />
                   </SelectTrigger>
                   <SelectContent>
                     {unpaidStudents.map((student) => (
                       <SelectItem key={student.name} value={student.name}>
-                        {student.name} {student.regNumber ? `(${student.regNumber})` : ''}
+                        {student.name}{" "}
+                        {student.regNumber ? `(${student.regNumber})` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-[var(--text-secondary)] mt-1">Select your child from the list</p>
+                <p className="text-xs text-(--text-secondary) mt-1">
+                  Select your child from the list
+                </p>
               </div>
             )}
 
             <div>
-              <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Child's Full Name *</Label>
+              <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                Child's Full Name *
+              </Label>
               <Input
                 placeholder="Enter student's full name"
                 value={formData.childName}
                 onChange={(e) => handleInputChange("childName", e.target.value)}
-                className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
 
             <div>
-              <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Registration Number</Label>
+              <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                Registration Number
+              </Label>
               <Input
                 placeholder="Enter student registration number"
                 value={formData.regNumber}
                 onChange={(e) => handleInputChange("regNumber", e.target.value)}
-                className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
-              <p className="text-xs text-[var(--text-secondary)] mt-1">Optional but recommended for tracking</p>
+              <p className="text-xs text-(--text-secondary) mt-1">
+                Optional but recommended for tracking
+              </p>
             </div>
 
             <div className="pt-2">
-              <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Parent Full Name *</Label>
+              <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                Parent Full Name *
+              </Label>
               <Input
                 placeholder="Enter parent's full name"
                 value={formData.parentName}
-                onChange={(e) => handleInputChange("parentName", e.target.value)}
-                className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                onChange={(e) =>
+                  handleInputChange("parentName", e.target.value)
+                }
+                className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
 
-            {page.requiredFields && page.requiredFields.map((field) => (
-              <div key={field}>
-                <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">{field}</Label>
-                <Input
-                  placeholder={`Enter ${field.toLowerCase()}`}
-                  value={formData.customFields[field] || ""}
-                  onChange={(e) => handleCustomFieldChange(field, e.target.value)}
-                  className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
-                  style={{ outline: "none", boxShadow: "none" }}
-                />
-              </div>
-            ))}
+            {page.requiredFields &&
+              page.requiredFields.map((field) => (
+                <div key={field}>
+                  <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                    {field}
+                  </Label>
+                  <Input
+                    placeholder={`Enter ${field.toLowerCase()}`}
+                    value={formData.customFields[field] || ""}
+                    onChange={(e) =>
+                      handleCustomFieldChange(field, e.target.value)
+                    }
+                    className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                    style={{ outline: "none", boxShadow: "none" }}
+                  />
+                </div>
+              ))}
           </div>
         )}
 
         {/* Physical Product Fields */}
         {page.pageType === "physical" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 space-y-4 shadow-soft">
-            <h3 className="font-bold text-lg text-[var(--text-primary)]">Product Options</h3>
-            
+          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
+            <h3 className="font-bold text-lg text-(--text-primary)">
+              Product Options
+            </h3>
+
             {page.variants && page.variants.length > 0 && (
               <div className="space-y-4">
                 {page.variants.map((variant) => (
                   <div key={variant.name}>
-                    <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">{variant.name} *</Label>
+                    <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+                      {variant.name} *
+                    </Label>
                     <div className="flex flex-wrap gap-2">
-                      {variant.options.filter(opt => opt).map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setFormData(prev => ({
-                            ...prev,
-                            selectedVariants: { ...prev.selectedVariants, [variant.name]: option }
-                          }))}
-                          className={`px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
-                            formData.selectedVariants[variant.name] === option
-                              ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)]"
-                              : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50 text-[var(--text-primary)]"
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
+                      {variant.options
+                        .filter((opt) => opt)
+                        .map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                selectedVariants: {
+                                  ...prev.selectedVariants,
+                                  [variant.name]: option,
+                                },
+                              }))
+                            }
+                            className={`px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
+                              formData.selectedVariants[variant.name] === option
+                                ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)"
+                                : "border-(--border-color) hover:border-(--color-accent-yellow)/50 text-(--text-primary)"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
                     </div>
                   </div>
                 ))}
@@ -680,13 +815,15 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             )}
 
             <div>
-              <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Quantity</Label>
+              <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                Quantity
+              </Label>
               <Input
                 type="number"
                 min="1"
                 value={formData.quantity}
                 onChange={(e) => handleInputChange("quantity", e.target.value)}
-                className="h-12 w-32 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="h-12 w-32 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
@@ -694,34 +831,46 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             {page.requiresShipping && (
               <>
                 <div>
-                  <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Delivery Address *</Label>
+                  <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                    Delivery Address *
+                  </Label>
                   <Textarea
                     placeholder="Enter your full delivery address"
                     value={formData.address}
-                    onChange={(e) => handleInputChange("address", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("address", e.target.value)
+                    }
                     rows={3}
-                    className="resize-none border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="resize-none border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">City</Label>
+                    <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                      City
+                    </Label>
                     <Input
                       placeholder="City"
                       value={formData.city}
-                      onChange={(e) => handleInputChange("city", e.target.value)}
-                      className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                      onChange={(e) =>
+                        handleInputChange("city", e.target.value)
+                      }
+                      className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                       style={{ outline: "none", boxShadow: "none" }}
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">State</Label>
+                    <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                      State
+                    </Label>
                     <Input
                       placeholder="State"
                       value={formData.state}
-                      onChange={(e) => handleInputChange("state", e.target.value)}
-                      className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                      onChange={(e) =>
+                        handleInputChange("state", e.target.value)
+                      }
+                      className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                       style={{ outline: "none", boxShadow: "none" }}
                     />
                   </div>
@@ -733,12 +882,16 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* Digital Product Fields */}
         {page.pageType === "digital" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 shadow-soft">
-            <div className="flex items-center gap-3 p-3 bg-[var(--color-lemon-green)]/10 rounded-xl">
-              <FileDown className="h-6 w-6 text-[var(--color-lemon-green)]" />
+          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 shadow-soft">
+            <div className="flex items-center gap-3 p-3 bg-(--color-lemon-green)/10 rounded-xl">
+              <FileDown className="h-6 w-6 text-(--color-lemon-green)" />
               <div>
-                <p className="text-sm font-medium text-[var(--color-lemon-green)]">Instant Digital Delivery</p>
-                <p className="text-xs text-[var(--color-lemon-green)]">You will receive download link via email after payment</p>
+                <p className="text-sm font-medium text-(--color-lemon-green)">
+                  Instant Digital Delivery
+                </p>
+                <p className="text-xs text-(--color-lemon-green)">
+                  You will receive download link via email after payment
+                </p>
               </div>
             </div>
           </div>
@@ -746,28 +899,38 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* Services Fields */}
         {page.pageType === "services" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 space-y-4 shadow-soft">
-            <h3 className="font-bold text-lg text-[var(--text-primary)]">Service Details</h3>
-            
+          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
+            <h3 className="font-bold text-lg text-(--text-primary)">
+              Service Details
+            </h3>
+
             {page.bookingEnabled && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Preferred Date *</Label>
+                  <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                    Preferred Date *
+                  </Label>
                   <Input
                     type="date"
                     value={formData.bookingDate}
-                    onChange={(e) => handleInputChange("bookingDate", e.target.value)}
-                    className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    onChange={(e) =>
+                      handleInputChange("bookingDate", e.target.value)
+                    }
+                    className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Preferred Time *</Label>
+                  <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                    Preferred Time *
+                  </Label>
                   <Input
                     type="time"
                     value={formData.bookingTime}
-                    onChange={(e) => handleInputChange("bookingTime", e.target.value)}
-                    className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    onChange={(e) =>
+                      handleInputChange("bookingTime", e.target.value)
+                    }
+                    className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
@@ -776,13 +939,17 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
             {page.customerNoteEnabled && (
               <div>
-                <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Describe your request</Label>
+                <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                  Describe your request
+                </Label>
                 <Textarea
                   placeholder="Tell us what you need..."
                   value={formData.customerNote}
-                  onChange={(e) => handleInputChange("customerNote", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("customerNote", e.target.value)
+                  }
                   rows={4}
-                  className="resize-none border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                  className="resize-none border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
@@ -792,52 +959,65 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* Donation Fields */}
         {page.pageType === "donation" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 space-y-4 shadow-soft">
-            <h3 className="font-bold text-lg text-[var(--text-primary)]">Donation Details</h3>
-            
-            {page.metadata?.suggestedAmounts && page.metadata.suggestedAmounts.length > 0 && (
-              <div>
-                <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">Suggested Amounts</Label>
-                <div className="flex flex-wrap gap-2">
-                  {page.metadata.suggestedAmounts.map((amount: number) => (
-                    <button
-                      key={amount}
-                      type="button"
-                      onClick={() => handleInputChange("amount", amount.toString())}
-                      className={`px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
-                        Number(formData.amount) === amount
-                          ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)]"
-                          : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50 text-[var(--text-primary)]"
-                      }`}
-                    >
-                      ₦{amount.toLocaleString()}
-                    </button>
-                  ))}
+          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
+            <h3 className="font-bold text-lg text-(--text-primary)">
+              Donation Details
+            </h3>
+
+            {page.metadata?.suggestedAmounts &&
+              page.metadata.suggestedAmounts.length > 0 && (
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+                    Suggested Amounts
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {page.metadata.suggestedAmounts.map((amount: number) => (
+                      <button
+                        key={amount}
+                        type="button"
+                        onClick={() =>
+                          handleInputChange("amount", amount.toString())
+                        }
+                        className={`px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
+                          Number(formData.amount) === amount
+                            ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)"
+                            : "border-(--border-color) hover:border-(--color-accent-yellow)/50 text-(--text-primary)"
+                        }`}
+                      >
+                        ₦{amount.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             <div>
-              <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Custom Amount (₦)</Label>
+              <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                Custom Amount (₦)
+              </Label>
               <Input
                 type="number"
                 placeholder="Enter amount"
                 value={formData.amount}
                 onChange={(e) => handleInputChange("amount", e.target.value)}
-                className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
 
             {page.metadata?.allowDonorMessage && (
               <div>
-                <Label className="text-sm font-semibold mb-1.5 block text-[var(--text-primary)]">Message (Optional)</Label>
+                <Label className="text-sm font-semibold mb-1.5 block text-(--text-primary)">
+                  Message (Optional)
+                </Label>
                 <Textarea
                   placeholder="Leave a message..."
                   value={formData.donorMessage}
-                  onChange={(e) => handleInputChange("donorMessage", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("donorMessage", e.target.value)
+                  }
                   rows={3}
-                  className="resize-none border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                  className="resize-none border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
@@ -847,29 +1027,44 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* Paid Students List */}
         {page.pageType === "school" && paidStudents.length > 0 && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 shadow-soft">
+          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 shadow-soft">
             <div className="flex items-center gap-2 mb-3">
-              <UserCheck className="h-5 w-5 text-[var(--color-lemon-green)]" />
-              <h3 className="font-bold text-lg text-[var(--text-primary)]">Paid Students</h3>
+              <UserCheck className="h-5 w-5 text-(--color-lemon-green)" />
+              <h3 className="font-bold text-lg text-(--text-primary)">
+                Paid Students
+              </h3>
             </div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {paidStudents.map((student) => (
-                <div key={student.name} className="flex justify-between items-center p-2 bg-[var(--color-lemon-green)]/10 rounded-lg">
+                <div
+                  key={student.name}
+                  className="flex justify-between items-center p-2 bg-(--color-lemon-green)/10 rounded-lg"
+                >
                   <div>
-                    <p className="font-medium text-sm text-[var(--text-primary)]">{student.name}</p>
+                    <p className="font-medium text-sm text-(--text-primary)">
+                      {student.name}
+                    </p>
                     {student.regNumber && (
-                      <p className="text-xs text-[var(--text-secondary)]">Reg: {student.regNumber}</p>
+                      <p className="text-xs text-(--text-secondary)">
+                        Reg: {student.regNumber}
+                      </p>
                     )}
                     {student.parentName && (
-                      <p className="text-xs text-[var(--text-secondary)]">Paid by: {student.parentName}</p>
+                      <p className="text-xs text-(--text-secondary)">
+                        Paid by: {student.parentName}
+                      </p>
                     )}
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-[var(--color-lemon-green)]">
-                      {student.paidAt ? new Date(student.paidAt).toLocaleDateString() : 'Paid'}
+                    <p className="text-xs text-(--color-lemon-green)">
+                      {student.paidAt
+                        ? new Date(student.paidAt).toLocaleDateString()
+                        : "Paid"}
                     </p>
                     {student.paidAmount && (
-                      <p className="text-xs font-medium text-[var(--text-primary)]">₦{student.paidAmount.toLocaleString()}</p>
+                      <p className="text-xs font-medium text-(--text-primary)">
+                        ₦{student.paidAmount.toLocaleString()}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -879,27 +1074,38 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         )}
 
         {/* Payment Summary */}
-        <div className="bg-[var(--bg-secondary)] rounded-2xl p-5 space-y-3 border border-[var(--border-color)]">
+        <div className="bg-(--bg-secondary) rounded-2xl p-5 space-y-3 border border-(--border-color)">
           <div className="flex justify-between text-sm">
-            <span className="text-[var(--text-secondary)]">
+            <span className="text-(--text-secondary)">
               {payInInstallments ? "Installment Amount" : "Total Amount"}
             </span>
-            <span className="font-medium text-[var(--text-primary)]">₦{chargeAmount.toLocaleString()}</span>
+            <span className="font-medium text-(--text-primary)">
+              ₦{chargeAmount.toLocaleString()}
+            </span>
           </div>
           {page.feeMode === "customer" && (
             <div className="flex justify-between text-sm">
-              <span className="text-[var(--text-secondary)]">Transaction fee (2%)</span>
-              <span className="font-medium text-[var(--text-primary)]">₦{fee.toLocaleString()}</span>
+              <span className="text-(--text-secondary)">
+                Transaction fee (2%)
+              </span>
+              <span className="font-medium text-(--text-primary)">
+                ₦{fee.toLocaleString()}
+              </span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-lg pt-2 border-t border-[var(--border-color)]">
-            <span className="text-[var(--text-primary)]">Total to Pay Now</span>
-            <span className="text-[var(--color-accent-yellow)]">₦{totalWithFee.toLocaleString()}</span>
+          <div className="flex justify-between font-bold text-lg pt-2 border-t border-(--border-color)">
+            <span className="text-(--text-primary)">Total to Pay Now</span>
+            <span className="text-(--color-accent-yellow)">
+              ₦{totalWithFee.toLocaleString()}
+            </span>
           </div>
           {payInInstallments && installmentInfo && (
-            <div className="text-xs text-[var(--text-secondary)] text-center pt-2 space-y-1">
+            <div className="text-xs text-(--text-secondary) text-center pt-2 space-y-1">
               <p>This is installment 1 of {installmentInfo.installmentCount}</p>
-              <p>Remaining balance: ₦{(installmentInfo.totalAmount - chargeAmount).toLocaleString()}</p>
+              <p>
+                Remaining balance: ₦
+                {(installmentInfo.totalAmount - chargeAmount).toLocaleString()}
+              </p>
             </div>
           )}
         </div>
@@ -908,9 +1114,12 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         <Button
           variant="default"
           size="lg"
-          className="w-full py-6 text-base bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+          className="w-full py-6 text-base bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
           onClick={handlePayment}
-          disabled={isProcessing || (page.pageType === "school" && selectedStudent?.paid)}
+          disabled={
+            isProcessing ||
+            (page.pageType === "school" && selectedStudent?.paid)
+          }
         >
           {isProcessing ? (
             <>
@@ -918,11 +1127,11 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               Processing...
             </>
           ) : (
-            `Pay ${payInInstallments ? 'Installment' : 'Now'} ₦${totalWithFee.toLocaleString()}`
+            `Pay ${payInInstallments ? "Installment" : "Now"} ₦${totalWithFee.toLocaleString()}`
           )}
         </Button>
 
-        <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-secondary)] pb-6">
+        <div className="flex items-center justify-center gap-2 text-xs text-(--text-secondary) pb-6">
           <Shield className="h-3.5 w-3.5" /> Secured by Zidwell
         </div>
       </div>

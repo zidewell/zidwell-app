@@ -159,13 +159,18 @@ export default function PaymentForm({
     <>
       {/* Payer Information Form */}
       {showPaymentForm && (
-        <div className="mb-6 p-6 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] squircle-lg">
-          <h3 className="font-semibold text-[var(--text-primary)] mb-4">
+        <div className="mb-6 p-6 bg-(--bg-secondary) rounded-lg border border-(--border-color) squircle-lg">
+          <h3 className="font-semibold text-(--text-primary) mb-4">
             Your Information
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-[var(--text-secondary)]">Full Name *</Label>
+              <Label
+                htmlFor="fullName"
+                className="text-(--text-secondary)"
+              >
+                Full Name *
+              </Label>
               <Input
                 id="fullName"
                 type="text"
@@ -175,12 +180,14 @@ export default function PaymentForm({
                   handlePayerInfoChange("fullName", e.target.value)
                 }
                 required
-                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-[var(--text-secondary)]">Email Address *</Label>
+              <Label htmlFor="email" className="text-(--text-secondary)">
+                Email Address *
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -188,12 +195,14 @@ export default function PaymentForm({
                 value={payerInfo.email}
                 onChange={(e) => handlePayerInfoChange("email", e.target.value)}
                 required
-                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="phone" className="text-[var(--text-secondary)]">Phone Number *</Label>
+              <Label htmlFor="phone" className="text-(--text-secondary)">
+                Phone Number *
+              </Label>
               <Input
                 id="phone"
                 type="tel"
@@ -201,7 +210,7 @@ export default function PaymentForm({
                 value={payerInfo.phone}
                 onChange={(e) => handlePayerInfoChange("phone", e.target.value)}
                 required
-                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
@@ -209,21 +218,23 @@ export default function PaymentForm({
 
           {/* Payment Method Selection */}
           <div className="mt-6">
-            <h3 className="font-semibold text-[var(--text-primary)] mb-4">
+            <h3 className="font-semibold text-(--text-primary) mb-4">
               Select Payment Method
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Button
                 type="button"
                 variant="outline"
-                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 border-[var(--border-color)]"
+                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10 border-(--border-color)"
                 disabled={true}
                 title="Card payments are currently disabled"
               >
-                <CreditCard className="h-8 w-8 text-[var(--text-secondary)]" />
+                <CreditCard className="h-8 w-8 text-(--text-secondary)" />
                 <div className="text-center">
-                  <div className="font-semibold text-[var(--text-primary)]">Pay with Card</div>
-                  <div className="text-xs text-[var(--text-secondary)]">
+                  <div className="font-semibold text-(--text-primary)">
+                    Pay with Card
+                  </div>
+                  <div className="text-xs text-(--text-secondary)">
                     Visa, Mastercard, etc.
                   </div>
                 </div>
@@ -232,14 +243,16 @@ export default function PaymentForm({
               <Button
                 type="button"
                 variant="outline"
-                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 border-[var(--border-color)]"
+                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10 border-(--border-color)"
                 onClick={() => handlePaymentMethodSelect("transfer")}
                 disabled={isGeneratingPayment}
               >
-                <Banknote className="h-8 w-8 text-[var(--text-secondary)]" />
+                <Banknote className="h-8 w-8 text-(--text-secondary)" />
                 <div className="text-center">
-                  <div className="font-semibold text-[var(--text-primary)]">Bank Transfer</div>
-                  <div className="text-xs text-[var(--text-secondary)]">
+                  <div className="font-semibold text-(--text-primary)">
+                    Bank Transfer
+                  </div>
+                  <div className="text-xs text-(--text-secondary)">
                     Direct bank transfer
                   </div>
                 </div>
@@ -248,10 +261,10 @@ export default function PaymentForm({
           </div>
 
           <div className="flex gap-3 mt-6">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowPaymentForm(false)}
-              className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+              className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
             >
               Cancel
             </Button>
@@ -276,7 +289,7 @@ export default function PaymentForm({
         <div className="mb-6">
           <Button
             size="lg"
-            className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
+            className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
             onClick={() => setShowPaymentForm(true)}
             disabled={status === "paid" && allow_multiple_payments === false}
           >

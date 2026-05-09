@@ -6,7 +6,9 @@ const ButtonGhost: React.FC<{
   children: React.ReactNode;
   className?: string;
 }> = ({ children, className }) => (
-  <Button className={`border border-[var(--border-color)] text-sm bg-transparent text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] ${className}`}>
+  <Button
+    className={`border border-(--border-color) text-sm bg-transparent text-(--text-primary) hover:bg-(--bg-secondary) ${className}`}
+  >
     {children}
   </Button>
 );

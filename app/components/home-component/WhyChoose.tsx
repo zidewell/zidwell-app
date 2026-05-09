@@ -68,9 +68,9 @@ const WhyChoose = () => {
                 Zidwell helps business owners stop reacting to money problems
                 and start making confident financial decisions.
               </p>
-              <div className="w-16 h-1 bg-[var(--color-ink)]/30" />
+              <div className="w-16 h-1 bg-(--color-ink)/30" />
             </div>
-            <div className="absolute -bottom-4 -right-4 w-full h-full bg-[var(--border-color)] -z-10 squircle-lg" />
+            <div className="absolute -bottom-4 -right-4 w-full h-full bg-(--border-color) -z-10 squircle-lg" />
           </div>
         </div>
       </div>

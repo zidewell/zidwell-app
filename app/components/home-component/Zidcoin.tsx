@@ -32,7 +32,7 @@ const ZidCoin = () => {
                   1 ZC = ₦1
                 </span>
               </div>
-              <div className="w-full h-1 bg-[var(--border-color)] mb-4" />
+              <div className="w-full h-1 bg-(--border-color) mb-4" />
               <p className="text-sm text-(--text-secondary)">
                 Earn{" "}
                 <strong className="text-(--text-primary)">20 ZidCoins</strong>{" "}

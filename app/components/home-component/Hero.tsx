@@ -24,7 +24,9 @@ const Hero = () => {
   // Cycle through background images every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % backgroundImages.length);
+      setCurrentImageIndex(
+        (prevIndex) => (prevIndex + 1) % backgroundImages.length,
+      );
     }, 10000);
 
     return () => clearInterval(interval);
@@ -124,15 +126,15 @@ const Hero = () => {
           {/* Trust Indicators */}
           <div className="animate-fade-up-delay-3 flex flex-wrap items-center gap-6 text-sm text-gray-200">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-[var(--color-lemon-green)] rounded-full" />
+              <div className="w-2 h-2 bg-(--color-lemon-green) rounded-full" />
               <span>No hidden fees</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-[var(--color-lemon-green)] rounded-full" />
+              <div className="w-2 h-2 bg-(--color-lemon-green) rounded-full" />
               <span>Start for free</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-[var(--color-lemon-green)] rounded-full" />
+              <div className="w-2 h-2 bg-(--color-lemon-green) rounded-full" />
               <span>Cancel anytime</span>
             </div>
           </div>

@@ -1,40 +1,43 @@
-"use client"
-import { format } from 'date-fns';
+"use client";
+import { format } from "date-fns";
 // import { ThemeToggle } from './ThemeToggle';
-import { JournalTabs } from './JournalTabs';
-import { useJournal } from '@/app/context/JournalContext';
+import { JournalTabs } from "./JournalTabs";
+import { useJournal } from "@/app/context/JournalContext";
 
 export function JournalHeader() {
   const { activeJournalType, setActiveJournalType } = useJournal();
   const today = new Date();
-  
+
   const getGreeting = () => {
     const hour = today.getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
   };
 
   return (
     <header className="space-y-6">
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <p className="text-sm font-medium text-[var(--text-secondary)]">
-            {format(today, 'EEEE, MMMM d, yyyy')}
+          <p className="text-sm font-medium text-(--text-secondary)">
+            {format(today, "EEEE, MMMM d, yyyy")}
           </p>
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-[var(--text-primary)]" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          <h1
+            className="text-3xl md:text-4xl font-semibold tracking-tight text-(--text-primary)"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
             {getGreeting()}
           </h1>
-          <p className="text-[var(--text-secondary)]">
+          <p className="text-(--text-secondary)">
             Let's reflect on your finances today.
           </p>
         </div>
         {/* <ThemeToggle /> */}
       </div>
 
-      <JournalTabs 
-        activeTab={activeJournalType} 
-        onTabChange={setActiveJournalType} 
+      <JournalTabs
+        activeTab={activeJournalType}
+        onTabChange={setActiveJournalType}
       />
     </header>
   );

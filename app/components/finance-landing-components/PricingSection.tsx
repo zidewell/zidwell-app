@@ -144,7 +144,7 @@ const PricingSection = () => {
 
       {/* Gold accents */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-linear-to-br from-(--color-accent-yellow)/10 to-transparent rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-gradient-to-tl from-(--color-accent-yellow)/15 to-transparent rounded-full blur-2xl" />
+      <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-linear-to-tl from-(--color-accent-yellow)/15 to-transparent rounded-full blur-2xl" />
 
       <div className="container-custom relative">
         {/* Header */}

@@ -18,33 +18,33 @@ const TabsNavigation: React.FC<TabsNavigationProps> = ({
   previewContent,
 }) => {
   return (
-    <Tabs 
-      defaultValue="create" 
+    <Tabs
+      defaultValue="create"
       value={activeTab}
       onValueChange={(value) => onTabChange(value as "create" | "preview")}
       className="w-full mb-6"
     >
-      <TabsList className="grid w-full grid-cols-2 bg-[var(--bg-secondary)] p-1 rounded-xl">
-        <TabsTrigger 
-          value="create" 
-          className="flex items-center gap-2 data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--color-accent-yellow)] text-[var(--text-secondary)] squircle-md"
+      <TabsList className="grid w-full grid-cols-2 bg-(--bg-secondary) p-1 rounded-xl">
+        <TabsTrigger
+          value="create"
+          className="flex items-center gap-2 data-[state=active]:bg-(--bg-primary) data-[state=active]:text-(--color-accent-yellow) text-(--text-secondary) squircle-md"
         >
           <FileText className="w-4 h-4" />
           Create Invoice
         </TabsTrigger>
-        <TabsTrigger 
-          value="preview" 
-          className="flex items-center gap-2 data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--color-accent-yellow)] text-[var(--text-secondary)] squircle-md"
+        <TabsTrigger
+          value="preview"
+          className="flex items-center gap-2 data-[state=active]:bg-(--bg-primary) data-[state=active]:text-(--color-accent-yellow) text-(--text-secondary) squircle-md"
         >
           <Eye className="w-4 h-4" />
           Preview Invoice
         </TabsTrigger>
       </TabsList>
-      
+
       <TabsContent value="create" className="mt-6">
         {createContent}
       </TabsContent>
-      
+
       <TabsContent value="preview" className="mt-6">
         {previewContent}
       </TabsContent>

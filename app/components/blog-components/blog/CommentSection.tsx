@@ -61,7 +61,7 @@ const CommentSection = ({
       setIsLoading(true);
       const response = await fetch(
         `/api/blog/comments?postId=${postId}&page=${page}&limit=${COMMENTS_PER_PAGE}`,
-        { cache: "no-store" }
+        { cache: "no-store" },
       );
 
       if (!response.ok) {
@@ -152,14 +152,18 @@ const CommentSection = ({
 
       toast({
         title: "Success",
-        description: "Comment submitted for moderation! It will appear after approval.",
+        description:
+          "Comment submitted for moderation! It will appear after approval.",
         variant: "default",
       });
     } catch (error) {
       console.error("Error submitting comment:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit comment. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to submit comment. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -197,10 +201,10 @@ const CommentSection = ({
   );
 
   return (
-    <section className="border-t border-[var(--border-color)] pt-8 mt-12">
+    <section className="border-t border-(--border-color) pt-8 mt-12">
       <div className="max-w-3xl mx-auto">
         <div className="flex justify-between items-between mb-6">
-          <h3 className="text-2xl font-semibold text-[var(--text-primary)]">
+          <h3 className="text-2xl font-semibold text-(--text-primary)">
             Comments ({approvedComments.length})
           </h3>
           <Button
@@ -208,15 +212,15 @@ const CommentSection = ({
             size="sm"
             onClick={handleRefresh}
             disabled={isLoading}
-            className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="text-sm text-(--text-secondary) hover:text-(--text-primary)"
           >
             {isLoading ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
 
         {/* Comment Form */}
-        <div className="bg-[var(--bg-secondary)] rounded-xl p-6 mb-8 border border-[var(--border-color)]">
-          <h4 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
+        <div className="bg-(--bg-secondary) rounded-xl p-6 mb-8 border border-(--border-color)">
+          <h4 className="text-lg font-medium mb-4 text-(--text-primary)">
             Leave a Comment
           </h4>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -224,7 +228,7 @@ const CommentSection = ({
               <div>
                 <label
                   htmlFor="name"
-                  className="block text-sm font-medium mb-2 text-[var(--text-primary)]"
+                  className="block text-sm font-medium mb-2 text-(--text-primary)"
                 >
                   Name *
                 </label>
@@ -235,7 +239,7 @@ const CommentSection = ({
                   onChange={(e) => setName(e.target.value)}
                   required
                   disabled={isSubmitting}
-                  className="w-full border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                  className="w-full border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                   style={{ outline: "none", boxShadow: "none" }}
                   maxLength={100}
                 />
@@ -243,7 +247,7 @@ const CommentSection = ({
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-medium mb-2 text-[var(--text-primary)]"
+                  className="block text-sm font-medium mb-2 text-(--text-primary)"
                 >
                   Email *
                 </label>
@@ -255,7 +259,7 @@ const CommentSection = ({
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isSubmitting}
-                  className="w-full border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                  className="w-full border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                   style={{ outline: "none", boxShadow: "none" }}
                   maxLength={255}
                 />
@@ -264,7 +268,7 @@ const CommentSection = ({
             <div>
               <label
                 htmlFor="comment"
-                className="block text-sm font-medium mb-2 text-[var(--text-primary)]"
+                className="block text-sm font-medium mb-2 text-(--text-primary)"
               >
                 Comment *
               </label>
@@ -276,16 +280,16 @@ const CommentSection = ({
                 rows={4}
                 required
                 disabled={isSubmitting}
-                className="w-full resize-none border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                className="w-full resize-none border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
                 maxLength={2000}
               />
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
+              <p className="text-xs text-(--text-secondary) mt-1">
                 {newComment.length}/2000 characters
               </p>
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-sm text-[var(--text-secondary)]">
+              <p className="text-sm text-(--text-secondary)">
                 Your comment will be visible after moderation.
               </p>
               <Button
@@ -296,7 +300,7 @@ const CommentSection = ({
                   !name.trim() ||
                   !email.trim()
                 }
-                className="bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? "Posting..." : "Post Comment"}
               </Button>
@@ -307,7 +311,7 @@ const CommentSection = ({
         {/* Pending Comments */}
         {pendingComments.length > 0 && (
           <div className="mb-6">
-            <h4 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
+            <h4 className="text-lg font-medium mb-4 text-(--text-primary)">
               Your Pending Comments
             </h4>
             <div className="space-y-4">
@@ -333,11 +337,11 @@ const CommentSection = ({
                       </svg>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-[var(--text-primary)]">
+                      <p className="text-sm text-(--text-primary)">
                         <span className="font-medium">Pending approval:</span>{" "}
                         {comment.content}
                       </p>
-                      <p className="text-xs text-[var(--text-secondary)] mt-1">
+                      <p className="text-xs text-(--text-secondary) mt-1">
                         Your comment is awaiting moderation and will appear here
                         once approved.
                       </p>
@@ -352,13 +356,13 @@ const CommentSection = ({
         {/* Comments List */}
         {isLoading && page === 1 ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-accent-yellow)]"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-(--color-accent-yellow)"></div>
           </div>
         ) : approvedComments.length === 0 ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-(--bg-secondary) rounded-full flex items-center justify-center">
               <svg
-                className="w-8 h-8 text-[var(--text-secondary)]"
+                className="w-8 h-8 text-(--text-secondary)"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -371,10 +375,10 @@ const CommentSection = ({
                 />
               </svg>
             </div>
-            <h4 className="text-lg font-medium mb-2 text-[var(--text-primary)]">
+            <h4 className="text-lg font-medium mb-2 text-(--text-primary)">
               No comments yet
             </h4>
-            <p className="text-[var(--text-secondary)] mb-4">
+            <p className="text-(--text-secondary) mb-4">
               Be the first to share your thoughts on this article.
             </p>
           </div>
@@ -384,11 +388,11 @@ const CommentSection = ({
               {approvedComments.map((comment) => (
                 <div
                   key={comment.id}
-                  className="bg-[var(--bg-primary)] rounded-lg p-6 border border-[var(--border-color)]"
+                  className="bg-(--bg-primary) rounded-lg p-6 border border-(--border-color)"
                 >
                   <div className="flex gap-4">
                     <div className="shrink-0">
-                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[var(--border-color)]">
+                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-(--border-color)">
                         <img
                           src={getAvatarUrl(
                             comment.author.avatar,
@@ -411,18 +415,18 @@ const CommentSection = ({
 
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="font-semibold text-[var(--text-primary)]">
+                        <span className="font-semibold text-(--text-primary)">
                           {comment.author.name}
                         </span>
                         {comment.author.isZidwellUser && (
                           <Badge
                             variant="secondary"
-                            className="text-xs bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]/20 px-2 py-0.5"
+                            className="text-xs bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) border-(--color-accent-yellow)/20 px-2 py-0.5"
                           >
                             Zidwell User
                           </Badge>
                         )}
-                        <span className="text-sm text-[var(--text-secondary)]">
+                        <span className="text-sm text-(--text-secondary)">
                           •{" "}
                           {format(
                             new Date(comment.createdAt),
@@ -431,7 +435,7 @@ const CommentSection = ({
                         </span>
                       </div>
 
-                      <p className="text-[var(--text-primary)] mb-4 whitespace-pre-wrap">
+                      <p className="text-(--text-primary) mb-4 whitespace-pre-wrap">
                         {comment.content}
                       </p>
                     </div>
@@ -446,7 +450,7 @@ const CommentSection = ({
                   variant="outline"
                   onClick={handleLoadMore}
                   disabled={isLoading}
-                  className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? "Loading..." : "Load More Comments"}
                 </Button>

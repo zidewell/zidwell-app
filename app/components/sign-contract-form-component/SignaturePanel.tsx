@@ -75,7 +75,13 @@ export const SignaturePanel = ({
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["var(--color-accent-yellow)", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: [
+        "var(--color-accent-yellow)",
+        "#ffd700",
+        "#ffed4e",
+        "#ffffff",
+        "#fbbf24",
+      ],
     });
 
     setTimeout(() => {
@@ -386,7 +392,7 @@ export const SignaturePanel = ({
           <div class="text-center">
             <div class="mb-4">
               <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#FEFCE8] mb-3">
-                <svg class="w-8 h-8 text-[var(--color-accent-yellow)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-8 h-8 text-(--color-accent-yellow)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
               </div>
@@ -394,19 +400,19 @@ export const SignaturePanel = ({
             </div>
             <div class="space-y-2 text-gray-600">
               <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[var(--color-accent-yellow)]" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-(--color-accent-yellow)" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
                 Digital signature recorded
               </p>
               <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[var(--color-accent-yellow)]" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-(--color-accent-yellow)" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
                 Legal certificate generated
               </p>
               <p class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-[var(--color-accent-yellow)]" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-(--color-accent-yellow)" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
                 Email sent with signed copy
@@ -446,7 +452,7 @@ export const SignaturePanel = ({
     <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="w-[95vw] max-w-lg sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-0 sm:p-6">
         {/* Mobile Header */}
-        <div className="sticky top-0 z-50 bg-[var(--bg-primary)] border-b border-[var(--border-color)] px-4 py-3 sm:hidden">
+        <div className="sticky top-0 z-50 bg-(--bg-primary) border-b border-(--border-color) px-4 py-3 sm:hidden">
           <div className="flex items-center justify-between">
             <Button
               variant="ghost"
@@ -456,7 +462,7 @@ export const SignaturePanel = ({
                 else if (step === "review") setStep("signature");
                 else onCancel();
               }}
-              className="text-[var(--color-accent-yellow)] h-8 w-8 p-0"
+              className="text-(--color-accent-yellow) h-8 w-8 p-0"
             >
               {step === "verification" ? (
                 <X className="h-5 w-5" />
@@ -465,7 +471,7 @@ export const SignaturePanel = ({
               )}
             </Button>
             <div className="text-center flex-1">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+              <h3 className="text-sm font-semibold text-(--text-primary)">
                 {step === "verification" && "Verify Identity"}
                 {step === "signature" && "Add Signature"}
                 {step === "review" && "Review Signature"}
@@ -478,31 +484,39 @@ export const SignaturePanel = ({
             <div className="flex items-center">
               <div
                 className={`h-2 w-2 rounded-full ${
-                  step === "verification" ? "bg-[var(--color-accent-yellow)]" : "bg-[var(--border-color)]"
+                  step === "verification"
+                    ? "bg-(--color-accent-yellow)"
+                    : "bg-(--border-color)"
                 }`}
               />
               <div
                 className={`h-0.5 w-8 ${
-                  step !== "verification" ? "bg-[var(--color-accent-yellow)]" : "bg-[var(--border-color)]"
+                  step !== "verification"
+                    ? "bg-(--color-accent-yellow)"
+                    : "bg-(--border-color)"
                 }`}
               />
               <div
                 className={`h-2 w-2 rounded-full ${
                   step === "signature"
-                    ? "bg-[var(--color-accent-yellow)]"
+                    ? "bg-(--color-accent-yellow)"
                     : step === "review"
-                      ? "bg-[var(--color-accent-yellow)]"
-                      : "bg-[var(--border-color)]"
+                      ? "bg-(--color-accent-yellow)"
+                      : "bg-(--border-color)"
                 }`}
               />
               <div
                 className={`h-0.5 w-8 ${
-                  step === "review" ? "bg-[var(--color-accent-yellow)]" : "bg-[var(--border-color)]"
+                  step === "review"
+                    ? "bg-(--color-accent-yellow)"
+                    : "bg-(--border-color)"
                 }`}
               />
               <div
                 className={`h-2 w-2 rounded-full ${
-                  step === "review" ? "bg-[var(--color-accent-yellow)]" : "bg-[var(--border-color)]"
+                  step === "review"
+                    ? "bg-(--color-accent-yellow)"
+                    : "bg-(--border-color)"
                 }`}
               />
             </div>
@@ -513,7 +527,7 @@ export const SignaturePanel = ({
           {/* Desktop Header */}
           <DialogHeader className="hidden sm:block">
             <DialogTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-[var(--color-accent-yellow)]" />
+              <Shield className="h-5 w-5 text-(--color-accent-yellow)" />
               Secure Signature Panel
             </DialogTitle>
           </DialogHeader>
@@ -540,8 +554,8 @@ export const SignaturePanel = ({
                 <div className="space-y-2">
                   <Label
                     htmlFor="verificationCode"
-                    className="text-sm sm:text-base text-[var(--text-primary)]"
-                  >
+                    className="text-sm sm:text-base text-(--text-primary)"
+                  >bg-(--bg-primary)
                     Email Verification Code *
                   </Label>
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -555,7 +569,7 @@ export const SignaturePanel = ({
                       }
                       placeholder="Enter 6-digit code"
                       maxLength={6}
-                      className="text-center text-lg tracking-widest h-12 sm:h-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                      className="text-center text-lg tracking-widest h-12 sm:h-10 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                       style={{ outline: "none", boxShadow: "none" }}
                     />
                     <Button
@@ -582,7 +596,7 @@ export const SignaturePanel = ({
                       )}
                     </Button>
                   </div>
-                  <p className="text-xs text-[var(--text-secondary)]">
+                  <p className="text-xs text-(--text-secondary)">
                     {codeSent
                       ? `A 6-digit verification code has been sent to ${signeeEmail}`
                       : `Enter the verification code sent to ${signeeEmail}`}
@@ -600,7 +614,7 @@ export const SignaturePanel = ({
                   </Button>
                   <Button
                     type="button"
-                    className="flex-1 h-12 sm:h-10 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+                    className="flex-1 h-12 sm:h-10 bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
                     onClick={handleVerification}
                     disabled={
                       !verificationCode ||
@@ -621,7 +635,7 @@ export const SignaturePanel = ({
 
                 {/* Mobile Helper */}
                 <div className="block sm:hidden pt-4">
-                  <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-secondary)]">
+                  <div className="flex items-center justify-center gap-2 text-xs text-(--text-secondary)">
                     <Smartphone className="h-4 w-4" />
                     <span>
                       Use landscape mode for better signature experience
@@ -647,13 +661,16 @@ export const SignaturePanel = ({
                       acknowledge that you have read, understood, and agree to
                       all terms of this contract.
                     </p>
-                  </div>
+                  </div>bg-(--bg-primary)
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="typedName" className="text-sm sm:text-base text-[var(--text-primary)]">
+                  <Label
+                    htmlFor="typedName"
+                    className="text-sm sm:text-base text-(--text-primary)"
+                  >
                     Contract Signer Name *
                   </Label>
                   <Input
@@ -661,7 +678,7 @@ export const SignaturePanel = ({
                     value={typedName}
                     onChange={(e) => setTypedName(e.target.value)}
                     placeholder="Enter your full name as it should appear on the contract"
-                    className="text-base sm:text-lg h-12 sm:h-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                    className="text-base sm:text-lg h-12 sm:h-10 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                     disabled
                   />
@@ -688,8 +705,8 @@ export const SignaturePanel = ({
                     )}
                   </div>
 
-                  <div className="flex items-start text-xs text-[var(--text-secondary)]">
-                    <div className="h-2 w-2 bg-[var(--text-secondary)] rounded-full mr-2 mt-1 shrink-0"></div>
+                  <div className="flex items-start text-xs text-(--text-secondary)">
+                    <div className="h-2 w-2 bg-(--text-secondary) rounded-full mr-2 mt-1 shrink-0"></div>
                     <p className="text-xs sm:text-sm">
                       Draw your signature using your finger or mouse. For best
                       results on mobile, use landscape mode.
@@ -721,7 +738,7 @@ export const SignaturePanel = ({
                   </Button>
                   <Button
                     type="button"
-                    className="flex-1 h-12 sm:h-10 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+                    className="flex-1 h-12 sm:h-10 bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
                     onClick={handleProceedToSignature}
                     disabled={!signatureData || !typedName.trim()}
                   >
@@ -737,45 +754,45 @@ export const SignaturePanel = ({
           {step === "review" && (
             <div className="space-y-6 py-2 sm:py-4">
               <div className="text-center">
-                <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-[var(--color-accent-yellow)] mx-auto mb-3 sm:mb-4" />
-                <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] mb-1 sm:mb-2">
+                <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-(--color-accent-yellow) mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-lg sm:text-xl font-bold text-(--text-primary) mb-1 sm:mb-2">
                   Review Your Signature
                 </h3>
-                <p className="text-sm sm:text-base text-[var(--text-secondary)]">
+                <p className="text-sm sm:text-base text-(--text-secondary)">
                   Please verify your signature before final submission
                 </p>
               </div>
 
               <div className="space-y-6">
-                <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-4 sm:p-6">
+                <div className="bg-(--bg-primary) border border-(--border-color) rounded-lg p-4 sm:p-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div className="space-y-4">
                       <div>
-                        <h4 className="font-medium text-[var(--text-secondary)] text-sm sm:text-base mb-2">
+                        <h4 className="font-medium text-(--text-secondary) text-sm sm:text-base mb-2">
                           Signatory Information
                         </h4>
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                            <span className="text-xs sm:text-sm text-(--text-secondary)">
                               Name:
                             </span>
-                            <span className="font-medium text-sm sm:text-base text-[var(--text-primary)]">
+                            <span className="font-medium text-sm sm:text-base text-(--text-primary)">
                               {typedName}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                            <span className="text-xs sm:text-sm text-(--text-secondary)">
                               Email:
                             </span>
-                            <span className="font-medium text-sm sm:text-base text-[var(--text-primary)]">
+                            <span className="font-medium text-sm sm:text-base text-(--text-primary)">
                               {signeeEmail}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                            <span className="text-xs sm:text-sm text-(--text-secondary)">
                               Signed At:
                             </span>
-                            <span className="font-medium text-xs sm:text-sm text-[var(--text-primary)]">
+                            <span className="font-medium text-xs sm:text-sm text-(--text-primary)">
                               {signingTimestamp
                                 ? new Date(signingTimestamp).toLocaleString()
                                 : "Pending"}
@@ -786,10 +803,10 @@ export const SignaturePanel = ({
                     </div>
 
                     <div className="space-y-4">
-                      <h4 className="font-medium text-[var(--text-secondary)] text-sm sm:text-base mb-2">
+                      <h4 className="font-medium text-(--text-secondary) text-sm sm:text-base mb-2">
                         Your Signature
                       </h4>
-                      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-3 sm:p-4 flex items-center justify-center h-24 sm:h-32">
+                      <div className="bg-(--bg-secondary) border border-(--border-color) rounded-lg p-3 sm:p-4 flex items-center justify-center h-24 sm:h-32">
                         {signatureData ? (
                           <img
                             src={signatureData}
@@ -797,7 +814,7 @@ export const SignaturePanel = ({
                             className="max-h-16 sm:max-h-20 object-contain"
                           />
                         ) : (
-                          <p className="text-[var(--text-secondary)] italic text-sm">
+                          <p className="text-(--text-secondary) italic text-sm">
                             No signature captured
                           </p>
                         )}
@@ -836,7 +853,7 @@ export const SignaturePanel = ({
                     className="flex-1 h-12 sm:h-10 bg-red-600 hover:bg-red-700"
                     onClick={handleConfirmSign}
                     disabled={isSigning}
-                  >
+                  >bg-(--bg-primary)
                     {isSigning ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -853,9 +870,9 @@ export const SignaturePanel = ({
         </div>
 
         {/* Mobile Footer */}
-        <div className="sticky bottom-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] p-4 sm:hidden">
+        <div className="sticky bottom-0 bg-(--bg-primary) border-t border-(--border-color) p-4 sm:hidden">
           <div className="text-center">
-            <p className="text-xs text-[var(--text-secondary)]">
+            <p className="text-xs text-(--text-secondary)">
               <Shield className="inline h-3 w-3 mr-1" />
               Secure signing powered by Zidwell
             </p>

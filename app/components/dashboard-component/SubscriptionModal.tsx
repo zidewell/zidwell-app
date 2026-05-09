@@ -187,7 +187,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             </button>
 
             {/* Left Column - Gradient Header */}
-            <div className="relative md:w-2/5 bg-linear-to-br from-[var(--color-accent-yellow)] to-[#e0a800] p-6 text-white flex flex-col justify-between">
+            <div className="relative md:w-2/5 bg-linear-to-br from-(--color-accent-yellow) to-[#e0a800] p-6 text-white flex flex-col justify-between">
               <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16" />
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/5 rounded-full blur-2xl -ml-12 -mb-12" />
 
@@ -203,34 +203,32 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     </span>
                   </div>
                 </div>
-                <h2 className="text-2xl font-bold tracking-tight mb-2 text-[var(--color-ink)]">
+                <h2 className="text-2xl font-bold tracking-tight mb-2 text-(--color-ink)">
                   {tierInfo.title}
                 </h2>
-                <p className="text-[var(--color-ink)]/80 text-sm">
+                <p className="text-(--color-ink)/80 text-sm">
                   {tierInfo.description}
                 </p>
               </div>
 
               <div className="relative z-10 mt-4">
-                <p className="text-[var(--color-ink)]/70 text-xs uppercase tracking-wider mb-2">
+                <p className="text-(--color-ink)/70 text-xs uppercase tracking-wider mb-2">
                   Key benefits:
                 </p>
                 <ul className="space-y-2">
                   {tierInfo.features.slice(0, 4).map((benefit, index) => (
                     <li key={index} className="flex items-center gap-2 text-xs">
                       <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/20">
-                        <Check className="h-2.5 w-2.5 text-[var(--color-ink)]" />
+                        <Check className="h-2.5 w-2.5 text-(--color-ink)" />
                       </div>
-                      <span className="text-[var(--color-ink)]/90">
-                        {benefit}
-                      </span>
+                      <span className="text-(--color-ink)/90">{benefit}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
               <div className="relative z-10 mt-3 pt-3 border-t border-white/20">
-                <p className="text-[var(--color-ink)]/60 text-[10px]">
+                <p className="text-(--color-ink)/60 text-[10px]">
                   ✦ Earn ZidCoins (1 ZC = ₦1) on every transaction
                 </p>
               </div>
@@ -254,7 +252,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                       onClick={() => setSelectedPlan("monthly")}
                       className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
                         selectedPlan === "monthly"
-                          ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] shadow-lg shadow-[var(--color-accent-yellow)]/25"
+                          ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
                           : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                       }`}
                     >
@@ -264,7 +262,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                       onClick={() => setSelectedPlan("annual")}
                       className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
                         selectedPlan === "annual"
-                          ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] shadow-lg shadow-[var(--color-accent-yellow)]/25"
+                          ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
                           : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                       }`}
                     >
@@ -281,11 +279,11 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 className={`relative rounded-xl ${
                   userTier === "premium"
                     ? "bg-linear-to-br from-purple-50 to-transparent border-2 border-purple-500"
-                    : "bg-linear-to-br from-[var(--color-accent-yellow)]/5 to-transparent border-2 border-[var(--color-accent-yellow)]"
+                    : "bg-linear-to-br from-(--color-accent-yellow)/5 to-transparent border-2 border-(--color-accent-yellow)"
                 } p-4 shadow-lg mb-4`}
               >
                 {userTier !== "premium" && (
-                  <div className="absolute -top-2 left-4 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <div className="absolute -top-2 left-4 bg-(--color-accent-yellow) text-(--color-ink) text-[10px] font-bold px-2 py-0.5 rounded-full">
                     RECOMMENDED
                   </div>
                 )}
@@ -313,7 +311,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                         : "/mo"}
                   </span>
                   {selectedPlan === "annual" && userTier !== "premium" && (
-                    <p className="text-[10px] text-[var(--color-accent-yellow)]">
+                    <p className="text-[10px] text-(--color-accent-yellow)">
                       {tierInfo.annualSavings}
                     </p>
                   )}
@@ -329,7 +327,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                         className={`h-3 w-3 shrink-0 mt-0.5 ${
                           userTier === "premium"
                             ? "text-purple-500"
-                            : "text-[var(--color-accent-yellow)]"
+                            : "text-(--color-accent-yellow)"
                         }`}
                       />
                       <span>{feature}</span>
@@ -355,7 +353,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   className={`w-full rounded-lg py-3 text-sm font-semibold shadow-lg transition-all hover:scale-[1.02] ${
                     userTier === "premium"
                       ? "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/25"
-                      : "bg-[var(--color-accent-yellow)] hover:bg-[#e0a800] text-[var(--color-ink)] shadow-[var(--color-accent-yellow)]/25"
+                      : "bg-(--color-accent-yellow) hover:bg-[#e0a800] text-(--color-ink) shadow-(--color-accent-yellow)/25"
                   }`}
                 >
                   {tierInfo.primaryCta}

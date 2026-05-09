@@ -50,7 +50,7 @@ export const ReceiptTypeSelector: React.FC<ReceiptTypeSelectorProps> = ({
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-medium text-[var(--text-primary)]">
+      <label className="text-sm font-medium text-(--text-primary)">
         Receipt Type
       </label>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -61,13 +61,13 @@ export const ReceiptTypeSelector: React.FC<ReceiptTypeSelectorProps> = ({
             onClick={() => !disabled && onChange(type)}
             className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all duration-200 ${
               value === type
-                ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10 shadow-sm"
-                : "border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--color-accent-yellow)]/50 hover:bg-[var(--bg-secondary)]"
+                ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 shadow-sm"
+                : "border-(--border-color) bg-(--bg-primary) hover:border-(--color-accent-yellow)/50 hover:bg-(--bg-secondary)"
             } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} squircle-lg`}
             disabled={disabled}
           >
             <span className="text-2xl">{receiptTypeIcons[type]}</span>
-            <span className="text-xs font-medium text-center text-[var(--text-primary)]">
+            <span className="text-xs font-medium text-center text-(--text-primary)">
               {receiptTypeLabels[type]}
             </span>
           </button>

@@ -136,17 +136,17 @@ export default async function InvoicePage({
 
     return (
       <ToastProvider>
-        <div className="min-h-screen bg-[var(--bg-primary)]">
+        <div className="min-h-screen bg-(--bg-primary)">
           <div className="container mx-auto py-12 px-4 max-w-3xl">
             {/* Header */}
             <HeaderSection invoice={invoice} />
 
             {/* Invoice Card */}
-            <Card className="p-8 mb-6 bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft">
+            <Card className="p-8 mb-6 bg-(--bg-primary) border border-(--border-color) shadow-soft">
               {/* Business Header */}
               <BusinessHeaderSection invoice={invoice} />
 
-              <Separator className="my-6 bg-[var(--border-color)]" />
+              <Separator className="my-6 bg-(--border-color)" />
 
               {/* Payment Status */}
               {invoice.allow_multiple_payments && (
@@ -174,7 +174,7 @@ export default async function InvoicePage({
               {/* Items */}
               <InvoiceItemsSection items={items} />
 
-              <Separator className="my-6 bg-[var(--border-color)]" />
+              <Separator className="my-6 bg-(--border-color)" />
 
               {/* Totals */}
               <TotalsSection invoice={invoice} />
@@ -206,10 +206,10 @@ export default async function InvoicePage({
 function HeaderSection({ invoice }: { invoice: any }) {
   return (
     <div className="text-center mb-8">
-      <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
+      <h1 className="text-3xl font-bold text-(--text-primary) mb-2">
         Invoice Details
       </h1>
-      <p className="text-[var(--text-secondary)]">
+      <p className="text-(--text-secondary)">
         Review invoice and proceed with payment
       </p>
     </div>
@@ -227,16 +227,16 @@ function BusinessHeaderSection({ invoice }: { invoice: any }) {
             className="h-12 w-auto mb-2 rounded-lg"
           />
         )}
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">
+        <h2 className="text-xl font-bold text-(--text-primary)">
           {invoice.business_name}
         </h2>
       </div>
       <div className="text-right">
-        <div className="text-sm text-[var(--text-secondary)]">Invoice</div>
-        <div className="text-lg font-bold text-[var(--color-accent-yellow)]">
+        <div className="text-sm text-(--text-secondary)">Invoice</div>
+        <div className="text-lg font-bold text-(--color-accent-yellow)">
           #{invoice.invoice_id}
         </div>
-        <div className="text-xs text-[var(--text-secondary)] mt-1">
+        <div className="text-xs text-(--text-secondary) mt-1">
           Due: {new Date(invoice.created_at).toLocaleDateString()}
         </div>
       </div>
@@ -269,11 +269,11 @@ function ClientInformationSection({ invoice }: { invoice: any }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       <div className="space-y-2">
-        <h3 className="font-semibold text-[var(--text-primary)]">Bill To</h3>
-        <div className="text-sm text-[var(--text-secondary)]">
+        <h3 className="font-semibold text-(--text-primary)">Bill To</h3>
+        <div className="text-sm text-(--text-secondary)">
           {invoice.client_name ? (
             <>
-              <p className="font-medium text-[var(--text-primary)]">
+              <p className="font-medium text-(--text-primary)">
                 {invoice.client_name}
               </p>
               {invoice.client_email && <p>{invoice.client_email}</p>}
@@ -285,9 +285,9 @@ function ClientInformationSection({ invoice }: { invoice: any }) {
         </div>
       </div>
       <div className="space-y-2">
-        <h3 className="font-semibold text-[var(--text-primary)]">From</h3>
-        <div className="text-sm text-[var(--text-secondary)]">
-          <p className="font-medium text-[var(--text-primary)]">
+        <h3 className="font-semibold text-(--text-primary)">From</h3>
+        <div className="text-sm text-(--text-secondary)">
+          <p className="font-medium text-(--text-primary)">
             {invoice.from_name}
           </p>
           <p>{invoice.from_email}</p>
@@ -300,11 +300,11 @@ function ClientInformationSection({ invoice }: { invoice: any }) {
 
 function MessageSection({ invoice }: { invoice: any }) {
   return (
-    <div className="mb-6 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
-      <h3 className="font-semibold text-[var(--text-primary)] mb-2">
+    <div className="mb-6 p-4 bg-(--bg-secondary) rounded-lg border border-(--border-color)">
+      <h3 className="font-semibold text-(--text-primary) mb-2">
         Message from {invoice.from_name}
       </h3>
-      <p className="text-sm text-[var(--text-secondary)]">{invoice.message}</p>
+      <p className="text-sm text-(--text-secondary)">{invoice.message}</p>
     </div>
   );
 }
@@ -312,19 +312,21 @@ function MessageSection({ invoice }: { invoice: any }) {
 function InvoiceItemsSection({ items }: { items: InvoiceItem[] }) {
   return (
     <div className="mb-6">
-      <h3 className="font-semibold mb-4 text-[var(--text-primary)]">Invoice Items</h3>
+      <h3 className="font-semibold mb-4 text-(--text-primary)">
+        Invoice Items
+      </h3>
       <div className="space-y-3">
         {items.map((item) => (
           <div key={item.id} className="flex justify-between text-sm">
             <div className="flex-1">
-              <div className="font-medium text-[var(--text-primary)]">
+              <div className="font-medium text-(--text-primary)">
                 {item.description}
               </div>
-              <div className="text-[var(--text-secondary)]">
+              <div className="text-(--text-secondary)">
                 {item.quantity} × ₦{item.unitPrice.toLocaleString()}
               </div>
             </div>
-            <div className="font-semibold text-[var(--text-primary)]">
+            <div className="font-semibold text-(--text-primary)">
               ₦{item.total.toLocaleString()}
             </div>
           </div>
@@ -337,12 +339,12 @@ function InvoiceItemsSection({ items }: { items: InvoiceItem[] }) {
 function TotalsSection({ invoice }: { invoice: any }) {
   return (
     <div className="space-y-2">
-      <div className="flex justify-between text-[var(--text-primary)]">
+      <div className="flex justify-between text-(--text-primary)">
         <span>Subtotal</span>
         <span>₦{invoice.subtotal.toLocaleString()}</span>
       </div>
       {invoice.fee_amount > 0 && (
-        <div className="flex justify-between text-sm text-[var(--text-secondary)]">
+        <div className="flex justify-between text-sm text-(--text-secondary)">
           <span>
             Processing Fee (
             {invoice.fee_option === "customer" ? "2%" : "Absorbed"})
@@ -350,10 +352,10 @@ function TotalsSection({ invoice }: { invoice: any }) {
           <span>₦{invoice.fee_amount.toLocaleString()}</span>
         </div>
       )}
-      <Separator className="my-3 bg-[var(--border-color)]" />
+      <Separator className="my-3 bg-(--border-color)" />
       <div className="flex justify-between text-xl font-bold">
-        <span className="text-[var(--text-primary)]">Total Amount</span>
-        <span className="text-[var(--color-accent-yellow)]">
+        <span className="text-(--text-primary)">Total Amount</span>
+        <span className="text-(--color-accent-yellow)">
           ₦{invoice.total_amount.toLocaleString()}
         </span>
       </div>
@@ -364,7 +366,9 @@ function TotalsSection({ invoice }: { invoice: any }) {
 function CustomerNoteSection({ invoice }: { invoice: any }) {
   return (
     <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-      <p className="text-sm text-blue-700 dark:text-blue-300">{invoice.customer_note}</p>
+      <p className="text-sm text-blue-700 dark:text-blue-300">
+        {invoice.customer_note}
+      </p>
     </div>
   );
 }
@@ -372,13 +376,13 @@ function CustomerNoteSection({ invoice }: { invoice: any }) {
 function FooterSection({ invoice }: { invoice: any }) {
   return (
     <div className="text-center mt-8">
-      <p className="text-sm text-[var(--text-secondary)]">
+      <p className="text-sm text-(--text-secondary)">
         Secured by{" "}
-        <span className="text-[var(--color-accent-yellow)] font-semibold">
+        <span className="text-(--color-accent-yellow) font-semibold">
           Zidwell Finance
         </span>
       </p>
-      <p className="text-xs text-[var(--text-secondary)] mt-2">
+      <p className="text-xs text-(--text-secondary) mt-2">
         Need help? Contact {invoice.from_email}
       </p>
     </div>

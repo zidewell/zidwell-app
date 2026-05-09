@@ -246,11 +246,11 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({
   if (!isMounted || initialLoading) {
     return (
       <div className="space-y-3">
-        <label className="text-sm font-body text-[var(--text-secondary)] block">
+        <label className="text-sm font-body text-(--text-secondary) block">
           Signature
         </label>
-        <div className="h-32 bg-[var(--bg-secondary)] animate-pulse rounded-md border-2 border-[var(--color-accent-yellow)] flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-[var(--color-accent-yellow)]" />
+        <div className="h-32 bg-(--bg-secondary) animate-pulse rounded-md border-2 border-(--color-accent-yellow) flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-(--color-accent-yellow)" />
         </div>
       </div>
     );
@@ -259,11 +259,11 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-body text-[var(--text-secondary)] block">
+        <label className="text-sm font-body text-(--text-secondary) block">
           Signature
         </label>
         {hasSavedSignature && (
-          <span className="text-xs flex items-center gap-1 text-[var(--color-lemon-green)] bg-[var(--color-lemon-green)]/10 px-2 py-1 rounded-full">
+          <span className="text-xs flex items-center gap-1 text-(--color-lemon-green) bg-(--color-lemon-green)/10 px-2 py-1 rounded-full">
             <Check className="w-3 h-3" />
             Saved signature loaded
           </span>
@@ -273,13 +273,13 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({
       <div className="relative">
         <canvas
           ref={canvasRef}
-          className="w-full h-32 bg-white border-2 border-[var(--color-accent-yellow)] rounded-md cursor-crosshair"
+          className="w-full h-32 bg-white border-2 border-(--color-accent-yellow) rounded-md cursor-crosshair"
           style={{ touchAction: "none" }}
         />
         {(!signaturePadRef.current || signaturePadRef.current.isEmpty()) &&
           !isDrawing &&
           !hasSavedSignature && (
-            <p className="absolute inset-0 flex items-center justify-center text-sm text-[var(--text-secondary)] pointer-events-none">
+            <p className="absolute inset-0 flex items-center justify-center text-sm text-(--text-secondary) pointer-events-none">
               Draw your signature here
             </p>
           )}
@@ -290,7 +290,7 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({
           type="button"
           onClick={handleClear}
           disabled={loading}
-          className="flex-1 bg-transparent text-[var(--text-primary)] border-2 border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5 py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50"
+          className="flex-1 bg-transparent text-(--text-primary) border-2 border-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/5 py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50"
         >
           Clear
         </button>
@@ -300,7 +300,7 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({
             type="button"
             onClick={handleUpdate}
             disabled={loading}
-            className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -316,7 +316,7 @@ const SignaturePanel: React.FC<SignaturePanelProps> = ({
             type="button"
             onClick={handleSave}
             disabled={loading}
-            className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) py-3 px-4 rounded-md transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>

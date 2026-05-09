@@ -47,7 +47,12 @@ const isCacheValid = (cachedData: CachedData | null): boolean => {
 };
 
 const RecentArticles = () => {
-  const { posts, recentPosts, isLoading: blogLoading, error: blogError } = useBlog();
+  const {
+    posts,
+    recentPosts,
+    isLoading: blogLoading,
+    error: blogError,
+  } = useBlog();
   const [displayArticles, setDisplayArticles] = useState<any[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,7 +60,9 @@ const RecentArticles = () => {
   const [hasError, setHasError] = useState(false);
   const initialLoadRef = useRef(false);
 
-  useEffect(() => { setIsClient(true); }, []);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (!isClient || initialLoadRef.current) return;
@@ -85,7 +92,11 @@ const RecentArticles = () => {
         } else if (posts && posts.length > 0) {
           const sortedPosts = [...posts]
             .filter((post) => post.is_published)
-            .sort((a, b) => new Date(b.published_at || b.created_at).getTime() - new Date(a.published_at || a.created_at).getTime())
+            .sort(
+              (a, b) =>
+                new Date(b.published_at || b.created_at).getTime() -
+                new Date(a.published_at || a.created_at).getTime(),
+            )
             .slice(0, 3)
             .map(transformPostForDisplay);
           if (sortedPosts.length > 0) {
@@ -95,7 +106,11 @@ const RecentArticles = () => {
           } else {
             setHasError(true);
           }
-        } else if (!blogLoading && (!posts || posts.length === 0) && (!recentPosts || recentPosts.length === 0)) {
+        } else if (
+          !blogLoading &&
+          (!posts || posts.length === 0) &&
+          (!recentPosts || recentPosts.length === 0)
+        ) {
           setHasError(true);
         }
       } catch (error) {
@@ -110,7 +125,8 @@ const RecentArticles = () => {
   }, [posts, recentPosts, isClient, blogLoading, blogError]);
 
   useEffect(() => {
-    if (!isClient || (!recentPosts?.length && !posts?.length) || hasError) return;
+    if (!isClient || (!recentPosts?.length && !posts?.length) || hasError)
+      return;
     const refreshCache = () => {
       try {
         let articles: any[] = [];
@@ -119,7 +135,11 @@ const RecentArticles = () => {
         } else if (posts && posts.length > 0) {
           const sortedPosts = [...posts]
             .filter((post) => post.is_published)
-            .sort((a, b) => new Date(b.published_at || b.created_at).getTime() - new Date(a.published_at || a.created_at).getTime())
+            .sort(
+              (a, b) =>
+                new Date(b.published_at || b.created_at).getTime() -
+                new Date(a.published_at || a.created_at).getTime(),
+            )
             .slice(0, 3)
             .map(transformPostForDisplay);
           articles = sortedPosts;
@@ -143,25 +163,40 @@ const RecentArticles = () => {
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-    } catch { return "Recent"; }
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "Recent";
+    }
   };
 
-  if (hasError || (!isLoading && !blogLoading && displayArticles.length === 0 && !isFromCache)) return null;
+  if (
+    hasError ||
+    (!isLoading && !blogLoading && displayArticles.length === 0 && !isFromCache)
+  )
+    return null;
   if (!isClient) return null;
 
   if (isLoading || (blogLoading && !isFromCache)) {
     return (
       <div>
         <div className="flex items-center justify-between mb-6 mt-5">
-          <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-wide">Recent Articles</h3>
-          <div className="text-sm font-bold text-[var(--color-accent-yellow)] flex items-center gap-2 uppercase tracking-wide">
+          <h3 className="text-xl font-bold text-(--text-primary) uppercase tracking-wide">
+            Recent Articles
+          </h3>
+          <div className="text-sm font-bold text-(--color-accent-yellow) flex items-center gap-2 uppercase tracking-wide">
             View All <ArrowRight className="w-4 h-4" />
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-md overflow-hidden shadow-[4px_4px_0px_var(--border-color)]">
+            <div
+              key={i}
+              className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md overflow-hidden shadow-[4px_4px_0px_var(--border-color)]"
+            >
               <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 animate-pulse" />
               <div className="p-6">
                 <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 animate-pulse mb-3" />
@@ -173,7 +208,11 @@ const RecentArticles = () => {
             </div>
           ))}
         </div>
-        {isFromCache && <p className="text-xs text-gray-400 text-center mt-2">Loading fresh content...</p>}
+        {isFromCache && (
+          <p className="text-xs text-gray-400 text-center mt-2">
+            Loading fresh content...
+          </p>
+        )}
       </div>
     );
   }
@@ -183,8 +222,13 @@ const RecentArticles = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-6 mt-5">
-        <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-wide">Recent Articles</h3>
-        <Link href="/blog" className="text-sm font-bold text-[var(--color-accent-yellow)] hover:underline flex items-center gap-2 uppercase tracking-wide">
+        <h3 className="text-xl font-bold text-(--text-primary) uppercase tracking-wide">
+          Recent Articles
+        </h3>
+        <Link
+          href="/blog"
+          className="text-sm font-bold text-(--color-accent-yellow) hover:underline flex items-center gap-2 uppercase tracking-wide"
+        >
           View All <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -194,11 +238,11 @@ const RecentArticles = () => {
           <Link
             key={article.id}
             href={`/blog/post-blog/${article.slug}`}
-            className="block bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-md overflow-hidden shadow-[4px_4px_0px_var(--border-color)]
+            className="block bg-(--bg-primary) border-2 border-(--border-color) rounded-md overflow-hidden shadow-[4px_4px_0px_var(--border-color)]
                        hover:shadow-[6px_6px_0px_var(--border-color)] dark:hover:shadow-[6px_6px_0px_rgba(253,192,32,0.4)] hover:-translate-x-px hover:-translate-y-px
                        active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all duration-150 group cursor-pointer"
           >
-            <div className="w-full h-48 overflow-hidden border-b-2 border-[var(--border-color)]">
+            <div className="w-full h-48 overflow-hidden border-b-2 border-(--border-color)">
               <Image
                 src={article.image}
                 alt={article.title}
@@ -209,16 +253,16 @@ const RecentArticles = () => {
               />
             </div>
             <div className="p-6">
-              <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-widest mb-3">
+              <p className="text-xs text-(--text-secondary) font-bold uppercase tracking-widest mb-3">
                 {formatDate(article.date)}
               </p>
-              <h4 className="font-bold text-lg text-[var(--text-primary)] leading-snug mb-3 group-hover:text-[var(--color-accent-yellow)] transition-colors line-clamp-2">
+              <h4 className="font-bold text-lg text-(--text-primary) leading-snug mb-3 group-hover:text-(--color-accent-yellow) transition-colors line-clamp-2">
                 {article.title}
               </h4>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed font-['Be_Vietnam_Pro'] line-clamp-3">
+              <p className="text-sm text-(--text-secondary) leading-relaxed font-['Be_Vietnam_Pro'] line-clamp-3">
                 {article.excerpt}
               </p>
-              <div className="mt-4 text-sm font-bold text-[var(--color-accent-yellow)] flex items-center gap-2 uppercase tracking-wide">
+              <div className="mt-4 text-sm font-bold text-(--color-accent-yellow) flex items-center gap-2 uppercase tracking-wide">
                 Read More <ArrowRight className="w-4 h-4" />
               </div>
             </div>

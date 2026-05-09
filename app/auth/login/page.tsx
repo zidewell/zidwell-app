@@ -199,8 +199,7 @@ const LoginForm = () => {
         "Invalid email or password. Please check your credentials and try again.";
 
       if (err.name === "AbortError") {
-        errorMessage =
-          "Please check your internet connection and try again.";
+        errorMessage = "Please check your internet connection and try again.";
       } else if (err.message) {
         errorMessage = err.message;
       }
@@ -279,7 +278,7 @@ const LoginForm = () => {
                   }}
                   required
                   disabled={loading}
-                  className="w-full px-3 py-2 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:border-(--color-accent-yellow) squircle-md"
+                  className="w-full px-3 py-2 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) rounded-md focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) squircle-md"
                   style={{ outline: "none", boxShadow: "none" }}
                   autoComplete="email"
                 />
@@ -310,7 +309,7 @@ const LoginForm = () => {
                     }}
                     required
                     disabled={loading}
-                    className="w-full px-3 py-2 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:border-(--color-accent-yellow) pr-10 squircle-md"
+                    className="w-full px-3 py-2 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) rounded-md focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) pr-10 squircle-md"
                     style={{ outline: "none", boxShadow: "none" }}
                     autoComplete="current-password"
                   />
@@ -338,7 +337,7 @@ const LoginForm = () => {
                   <input
                     type="checkbox"
                     id="remember"
-                    className="h-4 w-4 accent-[var(--color-accent-yellow)] border-(--border-color) rounded focus:ring-[var(--color-accent-yellow)] focus:ring-offset-0"
+                    className="h-4 w-4 accent-(--color-accent-yellow) border-(--border-color) rounded focus:ring-(--color-accent-yellow) focus:ring-offset-0"
                     disabled={loading}
                   />
                   <Label

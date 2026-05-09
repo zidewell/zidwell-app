@@ -55,7 +55,14 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
     if (!name) return "var(--color-accent-yellow)";
 
     const colors = [
-      "#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899", "#8B4513",
+      "#3B82F6",
+      "#10B981",
+      "#8B5CF6",
+      "#F59E0B",
+      "#EF4444",
+      "#06B6D4",
+      "#EC4899",
+      "#8B4513",
     ];
 
     const hash = name.split("").reduce((acc, char) => {
@@ -96,18 +103,20 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
               {categories.slice(0, 2).map((cat) => (
                 <span
                   key={cat.id}
-                  className="text-xs font-medium text-[var(--color-accent-yellow)] uppercase tracking-wider"
+                  className="text-xs font-medium text-(--color-accent-yellow) uppercase tracking-wider"
                 >
                   {cat.name}
                 </span>
               ))}
             </div>
-            <h2 className="text-2xl md:text-3xl font-semibold mb-3 text-[var(--text-primary)] group-hover:text-[var(--color-accent-yellow)] transition-colors">
+            <h2 className="text-2xl md:text-3xl font-semibold mb-3 text-(--text-primary) group-hover:text-(--color-accent-yellow) transition-colors">
               {title}
             </h2>
-            <p className="text-[var(--text-secondary)] mb-4 line-clamp-3">{excerpt}</p>
+            <p className="text-(--text-secondary) mb-4 line-clamp-3">
+              {excerpt}
+            </p>
             <div className="flex items-center gap-3">
-              <div className="relative w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border border-[var(--border-color)]">
+              <div className="relative w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border border-(--border-color)">
                 {authorAvatar ? (
                   <Image
                     src={authorAvatar}
@@ -135,17 +144,19 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
                 </div>
               </div>
               <div className="text-sm">
-                <span className="font-medium text-[var(--text-primary)]">{authorName}</span>
+                <span className="font-medium text-(--text-primary)">
+                  {authorName}
+                </span>
                 {isClient && formattedDate && (
                   <>
-                    <span className="text-[var(--text-secondary)]"> · </span>
-                    <span className="text-[var(--text-secondary)]">
+                    <span className="text-(--text-secondary)"> · </span>
+                    <span className="text-(--text-secondary)">
                       {formattedDate}
                     </span>
                   </>
                 )}
-                <span className="text-[var(--text-secondary)]"> · </span>
-                <span className="text-[var(--text-secondary)]">
+                <span className="text-(--text-secondary)"> · </span>
+                <span className="text-(--text-secondary)">
                   {readTime} min read
                 </span>
               </div>
@@ -171,11 +182,11 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-[var(--text-primary)] line-clamp-2 group-hover:text-[var(--color-accent-yellow)] transition-colors">
+            <h3 className="font-medium text-(--text-primary) line-clamp-2 group-hover:text-(--color-accent-yellow) transition-colors">
               {title}
             </h3>
             {isClient && formattedDate && (
-              <p className="text-sm text-[var(--text-secondary)] mt-1">
+              <p className="text-sm text-(--text-secondary) mt-1">
                 {formattedDate} · {readTime} min
               </p>
             )}
@@ -202,20 +213,20 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
           {categories.slice(0, 1).map((cat) => (
             <span
               key={cat.id}
-              className="text-xs font-medium text-[var(--color-accent-yellow)] uppercase tracking-wider"
+              className="text-xs font-medium text-(--color-accent-yellow) uppercase tracking-wider"
             >
               {cat.name}
             </span>
           ))}
         </div>
-        <h2 className="text-xl font-semibold mb-2 text-[var(--text-primary)] group-hover:text-[var(--color-accent-yellow)] transition-colors line-clamp-2">
+        <h2 className="text-xl font-semibold mb-2 text-(--text-primary) group-hover:text-(--color-accent-yellow) transition-colors line-clamp-2">
           {title}
         </h2>
-        <p className="text-[var(--text-secondary)] text-sm mb-3 line-clamp-2">
+        <p className="text-(--text-secondary) text-sm mb-3 line-clamp-2">
           {excerpt}
         </p>
         <div className="flex items-center gap-2">
-          <div className="relative w-6 h-6 rounded-full overflow-hidden flex items-center justify-center border border-[var(--border-color)]">
+          <div className="relative w-6 h-6 rounded-full overflow-hidden flex items-center justify-center border border-(--border-color)">
             {authorAvatar ? (
               <Image
                 src={authorAvatar}
@@ -243,7 +254,7 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
             </div>
           </div>
           {isClient && formattedDate && (
-            <span className="text-sm text-[var(--text-secondary)]">
+            <span className="text-sm text-(--text-secondary)">
               {authorName} · {formattedDate} · {readTime} min
             </span>
           )}

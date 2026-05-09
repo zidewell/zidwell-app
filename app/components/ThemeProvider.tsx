@@ -27,6 +27,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [mounted, setMounted] = useState(false);
 
   const getSystemTheme = (): 'light' | 'dark' => {
+    if (typeof window === 'undefined') return 'light';
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
 
@@ -44,31 +45,50 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     setMounted(true);
-    const savedTheme = localStorage.getItem('zidwell-theme') as Theme | null;
-    const initialTheme = savedTheme || 'system';
-    setTheme(initialTheme);
-    applyTheme(initialTheme);
+    
+    try {
+      const savedTheme = localStorage.getItem('zidwell-theme') as Theme | null;
+      const initialTheme = savedTheme || 'system';
+      setTheme(initialTheme);
+      applyTheme(initialTheme);
+    } catch (error) {
+      console.error('Error reading theme from localStorage:', error);
+      setTheme('system');
+      applyTheme('system');
+    }
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
-    
     if (theme !== 'system') return;
     
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => applyTheme('system');
     
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+      const newSystemTheme = e.matches ? 'dark' : 'light';
+      if (newSystemTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+        setResolvedTheme('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        setResolvedTheme('light');
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
   }, [theme, mounted]);
 
   const updateTheme = (newTheme: Theme) => {
     setTheme(newTheme);
-    localStorage.setItem('zidwell-theme', newTheme);
+    try {
+      localStorage.setItem('zidwell-theme', newTheme);
+    } catch (error) {
+      console.error('Error saving theme to localStorage:', error);
+    }
     applyTheme(newTheme);
   };
 
-  // Prevent hydration mismatch
   if (!mounted) {
     return <>{children}</>;
   }

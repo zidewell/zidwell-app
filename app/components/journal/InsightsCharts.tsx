@@ -181,8 +181,10 @@ export function InsightsCharts() {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="rounded-lg p-3 shadow-pop bg-[var(--bg-primary)] border border-[var(--border-color)] squircle-sm">
-          <p className="font-medium text-sm mb-2 text-[var(--text-primary)]">{label}</p>
+        <div className="rounded-lg p-3 shadow-pop bg-(--bg-primary) border border-(--border-color) squircle-sm">
+          <p className="font-medium text-sm mb-2 text-(--text-primary)">
+            {label}
+          </p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
               {entry.name}: {formatCurrency(entry.value)}
@@ -197,17 +199,19 @@ export function InsightsCharts() {
   return (
     <div className="space-y-6">
       {/* Filter Tabs */}
-      <div className="flex gap-2 p-1 rounded-xl w-fit bg-[var(--bg-secondary)]">
+      <div className="flex gap-2 p-1 rounded-xl w-fit bg-(--bg-secondary)">
         {(["daily", "weekly", "monthly", "yearly"] as TimeFilter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={cn(
-              "px-4 py-2 rounded-lg font-medium text-sm capitalize transition-all"
+              "px-4 py-2 rounded-lg font-medium text-sm capitalize transition-all",
             )}
             style={{
-              backgroundColor: filter === f ? "var(--bg-primary)" : "transparent",
-              color: filter === f ? "var(--text-primary)" : "var(--text-secondary)"
+              backgroundColor:
+                filter === f ? "var(--bg-primary)" : "transparent",
+              color:
+                filter === f ? "var(--text-primary)" : "var(--text-secondary)",
             }}
           >
             {f}
@@ -218,8 +222,11 @@ export function InsightsCharts() {
       {/* Charts Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Expense Breakdown Pie Chart */}
-        <div className="p-6 rounded-2xl border bg-[var(--bg-primary)] border-[var(--border-color)] shadow-soft squircle-lg">
-          <h3 className="text-lg mb-4 text-[var(--text-primary)]" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+        <div className="p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
+          <h3
+            className="text-lg mb-4 text-(--text-primary)"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
             Expense Breakdown
           </h3>
           {categoryData.length > 0 ? (
@@ -234,8 +241,9 @@ export function InsightsCharts() {
                   paddingAngle={2}
                   dataKey="value"
                   label={(props) => {
-                    const name = props.name || '';
-                    const percent = typeof props.percent === 'number' ? props.percent : 0;
+                    const name = props.name || "";
+                    const percent =
+                      typeof props.percent === "number" ? props.percent : 0;
                     return `${name} ${(percent * 100).toFixed(0)}%`;
                   }}
                   labelLine={false}
@@ -251,23 +259,37 @@ export function InsightsCharts() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[250px] flex items-center justify-center text-[var(--text-secondary)]">
+            <div className="h-[250px] flex items-center justify-center text-(--text-secondary)">
               No expense data for this period
             </div>
           )}
         </div>
 
         {/* Income vs Expenses Bar Chart */}
-        <div className="p-6 rounded-2xl border bg-[var(--bg-primary)] border-[var(--border-color)] shadow-soft squircle-lg">
-          <h3 className="text-lg mb-4 text-[var(--text-primary)]" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+        <div className="p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
+          <h3
+            className="text-lg mb-4 text-(--text-primary)"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
             Income vs Expenses
           </h3>
           {incomeVsExpenseData.some((d) => d.income > 0 || d.expenses > 0) ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={incomeVsExpenseData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} />
-                <YAxis stroke="var(--text-secondary)" fontSize={12} tickFormatter={formatCurrency} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--border-color)"
+                />
+                <XAxis
+                  dataKey="name"
+                  stroke="var(--text-secondary)"
+                  fontSize={12}
+                />
+                <YAxis
+                  stroke="var(--text-secondary)"
+                  fontSize={12}
+                  tickFormatter={formatCurrency}
+                />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
                 <Bar
@@ -285,23 +307,37 @@ export function InsightsCharts() {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[250px] flex items-center justify-center text-[var(--text-secondary)]">
+            <div className="h-[250px] flex items-center justify-center text-(--text-secondary)">
               No data for this period
             </div>
           )}
         </div>
 
         {/* Financial Trend Line Chart */}
-        <div className="p-6 rounded-2xl border bg-[var(--bg-primary)] border-[var(--border-color)] shadow-soft squircle-lg lg:col-span-2">
-          <h3 className="text-lg mb-4 text-[var(--text-primary)]" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+        <div className="p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg lg:col-span-2">
+          <h3
+            className="text-lg mb-4 text-(--text-primary)"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
             Financial Trend (Year)
           </h3>
           {trendData.some((d) => d.balance !== 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} />
-                <YAxis stroke="var(--text-secondary)" fontSize={12} tickFormatter={formatCurrency} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--border-color)"
+                />
+                <XAxis
+                  dataKey="name"
+                  stroke="var(--text-secondary)"
+                  fontSize={12}
+                />
+                <YAxis
+                  stroke="var(--text-secondary)"
+                  fontSize={12}
+                  tickFormatter={formatCurrency}
+                />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
                 <Line
@@ -323,7 +359,7 @@ export function InsightsCharts() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-[var(--text-secondary)]">
+            <div className="h-[300px] flex items-center justify-center text-(--text-secondary)">
               Start logging entries to see your financial trend
             </div>
           )}
