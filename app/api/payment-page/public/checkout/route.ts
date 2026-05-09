@@ -24,9 +24,7 @@ const generateOrderReference = (pageId: string | number): string => {
   // Take last 12 chars to keep reference short but still unique
   const shortId = fullPageId.slice(-12);
   
-  // New format: PP-{shortId(12)}-{timestamp}-{random(4)}
-  // Example: PP-740302e5c374-17a8f3-xyz9
-  // Max length: 3 + 1 + 12 + 1 + 10 + 1 + 4 = 32 chars (well under 50)
+
   let reference = `PP-${shortId}-${timestamp}-${random}`;
   
   // Ensure max 50 characters (should be fine, but just in case)

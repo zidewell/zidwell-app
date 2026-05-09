@@ -73,19 +73,19 @@ export async function sendVirtualAccountDepositEmail(
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: `💰 Account Deposit Received - ₦${creditedAmount.toLocaleString()}`,
+      subject: `💰 Account Deposit Received - ₦${amount.toLocaleString()}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
           <h3 style="color: #22c55e;">✅ Credit alert</h3>
           <p>Hi ${user.first_name || "there"},</p>
-          <p>Your account has been credited with <strong>₦${creditedAmount.toLocaleString()}</strong>.</p>
+          <p>Your account has been credited with <strong>₦${amount.toLocaleString()}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount Received:</strong> ₦${amount.toLocaleString()}</p>
           
            
             <p><strong>Bank:</strong> ${bankName}</p>
-            <p><strong>Account:</strong> ${accountNumber}</p>
+       
             <p><strong>Sender:</strong> ${senderName}</p>
             <p><strong>Narration:</strong> ${narration || "N/A"}</p>
           </div>
@@ -149,7 +149,7 @@ export async function sendWithdrawalEmail(
             ${status === "success" ? "✅ Transfer Successful" : "❌ Transfer Failed"}
           </h3>
           <p>Hi ${user.first_name || "there"},</p>
-          ${status === "success" ? `<img src="${cheersImageUrl}" style="width: 70%; margin: 10px 0; border-radius: 8px;" />` : ""}
+          ${status === "success" ? `<img src="${cheersImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />` : ""}
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
             ${fee ? `<p><strong>Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}

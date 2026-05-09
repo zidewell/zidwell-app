@@ -260,54 +260,60 @@ function PricingPage() {
     }
   };
 
-  const handleSubscribe = async (plan: (typeof plans)[0]) => {
-    if (plan.tier === "free") {
-      router.push("/dashboard");
-      return;
-    }
+ const handleSubscribe = async (plan: (typeof plans)[0]) => {
+  if (plan.tier === "free") {
+    router.push("/dashboard");
+    return;
+  }
 
-    if (plan.tier === "elite") {
-      window.location.href =
-        "mailto:sales@zidwell.com?subject=Elite%20Plan%20Inquiry";
-      return;
-    }
+  if (plan.tier === "elite") {
+    window.location.href = "mailto:sales@zidwell.com?subject=Elite%20Plan%20Inquiry";
+    return;
+  }
 
-    // If not logged in, redirect to login with callback URL
-    if (!userData?.id) {
-      const callbackUrl = `/pricing?upgrade=${plan.tier}&billing=${selectedBilling}`;
-      router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
-      return;
-    }
+  // If not logged in, redirect to login with callback URL
+  if (!userData?.id) {
+    const callbackUrl = `/pricing?upgrade=${plan.tier}&billing=${selectedBilling}`;
+    router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    return;
+  }
 
-    setProcessingTier(plan.tier);
-    setError(null);
+  setProcessingTier(plan.tier);
+  setError(null);
 
-    try {
-      const amount =
-        selectedBilling === "yearly" && plan.yearlyAmount
-          ? plan.yearlyAmount
-          : plan.amount;
+  try {
+    const amount = selectedBilling === "yearly" && plan.yearlyAmount
+      ? plan.yearlyAmount
+      : plan.amount;
 
-      const paymentReference = `SUB_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      const subscriptionResult = await subscribe(
-        plan.tier as any,
-        "card",
+    // Call the subscription checkout API
+    const response = await fetch("/api/subscription/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        planTier: plan.tier,
         amount,
-        paymentReference,
-        selectedBilling === "yearly",
-      );
-      
-      if (!subscriptionResult.success) {
-        throw new Error(subscriptionResult.error || "Failed to create subscription");
-      }
-      
-      await createNombaCheckout(plan, amount);
-    } catch (error: any) {
-      console.error("Subscription error:", error);
-      setError(error.message || "An error occurred. Please try again.");
-      setProcessingTier(null);
+        billingPeriod: selectedBilling,
+        userEmail: userData.email,
+        userId: userData.id,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || "Failed to create checkout");
     }
-  };
+
+    // Redirect to Nomba checkout
+    window.location.href = data.checkoutLink;
+
+  } catch (error: any) {
+    console.error("Subscription error:", error);
+    setError(error.message || "An error occurred. Please try again.");
+    setProcessingTier(null);
+  }
+};
 
   const isCurrentPlan = (tier: string) => {
     return subscription?.tier === tier && subscription?.status === "active";

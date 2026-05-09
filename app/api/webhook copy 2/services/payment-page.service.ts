@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { transporter } from "@/lib/node-mailer";
-import { sendTransactionReceiptWithPDF, sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf"; 
+import {
+  sendTransactionReceiptWithPDF,
+  sendPaymentPageReceiptWithPDF,
+} from "@/lib/generate-payment-receipts-pdf";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -30,6 +33,21 @@ interface BankTransferParams {
   tx: any;
 }
 
+interface InstallmentTracking {
+  id?: string;
+  payment_page_id: string;
+  customer_email: string;
+  customer_name: string;
+  total_amount: number;
+  installment_count: number;
+  paid_installments: number;
+  remaining_amount: number;
+  next_payment_due: Date;
+  status: "active" | "completed" | "defaulted";
+  installment_period: string;
+  installment_amount: number;
+}
+
 type ServiceResult =
   | {
       success: true;
@@ -39,6 +57,246 @@ type ServiceResult =
       payment_id?: string;
     }
   | { error: string; status?: number };
+
+// Helper function to calculate next due date
+function calculateNextDueDate(period: string): Date {
+  const now = new Date();
+  switch (period) {
+    case "weekly":
+      now.setDate(now.getDate() + 7);
+      break;
+    case "bi-weekly":
+      now.setDate(now.getDate() + 14);
+      break;
+    case "monthly":
+      now.setMonth(now.getMonth() + 1);
+      break;
+    default:
+      now.setMonth(now.getMonth() + 1);
+  }
+  return now;
+}
+
+// Function to handle installment tracking
+async function handleInstallmentTracking(
+  paymentRecord: any,
+  paymentPage: any,
+  nombaTransactionId: string,
+): Promise<void> {
+  try {
+    console.log("📦 Processing installment tracking...");
+
+    const isInstallment =
+      paymentPage?.price_type === "installment" ||
+      paymentRecord?.metadata?.isInstallment === true;
+
+    if (!isInstallment) {
+      console.log("Not an installment payment, skipping tracking");
+      return;
+    }
+
+    const totalAmount =
+      paymentPage?.price || paymentRecord?.metadata?.totalAmount;
+    const installmentCount =
+      paymentPage?.installment_count ||
+      paymentRecord?.metadata?.installmentCount;
+    const installmentPeriod =
+      paymentRecord?.metadata?.installmentPeriod || "monthly";
+    const installmentAmount = totalAmount / installmentCount;
+
+    // Get or create customer installment record
+    let { data: customerInstallment, error: installmentError } = await supabase
+      .from("payment_page_customer_installments")
+      .select("*")
+      .eq("payment_page_id", paymentRecord.payment_page_id)
+      .eq("customer_email", paymentRecord.customer_email)
+      .maybeSingle();
+
+    if (installmentError) {
+      console.error(
+        "❌ Error fetching customer installment:",
+        installmentError,
+      );
+    }
+
+    // If no existing record, this is the first installment
+    if (!customerInstallment) {
+      console.log("🆕 First installment payment - creating tracking record");
+
+      const nextDueDate = calculateNextDueDate(installmentPeriod);
+
+      const { data: newRecord, error: createError } = await supabase
+        .from("payment_page_customer_installments")
+        .insert({
+          payment_page_id: paymentRecord.payment_page_id,
+          customer_email: paymentRecord.customer_email,
+          customer_name: paymentRecord.customer_name,
+          total_amount: totalAmount,
+          installment_count: installmentCount,
+          paid_installments: 1,
+          remaining_amount: totalAmount - installmentAmount,
+          next_payment_due: nextDueDate.toISOString(),
+          status: installmentCount === 1 ? "completed" : "active",
+          installment_period: installmentPeriod,
+          installment_amount: installmentAmount,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("❌ Failed to create installment record:", createError);
+      } else {
+        console.log("✅ Installment tracking created:", newRecord?.id);
+      }
+    } else {
+      // Update existing record
+      const newPaidCount = customerInstallment.paid_installments + 1;
+      const newRemainingAmount =
+        customerInstallment.remaining_amount - installmentAmount;
+      const isCompleted = newPaidCount >= customerInstallment.installment_count;
+
+      const nextDueDate = isCompleted
+        ? null
+        : calculateNextDueDate(customerInstallment.installment_period);
+
+      const { error: updateError } = await supabase
+        .from("payment_page_customer_installments")
+        .update({
+          paid_installments: newPaidCount,
+          remaining_amount: newRemainingAmount,
+          next_payment_due: nextDueDate?.toISOString(),
+          status: isCompleted ? "completed" : "active",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", customerInstallment.id);
+
+      if (updateError) {
+        console.error("❌ Failed to update installment record:", updateError);
+      } else {
+        console.log(
+          `✅ Installment ${newPaidCount}/${customerInstallment.installment_count} completed`,
+        );
+
+        // Send installment reminder for next payment if not completed
+        if (!isCompleted && paymentRecord.customer_email) {
+          await sendInstallmentReminderEmail(
+            paymentRecord.customer_email,
+            paymentRecord.customer_name,
+            newPaidCount + 1,
+            customerInstallment.installment_count,
+            installmentAmount,
+            nextDueDate,
+          ).catch(console.error);
+        }
+      }
+    }
+
+    // Record individual installment payment
+    const installmentNumber = (customerInstallment?.paid_installments || 0) + 1;
+    const { error: recordError } = await supabase
+      .from("payment_page_installment_payments")
+      .insert({
+        payment_page_id: paymentRecord.payment_page_id,
+        customer_email: paymentRecord.customer_email,
+        installment_number: installmentNumber,
+        amount_paid: paymentRecord.amount,
+        fee: paymentRecord.fee,
+        net_amount: paymentRecord.net_amount,
+        transaction_id: nombaTransactionId,
+        payment_id: paymentRecord.id,
+        payment_date: new Date().toISOString(),
+        status: "completed",
+      });
+
+    if (recordError) {
+      console.error("❌ Failed to record installment payment:", recordError);
+    } else {
+      console.log(
+        "✅ Installment payment recorded for installment #" + installmentNumber,
+      );
+    }
+  } catch (error) {
+    console.error("❌ Error in installment tracking:", error);
+  }
+}
+
+// Helper function to get customer's installment history
+async function getCustomerInstallmentHistory(
+  paymentPageId: string,
+  customerEmail: string,
+): Promise<any> {
+  try {
+    const { data: installment, error: installmentError } = await supabase
+      .from("payment_page_customer_installments")
+      .select("*")
+      .eq("payment_page_id", paymentPageId)
+      .eq("customer_email", customerEmail)
+      .maybeSingle();
+
+    if (installmentError) {
+      console.error("Error fetching installment:", installmentError);
+      return null;
+    }
+
+    if (!installment) return null;
+
+    const { data: payments, error: paymentsError } = await supabase
+      .from("payment_page_installment_payments")
+      .select("*")
+      .eq("payment_page_id", paymentPageId)
+      .eq("customer_email", customerEmail)
+      .order("installment_number", { ascending: true });
+
+    if (paymentsError) {
+      console.error("Error fetching installment payments:", paymentsError);
+    }
+
+    return {
+      ...installment,
+      payments: payments || [],
+    };
+  } catch (error) {
+    console.error("Error getting installment history:", error);
+    return null;
+  }
+}
+
+// Email function for installment reminders
+async function sendInstallmentReminderEmail(
+  email: string,
+  customerName: string,
+  nextInstallmentNumber: number,
+  totalInstallments: number,
+  amount: number,
+  dueDate: Date | null,
+): Promise<void> {
+  try {
+    await transporter.sendMail({
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `💰 Installment Payment Reminder - Payment ${nextInstallmentNumber} of ${totalInstallments}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
+          <h3 style="color: #e1bf46;">💰 Installment Payment Reminder</h3>
+          <p>Hello ${customerName},</p>
+          <p>This is a reminder for your upcoming installment payment.</p>
+          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p><strong>Installment:</strong> ${nextInstallmentNumber} of ${totalInstallments}</p>
+            <p><strong>Amount Due:</strong> ₦${amount.toLocaleString()}</p>
+            ${dueDate ? `<p><strong>Due Date:</strong> ${dueDate.toLocaleDateString()}</p>` : ""}
+          </div>
+          <p>Please ensure your payment method has sufficient funds.</p>
+          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Failed to send installment reminder:", error);
+  }
+}
 
 async function sendPaymentPageNotificationEmail(
   creatorEmail: string,
@@ -88,6 +346,16 @@ async function sendPaymentPageNotificationEmail(
       `;
     }
 
+    if (metadata?.isInstallment || metadata?.installmentNumber) {
+      additionalInfo += `
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+          <p><strong>Installment Payment:</strong></p>
+          <p>Installment ${metadata.installmentNumber || 1} of ${metadata.totalInstallments || "?"}</p>
+          ${metadata.remainingAmount ? `<p>Remaining Balance: ₦${metadata.remainingAmount.toLocaleString()}</p>` : ""}
+        </div>
+      `;
+    }
+
     const paymentMethodText =
       actualPaymentMethod === "card" ? "Card Payment" : "Bank Transfer";
     const paymentMethodIcon = actualPaymentMethod === "card" ? "💳" : "🏦";
@@ -95,17 +363,17 @@ async function sendPaymentPageNotificationEmail(
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: creatorEmail,
-      subject: `💰 payment Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
+      subject: `💰 ${paymentMethodText} Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #22c55e;">✅ payment Received! ${paymentMethodIcon}</h3>
+          <h3 style="color: #22c55e;">✅ ${paymentMethodText} Received! ${paymentMethodIcon}</h3>
           <p>You've received a ${actualPaymentMethod === "card" ? "card" : "bank transfer"} payment for your payment page <strong>${pageTitle}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
             ${fee ? `<p><strong>Processing Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}
             <p><strong>Customer:</strong> ${customerName}</p>
-            <p><strong>Payment Method:</strong> payment</p>
+            <p><strong>Payment Method:</strong> ${paymentMethodText}</p>
             <p><strong>Status:</strong> <span style="color: #22c55e;">Completed</span></p>
           </div>
           ${additionalInfo}
@@ -119,17 +387,18 @@ async function sendPaymentPageNotificationEmail(
   }
 }
 
-// NEW FUNCTION: Update student paid status in payment page metadata
+// Function to update student paid status
 async function updateStudentPaidStatus(
   paymentPageId: string,
   childName: string,
   parentName: string,
-  amount: number
+  amount: number,
 ): Promise<void> {
   try {
-    console.log(`📝 Updating student paid status for: ${childName} (Parent: ${parentName})`);
-    
-    // Get current payment page data
+    console.log(
+      `📝 Updating student paid status for: ${childName} (Parent: ${parentName})`,
+    );
+
     const { data: paymentPage, error: fetchError } = await supabase
       .from("payment_pages")
       .select("metadata")
@@ -146,27 +415,31 @@ async function updateStudentPaidStatus(
       return;
     }
 
-    // Update the student's paid status
-    const updatedStudents = paymentPage.metadata.students.map((student: any) => {
-      const studentName = student.name || student.childName || student.studentName;
-      if (studentName?.toLowerCase().trim() === childName?.toLowerCase().trim()) {
-        console.log(`✅ Found matching student: ${studentName}`);
-        return {
-          ...student,
-          paid: true,
-          paidAt: new Date().toISOString(),
-          paidAmount: (student.paidAmount || 0) + amount,
-          parentName: parentName,
-          lastPaymentDate: new Date().toISOString()
-        };
-      }
-      return student;
-    });
+    const updatedStudents = paymentPage.metadata.students.map(
+      (student: any) => {
+        const studentName =
+          student.name || student.childName || student.studentName;
+        if (
+          studentName?.toLowerCase().trim() === childName?.toLowerCase().trim()
+        ) {
+          console.log(`✅ Found matching student: ${studentName}`);
+          return {
+            ...student,
+            paid: true,
+            paidAt: new Date().toISOString(),
+            paidAmount: (student.paidAmount || 0) + amount,
+            parentName: parentName,
+            lastPaymentDate: new Date().toISOString(),
+          };
+        }
+        return student;
+      },
+    );
 
-    // Check if any student was updated
     const wasUpdated = updatedStudents.some(
-      (student: any, index: number) => 
-        JSON.stringify(student) !== JSON.stringify(paymentPage.metadata.students[index])
+      (student: any, index: number) =>
+        JSON.stringify(student) !==
+        JSON.stringify(paymentPage.metadata.students[index]),
     );
 
     if (!wasUpdated) {
@@ -174,14 +447,13 @@ async function updateStudentPaidStatus(
       return;
     }
 
-    // Update the payment page metadata
     const { error: updateError } = await supabase
       .from("payment_pages")
       .update({
         metadata: {
           ...paymentPage.metadata,
-          students: updatedStudents
-        }
+          students: updatedStudents,
+        },
       })
       .eq("id", paymentPageId);
 
@@ -195,12 +467,10 @@ async function updateStudentPaidStatus(
   }
 }
 
-// Helper to extract payment page ID from order reference (card payments)
 function extractPaymentPageIdFromReference(
   orderReference: string,
 ): string | null {
   if (!orderReference) return null;
-
   console.log("📝 Extracting from orderReference:", orderReference);
 
   const ppPattern = /^PP-([a-f0-9]{12})-[a-z0-9]+-[a-z0-9]+$/i;
@@ -223,12 +493,10 @@ function extractPaymentPageIdFromReference(
   return null;
 }
 
-// Helper to extract payment page ID from virtual account reference (bank transfers)
 function extractPaymentPageIdFromVirtualAccount(
   aliasAccountReference: string,
 ): string | null {
   if (!aliasAccountReference) return null;
-
   console.log(
     "📝 Extracting from virtual account reference:",
     aliasAccountReference,
@@ -256,7 +524,7 @@ function extractPaymentPageIdFromVirtualAccount(
   return null;
 }
 
-// Process CARD payments (UPDATED with student paid status tracking)
+// Process CARD payments
 export async function processPaymentPagePayment(
   payload: any,
   params: PaymentPageParams,
@@ -268,103 +536,52 @@ export async function processPaymentPagePayment(
   console.log("🆔 Nomba Transaction ID:", nombaTransactionId);
 
   const metadata = payload.data?.order?.metadata || {};
-  console.log("📋 Metadata from order:", metadata);
-
   let paymentPageId = metadata.paymentPageId;
   let paymentId = metadata.paymentId;
 
-  console.log(
-    "📌 From metadata - paymentPageId:",
-    paymentPageId,
-    "paymentId:",
-    paymentId,
-  );
-
   if (!paymentPageId && orderReference) {
     const extractedId = extractPaymentPageIdFromReference(orderReference);
-    console.log("📌 Extracted ID from orderReference:", extractedId);
-
     if (extractedId) {
-      console.log(
-        "🔍 Searching for payment page with ID ending with:",
-        extractedId,
-      );
-
       const { data: allPages, error: searchError } = await supabase
         .from("payment_pages")
         .select("id, title, user_id");
 
-      if (searchError) {
-        console.error("❌ Error searching for payment pages:", searchError);
-      } else if (allPages) {
+      if (!searchError && allPages) {
         const foundPage = allPages.find((page) =>
           page.id.endsWith(extractedId),
         );
-
-        if (foundPage) {
-          paymentPageId = foundPage.id;
-          console.log("✅ Found payment page by ID suffix:", paymentPageId);
-          console.log("   Page title:", foundPage.title);
-        } else {
-          console.log(
-            "❌ No payment page found with ID ending with:",
-            extractedId,
-          );
-          console.log("📋 Available payment page IDs:");
-          allPages.slice(0, 5).forEach((page) => {
-            console.log(`   - ${page.id} (ends with: ${page.id.slice(-12)})`);
-          });
-        }
+        if (foundPage) paymentPageId = foundPage.id;
       }
     }
   }
 
   if (!paymentPageId) {
-    console.error("❌ Missing payment page ID");
     return { error: "Missing payment page identifier", status: 400 };
   }
 
-  console.log("🎯 Final payment page ID:", paymentPageId);
-
   const { data: paymentPageCheck, error: pageError } = await supabase
     .from("payment_pages")
-    .select("id, title, user_id")
+    .select("id, title, user_id, price_type, installment_count, price")
     .eq("id", paymentPageId)
     .maybeSingle();
 
-  if (pageError) {
-    console.error("❌ Error checking payment page:", pageError);
-    return { error: "Error checking payment page", status: 500 };
-  }
-
-  if (!paymentPageCheck) {
-    console.error("❌ Payment page not found with ID:", paymentPageId);
+  if (pageError || !paymentPageCheck) {
     return { error: "Payment page not found", status: 404 };
   }
-
-  console.log("✅ Found payment page:", paymentPageCheck.title);
 
   let paymentRecord = null;
 
   if (paymentId) {
-    console.log("🔍 Looking for payment by ID:", paymentId);
-    const { data: payment, error: paymentError } = await supabase
+    const { data: payment } = await supabase
       .from("payment_page_payments")
       .select("*")
       .eq("id", paymentId)
       .maybeSingle();
-
-    if (paymentError) {
-      console.error("❌ Error fetching payment by ID:", paymentError);
-    } else if (payment) {
-      console.log("✅ Found payment by ID:", payment.id);
-      paymentRecord = payment;
-    }
+    if (payment) paymentRecord = payment;
   }
 
   if (!paymentRecord) {
-    console.log("🔍 Looking for pending payment by page_id:", paymentPageId);
-    const { data: payment, error: paymentError } = await supabase
+    const { data: payment } = await supabase
       .from("payment_page_payments")
       .select("*")
       .eq("payment_page_id", paymentPageId)
@@ -372,67 +589,23 @@ export async function processPaymentPagePayment(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-
-    if (paymentError) {
-      console.error("❌ Error fetching payment by page_id:", paymentError);
-    } else if (payment) {
-      console.log("✅ Found pending payment by page_id:", payment.id);
-      paymentRecord = payment;
-    }
+    if (payment) paymentRecord = payment;
   }
 
   if (!paymentRecord) {
-    console.error("❌ Payment record not found for page:", paymentPageId);
-
-    const { data: allPayments, error: allError } = await supabase
-      .from("payment_page_payments")
-      .select("*")
-      .eq("payment_page_id", paymentPageId)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (allError) {
-      console.error("❌ Error fetching all payments:", allError);
-    } else if (allPayments && allPayments.length > 0) {
-      console.log(
-        `📊 Found ${allPayments.length} total payments for this page`,
-      );
-      allPayments.forEach((p, idx) => {
-        console.log(
-          `   ${idx + 1}. ID: ${p.id}, Status: ${p.status}, Amount: ${p.amount}`,
-        );
-      });
-    } else {
-      console.log("📊 No payments found for this page");
-    }
-
     return { error: "Payment record not found", status: 404 };
   }
 
-  console.log("✅ Found payment record:", {
-    id: paymentRecord.id,
-    amount: paymentRecord.amount,
-    customer: paymentRecord.customer_name,
-  });
-
-  // Check for duplicate
-  const { data: existingWebhook, error: duplicateError } = await supabase
+  const { data: existingWebhook } = await supabase
     .from("payment_page_payments")
     .select("nomba_transaction_id, id")
     .eq("nomba_transaction_id", nombaTransactionId)
     .maybeSingle();
 
-  if (duplicateError) {
-    console.error("❌ Error checking duplicate:", duplicateError);
-  }
-
   if (existingWebhook) {
-    console.log("⚠️ Duplicate payment detected, skipping");
     return { success: true, message: "Already processed" };
   }
 
-  // Update payment status
-  console.log("📝 Updating payment status to 'completed'");
   const { error: updateError } = await supabase
     .from("payment_page_payments")
     .update({
@@ -444,54 +617,47 @@ export async function processPaymentPagePayment(
     .eq("id", paymentRecord.id);
 
   if (updateError) {
-    console.error("❌ Failed to update payment record:", updateError);
     return { error: "Failed to update payment", status: 500 };
   }
 
-  // Credit the page balance
   const pageCreditAmount = paymentRecord.net_amount;
-  console.log(`💰 Crediting page balance: ₦${pageCreditAmount}`);
 
   const { data: newBalance, error: balanceError } = await supabase.rpc(
     "increment_page_balance",
-    {
-      p_page_id: paymentPageId,
-      p_amount: pageCreditAmount,
-    },
+    { p_page_id: paymentPageId, p_amount: pageCreditAmount },
   );
 
-  let finalBalance: number | null = null;
-  if (balanceError) {
-    console.error("❌ Failed to increment page balance:", balanceError);
-  } else {
-    finalBalance = typeof newBalance === "number" ? newBalance : null;
-    console.log(
-      `✅ Credited ₦${pageCreditAmount}. New balance: ₦${finalBalance}`,
-    );
-  }
+  const finalBalance =
+    !balanceError && typeof newBalance === "number" ? newBalance : null;
 
-  // Get payment page details
-  const { data: paymentPage, error: pageDetailsError } = await supabase
+  const { data: paymentPage } = await supabase
     .from("payment_pages")
-    .select("title, user_id, page_type, metadata")
+    .select(
+      "title, user_id, page_type, metadata, price_type, installment_count, price",
+    )
     .eq("id", paymentPageId)
     .single();
 
-  if (pageDetailsError) {
-    console.error("❌ Error fetching payment page details:", pageDetailsError);
-  }
+  // Handle installment tracking
+  await handleInstallmentTracking(
+    paymentRecord,
+    paymentPage,
+    nombaTransactionId,
+  );
 
-  // NEW: Update student paid status if this is a school payment
-  if (paymentPage?.page_type === "school" && paymentRecord.metadata?.childName) {
+  // Update student paid status
+  if (
+    paymentPage?.page_type === "school" &&
+    paymentRecord.metadata?.childName
+  ) {
     await updateStudentPaidStatus(
       paymentPageId,
       paymentRecord.metadata.childName,
       paymentRecord.metadata.parentName || paymentRecord.customer_name,
-      paymentRecord.amount
+      paymentRecord.amount,
     );
   }
 
-  // Create transaction record
   const { error: txError } = await supabase.from("transactions").insert({
     user_id: paymentRecord.user_id,
     type: "credit",
@@ -518,11 +684,6 @@ export async function processPaymentPagePayment(
     },
   });
 
-  if (txError) {
-    console.error("❌ Failed to create transaction record:", txError);
-  }
-
-  // Send email notifications with PDF attachments
   if (paymentRecord.customer_email) {
     await sendPaymentPageReceiptWithPDF(
       paymentRecord.customer_email,
@@ -533,7 +694,11 @@ export async function processPaymentPagePayment(
       nombaTransactionId,
       "card",
       new Date().toISOString(),
-      { ...paymentRecord.metadata, payment_method: "card", pageType: paymentPage?.page_type }
+      {
+        ...paymentRecord.metadata,
+        payment_method: "card",
+        pageType: paymentPage?.page_type,
+      },
     ).catch(console.error);
   }
 
@@ -555,8 +720,6 @@ export async function processPaymentPagePayment(
     ).catch(console.error);
   }
 
-  console.log("🎉 Card payment processing completed!");
-
   return {
     success: true,
     message: "Card payment processed",
@@ -565,7 +728,7 @@ export async function processPaymentPagePayment(
   };
 }
 
-// Process BANK TRANSFER payments (UPDATED with student paid status tracking)
+// Process BANK TRANSFER payments
 export async function processPaymentPageBankTransfer(
   payload: any,
   params: BankTransferParams,
@@ -580,45 +743,34 @@ export async function processPaymentPageBankTransfer(
   } = params;
 
   console.log("🏦 Processing Payment Page BANK TRANSFER...");
-  console.log("📦 Virtual Account Reference:", aliasAccountReference);
-  console.log("💰 Amount:", transactionAmount);
 
   const paymentPageId = extractPaymentPageIdFromVirtualAccount(
     aliasAccountReference,
   );
 
   if (!paymentPageId) {
-    console.error("❌ Could not extract payment page ID");
     return { error: "Invalid virtual account reference", status: 400 };
   }
 
-  console.log("🎯 Extracted payment page ID:", paymentPageId);
-
   const { data: paymentPage, error: pageError } = await supabase
     .from("payment_pages")
-    .select("id, title, user_id, balance, page_type, metadata")
+    .select(
+      "id, title, user_id, balance, page_type, metadata, price_type, installment_count, price",
+    )
     .eq("id", paymentPageId)
     .single();
 
   if (pageError || !paymentPage) {
-    console.error("❌ Payment page not found");
     return { error: "Payment page not found", status: 404 };
   }
 
-  console.log("✅ Found payment page:", paymentPage.title);
-
-  const { data: existingTransfer, error: duplicateError } = await supabase
+  const { data: existingTransfer } = await supabase
     .from("payment_page_payments")
     .select("id, status")
     .eq("nomba_transaction_id", nombaTransactionId)
     .maybeSingle();
 
-  if (duplicateError) {
-    console.error("❌ Error checking duplicate:", duplicateError);
-  }
-
   if (existingTransfer) {
-    console.log(`⚠️ Duplicate bank transfer detected`);
     return { success: true, message: "Already processed" };
   }
 
@@ -631,13 +783,10 @@ export async function processPaymentPageBankTransfer(
   const customerEmail = customer?.email || tx?.customerEmail || null;
   const customerPhone = customer?.phone || tx?.customerPhone || null;
 
-  console.log("📝 Creating payment record for bank transfer...");
-
   const orderReference = `BT-${paymentPageId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-
-  // Extract child name from metadata if available
   const childName = tx?.metadata?.childName || customer?.metadata?.childName;
-  const parentName = tx?.metadata?.parentName || customer?.metadata?.parentName || customerName;
+  const parentName =
+    tx?.metadata?.parentName || customer?.metadata?.parentName || customerName;
 
   const { data: paymentRecord, error: insertError } = await supabase
     .from("payment_page_payments")
@@ -670,39 +819,32 @@ export async function processPaymentPageBankTransfer(
     .single();
 
   if (insertError) {
-    console.error("❌ Failed to create payment record:", insertError);
     return { error: "Failed to create payment record", status: 500 };
   }
 
-  console.log("✅ Bank transfer payment record created:", paymentRecord.id);
+  // Handle installment tracking
+  await handleInstallmentTracking(
+    paymentRecord,
+    paymentPage,
+    nombaTransactionId,
+  );
 
-  // NEW: Update student paid status if this is a school payment
   if (paymentPage?.page_type === "school" && childName) {
     await updateStudentPaidStatus(
       paymentPageId,
       childName,
       parentName,
-      transactionAmount
+      transactionAmount,
     );
   }
 
-  console.log(`💰 Crediting page balance: ₦${netAmount}`);
-
   const { data: newBalance, error: balanceError } = await supabase.rpc(
     "increment_page_balance",
-    {
-      p_page_id: paymentPageId,
-      p_amount: netAmount,
-    },
+    { p_page_id: paymentPageId, p_amount: netAmount },
   );
 
-  let finalBalance: number | null = null;
-  if (balanceError) {
-    console.error("❌ Failed to increment page balance:", balanceError);
-  } else {
-    finalBalance = typeof newBalance === "number" ? newBalance : null;
-    console.log(`✅ Credited ₦${netAmount}. New balance: ₦${finalBalance}`);
-  }
+  const finalBalance =
+    !balanceError && typeof newBalance === "number" ? newBalance : null;
 
   const { error: txError } = await supabase.from("transactions").insert({
     user_id: paymentPage.user_id,
@@ -732,10 +874,6 @@ export async function processPaymentPageBankTransfer(
       payment_method: "bank_transfer",
     },
   });
-
-  if (txError) {
-    console.error("❌ Failed to create transaction record:", txError);
-  }
 
   const { data: creator } = await supabase
     .from("users")
@@ -776,11 +914,9 @@ export async function processPaymentPageBankTransfer(
         pageType: paymentPage.page_type,
         childName: childName,
         parentName: parentName,
-      }
+      },
     ).catch(console.error);
   }
-
-  console.log("🎉 Bank transfer processing completed!");
 
   return {
     success: true,
@@ -791,20 +927,13 @@ export async function processPaymentPageBankTransfer(
   };
 }
 
-// Check if this is a card payment
 export function checkIfPaymentPagePayment(
   orderReference: string,
   payload: any,
 ): boolean {
-  if (orderReference?.startsWith("PP-")) {
-    console.log("✅ Detected payment page card payment by PP- prefix");
+  if (orderReference?.startsWith("PP-")) return true;
+  if (orderReference?.startsWith("P") && !orderReference?.startsWith("PP-"))
     return true;
-  }
-
-  if (orderReference?.startsWith("P") && !orderReference?.startsWith("PP-")) {
-    console.log("⚠️ Detected legacy payment page card payment by P prefix");
-    return true;
-  }
 
   const metadata = payload.data?.order?.metadata || {};
   const isPaymentPage =
@@ -812,15 +941,9 @@ export function checkIfPaymentPagePayment(
     metadata.paymentPageId ||
     metadata.paymentId;
 
-  if (isPaymentPage && !metadata.invoiceId) {
-    console.log("✅ Detected payment page card payment by metadata");
-    return true;
-  }
-
-  return false;
+  return isPaymentPage && !metadata.invoiceId;
 }
 
-// Check if this is a bank transfer to a payment page
 export function checkIfPaymentPageBankTransfer(
   aliasAccountReference: string,
   payload: any,
@@ -830,23 +953,15 @@ export function checkIfPaymentPageBankTransfer(
   const hasPaymentPageId = extractPaymentPageIdFromVirtualAccount(
     aliasAccountReference,
   );
-
-  if (hasPaymentPageId) {
-    console.log(
-      "✅ Detected payment page bank transfer by virtual account reference",
-    );
-    return true;
-  }
+  if (hasPaymentPageId) return true;
 
   const metadata = payload.data?.order?.metadata || {};
   const isBankTransfer =
     metadata.type === "payment_page_bank_transfer" ||
     payload.data?.transaction?.paymentMethod === "bank_transfer";
 
-  if (isBankTransfer && metadata.paymentPageId && !metadata.invoiceId) {
-    console.log("✅ Detected payment page bank transfer by metadata");
-    return true;
-  }
-
-  return false;
+  return isBankTransfer && metadata.paymentPageId && !metadata.invoiceId;
 }
+
+// Export helper functions for external use
+export { getCustomerInstallmentHistory, handleInstallmentTracking };

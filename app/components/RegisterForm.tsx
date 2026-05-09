@@ -34,7 +34,8 @@ import { useRouter } from "next/navigation";
 
 // Validation schemas per step
 const step1Schema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100),
+  businessName: z.string().trim().optional(),
+  fullName: z.string().trim().min(1, "Full name is required").max(100),
   phone: z
     .string()
     .trim()
@@ -128,8 +129,9 @@ const RegisterForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Step 1
-  const [name, setName] = useState("");
+  // Step 1 - Updated: businessName first (optional), fullName second (required)
+  const [businessName, setBusinessName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
@@ -164,7 +166,7 @@ const RegisterForm = () => {
     setErrors({});
     try {
       if (step === 1) {
-        step1Schema.parse({ name, phone, email });
+        step1Schema.parse({ businessName, fullName, phone, email });
       } else if (step === 2) {
         step2Schema.parse({ password, confirmPassword });
       } else if (step === 3 && wantsBankAccount) {
@@ -238,7 +240,8 @@ const RegisterForm = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
+          fullName,  // Changed from 'name' to 'fullName'
+          businessName: businessName || undefined, // Send undefined if empty
           email,
           phone,
           password,
@@ -257,7 +260,8 @@ const RegisterForm = () => {
       setShowSuccess(true);
 
       // Reset form
-      setName("");
+      setBusinessName("");
+      setFullName("");
       setPhone("");
       setEmail("");
       setPassword("");
@@ -330,7 +334,7 @@ const RegisterForm = () => {
         </div>
       )}
 
-      {/* Step 1: Basic Info */}
+      {/* Step 1: Basic Info - Updated order */}
       {step === 1 && (
         <div className="space-y-5 animate-fade-in">
           <div>
@@ -344,25 +348,48 @@ const RegisterForm = () => {
           </div>
 
           <div className="space-y-4">
+            {/* Business Name - Optional, comes first */}
             <div>
               <Label
-                htmlFor="name"
+                htmlFor="businessName"
                 className="font-sans text-[var(--text-primary)]"
               >
-                Full Name
+                Business Name <span className="text-xs text-[var(--text-secondary)]">(Optional)</span>
               </Label>
               <Input
-                id="name"
-                placeholder="e.g. Adebayo Olaoluwa"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md ${errors.name ? "border-destructive" : ""}`}
+                id="businessName"
+                placeholder="e.g. Adebayo Enterprises Ltd"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md"
                 disabled={isLoading}
                 style={{ outline: "none", boxShadow: "none" }}
               />
-              {errors.name && (
+              <p className="text-xs text-[var(--text-secondary)] mt-1 font-sans">
+                Enter your business name to personalize your experience
+              </p>
+            </div>
+
+            {/* Full Name - Required, comes second */}
+            <div>
+              <Label
+                htmlFor="fullName"
+                className="font-sans text-[var(--text-primary)]"
+              >
+                Full Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="fullName"
+                placeholder="e.g. Adebayo Olaoluwa"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className={`border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md ${errors.fullName ? "border-destructive" : ""}`}
+                disabled={isLoading}
+                style={{ outline: "none", boxShadow: "none" }}
+              />
+              {errors.fullName && (
                 <p className="text-xs text-destructive mt-1 font-sans">
-                  {errors.name}
+                  {errors.fullName}
                 </p>
               )}
             </div>
