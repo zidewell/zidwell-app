@@ -1,4 +1,3 @@
-
 // app/api/webhook/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
@@ -12,26 +11,27 @@ import {
   processPaymentPageBankTransfer,
   checkIfPaymentPageBankTransfer,
 } from "./services/payment-page.service";
+import {
+  processSubscriptionPayment,
+  processSubscriptionBankTransfer,
+  checkIfSubscriptionPayment,
+  checkIfSubscriptionBankTransfer,
+} from "../webhook/services/subscription-service";
+
+// Define common response types
+type WebhookResponse = 
+  | { success: boolean; message?: string; subscription_id?: string; credited_amount?: number; new_balance?: number | null; payment_id?: string }
+  | { error: string; status?: number; gross_amount?: number; fee_deducted?: number; net_credit?: number };
 
 // Helper to check if this is a regular wallet deposit (user ID)
-async function isRegularWalletDeposit(
-  aliasAccountReference: string,
-): Promise<boolean> {
+async function isRegularWalletDeposit(aliasAccountReference: string): Promise<boolean> {
   if (!aliasAccountReference) return false;
+  if (aliasAccountReference.startsWith("VA-PP-")) return false;
+  if (aliasAccountReference.startsWith("VA-SUB-")) return false;
 
-  // Check if it's a payment page virtual account (VA-PP- prefix)
-  if (aliasAccountReference.startsWith("VA-PP-")) {
-    return false;
-  }
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(aliasAccountReference)) return false;
 
-  // Check if it matches a user ID (UUID format)
-  const uuidPattern =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidPattern.test(aliasAccountReference)) {
-    return false;
-  }
-
-  // Verify it's actually a user ID in the database
   const { createClient } = await import("@supabase/supabase-js");
   const supabase = createClient(
     process.env.SUPABASE_URL!,
@@ -45,6 +45,15 @@ async function isRegularWalletDeposit(
     .single();
 
   return !!user;
+}
+
+// Helper to handle error responses
+function handleErrorResponse(result: any): NextResponse {
+  if (result && "error" in result && result.error) {
+    const statusCode = result.status && typeof result.status === "number" ? result.status : 500;
+    return NextResponse.json({ error: result.error }, { status: statusCode });
+  }
+  return NextResponse.json(result);
 }
 
 export async function POST(req: NextRequest) {
@@ -64,8 +73,7 @@ export async function POST(req: NextRequest) {
 
     // Verify signature
     const timestamp = req.headers.get("nomba-timestamp");
-    const signature =
-      req.headers.get("nomba-sig-value") || req.headers.get("nomba-signature");
+    const signature = req.headers.get("nomba-sig-value") || req.headers.get("nomba-signature");
 
     if (!timestamp || !signature) {
       console.warn("Missing signature headers");
@@ -87,15 +95,10 @@ export async function POST(req: NextRequest) {
 
     const nombaTransactionId = tx.transactionId || tx.id || tx.reference;
     const orderReference = order.orderReference;
-    const aliasAccountReference =
-      tx.aliasAccountReference || tx.alias_account_reference;
-    const transactionAmount = safeNum(
-      tx.transactionAmount ?? tx.amount ?? order.amount ?? 0,
-    );
+    const aliasAccountReference = tx.aliasAccountReference || tx.alias_account_reference;
+    const transactionAmount = safeNum(tx.transactionAmount ?? tx.amount ?? order.amount ?? 0);
     const nombaFee = safeNum(tx.fee ?? payload.data?.transaction?.fee ?? 0);
-    const txStatus = (tx.status || payload.data?.status || "")
-      .toString()
-      .toLowerCase();
+    const txStatus = (tx.status || payload.data?.status || "").toString().toLowerCase();
     const transactionType = (tx.type || "").toLowerCase();
 
     console.log("Processing:", {
@@ -107,30 +110,24 @@ export async function POST(req: NextRequest) {
       orderReference,
     });
 
-    // SKIP SUBSCRIPTION PAYMENTS
-    const isSubscription = checkIfSubscription(orderReference, payload, tx);
-    if (isSubscription) {
-      console.log(
-        "📱 Subscription payment detected - skipping (handled by callback)",
-      );
-      return NextResponse.json({
-        success: true,
-        message: "Subscription payment handled by callback",
+    // ========== PRIORITY 1: SUBSCRIPTION BANK TRANSFERS ==========
+    const isSubscriptionBankTransfer = checkIfSubscriptionBankTransfer(aliasAccountReference, payload);
+    if (isSubscriptionBankTransfer && (eventType === "payment_success" || txStatus === "success")) {
+      console.log("🏦 Processing subscription bank transfer...");
+      const result = await processSubscriptionBankTransfer(payload, {
+        nombaTransactionId,
+        aliasAccountReference,
+        transactionAmount,
+        customer,
+        tx,
       });
+      return handleErrorResponse(result);
     }
 
-    // ========== PRIORITY 1: PAYMENT PAGE BANK TRANSFERS ==========
-    // Must start with "VA-PP-" prefix - these are virtual accounts created FOR payment pages
-    const isPaymentPageBankTransfer =
-      aliasAccountReference?.startsWith("VA-PP-");
-
-    if (
-      isPaymentPageBankTransfer &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log(
-        "🏦 Processing payment page bank transfer (VA-PP- pattern)...",
-      );
+    // ========== PRIORITY 2: PAYMENT PAGE BANK TRANSFERS ==========
+    const isPaymentPageBankTransfer = aliasAccountReference?.startsWith("VA-PP-");
+    if (isPaymentPageBankTransfer && (eventType === "payment_success" || txStatus === "success")) {
+      console.log("🏦 Processing payment page bank transfer...");
       const result = await processPaymentPageBankTransfer(payload, {
         nombaTransactionId,
         nombaFee,
@@ -139,35 +136,24 @@ export async function POST(req: NextRequest) {
         customer,
         tx,
       });
-
-      if ("error" in result) {
-        const errorResult = result as { error: string; status?: number };
-        const statusCode =
-          errorResult.status && typeof errorResult.status === "number"
-            ? errorResult.status
-            : 500;
-        return NextResponse.json(
-          { error: errorResult.error },
-          { status: statusCode },
-        );
-      }
-
-      return NextResponse.json(result);
+      return handleErrorResponse(result);
     }
 
-    // ========== PRIORITY 2: REGULAR WALLET DEPOSITS (USER ID) ==========
-    // Check if this is a regular wallet deposit where aliasAccountReference is a user ID
-    const isRegularDeposit = await isRegularWalletDeposit(
-      aliasAccountReference,
-    );
+    // ========== PRIORITY 3: SUBSCRIPTION CARD PAYMENTS ==========
+    const isSubscriptionCard = checkIfSubscriptionPayment(orderReference, payload);
+    if (isSubscriptionCard && (eventType === "payment_success" || txStatus === "success")) {
+      console.log("💳 Processing subscription card payment...");
+      const result = await processSubscriptionPayment(payload, {
+        nombaTransactionId,
+        orderReference,
+      });
+      return handleErrorResponse(result);
+    }
 
-    if (
-      isRegularDeposit &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log(
-        "💰 Processing regular wallet deposit via virtual account...",
-      );
+    // ========== PRIORITY 4: REGULAR WALLET DEPOSITS ==========
+    const isRegularDeposit = await isRegularWalletDeposit(aliasAccountReference);
+    if (isRegularDeposit && (eventType === "payment_success" || txStatus === "success")) {
+      console.log("💰 Processing regular wallet deposit via virtual account...");
       const result = await processVirtualAccountDeposit(payload, {
         aliasAccountReference,
         nombaTransactionId,
@@ -176,60 +162,24 @@ export async function POST(req: NextRequest) {
         customer,
         tx,
       });
-
-      if (result && "error" in result && result.error) {
-        const errorResult = result as { error: string; status?: number };
-        const statusCode =
-          errorResult.status && typeof errorResult.status === "number"
-            ? errorResult.status
-            : 500;
-        return NextResponse.json(
-          { error: errorResult.error },
-          { status: statusCode },
-        );
-      }
-
-      return NextResponse.json(result);
+      return handleErrorResponse(result);
     }
 
-    // ========== PRIORITY 3: PAYMENT PAGE CARD PAYMENTS ==========
-    const isPaymentPageCard = checkIfPaymentPagePayment(
-      orderReference,
-      payload,
-    );
-
-    if (
-      isPaymentPageCard &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
+    // ========== PRIORITY 5: PAYMENT PAGE CARD PAYMENTS ==========
+    const isPaymentPageCard = checkIfPaymentPagePayment(orderReference, payload);
+    if (isPaymentPageCard && (eventType === "payment_success" || txStatus === "success")) {
       console.log("💳 Processing payment page card payment...");
       const result = await processPaymentPagePayment(payload, {
         nombaTransactionId,
         nombaFee,
         orderReference,
       });
-
-      if ("error" in result) {
-        const errorResult = result as { error: string; status?: number };
-        const statusCode =
-          errorResult.status && typeof errorResult.status === "number"
-            ? errorResult.status
-            : 500;
-        return NextResponse.json(
-          { error: errorResult.error },
-          { status: statusCode },
-        );
-      }
-
-      return NextResponse.json(result);
+      return handleErrorResponse(result);
     }
 
-    // ========== PRIORITY 4: INVOICE PAYMENTS ==========
+    // ========== PRIORITY 6: INVOICE PAYMENTS ==========
     const isInvoicePayment = checkIfInvoicePayment(orderReference, payload);
-    if (
-      isInvoicePayment &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
+    if (isInvoicePayment && (eventType === "payment_success" || txStatus === "success")) {
       console.log("📄 Processing invoice payment...");
       const result = await processInvoicePayment(payload, {
         nombaTransactionId,
@@ -238,33 +188,20 @@ export async function POST(req: NextRequest) {
         orderReference,
         customer,
         tx,
-      });
-
+      }) as WebhookResponse;
+      
       if (result && "error" in result && result.error) {
-        if (result.error.includes("not found")) {
-          console.log("⚠️ Invoice not found, might be another payment type");
-        } else {
-          const errorResult = result as { error: string; status?: number };
-          const statusCode =
-            errorResult.status && typeof errorResult.status === "number"
-              ? errorResult.status
-              : 500;
-          return NextResponse.json(
-            { error: errorResult.error },
-            { status: statusCode },
-          );
+        if (!result.error.includes("not found")) {
+          const statusCode = result.status && typeof result.status === "number" ? result.status : 500;
+          return NextResponse.json({ error: result.error }, { status: statusCode });
         }
       } else if (result && "success" in result) {
         return NextResponse.json(result);
       }
     }
 
-    // ========== PRIORITY 5: FALLBACK VIRTUAL ACCOUNT DEPOSIT ==========
-    // If we have an aliasAccountReference and nothing else matched
-    if (
-      aliasAccountReference &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
+    // ========== PRIORITY 7: FALLBACK VIRTUAL ACCOUNT DEPOSIT ==========
+    if (aliasAccountReference && (eventType === "payment_success" || txStatus === "success")) {
       console.log("🏦 Processing fallback virtual account deposit...");
       const result = await processVirtualAccountDeposit(payload, {
         aliasAccountReference,
@@ -274,25 +211,11 @@ export async function POST(req: NextRequest) {
         customer,
         tx,
       });
-
-      if (result && "error" in result && result.error) {
-        const errorResult = result as { error: string; status?: number };
-        const statusCode =
-          errorResult.status && typeof errorResult.status === "number"
-            ? errorResult.status
-            : 500;
-        return NextResponse.json(
-          { error: errorResult.error },
-          { status: statusCode },
-        );
-      }
-
-      return NextResponse.json(result);
+      return handleErrorResponse(result);
     }
 
     // ========== WITHDRAWALS/TRANSFERS (PAYOUTS) ==========
-    const isPayout =
-      eventType?.toLowerCase().includes("payout") ||
+    const isPayout = eventType?.toLowerCase().includes("payout") ||
       transactionType.includes("transfer") ||
       transactionType.includes("payout");
 
@@ -304,29 +227,17 @@ export async function POST(req: NextRequest) {
         txStatus,
         tx,
       });
-
-      if (result && "error" in result && result.error) {
-        const errorResult = result as { error: string; status?: number };
-        const statusCode =
-          errorResult.status && typeof errorResult.status === "number"
-            ? errorResult.status
-            : 500;
-        return NextResponse.json(
-          { error: errorResult.error },
-          { status: statusCode },
-        );
-      }
-
-      return NextResponse.json(result);
+      return handleErrorResponse(result);
     }
 
     console.log("ℹ️ Unhandled event type:", eventType);
     return NextResponse.json({ message: "Event ignored" }, { status: 200 });
+
   } catch (error: any) {
     console.error("🔥 Webhook error:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -336,45 +247,17 @@ function safeNum(v: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function checkIfSubscription(
-  orderReference: string,
-  payload: any,
-  tx: any,
-): boolean {
-  return (
-    orderReference?.startsWith("SUB_") ||
-    orderReference?.includes("SUB-") ||
-    payload.data?.order?.metadata?.type === "subscription" ||
-    payload.data?.order?.metadata?.isSubscription === true ||
-    payload.data?.metadata?.subscription === true ||
-    tx.merchantTxRef?.includes("SUB-") ||
-    tx.narration?.includes("SUB-")
-  );
-}
-
 function checkIfInvoicePayment(orderReference: string, payload: any): boolean {
-  const hasInvoiceMetadata =
-    payload.data?.order?.metadata?.invoiceId ||
+  const hasInvoiceMetadata = payload.data?.order?.metadata?.invoiceId ||
     payload.data?.order?.metadata?.invoiceNumber ||
     payload.data?.order?.callbackUrl?.includes("/api/invoice-payment-callback");
 
-  const isInvoiceReference =
-    orderReference?.startsWith("INV-") ||
-    orderReference?.startsWith("INVOICE-");
+  const isInvoiceReference = orderReference?.startsWith("INV-") || orderReference?.startsWith("INVOICE-");
+  const isSubscriptionRef = orderReference?.startsWith("SUB_");
+  const isPaymentPageRef = orderReference?.startsWith("PP-") || orderReference?.startsWith("P");
 
-  const isPaymentPageRef =
-    orderReference?.startsWith("PP-") || orderReference?.startsWith("P");
+  const result = (hasInvoiceMetadata || isInvoiceReference) && !isSubscriptionRef && !isPaymentPageRef;
 
-  const result =
-    (hasInvoiceMetadata || isInvoiceReference) && !isPaymentPageRef;
-
-  if (result) {
-    console.log("📄 Detected invoice payment by:", {
-      hasInvoiceMetadata,
-      isInvoiceReference,
-      orderReference,
-    });
-  }
-
+  if (result) console.log("📄 Detected invoice payment by:", { hasInvoiceMetadata, isInvoiceReference, orderReference });
   return result;
 }
