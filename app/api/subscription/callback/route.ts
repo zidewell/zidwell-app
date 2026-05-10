@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { processSubscriptionPayment, getAutoLoginUrl } from "../../webhook copy 2/services/subscription-service"; 
+import { processSubscriptionPayment, getAutoLoginUrl } from "../../webhook/services/subscription-service"; 
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,

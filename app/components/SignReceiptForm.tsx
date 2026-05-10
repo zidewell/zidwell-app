@@ -37,6 +37,7 @@ interface Receipt {
   initiator_name: string;
   initiator_email: string;
   business_name: string;
+  business_logo: string;
   client_name: string;
   client_email: string;
   client_phone: string;
