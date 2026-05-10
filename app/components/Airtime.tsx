@@ -658,8 +658,8 @@ export default function AirtimePurchase() {
         <div className="lg:col-span-1">
           <Card className="sticky top-6 bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-(--text-primary)">
-                <CreditCard className="w-5 h-5 text-(--color-accent-yellow)" />
+              <CardTitle className="flex items-center gap-2 text-(--text-primary) text-base">
+                <CreditCard className="w-5 h-5 text-(--color-accent-yellow) " />
                 Purchase Summary
               </CardTitle>
             </CardHeader>
@@ -748,11 +748,6 @@ export default function AirtimePurchase() {
                   </div>
                 )}
               </Button>
-
-              <div className="text-center text-xs text-(--text-secondary) mt-4">
-                <p>🔒 Secure payment powered by Zidwell</p>
-                <p>Instant delivery • 24/7 support</p>
-              </div>
             </CardContent>
           </Card>
         </div>

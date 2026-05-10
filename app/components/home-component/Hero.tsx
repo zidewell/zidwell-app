@@ -1,4 +1,3 @@
-// components/Hero.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -51,7 +50,7 @@ const Hero = () => {
           />
         ))}
         {/* Dark overlay to ensure text readability */}
-        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0 bg-black/60" />
       </div>
 
       {/* Subtle grid overlay */}
@@ -67,29 +66,37 @@ const Hero = () => {
       <div className="mx-auto px-6 py-12 relative z-10">
         <div className="max-w-5xl">
           {/* Badge */}
-          <div className="animate-fade-up inline-flex items-center gap-2 px-4 py-2 bg-(--color-accent-yellow)/10 border-2 border-(--border-color)  squircle-md mb-8">
-            <span className="w-2 h-2 bg-(--color-accent-yellow) rounded-full animate-pulse" />
+          <div className="animate-fade-up inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 border-2 border-[var(--border-color)] rounded-xl mb-8">
+            <span className="w-2 h-2 bg-[var(--color-accent-yellow)] rounded-full animate-pulse" />
             <span className="text-sm font-semibold text-white">
-              The OneApp for Business Finance
+              Built for Heroes Who Make the Impossible Happen
             </span>
           </div>
 
           {/* Main Heading */}
           <h1 className="animate-fade-up-delay-1 text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-6 text-balance text-white">
-            Tax and Finance Management App for{" "}
+            For those who make the{" "}
             <span className="relative inline-block">
-              <span className="relative z-10 text-(--color-accent-yellow)">
-                SMEs
+              <span className="relative z-10 text-[var(--color-accent-yellow)]">
+                impossible
               </span>
-              <span className="absolute bottom-2 left-0 right-0 h-4 bg-(--color-accent-yellow)/40 z-0" />
-            </span>
+              <span className="absolute bottom-2 left-0 right-0 h-4 bg-[var(--color-accent-yellow)]/40 z-0 rounded-sm" />
+            </span>{" "}
+            seem normal.
           </h1>
 
           {/* Subheading */}
-          <p className="animate-fade-up-delay-2 text-lg md:text-xl text-gray-200 mb-8 text-balance">
-            Everything You Need to be Tax Ready All-in-One Place: Invoices,
-            Receipts, Income and Expense Reports, Bookkeeping, Tax Calculator,
-            Contracts and Payments, it's all here.
+          <p className="animate-fade-up-delay-2 text-lg md:text-xl text-gray-200 mb-6 text-balance">
+            Use Zidwell daily for Instant transfers, automatic bookkeeping,
+            payment pages, invoices, tax manager and much more.
+          </p>
+
+          {/* Main Text */}
+          <p className="animate-fade-up-delay-2 text-base md:text-lg text-gray-300 mb-8 text-balance max-w-3xl leading-relaxed">
+            Entrepreneurs are the heroes of our society. We built Zidwell so
+            heroes can handle their entire financial operations on one platform.
+            You already run a business in a tough environment, why add to your
+            stress by using 5 finance apps when you can use just one - Zidwell.
           </p>
 
           {/* CTA Buttons */}
@@ -97,7 +104,7 @@ const Hero = () => {
             {user ? (
               <Button
                 onClick={() => router.push("/dashboard")}
-                className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 px-8 py-6 text-lg font-semibold squircle-md transition-all hover:-translate-y-0.5 hover:shadow-pop"
+                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 px-8 py-6 text-lg font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
               >
                 Go to Dashboard
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -106,7 +113,7 @@ const Hero = () => {
               <>
                 <Button
                   onClick={() => router.push("/auth/signup")}
-                  className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 px-8 py-6 text-lg font-semibold squircle-md transition-all hover:-translate-y-0.5 hover:shadow-pop"
+                  className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 px-8 py-6 text-lg font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
                 >
                   Get Started Free
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -114,7 +121,7 @@ const Hero = () => {
                 <Button
                   variant="outline"
                   onClick={() => router.push("/auth/login")}
-                  className="border-2 bg-transparent border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow) hover:text-(--color-ink) px-8 py-6 text-lg font-semibold squcircle-md transition-all hover:-translate-y-0.5 hover:shadow-pop"
+                  className="border-2 bg-transparent border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)] px-8 py-6 text-lg font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
                 >
                   <Users className="mr-2 h-5 w-5" />
                   Join our Community
@@ -126,16 +133,20 @@ const Hero = () => {
           {/* Trust Indicators */}
           <div className="animate-fade-up-delay-3 flex flex-wrap items-center gap-6 text-sm text-gray-200">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-(--color-lemon-green) rounded-full" />
+              <div className="w-2 h-2 bg-[var(--color-lemon-green)] rounded-full" />
               <span>No hidden fees</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-(--color-lemon-green) rounded-full" />
+              <div className="w-2 h-2 bg-[var(--color-lemon-green)] rounded-full" />
               <span>Start for free</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-(--color-lemon-green) rounded-full" />
+              <div className="w-2 h-2 bg-[var(--color-lemon-green)] rounded-full" />
               <span>Cancel anytime</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-[var(--color-accent-yellow)] rounded-full" />
+              <span>Trusted by 10,000+ businesses</span>
             </div>
           </div>
         </div>

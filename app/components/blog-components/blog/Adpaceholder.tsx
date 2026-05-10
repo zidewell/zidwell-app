@@ -17,12 +17,12 @@ const AdPlaceholder = ({ variant = "horizontal" }: AdPlaceholderProps) => {
 
   return (
     <div
-      className={`bg-[var(--bg-secondary)]/50 rounded border border-dashed border-(--border-color) flex flex-col items-center justify-center ${getStyles()}`}
+      className={`bg-(--bg-secondary)/50 rounded border border-dashed border-(--border-color) flex flex-col items-center justify-center ${getStyles()}`}
     >
-      <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">
+      <p className="text-xs text-(--text-secondary) uppercase tracking-wider">
         Advertisement
       </p>
-      <p className="text-xs text-[var(--text-secondary)] mt-1">
+      <p className="text-xs text-(--text-secondary) mt-1">
         Google Ads Placement
       </p>
     </div>

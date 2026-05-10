@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/app/components/ui/dialog";
-import { TransferCheckout } from "@/app/components/invoice/TransferCheckout";
+import { TransferCheckout } from "@/app/components/Invoice-components/TransferCheckout";
 import { useToast } from "@/app/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
 

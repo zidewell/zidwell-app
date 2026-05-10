@@ -1,9 +1,9 @@
-// app/components/SignaturePad.tsx
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "./ui/button";
 import { Eraser, Upload, X, Download } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 interface SignaturePadProps {
   value: string;
@@ -29,12 +29,28 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [isLoadingSignature, setIsLoadingSignature] = useState(false);
+  const pathname = usePathname();
+  const initializationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check if we're on a public route (sign-receipt or sign-contract)
+  const isPublicRoute = pathname?.includes("/sign-receipt/") || pathname?.includes("/sign-contract/");
+  
   // Resolve CSS variable to actual color value
   const penColor = "#FDC020"; // Zidwell accent yellow
 
   // Ensure component is mounted to avoid hydration issues
   useEffect(() => {
     setIsMounted(true);
+    return () => {
+      // Cleanup on unmount
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+      }
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Save signature to parent component whenever it changes
@@ -66,20 +82,15 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     };
   }, []);
 
-  // Initialize signature pad
+  // Initialize signature pad - only once
   const initializeSignaturePad = useCallback(async () => {
-    if (!canvasRef.current || !isMounted || mode !== "draw" || disabled) {
+    // Prevent re-initialization if already initialized or not in draw mode
+    if (!canvasRef.current || !isMounted || mode !== "draw" || disabled || padRef.current) {
       return;
     }
 
     try {
       const SignaturePadLib = await import("signature_pad");
-
-      // Clear existing pad if it exists
-      if (padRef.current) {
-        padRef.current.off();
-        padRef.current.clear();
-      }
 
       // Get canvas dimensions
       const dimensions = getCanvasDimensions();
@@ -124,14 +135,13 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
 
       // Load existing signature if available
       if (value && mode === "draw") {
-        // Use setTimeout to ensure canvas is fully initialized
         setTimeout(() => {
           if (padRef.current && canvasRef.current) {
             padRef.current.fromDataURL(value, {
               width: canvas.width / dpr,
               height: canvas.height / dpr,
               callback: () => {
-                padRef.current._render();
+                // Remove _render() call - not needed
                 saveSignature();
               },
             });
@@ -169,10 +179,16 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     }
   };
 
-  // Initialize on mount and when dependencies change
+  // Initialize on mount and when dependencies change - but only once
   useEffect(() => {
-    if (isMounted && mode === "draw" && !disabled && canvasRef.current) {
-      initializeSignaturePad();
+    if (isMounted && mode === "draw" && !disabled && canvasRef.current && !padRef.current) {
+      // Clear any pending initialization
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+      }
+      initializationTimeoutRef.current = setTimeout(() => {
+        initializeSignaturePad();
+      }, 100);
     }
 
     return () => {
@@ -184,15 +200,32 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     };
   }, [isMounted, mode, disabled, initializeSignaturePad, onChange]);
 
-  // Handle window resize
+  // Watch for value changes from parent (like after loading saved signature)
   useEffect(() => {
-    if (!isMounted || mode !== "draw" || disabled) return;
+    if (mode === "draw" && padRef.current && value && isInitialized) {
+      const dpr = window.devicePixelRatio || 1;
+      const canvas = canvasRef.current;
+      if (canvas) {
+        padRef.current.fromDataURL(value, {
+          width: canvas.width / dpr,
+          height: canvas.height / dpr,
+          callback: () => {
+            // Signature loaded successfully
+          },
+        });
+      }
+    }
+  }, [value, mode, isInitialized]);
 
-    let resizeTimeout: NodeJS.Timeout;
+  // Handle window resize - debounced
+  useEffect(() => {
+    if (!isMounted || mode !== "draw" || disabled || !isInitialized) return;
 
     const handleResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      resizeTimeoutRef.current = setTimeout(() => {
         if (padRef.current && canvasRef.current && isInitialized) {
           const canvas = canvasRef.current;
           const newDimensions = getCanvasDimensions();
@@ -224,35 +257,40 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
             }
 
             // Reinitialize the signature pad with new canvas
-            const SignaturePadLib = require("signature_pad");
-            padRef.current = new SignaturePadLib.default(canvas, {
-              backgroundColor: "rgba(255, 255, 255, 0)",
-              penColor: penColor,
-              minWidth: 1.5,
-              maxWidth: 2.5,
-              throttle: 16,
-              velocityFilterWeight: 0.7,
-              minDistance: 2,
+            import("signature_pad").then((SignaturePadLib) => {
+              // Remove old event listeners
+              if (padRef.current) {
+                padRef.current.off();
+              }
+              
+              padRef.current = new SignaturePadLib.default(canvas, {
+                backgroundColor: "rgba(255, 255, 255, 0)",
+                penColor: penColor,
+                minWidth: 1.5,
+                maxWidth: 2.5,
+                throttle: 16,
+                velocityFilterWeight: 0.7,
+                minDistance: 2,
+              });
+
+              // Set up event listeners again
+              padRef.current.addEventListener("beginStroke", () => {
+                setIsDrawing(true);
+              });
+
+              padRef.current.addEventListener("endStroke", () => {
+                setIsDrawing(false);
+                debouncedSave();
+              });
+
+              // Restore previous drawing
+              if (!isEmpty && data && data.length > 0) {
+                padRef.current.fromData(data);
+              }
+
+              setCanvasSize(newDimensions);
+              saveSignature();
             });
-
-            // Set up event listeners again
-            padRef.current.addEventListener("beginStroke", () => {
-              setIsDrawing(true);
-            });
-
-            padRef.current.addEventListener("endStroke", () => {
-              setIsDrawing(false);
-              debouncedSave();
-            });
-
-            // Restore previous drawing
-            if (!isEmpty && data && data.length > 0) {
-              padRef.current.fromData(data);
-              padRef.current._render();
-            }
-
-            setCanvasSize(newDimensions);
-            saveSignature();
           }
         }
       }, 200);
@@ -260,7 +298,9 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
 
     window.addEventListener("resize", handleResize);
     return () => {
-      clearTimeout(resizeTimeout);
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
       window.removeEventListener("resize", handleResize);
     };
   }, [
@@ -325,10 +365,6 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
       onChange(dataUrl);
     }
     setMode("draw");
-    // Force re-initialization after a brief delay
-    setTimeout(() => {
-      setIsInitialized(false);
-    }, 50);
   }, [onChange]);
 
   // Switch to upload mode
@@ -349,26 +385,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     }
   }, [isDrawing, debouncedSave]);
 
-  // Re-initialize when component becomes visible again or when value changes
-  useEffect(() => {
-    if (isMounted && mode === "draw" && !disabled && canvasRef.current) {
-      const checkAndInitialize = () => {
-        if (!isInitialized || padRef.current === null) {
-          initializeSignaturePad();
-        }
-      };
-
-      // Check immediately
-      checkAndInitialize();
-
-      // Also check after a delay to ensure DOM is ready
-      const timeoutId = setTimeout(checkAndInitialize, 100);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isMounted, mode, disabled, isInitialized, initializeSignaturePad, value]);
-
-  // Handle component visibility changes
+  // Handle component visibility changes - FIXED: removed _render() call
   useEffect(() => {
     if (!isMounted || mode !== "draw" || disabled) return;
 
@@ -378,10 +395,8 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
         canvasRef.current &&
         padRef.current
       ) {
-        // Re-initialize when tab becomes visible again
-        setTimeout(() => {
-          initializeSignaturePad();
-        }, 100);
+        // Force a repaint by triggering a resize event instead of using _render()
+        window.dispatchEvent(new Event('resize'));
       }
     };
 
@@ -389,15 +404,15 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isMounted, mode, disabled, initializeSignaturePad]);
+  }, [isMounted, mode, disabled]);
 
   if (disabled && value) {
     return (
       <div className="space-y-2">
-        <label className="text-sm font-medium text-(--text-primary)">
+        <label className="text-sm font-medium text-[var(--text-primary)]">
           {label}
         </label>
-        <div className="h-48 rounded-lg border-2 border-(--border-color) bg-(--bg-primary) p-4">
+        <div className="h-48 rounded-lg border-2 border-[var(--border-color)] bg-[var(--bg-primary)] p-4 squircle-md">
           <img
             src={value}
             alt="Signature"
@@ -413,7 +428,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-(--text-primary)">
+          <label className="text-sm font-medium text-[var(--text-primary)]">
             {label}
           </label>
           <div className="flex gap-2">
@@ -422,7 +437,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               variant="ghost"
               size="sm"
               disabled
-              className="border-(--border-color) text-(--text-secondary)"
+              className="border-[var(--border-color)] text-[var(--text-secondary)]"
             >
               Draw
             </Button>
@@ -431,13 +446,13 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               variant="ghost"
               size="sm"
               disabled
-              className="border-(--border-color) text-(--text-secondary)"
+              className="border-[var(--border-color)] text-[var(--text-secondary)]"
             >
               <Upload className="h-4 w-4" />
             </Button>
           </div>
         </div>
-        <div className="h-48 rounded-lg border border-(--border-color) bg-(--bg-secondary) animate-pulse" />
+        <div className="h-48 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] animate-pulse squircle-md" />
       </div>
     );
   }
@@ -445,19 +460,19 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-(--text-primary)">
+        <label className="text-sm font-medium text-[var(--text-primary)]">
           {label}
         </label>
         <div className="flex gap-2">
-          {/* Load Signature Button */}
-          {onLoadSaved && (
+          {/* Load Signature Button - Only show on non-public routes */}
+          {!isPublicRoute && onLoadSaved && (
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleLoadSavedSignature}
               disabled={disabled || isLoadingSignature}
-              className="text-xs border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
+              className="text-xs border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 squircle-sm"
             >
               <Download className="h-3 w-3 mr-1" />
               {isLoadingSignature ? "Loading..." : "Load"}
@@ -471,8 +486,8 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
             disabled={disabled}
             className={
               mode === "draw"
-                ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-                : "border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
+                ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-sm"
+                : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-sm"
             }
           >
             Draw
@@ -485,8 +500,8 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
             disabled={disabled}
             className={
               mode === "upload"
-                ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-                : "border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
+                ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-sm"
+                : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-sm"
             }
           >
             <Upload className="h-4 w-4" />
@@ -498,12 +513,12 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
         <div className="relative h-48">
           <canvas
             ref={canvasRef}
-            className="w-full h-full rounded-lg border border-(--border-color) bg-(--bg-primary) cursor-crosshair touch-none"
+            className="w-full h-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] cursor-crosshair touch-none squircle-md"
             onMouseLeave={handleCanvasMouseLeave}
             onTouchEnd={handleCanvasMouseLeave}
           />
           {(!value || (padRef.current && padRef.current.isEmpty())) && (
-            <p className="absolute inset-0 flex items-center justify-center text-sm text-(--text-secondary) pointer-events-none">
+            <p className="absolute inset-0 flex items-center justify-center text-sm text-[var(--text-secondary)] pointer-events-none">
               Draw your signature here
             </p>
           )}
@@ -513,7 +528,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               variant="ghost"
               size="icon"
               onClick={handleClear}
-              className="absolute top-2 right-2 h-8 w-8 bg-(--bg-primary)/80 hover:bg-(--bg-primary) border border-(--border-color)"
+              className="absolute top-2 right-2 h-8 w-8 bg-[var(--bg-primary)]/80 hover:bg-[var(--bg-primary)] border border-[var(--border-color)] squircle-sm"
               disabled={disabled}
             >
               <Eraser className="h-4 w-4" />
@@ -529,14 +544,14 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               id="signature-upload"
               accept="image/*"
               onChange={handleUpload}
-              className="block w-full text-sm text-(--text-secondary)
+              className="block w-full text-sm text-[var(--text-secondary)]
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-lg file:border-0
                 file:text-sm file:font-medium
-                file:bg-(--color-accent-yellow) file:text-(--color-ink)
-                hover:file:bg-(--color-accent-yellow)/90
+                file:bg-[var(--color-accent-yellow)] file:text-[var(--color-ink)]
+                hover:file:bg-[var(--color-accent-yellow)]/90
                 disabled:opacity-50 disabled:cursor-not-allowed
-                focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
               style={{ outline: "none", boxShadow: "none" }}
               disabled={disabled}
             />
@@ -546,7 +561,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
                 variant="ghost"
                 size="icon"
                 onClick={handleClear}
-                className="absolute -right-2 -top-2 h-6 w-6 bg-(--bg-primary) hover:bg-(--bg-primary) border border-(--border-color) rounded-full"
+                className="absolute -right-2 -top-2 h-6 w-6 bg-[var(--bg-primary)] hover:bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-full"
                 disabled={disabled}
               >
                 <X className="h-3 w-3" />
@@ -555,7 +570,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
           </div>
 
           {value ? (
-            <div className="h-48 rounded-lg border-2 border-(--border-color) bg-(--bg-primary) p-4">
+            <div className="h-48 rounded-lg border-2 border-[var(--border-color)] bg-[var(--bg-primary)] p-4 squircle-md">
               <img
                 src={value}
                 alt="Uploaded signature"
@@ -563,12 +578,12 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
               />
             </div>
           ) : (
-            <div className="h-48 rounded-lg border-2 border-dashed border-(--border-color) bg-(--bg-secondary) flex flex-col items-center justify-center">
-              <Upload className="h-10 w-10 text-(--text-secondary) mb-2" />
-              <p className="text-sm text-(--text-secondary)">
+            <div className="h-48 rounded-lg border-2 border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col items-center justify-center squircle-lg">
+              <Upload className="h-10 w-10 text-[var(--text-secondary)] mb-2" />
+              <p className="text-sm text-[var(--text-secondary)]">
                 Upload a signature image
               </p>
-              <p className="text-xs text-(--text-secondary) mt-1">
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
                 PNG, JPG, GIF • Max 2MB
               </p>
             </div>

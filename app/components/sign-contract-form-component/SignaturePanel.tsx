@@ -555,7 +555,7 @@ export const SignaturePanel = ({
                   <Label
                     htmlFor="verificationCode"
                     className="text-sm sm:text-base text-(--text-primary)"
-                  >bg-(--bg-primary)
+                  >
                     Email Verification Code *
                   </Label>
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -661,7 +661,7 @@ export const SignaturePanel = ({
                       acknowledge that you have read, understood, and agree to
                       all terms of this contract.
                     </p>
-                  </div>bg-(--bg-primary)
+                  </div>
                 </div>
               </div>
 
@@ -684,7 +684,7 @@ export const SignaturePanel = ({
                   />
                 </div>
 
-                {/* Use SignaturePad component with mobile optimizations */}
+              
                 <div className="space-y-3">
                   <div className="relative">
                     <SignaturePad
@@ -853,7 +853,7 @@ export const SignaturePanel = ({
                     className="flex-1 h-12 sm:h-10 bg-red-600 hover:bg-red-700"
                     onClick={handleConfirmSign}
                     disabled={isSigning}
-                  >bg-(--bg-primary)
+                  >
                     {isSigning ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />

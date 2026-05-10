@@ -50,7 +50,7 @@ const SignContractToggle: React.FC<SignContractToggleProps> = ({
           </Label>
           <p className="text-xs text-(--text-secondary)">
             By checking this, you acknowledge and accept the contract terms
-          </p>bg-(--color-accent-yellow)
+          </p>
         </div>
         <Switch
           id="terms-consent"

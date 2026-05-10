@@ -3,8 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import RichTextArea from "./RichTextArea";
-import SignContractFileUpload from "./SignContractFileUpload";
-import SignContractInput from "./SignContractInput";
+
 import SignContractToggle from "./SignContractToggle";
 import PreviewTab from "./PreviewTab";
 import { ContractSuccessModal } from "./ContractSuccessModal";
@@ -1477,46 +1476,7 @@ const FormBody: React.FC = () => {
             </div>
           )}
 
-          {/* Usage Warning - Only for Free Tier */}
-          {isFree &&
-            !hasUnlimitedContracts &&
-            contractCount >= contractLimit - 1 && (
-              <div
-                className={`mb-6 p-4 rounded-lg border ${
-                  contractCount >= contractLimit
-                    ? "bg-red-50 border-red-200"
-                    : "bg-(--color-accent-yellow)/5 border-(--color-accent-yellow)/20"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <AlertCircle
-                    className={`w-5 h-5 mt-0.5 ${
-                      contractCount >= contractLimit
-                        ? "text-red-500"
-                        : "text-(--color-accent-yellow)"
-                    }`}
-                  />
-                  <div className="flex-1">
-                    <p
-                      className={`font-medium ${
-                        contractCount >= contractLimit
-                          ? "text-red-700"
-                          : "text-(--color-accent-yellow)"
-                      }`}
-                    >
-                      {contractCount >= contractLimit
-                        ? "Free contract limit reached"
-                        : `Only ${contractLimit - contractCount} contract${contractLimit - contractCount !== 1 ? "s" : ""} remaining`}
-                    </p>
-                    <p className="text-sm text-(--text-secondary) mt-1">
-                      {contractCount >= contractLimit
-                        ? "You've reached your free contract limit. Upgrade to continue creating contracts."
-                        : `You have ${contractLimit - contractCount} free ${contractLimit - contractCount === 1 ? "contract" : "contracts"} left.`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+        
 
           {/* Premium Banner */}
           {(isPremiumUser || isGrowthUser) && (

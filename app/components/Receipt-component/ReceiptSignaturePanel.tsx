@@ -66,9 +66,7 @@ export const ReceiptSignaturePanel = ({
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [sendCooldown, setSendCooldown] = useState(0);
-  const [signatureMode, setSignatureMode] = useState<"draw" | "upload">("draw");
-  const [storedVerificationCode, setStoredVerificationCode] =
-    useState<string>("");
+  const [storedVerificationCode, setStoredVerificationCode] = useState<string>("");
 
   const triggerConfetti = () => {
     confetti({
@@ -160,10 +158,6 @@ export const ReceiptSignaturePanel = ({
 
   const handleSignatureChange = (dataUrl: string) => {
     setSignatureData(dataUrl);
-  };
-
-  const handleClearSignature = () => {
-    setSignatureData(null);
   };
 
   const handleVerification = async () => {
@@ -378,40 +372,90 @@ export const ReceiptSignaturePanel = ({
     });
   };
 
+  // Load saved signature from database
+  const loadSavedSignature = async () => {
+    try {
+      const res = await fetch(`/api/saved-signature?userId=${receiptId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success && data.signature) {
+        setSignatureData(data.signature);
+        showSuccessAlert("Signature Loaded", "Your saved signature has been loaded.");
+      } else {
+        showErrorAlert("No Saved Signature", "No saved signature found. Please draw your signature.");
+      }
+    } catch (error) {
+      console.error("Error loading signature:", error);
+      showErrorAlert("Error", "Failed to load saved signature.");
+    }
+  };
+
+  // Save signature for future use
+  const saveSignatureForFuture = async () => {
+    if (!signatureData) return;
+
+    try {
+      const res = await fetch("/api/receipt/saved-signature", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: receiptId,
+          signature: signatureData,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showSuccessAlert("Signature Saved", "Your signature has been saved for future use.");
+      }
+    } catch (error) {
+      console.error("Error saving signature:", error);
+    }
+  };
+
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-(--bg-primary) border border-(--border-color) shadow-pop squircle-lg">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-(--text-primary)">
-            <Shield className="h-5 w-5 text-(--color-accent-yellow)" />
+          <DialogTitle className="flex items-center gap-2 text-[var(--text-primary)]">
+            <Shield className="h-5 w-5 text-[var(--color-accent-yellow)]" />
             Secure Receipt Signature Panel
           </DialogTitle>
-          <DialogDescription className="text-(--text-secondary)">
+          <DialogDescription className="text-[var(--text-secondary)]">
             Sign and acknowledge receipt of items/services
           </DialogDescription>
         </DialogHeader>
 
         {/* Receipt Summary */}
-        <div className="bg-linear-to-r from-(--color-accent-yellow)/10 to-(--color-accent-yellow)/5 rounded-lg p-4 mb-4 squircle-md border border-(--border-color)">
+        <div className="bg-gradient-to-r from-[var(--color-accent-yellow)]/10 to-[var(--color-accent-yellow)]/5 rounded-lg p-4 mb-4 squircle-md border border-[var(--border-color)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-(--color-accent-yellow)/20 rounded-lg flex items-center justify-center">
-                <Receipt className="h-5 w-5 text-(--color-accent-yellow)" />
+              <div className="w-10 h-10 bg-[var(--color-accent-yellow)]/20 rounded-lg flex items-center justify-center">
+                <Receipt className="h-5 w-5 text-[var(--color-accent-yellow)]" />
               </div>
               <div>
-                <h3 className="font-semibold text-(--text-primary)">
+                <h3 className="font-semibold text-[var(--text-primary)]">
                   {receiptTitle}
                 </h3>
-                <p className="text-sm text-(--text-secondary)">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {businessName} → {clientName}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-(--color-accent-yellow)">
+              <p className="text-lg font-bold text-[var(--color-accent-yellow)]">
                 {formatCurrency(totalAmount)}
               </p>
-              <p className="text-sm text-(--text-secondary)">
+              <p className="text-sm text-[var(--text-secondary)]">
                 {formatDate(issueDate)}
               </p>
             </div>
@@ -438,10 +482,7 @@ export const ReceiptSignaturePanel = ({
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label
-                  htmlFor="verificationCode"
-                  className="text-(--text-secondary)"
-                >
+                <Label htmlFor="verificationCode" className="text-[var(--text-secondary)]">
                   Email Verification Code *
                 </Label>
                 <div className="flex gap-2">
@@ -455,14 +496,14 @@ export const ReceiptSignaturePanel = ({
                     }
                     placeholder="Enter 6-digit code"
                     maxLength={6}
-                    className="text-center text-lg tracking-widest border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                    className="text-center text-lg tracking-widest border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handleSendVerificationCode}
-                    className="whitespace-nowrap min-w-[120px] border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) squircle-md"
+                    className="whitespace-nowrap min-w-[120px] border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                     disabled={isSendingCode || sendCooldown > 0}
                   >
                     {isSendingCode ? (
@@ -482,7 +523,7 @@ export const ReceiptSignaturePanel = ({
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-(--text-secondary)">
+                <p className="text-xs text-[var(--text-secondary)]">
                   {codeSent
                     ? `A 6-digit verification code has been sent to ${signeeEmail}`
                     : `Enter the verification code sent to ${signeeEmail}`}
@@ -493,20 +534,16 @@ export const ReceiptSignaturePanel = ({
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) squircle-md"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                   onClick={onCancel}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="button"
-                  className="flex-1 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
+                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
                   onClick={handleVerification}
-                  disabled={
-                    !verificationCode ||
-                    verificationCode.length !== 6 ||
-                    isVerifying
-                  }
+                  disabled={!verificationCode || verificationCode.length !== 6 || isVerifying}
                 >
                   {isVerifying ? (
                     <span className="flex items-center gap-2">
@@ -542,7 +579,7 @@ export const ReceiptSignaturePanel = ({
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="typedName" className="text-(--text-secondary)">
+                <Label htmlFor="typedName" className="text-[var(--text-secondary)]">
                   Your Full Name *
                 </Label>
                 <Input
@@ -550,109 +587,51 @@ export const ReceiptSignaturePanel = ({
                   value={typedName}
                   onChange={(e) => setTypedName(e.target.value)}
                   placeholder="Enter your full name as it should appear on the receipt"
-                  className="text-lg border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                  className="text-lg border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
-                <p className="text-xs text-(--text-secondary)">
+                <p className="text-xs text-[var(--text-secondary)]">
                   This should match the name provided by {businessName}
                 </p>
               </div>
 
-              {/* Signature Mode Selection */}
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={signatureMode === "draw" ? "default" : "outline"}
-                  className={`flex-1 ${signatureMode === "draw" ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90" : "border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"} squircle-md`}
-                  onClick={() => setSignatureMode("draw")}
-                >
-                  Draw Signature
-                </Button>
-                <Button
-                  type="button"
-                  variant={signatureMode === "upload" ? "default" : "outline"}
-                  className={`flex-1 ${signatureMode === "upload" ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90" : "border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"} squircle-md`}
-                  onClick={() => setSignatureMode("upload")}
-                >
-                  Upload Signature
-                </Button>
-              </div>
+              {/* SignaturePad Component */}
+              <SignaturePad
+                value={signatureData || ""}
+                onChange={handleSignatureChange}
+                label="Your Signature *"
+                disabled={false}
+                onLoadSaved={loadSavedSignature}
+              />
 
-              {/* Draw Signature */}
-              {signatureMode === "draw" && (
-                <div className="space-y-3">
-                  <SignaturePad
-                    value={signatureData || ""}
-                    onChange={handleSignatureChange}
-                    label="Draw Your Signature *"
-                  />
-                  <div className="flex items-start text-xs text-(--text-secondary)">
-                    <div className="h-2 w-2 bg-(--text-secondary) rounded-full mr-2 mt-1 shrink-0"></div>
-                    <p>
-                      Draw your signature in the box above. For best results,
-                      sign along the line.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Upload Signature */}
-              {signatureMode === "upload" && (
-                <div className="space-y-3">
-                  <Label className="text-(--text-secondary)">
-                    Upload Signature Image
-                  </Label>
-                  <div className="border-2 border-dashed border-(--border-color) rounded-lg p-8 text-center squircle-lg">
-                    <Upload className="h-12 w-12 mx-auto text-(--text-secondary) mb-4" />
-                    <p className="text-sm text-(--text-secondary) mb-2">
-                      Upload a clear image of your signature
-                    </p>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      className="max-w-xs mx-auto cursor-pointer"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setSignatureData(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {signatureData && (
-                <div className="flex justify-end">
+              {/* Save Signature for Future Use Button */}
+              {/* {signatureData && signatureData !== "" && (
+                <div className="flex justify-end mt-2">
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    onClick={handleClearSignature}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={saveSignatureForFuture}
+                    className="border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 squircle-sm"
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear Signature
+                    <Save className="h-3 w-3 mr-2" />
+                    Save Signature for Future
                   </Button>
                 </div>
-              )}
+              )} */}
 
               <div className="flex gap-3 pt-4">
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) squircle-md"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                   onClick={() => setStep("verification")}
                 >
                   Back
                 </Button>
                 <Button
                   type="button"
-                  className="flex-1 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
+                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
                   onClick={handleProceedToSignature}
                   disabled={!signatureData || !typedName.trim()}
                 >
@@ -668,100 +647,72 @@ export const ReceiptSignaturePanel = ({
         {step === "review" && (
           <div className="space-y-6 py-4">
             <div className="text-center">
-              <CheckCircle className="h-16 w-16 text-(--color-lemon-green) mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-(--text-primary) mb-2">
+              <CheckCircle className="h-16 w-16 text-[var(--color-lemon-green)] mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">
                 Review Your Acknowledgment
               </h3>
-              <p className="text-(--text-secondary)">
+              <p className="text-[var(--text-secondary)]">
                 Please verify your details before final submission
               </p>
             </div>
 
             <div className="space-y-6">
-              <div className="bg-(--bg-secondary) border border-(--border-color) rounded-lg p-6 squircle-lg">
+              <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6 squircle-lg">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-medium text-(--text-secondary) mb-2">
+                      <h4 className="font-medium text-[var(--text-secondary)] mb-2">
                         Receipt Information
                       </h4>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm text-(--text-secondary)">
-                            From:
-                          </span>
-                          <span className="font-medium text-(--text-primary)">
-                            {businessName}
-                          </span>
+                          <span className="text-sm text-[var(--text-secondary)]">From:</span>
+                          <span className="font-medium text-[var(--text-primary)]">{businessName}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-(--text-secondary)">
-                            To:
-                          </span>
-                          <span className="font-medium text-(--text-primary)">
-                            {clientName}
-                          </span>
+                          <span className="text-sm text-[var(--text-secondary)]">To:</span>
+                          <span className="font-medium text-[var(--text-primary)]">{clientName}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-(--text-secondary)">
-                            Amount:
-                          </span>
-                          <span className="font-medium text-(--color-accent-yellow)">
-                            {formatCurrency(totalAmount)}
-                          </span>
+                          <span className="text-sm text-[var(--text-secondary)]">Amount:</span>
+                          <span className="font-medium text-[var(--color-accent-yellow)]">{formatCurrency(totalAmount)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-(--text-secondary)">
-                            Date:
-                          </span>
-                          <span className="font-medium text-(--text-primary)">
-                            {formatDate(issueDate)}
-                          </span>
+                          <span className="text-sm text-[var(--text-secondary)]">Date:</span>
+                          <span className="font-medium text-[var(--text-primary)]">{formatDate(issueDate)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <h4 className="font-medium text-(--text-secondary) mb-2">
+                    <h4 className="font-medium text-[var(--text-secondary)] mb-2">
                       Your Acknowledgment
                     </h4>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-(--text-secondary)">
-                          Name:
-                        </span>
-                        <span className="font-medium text-(--text-primary)">
-                          {typedName}
-                        </span>
+                        <span className="text-sm text-[var(--text-secondary)]">Name:</span>
+                        <span className="font-medium text-[var(--text-primary)]">{typedName}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-(--text-secondary)">
-                          Email:
-                        </span>
-                        <span className="font-medium text-(--text-primary)">
-                          {signeeEmail}
-                        </span>
+                        <span className="text-sm text-[var(--text-secondary)]">Email:</span>
+                        <span className="font-medium text-[var(--text-primary)]">{signeeEmail}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-(--text-secondary)">
-                          Signed At:
-                        </span>
-                        <span className="font-medium text-(--text-primary)">
-                          {signingTimestamp
-                            ? new Date(signingTimestamp).toLocaleString()
-                            : "Pending"}
+                        <span className="text-sm text-[var(--text-secondary)]">Signed At:</span>
+                        <span className="font-medium text-[var(--text-primary)]">
+                          {signingTimestamp ? new Date(signingTimestamp).toLocaleString() : "Pending"}
                         </span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-(--border-color)">
-                  <h4 className="font-medium text-(--text-secondary) mb-2">
+                <div className="mt-6 pt-6 border-t border-[var(--border-color)]">
+                  <h4 className="font-medium text-[var(--text-secondary)] mb-2">
                     Your Signature
                   </h4>
-                  <div className="bg-(--bg-primary) border border-(--border-color) rounded-lg p-4 flex items-center justify-center h-32 squircle-md">
+                  <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-4 flex items-center justify-center h-32 squircle-md">
                     {signatureData ? (
                       <img
                         src={signatureData}
@@ -769,9 +720,7 @@ export const ReceiptSignaturePanel = ({
                         className="max-h-20 object-contain"
                       />
                     ) : (
-                      <p className="text-(--text-secondary) italic">
-                        No signature captured
-                      </p>
+                      <p className="text-[var(--text-secondary)] italic">No signature captured</p>
                     )}
                   </div>
                 </div>
@@ -797,7 +746,7 @@ export const ReceiptSignaturePanel = ({
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) squircle-md"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                   onClick={() => setStep("signature")}
                   disabled={isSigning}
                 >
@@ -805,7 +754,7 @@ export const ReceiptSignaturePanel = ({
                 </Button>
                 <Button
                   type="button"
-                  className="flex-1 bg-destructive text-white hover:bg-destructive/90 squircle-md"
+                  className="flex-1 bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 squircle-md"
                   onClick={handleConfirmSign}
                   disabled={isSigning}
                 >

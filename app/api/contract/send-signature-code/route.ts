@@ -13,7 +13,6 @@ const baseUrl =
     ? process.env.NEXT_PUBLIC_DEV_URL
     : process.env.NEXT_PUBLIC_BASE_URL;
 
-// Generate a 6-digit verification code
 function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -29,7 +28,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get contract from Supabase
     const { data: contract, error } = await supabase
       .from("contracts")
       .select("*")
@@ -44,7 +42,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify email matches
     if (contract.signee_email !== signeeEmail) {
       return NextResponse.json(
         { error: "Email does not match the contract signee" },
@@ -52,10 +49,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate verification code
     const verificationCode = generateVerificationCode();
 
-    // Update contract with verification code
     const { error: updateError } = await supabase
       .from("contracts")
       .update({
@@ -63,8 +58,8 @@ export async function POST(request: Request) {
         verification_code_sent_at: new Date().toISOString(),
         verification_code_expires_at: new Date(
           Date.now() + 30 * 60 * 1000,
-        ).toISOString(), // 30 minutes
-        verification_failed_attempts: 0, // Reset failed attempts
+        ).toISOString(),
+        verification_failed_attempts: 0,
       })
       .eq("token", contractToken);
 
@@ -79,15 +74,13 @@ export async function POST(request: Request) {
     const headerImageUrl = `${baseUrl}/zidwell-header.png`;
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
-    // Send email with verification code
     await transporter.sendMail({
       from: `Zidwell Contracts <${process.env.EMAIL_USER}>`,
       to: signeeEmail,
       subject: `Your Signature Verification Code - ${
         contract.contract_title || "Contract"
       }`,
-      html: `
-<!DOCTYPE html>
+      html: `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -95,22 +88,20 @@ export async function POST(request: Request) {
     <title>Signature Verification - Zidwell Finance</title>
     
     <style>
-        /* Base Styles */
         body {
             margin: 0;
             padding: 0;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: 'Inter', Arial, Helvetica, sans-serif;
             background-color: #f9fafb;
-            color: #374151;
+            color: #666666;
             line-height: 1.6;
-            -webkit-text-size-adjust: 100%;
-            -ms-text-size-adjust: 100%;
         }
         
         .email-container {
             max-width: 600px;
             margin: 0 auto;
             background: #ffffff;
+            border-radius: 12px;
             overflow: hidden;
         }
         
@@ -121,7 +112,7 @@ export async function POST(request: Request) {
         .info-card {
             background: #ffffff;
             border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
         }
@@ -133,25 +124,24 @@ export async function POST(request: Request) {
         
         .code-display {
             display: inline-block;
-            background: #f0f9ff;
-            border: 2px dashed #2b825b;
+            background: rgba(253, 192, 32, 0.1);
+            border: 2px dashed #FDC020;
             padding: 30px 50px;
-            border-radius: 12px;
+            border-radius: 16px;
         }
         
         .security-notice {
-            background: #f0fff4;
+            background: rgba(0, 182, 79, 0.1);
             padding: 15px;
             border-radius: 8px;
-            border-left: 4px solid #38a169;
+            border-left: 4px solid #00B64F;
             margin: 20px 0;
         }
         
-        /* Typography */
-        .text-primary { color: #111827 !important; }
-        .text-secondary { color: #6b7280 !important; }
-        .text-accent { color: #2b825b !important; }
-        .text-success { color: #2f855a !important; }
+        .text-primary { color: #191919 !important; }
+        .text-secondary { color: #666666 !important; }
+        .text-accent { color: #FDC020 !important; }
+        .text-success { color: #00B64F !important; }
         
         .text-sm { font-size: 14px !important; }
         .text-base { font-size: 16px !important; }
@@ -161,88 +151,71 @@ export async function POST(request: Request) {
         .font-semibold { font-weight: 600 !important; }
         .font-bold { font-weight: 700 !important; }
         
-        /* Mobile Responsive */
         @media screen and (max-width: 600px) {
             .content-section {
                 padding: 30px 20px !important;
             }
-            
             .code-display {
                 padding: 20px 30px !important;
             }
         }
     </style>
 </head>
-<body style="margin:0; padding:0; background-color:#f9fafb;">
+<body>
     <div class="email-container">
-        <!-- ================= CUSTOM HEADER ================= -->
-        <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
+        <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block;" />
 
-        <!-- ================= CONTENT ================= -->
         <div class="content-section">
-            
-            <!-- Contract Information -->
             <div class="info-card">
                 <h2 class="text-lg font-bold text-primary" style="margin: 0 0 15px 0;">Verification Required</h2>
                 <p class="text-base text-secondary" style="margin: 0;">
-                    You're about to sign: <strong>"${
-                      contract.contract_title || "Contract"
-                    }"</strong>
+                    You're about to sign: <strong>"${contract.contract_title || "Contract"}"</strong>
                 </p>
                 <div class="text-sm text-accent" style="margin-top: 10px;">
-                    <strong>Parties:</strong> ${
-                      contract.initiator_name
-                    } & ${signeeName}
+                    <strong>Parties:</strong> ${contract.initiator_name} & ${signeeName}
                 </div>
             </div>
             
-            <!-- Verification Code -->
             <div class="verification-code-box">
                 <div class="code-display">
-                    <div style="font-size: 12px; color: #2b825b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 600;">
+                    <div style="font-size: 12px; color: #FDC020; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 600;">
                         Verification Code
                     </div>
-                    <div style="font-size: 40px; font-weight: 700; letter-spacing: 8px; color: #1a365d; font-family: monospace; margin: 15px 0;">
+                    <div style="font-size: 40px; font-weight: 700; letter-spacing: 8px; color: #FDC020; font-family: monospace; margin: 15px 0;">
                         ${verificationCode}
                     </div>
-                    <div style="font-size: 14px; color: #718096; margin-top: 10px;">
+                    <div style="font-size: 14px; color: #666666; margin-top: 10px;">
                         ⏱️ Valid for 30 minutes
                     </div>
                 </div>
             </div>
             
-            <!-- Security Notice -->
             <div class="security-notice">
                 <p class="font-semibold text-success" style="margin: 0 0 8px 0;">
                     🔒 Security Notice
                 </p>
-                <p style="margin: 0; color: #2f855a; font-size: 14px;">
+                <p style="margin: 0; color: #00B64F; font-size: 14px;">
                     For your security, never share this code with anyone. Zidwell will never ask for this code via phone or other channels.
                 </p>
             </div>
             
-            <!-- Warning -->
             <div style="margin-top: 25px; padding: 15px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
                 <p style="margin: 0; color: #dc2626; font-size: 14px; text-align: center;">
                     ⚠️ If you didn't request this code, please ignore this email or contact support if you're concerned.
                 </p>
             </div>
             
-            <!-- Automated Message -->
-            <div style="background: #fefcf5; padding: 15px; text-align: center; margin-top: 25px; border-radius: 8px;">
-                <p style="margin: 0; color: #2b825b; font-size: 12px;">
+            <div style="background: rgba(253, 192, 32, 0.05); padding: 15px; text-align: center; margin-top: 25px; border-radius: 8px;">
+                <p style="margin: 0; color: #FDC020; font-size: 12px;">
                     This is an automated message from Zidwell Contracts. Please do not reply to this email.
                 </p>
             </div>
         </div>
 
-        <!-- ================= CUSTOM FOOTER ================= -->
-        <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px;" />
-
+        <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block;" />
     </div>
 </body>
-</html>
-  `,
+</html>`,
     });
 
     return NextResponse.json(

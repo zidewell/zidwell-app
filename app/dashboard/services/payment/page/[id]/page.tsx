@@ -515,7 +515,7 @@ const PageDetail = () => {
                   • Total: ₦{stats.totalAmount.toLocaleString()}
                 </p>
               </div>
-              <div className="divide-y divide-[var(--border-color)]">
+              <div className="divide-y divide-(--border-color)">
                 {stats.payments.length === 0 ? (
                   <div className="p-6 sm:p-8 text-center text-(--text-secondary)">
                     <DollarSign className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 opacity-30" />

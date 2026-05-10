@@ -1,4 +1,3 @@
-// app/components/sign-contract-form-component/IdentityVerificationModal.tsx
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -15,6 +14,7 @@ import { Label } from "@/app/components/ui/label";
 import { Badge } from "@/app/components/ui/badge";
 import { CheckCircle, Shield, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/app/hooks/use-toast";
+import { SignaturePad } from "@/app/components/SignaturePad";
 
 interface IdentityVerificationModalProps {
   open: boolean;
@@ -42,10 +42,45 @@ export const IdentityVerificationModal = ({
   const [lastName, setLastName] = useState("");
   const [nin, setNin] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
-  const [isDrawing, setIsDrawing] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 400, height: 150 });
+  const [signature, setSignature] = useState("");
+  const [isLoadingSignature, setIsLoadingSignature] = useState(false);
   const { toast } = useToast();
+
+  // Load saved signature from database
+  const loadSavedSignature = async () => {
+    try {
+      const res = await fetch(`/api/saved-signature?userId=${contractId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success && data.signature) {
+        setSignature(data.signature);
+        toast({
+          title: "Signature Loaded",
+          description: "Your saved signature has been loaded.",
+        });
+      } else {
+        toast({
+          title: "No Saved Signature",
+          description: "No saved signature found. Please draw your signature.",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading signature:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load saved signature.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Initialize form with signee name
   useEffect(() => {
     if (signeeName && open) {
@@ -54,91 +89,6 @@ export const IdentityVerificationModal = ({
       setLastName(names.slice(1).join(" ") || "");
     }
   }, [signeeName, open]);
-
-  // Update canvas size
-  useEffect(() => {
-    const updateCanvasSize = () => {
-      setCanvasSize({ width: 400, height: 150 });
-    };
-    updateCanvasSize();
-    window.addEventListener("resize", updateCanvasSize);
-    return () => window.removeEventListener("resize", updateCanvasSize);
-  }, []);
-
-  // Initialize canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#000000";
-  }, [canvasSize]);
-
-  const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
-    };
-  };
-
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    setIsDrawing(true);
-    const { x, y } = getCanvasCoordinates(e);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  };
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    if (!isDrawing) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const { x, y } = getCanvasCoordinates(e);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const clearSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,17 +112,7 @@ export const IdentityVerificationModal = ({
   };
 
   const handleAuthenticate = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Check if signature is empty
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const hasSignature = imageData.data.some((pixel) => pixel !== 0);
-
-    if (!hasSignature) {
+    if (!signature || signature === "") {
       toast({
         title: "Error",
         description: "Please provide your signature",
@@ -193,8 +133,6 @@ export const IdentityVerificationModal = ({
     setStep("verifying");
 
     try {
-      const signatureDataUrl = canvas.toDataURL("image/png");
-
       const response = await fetch("/api/contract/sign-contract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -205,7 +143,7 @@ export const IdentityVerificationModal = ({
           signeeEmail,
           nin,
           verificationCode,
-          signature: signatureDataUrl,
+          signature: signature,
           step: "verify",
         }),
       });
@@ -227,7 +165,7 @@ export const IdentityVerificationModal = ({
         setLastName("");
         setNin("");
         setVerificationCode("");
-        clearSignature();
+        setSignature("");
       }, 2000);
     } catch (error) {
       toast({
@@ -286,13 +224,13 @@ export const IdentityVerificationModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-(--color-accent-yellow)" />
+          <DialogTitle className="flex items-center gap-2 text-[var(--text-primary)]">
+            <Shield className="h-5 w-5 text-[var(--color-accent-yellow)]" />
             Identity Verification
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-[var(--text-secondary)]">
             We verify your identity to prevent fraudulent contracts and ensure
             legal validity
           </DialogDescription>
@@ -301,33 +239,37 @@ export const IdentityVerificationModal = ({
         {step === "form" && (
           <form onSubmit={handleFormSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName">First Name *</Label>
+              <Label htmlFor="firstName" className="text-[var(--text-secondary)]">
+                First Name *
+              </Label>
               <Input
                 id="firstName"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Enter your first name"
                 required
-                className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name *</Label>
+              <Label htmlFor="lastName" className="text-[var(--text-secondary)]">
+                Last Name *
+              </Label>
               <Input
                 id="lastName"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Enter your last name"
                 required
-                className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nin">
+              <Label htmlFor="nin" className="text-[var(--text-secondary)]">
                 National Identification Number (NIN) *
               </Label>
               <Input
@@ -339,10 +281,10 @@ export const IdentityVerificationModal = ({
                 placeholder="Enter your 11-digit NIN"
                 required
                 maxLength={11}
-                className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                 style={{ outline: "none", boxShadow: "none" }}
               />
-              <div className="flex items-start gap-2 text-xs text-(--text-secondary) mt-1">
+              <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)] mt-1">
                 <AlertCircle className="h-3 w-3 shrink-0 mt-0.5" />
                 <p>
                   Your NIN is used to verify your identity and prevent
@@ -353,7 +295,7 @@ export const IdentityVerificationModal = ({
 
             <Button
               type="submit"
-              className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
+              className="w-full bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] squircle-md"
             >
               Continue to Signature
             </Button>
@@ -363,36 +305,19 @@ export const IdentityVerificationModal = ({
         {step === "signature" && (
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label>Draw Your Signature *</Label>
-              <div className="border-2 border-dashed border-(--border-color) rounded-lg p-4 bg-(--bg-secondary)">
-                <canvas
-                  ref={canvasRef}
-                  width={canvasSize.width}
-                  height={canvasSize.height}
-                  className="w-full h-40 bg-white rounded cursor-crosshair"
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                />
-              </div>
-              <div className="flex justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={clearSignature}
-                >
-                  Clear Signature
-                </Button>
-                <span className="text-xs text-(--text-secondary) self-center">
-                  Click and drag to draw your signature
-                </span>
-              </div>
+              <SignaturePad
+                value={signature}
+                onChange={setSignature}
+                label="Draw Your Signature *"
+                disabled={false}
+                onLoadSaved={loadSavedSignature}
+              />
             </div>
 
             <div className="space-y-2">
-              <Label>Verification Code *</Label>
+              <Label className="text-[var(--text-secondary)]">
+                Verification Code *
+              </Label>
               <div className="flex gap-2">
                 <Input
                   value={verificationCode}
@@ -403,18 +328,19 @@ export const IdentityVerificationModal = ({
                   }
                   placeholder="Enter 6-digit code"
                   maxLength={6}
-                  className="flex-1 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                  className="flex-1 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleSendVerificationCode}
+                  className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                 >
                   Send Code
                 </Button>
               </div>
-              <p className="text-xs text-(--text-secondary)">
+              <p className="text-xs text-[var(--text-secondary)]">
                 A 6-digit verification code has been sent to your email
               </p>
             </div>
@@ -423,14 +349,14 @@ export const IdentityVerificationModal = ({
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1"
+                className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
                 onClick={() => setStep("form")}
               >
                 Back
               </Button>
               <Button
                 type="button"
-                className="flex-1 bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
+                className="flex-1 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)] squircle-md"
                 onClick={handleAuthenticate}
               >
                 Authenticate & Sign
@@ -441,11 +367,11 @@ export const IdentityVerificationModal = ({
 
         {step === "verifying" && (
           <div className="py-8 text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-(--color-accent-yellow) mx-auto mb-4" />
-            <p className="text-lg font-semibold text-(--text-primary) mb-2">
+            <Loader2 className="h-12 w-12 animate-spin text-[var(--color-accent-yellow)] mx-auto mb-4" />
+            <p className="text-lg font-semibold text-[var(--text-primary)] mb-2">
               Verifying Your Identity
             </p>
-            <p className="text-sm text-(--text-secondary)">
+            <p className="text-sm text-[var(--text-secondary)]">
               Checking NIN and verifying your signature...
             </p>
           </div>
@@ -453,16 +379,16 @@ export const IdentityVerificationModal = ({
 
         {step === "success" && (
           <div className="py-8 text-center">
-            <CheckCircle className="h-16 w-16 text-(--color-lemon-green) mx-auto mb-4" />
-            <p className="text-xl font-bold text-(--text-primary) mb-2">
+            <CheckCircle className="h-16 w-16 text-[var(--color-lemon-green)] mx-auto mb-4" />
+            <p className="text-xl font-bold text-[var(--text-primary)] mb-2">
               Contract Signed Successfully!
             </p>
-            <p className="text-sm text-(--text-secondary) mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               Check your email for the signed contract document
             </p>
             <Badge
               variant="outline"
-              className="bg-(--color-lemon-green)/10 text-(--color-lemon-green) border-(--color-lemon-green)/20"
+              className="bg-[var(--color-lemon-green)]/10 text-[var(--color-lemon-green)] border-[var(--color-lemon-green)]/20"
             >
               Legally Binding
             </Badge>

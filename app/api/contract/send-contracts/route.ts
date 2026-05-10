@@ -206,18 +206,26 @@ export async function POST(req: NextRequest) {
           html: `
 <!DOCTYPE html>
 <html>
-<body style="margin:0; padding:0; background:#f3f4f6;">
-  <div style="max-width:600px; margin:0 auto; background:#fff;">
-    <img src="${headerImageUrl}" style="width:100%;" />
-    <div style="padding:20px;">
-      <h2>Contract for Signature: ${contractTitle}</h2>
-      <p>Hello ${receiverName},</p>
-      <p>You have received a contract from ${creatorName || "the contract creator"}.</p>
-      <div style="margin:20px 0;">
-        <a href="${signingLink}" style="background:#2b825b; color:#fff; padding:12px 24px; text-decoration:none; border-radius:6px;">Review & Sign Contract</a>
+<head>
+  <style>
+    body { font-family: 'Inter', Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; }
+    .content { padding: 40px; }
+    .btn { background: #FDC020; color: #191919; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="${headerImageUrl}" style="width: 100%;" />
+    <div class="content">
+      <h2 style="color: #111827;">Contract for Signature: ${contractTitle}</h2>
+      <p style="color: #4b5563;">Hello ${receiverName},</p>
+      <p style="color: #4b5563;">You have received a contract from ${creatorName || "the contract creator"}.</p>
+      <div style="margin: 20px 0;">
+        <a href="${signingLink}" class="btn" style="background-color: #FDC020; color: #191919;">Review & Sign Contract</a>
       </div>
     </div>
-    <img src="${footerImageUrl}" style="width:100%;" />
+    <img src="${footerImageUrl}" style="width: 100%;" />
   </div>
 </body>
 </html>`,

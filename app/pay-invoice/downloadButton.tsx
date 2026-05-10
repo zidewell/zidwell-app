@@ -41,13 +41,14 @@ interface InvoiceData {
   fee_option: string;
   status: string;
   allow_multiple_payments?: boolean;
-  unit?: string; // Changed from number | "" to string to match main page
+  unit?: string;
   initiator_account_name?: string;
   initiator_account_number?: string;
   initiator_bank_name?: string;
   created_at?: string;
   paid_quantity?: number;
   target_quantity?: number;
+  initiator_phone?: string;
 }
 
 interface DownloadInvoiceButtonProps {
@@ -107,7 +108,7 @@ export default function DownloadInvoiceButton({
         }
       };
 
-      // Generate HTML content for PDF
+      // Generate HTML content for PDF with Zidwell colors
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -115,117 +116,164 @@ export default function DownloadInvoiceButton({
           <title>Invoice ${invoiceData.invoice_id}</title>
           <meta charset="UTF-8">
           <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
             body { 
               font-family: 'Arial', sans-serif; 
+              background: #f7f3ee;
               margin: 0;
-              padding: 40px;
-              color: #333;
-              line-height: 1.6;
+              padding: 40px 20px;
+              color: #191919;
+              line-height: 1.5;
             }
+            
             .container {
               max-width: 800px;
               margin: 0 auto;
-              background: white;
+              background: #FFFFFF;
+          
+              overflow: hidden;
+              
             }
+            
             .header {
               display: flex;
               justify-content: space-between;
               align-items: flex-start;
-              margin-bottom: 40px;
-              padding-bottom: 20px;
-              border-bottom: 2px solid #2b825b;
+              background: #FDC020;
+              padding: 32px;
+              color: #191919;
+              border-bottom: 2px solid #E5E5E5;
             }
+            
             .business-info {
               flex: 1;
             }
+            
             .invoice-info {
               text-align: right;
             }
+            
             .logo {
               max-height: 80px;
               max-width: 200px;
               margin-bottom: 15px;
             }
+            
             .account-details {
               display: flex;
               flex-direction: column;
               gap: 10px;
+              margin-top: 20px;
             }
+            
             .account-details h2 {
-              color: #2b825b;
+              color: #191919;
+              font-size: 18px;
+              margin: 0 0 5px 0;
             }
+            
+            .account-details h3 {
+              margin: 0;
+              font-size: 14px;
+              font-weight: normal;
+              color: #191919;
+            }
+            
             h1 {
-              color: #2b825b;
+              color: #191919;
               margin: 0 0 10px 0;
               font-size: 32px;
               font-weight: bold;
             }
+            
             h2 {
               margin: 0 0 10px 0;
               font-size: 24px;
-              color: #333;
+              color: #191919;
             }
+            
             h3 {
               margin: 0 0 15px 0;
               font-size: 18px;
-              color: #333;
+              color: #191919;
             }
+            
             .section {
               margin: 30px 0;
             }
+            
+            .content {
+              padding: 32px;
+            }
+            
             .billing-info {
               display: flex;
               justify-content: space-between;
               gap: 40px;
             }
+            
             .billing-section {
               flex: 1;
             }
+            
             .items-table {
               width: 100%;
               border-collapse: collapse;
               margin: 30px 0;
               font-size: 14px;
             }
+            
             .items-table th {
-              background-color: #f8f9fa;
-              border: 1px solid #ddd;
+              background-color: #F5F5F5;
+              border: 1px solid #E5E5E5;
               padding: 12px 15px;
               text-align: left;
               font-weight: bold;
-              color: #333;
+              color: #191919;
             }
+            
             .items-table td {
-              border: 1px solid #ddd;
+              border: 1px solid #E5E5E5;
               padding: 12px 15px;
               text-align: left;
             }
+            
             .items-table tr:nth-child(even) {
-              background-color: #f9f9f9;
+              background-color: #F5F5F5;
             }
+            
             .totals {
               margin-top: 30px;
               text-align: right;
               font-size: 16px;
             }
+            
             .total-row {
               margin: 8px 0;
             }
+            
             .grand-total {
               font-size: 20px;
               font-weight: bold;
-              color: #2b825b;
+              color: #FDC020;
               margin-top: 15px;
               padding-top: 15px;
-              border-top: 2px solid #ddd;
+              border-top: 2px solid #E5E5E5;
             }
+            
             .message-box {
-              background-color: #f8f9fa;
+              background-color: #F5F5F5;
               padding: 20px;
               border-radius: 8px;
-              border-left: 4px solid #2b825b;
+              border-left: 4px solid #FDC020;
               margin: 20px 0;
             }
+            
             .payment-info {
               background-color: #e8f4fd;
               padding: 20px;
@@ -233,44 +281,61 @@ export default function DownloadInvoiceButton({
               border-left: 4px solid #2196F3;
               margin: 20px 0;
             }
+            
             .invoice-narration {
-              margin-left: 30px;
+              display: block;
+              margin-top: 10px;
+              font-size: 12px;
+              color: #666666;
             }
+            
             .footer {
               margin-top: 50px;
               text-align: center;
-              color: #666;
+              color: #666666;
               font-size: 14px;
               padding-top: 20px;
-              border-top: 1px solid #ddd;
+              border-top: 1px solid #E5E5E5;
             }
+            
             .status-badge {
               display: inline-block;
               padding: 4px 12px;
-              background-color: #2b825b;
-              color: white;
+              background-color: #FDC020;
+              color: #191919;
               border-radius: 20px;
               font-size: 12px;
               font-weight: bold;
               margin-left: 10px;
             }
+            
             .progress-bar {
-              background-color: #e0e0e0;
+              background-color: #E5E5E5;
               border-radius: 10px;
               height: 10px;
               margin: 10px 0;
               overflow: hidden;
             }
+            
             .progress-fill {
-              background-color: #4CAF50;
+              background-color: #FDC020;
               height: 100%;
               transition: width 0.3s ease;
             }
+            
             .note-box {
               background-color: #f0f9ff;
               padding: 20px;
               border-radius: 8px;
               border-left: 4px solid #0ea5e9;
+            }
+            
+            .multiple-payment-info {
+              background-color: #fef3c7;
+              padding: 15px;
+              border-radius: 8px;
+              border-left: 4px solid #f59e0b;
+              margin: 20px 0;
             }
           </style>
         </head>
@@ -307,6 +372,7 @@ export default function DownloadInvoiceButton({
                 <p><strong>Issue Date:</strong> ${formatDate(
                   invoiceData.issue_date,
                 )}</p>
+                ${invoiceData.due_date ? `<p><strong>Due Date:</strong> ${formatDate(invoiceData.due_date)}</p>` : ""}
                 <p><strong>Status:</strong> ${
                   invoiceData.status
                 } <span class="status-badge">${invoiceData.status.toUpperCase()}</span></p>
@@ -319,171 +385,186 @@ export default function DownloadInvoiceButton({
               </div>
             </div>
 
-            <div class="section">
-              <div class="billing-info">
-                <div class="billing-section">
-                  <h3>Bill To:</h3>
-                  <p><strong>${
-                    invoiceData.client_name || "Client Information"
-                  }</strong></p>
-                  ${
-                    invoiceData.client_email
-                      ? `<p>📧 ${invoiceData.client_email}</p>`
-                      : ""
-                  }
-                  ${
-                    invoiceData.client_phone
-                      ? `<p>📞 ${invoiceData.client_phone}</p>`
-                      : ""
-                  }
-                </div>
-                <div class="billing-section">
-                  <h3>From:</h3>
-                  <p><strong>${invoiceData.from_name}</strong></p>
-                  <p>📧 ${invoiceData.from_email}</p>
+            <div class="content">
+              <div class="section">
+                <div class="billing-info">
+                  <div class="billing-section">
+                    <h3>Bill To:</h3>
+                    <p><strong>${
+                      invoiceData.client_name || "Client Information"
+                    }</strong></p>
+                    ${
+                      invoiceData.client_email
+                        ? `<p>📧 ${invoiceData.client_email}</p>`
+                        : ""
+                    }
+                    ${
+                      invoiceData.client_phone
+                        ? `<p>📞 ${invoiceData.client_phone}</p>`
+                        : ""
+                    }
+                  </div>
+                  <div class="billing-section">
+                    <h3>From:</h3>
+                    <p><strong>${invoiceData.from_name}</strong></p>
+                    <p>📧 ${invoiceData.from_email}</p>
+                    ${invoiceData.initiator_phone ? `<p>📞 ${invoiceData.initiator_phone}</p>` : ""}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            ${
-              invoiceData.message
-                ? `
-            <div class="section">
-              <div class="message-box">
-                <h3>Message from ${invoiceData.from_name}:</h3>
-                <p>${invoiceData.message}</p>
+              ${
+                invoiceData.message
+                  ? `
+              <div class="section">
+                <div class="message-box">
+                  <h3>Message from ${invoiceData.from_name}:</h3>
+                  <p>${invoiceData.message}</p>
+                </div>
               </div>
-            </div>
-            `
-                : ""
-            }
+              `
+                  : ""
+              }
 
-            ${
-              paidAmount > 0
-                ? `
-            <div class="section">
-              <div class="payment-info">
-                <h3>Payment Information</h3>
-                <p><strong>Amount Paid:</strong> ₦${Number(
-                  paidAmount,
-                ).toLocaleString()}</p>
-                <p><strong>Balance Due:</strong> ₦${Number(
-                  totalAmount - paidAmount,
-                ).toLocaleString()}</p>
+              ${
+                invoiceData.allow_multiple_payments && invoiceData.target_quantity
+                  ? `
+              <div class="section">
+                <div class="multiple-payment-info">
+                  <h3>Multiple Payments Plan</h3>
+                  <p><strong>Payment Progress:</strong> ${invoiceData.paid_quantity || 0} of ${invoiceData.target_quantity} payments completed</p>
+                  <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${((invoiceData.paid_quantity || 0) / (invoiceData.target_quantity || 1)) * 100}%"></div>
+                  </div>
+                </div>
+              </div>
+              `
+                  : paidAmount > 0
+                    ? `
+              <div class="section">
+                <div class="payment-info">
+                  <h3>Payment Information</h3>
+                  <p><strong>Amount Paid:</strong> ₦${Number(
+                    paidAmount,
+                  ).toLocaleString()}</p>
+                  <p><strong>Balance Due:</strong> ₦${Number(
+                    totalAmount - paidAmount,
+                  ).toLocaleString()}</p>
+                  ${
+                    paymentCountText
+                      ? `<p><strong>Payments:</strong> ${paymentCountText}</p>`
+                      : ""
+                  }
+                  <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${paymentProgress}%"></div>
+                  </div>
+                  <p>Payment Progress: ${Math.round(paymentProgress)}%</p>
+                </div>
+              </div>
+              `
+                    : ""
+              }
+
+              <div class="section">
+                <h3>Invoice Items</h3>
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th>Description</th>
+                      <th width="100">Qty</th>
+                      <th width="120">Unit Price</th>
+                      <th width="120">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${invoiceItems
+                      ?.map(
+                        (item) => `
+                      <tr>
+                        <td>${
+                          item.item_description || item.description || ""
+                        }</td>
+                        <td>${item.quantity || 0}</td>
+                        <td>₦${Number(
+                          item.unit_price || item.unitPrice || 0,
+                        ).toLocaleString()}</td>
+                        <td>₦${Number(
+                          item.total_amount || item.total || 0,
+                        ).toLocaleString()}</td>
+                      </tr>
+                    `,
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="totals">
+                <div class="total-row">
+                  <strong>Subtotal:</strong> ₦${Number(subtotal).toLocaleString()}
+                </div>
                 ${
-                  paymentCountText
-                    ? `<p><strong>Payments:</strong> ${paymentCountText}</p>`
+                  feeAmount > 0
+                    ? `
+                <div class="total-row">
+                  <strong>Processing Fee:</strong> ₦${Number(
+                    feeAmount,
+                  ).toLocaleString()}
+                </div>
+                `
                     : ""
                 }
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: ${paymentProgress}%"></div>
-                </div>
-                <p>Payment Progress: ${Math.round(paymentProgress)}%</p>
-              </div>
-            </div>
-            `
-                : ""
-            }
-
-            <div class="section">
-              <h3>Invoice Items</h3>
-              <table class="items-table">
-                <thead>
-                  <tr>
-                    <th>Description</th>
-                    <th width="100">Qty</th>
-                    <th width="120">Unit Price</th>
-                    <th width="120">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${invoiceItems
-                    ?.map(
-                      (item) => `
-                    <tr>
-                      <td>${
-                        item.item_description || item.description || ""
-                      }</td>
-                      <td>${item.quantity || 0}</td>
-                      <td>₦${Number(
-                        item.unit_price || item.unitPrice || 0,
-                      ).toLocaleString()}</td>
-                      <td>₦${Number(
-                        item.total_amount || item.total || 0,
-                      ).toLocaleString()}</td>
-                    </tr>
-                  `,
-                    )
-                    .join("")}
-                </tbody>
-              </table>
-            </div>
-
-            <div class="totals">
-              <div class="total-row">
-                <strong>Subtotal:</strong> ₦${Number(subtotal).toLocaleString()}
-              </div>
-              ${
-                feeAmount > 0
-                  ? `
-              <div class="total-row">
-                <strong>Processing Fee:</strong> ₦${Number(
-                  feeAmount,
-                ).toLocaleString()}
-              </div>
-              `
-                  : ""
-              }
-              ${
-                paidAmount > 0
-                  ? `
-              <div class="total-row">
-                <strong>Amount Paid:</strong> ₦${Number(
-                  paidAmount,
-                ).toLocaleString()}
-              </div>
-              <div class="total-row">
-                <strong>Balance Due:</strong> ₦${Number(
-                  totalAmount - paidAmount,
-                ).toLocaleString()}
-              </div>
-              `
-                  : ""
-              }
-              <div class="total-row grand-total">
-                <strong>TOTAL AMOUNT:</strong> ₦${Number(
-                  totalAmount,
-                ).toLocaleString()}
-              </div>
-              ${
-                invoiceData.fee_option === "absorbed"
-                  ? `
-              <div class="total-row" style="font-size: 12px; color: #666;">
-                *Processing fees absorbed by merchant
-              </div>
-              `
-                  : invoiceData.fee_option === "customer" && feeAmount > 0
+                ${
+                  paidAmount > 0
                     ? `
-              <div class="total-row" style="font-size: 12px; color: #666;">
-                *2% processing fee added
+                <div class="total-row">
+                  <strong>Amount Paid:</strong> ₦${Number(
+                    paidAmount,
+                  ).toLocaleString()}
+                </div>
+                <div class="total-row">
+                  <strong>Balance Due:</strong> ₦${Number(
+                    totalAmount - paidAmount,
+                  ).toLocaleString()}
+                </div>
+                `
+                    : ""
+                }
+                <div class="total-row grand-total">
+                  <strong>TOTAL AMOUNT:</strong> ₦${Number(
+                    totalAmount,
+                  ).toLocaleString()}
+                </div>
+                ${
+                  invoiceData.fee_option === "absorbed"
+                    ? `
+                <div class="total-row" style="font-size: 12px; color: #666666;">
+                  *Processing fees absorbed by merchant
+                </div>
+                `
+                    : invoiceData.fee_option === "customer" && feeAmount > 0
+                      ? `
+                <div class="total-row" style="font-size: 12px; color: #666666;">
+                  *2% processing fee added
+                </div>
+                `
+                      : ""
+                }
+              </div>
+
+              ${
+                invoiceData.customer_note
+                  ? `
+              <div class="section">
+                <div class="note-box">
+                  <h3>Note to Customer:</h3>
+                  <p>${invoiceData.customer_note}</p>
+                </div>
               </div>
               `
-                    : ""
+                  : ""
               }
             </div>
-
-            ${
-              invoiceData.customer_note
-                ? `
-            <div class="section">
-              <div class="note-box">
-                <h3>Note to Customer:</h3>
-                <p>${invoiceData.customer_note}</p>
-              </div>
-            </div>
-            `
-                : ""
-            }
 
             <div class="footer">
               <p><strong>Thank you for your business!</strong></p>
@@ -554,7 +635,7 @@ export default function DownloadInvoiceButton({
     <Button
       variant="outline"
       size="lg"
-      className="w-full border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
+      className="w-full border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 rounded-xl"
       onClick={handleDownloadPDF}
       disabled={loading}
     >

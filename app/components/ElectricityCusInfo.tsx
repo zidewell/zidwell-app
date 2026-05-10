@@ -152,7 +152,6 @@ export default function ElectricityCustomerCard({
 
           {/* Security Info */}
           <div className="text-center text-xs text-(--text-secondary) mt-4">
-            <p>🔒 Secure payment powered by Zidwell</p>
             <p>Instant token generation • 24/7 support</p>
           </div>
         </CardContent>

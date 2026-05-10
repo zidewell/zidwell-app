@@ -357,7 +357,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                   variant="outline"
                   onClick={() => setActiveTab("create")}
                   className="flex-1"
-                  disabled={disabled} // Apply disabled prop
+                  disabled={disabled} 
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Back To Edit Contract
@@ -374,7 +374,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
               <h3 className="text-lg font-medium text-(--text-primary) mb-2">
                 No contract content to preview
               </h3>
-              <p className="bg-(--color-accent-yellow)b-6">bg-(--color-accent-yellow)
+              <p className="">
                 Switch to the "Write Contract" tab to create your contract
                 document
               </p>

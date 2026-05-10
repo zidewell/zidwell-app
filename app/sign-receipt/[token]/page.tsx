@@ -59,6 +59,7 @@ export default async function ReceiptSignPage({
     .select("*")
     .eq("token", token)
     .single();
+    
 
   if (error || !receiptData) {
     return notFound();

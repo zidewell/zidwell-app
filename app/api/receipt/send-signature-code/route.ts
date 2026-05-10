@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get receipt from database
     const { data: receipt, error } = await supabase
       .from("receipts")
       .select("*")
@@ -34,21 +33,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate verification code
     const verificationCode = Math.floor(
       100000 + Math.random() * 900000,
     ).toString();
 
-    // Update receipt with verification code
     await supabase
       .from("receipts")
       .update({
         verification_code: verificationCode,
-        sent_at: new Date().toISOString(), // Update sent_at timestamp
+        sent_at: new Date().toISOString(),
       })
       .eq("token", receiptToken);
 
-    // Send verification code email
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
     const headerImageUrl = `${baseUrl}/zidwell-header.png`;
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
@@ -57,36 +53,41 @@ export async function POST(req: NextRequest) {
       from: process.env.EMAIL_FROM,
       to: signeeEmail,
       subject: `Verification Code for Receipt #${receipt.receipt_id}`,
-      html: `
-<!DOCTYPE html>
+      html: `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verification Code - Zidwell Receipts</title>
     <style>
-        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; }
-        .email-container { max-width: 600px; margin: 0 auto; background: #ffffff; }
+        body { margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; background-color: #f9fafb; }
+        .email-container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; }
         .content-section { padding: 40px 30px; }
         .code-display { 
             font-family: 'Courier New', monospace; 
-            font-size: 32px; 
+            font-size: 36px; 
             font-weight: bold; 
             letter-spacing: 8px; 
-            color: #2b825b;
+            color: #FDC020;
             text-align: center;
             margin: 30px 0;
             padding: 20px;
-            background: #fefce8;
-            border-radius: 8px;
-            border: 2px dashed #fbbf24;
+            background: rgba(253, 192, 32, 0.1);
+            border-radius: 12px;
+            border: 2px dashed #FDC020;
         }
         .security-note { 
-            background: #f0fff4; 
-            border-left: 4px solid #38a169;
+            background: rgba(0, 182, 79, 0.1);
+            border-left: 4px solid #00B64F;
             padding: 15px;
             margin: 20px 0;
-            border-radius: 4px;
+            border-radius: 8px;
+        }
+        .receipt-details {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
         }
     </style>
 </head>
@@ -95,10 +96,10 @@ export async function POST(req: NextRequest) {
         <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block;" />
         
         <div class="content-section">
-            <h1 style="color: #111827; text-align: center; margin-bottom: 10px;">
+            <h1 style="color: #191919; text-align: center; margin-bottom: 10px;">
                 Your Verification Code
             </h1>
-            <p style="text-align: center; color: #6b7280; margin-bottom: 30px;">
+            <p style="text-align: center; color: #666666; margin-bottom: 30px;">
                 Use this code to verify your identity and sign the receipt
             </p>
             
@@ -106,8 +107,8 @@ export async function POST(req: NextRequest) {
                 ${verificationCode}
             </div>
             
-            <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 30px 0;">
-                <h3 style="color: #1e40af; margin-top: 0;">Receipt Details</h3>
+            <div class="receipt-details">
+                <h3 style="color: #191919; margin-top: 0;">Receipt Details</h3>
                 <p style="margin: 8px 0;"><strong>From:</strong> ${businessName || receipt.business_name}</p>
                 <p style="margin: 8px 0;"><strong>To:</strong> ${signeeName || receipt.client_name}</p>
                 <p style="margin: 8px 0;"><strong>Amount:</strong> ₦${(totalAmount || receipt.total || 0).toLocaleString()}</p>
@@ -115,13 +116,13 @@ export async function POST(req: NextRequest) {
             </div>
             
             <div class="security-note">
-                <p style="margin: 0; color: #2f855a; font-weight: 500;">
+                <p style="margin: 0; color: #00B64F; font-weight: 500;">
                     🔒 For your security, never share this code with anyone. 
                     Zidwell will never ask for your verification code via phone or other channels.
                 </p>
             </div>
             
-            <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 30px;">
+            <p style="color: #666666; font-size: 12px; text-align: center; margin-top: 30px;">
                 This code will expire in 30 minutes. If you didn't request this code, please ignore this email.
             </p>
         </div>
@@ -129,8 +130,7 @@ export async function POST(req: NextRequest) {
         <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block;" />
     </div>
 </body>
-</html>
-      `,
+</html>`,
     };
 
     await transporter.sendMail(mailOptions);

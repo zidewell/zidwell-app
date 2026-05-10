@@ -11,6 +11,7 @@ import { useUserContextData } from "../../context/userData";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import Loader from "../Loader";
+import InvoicePDFGenerator from "./InvoicePDFGenerator";
 
 const getBase64Logo = async () => {
   const response = await fetch("/logo.png");
@@ -164,162 +165,6 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
     return null;
   };
 
-  const downloadPdf = async (invoice: any) => {
-    try {
-      setProcessingInvoiceId(invoice.id);
-
-      const invoiceItems = Array.isArray(invoice.invoice_items)
-        ? invoice.invoice_items
-        : [];
-
-      const subtotal =
-        invoice.subtotal ||
-        invoiceItems.reduce(
-          (sum: number, item: any) =>
-            sum +
-            (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
-          0,
-        );
-
-      const feeAmount = invoice.fee_amount || 0;
-      const totalAmount = invoice.total_amount || subtotal + feeAmount;
-      const paidAmount = invoice.paid_amount || 0;
-
-      const paymentProgress = getPaymentProgress(invoice);
-
-      const formatDate = (dateString: string): string => {
-        try {
-          const date = new Date(dateString);
-          return isNaN(date.getTime()) ? dateString : date.toLocaleDateString();
-        } catch {
-          return dateString;
-        }
-      };
-
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Invoice ${invoice.invoice_id}</title>
-          <meta charset="UTF-8">
-          <style>
-            body { 
-              font-family: 'Arial', sans-serif; 
-              margin: 0;
-              padding: 40px;
-              color: #333;
-              line-height: 1.6;
-            }
-            .container {
-              max-width: 800px;
-              margin: 0 auto;
-              background: white;
-            }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-              margin-bottom: 40px;
-              padding-bottom: 20px;
-              border-bottom: 2px solid var(--color-accent-yellow);
-            }
-            h1 {
-              color: var(--color-accent-yellow);
-              margin: 0 0 10px 0;
-              font-size: 32px;
-              font-weight: bold;
-            }
-            .status-badge {
-              display: inline-block;
-              padding: 4px 12px;
-              background-color: var(--color-accent-yellow);
-              color: var(--color-ink);
-              border-radius: 20px;
-              font-size: 12px;
-              font-weight: bold;
-              margin-left: 10px;
-            }
-            .progress-bar {
-              background-color: #e0e0e0;
-              border-radius: 10px;
-              height: 10px;
-              margin: 10px 0;
-              overflow: hidden;
-            }
-            .progress-fill {
-              background-color: var(--color-accent-yellow);
-              height: 100%;
-              transition: width 0.3s ease;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <div class="business-info">
-                <h2>${invoice.business_name || "Business Name"}</h2>
-              </div>
-              <div class="invoice-info">
-                <h1>INVOICE</h1>
-                <p><strong>Invoice #:</strong> ${invoice.invoice_id}</p>
-                <p><strong>Status:</strong> ${invoice.status} <span class="status-badge">${(invoice.status || "").toUpperCase()}</span></p>
-              </div>
-            </div>
-            <!-- Rest of invoice content -->
-          </div>
-        </body>
-        </html>
-      `;
-
-      const response = await fetch("/api/generate-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          html: htmlContent,
-          filename: `invoice-${invoice.invoice_id}.pdf`,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to generate PDF: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `invoice-${invoice.invoice_id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      Swal.fire({
-        icon: "success",
-        title: "PDF Downloaded!",
-        text: "Your invoice has been downloaded as PDF",
-        confirmButtonColor: "var(--color-accent-yellow)",
-        background: "var(--bg-primary)",
-        color: "var(--text-primary)",
-      });
-    } catch (error) {
-      console.error("PDF download error:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Download Failed",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Failed to download PDF. Please try again.",
-        confirmButtonColor: "var(--color-accent-yellow)",
-        background: "var(--bg-primary)",
-        color: "var(--text-primary)",
-      });
-    } finally {
-      setProcessingInvoiceId(null);
-    }
-  };
-
   const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
@@ -458,23 +303,41 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                     Edit
                   </Button>
 
-                  <Button
-                    onClick={() => downloadPdf(invoice)}
-                    variant="outline"
-                    size="sm"
-                    disabled={
-                      processingInvoiceId === invoice.id ||
-                      invoice.status === "draft"
-                    }
-                    className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
-                  >
-                    {processingInvoiceId === invoice.id ? (
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                    ) : (
-                      <Download className="w-4 h-4 mr-1" />
-                    )}
-                    PDF
-                  </Button>
+                 <InvoicePDFGenerator
+  invoice={{
+    invoice_id: invoice.invoice_id,
+    business_name: invoice.business_name,
+    business_logo: invoice.business_logo,
+    client_name: invoice.client_name,
+    client_email: invoice.client_email,
+    client_phone: invoice.client_phone,
+    from_email: invoice.from_email,
+    from_name: invoice.from_name,
+    issue_date: invoice.issue_date,
+    due_date: invoice.due_date,
+    status: invoice.status,
+    payment_type: invoice.payment_type,
+    fee_option: invoice.fee_option,
+    subtotal: invoice.subtotal,
+    fee_amount: invoice.fee_amount,
+    total_amount: invoice.total_amount,
+    paid_amount: invoice.paid_amount,
+    paid_quantity: invoice.paid_quantity,
+    target_quantity: invoice.target_quantity,
+    allow_multiple_payments: invoice.allow_multiple_payments,
+    message: invoice.message,
+    customer_note: invoice.customer_note,
+    invoice_items: invoice.invoice_items,
+    initiator_account_name: invoice.initiator_account_name,
+    initiator_account_number: invoice.initiator_account_number,
+    initiator_bank_name: invoice.initiator_bank_name,
+    verification_code: invoice.verification_code,
+  }}
+  buttonText="PDF"
+  buttonVariant="outline"
+  buttonSize="sm"
+  className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
+/>
                 </div>
               </div>
             </CardContent>

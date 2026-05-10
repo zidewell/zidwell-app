@@ -99,8 +99,8 @@ const DashboardCharts = () => {
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wide border-2 border-(--border-color) transition-all ${
               filter === f
-                ? "bg-(--color-accent-yellow) text-[var(--color-ink)] shadow-[2px_2px_0px_var(--border-color)]"
-                : "bg-(--bg-primary) text-[var(--text-secondary)] hover:text-(--text-primary) hover:bg-(--bg-secondary)"
+                ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-[2px_2px_0px_var(--border-color)]"
+                : "bg-(--bg-primary) text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary)"
             }`}
           >
             {f}
@@ -117,8 +117,8 @@ const DashboardCharts = () => {
                 onClick={() => setFilter(tab as any)}
                 className={`px-4 py-2 text-sm font-bold uppercase tracking-wide rounded-md transition-all ${
                   filter === tab
-                    ? "bg-(--color-accent-yellow) text-[var(--color-ink)]"
-                    : "text-[var(--text-secondary)] hover:text-(--text-primary)"
+                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                    : "text-(--text-secondary) hover:text-(--text-primary)"
                 }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -230,7 +230,7 @@ const DashboardCharts = () => {
                             ][i],
                           }}
                         />
-                        <span className="text-sm text-[var(--text-secondary)] font-medium">
+                        <span className="text-sm text-(--text-secondary) font-medium">
                           {d.n} ({d.v}%)
                         </span>
                       </div>
@@ -391,7 +391,7 @@ const DashboardCharts = () => {
                         className="w-3 h-3 rounded-sm border-2 border-(--border-color)"
                         style={{ backgroundColor: PIE_COLORS[i] }}
                       />
-                      <span className="text-sm text-[var(--text-secondary)] font-medium">
+                      <span className="text-sm text-(--text-secondary) font-medium">
                         {d.name} ({d.value}%)
                       </span>
                     </div>

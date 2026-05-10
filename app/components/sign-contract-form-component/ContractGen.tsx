@@ -197,16 +197,9 @@ export default function ContractGen({
 
       {/* Single Tier Badge and Message */}
       <div className="mb-4 space-y-3">
-        <div
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
-        >
-          <TierIcon className={`w-4 h-4 ${tierInfo.color}`} />
-          <span className={`text-xs font-semibold ${tierInfo.color}`}>
-            {tierInfo.label}
-          </span>
-        </div>
+       
 
-        {/* Tier Message - Only shown for non-free tiers */}
+      
         {!isFree && (
           <div
             className={`p-4 rounded-lg border-2 ${

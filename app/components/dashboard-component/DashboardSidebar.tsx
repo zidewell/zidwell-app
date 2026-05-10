@@ -106,8 +106,8 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
 
     const commonClassName = `flex items-center gap-4 p-3 rounded-md text-sm font-bold uppercase tracking-wide border-2 transition-all duration-150 ${
       isActive
-        ? "bg-(--color-accent-yellow) text-[var(--color-ink)] border-(--border-color) shadow-[2px_2px_0px_var(--border-color)]"
-        : "border-transparent text-[var(--text-secondary)] hover:bg-(--bg-secondary) hover:text-(--text-primary) hover:border-(--border-color) hover:shadow-[2px_2px_0px_var(--border-color)]"
+        ? "bg-(--color-accent-yellow) text-(--color-ink) border-(--border-color) shadow-[2px_2px_0px_var(--border-color)]"
+        : "border-transparent text-(--text-secondary) hover:bg-(--bg-secondary) hover:text-(--text-primary) hover:border-(--border-color) hover:shadow-[2px_2px_0px_var(--border-color)]"
     }`;
 
     if (isProtected) {
@@ -174,7 +174,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 px-4">
+        <h3 className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider mb-2 px-4">
           Business Tools
         </h3>
         <div className="space-y-2">
@@ -235,7 +235,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 px-4">
+        <h3 className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider mb-2 px-4">
           Buy Services
         </h3>
         <div className="space-y-2">
@@ -345,7 +345,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     <>
       {open && (
         <div
-          className="fixed inset-0 bg-[var(--color-ink)]/40 dark:bg-[#000000]/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-(--color-ink)/40 dark:bg-[#000000]/40 z-40 lg:hidden"
           onClick={onClose}
         />
       )}
@@ -374,7 +374,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             </Link>
             <button
               onClick={onClose}
-              className="lg:hidden text-[var(--text-secondary)] hover:text-(--text-primary) transition-colors"
+              className="lg:hidden text-(--text-secondary) hover:text-(--text-primary) transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -383,13 +383,13 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           {userData && userData.fullName && (
             <div className="p-5 border-b-2 border-(--border-color)">
               <div className="space-y-2">
-                <p className="text-[var(--text-secondary)] text-sm">
+                <p className="text-(--text-secondary) text-sm">
                   Welcome Back, {userData.fullName}
                 </p>
                 {balance != null && (
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[var(--text-secondary)] text-xs">
+                      <p className="text-(--text-secondary) text-xs">
                         Wallet Balance
                       </p>
                       <div className="flex items-center gap-1">
@@ -404,9 +404,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
                           }
                         >
                           {showBalance ? (
-                            <Eye className="w-4 h-4 text-[var(--text-secondary)]" />
+                            <Eye className="w-4 h-4 text-(--text-secondary)" />
                           ) : (
-                            <EyeOff className="w-4 h-4 text-[var(--text-secondary)]" />
+                            <EyeOff className="w-4 h-4 text-(--text-secondary)" />
                           )}
                         </button>
                       </div>
@@ -422,7 +422,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           </nav>
 
           <div className="p-5 border-t-2 border-(--border-color)">
-            <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
+            <h3 className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider mb-3">
               Preferences
             </h3>
             <PreferencesContent />
@@ -454,13 +454,13 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         {userData && userData.fullName && (
           <div className="p-5 border-b-2 border-(--border-color)">
             <div className="space-y-2">
-              <p className="text-[var(--text-secondary)] text-sm">
+              <p className="text-(--text-secondary) text-sm">
                 Welcome Back, {userData.fullName}
               </p>
               {balance != null && (
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[var(--text-secondary)] text-xs">
+                    <p className="text-(--text-secondary) text-xs">
                       Wallet Balance
                     </p>
                     <div className="flex items-center gap-1">
@@ -475,9 +475,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
                         }
                       >
                         {showBalance ? (
-                          <Eye className="w-4 h-4 text-[var(--text-secondary)]" />
+                          <Eye className="w-4 h-4 text-(--text-secondary)" />
                         ) : (
-                          <EyeOff className="w-4 h-4 text-[var(--text-secondary)]" />
+                          <EyeOff className="w-4 h-4 text-(--text-secondary)" />
                         )}
                       </button>
                     </div>
@@ -493,7 +493,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         </nav>
 
         <div className="p-5 border-t-2 border-(--border-color)">
-          <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
+          <h3 className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider mb-3">
             Preferences
           </h3>
           <PreferencesContent />

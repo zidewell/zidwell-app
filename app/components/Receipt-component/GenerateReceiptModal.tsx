@@ -152,51 +152,60 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
       background-color: #F5F5F5; 
       color: #191919; 
       line-height: 1.5; 
-      padding: 40px; 
+      padding: 20px;
     }
     @media print { body { padding: 0; } @page { margin: 20mm; } }
+    @media (min-width: 640px) { body { padding: 40px; } }
     .container { 
-      max-width: 800px; 
+      max-width: 100%;
       margin: 0 auto; 
       background: #FFFFFF; 
-      border: 1px solid #E5E5E5; 
-      border-radius: 28px; 
       overflow: hidden; 
-      box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.15), 0 5px 12px -4px rgba(0, 0, 0, 0.1);
     }
+    @media (min-width: 768px) { .container { max-width: 800px; } }
     .header { 
       background: #FDC020; 
-      padding: 32px; 
+      padding: 20px; 
       color: #191919; 
     }
-    .content { padding: 32px; }
-    .items-table { width: 100%; border-collapse: collapse; margin: 24px 0; }
-    .items-table th, .items-table td { padding: 12px; border: 1px solid #E5E5E5; text-align: left; }
+    @media (min-width: 640px) { .header { padding: 32px; } }
+    .content { padding: 20px; }
+    @media (min-width: 640px) { .content { padding: 32px; } }
+    .items-table { width: 100%; border-collapse: collapse; margin: 16px 0; overflow-x: auto; display: block; }
+    @media (min-width: 640px) { .items-table { display: table; } }
+    .items-table th, .items-table td { padding: 8px; border: 1px solid #E5E5E5; text-align: left; font-size: 12px; }
+    @media (min-width: 640px) { .items-table th, .items-table td { padding: 12px; font-size: 14px; } }
     .items-table th { background: #F5F5F5; font-weight: 600; }
     .total { 
       text-align: right; 
-      font-size: 20px; 
+      font-size: 16px; 
       font-weight: bold; 
-      margin-top: 24px; 
-      padding-top: 16px; 
+      margin-top: 16px; 
+      padding-top: 12px; 
       border-top: 2px solid #E5E5E5; 
       color: #FDC020;
     }
-    .section { margin-bottom: 24px; }
+    @media (min-width: 640px) { .total { font-size: 20px; margin-top: 24px; padding-top: 16px; } }
+    .section { margin-bottom: 16px; }
+    @media (min-width: 640px) { .section { margin-bottom: 24px; } }
     .section-title { 
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 600; 
-      margin-bottom: 12px; 
+      margin-bottom: 8px; 
       color: #191919; 
+      font-size: 16px;
     }
+    @media (min-width: 640px) { .section-title { font-size: 18px; margin-bottom: 12px; } }
+    .receipt-id { font-size: 10px; word-break: break-all; }
+    @media (min-width: 640px) { .receipt-id { font-size: 12px; } }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      ${receipt.business_logo ? `<img src="${receipt.business_logo}" style="max-height: 60px; margin-bottom: 16px;" />` : ""}
-      <h2 style="font-family: 'Space Grotesk', sans-serif; font-weight: 600;">${receipt.business_name || receipt.initiator_name}</h2>
-      <p>Receipt #: ${receipt.receipt_id}</p>
+      ${receipt.business_logo ? `<img src="${receipt.business_logo}" style="max-height: 40px; margin-bottom: 12px;" />` : ""}
+      <h2 style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 18px;">${receipt.business_name || receipt.initiator_name}</h2>
+      <p class="receipt-id">Receipt #: ${receipt.receipt_id}</p>
     </div>
     <div class="content">
       <div class="section">
@@ -224,12 +233,12 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
             )
             .join("")}
         </tbody>
-      追逐
+      </table>
       
       <div class="total">Total: ${formatCurrency(receipt.total)}</div>
       
-      <div class="section" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #E5E5E5;">
-        <p style="font-size: 12px; color: #666666; text-align: center;">
+      <div class="section" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #E5E5E5;">
+        <p style="font-size: 10px; color: #666666; text-align: center;">
           This receipt was generated electronically by Zidwell Receipts.
           Verification code: ${receipt.verification_code || "N/A"}
         </p>
@@ -271,12 +280,13 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-(--bg-primary) rounded-xl p-6 max-w-2xl w-full mx-4 shadow-pop max-h-[90vh] overflow-y-auto border border-(--border-color) squircle-lg">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-(--color-lemon-green)/10 rounded-full flex items-center justify-center mx-auto mb-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[var(--bg-primary)] rounded-xl p-4 sm:p-6 sm:max-w-lg md:max-w-4xl w-full mx-auto shadow-pop max-h-[90vh] overflow-y-auto border border-[var(--border-color)] squircle-lg">
+        {/* Header Section */}
+        <div className="text-center mb-4 sm:mb-6">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[var(--color-lemon-green)]/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
             <svg
-              className="w-8 h-8 text-(--color-lemon-green)"
+              className="w-6 h-6 sm:w-8 sm:h-8 text-[var(--color-lemon-green)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -289,42 +299,44 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
               />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-(--text-primary) mb-2">
+
+          <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] mb-1 sm:mb-2">
             Receipt Created Successfully! 🎉
           </h3>
-          <p className="text-(--text-secondary)">
+          <p className="text-sm sm:text-base text-[var(--text-secondary)]">
             Your receipt has been generated and is ready to share.
           </p>
         </div>
 
-        <div className="space-y-4 py-4">
+        {/* Content Section */}
+        <div className="space-y-3 sm:space-y-4 py-2 sm:py-4">
           {/* Download Option */}
-          <div className="rounded-lg border-2 border-(--border-color) p-4 hover:border-(--color-accent-yellow) transition-colors squircle-md">
-            <div className="flex items-start gap-4">
-              <div className="h-10 w-10 rounded-lg bg-(--bg-secondary) flex items-center justify-center shrink-0">
-                <FileText className="h-5 w-5 text-(--text-secondary)" />
+          <div className="rounded-lg border-2 border-[var(--border-color)] p-3 sm:p-4 hover:border-[var(--color-accent-yellow)] transition-colors squircle-md">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-[var(--bg-secondary)] flex items-center justify-center shrink-0">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--text-secondary)]" />
               </div>
-              <div className="flex-1">
-                <h3 className="font-medium text-(--text-primary)">
+              <div className="flex-1 w-full">
+                <h3 className="font-medium text-[var(--text-primary)] text-sm sm:text-base">
                   Download PDF
                 </h3>
-                <p className="text-sm text-(--text-secondary) mt-1">
+                <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1">
                   Download receipt as PDF with your signature.
                 </p>
                 <Button
                   onClick={downloadPdf}
                   disabled={isDownloading}
-                  className="mt-3 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 min-w-[140px] squircle-md"
+                  className="mt-2 sm:mt-3 w-full sm:w-auto bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 min-w-[120px] sm:min-w-[140px] squircle-md text-sm sm:text-base py-1.5 sm:py-2"
                 >
                   {isDownloading ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Downloading...
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 animate-spin" />
+                      <span className="text-xs sm:text-sm">Downloading...</span>
                     </>
                   ) : (
                     <>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download PDF
+                      <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      <span className="text-xs sm:text-sm">Download PDF</span>
                     </>
                   )}
                 </Button>
@@ -334,11 +346,11 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
 
           {/* Share Link Option */}
           {signingLink && (
-            <div className="rounded-lg border-2 border-(--border-color) p-4 hover:border-(--color-accent-yellow) transition-colors squircle-md">
-              <div className="flex items-start gap-4">
-                <div className="h-10 w-10 rounded-lg bg-(--bg-secondary) flex items-center justify-center shrink-0">
+            <div className="rounded-lg border-2 border-[var(--border-color)] p-3 sm:p-4 hover:border-[var(--color-accent-yellow)] transition-colors squircle-md">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-[var(--bg-secondary)] flex items-center justify-center shrink-0">
                   <svg
-                    className="h-5 w-5 text-(--text-secondary)"
+                    className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--text-secondary)]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -351,29 +363,34 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
                     />
                   </svg>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-(--text-primary)">
+                <div className="flex-1 w-full">
+                  <h3 className="font-medium text-[var(--text-primary)] text-sm sm:text-base">
                     Share Receipt Link
                   </h3>
-                  <p className="text-sm text-(--text-secondary) mt-1">
-                    Send this link to the receiver. They can view and
-                    acknowledge the receipt.
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1">
+                    Send this link to the receiver. They can view and acknowledge the receipt.
                   </p>
-                  <div className="flex gap-2 mt-3">
-                    <div className="flex-1 rounded-lg bg-(--bg-secondary) px-3 py-2 text-sm font-mono text-(--text-secondary) truncate">
+                  <div className="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-3">
+                    <div className="flex-1 rounded-lg bg-[var(--bg-secondary)] px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-mono text-[var(--text-secondary)] truncate">
                       {signingLink}
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleCopyLink(signingLink)}
-                      className="shrink-0 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) squircle-sm"
+                      className="w-full sm:w-auto border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 squircle-sm"
                       disabled={isDownloading}
                     >
                       {copied ? (
-                        <Check className="h-4 w-4 text-(--color-lemon-green)" />
+                        <>
+                          <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                          <span className="text-xs sm:text-sm">Copied!</span>
+                        </>
                       ) : (
-                        <Copy className="h-4 w-4" />
+                        <>
+                          <Copy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                          <span className="text-xs sm:text-sm">Copy Link</span>
+                        </>
                       )}
                     </Button>
                   </div>
@@ -383,17 +400,17 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
           )}
         </div>
 
-        <div className="mt-4 p-3 bg-(--bg-secondary) rounded-lg squircle-md">
-          <p className="text-sm text-(--text-secondary) text-center">
-            <span className="font-medium">Receipt ID:</span> {receiptId}
-          </p>
-        </div>
-
-        <div className="mt-6">
+        {/* Footer Section */}
+        <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-[var(--border-color)]">
+          <div className="mb-3 p-2 sm:p-3 bg-[var(--bg-secondary)] rounded-lg squircle-md">
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] text-center">
+              <span className="font-medium">Receipt ID:</span> {receiptId}
+            </p>
+          </div>
           <Button
             onClick={onClose}
             variant="outline"
-            className="w-full border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) squircle-md"
+            className="w-full border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md text-sm sm:text-base py-2 sm:py-2.5"
             disabled={isDownloading}
           >
             Close

@@ -540,7 +540,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         {page.pageType === "school" &&
           page.feeBreakdown &&
           page.feeBreakdown.length > 0 && (
-            <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 shadow-soft">
+            <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-5 shadow-soft">
               <h3 className="font-bold text-lg mb-4 text-(--text-primary)">
                 Fee Breakdown
               </h3>
@@ -570,7 +570,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* Toggle Button for Installment/Full Payment */}
         {canDoInstallments && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 shadow-soft">
+          <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-5 shadow-soft">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-lg text-(--text-primary)">
@@ -627,7 +627,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         )}
 
         {/* Customer Information */}
-        <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
+        <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
           <h3 className="font-bold text-lg text-(--text-primary)">
             Your Information
           </h3>
@@ -640,7 +640,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               placeholder="Enter your full name"
               value={formData.fullName}
               onChange={(e) => handleInputChange("fullName", e.target.value)}
-              className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+              className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
@@ -654,7 +654,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               placeholder="john@example.com"
               value={formData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
-              className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+              className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
@@ -668,7 +668,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               placeholder="08012345678"
               value={formData.phone}
               onChange={(e) => handleInputChange("phone", e.target.value)}
-              className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+              className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
@@ -676,7 +676,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* School Page Specific Fields */}
         {page.pageType === "school" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
+          <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
             <h3 className="font-bold text-lg text-(--text-primary)">
               Student Information
             </h3>
@@ -687,7 +687,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                   Select Student *
                 </Label>
                 <Select onValueChange={handleStudentSelect}>
-                  <SelectTrigger className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary)">
+                  <SelectTrigger className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary)">
                     <SelectValue placeholder="Choose a student" />
                   </SelectTrigger>
                   <SelectContent>
@@ -713,7 +713,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 placeholder="Enter student's full name"
                 value={formData.childName}
                 onChange={(e) => handleInputChange("childName", e.target.value)}
-                className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
@@ -726,7 +726,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 placeholder="Enter student registration number"
                 value={formData.regNumber}
                 onChange={(e) => handleInputChange("regNumber", e.target.value)}
-                className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
               <p className="text-xs text-(--text-secondary) mt-1">
@@ -744,7 +744,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 onChange={(e) =>
                   handleInputChange("parentName", e.target.value)
                 }
-                className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
@@ -761,7 +761,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                     onChange={(e) =>
                       handleCustomFieldChange(field, e.target.value)
                     }
-                    className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                    className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
@@ -771,7 +771,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* Physical Product Fields */}
         {page.pageType === "physical" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
+          <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
             <h3 className="font-bold text-lg text-(--text-primary)">
               Product Options
             </h3>
@@ -823,7 +823,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 min="1"
                 value={formData.quantity}
                 onChange={(e) => handleInputChange("quantity", e.target.value)}
-                className="h-12 w-32 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                className="h-12 w-32 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
@@ -841,7 +841,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                       handleInputChange("address", e.target.value)
                     }
                     rows={3}
-                    className="resize-none border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                    className="resize-none border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
@@ -856,7 +856,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                       onChange={(e) =>
                         handleInputChange("city", e.target.value)
                       }
-                      className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                      className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                       style={{ outline: "none", boxShadow: "none" }}
                     />
                   </div>
@@ -870,7 +870,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                       onChange={(e) =>
                         handleInputChange("state", e.target.value)
                       }
-                      className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                      className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                       style={{ outline: "none", boxShadow: "none" }}
                     />
                   </div>
@@ -882,7 +882,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* Digital Product Fields */}
         {page.pageType === "digital" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 shadow-soft">
+          <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-5 shadow-soft">
             <div className="flex items-center gap-3 p-3 bg-(--color-lemon-green)/10 rounded-xl">
               <FileDown className="h-6 w-6 text-(--color-lemon-green)" />
               <div>
@@ -899,7 +899,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* Services Fields */}
         {page.pageType === "services" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
+          <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
             <h3 className="font-bold text-lg text-(--text-primary)">
               Service Details
             </h3>
@@ -916,7 +916,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                     onChange={(e) =>
                       handleInputChange("bookingDate", e.target.value)
                     }
-                    className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                    className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
@@ -930,7 +930,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                     onChange={(e) =>
                       handleInputChange("bookingTime", e.target.value)
                     }
-                    className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                    className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </div>
@@ -949,7 +949,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                     handleInputChange("customerNote", e.target.value)
                   }
                   rows={4}
-                  className="resize-none border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                  className="resize-none border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
@@ -959,7 +959,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* Donation Fields */}
         {page.pageType === "donation" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
+          <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-5 space-y-4 shadow-soft">
             <h3 className="font-bold text-lg text-(--text-primary)">
               Donation Details
             </h3>
@@ -1000,7 +1000,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 placeholder="Enter amount"
                 value={formData.amount}
                 onChange={(e) => handleInputChange("amount", e.target.value)}
-                className="h-12 border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                className="h-12 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                 style={{ outline: "none", boxShadow: "none" }}
               />
             </div>
@@ -1017,7 +1017,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                     handleInputChange("donorMessage", e.target.value)
                   }
                   rows={3}
-                  className="resize-none border-(--border-color) bg-[var(--bg-primary)] text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                  className="resize-none border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
@@ -1027,7 +1027,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
         {/* Paid Students List */}
         {page.pageType === "school" && paidStudents.length > 0 && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-(--border-color) p-5 shadow-soft">
+          <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-5 shadow-soft">
             <div className="flex items-center gap-2 mb-3">
               <UserCheck className="h-5 w-5 text-(--color-lemon-green)" />
               <h3 className="font-bold text-lg text-(--text-primary)">

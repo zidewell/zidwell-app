@@ -41,14 +41,14 @@ function ReceiptHowItsWork() {
                 className="flex gap-4 items-start animate-fade-in"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className="h-10 w-10 rounded-full flex items-center justify-center font-bold shrink-0 bg-(--color-accent-yellow) text-[var(--color-ink)]">
+                <div className="h-10 w-10 rounded-full flex items-center justify-center font-bold shrink-0 bg-(--color-accent-yellow) text-(--color-ink)">
                   {item.step}
                 </div>
                 <div className="pt-1">
                   <h3 className="font-semibold text-(--text-primary)">
                     {item.title}
                   </h3>
-                  <p className="text-sm text-[var(--text-secondary)] mt-1">
+                  <p className="text-sm text-(--text-secondary) mt-1">
                     {item.description}
                   </p>
                 </div>

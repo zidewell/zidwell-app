@@ -12,7 +12,7 @@ const baseUrl =
 
 const headerImageUrl = `${baseUrl}/zidwell-header.png`;
 const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
-const cheersImageUrl = `${baseUrl}/cheers-transanction.webp`;
+const cheersImageUrl = `${baseUrl}/cheers-transanction.webp` || `${baseUrl}/cheers-transanction.webp`;
 
 export async function sendInvoiceCreatorNotificationEmail(
   creatorEmail: string,
@@ -79,6 +79,8 @@ export async function sendVirtualAccountDepositEmail(
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
           <h3 style="color: #22c55e;">✅ Credit alert</h3>
           <p>Hi ${user.first_name || "there"},</p>
+           ${status === "success" ? `<img src="${cheersImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />` : ""}
+            <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
           <p>Your account has been credited with <strong>₦${amount.toLocaleString()}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount Received:</strong> ₦${amount.toLocaleString()}</p>

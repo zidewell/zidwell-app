@@ -5,7 +5,7 @@ import {
   sendSubscriptionReceiptWithPDF, 
   sendSubscriptionActivationEmail 
 } from "../../../../lib/subscription-emails";
-import { ProcessSubscriptionParams, BankTransferSubscriptionParams } from "@/lib/subscription-types"; 
+import { ProcessSubscriptionParams, BankTransferSubscriptionParams } from "@/lib/subscription-types";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,

@@ -191,54 +191,7 @@ const Page = () => {
                 </div>
               </div>
 
-              {/* Tier Message - For paid tiers only */}
-              {tierMessage && !isFree && (
-                <div
-                  className={`mb-6 p-4 rounded-md border-2 ${
-                    isEliteUser
-                      ? "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800"
-                      : isPremiumUser
-                        ? "bg-(--color-accent-yellow)/10 border-(--color-accent-yellow)"
-                        : isGrowthUser
-                          ? "bg-(--color-accent-yellow)/10 border-(--color-accent-yellow)"
-                          : isZidLiteUser
-                            ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-                            : ""
-                  } shadow-[2px_2px_0px_#242424] dark:shadow-[2px_2px_0px_#000000]`}
-                >
-                  <p
-                    className={`font-medium flex items-center gap-2 ${
-                      isEliteUser
-                        ? "text-purple-600 dark:text-purple-400"
-                        : isPremiumUser
-                          ? "text-(--color-accent-yellow)"
-                          : isGrowthUser
-                            ? "text-(--color-accent-yellow)"
-                            : isZidLiteUser
-                              ? "text-blue-600 dark:text-blue-400"
-                              : ""
-                    }`}
-                  >
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-bold ${
-                        isEliteUser
-                          ? "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800"
-                          : isPremiumUser
-                            ? "bg-(--color-accent-yellow) text-(--color-ink)"
-                            : isGrowthUser
-                              ? "bg-(--color-accent-yellow) text-(--color-ink)"
-                              : isZidLiteUser
-                                ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                                : ""
-                      }`}
-                    >
-                      {tierInfo.label.toUpperCase()}
-                    </span>
-                    {tierMessage}
-                  </p>
-                </div>
-              )}
-
+           
               <ContractGen
                 contracts={contracts}
                 loading={loading}
