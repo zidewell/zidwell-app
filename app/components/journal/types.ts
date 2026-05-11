@@ -88,89 +88,67 @@ export const INCOME_CATEGORIES: Omit<Category, 'isCustom' | 'isFavorite' | 'favo
 
 // EXPENSE CATEGORIES
 export const EXPENSE_CATEGORIES: Omit<Category, 'isCustom' | 'isFavorite' | 'favoriteOrder'>[] = [
-  // Business Expenses
-  { id: 'inventory', name: 'Inventory / Stock Purchase', icon: '📦', type: 'expense' },
-  { id: 'logistics', name: 'Logistics & Delivery', icon: '🚚', type: 'expense' },
-  { id: 'shop_rent', name: 'Shop Rent', icon: '🏪', type: 'expense' },
-  { id: 'utilities_business', name: 'Utilities (Business)', icon: '💡', type: 'expense' },
-  { id: 'staff_salaries', name: 'Staff Salaries', icon: '🧑‍💼', type: 'expense' },
-  { id: 'contractor_payments', name: 'Contractor Payments', icon: '🤝', type: 'expense' },
-  { id: 'marketing_ads', name: 'Marketing & Ads', icon: '📢', type: 'expense' },
-  { id: 'branding_design', name: 'Branding & Design', icon: '🎨', type: 'expense' },
-  { id: 'software_tools', name: 'Software & Tools', icon: '💻', type: 'expense' },
-  { id: 'professional_fees', name: 'Professional Fees', icon: '🧾', type: 'expense' },
-  { id: 'bank_charges', name: 'Bank Charges / POS Fees', icon: '🏦', type: 'expense' },
-  { id: 'business_compliance', name: 'Business Compliance', icon: '🧾', type: 'expense' },
-  { id: 'equipment_purchase', name: 'Equipment Purchase', icon: '🛠️', type: 'expense' },
-  { id: 'repairs_maintenance', name: 'Repairs & Maintenance', icon: '🔧', type: 'expense' },
-  
-  // Rent & Utilities (Personal)
-  { id: 'rent_personal', name: 'Rent (Personal)', icon: '🏠', type: 'expense' },
-  { id: 'electricity', name: 'Electricity Bill', icon: '💡', type: 'expense' },
-  { id: 'water', name: 'Water Bill', icon: '💧', type: 'expense' },
-  
-  // Food & Household
-  { id: 'food_groceries', name: 'Food & Groceries', icon: '🍽️', type: 'expense' },
+  // DAILY ESSENTIALS
+  { id: 'food', name: 'Food', icon: '🍽️', type: 'expense' },
   { id: 'household_items', name: 'Household Items', icon: '🛒', type: 'expense' },
-  { id: 'cleaning', name: 'Cleaning', icon: '🧼', type: 'expense' },
-  
-  // Transport
-  { id: 'transport', name: 'Transport', icon: '🚗', type: 'expense' },
+  { id: 'electricity_bill', name: 'Electricity bill', icon: '💡', type: 'expense' },
+  { id: 'water_bill', name: 'Water bill', icon: '💧', type: 'expense' },
   { id: 'fuel', name: 'Fuel', icon: '⛽', type: 'expense' },
-  { id: 'vehicle_maintenance', name: 'Vehicle Maintenance', icon: '🚗', type: 'expense' },
-  
-  // Travel
-  { id: 'travel_flights', name: 'Travel / Flights', icon: '✈️', type: 'expense' },
-  { id: 'hotel', name: 'Hotel Bill', icon: '🧳', type: 'expense' },
-  
-  // Family & Lifestyle
-  { id: 'school_fees', name: 'School Fees', icon: '🎓', type: 'expense' },
+  { id: 'data_internet', name: 'Data / Internet', icon: '📶', type: 'expense' },
+  { id: 'call_airtime', name: 'Call Airtime', icon: '📳', type: 'expense' },
+  { id: 'cleaning_fee', name: 'Cleaning fee', icon: '🧼', type: 'expense' },
+  { id: 'transport', name: 'Transport', icon: '🚗', type: 'expense' },
+  { id: 'cash_withdrawal', name: 'Cash Withdrawal', icon: '🏧', type: 'expense' },
   { id: 'children_expenses', name: 'Children Expenses', icon: '🧸', type: 'expense' },
-  { id: 'family_support', name: 'Family Support', icon: '👨‍👩‍👧‍👦', type: 'expense' },
+  { id: 'family_support', name: 'Family Support', icon: '🧓', type: 'expense' },
   { id: 'gifts_given', name: 'Gifts Given', icon: '🎁', type: 'expense' },
-  { id: 'events', name: 'Events', icon: '💒', type: 'expense' },
-  
-  // Health & Wellness
   { id: 'hospital_bills', name: 'Hospital Bills', icon: '🏥', type: 'expense' },
   { id: 'medication', name: 'Medication', icon: '💊', type: 'expense' },
-  { id: 'health_wellness', name: 'Health & Wellness', icon: '🩺', type: 'expense' },
-  
-  // Digital Subscriptions
   { id: 'digital_subscriptions', name: 'Digital Subscriptions', icon: '📱', type: 'expense' },
-  { id: 'data_internet', name: 'Data / Internet', icon: '📶', type: 'expense' },
+  { id: 'vehicle_maintenance', name: 'Vehicle Maintenance', icon: '🚗', type: 'expense' },
+
+  // OTHER CATEGORIES
+  { id: 'inventory_stock', name: 'Inventory / Stock Purchase', icon: '📦', type: 'expense' },
+  { id: 'utilities_business', name: 'Utilities (Business)', icon: '💡', type: 'expense' },
+  { id: 'logistics_delivery', name: 'Logistics & Delivery', icon: '🚚', type: 'expense' },
+  { id: 'shop_rent', name: 'Shop Rent', icon: '🏪', type: 'expense' },
+  { id: 'staff_salaries', name: 'Staff Salaries', icon: '🧑‍💼', type: 'expense' },
+  { id: 'school_fees', name: 'School Fees', icon: '🎓', type: 'expense' },
+  { id: 'contractor_payment', name: 'Contractor Payment', icon: '🤝', type: 'expense' },
+  { id: 'marketing_ads', name: 'Marketing & Ads', icon: '📢', type: 'expense' },
+  { id: 'branding_design', name: 'Branding & Design', icon: '🎨', type: 'expense' },
+  { id: 'software_tool', name: 'Software & Tool', icon: '💻', type: 'expense' },
+  { id: 'professional_fees', name: 'Professional Fees (lawyer, accountant)', icon: '🧾', type: 'expense' },
+  { id: 'bank_charges', name: 'Bank Charges / POS Fee', icon: '🏦', type: 'expense' },
+  { id: 'business_compliance', name: 'Business Compliance', icon: '🧾', type: 'expense' },
+  { id: 'equipment_purchase', name: 'Equipment Purchase', icon: '🛠️', type: 'expense' },
+  { id: 'repairs_maintenance_business', name: 'Repairs & Maintenance (Business)', icon: '🔧', type: 'expense' },
+  { id: 'rent_business', name: 'Rent (business)', icon: '🏢', type: 'expense' },
+  { id: 'rent_personal', name: 'Rent (personal)', icon: '🏠', type: 'expense' },
+  { id: 'travel_flights', name: 'Travel / Flights', icon: '✈️', type: 'expense' },
+  { id: 'hotel_bill', name: 'Hotel bill', icon: '🧳', type: 'expense' },
+  { id: 'family_lifestyle', name: 'Family & Lifestyle', icon: '👨‍👩‍👧‍👦', type: 'expense' },
+  { id: 'events', name: 'Events', icon: '💒', type: 'expense' },
+  { id: 'health_wellness', name: 'Health & Wellness', icon: '🩺', type: 'expense' },
   { id: 'cable_subscriptions', name: 'Cable Subscriptions', icon: '📺', type: 'expense' },
-  { id: 'digital_tools', name: 'Digital Tool Purchases', icon: '📱', type: 'expense' },
-  
-  // Financial Obligations
+  { id: 'digital_tool_purchases', name: 'Digital tool Purchases', icon: '📱', type: 'expense' },
+  { id: 'financial_obligations', name: 'Financial Obligations', icon: '💳', type: 'expense' },
   { id: 'loan_repayment', name: 'Loan Repayment', icon: '🏦', type: 'expense' },
   { id: 'debt_payment', name: 'Debt Payment', icon: '💳', type: 'expense' },
   { id: 'taxes', name: 'Taxes', icon: '🧾', type: 'expense' },
   { id: 'insurance', name: 'Insurance', icon: '💸', type: 'expense' },
-  
-  // Lifestyle & Discretionary
-  { id: 'clothing', name: 'Clothing & Fashion', icon: '👕', type: 'expense' },
-  { id: 'beauty_care', name: 'Beauty & Personal Care', icon: '💄', type: 'expense' },
-  { id: 'outings_leisure', name: 'Outings & Leisure', icon: '🎮', type: 'expense' },
-  { id: 'drinks_snacks', name: 'Drinks / Snacks', icon: '☕', type: 'expense' },
-  
-  // Large Purchases
+  { id: 'lifestyle_discretionary', name: 'Lifestyle & Discretionary', icon: '🎉', type: 'expense' },
+  { id: 'clothing_fashion', name: 'Clothing & Fashion', icon: '👕', type: 'expense' },
+  { id: 'beauty_personal_care', name: 'Beauty & Personal Care', icon: '💄', type: 'expense' },
   { id: 'property_purchase', name: 'Property Purchase', icon: '🏠', type: 'expense' },
   { id: 'car_purchase', name: 'Car Purchase', icon: '🚗', type: 'expense' },
   { id: 'gadgets_purchase', name: 'Gadgets Purchase', icon: '💻', type: 'expense' },
   { id: 'furniture', name: 'Furniture', icon: '🪑', type: 'expense' },
-  
-  // Transfers
-  { id: 'transfer_to_self', name: 'Transfer to Self', icon: '🔁', type: 'expense' },
+  { id: 'transfer_to_self', name: 'Transfer to Self', icon: '🔄', type: 'expense' },
   { id: 'transfer_to_savings', name: 'Transfer to Savings', icon: '🏦', type: 'expense' },
   { id: 'business_to_personal', name: 'Business to Personal Transfer', icon: '💼', type: 'expense' },
   { id: 'personal_to_business', name: 'Personal to Business Transfer', icon: '🧾', type: 'expense' },
-  
-  // Cash & Emergency
-  { id: 'cash_withdrawal', name: 'Cash Withdrawal', icon: '💳', type: 'expense' },
   { id: 'emergency_expenses', name: 'Emergency Expenses', icon: '🚨', type: 'expense' },
-  
-  // Other
-  { id: 'other_expense', name: 'Other Expense', icon: '📦', type: 'expense' },
 ];
 
 // Combine all default categories

@@ -68,30 +68,32 @@ const Hero = () => {
        
 
           {/* Main Heading */}
-          <h1 className="animate-fade-up-delay-1 text-4xl md:text-5xl font-black leading-tight mb-6 text-balance text-white">
+          <h1 className="animate-fade-up-delay-1 text-3xl md:text-4xl font-black leading-tight mb-6 text-balance text-white">
             For those who make the{" "}
             <span className="relative inline-block">
               <span className="relative z-10 text-[var(--color-accent-yellow)]">
                 impossible
               </span>
-              <span className="absolute bottom-2 left-0 right-0 h-4 bg-[var(--color-accent-yellow)]/40 z-0 rounded-sm" />
+            
             </span>{" "}
             seem normal.
           </h1>
 
           {/* Subheading */}
-          <p className="animate-fade-up-delay-2 text-lg  text-gray-200 mb-6 text-balance">
+          <p className="animate-fade-up-delay-2 text-lg  text-gray-200 mb-6 text-balance text-center">
             Use Zidwell daily for Instant transfers, automatic bookkeeping,
-            payment pages, invoices, tax manager and much more.
+            payment pages, invoices. <br/>
+              so your business records are clean and ready whenever you need it.
           </p>
 
+         
           {/* Main Text */}
-          <p className="animate-fade-up-delay-2 text-sm  text-gray-300 mb-8 text-balance leading-relaxed md:text-center">
-            Entrepreneurs are the heroes of our society. We built Zidwell so
-            heroes can handle their entire financial operations on one platform.
-            You already run a business in a tough environment, why add to your
-            stress by using 5 finance apps when you can use just one - Zidwell.
-          </p>
+     <p className="animate-fade-up-delay-2 text-sm text-gray-300 mb-8 text-balance leading-relaxed md:text-center">
+  Entrepreneurs are the heroes of our society. We built Zidwell so<br />
+  heroes can handle their entire financial operations on one platform.<br />
+  You already run a business in a tough environment, why add to your<br />
+  stress by using 5 finance apps when you can use just one - Zidwell.
+</p>
 
           {/* CTA Buttons */}
           <div className="animate-fade-up-delay-3 flex flex-col sm:flex-row items-start gap-4 mb-8">
@@ -114,7 +116,7 @@ const Hero = () => {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => router.push("/auth/login")}
+                  onClick={() => router.push("https://www.instagram.com/zidwellfinance/")}
                   className="border-2 bg-transparent border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)] px-6 py-5  font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
                 >
                   <Users className="mr-2 h-5 w-5" />
@@ -126,18 +128,7 @@ const Hero = () => {
 
           {/* Trust Indicators */}
           <div className="animate-fade-up-delay-3 flex flex-wrap items-center gap-6 text-sm text-gray-200">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-[var(--color-lemon-green)] rounded-full" />
-              <span>No hidden fees</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-[var(--color-lemon-green)] rounded-full" />
-              <span>Start for free</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-[var(--color-lemon-green)] rounded-full" />
-              <span>Cancel anytime</span>
-            </div>
+          
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-[var(--color-accent-yellow)] rounded-full" />
               <span>Trusted by 10,000+ businesses</span>
