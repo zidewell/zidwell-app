@@ -61,7 +61,7 @@ const plans = [
       "WhatsApp support",
     ],
     cta: "Go ZidLite",
-    amount: 4900,
+    amount: 100,
     yearlyAmount: 49000,
     color: "blue",
   },
