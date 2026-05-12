@@ -79,15 +79,9 @@ export async function sendVirtualAccountDepositEmail(
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
           <h3 style="color: #22c55e;">✅ Credit alert</h3>
           <p>Hi ${user.first_name || "there"},</p>
-           ${status === "success" ? `<img src="${cheersImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />` : ""}
-            <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-          <p>Your account has been credited with <strong>₦${amount.toLocaleString()}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount Received:</strong> ₦${amount.toLocaleString()}</p>
-          
-           
             <p><strong>Bank:</strong> ${bankName}</p>
-       
             <p><strong>Sender:</strong> ${senderName}</p>
             <p><strong>Narration:</strong> ${narration || "N/A"}</p>
           </div>
