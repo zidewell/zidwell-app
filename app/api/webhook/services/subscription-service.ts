@@ -40,38 +40,7 @@ export async function processSubscriptionPayment(
   console.log("Order Reference:", orderReference);
   console.log("Transaction ID:", nombaTransactionId);
 
-  // Extract metadata from ALL possible locations
-  const orderData = payload.data?.order || {};
-  const transactionData = payload.data?.transaction || {};
-  
-  const planTier = 
-    orderData.planTier ||
-    orderData.metadata?.planTier ||
-    transactionData.planTier ||
-    transactionData.metadata?.planTier;
-  
-  const userId = 
-    orderData.userId ||
-    orderData.customerId ||
-    orderData.metadata?.userId ||
-    transactionData.userId ||
-    transactionData.metadata?.userId;
-  
-  const billingPeriod = 
-    orderData.billingPeriod ||
-    orderData.metadata?.billingPeriod ||
-    transactionData.billingPeriod ||
-    transactionData.metadata?.billingPeriod ||
-    'monthly';
-
-  console.log("📊 Extracted Metadata:", { planTier, billingPeriod, userId });
-
-  if (!userId || !planTier) {
-    console.error("❌ Missing required metadata!");
-    return { success: false, message: "Missing subscription metadata" };
-  }
-
-  // Find payment
+  // Get payment record from DATABASE
   const { data: payment, error: paymentError } = await supabase
     .from('subscription_payments')
     .select('*')
@@ -83,7 +52,25 @@ export async function processSubscriptionPayment(
     return { success: false, message: "Payment not found" };
   }
 
-  console.log("✅ Found payment:", { id: payment.id, status: payment.status, amount: payment.amount });
+  console.log("✅ Found payment:", { 
+    id: payment.id, 
+    status: payment.status, 
+    amount: payment.amount,
+    metadata: payment.metadata 
+  });
+
+  // Get metadata from database
+  const metadata = payment.metadata || {};
+  const planTier = metadata.planTier;
+  const billingPeriod = metadata.billingPeriod || 'monthly';
+  const userId = metadata.userId || payment.user_id;
+
+  console.log("📊 Extracted from Database:", { planTier, billingPeriod, userId });
+
+  if (!userId || !planTier) {
+    console.error("❌ Missing required metadata!");
+    return { success: false, message: "Missing subscription metadata" };
+  }
 
   // Check if already processed
   if (payment.status === 'completed') {
@@ -192,7 +179,7 @@ export async function processSubscriptionPayment(
 
   console.log("✅ User updated with tier:", planTier);
 
-  // SEND EMAILS
+  // Send emails
   if (user.email) {
     console.log("📧 Sending emails to:", user.email);
     
@@ -229,7 +216,7 @@ export async function processSubscriptionPayment(
   console.log("🎉 SUBSCRIPTION ACTIVATED SUCCESSFULLY!");
   console.log(`User: ${user.email}`);
   console.log(`Plan: ${planTier}`);
-  console.log(`Expires: ${expiresAt.toISOString()}`);
+  console.log(`Subscription ID: ${subscriptionId}`);
   console.log("=".repeat(60));
 
   return {
@@ -265,7 +252,6 @@ export async function processSubscriptionBankTransfer(
   console.log("=".repeat(60));
   console.log("Virtual Account:", aliasAccountReference);
   console.log("Transaction ID:", nombaTransactionId);
-  console.log("Amount:", transactionAmount);
 
   // Extract subscription reference from virtual account
   const subPattern = /^VA-SUB-(.+)$/i;
@@ -277,7 +263,7 @@ export async function processSubscriptionBankTransfer(
     return { success: false, message: "Invalid virtual account reference" };
   }
 
-  // Extract metadata
+  // Extract metadata from transaction
   const metadata = tx?.metadata || customer?.metadata || {};
   const planTier = metadata.planTier;
   const billingPeriod = metadata.billingPeriod || 'monthly';
@@ -293,7 +279,7 @@ export async function processSubscriptionBankTransfer(
   // Get user data
   const { data: user, error: userError } = await supabase
     .from('users')
-    .select('id, email, full_name, subscription_tier')
+    .select('id, email, full_name')
     .eq('id', userId)
     .single();
 
@@ -302,9 +288,7 @@ export async function processSubscriptionBankTransfer(
     return { success: false, message: "User not found" };
   }
 
-  console.log("✅ User found:", { id: user.id, email: user.email });
-
-  // Check for duplicate transaction
+  // Check for duplicate
   const { data: duplicateTx } = await supabase
     .from('subscription_payments')
     .select('id')
@@ -312,15 +296,11 @@ export async function processSubscriptionBankTransfer(
     .maybeSingle();
 
   if (duplicateTx) {
-    console.log("⚠️ Duplicate transaction detected, skipping");
     return { success: true, message: "Already processed" };
   }
 
   // Create payment record
   const now = new Date().toISOString();
-  const customerName = customer?.name || tx?.customerName || user.full_name || "Bank Transfer Customer";
-  const customerEmail = customer?.email || tx?.customerEmail || user.email;
-
   const { data: payment, error: insertError } = await supabase
     .from('subscription_payments')
     .insert({
@@ -330,145 +310,66 @@ export async function processSubscriptionBankTransfer(
       status: 'completed',
       reference: orderReference,
       nomba_transaction_id: nombaTransactionId,
-      metadata: {
-        planTier,
-        billingPeriod,
-        payment_method: 'bank_transfer',
-        customer_details: customer,
-        transaction_details: tx,
-      },
+      metadata: { planTier, billingPeriod },
       paid_at: now,
     })
     .select()
     .single();
 
   if (insertError) {
-    console.error("❌ Failed to create payment record:", insertError);
-    return { success: false, message: "Failed to create payment record" };
+    console.error("❌ Failed to create payment:", insertError);
+    return { success: false, message: "Failed to create payment" };
   }
-
-  console.log("✅ Payment record created:", { id: payment.id });
 
   // Calculate expiration
   const expiresAt = calculateExpiration(billingPeriod);
 
-  // UPDATE OR CREATE SUBSCRIPTION
-  let subscriptionId: string;
-
-  const { data: existingSub } = await supabase
+  // Create subscription
+  const { data: subscription, error: subError } = await supabase
     .from('subscriptions')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .maybeSingle();
+    .insert({
+      user_id: userId,
+      tier: planTier,
+      status: 'active',
+      started_at: now,
+      expires_at: expiresAt.toISOString(),
+      auto_renew: false,
+      payment_method: 'bank_transfer',
+    })
+    .select()
+    .single();
 
-  if (existingSub) {
-    console.log("📝 Updating existing subscription:", existingSub.id);
-    const { data: updated, error: updateError } = await supabase
-      .from('subscriptions')
-      .update({
-        tier: planTier,
-        status: 'active',
-        expires_at: expiresAt.toISOString(),
-        updated_at: now,
-        payment_method: 'bank_transfer',
-        cancelled_at: null,
-      })
-      .eq('id', existingSub.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error("❌ Failed to update subscription:", updateError);
-      return { success: false, message: "Failed to update subscription" };
-    }
-    subscriptionId = updated.id;
-    console.log("✅ Subscription updated");
-  } else {
-    console.log("📝 Creating new subscription");
-    const { data: newSub, error: createError } = await supabase
-      .from('subscriptions')
-      .insert({
-        user_id: userId,
-        tier: planTier,
-        status: 'active',
-        started_at: now,
-        expires_at: expiresAt.toISOString(),
-        auto_renew: false,
-        payment_method: 'bank_transfer',
-        created_at: now,
-        updated_at: now,
-      })
-      .select()
-      .single();
-
-    if (createError) {
-      console.error("❌ Failed to create subscription:", createError);
-      return { success: false, message: "Failed to create subscription" };
-    }
-    subscriptionId = newSub.id;
-    console.log("✅ New subscription created");
+  if (subError) {
+    console.error("❌ Failed to create subscription:", subError);
+    return { success: false, message: "Failed to create subscription" };
   }
 
-  // Link payment to subscription
-  await supabase
-    .from('subscription_payments')
-    .update({ subscription_id: subscriptionId })
-    .eq('id', payment.id);
-
-  // Update user record
+  // Update user
   await supabase
     .from('users')
     .update({
       subscription_tier: planTier,
       subscription_expires_at: expiresAt.toISOString(),
-      updated_at: now,
     })
     .eq('id', userId);
 
-  console.log("✅ User updated with tier:", planTier);
-
-  // Send email receipt
-  if (customerEmail) {
-    console.log("📧 Sending email to:", customerEmail);
-    try {
-      await sendSubscriptionReceiptWithPDF(
-        customerEmail,
-        customerName,
-        planTier,
-        transactionAmount,
-        nombaTransactionId,
-        billingPeriod,
-        expiresAt
-      );
-      console.log("✅ Receipt email sent");
-    } catch (error) {
-      console.error("❌ Failed to send receipt email:", error);
-    }
-  }
-
-  console.log("=".repeat(60));
-  console.log("🎉 BANK TRANSFER SUBSCRIPTION ACTIVATED!");
-  console.log(`User: ${user.email}`);
-  console.log(`Plan: ${planTier}`);
-  console.log(`Expires: ${expiresAt.toISOString()}`);
-  console.log("=".repeat(60));
+  console.log("🎉 Bank transfer subscription activated!");
+  console.log(`User: ${user.email}, Plan: ${planTier}`);
 
   return {
     success: true,
     message: "Bank transfer subscription activated",
-    subscription_id: subscriptionId
+    subscription_id: subscription.id
   };
 }
 
 // ============================================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS - ALL MUST BE EXPORTED
 // ============================================================
 
 export function checkIfSubscriptionPayment(orderReference: string, payload: any): boolean {
   if (orderReference?.startsWith("SUB_")) return true;
-  const orderData = payload.data?.order || {};
-  return orderData.type === "subscription" || !!orderData.planTier || !!orderData.metadata?.planTier;
+  return false;
 }
 
 export function checkIfSubscriptionBankTransfer(aliasAccountReference: string, payload: any): boolean {
