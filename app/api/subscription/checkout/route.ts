@@ -31,6 +31,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verify user
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, email, subscription_tier')
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
 
     const orderReference = generateOrderReference(userId);
 
+    // Create payment record
     const { data: payment, error: paymentError } = await supabase
       .from('subscription_payments')
       .insert({
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
         payment_method: 'pending',
         status: 'pending',
         reference: orderReference,
-        metadata: { planTier, billingPeriod }
+        metadata: { planTier, billingPeriod, userId }
       })
       .select()
       .single();
@@ -66,6 +68,14 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    console.log("✅ Payment record created:", { 
+      id: payment.id, 
+      reference: orderReference,
+      planTier, 
+      billingPeriod, 
+      userId 
+    });
 
     const accessToken = await getNombaToken();
 
@@ -81,6 +91,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // ✅ FIX: Put metadata as direct properties AND in metadata object
     const checkoutPayload = {
       order: {
         callbackUrl: `${baseUrl}/api/subscription/callback`,
@@ -91,16 +102,24 @@ export async function POST(request: Request) {
         customerId: userId,
         accountId: process.env.NOMBA_ACCOUNT_ID,
         allowedPaymentMethods: ["Card", "Transfer"],
+        // ✅ Direct properties (some gateways require this)
+        planTier: planTier,
+        billingPeriod: billingPeriod,
+        userId: userId,
+        type: "subscription",
+        // ✅ Also in metadata (for redundancy)
         metadata: {
-          type: "subscription",
           planTier: planTier,
           billingPeriod: billingPeriod,
           userId: userId,
-          paymentId: payment.id,
-        },
+          type: "subscription",
+          paymentId: payment.id
+        }
       },
       tokenizeCard: false,
     };
+
+    console.log("📤 Sending to Nomba:", JSON.stringify(checkoutPayload, null, 2));
 
     const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
       method: "POST",
@@ -115,12 +134,15 @@ export async function POST(request: Request) {
     const data = await response.json();
 
     if (!response.ok || data.code !== "00") {
+      console.error("Nomba error:", data);
       await supabase
         .from('subscription_payments')
         .update({ status: 'failed' })
         .eq('id', payment.id);
       throw new Error(data.description || "Failed to create checkout");
     }
+
+    console.log("✅ Checkout created:", { checkoutLink: data.data.checkoutLink });
 
     return NextResponse.json({
       success: true,
