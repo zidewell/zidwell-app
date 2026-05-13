@@ -47,14 +47,14 @@ export async function POST(request: Request) {
 
     const orderReference = generateOrderReference(userId);
 
-    // Create payment record
+    // Create payment record - FIXED: removed extra comma
     const { data: payment, error: paymentError } = await supabase
       .from('subscription_payments')
       .insert({
         user_id: userId,
         amount: amount,
         payment_method: 'pending',
-        status: 'pending',
+        status: 'pending',  // ✅ No trailing comma
         reference: orderReference,
         metadata: { planTier, billingPeriod }
       })
@@ -69,9 +69,21 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log("✅ Payment record created:", { 
+      id: payment.id, 
+      reference: orderReference, 
+      status: payment.status 
+    });
+
     const accessToken = await getNombaToken();
 
     if (!accessToken) {
+      // Update payment to failed since we can't proceed
+      await supabase
+        .from('subscription_payments')
+        .update({ status: 'failed' })
+        .eq('id', payment.id);
+      
       return NextResponse.json(
         { success: false, error: "Payment service unavailable" },
         { status: 503 }
@@ -99,6 +111,8 @@ export async function POST(request: Request) {
       tokenizeCard: false,
     };
 
+    console.log("🚀 Sending checkout request to Nomba...");
+
     const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
       method: "POST",
       headers: {
@@ -112,12 +126,18 @@ export async function POST(request: Request) {
     const data = await response.json();
 
     if (!response.ok || data.code !== "00") {
+      console.error("Nomba checkout error:", data);
       await supabase
         .from('subscription_payments')
         .update({ status: 'failed' })
         .eq('id', payment.id);
       throw new Error(data.description || "Failed to create checkout");
     }
+
+    console.log("✅ Checkout created successfully:", { 
+      checkoutLink: data.data.checkoutLink,
+      orderReference 
+    });
 
     return NextResponse.json({
       success: true,

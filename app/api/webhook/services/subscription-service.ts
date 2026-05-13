@@ -156,7 +156,6 @@ export async function processSubscriptionPayment(
         updated_at: now,
         payment_method: 'card',
         auto_renew: false,
-        // Don't change started_at - keep original start date
       })
       .eq('id', existingSubscription.id)
       .select()
