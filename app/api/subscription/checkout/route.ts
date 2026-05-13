@@ -91,25 +91,25 @@ export async function POST(request: Request) {
     }
 
     const checkoutPayload = {
-      order: {
-        callbackUrl: `${baseUrl}/api/subscription/callback`,
-        customerEmail: userEmail,
-        amount: amount.toString(),
-        currency: "NGN",
-        orderReference: orderReference,
-        customerId: userId,
-        accountId: process.env.NOMBA_ACCOUNT_ID,
-        allowedPaymentMethods: ["Card", "Transfer"],
-        metadata: {
-          type: "subscription",
-          planTier,
-          billingPeriod,
-          userId,
-          paymentId: payment.id,
-        },
-      },
-      tokenizeCard: false,
-    };
+  order: {
+    callbackUrl: `${baseUrl}/api/subscription/callback`,
+    customerEmail: userEmail,
+    amount: amount.toString(),
+    currency: "NGN",
+    orderReference: orderReference,
+    customerId: userId,
+    accountId: process.env.NOMBA_ACCOUNT_ID,
+    allowedPaymentMethods: ["Card", "Transfer"],
+    metadata: {
+      type: "subscription",
+      planTier: planTier,       
+      billingPeriod: billingPeriod, 
+      userId: userId,           
+      paymentId: payment.id,
+    },
+  },
+  tokenizeCard: false,
+};
 
     console.log("🚀 Sending checkout request to Nomba...");
 
