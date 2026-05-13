@@ -1,4 +1,4 @@
-// app/lib/subscription/subscription-service.ts
+// app/api/webhook/services/subscription-service.ts
 
 import { createClient } from "@supabase/supabase-js";
 import { 
@@ -6,6 +6,7 @@ import {
   sendSubscriptionActivationEmail 
 } from "../../../../lib/subscription-emails";
 import { ProcessSubscriptionParams, BankTransferSubscriptionParams } from "../../../../lib/subscription-types";
+
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -15,22 +16,6 @@ const supabase = createClient(
 const baseUrl = process.env.NODE_ENV === "development"
   ? "http://localhost:3000"
   : "https://zidwell.com";
-
-// Helper to extract subscription reference
-function extractSubscriptionIdFromReference(orderReference: string): string | null {
-  if (!orderReference) return null;
-  if (orderReference.startsWith("SUB_")) return orderReference;
-  return null;
-}
-
-// Helper to extract from virtual account
-function extractSubscriptionIdFromVirtualAccount(aliasAccountReference: string): string | null {
-  if (!aliasAccountReference) return null;
-  const subPattern = /^VA-SUB-(.+)$/i;
-  const match = aliasAccountReference.match(subPattern);
-  if (match && match[1]) return `SUB_${match[1]}`;
-  return null;
-}
 
 // Calculate subscription expiration
 function calculateExpiration(billingPeriod: 'monthly' | 'yearly'): Date {
@@ -75,7 +60,6 @@ export async function processSubscriptionPayment(
   }
 
   if (!payment) {
-    // Check if already processed
     const { data: existingPayment } = await supabase
       .from('subscription_payments')
       .select('status')
@@ -119,7 +103,7 @@ export async function processSubscriptionPayment(
 
   console.log("✅ Found user:", { id: user.id, email: user.email });
 
-  // Update payment status with idempotency check
+  // Update payment status
   const { error: updateError, count } = await supabase
     .from('subscription_payments')
     .update({
@@ -137,7 +121,7 @@ export async function processSubscriptionPayment(
   }
 
   if (!count || count === 0) {
-    console.log("⚠️ Payment already updated by another process");
+    console.log("⚠️ Payment already updated");
     return { success: true, message: "Already processed" };
   }
 
@@ -145,46 +129,101 @@ export async function processSubscriptionPayment(
 
   // Calculate expiration
   const expiresAt = calculateExpiration(billingPeriod);
-  console.log("📅 Expiration date:", expiresAt);
+  const now = new Date().toISOString();
 
-  // Deactivate existing active subscriptions
-  await supabase
+  // ========== UPDATE SUBSCRIPTIONS TABLE ==========
+  
+  // First, check if user already has an active subscription
+  const { data: existingSubscription } = await supabase
     .from('subscriptions')
-    .update({ status: 'cancelled' })
+    .select('id, status, tier')
     .eq('user_id', payment.user_id)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .maybeSingle();
 
-  // Create new subscription
-  const { data: subscription, error: subError } = await supabase
-    .from('subscriptions')
-    .insert({
-      user_id: payment.user_id,
-      tier: planTier,
-      status: 'active',
-      expires_at: expiresAt.toISOString(),
-      auto_renew: false,
-      payment_method: 'card',
-      started_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
+  let subscriptionId: string;
 
-  if (subError) {
-    console.error("❌ Failed to create subscription:", subError);
-    // Rollback: Revert payment status
+  if (existingSubscription) {
+    // UPDATE existing subscription
+    console.log("📝 Updating existing subscription:", existingSubscription.id);
+    
+    const { data: updatedSubscription, error: updateSubError } = await supabase
+      .from('subscriptions')
+      .update({
+        tier: planTier,
+        status: 'active',
+        expires_at: expiresAt.toISOString(),
+        updated_at: now,
+        payment_method: 'card',
+        auto_renew: false,
+        // Don't change started_at - keep original start date
+      })
+      .eq('id', existingSubscription.id)
+      .select()
+      .single();
+
+    if (updateSubError) {
+      console.error("❌ Failed to update subscription:", updateSubError);
+      // Rollback payment status
+      await supabase
+        .from('subscription_payments')
+        .update({ status: 'pending' })
+        .eq('id', payment.id);
+      return { success: false, message: "Failed to update subscription" };
+    }
+
+    subscriptionId = updatedSubscription.id;
+    console.log("✅ Subscription updated:", { id: subscriptionId, tier: planTier });
+
+  } else {
+    // CREATE new subscription (user had no active subscription)
+    console.log("📝 Creating new subscription for user");
+    
+    // First, deactivate any cancelled/expired subscriptions for this user
     await supabase
-      .from('subscription_payments')
-      .update({ status: 'pending' })
-      .eq('id', payment.id);
-    return { success: false, message: "Failed to create subscription" };
-  }
+      .from('subscriptions')
+      .update({ 
+        status: 'expired',
+        updated_at: now
+      })
+      .eq('user_id', payment.user_id)
+      .in('status', ['cancelled', 'expired']);
 
-  console.log("✅ Subscription created:", { id: subscription.id, tier: planTier });
+    // Create new subscription
+    const { data: newSubscription, error: createSubError } = await supabase
+      .from('subscriptions')
+      .insert({
+        user_id: payment.user_id,
+        tier: planTier,
+        status: 'active',
+        started_at: now,
+        expires_at: expiresAt.toISOString(),
+        auto_renew: false,
+        payment_method: 'card',
+        created_at: now,
+        updated_at: now,
+      })
+      .select()
+      .single();
+
+    if (createSubError) {
+      console.error("❌ Failed to create subscription:", createSubError);
+      // Rollback payment status
+      await supabase
+        .from('subscription_payments')
+        .update({ status: 'pending' })
+        .eq('id', payment.id);
+      return { success: false, message: "Failed to create subscription" };
+    }
+
+    subscriptionId = newSubscription.id;
+    console.log("✅ New subscription created:", { id: subscriptionId, tier: planTier });
+  }
 
   // Link payment to subscription
   await supabase
     .from('subscription_payments')
-    .update({ subscription_id: subscription.id })
+    .update({ subscription_id: subscriptionId })
     .eq('id', payment.id);
 
   // Update user record
@@ -193,6 +232,7 @@ export async function processSubscriptionPayment(
     .update({
       subscription_tier: planTier,
       subscription_expires_at: expiresAt.toISOString(),
+      updated_at: now,
     })
     .eq('id', payment.user_id);
 
@@ -202,7 +242,7 @@ export async function processSubscriptionPayment(
     console.log("✅ User updated with new subscription tier:", planTier);
   }
 
-  // Send email receipts (don't block on errors)
+  // Send email receipts
   if (user.email) {
     try {
       await sendSubscriptionReceiptWithPDF(
@@ -233,12 +273,17 @@ export async function processSubscriptionPayment(
     }
   }
 
-  console.log("🎉 Subscription activated successfully!", { userId: payment.user_id, tier: planTier });
+  console.log("🎉 Subscription activated successfully!", { 
+    userId: payment.user_id, 
+    tier: planTier,
+    subscriptionId: subscriptionId,
+    expiresAt: expiresAt.toISOString()
+  });
 
   return {
     success: true,
     message: "Subscription activated successfully",
-    subscription_id: subscription.id
+    subscription_id: subscriptionId
   };
 }
 
@@ -256,13 +301,13 @@ export async function processSubscriptionBankTransfer(
   } = params;
 
   console.log("🏦 Processing Subscription BANK TRANSFER...");
-  console.log("🔑 Virtual Account:", aliasAccountReference);
-  console.log("💰 Amount:", transactionAmount);
 
-  const orderReference = extractSubscriptionIdFromVirtualAccount(aliasAccountReference);
+  // Extract subscription reference from virtual account
+  const subPattern = /^VA-SUB-(.+)$/i;
+  const match = aliasAccountReference?.match(subPattern);
+  const orderReference = match ? `SUB_${match[1]}` : null;
 
   if (!orderReference) {
-    console.error("❌ Invalid virtual account reference");
     return { success: false, message: "Invalid virtual account reference" };
   }
 
@@ -272,7 +317,6 @@ export async function processSubscriptionBankTransfer(
   const userId = metadata.userId;
 
   if (!userId || !planTier) {
-    console.error("❌ Missing subscription metadata:", { userId, planTier });
     return { success: false, message: "Missing subscription metadata" };
   }
 
@@ -281,7 +325,7 @@ export async function processSubscriptionBankTransfer(
   // Get user data
   const { data: user, error: userError } = await supabase
     .from('users')
-    .select('id, email, full_name, subscription_tier')
+    .select('id, email, full_name')
     .eq('id', userId)
     .single();
 
@@ -289,8 +333,6 @@ export async function processSubscriptionBankTransfer(
     console.error("❌ User not found:", userId);
     return { success: false, message: "User not found" };
   }
-
-  console.log("✅ Found user:", { id: user.id, email: user.email });
 
   // Check for duplicate transaction
   const { data: duplicateTx } = await supabase
@@ -300,13 +342,13 @@ export async function processSubscriptionBankTransfer(
     .maybeSingle();
 
   if (duplicateTx) {
-    console.log("⚠️ Duplicate transaction detected:", nombaTransactionId);
     return { success: true, message: "Already processed" };
   }
 
   // Create payment record
   const customerName = customer?.name || tx?.customerName || user.full_name || "Bank Transfer Customer";
   const customerEmail = customer?.email || tx?.customerEmail || user.email;
+  const now = new Date().toISOString();
 
   const { data: payment, error: insertError } = await supabase
     .from('subscription_payments')
@@ -324,7 +366,7 @@ export async function processSubscriptionBankTransfer(
         customer_details: customer,
         transaction_details: tx,
       },
-      paid_at: new Date().toISOString(),
+      paid_at: now,
     })
     .select()
     .single();
@@ -336,57 +378,90 @@ export async function processSubscriptionBankTransfer(
 
   console.log("✅ Payment record created:", { id: payment.id });
 
+  // Calculate expiration
   const expiresAt = calculateExpiration(billingPeriod);
 
-  // Deactivate existing subscriptions
-  await supabase
+  // ========== UPDATE SUBSCRIPTIONS TABLE ==========
+  
+  // Check if user already has an active subscription
+  const { data: existingSubscription } = await supabase
     .from('subscriptions')
-    .update({ status: 'cancelled' })
+    .select('id, status, tier')
     .eq('user_id', userId)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .maybeSingle();
 
-  // Create new subscription
-  const { data: subscription, error: subError } = await supabase
-    .from('subscriptions')
-    .insert({
-      user_id: userId,
-      tier: planTier,
-      status: 'active',
-      expires_at: expiresAt.toISOString(),
-      auto_renew: false,
-      payment_method: 'bank_transfer',
-      started_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
+  let subscriptionId: string;
 
-  if (subError) {
-    console.error("❌ Failed to create subscription:", subError);
-    return { success: false, message: "Failed to create subscription" };
+  if (existingSubscription) {
+    // UPDATE existing subscription
+    console.log("📝 Updating existing subscription:", existingSubscription.id);
+    
+    const { data: updatedSubscription, error: updateSubError } = await supabase
+      .from('subscriptions')
+      .update({
+        tier: planTier,
+        status: 'active',
+        expires_at: expiresAt.toISOString(),
+        updated_at: now,
+        payment_method: 'bank_transfer',
+        auto_renew: false,
+      })
+      .eq('id', existingSubscription.id)
+      .select()
+      .single();
+
+    if (updateSubError) {
+      console.error("❌ Failed to update subscription:", updateSubError);
+      return { success: false, message: "Failed to update subscription" };
+    }
+
+    subscriptionId = updatedSubscription.id;
+    console.log("✅ Subscription updated:", { id: subscriptionId, tier: planTier });
+
+  } else {
+    // CREATE new subscription
+    console.log("📝 Creating new subscription for user");
+    
+    const { data: newSubscription, error: createSubError } = await supabase
+      .from('subscriptions')
+      .insert({
+        user_id: userId,
+        tier: planTier,
+        status: 'active',
+        started_at: now,
+        expires_at: expiresAt.toISOString(),
+        auto_renew: false,
+        payment_method: 'bank_transfer',
+        created_at: now,
+        updated_at: now,
+      })
+      .select()
+      .single();
+
+    if (createSubError) {
+      console.error("❌ Failed to create subscription:", createSubError);
+      return { success: false, message: "Failed to create subscription" };
+    }
+
+    subscriptionId = newSubscription.id;
+    console.log("✅ New subscription created:", { id: subscriptionId, tier: planTier });
   }
-
-  console.log("✅ Subscription created:", { id: subscription.id });
 
   // Link payment to subscription
   await supabase
     .from('subscription_payments')
-    .update({ subscription_id: subscription.id })
+    .update({ subscription_id: subscriptionId })
     .eq('id', payment.id);
 
-  // Update user
-  const { error: userUpdateError } = await supabase
+  // Update user record
+  await supabase
     .from('users')
     .update({
       subscription_tier: planTier,
       subscription_expires_at: expiresAt.toISOString(),
     })
     .eq('id', userId);
-
-  if (userUpdateError) {
-    console.error("❌ Failed to update user:", userUpdateError);
-  } else {
-    console.log("✅ User updated with new subscription tier:", planTier);
-  }
 
   // Send emails
   if (customerEmail) {
@@ -411,7 +486,7 @@ export async function processSubscriptionBankTransfer(
   return {
     success: true,
     message: "Bank transfer subscription activated",
-    subscription_id: subscription.id
+    subscription_id: subscriptionId
   };
 }
 
