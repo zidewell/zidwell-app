@@ -16,7 +16,7 @@ import {
   processSubscriptionBankTransfer,
   checkIfSubscriptionPayment,
   checkIfSubscriptionBankTransfer,
-} from "../webhook/services/subscription-service";
+} from "./services/subscription-service";
 
 // Define common response types
 type WebhookResponse = 
