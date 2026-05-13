@@ -295,7 +295,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   // Also re-fetch when pathname changes
   useEffect(() => {
     if (shouldFetchPages() && initialFetchDone) {
-      console.log("Path changed to dashboard/services/payment, fetching pages...");
+      
+      
       fetchPages();
     } else if (!shouldFetchPages() && !initialFetchDone) {
       // If not on the right page and initial fetch hasn't been done, just set loading to false

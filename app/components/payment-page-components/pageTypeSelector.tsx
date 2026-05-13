@@ -1,6 +1,19 @@
+"use client";
+
 import { motion } from "framer-motion";
-import { GraduationCap, Heart, Package, FileDown, Briefcase, Building2, LineChart, PiggyBank, Bitcoin, AlertTriangle } from "lucide-react";
-import type { PageType } from "@/app/hooks/useStore"; 
+import { 
+  GraduationCap, 
+  Heart, 
+  Package, 
+  FileDown, 
+  Briefcase, 
+  Building2, 
+  LineChart, 
+  PiggyBank, 
+  Bitcoin, 
+  AlertTriangle 
+} from "lucide-react";
+import type { PageType } from "@/app/hooks/useStore";
 
 const types: { value: PageType; label: string; icon: typeof GraduationCap; description: string }[] = [
   { value: "school", label: "School Fees", icon: GraduationCap, description: "Collect tuition, fees & levies with student tracking" },
@@ -24,9 +37,12 @@ interface Props {
 const PageTypeSelector = ({ onSelect }: Props) => (
   <div className="space-y-8">
     <div className="text-center">
-      <h2 className="text-2xl font-bold font-['Space_Grotesk',sans-serif]">What are you selling?</h2>
-      <p className="text-[#3e7465] mt-1">Choose the type that best fits your use case</p>
+      <h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+        What are you selling?
+      </h2>
+      <p className="text-[var(--text-secondary)] mt-1">Choose the type that best fits your use case</p>
     </div>
+    
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {types.map((t, i) => (
         <motion.button
@@ -35,11 +51,11 @@ const PageTypeSelector = ({ onSelect }: Props) => (
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05 }}
           onClick={() => onSelect(t.value)}
-          className="p-5 rounded-2xl border-2 border-[#ded4c3] bg-[#f9f6ef] text-left hover:border-[#e1bf46] hover:bg-[#e1bf46]/5 transition-all group"
+          className="p-5 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-primary)] text-left hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5 transition-all group squircle-lg"
         >
-          <t.icon className="h-7 w-7 text-[#e1bf46] mb-3 group-hover:scale-110 transition-transform" />
-          <h3 className="font-bold text-base mb-1">{t.label}</h3>
-          <p className="text-sm text-[#3e7465] leading-relaxed">{t.description}</p>
+          <t.icon className="h-7 w-7 text-[var(--color-accent-yellow)] mb-3 group-hover:scale-110 transition-transform" />
+          <h3 className="font-bold text-base mb-1 text-[var(--text-primary)]">{t.label}</h3>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{t.description}</p>
         </motion.button>
       ))}
     </div>
@@ -47,10 +63,11 @@ const PageTypeSelector = ({ onSelect }: Props) => (
     {/* Investment & Savings Section */}
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <div className="h-px flex-1 bg-[#ded4c3]" />
-        <span className="text-sm font-bold text-[#3e7465] uppercase tracking-wider">Investment & Savings</span>
-        <div className="h-px flex-1 bg-[#ded4c3]" />
+        <div className="h-px flex-1 bg-[var(--border-color)]" />
+        <span className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider">Investment & Savings</span>
+        <div className="h-px flex-1 bg-[var(--border-color)]" />
       </div>
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {investmentTypes.map((t, i) => (
           <motion.button
@@ -59,14 +76,14 @@ const PageTypeSelector = ({ onSelect }: Props) => (
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: (types.length + i) * 0.05 }}
             onClick={() => onSelect(t.value)}
-            className="p-5 rounded-2xl border-2 border-[#ded4c3] bg-[#f9f6ef] text-left hover:border-[#e1bf46] hover:bg-[#e1bf46]/5 transition-all group relative"
+            className="p-5 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-primary)] text-left hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5 transition-all group relative squircle-lg"
           >
-            <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-600 text-[10px] font-bold">
+            <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] text-[10px] font-bold">
               <AlertTriangle className="h-3 w-3" /> Disclaimer
             </div>
-            <t.icon className="h-7 w-7 text-[#e1bf46] mb-3 group-hover:scale-110 transition-transform" />
-            <h3 className="font-bold text-base mb-1">{t.label}</h3>
-            <p className="text-sm text-[#3e7465] leading-relaxed">{t.description}</p>
+            <t.icon className="h-7 w-7 text-[var(--color-accent-yellow)] mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-base mb-1 text-[var(--text-primary)]">{t.label}</h3>
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{t.description}</p>
           </motion.button>
         ))}
       </div>

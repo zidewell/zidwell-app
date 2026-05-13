@@ -68,7 +68,7 @@ const Hero = () => {
        
 
           {/* Main Heading */}
-          <h1 className="animate-fade-up-delay-1 text-3xl md:text-4xl font-black leading-tight mb-6 text-balance text-white">
+          <h1 className="animate-fade-up-delay-1 text-3xl md:text-4xl text-center font-black leading-tight mb-6 text-balance text-white">
             For those who make the{" "}
             <span className="relative inline-block">
               <span className="relative z-10 text-[var(--color-accent-yellow)]">
@@ -88,7 +88,7 @@ const Hero = () => {
 
          
           {/* Main Text */}
-     <p className="animate-fade-up-delay-2 text-sm text-gray-300 mb-8 text-balance leading-relaxed md:text-center">
+     <p className="animate-fade-up-delay-2 text-sm text-gray-300 mb-8 text-balance leading-relaxed text-center">
   Entrepreneurs are the heroes of our society. We built Zidwell so<br />
   heroes can handle their entire financial operations on one platform.<br />
   You already run a business in a tough environment, why add to your<br />
@@ -131,7 +131,7 @@ const Hero = () => {
           
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-[var(--color-accent-yellow)] rounded-full" />
-              <span>Trusted by 10,000+ businesses</span>
+              <span>Trusted by 1000+ businesses</span>
             </div>
           </div>
         </div>
