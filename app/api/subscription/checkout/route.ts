@@ -31,7 +31,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify user
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, email, subscription_tier')
@@ -47,14 +46,13 @@ export async function POST(request: Request) {
 
     const orderReference = generateOrderReference(userId);
 
-    // Create payment record - FIXED: removed extra comma
     const { data: payment, error: paymentError } = await supabase
       .from('subscription_payments')
       .insert({
         user_id: userId,
         amount: amount,
         payment_method: 'pending',
-        status: 'pending',  // ✅ No trailing comma
+        status: 'pending',
         reference: orderReference,
         metadata: { planTier, billingPeriod }
       })
@@ -69,16 +67,9 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("✅ Payment record created:", { 
-      id: payment.id, 
-      reference: orderReference, 
-      status: payment.status 
-    });
-
     const accessToken = await getNombaToken();
 
     if (!accessToken) {
-      // Update payment to failed since we can't proceed
       await supabase
         .from('subscription_payments')
         .update({ status: 'failed' })
@@ -91,27 +82,25 @@ export async function POST(request: Request) {
     }
 
     const checkoutPayload = {
-  order: {
-    callbackUrl: `${baseUrl}/api/subscription/callback`,
-    customerEmail: userEmail,
-    amount: amount.toString(),
-    currency: "NGN",
-    orderReference: orderReference,
-    customerId: userId,
-    accountId: process.env.NOMBA_ACCOUNT_ID,
-    allowedPaymentMethods: ["Card", "Transfer"],
-    metadata: {
-      type: "subscription",
-      planTier: planTier,       
-      billingPeriod: billingPeriod, 
-      userId: userId,           
-      paymentId: payment.id,
-    },
-  },
-  tokenizeCard: false,
-};
-
-    console.log("🚀 Sending checkout request to Nomba...");
+      order: {
+        callbackUrl: `${baseUrl}/api/subscription/callback`,
+        customerEmail: userEmail,
+        amount: amount.toString(),
+        currency: "NGN",
+        orderReference: orderReference,
+        customerId: userId,
+        accountId: process.env.NOMBA_ACCOUNT_ID,
+        allowedPaymentMethods: ["Card", "Transfer"],
+        metadata: {
+          type: "subscription",
+          planTier: planTier,
+          billingPeriod: billingPeriod,
+          userId: userId,
+          paymentId: payment.id,
+        },
+      },
+      tokenizeCard: false,
+    };
 
     const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
       method: "POST",
@@ -126,18 +115,12 @@ export async function POST(request: Request) {
     const data = await response.json();
 
     if (!response.ok || data.code !== "00") {
-      console.error("Nomba checkout error:", data);
       await supabase
         .from('subscription_payments')
         .update({ status: 'failed' })
         .eq('id', payment.id);
       throw new Error(data.description || "Failed to create checkout");
     }
-
-    console.log("✅ Checkout created successfully:", { 
-      checkoutLink: data.data.checkoutLink,
-      orderReference 
-    });
 
     return NextResponse.json({
       success: true,

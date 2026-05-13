@@ -42,26 +42,18 @@ export async function processSubscriptionPayment(
   const transactionMetadata = payload.data?.transaction?.metadata || {};
   const payloadMetadata = payload.metadata || {};
   
-  // Try all possible locations
   const planTier = orderMetadata.planTier || transactionMetadata.planTier || payloadMetadata.planTier;
   const billingPeriod = orderMetadata.billingPeriod || transactionMetadata.billingPeriod || payloadMetadata.billingPeriod || 'monthly';
   const userId = orderMetadata.userId || transactionMetadata.userId || payloadMetadata.userId;
 
-  console.log("📊 Extracted Metadata:", { 
-    planTier, 
-    billingPeriod, 
-    userId,
-    hasOrderMetadata: !!Object.keys(orderMetadata).length,
-    hasTransactionMetadata: !!Object.keys(transactionMetadata).length
-  });
+  console.log("📊 Extracted Metadata:", { planTier, billingPeriod, userId });
 
   if (!userId || !planTier) {
     console.error("❌ Missing required metadata!");
-    console.log("Full payload order:", JSON.stringify(payload.data?.order, null, 2));
     return { success: false, message: "Missing subscription metadata" };
   }
 
-  // Find payment - don't filter by status since webhook comes fast
+  // Find payment
   const { data: payment, error: paymentError } = await supabase
     .from('subscription_payments')
     .select('*')
@@ -78,11 +70,7 @@ export async function processSubscriptionPayment(
     return { success: false, message: "Payment not found" };
   }
 
-  console.log("✅ Found payment:", { 
-    id: payment.id, 
-    status: payment.status, 
-    amount: payment.amount 
-  });
+  console.log("✅ Found payment:", { id: payment.id, status: payment.status, amount: payment.amount });
 
   // Check if already processed
   if (payment.status === 'completed' && payment.nomba_transaction_id) {
@@ -111,7 +99,6 @@ export async function processSubscriptionPayment(
   // UPDATE OR CREATE SUBSCRIPTION
   let subscriptionId: string;
 
-  // Check for existing active subscription
   const { data: existingSub } = await supabase
     .from('subscriptions')
     .select('id')
@@ -170,7 +157,7 @@ export async function processSubscriptionPayment(
   }
 
   // Update payment record
-  const { error: updatePaymentError } = await supabase
+  await supabase
     .from('subscription_payments')
     .update({
       status: 'completed',
@@ -182,14 +169,8 @@ export async function processSubscriptionPayment(
     })
     .eq('id', payment.id);
 
-  if (updatePaymentError) {
-    console.error("❌ Failed to update payment:", updatePaymentError);
-  } else {
-    console.log("✅ Payment record updated");
-  }
-
   // Update user record
-  const { error: updateUserError } = await supabase
+  await supabase
     .from('users')
     .update({
       subscription_tier: planTier,
@@ -198,24 +179,10 @@ export async function processSubscriptionPayment(
     })
     .eq('id', userId);
 
-  if (updateUserError) {
-    console.error("❌ Failed to update user:", updateUserError);
-  } else {
-    console.log("✅ User updated with tier:", planTier);
-  }
-
   // SEND EMAILS
   if (user.email) {
     console.log("📧 Sending emails to:", user.email);
     
-    const planNames: Record<string, string> = {
-      zidlite: "ZidLite",
-      growth: "Growth",
-      premium: "Premium",
-      elite: "Elite"
-    };
-
-    // Send receipt email
     try {
       await sendSubscriptionReceiptWithPDF(
         user.email,
@@ -231,7 +198,6 @@ export async function processSubscriptionPayment(
       console.error("❌ Failed to send receipt email:", error);
     }
 
-    // Send activation email
     try {
       await sendSubscriptionActivationEmail(
         user.email,
@@ -244,17 +210,14 @@ export async function processSubscriptionPayment(
     } catch (error) {
       console.error("❌ Failed to send activation email:", error);
     }
-  } else {
-    console.error("❌ No email address for user:", userId);
   }
 
   console.log("=".repeat(60));
   console.log("🎉 SUBSCRIPTION ACTIVATED SUCCESSFULLY!");
-  console.log("=".repeat(60));
   console.log(`User: ${user.email}`);
   console.log(`Plan: ${planTier}`);
   console.log(`Expires: ${expiresAt.toISOString()}`);
-  console.log(`Subscription ID: ${subscriptionId}`);
+  console.log("=".repeat(60));
 
   return {
     success: true,
@@ -267,4 +230,15 @@ export function checkIfSubscriptionPayment(orderReference: string, payload: any)
   if (orderReference?.startsWith("SUB_")) return true;
   const metadata = payload.data?.order?.metadata || {};
   return metadata.type === "subscription" || !!metadata.planTier;
+}
+
+export function checkIfSubscriptionBankTransfer(aliasAccountReference: string, payload: any): boolean {
+  if (!aliasAccountReference) return false;
+  if (aliasAccountReference.startsWith("VA-SUB-")) return true;
+  const metadata = payload.data?.order?.metadata || {};
+  return metadata.type === "subscription_bank_transfer" && !!metadata.planTier;
+}
+
+export function getAutoLoginUrl(userId: string, email: string, planTier: string): string {
+  return `${baseUrl}/api/auth/auto-login?userId=${userId}&email=${encodeURIComponent(email)}&plan=${planTier}`;
 }
