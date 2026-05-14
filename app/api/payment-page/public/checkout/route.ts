@@ -14,7 +14,6 @@ const baseUrl =
     ? "http://localhost:3000"
     : "https://zidwell.com";
 
-// Helper function to generate order reference (max 50 chars for Nomba)
 const generateOrderReference = (pageId: string | number): string => {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 6);
@@ -29,6 +28,9 @@ const generateOrderReference = (pageId: string | number): string => {
 
 export async function POST(request: Request) {
   try {
+    const body = await request.json();
+    console.log("📥 API Received:", JSON.stringify(body, null, 2));
+    
     const {
       pageSlug,
       customerName,
@@ -36,13 +38,17 @@ export async function POST(request: Request) {
       customerPhone,
       amount,
       metadata,
-    } = await request.json();
+    } = body;
 
-    if (!pageSlug || !customerName || !customerEmail) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+    // Validate required fields
+    if (!pageSlug) {
+      return NextResponse.json({ error: "Missing pageSlug" }, { status: 400 });
+    }
+    if (!customerName) {
+      return NextResponse.json({ error: "Missing customerName" }, { status: 400 });
+    }
+    if (!customerEmail) {
+      return NextResponse.json({ error: "Missing customerEmail" }, { status: 400 });
     }
 
     // Get payment page
@@ -54,51 +60,33 @@ export async function POST(request: Request) {
       .single();
 
     if (pageError || !page) {
-      return NextResponse.json(
-        { error: "Payment page not found" },
-        { status: 404 },
-      );
+      console.error("Page not found:", pageError);
+      return NextResponse.json({ error: "Payment page not found" }, { status: 404 });
     }
 
-    // Determine final amount - check if fee breakdown exists
+    console.log("✅ Page found:", { id: page.id, title: page.title, type: page.page_type });
+
+    // Determine final amount
     let finalAmount = amount;
-    if (!finalAmount) {
-      if (
-        page.page_type === "school" &&
-        page.metadata?.feeBreakdown &&
-        page.metadata.feeBreakdown.length > 0
-      ) {
+    if (!finalAmount || finalAmount === 0) {
+      if (page.page_type === "school" && page.metadata?.feeBreakdown?.length > 0) {
         finalAmount = page.metadata.feeBreakdown.reduce(
-          (sum: number, item: any) => sum + item.amount,
-          0,
+          (sum: number, item: any) => sum + item.amount, 0
         );
       } else if (page.price_type === "open") {
-        return NextResponse.json(
-          { error: "Amount required for open pricing" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "Amount required for open pricing" }, { status: 400 });
       } else {
         finalAmount = page.price;
       }
     }
 
-    // Validate minimum amount for investments
-    const minAmount = page.metadata?.minimumAmount;
-    if (minAmount && finalAmount < minAmount) {
-      return NextResponse.json(
-        { error: `Minimum amount is ₦${minAmount.toLocaleString()}` },
-        { status: 400 },
-      );
-    }
-
-    // ✅ FIX: Calculate fee (creator bears it, customer pays NO extra fee)
+    // Calculate fee (creator bears it)
     const fee = Math.min(finalAmount * 0.02, 2000);
-    const totalForCustomer = finalAmount; // Customer pays exact amount, no fee added
+    const numberOfStudents = metadata?.numberOfStudents || 1;
+    const totalForCustomer = finalAmount * numberOfStudents;
 
-    // Generate order reference with PP- prefix
+    // Generate order reference
     const orderReference = generateOrderReference(page.id);
-    
-    // Store full reference for internal tracking
     const fullReference = `PP-${page.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
     // Prepare metadata for payment record
@@ -107,31 +95,23 @@ export async function POST(request: Request) {
       pageType: page.page_type,
       pageTitle: page.title,
       fullReference,
-      feeBorneBy: "creator", // ✅ Track that creator pays the fee
+      feeBorneBy: "creator",
       feeAmount: fee,
     };
 
-    // Add school-specific metadata
-    if (page.page_type === "school") {
-      paymentMetadata.parentName = metadata?.parentName || "";
-      paymentMetadata.childName = metadata?.childName || "";
-      paymentMetadata.regNumber = metadata?.regNumber || "";
-      paymentMetadata.customFields = metadata?.customFields || {};
-    }
-
-    // ✅ Create payment record - creator bears the fee
+    // Create payment record
     const { data: payment, error: paymentError } = await supabase
       .from("payment_page_payments")
       .insert({
         payment_page_id: page.id,
         user_id: page.user_id,
-        amount: finalAmount,
-        fee: fee, // Fee that will be deducted from creator
-        net_amount: finalAmount - fee, // Creator receives amount minus fee
+        amount: totalForCustomer,
+        fee: fee * numberOfStudents,
+        net_amount: (finalAmount - fee) * numberOfStudents,
         status: "pending",
         customer_name: customerName,
         customer_email: customerEmail,
-        customer_phone: customerPhone,
+        customer_phone: customerPhone || "",
         order_reference: orderReference,
         metadata: paymentMetadata,
       })
@@ -139,29 +119,24 @@ export async function POST(request: Request) {
       .single();
 
     if (paymentError) {
-      console.error("Error creating payment record:", paymentError);
-      return NextResponse.json(
-        { error: "Failed to create payment" },
-        { status: 500 },
-      );
+      console.error("Error creating payment:", paymentError);
+      return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
     }
+
+    console.log("✅ Payment record created:", { id: payment.id, reference: orderReference });
 
     // Get Nomba token
     const accessToken = await getNombaToken();
-
     if (!accessToken) {
-      return NextResponse.json(
-        { error: "Payment service unavailable" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "Payment service unavailable" }, { status: 503 });
     }
 
-    // ✅ Create checkout with Nomba - customer pays exact amount (no fee)
+    // Create checkout payload
     const checkoutPayload = {
       order: {
         callbackUrl: `${baseUrl}/api/payment-page/callback`,
         customerEmail: customerEmail,
-        amount: totalForCustomer.toString(), // Customer pays exact amount
+        amount: totalForCustomer.toString(),
         currency: "NGN",
         orderReference: orderReference,
         customerId: page.user_id,
@@ -174,18 +149,16 @@ export async function POST(request: Request) {
           pageSlug: pageSlug,
           originalAmount: finalAmount,
           fee: fee,
-          feeBorneBy: "creator", // ✅ Track who bears the fee
+          feeBorneBy: "creator",
           pageType: page.page_type,
           fullReference,
-          ...(page.page_type === "school" && {
-            parentName: metadata?.parentName || "",
-            childName: metadata?.childName || "",
-            regNumber: metadata?.regNumber || "",
-          }),
+          numberOfStudents: numberOfStudents,
         },
       },
       tokenizeCard: false,
     };
+
+    console.log("🚀 Sending to Nomba...");
 
     const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
       method: "POST",
@@ -200,14 +173,15 @@ export async function POST(request: Request) {
     const data = await response.json();
 
     if (!response.ok || data.code !== "00") {
-      // Update payment status to failed
+      console.error("Nomba error:", data);
       await supabase
         .from("payment_page_payments")
         .update({ status: "failed" })
         .eq("id", payment.id);
-
       throw new Error(data.description || "Failed to create checkout");
     }
+
+    console.log("✅ Checkout created successfully");
 
     return NextResponse.json({
       success: true,
@@ -217,9 +191,6 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error("Checkout error:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
