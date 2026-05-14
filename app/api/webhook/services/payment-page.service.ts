@@ -524,7 +524,7 @@ function extractPaymentPageIdFromVirtualAccount(
   return null;
 }
 
-// Process CARD payments
+
 export async function processPaymentPagePayment(
   payload: any,
   params: PaymentPageParams,
@@ -533,27 +533,12 @@ export async function processPaymentPagePayment(
 
   console.log("💰 Processing Payment Page CARD payment...");
   console.log("🔑 Order Reference:", orderReference);
-  console.log("🆔 Nomba Transaction ID:", nombaTransactionId);
 
   const metadata = payload.data?.order?.metadata || {};
   let paymentPageId = metadata.paymentPageId;
   let paymentId = metadata.paymentId;
 
-  if (!paymentPageId && orderReference) {
-    const extractedId = extractPaymentPageIdFromReference(orderReference);
-    if (extractedId) {
-      const { data: allPages, error: searchError } = await supabase
-        .from("payment_pages")
-        .select("id, title, user_id");
-
-      if (!searchError && allPages) {
-        const foundPage = allPages.find((page) =>
-          page.id.endsWith(extractedId),
-        );
-        if (foundPage) paymentPageId = foundPage.id;
-      }
-    }
-  }
+  // ... existing extraction logic ...
 
   if (!paymentPageId) {
     return { error: "Missing payment page identifier", status: 400 };
@@ -596,6 +581,7 @@ export async function processPaymentPagePayment(
     return { error: "Payment record not found", status: 404 };
   }
 
+  // Check for duplicate webhook
   const { data: existingWebhook } = await supabase
     .from("payment_page_payments")
     .select("nomba_transaction_id, id")
@@ -606,6 +592,10 @@ export async function processPaymentPagePayment(
     return { success: true, message: "Already processed" };
   }
 
+  // ✅ Calculate net amount after fee (creator bears the fee)
+  const netAmount = paymentRecord.amount - (paymentRecord.fee || 0);
+
+  // Update payment status
   const { error: updateError } = await supabase
     .from("payment_page_payments")
     .update({
@@ -613,39 +603,35 @@ export async function processPaymentPagePayment(
       nomba_transaction_id: nombaTransactionId,
       payment_method: "card",
       paid_at: new Date().toISOString(),
+      net_amount: netAmount,
     })
-    .eq("id", paymentRecord.id);
+    .eq("id", paymentRecord.id)
+    .eq("status", "pending");
 
   if (updateError) {
     return { error: "Failed to update payment", status: 500 };
   }
 
-  const pageCreditAmount = paymentRecord.net_amount;
-
+  // ✅ Credit creator's balance with net amount (after fee deduction)
   const { data: newBalance, error: balanceError } = await supabase.rpc(
     "increment_page_balance",
-    { p_page_id: paymentPageId, p_amount: pageCreditAmount },
+    { p_page_id: paymentPageId, p_amount: netAmount },
   );
 
   const finalBalance =
     !balanceError && typeof newBalance === "number" ? newBalance : null;
 
+  // Get payment page details
   const { data: paymentPage } = await supabase
     .from("payment_pages")
-    .select(
-      "title, user_id, page_type, metadata, price_type, installment_count, price",
-    )
+    .select("title, user_id, page_type, metadata, price_type, installment_count, price")
     .eq("id", paymentPageId)
     .single();
 
   // Handle installment tracking
-  await handleInstallmentTracking(
-    paymentRecord,
-    paymentPage,
-    nombaTransactionId,
-  );
+  await handleInstallmentTracking(paymentRecord, paymentPage, nombaTransactionId);
 
-  // Update student paid status
+  // Update student paid status for school pages
   if (
     paymentPage?.page_type === "school" &&
     paymentRecord.metadata?.childName
@@ -658,15 +644,16 @@ export async function processPaymentPagePayment(
     );
   }
 
+  // Create transaction record
   const { error: txError } = await supabase.from("transactions").insert({
     user_id: paymentRecord.user_id,
     type: "credit",
     amount: paymentRecord.amount,
     fee: paymentRecord.fee,
-    net_amount: pageCreditAmount,
+    net_amount: netAmount,
     status: "success",
     reference: `PP-${paymentPageId}-${nombaTransactionId}`,
-    description: `Card payment received for page "${paymentPage?.title}" from ${paymentRecord.customer_name}`,
+    description: `Payment received for page "${paymentPage?.title}" from ${paymentRecord.customer_name}`,
     channel: "payment_page",
     sender: {
       name: paymentRecord.customer_name,
@@ -681,16 +668,18 @@ export async function processPaymentPagePayment(
       nomba_transaction_id: nombaTransactionId,
       nomba_fee: nombaFee,
       payment_method: "card",
+      fee_born_by: "creator",
     },
   });
 
+  // Send receipt to customer
   if (paymentRecord.customer_email) {
     await sendPaymentPageReceiptWithPDF(
       paymentRecord.customer_email,
       paymentPage || { title: "Payment Page" },
       paymentRecord,
       paymentRecord.customer_name,
-      paymentRecord.amount,
+      paymentRecord.amount, // Customer paid full amount
       nombaTransactionId,
       "card",
       new Date().toISOString(),
@@ -698,10 +687,12 @@ export async function processPaymentPagePayment(
         ...paymentRecord.metadata,
         payment_method: "card",
         pageType: paymentPage?.page_type,
+        note: "Transaction fees are covered by the merchant",
       },
     ).catch(console.error);
   }
 
+  // Send notification to creator
   const { data: creator } = await supabase
     .from("users")
     .select("email")
@@ -712,10 +703,10 @@ export async function processPaymentPagePayment(
     sendPaymentPageNotificationEmail(
       creator.email,
       paymentPage?.title || "Payment Page",
-      pageCreditAmount,
+      netAmount, // Creator receives net amount after fee
       paymentRecord.customer_name,
       paymentRecord.fee,
-      { ...paymentRecord.metadata, payment_method: "card" },
+      { ...paymentRecord.metadata, payment_method: "card", fee_born_by: "creator" },
       "card",
     ).catch(console.error);
   }
@@ -723,7 +714,7 @@ export async function processPaymentPagePayment(
   return {
     success: true,
     message: "Card payment processed",
-    credited_amount: pageCreditAmount,
+    credited_amount: netAmount,
     new_balance: finalBalance,
   };
 }

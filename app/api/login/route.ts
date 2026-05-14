@@ -70,39 +70,43 @@ export async function POST(req: Request) {
       console.error("Error fetching business:", businessError.message);
     }
 
-  
     const displayName = businessData?.business_name || userProfile.full_name;
 
-    // 2️⃣ Set HTTP-only cookies
+    // 2️⃣ Set HTTP-only cookies with proper persistence
     const cookieStore = await cookies();
     
-    // Set cookies with proper production settings
+    // Set cookies with longer expiration for persistence across page refreshes
     await Promise.all([
       cookieStore.set("sb-access-token", access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: expires_in,
+        maxAge: 60 * 60 * 24 * 7, // 7 days
       }),
       cookieStore.set("sb-refresh-token", refresh_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60 * 24 * 30,
+        maxAge: 60 * 60 * 24 * 30, // 30 days
       }),
-      // Add a client-readable session cookie
       cookieStore.set("sb-client-session", "true", {
         httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: expires_in,
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      }),
+      cookieStore.set("sb-login-time", Date.now().toString(), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60, 
       }),
     ]);
 
-  
     const profile = {
       id: userProfile.id,
       fullName: displayName,
@@ -123,13 +127,12 @@ export async function POST(req: Request) {
       subscriptionExpiresAt: userProfile.subscription_expires_at,
       isBlocked: userProfile.is_blocked,
       pinSet: userProfile.pin_set,
-      
     };
 
     const responseTime = Date.now() - startTime;
     console.log(`Login API completed in ${responseTime}ms`);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       profile,
       isVerified: profile.bvnVerification === "verified",
       sessionEstablished: true,
@@ -137,6 +140,8 @@ export async function POST(req: Request) {
       refresh_token, 
       expires_in,    
     });
+
+    return response;
     
   } catch (err: any) {
     console.error("Login API Error:", err.message);

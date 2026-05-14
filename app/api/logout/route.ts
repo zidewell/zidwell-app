@@ -1,4 +1,3 @@
-// pages/api/logout.ts
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -15,28 +14,22 @@ export async function POST(req: NextRequest) {
     );
 
     // Clear HTTP-only cookies with proper settings
-    res.cookies.set("sb-access-token", "", { 
-      path: "/", 
-      maxAge: 0,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    });
+    const cookiesToClear = [
+      "sb-access-token",
+      "sb-refresh-token", 
+      "verified",
+      "sb-client-session",
+      "sb-login-time"
+    ];
     
-    res.cookies.set("sb-refresh-token", "", { 
-      path: "/", 
-      maxAge: 0,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    });
-    
-    res.cookies.set("verified", "", { 
-      path: "/", 
-      maxAge: 0,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+    cookiesToClear.forEach(cookieName => {
+      res.cookies.set(cookieName, "", { 
+        path: "/", 
+        maxAge: 0,
+        httpOnly: cookieName !== "sb-client-session" && cookieName !== "sb-login-time",
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      });
     });
 
     console.log("✅ Logout successful, cookies cleared");
@@ -45,8 +38,6 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Logout error:", error);
     
-    // Even on error, try to return a success response
-    // because we still want to clear client-side state
     const res = NextResponse.json(
       { 
         success: true, 
@@ -56,10 +47,18 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
 
-    // Still clear cookies
-    res.cookies.set("sb-access-token", "", { path: "/", maxAge: 0 });
-    res.cookies.set("sb-refresh-token", "", { path: "/", maxAge: 0 });
-    res.cookies.set("verified", "", { path: "/", maxAge: 0 });
+    // Still clear cookies on error
+    const cookiesToClear = [
+      "sb-access-token",
+      "sb-refresh-token", 
+      "verified",
+      "sb-client-session",
+      "sb-login-time"
+    ];
+    
+    cookiesToClear.forEach(cookieName => {
+      res.cookies.set(cookieName, "", { path: "/", maxAge: 0 });
+    });
 
     return res;
   }

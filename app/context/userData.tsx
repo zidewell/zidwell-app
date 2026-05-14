@@ -9,6 +9,7 @@ import {
   Dispatch,
   SetStateAction,
   useCallback,
+  useRef,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -264,9 +265,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [paymentProcessed, setPaymentProcessed] = useState(false);
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
+  const sessionRestoreInProgress = useRef(false);
 
   // Check if current page is public
   const isPublicPage = useCallback(() => {
@@ -287,32 +290,93 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return false;
   }, [pathname]);
 
-  // Initialize user from localStorage
+  // Clear session cookies
+  const clearSessionCookies = useCallback(() => {
+    document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "sb-client-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "sb-login-time=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  }, []);
+
+  // Restore session from cookies
+  const restoreSessionFromCookies = useCallback(async () => {
+    if (sessionRestoreInProgress.current) return null;
+    
+    sessionRestoreInProgress.current = true;
+    
+    try {
+      const hasSessionCookie = document.cookie.includes('sb-client-session=true');
+      
+      if (!hasSessionCookie) {
+        return null;
+      }
+
+      const response = await fetch('/api/me', {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+
+      if (response.ok) {
+        const userProfile = await response.json();
+        if (userProfile && userProfile.id) {
+          return userProfile;
+        }
+      } else if (response.status === 401) {
+        // Session expired, clear cookies
+        clearSessionCookies();
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Failed to restore session:', error);
+      return null;
+    } finally {
+      sessionRestoreInProgress.current = false;
+    }
+  }, [clearSessionCookies]);
+
+  // Initialize user from localStorage or session
   const initializeUser = useCallback(async () => {
     try {
+      // First check localStorage
       const storedUser = localStorage.getItem("userData");
+      
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
         setUserData(parsedUser);
-        
-        const isPublic = isPublicPage();
-        setShouldFetchData(!isPublic);
-        
-        if (paymentProcessed) {
-          setTimeout(() => {
-            refreshSubscription();
-          }, 1000);
-        }
+        setShouldFetchData(!isPublicPage());
+        setLoading(false);
+        setInitialCheckDone(true);
+        return;
       }
-    } catch (error) {
-      console.error("Failed to parse localStorage user:", error);
-    } finally {
-      setInitialCheckDone(true);
-      setLoading(false);
-    }
-  }, [isPublicPage, paymentProcessed]);
 
+      // No stored user, try to restore from session
+      const restoredUser = await restoreSessionFromCookies();
+      
+      if (restoredUser) {
+        setUser(restoredUser);
+        setUserData(restoredUser);
+        localStorage.setItem("userData", JSON.stringify(restoredUser));
+        setShouldFetchData(!isPublicPage());
+        setSessionRestored(true);
+      } else {
+        setShouldFetchData(false);
+      }
+      
+    } catch (error) {
+      console.error("Failed to initialize user:", error);
+      localStorage.removeItem("userData");
+      clearSessionCookies();
+    } finally {
+      setLoading(false);
+      setInitialCheckDone(true);
+    }
+  }, [isPublicPage, restoreSessionFromCookies, clearSessionCookies]);
+
+  // Run initialization on mount
   useEffect(() => {
     initializeUser();
   }, [initializeUser]);
@@ -351,8 +415,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     notificationCache.clear();
   }, []);
 
-  // Fetch notifications
+  // ⚠️ NOTIFICATIONS API CALLS COMMENTED OUT ⚠️
   const fetchNotifications = useCallback(async (filter: string = 'all', limit: number = 50) => {
+    // COMMENTED OUT - Notifications API temporarily disabled
+    console.log('📢 Notifications API disabled - fetchNotifications called but skipped');
+    return;
+    
+    /* ORIGINAL CODE COMMENTED OUT
     if (!shouldFetchData || !userData?.id) {
       return;
     }
@@ -408,10 +477,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setNotificationsLoading(false);
     }
-  }, [shouldFetchData, userData?.id]);
+    */
+  }, []); // Empty dependency array since function is disabled
 
-  // Fetch unread count
+  // ⚠️ FETCH UNREAD COUNT COMMENTED OUT ⚠️
   const fetchUnreadCount = useCallback(async () => {
+    // COMMENTED OUT - Notifications API temporarily disabled
+    console.log('📢 Notifications API disabled - fetchUnreadCount called but skipped');
+    return;
+    
+    /* ORIGINAL CODE COMMENTED OUT
     if (!shouldFetchData || !userData?.id) return;
 
     const cacheKey = `unread_count_${userData.id}`;
@@ -433,10 +508,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('❌ Error fetching unread count:', error);
     }
-  }, [shouldFetchData, userData?.id]);
+    */
+  }, []);
 
-  // Mark notification as read
+  // ⚠️ MARK AS READ COMMENTED OUT ⚠️
   const markAsRead = useCallback(async (notificationId: string) => {
+    // COMMENTED OUT - Notifications API temporarily disabled
+    console.log('📢 Notifications API disabled - markAsRead called but skipped');
+    return;
+    
+    /* ORIGINAL CODE COMMENTED OUT
     if (!shouldFetchData || !userData?.id) return;
 
     try {
@@ -460,10 +541,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       fetchNotifications();
       fetchUnreadCount();
     }
-  }, [shouldFetchData, userData?.id, fetchNotifications, fetchUnreadCount]);
+    */
+  }, []);
 
-  // Mark all notifications as read
+  // ⚠️ MARK ALL AS READ COMMENTED OUT ⚠️
   const markAllAsRead = useCallback(async () => {
+    // COMMENTED OUT - Notifications API temporarily disabled
+    console.log('📢 Notifications API disabled - markAllAsRead called but skipped');
+    return;
+    
+    /* ORIGINAL CODE COMMENTED OUT
     if (!shouldFetchData || !userData?.id) return;
 
     try {
@@ -480,7 +567,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       fetchNotifications();
       fetchUnreadCount();
     }
-  }, [shouldFetchData, userData?.id, clearNotificationCache, fetchNotifications, fetchUnreadCount]);
+    */
+  }, []);
 
   // Fetch subscription data
   const fetchSubscription = useCallback(async () => {
@@ -894,14 +982,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, shouldFetchData]);
 
-  // Fetch notifications on change
-  // useEffect(() => {
-  //   if (shouldFetchData && userData?.id) {
-  //     fetchNotifications();
-  //     fetchUnreadCount();
-  //   }
-  // }, [userData?.id, shouldFetchData, fetchNotifications, fetchUnreadCount]);
-
   // Fetch subscription on change
   useEffect(() => {
     if (shouldFetchData && userData?.id) {
@@ -909,7 +989,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, shouldFetchData, fetchSubscription]);
 
-  // Cache cleanup and refresh intervals
+  // Cache cleanup and refresh intervals (removed notification refresh)
   useEffect(() => {
     if (!shouldFetchData || !userData?.id) return;
 
@@ -917,9 +997,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       notificationCache.cleanup();
     }, 5 * 60 * 1000);
 
+    // Only refresh subscription, not notifications
     const refreshInterval = setInterval(() => {
-      fetchNotifications();
-      fetchUnreadCount();
       fetchSubscription();
     }, 5 * 60 * 1000);
 
@@ -927,7 +1006,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       clearInterval(cleanupInterval);
       clearInterval(refreshInterval);
     };
-  }, [userData?.id, shouldFetchData, fetchNotifications, fetchUnreadCount, fetchSubscription]);
+  }, [userData?.id, shouldFetchData, fetchSubscription]);
 
   // Theme initialization
   useEffect(() => {

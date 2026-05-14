@@ -63,44 +63,40 @@ const Hero = () => {
         }}
       />
 
-      <div className="mx-auto px-6 py-12 relative z-10">
-        <div className="max-w-6xl flex flex-col justify-center items-center">
-       
-
+      <div className="container mx-auto px-6 py-12 relative z-10">
+        <div className="max-w-5xl mx-auto flex flex-col items-center justify-center text-center">
           {/* Main Heading */}
-          <h1 className="animate-fade-up-delay-1 text-3xl md:text-4xl text-center font-black leading-tight mb-6 text-balance text-white">
+          <h1 className="animate-fade-up-delay-1 text-3xl md:text-5xl lg:text-6xl font-black leading-tight mb-6 text-balance text-white">
             For those who make the{" "}
             <span className="relative inline-block">
               <span className="relative z-10 text-[var(--color-accent-yellow)]">
                 impossible
               </span>
-            
             </span>{" "}
             seem normal.
           </h1>
 
           {/* Subheading */}
-          <p className="animate-fade-up-delay-2 text-lg  text-gray-200 mb-6 text-balance text-center">
+          <p className="animate-fade-up-delay-2 text-lg md:text-xl text-gray-200 mb-6 text-balance max-w-3xl">
             Use Zidwell daily for Instant transfers, automatic bookkeeping,
-            payment pages, invoices. <br/>
-              so your business records are clean and ready whenever you need it.
+            payment pages, invoices. So your business records are clean and
+            ready whenever you need it.
           </p>
 
-         
           {/* Main Text */}
-     <p className="animate-fade-up-delay-2 text-sm text-gray-300 mb-8 text-balance leading-relaxed text-center">
-  Entrepreneurs are the heroes of our society. We built Zidwell so<br />
-  heroes can handle their entire financial operations on one platform.<br />
-  You already run a business in a tough environment, why add to your<br />
-  stress by using 5 finance apps when you can use just one - Zidwell.
-</p>
+          <p className="animate-fade-up-delay-2 text-base md:text-lg text-gray-300 mb-8 text-balance leading-relaxed max-w-3xl">
+            Entrepreneurs are the heroes of our society. We built Zidwell so
+            heroes can handle their entire financial operations on one platform.
+            You already run a business in a tough environment, why add to your
+            stress by using 5 finance apps when you can use just one - Zidwell.
+          </p>
 
           {/* CTA Buttons */}
-          <div className="animate-fade-up-delay-3 flex flex-col sm:flex-row items-start gap-4 mb-8">
+          <div className="animate-fade-up-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
             {user ? (
               <Button
                 onClick={() => router.push("/dashboard")}
-                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 px-6 py-5 text-lg font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
+                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 px-8 py-6 text-lg font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
               >
                 Go to Dashboard
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -109,15 +105,21 @@ const Hero = () => {
               <>
                 <Button
                   onClick={() => router.push("/auth/signup")}
-                  className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 px-6 py-5 font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
+                  className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 px-8 py-6 text-lg font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
                 >
                   Get Started Free
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => router.push("https://www.instagram.com/zidwellfinance/")}
-                  className="border-2 bg-transparent border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)] px-6 py-5  font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
+                  onClick={() =>
+                    window.open(
+                      "https://www.instagram.com/zidwellfinance/",
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
+                  }
+                  className="border-2 bg-transparent border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)] px-8 py-6 text-lg font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
                 >
                   <Users className="mr-2 h-5 w-5" />
                   Follow on Instagram
@@ -127,8 +129,7 @@ const Hero = () => {
           </div>
 
           {/* Trust Indicators */}
-          <div className="animate-fade-up-delay-3 flex flex-wrap items-center gap-6 text-sm text-gray-200">
-          
+          <div className="animate-fade-up-delay-3 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-200">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-[var(--color-accent-yellow)] rounded-full" />
               <span>Trusted by 1000+ businesses</span>

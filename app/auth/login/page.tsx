@@ -77,144 +77,145 @@ const LoginForm = () => {
   }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (loading) return;
+  if (loading) return;
 
-    if (!email || !password) {
-      setErrors({
-        email: !email ? "Email is required" : "",
-        password: !password ? "Password is required" : "",
-      });
-      return;
+  if (!email || !password) {
+    setErrors({
+      email: !email ? "Email is required" : "",
+      password: !password ? "Password is required" : "",
+    });
+    return;
+  }
+
+  setLoading(true);
+  setErrors({});
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    Swal.fire({
+      title: "Signing in...",
+      text: "Please wait while we verify your credentials",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.error || "Invalid email or password");
     }
 
-    setLoading(true);
-    setErrors({});
+    const { profile, isVerified, sessionEstablished } = result;
+    if (!profile) throw new Error("User profile not found.");
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    setUserData(profile);
+    localStorage.setItem("userData", JSON.stringify(profile));
 
-    try {
-      Swal.fire({
-        title: "Signing in...",
-        text: "Please wait while we verify your credentials",
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-      });
+    Cookies.set("verified", isVerified ? "true" : "false", {
+      expires: 7,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
 
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-        signal: controller.signal,
-      });
+    Cookies.set("sb-client-session", "true", {
+      expires: 7,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
 
-      clearTimeout(timeoutId);
-      const result = await res.json();
+    Swal.close();
 
-      if (!res.ok) {
-        throw new Error(result.error || "Invalid email or password");
-      }
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
-      const { profile, isVerified, sessionEstablished } = result;
-      if (!profile) throw new Error("User profile not found.");
+    const sessionCookie = Cookies.get("sb-client-session");
+    if (!sessionCookie) {
+      console.warn("Session cookie not set, retrying...");
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
 
-      setUserData(profile);
-      localStorage.setItem("userData", JSON.stringify(profile));
+    let targetUrl = callbackUrl;
+    if (fromLogin === "true" && scrollToPricing === "true") {
+      targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
+    }
 
-      Cookies.set("verified", isVerified ? "true" : "false", {
-        expires: 7,
-        path: "/",
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-      });
+    // ✅ Updated: Use replace instead of push to prevent going back
+    if (process.env.NODE_ENV === "production") {
+      window.location.replace(targetUrl); // Replaces history in production
+    } else {
+      router.replace(targetUrl); // Replaces history in development
+    }
 
-      Cookies.set("sb-client-session", "true", {
-        expires: 7,
-        path: "/",
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-      });
-
-      Swal.close();
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      const sessionCookie = Cookies.get("sb-client-session");
-      if (!sessionCookie) {
-        console.warn("Session cookie not set, retrying...");
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
-
-      let targetUrl = callbackUrl;
-      if (fromLogin === "true" && scrollToPricing === "true") {
-        targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
-      }
-
-      if (process.env.NODE_ENV === "production") {
-        window.location.href = targetUrl;
-      } else {
-        router.push(targetUrl);
-      }
-
-      Promise.allSettled([
-        (async () => {
-          await fetch("/api/activity/last-login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: profile.id,
-              email: profile.email,
-            }),
-          }).catch(console.error);
-        })(),
-      ]).catch((err) => console.error("Background operations failed:", err));
-
-      if (process.env.NODE_ENV === "production") {
-        sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
-          console.error("Failed to send login notification:", err),
-        );
-      }
-
-      setTimeout(() => {
-        Swal.fire({
-          icon: "success",
-          title: "Welcome Back!",
-          text: `Hello, ${profile.name || profile.email?.split("@")[0] || "User"}`,
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 2000,
-          timerProgressBar: true,
+    Promise.allSettled([
+      (async () => {
+        await fetch("/api/activity/last-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: profile.id,
+            email: profile.email,
+          }),
         }).catch(console.error);
-      }, 100);
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      Swal.close();
+      })(),
+    ]).catch((err) => console.error("Background operations failed:", err));
 
-      let errorMessage =
-        "Invalid email or password. Please check your credentials and try again.";
-
-      if (err.name === "AbortError") {
-        errorMessage = "Please check your internet connection and try again.";
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-
-      Swal.fire({
-        icon: "error",
-        title: "Login Failed",
-        text: errorMessage,
-        confirmButtonColor: "var(--color-accent-yellow)",
-        confirmButtonText: "Try Again",
-      });
-    } finally {
-      setLoading(false);
+    if (process.env.NODE_ENV === "production") {
+      sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
+        console.error("Failed to send login notification:", err),
+      );
     }
-  };
+
+    setTimeout(() => {
+      Swal.fire({
+        icon: "success",
+        title: "Welcome Back!",
+        text: `Hello, ${profile.name || profile.email?.split("@")[0] || "User"}`,
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+      }).catch(console.error);
+    }, 100);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    Swal.close();
+
+    let errorMessage =
+      "Invalid email or password. Please check your credentials and try again.";
+
+    if (err.name === "AbortError") {
+      errorMessage = "Please check your internet connection and try again.";
+    } else if (err.message) {
+      errorMessage = err.message;
+    }
+
+    Swal.fire({
+      icon: "error",
+      title: "Login Failed",
+      text: errorMessage,
+      confirmButtonColor: "var(--color-accent-yellow)",
+      confirmButtonText: "Try Again",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="lg:flex lg:justify-between bg-(--bg-primary) min-h-screen fade-in">

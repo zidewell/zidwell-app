@@ -1,3 +1,5 @@
+// app/api/payment-page/public/checkout/route.ts
+
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
@@ -14,24 +16,14 @@ const baseUrl =
 
 // Helper function to generate order reference (max 50 chars for Nomba)
 const generateOrderReference = (pageId: string | number): string => {
-  // Use timestamp in base36 (shorter than numeric)
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 6);
-  
-  // Use the full page ID (convert to string if it's a number)
   const fullPageId = pageId.toString();
-  
-  // Take last 12 chars to keep reference short but still unique
   const shortId = fullPageId.slice(-12);
-  
-
   let reference = `PP-${shortId}-${timestamp}-${random}`;
-  
-  // Ensure max 50 characters (should be fine, but just in case)
   if (reference.length > 50) {
     reference = reference.substring(0, 50);
   }
-  
   return reference;
 };
 
@@ -71,7 +63,6 @@ export async function POST(request: Request) {
     // Determine final amount - check if fee breakdown exists
     let finalAmount = amount;
     if (!finalAmount) {
-      // Check if page has fee breakdown for school
       if (
         page.page_type === "school" &&
         page.metadata?.feeBreakdown &&
@@ -100,23 +91,24 @@ export async function POST(request: Request) {
       );
     }
 
-    // Calculate fee
+    // ✅ FIX: Calculate fee (creator bears it, customer pays NO extra fee)
     const fee = Math.min(finalAmount * 0.02, 2000);
-    const totalForCustomer =
-      page.fee_mode === "customer" ? finalAmount + fee : finalAmount;
+    const totalForCustomer = finalAmount; // Customer pays exact amount, no fee added
 
     // Generate order reference with PP- prefix
     const orderReference = generateOrderReference(page.id);
     
-    // Store full reference for internal tracking (no longer needed separately but kept for compatibility)
+    // Store full reference for internal tracking
     const fullReference = `PP-${page.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-    // Prepare metadata for payment record (includes student info for school pages)
+    // Prepare metadata for payment record
     const paymentMetadata: any = {
       ...metadata,
       pageType: page.page_type,
       pageTitle: page.title,
-      fullReference, // Store full reference here for internal use
+      fullReference,
+      feeBorneBy: "creator", // ✅ Track that creator pays the fee
+      feeAmount: fee,
     };
 
     // Add school-specific metadata
@@ -127,16 +119,15 @@ export async function POST(request: Request) {
       paymentMetadata.customFields = metadata?.customFields || {};
     }
 
-    // Create payment record
+    // ✅ Create payment record - creator bears the fee
     const { data: payment, error: paymentError } = await supabase
       .from("payment_page_payments")
       .insert({
         payment_page_id: page.id,
         user_id: page.user_id,
         amount: finalAmount,
-        fee: page.fee_mode === "customer" ? fee : 0,
-        net_amount:
-          page.fee_mode === "customer" ? finalAmount : finalAmount - fee,
+        fee: fee, // Fee that will be deducted from creator
+        net_amount: finalAmount - fee, // Creator receives amount minus fee
         status: "pending",
         customer_name: customerName,
         customer_email: customerEmail,
@@ -165,12 +156,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create checkout with Nomba
+    // ✅ Create checkout with Nomba - customer pays exact amount (no fee)
     const checkoutPayload = {
       order: {
         callbackUrl: `${baseUrl}/api/payment-page/callback`,
         customerEmail: customerEmail,
-        amount: totalForCustomer.toString(),
+        amount: totalForCustomer.toString(), // Customer pays exact amount
         currency: "NGN",
         orderReference: orderReference,
         customerId: page.user_id,
@@ -183,6 +174,7 @@ export async function POST(request: Request) {
           pageSlug: pageSlug,
           originalAmount: finalAmount,
           fee: fee,
+          feeBorneBy: "creator", // ✅ Track who bears the fee
           pageType: page.page_type,
           fullReference,
           ...(page.page_type === "school" && {

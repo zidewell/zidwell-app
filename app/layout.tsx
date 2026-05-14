@@ -4,6 +4,7 @@ import { Space_Grotesk, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "./context/userData";
 import SessionWatcher from "./components/SessionWatcher";
+import { SessionRestore } from "./components/SessionRestore"; 
 import NotificationToast from "./components/NotificationToast";
 import FloatingWhatsApp from "./components/FloatingWhatsapp";
 import Script from "next/script";
@@ -474,24 +475,27 @@ export default function RootLayout({
         </Script>
 
         <ThemeProvider>
-           <ThemeWrapper>
-          <UserProvider>
-            <SessionWatcher>
-              <AuthChecker>
-                <VerificationModalProvider>
-                  <StoreProvider>
-                    {children}
-                    <GlobalVerificationModal />
-                    <div className="fixed bottom-4 right-4 z-50">
-                      <InstallPrompt />
-                    </div>
-                    <FloatingWhatsApp />
-                    <NotificationToast />
-                  </StoreProvider>
-                </VerificationModalProvider>
-              </AuthChecker>
-            </SessionWatcher>
-          </UserProvider>
+          <ThemeWrapper>
+            <UserProvider>
+              {/* ✅ Add SessionRestore here - it should be inside UserProvider but before other components */}
+              <SessionRestore>
+                <SessionWatcher>
+                  <AuthChecker>
+                    <VerificationModalProvider>
+                      <StoreProvider>
+                        {children}
+                        <GlobalVerificationModal />
+                        <div className="fixed bottom-4 right-4 z-50">
+                          <InstallPrompt />
+                        </div>
+                        <FloatingWhatsApp />
+                        <NotificationToast />
+                      </StoreProvider>
+                    </VerificationModalProvider>
+                  </AuthChecker>
+                </SessionWatcher>
+              </SessionRestore>
+            </UserProvider>
           </ThemeWrapper>
         </ThemeProvider>
       </body>

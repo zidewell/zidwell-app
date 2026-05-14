@@ -1,4 +1,5 @@
 // app/dashboard/services/payment/create/page.tsx
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -270,7 +271,7 @@ const CreatePage = () => {
     priceType: "fixed" as "fixed" | "installment",
     price: "",
     installmentCount: "3",
-    feeMode: "bearer" as "bearer" | "customer",
+    feeMode: "bearer" as "bearer" | "customer", // Always bearer
   });
 
   // Installment state
@@ -328,7 +329,7 @@ const CreatePage = () => {
   const logoRef = useRef<HTMLInputElement>(null);
   const productRef = useRef<HTMLInputElement>(null);
 
-  // Fee calculation
+  // Fee calculation - ALWAYS bearer mode (creator pays fee)
   const [feeCalculation, setFeeCalculation] = useState({
     subtotal: 0,
     fee: 0,
@@ -488,19 +489,13 @@ const CreatePage = () => {
     calculateInstallmentAmount();
   }, [form.price, form.installmentCount]);
 
-  const calculateFeeDetails = (amount: number, feeMode: string) => {
-    const fee = Math.min(amount * 0.02, 2000);
-    const totalWithFee = feeMode === "customer" ? amount + fee : amount;
-    const creatorReceives = feeMode === "bearer" ? amount - fee : amount;
-    return { fee, totalWithFee, creatorReceives };
-  };
-
+  // Always calculate as bearer mode (creator pays fee)
   useEffect(() => {
     const amount = Number(form.price) || 0;
-    const { fee, totalWithFee, creatorReceives } = calculateFeeDetails(
-      amount,
-      form.feeMode,
-    );
+    const fee = Math.min(amount * 0.02, 2000);
+    const creatorReceives = amount - fee;
+    const totalWithFee = amount; // Customer pays exact amount
+    
     setFeeCalculation({
       subtotal: amount,
       fee,
@@ -509,7 +504,7 @@ const CreatePage = () => {
       feePercentage: 2,
       feeCap: 2000,
     });
-  }, [form.price, form.feeMode]);
+  }, [form.price]);
 
   useEffect(() => {
     if (pageType === "school") {
@@ -658,6 +653,12 @@ const CreatePage = () => {
     return uploadedUrls;
   };
 
+  const getFeePerInstallment = () => {
+    const perInstallment = installmentAmount;
+    const fee = Math.min(perInstallment * 0.02, 2000);
+    return fee;
+  };
+
   const handleCreate = async () => {
     if (!canCreate() || !pageType) return;
     setIsCreating(true);
@@ -665,7 +666,6 @@ const CreatePage = () => {
     try {
       const uploadedImages = await uploadAllImages();
 
-      // If no cover image but we have product images and page type has product images, use first product image as cover
       let finalCoverImage = uploadedImages.coverImage;
       const pageTypesWithProductImages = [
         "physical",
@@ -682,10 +682,6 @@ const CreatePage = () => {
         pageTypesWithProductImages.includes(pageType)
       ) {
         finalCoverImage = uploadedImages.productImages[0];
-        console.log(
-          "No cover image provided, using first product image as fallback:",
-          finalCoverImage,
-        );
       }
 
       const metadata: any = {};
@@ -750,7 +746,7 @@ const CreatePage = () => {
           form.priceType === "installment"
             ? Number(form.installmentCount)
             : undefined,
-        feeMode: form.feeMode,
+        feeMode: "bearer", // Always bearer mode
         pageType: pageType,
         metadata: metadata,
       };
@@ -768,10 +764,7 @@ const CreatePage = () => {
       setCreatedSlug(pageSlug);
       if (result.page) addPage(result.page);
 
-      // Trigger confetti blast
       triggerConfetti();
-
-      // Show success modal (no separate alert)
       setShowSuccess(true);
     } catch (err: any) {
       console.error("Create page error:", err);
@@ -784,12 +777,6 @@ const CreatePage = () => {
   const pageUrl = `${baseUrl}/pay/${createdSlug}`;
   const copyPageUrl = () => copyToClipboard(pageUrl, setCopied);
   const previewPage = () => router.push(`/pay/${createdSlug}`);
-
-  const getFeePerInstallment = () => {
-    const perInstallment = installmentAmount;
-    const fee = Math.min(perInstallment * 0.02, 2000);
-    return fee;
-  };
 
   const currentImageSpecs = pageType
     ? IMAGE_SPECS[pageType]
@@ -829,7 +816,7 @@ const CreatePage = () => {
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-3xl mx-auto">
             <button
               onClick={() => setPageType(null)}
               className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) mb-6"
@@ -843,7 +830,7 @@ const CreatePage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-8"
               >
-                {/* Cover Image with Drag to Adjust + Drag & Drop Upload */}
+                {/* Cover Image */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <Label className="text-sm font-semibold text-(--text-primary)">
@@ -1342,130 +1329,115 @@ const CreatePage = () => {
                       )}
                     </div>
 
-                    {form.priceType === "installment" &&
-                      installmentAmount > 0 && (
-                        <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Calendar className="h-4 w-4 text-(--color-accent-yellow)" />
-                            <h4 className="text-sm font-semibold text-(--text-primary)">
-                              Installment Breakdown
-                            </h4>
+                    {/* Fee Information Display */}
+                    {Number(form.price) > 0 && (
+                      <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Info className="h-4 w-4 text-(--color-accent-yellow)" />
+                          <h4 className="text-sm font-semibold text-(--text-primary)">
+                            Fee Information
+                          </h4>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-(--text-secondary)">
+                              Customer Pays:
+                            </span>
+                            <span className="font-semibold text-(--color-accent-yellow)">
+                              ₦{Number(form.price).toLocaleString()}
+                            </span>
                           </div>
-                          <div className="space-y-2 text-sm text-(--text-primary)">
-                            <div className="flex justify-between">
-                              <span className="text-(--text-secondary)">
-                                Total Amount:
-                              </span>
-                              <span className="font-semibold">
-                                ₦{Number(form.price).toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-(--text-secondary)">
-                                Number of Installments:
-                              </span>
-                              <span className="font-semibold">
-                                {form.installmentCount}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-(--text-secondary)">
-                                Per Installment Amount:
-                              </span>
-                              <span className="font-semibold text-(--color-accent-yellow)">
-                                ₦{installmentAmount.toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-(--text-secondary)">
-                                Fee per Installment (2%):
-                              </span>
-                              <span className="font-semibold">
-                                ₦{getFeePerInstallment().toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="border-t border-(--color-accent-yellow)/20 pt-2 mt-2">
-                              <div className="flex justify-between">
-                                <span className="font-semibold text-(--text-primary)">
-                                  {form.feeMode === "bearer"
-                                    ? "You Receive per Installment:"
-                                    : "Customer Pays per Installment:"}
-                                </span>
-                                <span className="font-semibold text-(--color-accent-yellow)">
-                                  {form.feeMode === "bearer"
-                                    ? `₦${(installmentAmount - getFeePerInstallment()).toLocaleString()}`
-                                    : `₦${installmentAmount.toLocaleString()}`}
-                                </span>
-                              </div>
-                              {form.feeMode === "customer" && (
-                                <div className="flex justify-between mt-1">
-                                  <span className="text-xs text-(--text-secondary)">
-                                    (Plus fee):
-                                  </span>
-                                  <span className="text-xs text-(--text-secondary)">
-                                    + ₦{getFeePerInstallment().toLocaleString()}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
+                          <div className="flex justify-between">
+                            <span className="text-(--text-secondary)">
+                              Transaction Fee (2% capped at ₦2,000):
+                            </span>
+                            <span className="font-medium text-[var(--destructive)]">
+                              - ₦{feeCalculation.fee.toLocaleString()}
+                            </span>
                           </div>
-                          <div className="mt-3 p-2 bg-(--color-accent-yellow)/5 rounded-lg">
-                            <div className="flex items-start gap-2">
-                              <Info className="h-3 w-3 text-(--color-accent-yellow) mt-0.5" />
-                              <p className="text-xs text-(--text-secondary)">
-                                {form.feeMode === "bearer"
-                                  ? `You will receive ₦${(installmentAmount - getFeePerInstallment()).toLocaleString()} per installment. Total you'll receive: ₦${((installmentAmount - getFeePerInstallment()) * Number(form.installmentCount)).toLocaleString()}`
-                                  : `Customer will pay ₦${installmentAmount.toLocaleString()} per installment + ₦${getFeePerInstallment().toLocaleString()} fee = ₦${(installmentAmount + getFeePerInstallment()).toLocaleString()} total per installment`}
-                              </p>
+                          <div className="border-t border-(--color-accent-yellow)/20 pt-2 mt-2">
+                            <div className="flex justify-between">
+                              <span className="font-semibold text-(--text-primary)">
+                                You Receive:
+                              </span>
+                              <span className="font-semibold text-(--color-lemon-green)">
+                                ₦{feeCalculation.creatorReceives.toLocaleString()}
+                              </span>
                             </div>
                           </div>
                         </div>
-                      )}
+                        <p className="text-xs text-(--text-secondary) mt-3">
+                          ✓ The 2% transaction fee is deducted from your payout. 
+                          Customers pay exactly the amount shown.
+                        </p>
+                      </div>
+                    )}
+
+                    {form.priceType === "installment" && installmentAmount > 0 && (
+                      <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Calendar className="h-4 w-4 text-(--color-accent-yellow)" />
+                          <h4 className="text-sm font-semibold text-(--text-primary)">
+                            Installment Breakdown
+                          </h4>
+                        </div>
+                        <div className="space-y-2 text-sm text-(--text-primary)">
+                          <div className="flex justify-between">
+                            <span className="text-(--text-secondary)">
+                              Total Amount:
+                            </span>
+                            <span className="font-semibold">
+                              ₦{Number(form.price).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-(--text-secondary)">
+                              Number of Installments:
+                            </span>
+                            <span className="font-semibold">
+                              {form.installmentCount}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-(--text-secondary)">
+                              Customer Pays Per Installment:
+                            </span>
+                            <span className="font-semibold text-(--color-accent-yellow)">
+                              ₦{installmentAmount.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-(--text-secondary)">
+                              Fee Deducted Per Installment:
+                            </span>
+                            <span className="font-semibold text-[var(--destructive)]">
+                              - ₦{getFeePerInstallment().toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="border-t border-(--color-accent-yellow)/20 pt-2 mt-2">
+                            <div className="flex justify-between">
+                              <span className="font-semibold text-(--text-primary)">
+                                You Receive Per Installment:
+                              </span>
+                              <span className="font-semibold text-(--color-lemon-green)">
+                                ₦{(installmentAmount - getFeePerInstallment()).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-3 p-2 bg-(--color-accent-yellow)/5 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <Info className="h-3 w-3 text-(--color-accent-yellow) mt-0.5" />
+                            <p className="text-xs text-(--text-secondary)">
+                              You will receive ₦{(installmentAmount - getFeePerInstallment()).toLocaleString()} per installment. 
+                              Total you'll receive: ₦{((installmentAmount - getFeePerInstallment()) * Number(form.installmentCount)).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
-
-                {/* Fee Mode */}
-                <div className="space-y-4">
-                  <Label className="text-sm font-semibold mb-3 block text-(--text-primary)">
-                    Who Pays the Transaction Fee?
-                  </Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(["bearer", "customer"] as const).map((val) => (
-                      <button
-                        key={val}
-                        onClick={() => setForm((f) => ({ ...f, feeMode: val }))}
-                        className={`p-4 rounded-xl border-2 text-sm font-medium transition-all ${
-                          form.feeMode === val
-                            ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)"
-                            : "border-(--border-color) bg-(--bg-secondary) text-(--text-secondary) hover:border-(--color-accent-yellow)/50"
-                        }`}
-                      >
-                        <div className="font-semibold mb-1">
-                          {val === "bearer"
-                            ? "I'll bear the fee"
-                            : "Customer pays"}
-                        </div>
-                        <div className="text-xs opacity-75">
-                          {val === "bearer"
-                            ? `You pay ${feeCalculation.fee.toLocaleString()} fee • You receive ₦${feeCalculation.creatorReceives.toLocaleString()}`
-                            : `Customer pays ₦${feeCalculation.totalWithFee.toLocaleString()} total`}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-
-                  {form.priceType === "installment" && (
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                      <p className="text-xs text-blue-800">
-                        <strong>Note:</strong> For installment payments, the fee
-                        is applied to each installment separately.
-                        {form.feeMode === "bearer"
-                          ? ` The fee will be deducted from each payment you receive.`
-                          : ` The fee will be added to each payment the customer makes.`}
-                      </p>
-                    </div>
-                  )}
-                </div>
               </motion.div>
             </div>
           </div>
@@ -1493,94 +1465,101 @@ const CreatePage = () => {
         </div>
       </div>
 
-      <AnimatePresence>
-        {showSuccess && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
-            onClick={() => setShowSuccess(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-(--bg-primary) rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-(--border-color)"
-              onClick={(e) => e.stopPropagation()}
+    <AnimatePresence>
+  {showSuccess && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
+      onClick={() => setShowSuccess(false)}
+    >
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+        className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg lg:max-w-xl w-full text-center shadow-2xl border border-[var(--border-color)] squircle-lg mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">🎉</div>
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">
+          Payment Page Created!
+        </h2>
+        <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
+          Your page is now live and ready to collect payments.
+        </p>
+
+        <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-[var(--border-color)] squircle-lg">
+          <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">
+            Your Payment Link:
+          </Label>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="flex items-center gap-2 flex-1 bg-[var(--bg-primary)] rounded-lg p-2 sm:p-3 border border-[var(--border-color)]">
+              <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
+              <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">
+                {pageUrl}
+              </code>
+            </div>
+            <button
+              onClick={copyPageUrl}
+              className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0"
             >
-              <div className="text-6xl mb-4">🎉</div>
-              <h2 className="text-2xl font-bold text-(--text-primary) mb-2">
-                Payment Page Created!
-              </h2>
-              <p className="text-(--text-secondary) mb-6">
-                Your page is now live and ready to collect payments.
-              </p>
+              {copied ? (
+                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)]" />
+              ) : (
+                <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)]" />
+              )}
+              <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-ink)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap squircle-sm">
+                {copied ? "Copied!" : "Copy link"}
+              </span>
+            </button>
+          </div>
+          {copied && (
+            <p className="text-xs text-[var(--color-lemon-green)] mt-2 text-center animate-pulse">
+              ✓ Link copied to clipboard!
+            </p>
+          )}
+        </div>
 
-              <div className="bg-(--bg-secondary) rounded-xl p-4 mb-6 border border-(--border-color)">
-                <Label className="text-xs font-semibold text-(--color-accent-yellow) mb-2 block text-left">
-                  Your Payment Link:
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Link2 className="h-4 w-4 text-(--color-accent-yellow) shrink-0" />
-                  <code className="text-sm font-mono text-(--text-primary) break-all flex-1 text-left">
-                    {pageUrl}
-                  </code>
-                  <button
-                    onClick={copyPageUrl}
-                    className="relative p-2 rounded-lg bg-(--color-accent-yellow)/10 hover:bg-(--color-accent-yellow)/20 transition-colors group"
-                  >
-                    {copied ? (
-                      <CheckCircle className="h-4 w-4 text-(--color-lemon-green)" />
-                    ) : (
-                      <Copy className="h-4 w-4 text-(--color-accent-yellow)" />
-                    )}
-                    {/* Tooltip */}
-                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      {copied ? "Copied!" : "Copy link"}
-                    </span>
-                  </button>
-                </div>
-                {copied && (
-                  <p className="text-xs text-(--color-lemon-green) mt-2 text-center animate-pulse">
-                    ✓ Link copied to clipboard!
-                  </p>
-                )}
-              </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+  <Button
+    variant="outline"
+    className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+    onClick={() => {
+      setShowSuccess(false);
+     
+      const previewUrl = pageUrl; 
+      window.open(previewUrl, '_blank');
+     
+      if (typeof previewPage === 'function') {
+        previewPage();
+      }
+    }}
+  >
+    Preview Page
+  </Button>
+  <Button
+    variant="default"
+    className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
+    onClick={() => {
+      setShowSuccess(false);
+      router.push("/dashboard/services/payment/dashboard");
+    }}
+  >
+    Go to Dashboard
+  </Button>
+</div>
 
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setShowSuccess(false);
-                    previewPage();
-                  }}
-                >
-                  Preview Page
-                </Button>
-                <Button
-                  variant="default"
-                  className="flex-1 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-                  onClick={() => {
-                    setShowSuccess(false);
-                    router.push("/dashboard/services/payment/dashboard");
-                  }}
-                >
-                  Go to Dashboard
-                </Button>
-              </div>
-
-              <button
-                onClick={() => setShowSuccess(false)}
-                className="mt-4 text-sm text-(--text-secondary) hover:text-(--text-primary) transition-colors"
-              >
-                Close
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <button
+          onClick={() => setShowSuccess(false)}
+          className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+        >
+          Close
+        </button>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </div>
   );
 };

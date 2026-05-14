@@ -707,7 +707,6 @@
 // };
 
 
-
 import { NextResponse, type NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
 import { 
