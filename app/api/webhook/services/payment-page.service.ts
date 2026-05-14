@@ -1,3 +1,5 @@
+// app/api/webhook/services/payment-page.service.ts
+
 import { createClient } from "@supabase/supabase-js";
 import { transporter } from "@/lib/node-mailer";
 import {
@@ -324,8 +326,8 @@ async function sendPaymentPageNotificationEmail(
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
           <p><strong>Student Information:</strong></p>
           <p>Parent: ${metadata.parentName || "N/A"}</p>
-          <p>Student: ${metadata.childName || "N/A"}</p>
-          <p>Reg Number: ${metadata.regNumber || "N/A"}</p>
+          <p>Number of Students: ${metadata.numberOfStudents || 1}</p>
+          ${metadata.selectedStudents ? `<p>Students: ${metadata.selectedStudents.join(", ")}</p>` : ""}
         </div>
       `;
     } else if (metadata?.pageType === "physical") {
@@ -524,6 +526,9 @@ function extractPaymentPageIdFromVirtualAccount(
   return null;
 }
 
+// ============================================================
+// MAIN PROCESS PAYMENT PAGE PAYMENT FUNCTION (FIXED)
+// ============================================================
 
 export async function processPaymentPagePayment(
   payload: any,
@@ -533,17 +538,44 @@ export async function processPaymentPagePayment(
 
   console.log("💰 Processing Payment Page CARD payment...");
   console.log("🔑 Order Reference:", orderReference);
+  console.log("🆔 Nomba Transaction ID:", nombaTransactionId);
 
+  // Extract metadata from the payload
   const metadata = payload.data?.order?.metadata || {};
   let paymentPageId = metadata.paymentPageId;
   let paymentId = metadata.paymentId;
 
-  // ... existing extraction logic ...
+  console.log("📊 Metadata from payload:", { paymentPageId, paymentId });
+
+  // If paymentPageId not found in metadata, try to extract from orderReference
+  if (!paymentPageId && orderReference) {
+    const extractedId = extractPaymentPageIdFromReference(orderReference);
+    console.log("🔍 Extracted from orderReference:", extractedId);
+    
+    if (extractedId) {
+      // Find the full payment page ID by matching the short ID
+      const { data: allPages, error: searchError } = await supabase
+        .from("payment_pages")
+        .select("id, title, user_id");
+
+      if (!searchError && allPages) {
+        const foundPage = allPages.find((page) =>
+          page.id.endsWith(extractedId)
+        );
+        if (foundPage) {
+          paymentPageId = foundPage.id;
+          console.log("✅ Found payment page by ID suffix:", paymentPageId);
+        }
+      }
+    }
+  }
 
   if (!paymentPageId) {
+    console.error("❌ Missing payment page identifier");
     return { error: "Missing payment page identifier", status: 400 };
   }
 
+  // Get payment page details
   const { data: paymentPageCheck, error: pageError } = await supabase
     .from("payment_pages")
     .select("id, title, user_id, price_type, installment_count, price")
@@ -551,20 +583,55 @@ export async function processPaymentPagePayment(
     .maybeSingle();
 
   if (pageError || !paymentPageCheck) {
+    console.error("❌ Payment page not found:", paymentPageId);
     return { error: "Payment page not found", status: 404 };
   }
 
+  console.log("✅ Payment page found:", { id: paymentPageCheck.id, title: paymentPageCheck.title });
+
+  // Find the payment record
   let paymentRecord = null;
 
+  // First try by paymentId from metadata
   if (paymentId) {
     const { data: payment } = await supabase
       .from("payment_page_payments")
       .select("*")
       .eq("id", paymentId)
       .maybeSingle();
-    if (payment) paymentRecord = payment;
+    if (payment) {
+      paymentRecord = payment;
+      console.log("✅ Found payment by ID:", paymentRecord.id);
+    }
   }
 
+  // If not found, try by order_reference
+  if (!paymentRecord) {
+    const { data: payment } = await supabase
+      .from("payment_page_payments")
+      .select("*")
+      .eq("order_reference", orderReference)
+      .maybeSingle();
+    if (payment) {
+      paymentRecord = payment;
+      console.log("✅ Found payment by order_reference:", paymentRecord.id);
+    }
+  }
+
+  // If still not found, try by reference column
+  if (!paymentRecord) {
+    const { data: payment } = await supabase
+      .from("payment_page_payments")
+      .select("*")
+      .eq("reference", orderReference)
+      .maybeSingle();
+    if (payment) {
+      paymentRecord = payment;
+      console.log("✅ Found payment by reference:", paymentRecord.id);
+    }
+  }
+
+  // If still not found, try by payment_page_id with pending status
   if (!paymentRecord) {
     const { data: payment } = await supabase
       .from("payment_page_payments")
@@ -574,14 +641,25 @@ export async function processPaymentPagePayment(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (payment) paymentRecord = payment;
+    if (payment) {
+      paymentRecord = payment;
+      console.log("✅ Found payment by page_id:", paymentRecord.id);
+    }
   }
 
   if (!paymentRecord) {
+    console.error("❌ Payment record not found for reference:", orderReference);
     return { error: "Payment record not found", status: 404 };
   }
 
-  // Check for duplicate webhook
+  console.log("✅ Payment record found:", { 
+    id: paymentRecord.id, 
+    status: paymentRecord.status,
+    amount: paymentRecord.amount,
+    userId: paymentRecord.user_id 
+  });
+
+  // Check for duplicate webhook processing
   const { data: existingWebhook } = await supabase
     .from("payment_page_payments")
     .select("nomba_transaction_id, id")
@@ -589,14 +667,22 @@ export async function processPaymentPagePayment(
     .maybeSingle();
 
   if (existingWebhook) {
+    console.log("⚠️ Duplicate webhook, already processed:", nombaTransactionId);
     return { success: true, message: "Already processed" };
   }
 
-  // ✅ Calculate net amount after fee (creator bears the fee)
+  // Check if payment is already completed
+  if (paymentRecord.status === "completed") {
+    console.log("✅ Payment already completed");
+    return { success: true, message: "Already processed" };
+  }
+
+  // Calculate net amount after fee (creator bears the fee)
   const netAmount = paymentRecord.amount - (paymentRecord.fee || 0);
+  console.log("💰 Net amount after fee:", netAmount);
 
   // Update payment status
-  const { error: updateError } = await supabase
+  const { error: updateError, count } = await supabase
     .from("payment_page_payments")
     .update({
       status: "completed",
@@ -609,10 +695,18 @@ export async function processPaymentPagePayment(
     .eq("status", "pending");
 
   if (updateError) {
+    console.error("❌ Failed to update payment:", updateError);
     return { error: "Failed to update payment", status: 500 };
   }
 
-  // ✅ Credit creator's balance with net amount (after fee deduction)
+  if (!count || count === 0) {
+    console.log("⚠️ Payment already updated by another process");
+    return { success: true, message: "Already processed" };
+  }
+
+  console.log("✅ Payment updated to completed");
+
+  // Credit creator's balance with net amount (after fee deduction)
   const { data: newBalance, error: balanceError } = await supabase.rpc(
     "increment_page_balance",
     { p_page_id: paymentPageId, p_amount: netAmount },
@@ -620,8 +714,14 @@ export async function processPaymentPagePayment(
 
   const finalBalance =
     !balanceError && typeof newBalance === "number" ? newBalance : null;
+  
+  if (balanceError) {
+    console.error("❌ Failed to increment balance:", balanceError);
+  } else {
+    console.log("✅ Balance incremented. New balance:", finalBalance);
+  }
 
-  // Get payment page details
+  // Get payment page details for email
   const { data: paymentPage } = await supabase
     .from("payment_pages")
     .select("title, user_id, page_type, metadata, price_type, installment_count, price")
@@ -631,8 +731,21 @@ export async function processPaymentPagePayment(
   // Handle installment tracking
   await handleInstallmentTracking(paymentRecord, paymentPage, nombaTransactionId);
 
-  // Update student paid status for school pages
+  // Update student paid status for school pages (supports multiple students)
   if (
+    paymentPage?.page_type === "school" &&
+    paymentRecord.metadata?.selectedStudents &&
+    paymentRecord.metadata.selectedStudents.length > 0
+  ) {
+    for (const studentName of paymentRecord.metadata.selectedStudents) {
+      await updateStudentPaidStatus(
+        paymentPageId,
+        studentName,
+        paymentRecord.metadata.parentName || paymentRecord.customer_name,
+        paymentRecord.amount / paymentRecord.metadata.selectedStudents.length,
+      );
+    }
+  } else if (
     paymentPage?.page_type === "school" &&
     paymentRecord.metadata?.childName
   ) {
@@ -672,24 +785,35 @@ export async function processPaymentPagePayment(
     },
   });
 
+  if (txError) {
+    console.error("❌ Failed to create transaction:", txError);
+  } else {
+    console.log("✅ Transaction record created");
+  }
+
   // Send receipt to customer
   if (paymentRecord.customer_email) {
-    await sendPaymentPageReceiptWithPDF(
-      paymentRecord.customer_email,
-      paymentPage || { title: "Payment Page" },
-      paymentRecord,
-      paymentRecord.customer_name,
-      paymentRecord.amount, // Customer paid full amount
-      nombaTransactionId,
-      "card",
-      new Date().toISOString(),
-      {
-        ...paymentRecord.metadata,
-        payment_method: "card",
-        pageType: paymentPage?.page_type,
-        note: "Transaction fees are covered by the merchant",
-      },
-    ).catch(console.error);
+    try {
+      await sendPaymentPageReceiptWithPDF(
+        paymentRecord.customer_email,
+        paymentPage || { title: "Payment Page" },
+        paymentRecord,
+        paymentRecord.customer_name,
+        paymentRecord.amount,
+        nombaTransactionId,
+        "card",
+        new Date().toISOString(),
+        {
+          ...paymentRecord.metadata,
+          payment_method: "card",
+          pageType: paymentPage?.page_type,
+          note: "Transaction fees are covered by the merchant",
+        },
+      );
+      console.log("✅ Receipt sent to customer:", paymentRecord.customer_email);
+    } catch (error) {
+      console.error("❌ Failed to send receipt:", error);
+    }
   }
 
   // Send notification to creator
@@ -700,16 +824,23 @@ export async function processPaymentPagePayment(
     .single();
 
   if (creator?.email) {
-    sendPaymentPageNotificationEmail(
-      creator.email,
-      paymentPage?.title || "Payment Page",
-      netAmount, // Creator receives net amount after fee
-      paymentRecord.customer_name,
-      paymentRecord.fee,
-      { ...paymentRecord.metadata, payment_method: "card", fee_born_by: "creator" },
-      "card",
-    ).catch(console.error);
+    try {
+      await sendPaymentPageNotificationEmail(
+        creator.email,
+        paymentPage?.title || "Payment Page",
+        netAmount,
+        paymentRecord.customer_name,
+        paymentRecord.fee,
+        { ...paymentRecord.metadata, payment_method: "card", fee_born_by: "creator" },
+        "card",
+      );
+      console.log("✅ Notification sent to creator:", creator.email);
+    } catch (error) {
+      console.error("❌ Failed to send creator notification:", error);
+    }
   }
+
+  console.log("🎉 Payment processing completed successfully!");
 
   return {
     success: true,
@@ -719,7 +850,10 @@ export async function processPaymentPagePayment(
   };
 }
 
-// Process BANK TRANSFER payments
+// ============================================================
+// PROCESS BANK TRANSFER PAYMENTS
+// ============================================================
+
 export async function processPaymentPageBankTransfer(
   payload: any,
   params: BankTransferParams,
@@ -917,6 +1051,10 @@ export async function processPaymentPageBankTransfer(
     payment_id: paymentRecord.id,
   };
 }
+
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
 
 export function checkIfPaymentPagePayment(
   orderReference: string,
