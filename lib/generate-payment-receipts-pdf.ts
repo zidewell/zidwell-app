@@ -1015,7 +1015,7 @@ export async function sendTransactionReceiptWithPDF(
     paidAt: string;
     narration?: string;
   },
-) {
+): Promise<{ success: boolean; messageId?: string; error?: string; fallback?: boolean }> {
   console.log(`📧 [EMAIL] ========== START sendTransactionReceiptWithPDF ==========`);
   console.log(`📧 [EMAIL] Recipient: ${payerEmail}`);
   console.log(`📧 [EMAIL] Payer Name: ${payerName}`);
@@ -1151,7 +1151,7 @@ export async function sendTransactionReceiptWithPDF(
       return { success: true, fallback: true };
     } catch (fallbackError) {
       console.error(`❌ [EMAIL] Fallback email also failed for ${payerEmail}:`, fallbackError);
-      throw error;
+      return { success: false, error: fallbackError instanceof Error ? fallbackError.message : "Unknown error" };
     }
   }
 }
@@ -1162,7 +1162,7 @@ async function sendTransactionReceiptFallback(
   payerName: string,
   invoice: any,
   paymentDetails: any,
-) {
+): Promise<any> {
   console.log(`📧 [EMAIL-FALLBACK] Sending fallback email to ${payerEmail}`);
   
   const formatCurrency = (value: number): string => {
@@ -1204,7 +1204,7 @@ export async function sendPaymentPageReceiptWithPDF(
   paymentMethod: string,
   paidAt: string,
   metadata?: any,
-): Promise<{ success: boolean; messageId?: string }> {
+): Promise<{ success: boolean; messageId?: string; error?: string; fallback?: boolean }> {
   console.log(`📧 [EMAIL-PAGE] ========== START sendPaymentPageReceiptWithPDF ==========`);
   console.log(`📧 [EMAIL-PAGE] Recipient: ${customerEmail}`);
   console.log(`📧 [EMAIL-PAGE] Customer Name: ${customerName}`);
@@ -1369,7 +1369,7 @@ export async function sendPaymentPageReceiptWithPDF(
       return { success: true, fallback: true };
     } catch (fallbackError) {
       console.error(`❌ [EMAIL-PAGE] Fallback email also failed for ${customerEmail}:`, fallbackError);
-      throw error;
+      return { success: false, error: fallbackError instanceof Error ? fallbackError.message : "Unknown error" };
     }
   }
 }
