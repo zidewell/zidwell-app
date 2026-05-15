@@ -12,7 +12,15 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { fullName, businessName, email, phone, password, bvn, transactionPin } = body;
+    const {
+      fullName,
+      businessName,
+      email,
+      phone,
+      password,
+      bvn,
+      transactionPin,
+    } = body;
 
     // ✅ 1. Validate required fields
     if (!fullName || !email || !phone || !password) {
@@ -52,7 +60,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ 5. Generate referral code
-    const namePart = fullName.split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+    const namePart = fullName
+      .split(" ")[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
     const generatedReferral = `${namePart}-${Date.now().toString(36)}`;
 
     // ✅ 6. Create user in Supabase Auth
@@ -91,26 +102,26 @@ export async function POST(req: NextRequest) {
         full_name: fullName,
         email: email.toLowerCase(),
         phone: phone,
-        
+
         // Authentication fields
         transaction_pin: hashedPin,
         pin_set: !!hashedPin,
-        
+
         // Balance fields (defaults)
         wallet_balance: 0,
         zidcoin_balance: 20,
-        
+
         // Referral fields
         referral_code: generatedReferral,
         referred_by: null,
-        
+
         // BVN verification
         bvn_verification: bvn ? "pending" : "not_submitted",
-        
+
         // Timestamps
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        
+
         // Personal information - all null for new user
         first_name: null,
         last_name: null,
@@ -120,7 +131,7 @@ export async function POST(req: NextRequest) {
         address: null,
         country: null,
         profile_picture: null,
-        
+
         // Bank information - all null initially
         bank_name: null,
         bank_account_name: null,
@@ -129,36 +140,36 @@ export async function POST(req: NextRequest) {
         p_bank_code: null,
         p_account_number: null,
         p_account_name: null,
-        
+
         // Wallet information
         wallet_id: null,
         wallet_updated_at: null,
-        
+
         // Admin fields
         admin_role: null,
-        
+
         // Block status
         is_blocked: false,
         blocked_at: null,
         block_reason: null,
-        
+
         // Session tracking
         last_login: null,
         last_logout: null,
         current_login_session: null,
-        
+
         // Subscription defaults
-        subscription_tier: 'free',
+        subscription_tier: "free",
         subscription_expires_at: null,
-        
+
         // Notification preferences (default JSON)
         notification_preferences: {
           sms: false,
           push: true,
           email: true,
-          in_app: true
+          in_app: true,
         },
-        
+
         // Usage tracking - all zero initially
         total_invoices_created: 0,
         invoices_used_monthly: 0,
@@ -167,15 +178,15 @@ export async function POST(req: NextRequest) {
         invoices_used_lifetime: 0,
         receipts_used_lifetime: 0,
         contracts_used_lifetime: 0,
-        
+
         // UPDATED LIMITS: 10 invoices, 10 receipts, 1 contract
         invoice_lifetime_limit: 10,
         receipt_lifetime_limit: 10,
         contract_lifetime_limit: 1,
-        
+
         // Last usage reset
-        last_usage_reset: new Date().toISOString().split('T')[0],
-        
+        last_usage_reset: new Date().toISOString().split("T")[0],
+
         // Referral source
         referral_source: null,
       })
@@ -207,7 +218,9 @@ export async function POST(req: NextRequest) {
         console.error("❌ Error creating business record:", businessError);
         // Don't fail registration if business creation fails, just log it
       } else {
-        console.log(`✅ Created business record for user ${userId}: ${businessName}`);
+        console.log(
+          `✅ Created business record for user ${userId}: ${businessName}`,
+        );
       }
     }
 
@@ -229,7 +242,9 @@ export async function POST(req: NextRequest) {
       if (taxTrialError) {
         console.error("❌ Error creating tax calculator trial:", taxTrialError);
       } else {
-        console.log(`✅ Activated 30-day tax calculator trial for user ${userId} until ${trialEndsAt.toISOString()}`);
+        console.log(
+          `✅ Activated 30-day tax calculator trial for user ${userId} until ${trialEndsAt.toISOString()}`,
+        );
       }
     } catch (trialError) {
       console.error("⚠️ Error activating tax calculator trial:", trialError);
@@ -297,13 +312,13 @@ export async function POST(req: NextRequest) {
           html: `
             <div style="background: #f3f4f6; padding: 20px; font-family: Arial, sans-serif;">
               <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden;">
-                <div style="background: #2b825b; padding: 20px; text-align: center;">
+                <div style="background: #FDC020; padding: 20px; text-align: center;">
                   <h2 style="color: white; margin: 0;">Welcome to Zidwell 🎉</h2>
                 </div>
                 <div style="padding: 30px;">
                   <h2 style="color: #333;">Hi ${fullName},</h2>
                   <p style="color: #666; line-height: 1.6;">Congratulations! Your Zidwell account is ready.</p>
-                  ${businessName ? `<p style="color: #666; line-height: 1.6;">Your business "${businessName}" has been registered successfully.</p>` : ''}
+                  ${businessName ? `<p style="color: #666; line-height: 1.6;">Your business "${businessName}" has been registered successfully.</p>` : ""}
                   <p style="color: #666; line-height: 1.6;">Here's what you get with your free trial:</p>
                   <ul style="color: #666; line-height: 1.6;">
                     <li>✨ <strong>10 Free Invoices</strong> to get started</li>
@@ -314,7 +329,7 @@ export async function POST(req: NextRequest) {
                   <p style="color: #666; line-height: 1.6;">Your tax calculator trial starts today and will expire on <strong>${trialEndsAt.toLocaleDateString()}</strong>.</p>
                   <div style="text-align: center; margin: 30px 0;">
                     <a href="${baseUrl}/dashboard" 
-                       style="background: #2b825b; color: white; padding: 12px 24px; border-radius: 8px; 
+                       style="background: #FDC020; color: white; padding: 12px 24px; border-radius: 8px; 
                               text-decoration: none; display: inline-block; font-weight: bold;">
                       Go to Dashboard
                     </a>
@@ -347,9 +362,9 @@ export async function POST(req: NextRequest) {
           tax_calculator_access: {
             starts_at: trialStartsAt.toISOString(),
             ends_at: trialEndsAt.toISOString(),
-            duration_days: 30
-          }
-        }
+            duration_days: 30,
+          },
+        },
       },
       { status: 201 },
     );

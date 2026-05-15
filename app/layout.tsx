@@ -4,7 +4,7 @@ import { Space_Grotesk, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "./context/userData";
 import SessionWatcher from "./components/SessionWatcher";
-import { SessionRestore } from "./components/SessionRestore"; 
+import { SessionRestore } from "./components/SessionRestore";
 import NotificationToast from "./components/NotificationToast";
 import FloatingWhatsApp from "./components/FloatingWhatsapp";
 import Script from "next/script";
@@ -32,7 +32,7 @@ const beVietnamPro = Be_Vietnam_Pro({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#2b825b",
+  themeColor: "#FDC020",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

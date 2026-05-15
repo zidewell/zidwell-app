@@ -71,7 +71,7 @@ const TestimonialsSection = () => {
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className="bg-card border-2 border-foreground p-6 md:p-8 relative hover:shadow-[4px_4px_0px_#2b825b] transition-all duration-300"
+              className="bg-card border-2 border-foreground p-6 md:p-8 relative hover:shadow-[4px_4px_0px_#FDC020] transition-all duration-300"
             >
               {/* Quote icon */}
               <div className="absolute top-6 right-6 w-10 h-10 bg-(--color-accent-yellow)/20 flex items-center justify-center">

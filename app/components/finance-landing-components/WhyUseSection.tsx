@@ -44,7 +44,7 @@ const WhyUsSection = () => {
               {reasons.map((reason, index) => (
                 <div
                   key={index}
-                  className="flex items-center gap-4 p-4 bg-white border-2 border-neutral-900 transition-all hover:shadow-[4px_4px_0px_#2b825b]"
+                  className="flex items-center gap-4 p-4 bg-white border-2 border-neutral-900 transition-all hover:shadow-[4px_4px_0px_#FDC020]"
                 >
                   <div className="w-12 h-12 bg-(--color-accent-yellow) border-2 border-neutral-900 flex items-center justify-center shrink-0">
                     <reason.icon className="w-6 h-6" />

@@ -145,7 +145,7 @@ function generateContractHTML(
         }
         
         .contract-title {
-            color: #2b825b;
+            color: #FDC020;
             background-color: #073b2a;
             font-size: 24px;
             font-weight: bold;
@@ -202,7 +202,7 @@ function generateContractHTML(
         .divider-line {
             flex: 1;
             height: 1px;
-            background-color: #2b825b;
+            background-color: #FDC020;
             border-radius: 2px;
         }
         
@@ -315,7 +315,7 @@ function generateContractHTML(
         .lawyer-check {
             width: 24px;
             height: 24px;
-            background-color: #2b825b;
+            background-color: #FDC020;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -332,7 +332,7 @@ function generateContractHTML(
         .lawyer-title {
             font-size: 14px;
             font-weight: 600;
-            color: #2b825b;
+            color: #FDC020;
         }
         
         .lawyer-signature-line {
@@ -372,7 +372,7 @@ function generateContractHTML(
             display: inline-block;
             padding: 4px 12px;
             background-color: rgba(194, 147, 7, 0.1);
-            color: #2b825b;
+            color: #FDC020;
             border-radius: 16px;
             font-size: 12px;
             font-weight: 500;
@@ -631,7 +631,7 @@ function generateContractHTML(
                                     <span style="font-size: 12px; color: #6b7280;">Legal Counsel</span>
                                 </div>
                                 <div style="margin-top: 4px;">
-                                    <span style="font-size: 11px; padding: 2px 8px; background-color: rgba(194, 147, 7, 0.1); color: #2b825b; border-radius: 12px;">
+                                    <span style="font-size: 11px; padding: 2px 8px; background-color: rgba(194, 147, 7, 0.1); color: #FDC020; border-radius: 12px;">
                                         Verified Lawyer
                                     </span>
                                 </div>

@@ -16,16 +16,27 @@ const headerImageUrl = `${baseUrl}/zidwell-header.png`;
 const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
 // Helper function to generate PDF HTML content for Invoice
-function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: string, payerEmail: string, isReceipt: boolean = true): string {
-  const invoiceItems = Array.isArray(invoice.invoice_items) ? invoice.invoice_items : [];
-  
-  const subtotal = invoice.subtotal || invoiceItems.reduce(
-    (sum: number, item: any) =>
-      sum + (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
-    0
-  );
+function generateInvoicePDFHTML(
+  invoice: any,
+  paymentDetails: any,
+  payerName: string,
+  payerEmail: string,
+  isReceipt: boolean = true,
+): string {
+  const invoiceItems = Array.isArray(invoice.invoice_items)
+    ? invoice.invoice_items
+    : [];
 
-  const totalAmount = invoice.total_amount || subtotal + (invoice.fee_amount || 0);
+  const subtotal =
+    invoice.subtotal ||
+    invoiceItems.reduce(
+      (sum: number, item: any) =>
+        sum + (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
+      0,
+    );
+
+  const totalAmount =
+    invoice.total_amount || subtotal + (invoice.fee_amount || 0);
   const paidAmount = paymentDetails?.amount || invoice.paid_amount || 0;
   const remainingBalance = totalAmount - paidAmount;
   const isFullyPaid = remainingBalance <= 0;
@@ -37,13 +48,15 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
   const formatDate = (dateString: string): string => {
     try {
       const date = new Date(dateString);
-      return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-NG', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      return isNaN(date.getTime())
+        ? dateString
+        : date.toLocaleDateString("en-NG", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
     } catch {
       return dateString;
     }
@@ -53,7 +66,7 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
     <!DOCTYPE html>
     <html>
     <head>
-      <title>${isReceipt ? 'Payment Receipt' : 'Invoice'} - ${invoice.invoice_id}</title>
+      <title>${isReceipt ? "Payment Receipt" : "Invoice"} - ${invoice.invoice_id}</title>
       <meta charset="UTF-8">
       <style>
         * {
@@ -78,7 +91,7 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
         }
         
         .header {
-          background: linear-gradient(135deg, #2b825b 0%, #1a5c40 100%);
+          background: linear-gradient(135deg, #FDC020 0%, #1a5c40 100%);
           color: white;
           padding: 40px;
           text-align: center;
@@ -143,12 +156,12 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
           background: #f8fafc;
           padding: 20px;
           border-radius: 12px;
-          border-left: 4px solid #2b825b;
+          border-left: 4px solid #FDC020;
           margin-bottom: 25px;
         }
         
         .info-section h3 {
-          color: #2b825b;
+          color: #FDC020;
           font-size: 16px;
           margin-bottom: 15px;
           text-transform: uppercase;
@@ -225,10 +238,10 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
         .grand-total {
           font-size: 24px;
           font-weight: bold;
-          color: #2b825b;
+          color: #FDC020;
           margin-top: 15px;
           padding-top: 15px;
-          border-top: 2px solid #2b825b;
+          border-top: 2px solid #FDC020;
         }
         
         .payment-summary {
@@ -294,14 +307,14 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
       <div class="document-container">
         <div class="header">
           <img src="${headerImageUrl}" alt="Zidwell Logo" />
-          <h1>${isReceipt ? 'PAYMENT RECEIPT' : 'INVOICE'}</h1>
-          <div class="badge">${isReceipt ? 'Official Payment Receipt' : 'Tax Invoice'}</div>
+          <h1>${isReceipt ? "PAYMENT RECEIPT" : "INVOICE"}</h1>
+          <div class="badge">${isReceipt ? "Official Payment Receipt" : "Tax Invoice"}</div>
         </div>
         
         <div class="content">
           <div style="text-align: center; margin-bottom: 20px;">
-            <span class="status-badge ${isFullyPaid ? 'status-paid' : remainingBalance > 0 && paidAmount > 0 ? 'status-partial' : 'status-pending'}">
-              ${isFullyPaid ? '✓ PAID IN FULL' : remainingBalance > 0 && paidAmount > 0 ? '⚠ PARTIALLY PAID' : '○ PENDING PAYMENT'}
+            <span class="status-badge ${isFullyPaid ? "status-paid" : remainingBalance > 0 && paidAmount > 0 ? "status-partial" : "status-pending"}">
+              ${isFullyPaid ? "✓ PAID IN FULL" : remainingBalance > 0 && paidAmount > 0 ? "⚠ PARTIALLY PAID" : "○ PENDING PAYMENT"}
             </span>
           </div>
           
@@ -309,7 +322,7 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
             <div class="info-section">
               <h3>📄 DOCUMENT INFORMATION</h3>
               <div class="info-row">
-                <span class="info-label">${isReceipt ? 'Receipt Number:' : 'Invoice Number:'}</span>
+                <span class="info-label">${isReceipt ? "Receipt Number:" : "Invoice Number:"}</span>
                 <span class="info-value">${invoice.invoice_id}</span>
               </div>
               <div class="info-row">
@@ -320,7 +333,9 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
                 <span class="info-label">Due Date:</span>
                 <span class="info-value">${formatDate(invoice.due_date)}</span>
               </div>
-              ${paymentDetails?.transactionId ? `
+              ${
+                paymentDetails?.transactionId
+                  ? `
               <div class="info-row">
                 <span class="info-label">Transaction ID:</span>
                 <span class="info-value">${paymentDetails.transactionId}</span>
@@ -329,25 +344,31 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
                 <span class="info-label">Payment Date:</span>
                 <span class="info-value">${formatDate(paymentDetails.paidAt)}</span>
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
             
             <div class="info-section">
               <h3>🏢 BUSINESS INFORMATION</h3>
               <div class="info-row">
                 <span class="info-label">Business Name:</span>
-                <span class="info-value">${invoice.business_name || invoice.from_name || 'N/A'}</span>
+                <span class="info-value">${invoice.business_name || invoice.from_name || "N/A"}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Email:</span>
-                <span class="info-value">${invoice.from_email || invoice.business_email || 'N/A'}</span>
+                <span class="info-value">${invoice.from_email || invoice.business_email || "N/A"}</span>
               </div>
-              ${invoice.from_address ? `
+              ${
+                invoice.from_address
+                  ? `
               <div class="info-row">
                 <span class="info-label">Address:</span>
                 <span class="info-value">${invoice.from_address}</span>
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
           </div>
           
@@ -356,42 +377,61 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
               <h3>👤 CUSTOMER INFORMATION</h3>
               <div class="info-row">
                 <span class="info-label">Name:</span>
-                <span class="info-value">${payerName || invoice.client_name || 'N/A'}</span>
+                <span class="info-value">${payerName || invoice.client_name || "N/A"}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Email:</span>
-                <span class="info-value">${payerEmail || invoice.client_email || 'N/A'}</span>
+                <span class="info-value">${payerEmail || invoice.client_email || "N/A"}</span>
               </div>
-              ${invoice.client_phone ? `
+              ${
+                invoice.client_phone
+                  ? `
               <div class="info-row">
                 <span class="info-label">Phone:</span>
                 <span class="info-value">${invoice.client_phone}</span>
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
             
-            ${paymentDetails?.paymentMethod ? `
+            ${
+              paymentDetails?.paymentMethod
+                ? `
             <div class="info-section">
               <h3>💳 PAYMENT DETAILS</h3>
               <div class="info-row">
                 <span class="info-label">Payment Method:</span>
-                <span class="info-value">${paymentDetails.paymentMethod === 'card_payment' ? 'Card Payment' : 
-                  paymentDetails.paymentMethod === 'virtual_account' ? 'Bank Transfer' : 
-                  paymentDetails.paymentMethod === 'bank_transfer' ? 'Bank Transfer' :
-                  paymentDetails.paymentMethod || 'N/A'}</span>
+                <span class="info-value">${
+                  paymentDetails.paymentMethod === "card_payment"
+                    ? "Card Payment"
+                    : paymentDetails.paymentMethod === "virtual_account"
+                      ? "Bank Transfer"
+                      : paymentDetails.paymentMethod === "bank_transfer"
+                        ? "Bank Transfer"
+                        : paymentDetails.paymentMethod || "N/A"
+                }</span>
               </div>
-              ${paymentDetails.narration ? `
+              ${
+                paymentDetails.narration
+                  ? `
               <div class="info-row">
                 <span class="info-label">Narration:</span>
                 <span class="info-value">${paymentDetails.narration}</span>
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
           
-          ${invoiceItems.length > 0 ? `
-            <h3 style="margin: 25px 0 15px; color: #2b825b;">📦 ITEMS / SERVICES</h3>
+          ${
+            invoiceItems.length > 0
+              ? `
+            <h3 style="margin: 25px 0 15px; color: #FDC020;">📦 ITEMS / SERVICES</h3>
             <table class="items-table">
               <thead>
                 <tr>
@@ -402,65 +442,91 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
                 </tr>
               </thead>
               <tbody>
-                ${invoiceItems.map((item: any) => `
+                ${invoiceItems
+                  .map(
+                    (item: any) => `
                   <tr>
-                    <td>${item.item_description || item.description || ''}</td>
+                    <td>${item.item_description || item.description || ""}</td>
                     <td style="text-align: center;">${item.quantity || 0}</td>
                     <td style="text-align: right;">${formatCurrency(item.unit_price || item.unitPrice || 0)}</td>
                     <td style="text-align: right;">${formatCurrency(item.total_amount || item.total || (item.quantity || 0) * (item.unit_price || item.unitPrice || 0))}</td>
                   </tr>
-                `).join('')}
+                `,
+                  )
+                  .join("")}
               </tbody>
             </table>
-          ` : ''}
+          `
+              : ""
+          }
           
           <div class="totals">
             <div class="total-line">
               <strong>Subtotal:</strong>
               <span>${formatCurrency(subtotal)}</span>
             </div>
-            ${invoice.fee_amount > 0 ? `
+            ${
+              invoice.fee_amount > 0
+                ? `
             <div class="total-line">
               <strong>Processing Fee:</strong>
               <span>${formatCurrency(invoice.fee_amount)}</span>
             </div>
-            ` : ''}
-            ${invoice.discount_amount > 0 ? `
+            `
+                : ""
+            }
+            ${
+              invoice.discount_amount > 0
+                ? `
             <div class="total-line">
               <strong>Discount:</strong>
               <span>-${formatCurrency(invoice.discount_amount)}</span>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
             <div class="total-line">
               <strong>Total Invoice Amount:</strong>
               <span>${formatCurrency(totalAmount)}</span>
             </div>
-            ${paidAmount > 0 ? `
+            ${
+              paidAmount > 0
+                ? `
             <div class="total-line">
               <strong>Amount Paid:</strong>
               <span style="color: #22c55e;">${formatCurrency(paidAmount)}</span>
             </div>
-            ` : ''}
-            ${remainingBalance > 0 ? `
+            `
+                : ""
+            }
+            ${
+              remainingBalance > 0
+                ? `
             <div class="total-line">
               <strong>Remaining Balance:</strong>
               <span style="color: #f59e0b;">${formatCurrency(remainingBalance)}</span>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
             <div class="grand-total">
-              ${isReceipt ? 'PAYMENT RECEIVED:' : isFullyPaid ? 'AMOUNT DUE: ₦0.00' : 'AMOUNT DUE:'}
-              ${isReceipt ? formatCurrency(paidAmount) : isFullyPaid ? '' : formatCurrency(remainingBalance)}
+              ${isReceipt ? "PAYMENT RECEIVED:" : isFullyPaid ? "AMOUNT DUE: ₦0.00" : "AMOUNT DUE:"}
+              ${isReceipt ? formatCurrency(paidAmount) : isFullyPaid ? "" : formatCurrency(remainingBalance)}
             </div>
           </div>
           
-          ${paymentDetails && !isReceipt ? `
+          ${
+            paymentDetails && !isReceipt
+              ? `
           <div class="payment-summary">
             <h3>💰 Payment Summary</h3>
             <div class="info-row">
               <span class="info-label">Amount Paid:</span>
               <span class="info-value" style="color: #16a34a; font-weight: bold;">${formatCurrency(paymentDetails.amount)}</span>
             </div>
-            ${paymentDetails.nombaFee > 0 ? `
+            ${
+              paymentDetails.nombaFee > 0
+                ? `
             <div class="info-row">
               <span class="info-label">Processing Fee:</span>
               <span class="info-value">${formatCurrency(paymentDetails.nombaFee)}</span>
@@ -469,41 +535,59 @@ function generateInvoicePDFHTML(invoice: any, paymentDetails: any, payerName: st
               <span class="info-label">Net Amount Credited:</span>
               <span class="info-value">${formatCurrency(paymentDetails.netAmount)}</span>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
-          ` : ''}
+          `
+              : ""
+          }
           
-          ${remainingBalance > 0 && !isFullyPaid ? `
+          ${
+            remainingBalance > 0 && !isFullyPaid
+              ? `
             <div class="note">
               <strong>⚠️ Note:</strong> This is a partial payment. The remaining balance of ${formatCurrency(remainingBalance)} is still due. 
               Please settle the outstanding amount before the due date.
             </div>
-          ` : isFullyPaid && !isReceipt ? `
+          `
+              : isFullyPaid && !isReceipt
+                ? `
             <div class="note success-note">
               <strong>✅ Invoice Fully Paid:</strong> Thank you for your payment. This invoice has been fully settled.
             </div>
-          ` : ''}
+          `
+                : ""
+          }
           
-          ${invoice.terms_and_conditions ? `
+          ${
+            invoice.terms_and_conditions
+              ? `
             <div class="info-section">
               <h3>📋 Terms & Conditions</h3>
               <p style="margin: 0; color: #475569; line-height: 1.5;">${invoice.terms_and_conditions}</p>
             </div>
-          ` : ''}
+          `
+              : ""
+          }
           
-          ${invoice.customer_note ? `
+          ${
+            invoice.customer_note
+              ? `
             <div class="info-section">
               <h3>📝 Note from Merchant</h3>
               <p style="margin: 0; color: #475569; line-height: 1.5;">${invoice.customer_note}</p>
             </div>
-          ` : ''}
+          `
+              : ""
+          }
         </div>
         
         <div class="footer">
           <img src="${footerImageUrl}" alt="Zidwell Footer" />
-          <p>This is an official ${isReceipt ? 'payment receipt' : 'tax invoice'}. Please retain for your records.</p>
-          <p>For any questions regarding this ${isReceipt ? 'receipt' : 'invoice'}, please contact ${invoice.from_email || invoice.business_email}</p>
-          <p>Generated on ${new Date().toLocaleString('en-NG')}</p>
+          <p>This is an official ${isReceipt ? "payment receipt" : "tax invoice"}. Please retain for your records.</p>
+          <p>For any questions regarding this ${isReceipt ? "receipt" : "invoice"}, please contact ${invoice.from_email || invoice.business_email}</p>
+          <p>Generated on ${new Date().toLocaleString("en-NG")}</p>
           <p style="margin-top: 10px;">© ${new Date().getFullYear()} Zidwell. All rights reserved.</p>
         </div>
       </div>
@@ -522,7 +606,7 @@ function generatePaymentPagePDFHTML(
   transactionId: string,
   paymentMethod: string,
   paidAt: string,
-  metadata?: any
+  metadata?: any,
 ): string {
   const formatCurrency = (value: number): string => {
     return `₦${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -531,64 +615,75 @@ function generatePaymentPagePDFHTML(
   const formatDate = (dateString: string): string => {
     try {
       const date = new Date(dateString);
-      return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-NG', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      return isNaN(date.getTime())
+        ? dateString
+        : date.toLocaleDateString("en-NG", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
     } catch {
       return dateString;
     }
   };
 
   // Get page title from metadata or paymentPage object
-  const pageTitle = metadata?.pageTitle || paymentPage?.title || paymentPage?.page_title || 'Payment Page';
-  
+  const pageTitle =
+    metadata?.pageTitle ||
+    paymentPage?.title ||
+    paymentPage?.page_title ||
+    "Payment Page";
+
   // FIXED: Properly determine payment method text
-  let paymentMethodText = 'Card Payment';
-  
+  let paymentMethodText = "Card Payment";
+
   // Check paymentMethod parameter first
-  if (paymentMethod === 'bank_transfer' || paymentMethod === 'virtual_account') {
-    paymentMethodText = 'Bank Transfer';
-  } 
+  if (
+    paymentMethod === "bank_transfer" ||
+    paymentMethod === "virtual_account"
+  ) {
+    paymentMethodText = "Bank Transfer";
+  }
   // Then check metadata
-  else if (metadata?.payment_method === 'bank_transfer' || 
-           metadata?.bank_transfer === true || 
-           metadata?.payment_type === 'backtransfer') {
-    paymentMethodText = 'Bank Transfer';
+  else if (
+    metadata?.payment_method === "bank_transfer" ||
+    metadata?.bank_transfer === true ||
+    metadata?.payment_type === "backtransfer"
+  ) {
+    paymentMethodText = "Bank Transfer";
   }
   // Check payment record payment_method
-  else if (paymentRecord?.payment_method === 'bank_transfer') {
-    paymentMethodText = 'Bank Transfer';
+  else if (paymentRecord?.payment_method === "bank_transfer") {
+    paymentMethodText = "Bank Transfer";
   }
   // Default to card payment
-  else if (paymentMethod === 'card' || paymentMethod === 'card_payment') {
-    paymentMethodText = 'Card Payment';
+  else if (paymentMethod === "card" || paymentMethod === "card_payment") {
+    paymentMethodText = "Card Payment";
   }
-  
-  let additionalInfo = '';
-  
-  if (metadata?.pageType === 'school') {
+
+  let additionalInfo = "";
+
+  if (metadata?.pageType === "school") {
     additionalInfo = `
       <div class="info-section">
         <h3>🎓 Student Information</h3>
         <div class="info-row">
           <span class="info-label">Student Name:</span>
-          <span class="info-value">${metadata.childName || 'N/A'}</span>
+          <span class="info-value">${metadata.childName || "N/A"}</span>
         </div>
         <div class="info-row">
           <span class="info-label">Registration Number:</span>
-          <span class="info-value">${metadata.regNumber || 'N/A'}</span>
+          <span class="info-value">${metadata.regNumber || "N/A"}</span>
         </div>
         <div class="info-row">
           <span class="info-label">Parent Name:</span>
-          <span class="info-value">${metadata.parentName || 'N/A'}</span>
+          <span class="info-value">${metadata.parentName || "N/A"}</span>
         </div>
       </div>
     `;
-  } else if (metadata?.pageType === 'physical' && metadata.address) {
+  } else if (metadata?.pageType === "physical" && metadata.address) {
     additionalInfo = `
       <div class="info-section">
         <h3>📦 Shipping Information</h3>
@@ -602,7 +697,7 @@ function generatePaymentPagePDFHTML(
         </div>
       </div>
     `;
-  } else if (metadata?.pageType === 'services' && metadata.bookingDate) {
+  } else if (metadata?.pageType === "services" && metadata.bookingDate) {
     additionalInfo = `
       <div class="info-section">
         <h3>📅 Booking Details</h3>
@@ -612,7 +707,7 @@ function generatePaymentPagePDFHTML(
         </div>
         <div class="info-row">
           <span class="info-label">Time:</span>
-          <span class="info-value">${metadata.bookingTime || 'N/A'}</span>
+          <span class="info-value">${metadata.bookingTime || "N/A"}</span>
         </div>
       </div>
     `;
@@ -647,7 +742,7 @@ function generatePaymentPagePDFHTML(
         }
         
         .header {
-          background: linear-gradient(135deg, #2b825b 0%, #1a5c40 100%);
+          background: linear-gradient(135deg, #FDC020 0%, #1a5c40 100%);
           color: white;
           padding: 40px;
           text-align: center;
@@ -681,12 +776,12 @@ function generatePaymentPagePDFHTML(
           background: #f8fafc;
           padding: 20px;
           border-radius: 12px;
-          border-left: 4px solid #2b825b;
+          border-left: 4px solid #FDC020;
           margin-bottom: 25px;
         }
         
         .info-section h3 {
-          color: #2b825b;
+          color: #FDC020;
           font-size: 16px;
           margin-bottom: 15px;
           text-transform: uppercase;
@@ -715,7 +810,7 @@ function generatePaymentPagePDFHTML(
         }
         
         .amount-box {
-          background: linear-gradient(135deg, #2b825b 0%, #1a5c40 100%);
+          background: linear-gradient(135deg, #FDC020 0%, #1a5c40 100%);
           color: white;
           padding: 30px;
           border-radius: 12px;
@@ -812,7 +907,7 @@ function generatePaymentPagePDFHTML(
             </div>
             <div class="info-row">
               <span class="info-label">Reference:</span>
-              <span class="info-value">${paymentRecord.order_reference || 'N/A'}</span>
+              <span class="info-value">${paymentRecord.order_reference || "N/A"}</span>
             </div>
           </div>
           
@@ -826,12 +921,16 @@ function generatePaymentPagePDFHTML(
               <span class="info-label">Email:</span>
               <span class="info-value">${customerEmail}</span>
             </div>
-            ${paymentRecord.customer_phone ? `
+            ${
+              paymentRecord.customer_phone
+                ? `
             <div class="info-row">
               <span class="info-label">Phone:</span>
               <span class="info-value">${paymentRecord.customer_phone}</span>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
           
           ${additionalInfo}
@@ -846,7 +945,7 @@ function generatePaymentPagePDFHTML(
           <img src="${footerImageUrl}" alt="Zidwell Footer" />
           <p>This is an official payment receipt from Zidwell.</p>
           <p>For any questions regarding this transaction, please contact the merchant directly.</p>
-          <p>Generated on ${new Date().toLocaleString('en-NG')}</p>
+          <p>Generated on ${new Date().toLocaleString("en-NG")}</p>
           <p style="margin-top: 10px;">© ${new Date().getFullYear()} Zidwell. All rights reserved.</p>
         </div>
       </div>
@@ -859,9 +958,9 @@ function generatePaymentPagePDFHTML(
 async function generatePDFFromAPI(html: string): Promise<Buffer> {
   try {
     const response = await fetch(`${baseUrl}/api/generate-pdf`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ html }),
     });
@@ -891,12 +990,18 @@ export async function sendTransactionReceiptWithPDF(
     paymentMethod: string;
     paidAt: string;
     narration?: string;
-  }
+  },
 ) {
   try {
     // Generate PDF HTML
-    const pdfHTML = generateInvoicePDFHTML(invoice, paymentDetails, payerName, payerEmail, true);
-    
+    const pdfHTML = generateInvoicePDFHTML(
+      invoice,
+      paymentDetails,
+      payerName,
+      payerEmail,
+      true,
+    );
+
     // Generate PDF using your API
     const pdfBuffer = await generatePDFFromAPI(pdfHTML);
 
@@ -924,7 +1029,7 @@ export async function sendTransactionReceiptWithPDF(
           <p>Thank you for your payment. Your transaction has been completed successfully.</p>
           
           <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0;">
-            <h4 style="margin: 0 0 15px 0; color: #2b825b;">Transaction Summary</h4>
+            <h4 style="margin: 0 0 15px 0; color: #FDC020;">Transaction Summary</h4>
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 8px 0;"><strong>Invoice Number:</strong></td>
@@ -936,7 +1041,7 @@ export async function sendTransactionReceiptWithPDF(
               </tr>
               <tr>
                 <td style="padding: 8px 0;"><strong>Payment Method:</strong></td>
-                <td style="padding: 8px 0; text-align: right;">${paymentDetails.paymentMethod === 'card_payment' ? 'Card Payment' : paymentDetails.paymentMethod === 'virtual_account' ? 'Bank Transfer' : paymentDetails.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : paymentDetails.paymentMethod}</td>
+                <td style="padding: 8px 0; text-align: right;">${paymentDetails.paymentMethod === "card_payment" ? "Card Payment" : paymentDetails.paymentMethod === "virtual_account" ? "Bank Transfer" : paymentDetails.paymentMethod === "bank_transfer" ? "Bank Transfer" : paymentDetails.paymentMethod}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0;"><strong>Transaction ID:</strong></td>
@@ -959,7 +1064,7 @@ export async function sendTransactionReceiptWithPDF(
           
           <p style="font-size: 12px; color: #64748b; text-align: center; margin-top: 20px;">
             This is an automated message from Zidwell. Please do not reply to this email.<br>
-            For any questions, please contact support at ${process.env.SUPPORT_EMAIL || 'support@zidwell.com'}
+            For any questions, please contact support at ${process.env.SUPPORT_EMAIL || "support@zidwell.com"}
           </p>
         </body>
         </html>
@@ -968,18 +1073,25 @@ export async function sendTransactionReceiptWithPDF(
         {
           filename: `receipt_${invoice.invoice_id}.pdf`,
           content: pdfBuffer,
-          contentType: 'application/pdf',
+          contentType: "application/pdf",
         },
       ],
     });
 
-    console.log(`✅ Receipt PDF sent to ${payerEmail} for invoice ${invoice.invoice_id}`);
+    console.log(
+      `✅ Receipt PDF sent to ${payerEmail} for invoice ${invoice.invoice_id}`,
+    );
     return { success: true };
   } catch (error) {
     console.error("Failed to send transaction receipt with PDF:", error);
     // Fallback to original email without PDF
     try {
-      await sendTransactionReceiptFallback(payerEmail, payerName, invoice, paymentDetails);
+      await sendTransactionReceiptFallback(
+        payerEmail,
+        payerName,
+        invoice,
+        paymentDetails,
+      );
     } catch (fallbackError) {
       console.error("Fallback email also failed:", fallbackError);
     }
@@ -992,7 +1104,7 @@ async function sendTransactionReceiptFallback(
   payerEmail: string,
   payerName: string,
   invoice: any,
-  paymentDetails: any
+  paymentDetails: any,
 ) {
   const formatCurrency = (value: number): string => {
     return `₦${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1042,9 +1154,9 @@ export async function sendPaymentPageReceiptWithPDF(
       transactionId,
       paymentMethod,
       paidAt,
-      metadata
+      metadata,
     );
-    
+
     // Generate PDF using your API
     const pdfBuffer = await generatePDFFromAPI(pdfHTML);
 
@@ -1053,14 +1165,22 @@ export async function sendPaymentPageReceiptWithPDF(
     };
 
     // Get page title from metadata or paymentPage
-    const pageTitle = metadata?.pageTitle || paymentPage?.title || paymentPage?.page_title || 'Payment Page';
-    
+    const pageTitle =
+      metadata?.pageTitle ||
+      paymentPage?.title ||
+      paymentPage?.page_title ||
+      "Payment Page";
+
     // FIXED: Determine payment method text for email
-    let paymentMethodText = 'Card Payment';
-    if (paymentMethod === 'bank_transfer' || paymentMethod === 'virtual_account' || metadata?.bank_transfer === true) {
-      paymentMethodText = 'Bank Transfer';
-    } else if (paymentMethod === 'card' || paymentMethod === 'card_payment') {
-      paymentMethodText = 'Card Payment';
+    let paymentMethodText = "Card Payment";
+    if (
+      paymentMethod === "bank_transfer" ||
+      paymentMethod === "virtual_account" ||
+      metadata?.bank_transfer === true
+    ) {
+      paymentMethodText = "Bank Transfer";
+    } else if (paymentMethod === "card" || paymentMethod === "card_payment") {
+      paymentMethodText = "Card Payment";
     }
 
     await transporter.sendMail({
@@ -1083,7 +1203,7 @@ export async function sendPaymentPageReceiptWithPDF(
           <p>Thank you for your payment. Your transaction has been completed successfully.</p>
           
           <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0;">
-            <h4 style="margin: 0 0 15px 0; color: #2b825b;">Payment Details</h4>
+            <h4 style="margin: 0 0 15px 0; color: #FDC020;">Payment Details</h4>
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 8px 0;"><strong>Page:</strong></td>
@@ -1107,13 +1227,17 @@ export async function sendPaymentPageReceiptWithPDF(
           
           <p>Please find attached your official receipt in PDF format.</p>
           
-          ${metadata?.pageType === 'digital' && metadata.downloadUrl ? `
+          ${
+            metadata?.pageType === "digital" && metadata.downloadUrl
+              ? `
             <div style="background: #dcfce7; padding: 15px; border-radius: 8px; margin: 20px 0;">
               <strong>📥 Download Your Product:</strong><br>
-              <a href="${metadata.downloadUrl}" style="color: #2b825b; font-weight: bold;">Click here to download</a>
+              <a href="${metadata.downloadUrl}" style="color: #FDC020; font-weight: bold;">Click here to download</a>
               <p style="font-size: 12px; margin-top: 10px;">This download link will expire in 7 days.</p>
             </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
           
@@ -1128,7 +1252,7 @@ export async function sendPaymentPageReceiptWithPDF(
         {
           filename: `payment_receipt_${transactionId.slice(-8)}.pdf`,
           content: pdfBuffer,
-          contentType: 'application/pdf',
+          contentType: "application/pdf",
         },
       ],
     });
@@ -1141,11 +1265,11 @@ export async function sendPaymentPageReceiptWithPDF(
     try {
       await sendPaymentPageReceiptFallback(
         customerEmail,
-        paymentPage?.title || 'Payment Page',
+        paymentPage?.title || "Payment Page",
         amount,
         transactionId,
         metadata,
-        paymentMethod
+        paymentMethod,
       );
     } catch (fallbackError) {
       console.error("Fallback email also failed:", fallbackError);

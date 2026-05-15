@@ -139,7 +139,7 @@ function generateLoginEmail(user: any, device: any, timestamp: string): string {
 
           <!-- Title -->
           <tr>
-            <td style="background:#2b825b; color:#ffffff; text-align:center; padding:20px;">
+            <td style="background:#FDC020; color:#ffffff; text-align:center; padding:20px;">
               <h1 style="margin:0; font-size:22px;">Zidwell Security Alert</h1>
             </td>
           </tr>
@@ -167,13 +167,13 @@ function generateLoginEmail(user: any, device: any, timestamp: string): string {
                 <p style="margin-top:0;"><strong>If this wasn’t you:</strong></p>
                 <p style="margin:6px 0;">
                   • Change your password immediately  
-                  <a href="${baseUrl}/auth/password-reset" style="color:#2b825b; font-weight:bold;">
+                  <a href="${baseUrl}/auth/password-reset" style="color:#FDC020; font-weight:bold;">
                     Click here
                   </a>
                 </p>
                 <p style="margin:6px 0;">
                   • Contact our support team  
-                  <a href="https://wa.me/7069175399" style="color:#2b825b; font-weight:bold;">
+                  <a href="https://wa.me/7069175399" style="color:#FDC020; font-weight:bold;">
                     Click to contact support
                   </a>
                 </p>

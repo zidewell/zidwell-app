@@ -56,7 +56,7 @@ const ServiceCard = ({
 
   return (
     <div
-      className="group bg-card border-2 border-neutral-900 p-6 md:p-8 transition-all duration-300 hover:shadow-[6px_6px_0px_#2b825b]"
+      className="group bg-card border-2 border-neutral-900 p-6 md:p-8 transition-all duration-300 hover:shadow-[6px_6px_0px_#FDC020]"
       style={{ animationDelay: `${index * 0.1}s` }}
     >
       {/* Icon */}

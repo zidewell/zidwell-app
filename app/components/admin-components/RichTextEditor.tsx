@@ -226,7 +226,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           .substring(7)}`;
 
         // Show loading message
-        const loadingMsg = `<div class="image-loading" data-placeholder-id="${placeholderId}" style="border:2px dashed #2b825b;padding:20px;text-align:center;color:#2b825b;border-radius:0.375rem;margin:0.5rem 0;background-color:#fefce8;">
+        const loadingMsg = `<div class="image-loading" data-placeholder-id="${placeholderId}" style="border:2px dashed #FDC020;padding:20px;text-align:center;color:#FDC020;border-radius:0.375rem;margin:0.5rem 0;background-color:#fefce8;">
           <div>⏳ Compressing image... (${(file.size / 1024 / 1024).toFixed(
             1,
           )}MB)</div>
@@ -252,7 +252,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         const base64 = await fileToBase64(finalFile);
 
         // Replace loading message with actual image
-        const imgHTML = `<img src="${base64}" alt="Uploaded image" data-placeholder-id="${placeholderId}" data-filename="${file.name}" data-size="${finalFile.size}" data-original-size="${file.size}" style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:2px dashed #2b825b;opacity:0.8;" />`;
+        const imgHTML = `<img src="${base64}" alt="Uploaded image" data-placeholder-id="${placeholderId}" data-filename="${file.name}" data-size="${finalFile.size}" data-original-size="${file.size}" style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:2px dashed #FDC020;opacity:0.8;" />`;
 
         // Find and replace the loading div
         if (editorRef.current) {
@@ -721,7 +721,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
 
         .rich-text-editor [contenteditable] a {
-          color: #2b825b;
+          color: #fdc020;
           text-decoration: none;
         }
 
@@ -738,16 +738,16 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
 
         .rich-text-editor [contenteditable] img[data-placeholder-id] {
-          border: 2px dashed #2b825b;
+          border: 2px dashed #fdc020;
           opacity: 0.8;
         }
 
         /* Image loading placeholder */
         .rich-text-editor [contenteditable] .image-loading {
-          border: 2px dashed #2b825b;
+          border: 2px dashed #fdc020;
           padding: 20px;
           text-align: center;
-          color: #2b825b;
+          color: #fdc020;
           border-radius: 0.375rem;
           margin: 0.5rem 0;
           background-color: #fefce8;
@@ -755,7 +755,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
 
         .rich-text-editor [contenteditable] blockquote {
-          border-left: 3px solid #2b825b;
+          border-left: 3px solid #fdc020;
           margin: 1rem 0;
           padding-left: 1rem;
           font-style: italic;

@@ -90,7 +90,7 @@ const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
 
         // Check if it's a base64 image
         if (src.startsWith("data:image")) {
-          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #2b825b; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
+          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #FDC020; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
                   🖼️ <strong>Image included in notification</strong><br>
                   <small>(View in the app to see the image)</small>
                 </div>`;
@@ -116,7 +116,7 @@ const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
       /!\[([^\]]*)\]\(([^)]+)\)/g,
       (match, altText, imageUrl) => {
         if (imageUrl.startsWith("data:image")) {
-          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #2b825b; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
+          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #FDC020; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
                     🖼️ <strong>${
                       altText || "Image included in notification"
                     }</strong><br>
@@ -276,7 +276,7 @@ async function sendEmailNotification({
           background-color: #ffffff;
         }
         .header { 
-          background: linear-gradient(135deg, #2b825b 0%, #a87e06 100%);
+          background: linear-gradient(135deg, #FDC020 0%, #a87e06 100%);
           padding: 30px 20px; 
           border-radius: 10px 10px 0 0; 
           margin-bottom: 30px; 
@@ -293,7 +293,7 @@ async function sendEmailNotification({
           background: #f8fafc;
           padding: 25px;
           border-radius: 8px;
-          border-left: 4px solid #2b825b;
+          border-left: 4px solid #FDC020;
           margin: 30px 0;
           font-size: 16px;
           line-height: 1.6;
@@ -327,11 +327,11 @@ async function sendEmailNotification({
           line-height: 1.4;
         }
         .zidwell-brand {
-          color: #2b825b;
+          color: #FDC020;
           font-weight: bold;
         }
         .support-link {
-          color: #2b825b;
+          color: #FDC020;
           text-decoration: none;
           font-weight: 500;
         }

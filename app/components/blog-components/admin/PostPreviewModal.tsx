@@ -115,7 +115,7 @@ const previewStyles = `
   }
 
   .preview-content blockquote {
-    border-left: 4px solid #2b825b;
+    border-left: 4px solid #FDC020;
     padding-left: 1rem;
     margin: 1rem 0;
     font-style: italic;
@@ -127,7 +127,7 @@ const previewStyles = `
   }
 
   .preview-content a {
-    color: #2b825b;
+    color: #FDC020;
     text-decoration: underline;
     text-underline-offset: 2px;
   }
@@ -272,7 +272,7 @@ const previewStyles = `
     display: inline-block;
     width: 1.5rem;
     margin-left: -1.5rem;
-    color: #2b825b;
+    color: #FDC020;
   }
 
   .preview-content ul[data-list="unchecked"] li:before {

@@ -255,18 +255,18 @@ export async function POST(req: NextRequest) {
         <!-- Content -->
         <tr>
           <td style="padding:24px; color:#333;">
-            <div style="background: #2b825b; padding: 10px; text-align: center; border-radius: 8px 8px 0 0;">
+            <div style="background: #FDC020; padding: 10px; text-align: center; border-radius: 8px 8px 0 0;">
               <h2 style="color: white; margin: 0;">Welcome to Zidwell 🎉</h2>
             </div>
             
             <div style="padding: 20px;">
               <h2 style="color: #333; margin-top: 0;">Hi ${first_name},</h2>
               <p style="font-size: 16px; line-height: 1.6;">🎉 <b>Congratulations!</b> Your <b>Zidwell</b> account is ready.</p>
-              <p style="font-size: 16px; line-height: 1.6;">We've rewarded you with <b style="color: #2b825b;">₦20 Zidcoin</b> 🎁.</p>
+              <p style="font-size: 16px; line-height: 1.6;">We've rewarded you with <b style="color: #FDC020;">₦20 Zidcoin</b> 🎁.</p>
               
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${baseUrl}/dashboard" 
-                   style="background: #2b825b; color: white; padding: 14px 24px; border-radius: 8px; 
+                   style="background: #FDC020; color: white; padding: 14px 24px; border-radius: 8px; 
                           text-decoration: none; font-size: 16px; font-weight: bold; display: inline-block;">
                   🚀 Go to Dashboard
                 </a>

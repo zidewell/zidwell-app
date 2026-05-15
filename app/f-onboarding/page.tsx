@@ -52,7 +52,7 @@ const OnboardingPage = () => {
         }
         
         .gold-gradient-text {
-          background: linear-gradient(135deg, #2b825b 0%, #E6B325 100%);
+          background: linear-gradient(135deg, #FDC020 0%, #E6B325 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -64,7 +64,7 @@ const OnboardingPage = () => {
         <div
           className="fixed inset-0 opacity-10 pointer-events-none"
           style={{
-            backgroundImage: `radial-gradient(#2b825b 1px, transparent 1px)`,
+            backgroundImage: `radial-gradient(#FDC020 1px, transparent 1px)`,
             backgroundSize: "20px 20px",
           }}
         />

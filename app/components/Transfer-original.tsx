@@ -136,7 +136,7 @@ export default function Transfer() {
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#2b825b", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: ["#FDC020", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
     });
 
     // Side bursts
@@ -146,14 +146,14 @@ export default function Transfer() {
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ["#2b825b", "#ffd700", "#ffed4e"],
+        colors: ["#FDC020", "#ffd700", "#ffed4e"],
       });
       confetti({
         particleCount: 80,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ["#2b825b", "#ffd700", "#ffed4e"],
+        colors: ["#FDC020", "#ffd700", "#ffed4e"],
       });
     }, 150);
 
@@ -163,7 +163,7 @@ export default function Transfer() {
         particleCount: 100,
         spread: 100,
         origin: { y: 0.8 },
-        colors: ["#2b825b", "#ffd700", "#ffed4e"],
+        colors: ["#FDC020", "#ffd700", "#ffed4e"],
       });
     }, 300);
   };
@@ -562,7 +562,7 @@ export default function Transfer() {
           title: "Transfer Successful! 🎉",
           text: "Your transaction has been processed successfully.",
           showConfirmButton: true,
-          confirmButtonColor: "#2b825b",
+          confirmButtonColor: "#FDC020",
           timer: 5000,
           timerProgressBar: true,
           background: "#fefefe",
@@ -572,7 +572,7 @@ export default function Transfer() {
                 particleCount: 50,
                 spread: 60,
                 origin: { y: 0.3 },
-                colors: ["#2b825b", "#ffd700"],
+                colors: ["#FDC020", "#ffd700"],
               });
             }, 100);
           },

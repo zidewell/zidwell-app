@@ -170,7 +170,7 @@ const AudioPlayer = ({ content }: AudioPlayerProps) => {
       // Highlight current word
       const currentSpan = wordSpansRef.current[wordIndex];
       if (currentSpan) {
-        currentSpan.style.backgroundColor = "#2b825b";
+        currentSpan.style.backgroundColor = "#FDC020";
         currentSpan.style.color = "white";
         currentSpan.style.fontWeight = "600";
         currentSpan.style.boxShadow = "0 2px 4px rgba(194, 147, 7, 0.3)";

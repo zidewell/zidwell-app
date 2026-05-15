@@ -20,7 +20,7 @@ export async function sendTransactionReceipt(
     paymentMethod: string;
     paidAt: string;
     narration?: string;
-  }
+  },
 ) {
   try {
     const {
@@ -30,20 +30,23 @@ export async function sendTransactionReceipt(
       transactionId,
       paymentMethod,
       paidAt,
-      narration
+      narration,
     } = paymentDetails;
 
     const invoiceItems = Array.isArray(invoice.invoice_items)
       ? invoice.invoice_items
       : [];
 
-    const subtotal = invoice.subtotal || invoiceItems.reduce(
-      (sum: number, item: any) =>
-        sum + (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
-      0
-    );
+    const subtotal =
+      invoice.subtotal ||
+      invoiceItems.reduce(
+        (sum: number, item: any) =>
+          sum + (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
+        0,
+      );
 
-    const totalAmount = invoice.total_amount || subtotal + (invoice.fee_amount || 0);
+    const totalAmount =
+      invoice.total_amount || subtotal + (invoice.fee_amount || 0);
     const remainingBalance = totalAmount - (invoice.paid_amount || 0) + amount;
 
     const formatDate = (dateString: string): string => {
@@ -81,7 +84,7 @@ export async function sendTransactionReceipt(
             overflow: hidden;
           }
           .receipt-header {
-            background: linear-gradient(135deg, #2b825b 0%, #1a5c40 100%);
+            background: linear-gradient(135deg, #FDC020 0%, #1a5c40 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -112,11 +115,11 @@ export async function sendTransactionReceipt(
             padding: 15px;
             background: #f8fafc;
             border-radius: 8px;
-            border-left: 4px solid #2b825b;
+            border-left: 4px solid #FDC020;
           }
           .info-section h3 {
             margin: 0 0 10px 0;
-            color: #2b825b;
+            color: #FDC020;
             font-size: 16px;
           }
           .info-row {
@@ -164,10 +167,10 @@ export async function sendTransactionReceipt(
           .grand-total {
             font-size: 20px;
             font-weight: bold;
-            color: #2b825b;
+            color: #FDC020;
             margin-top: 10px;
             padding-top: 10px;
-            border-top: 2px solid #2b825b;
+            border-top: 2px solid #FDC020;
           }
           .payment-summary {
             background: #f0fdf4;
@@ -225,12 +228,16 @@ export async function sendTransactionReceipt(
                 <span class="info-label">Payment Method:</span>
                 <span class="info-value">${paymentMethod}</span>
               </div>
-              ${narration ? `
+              ${
+                narration
+                  ? `
               <div class="info-row">
                 <span class="info-label">Narration:</span>
                 <span class="info-value">${narration}</span>
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
 
             <div class="info-section">
@@ -273,8 +280,10 @@ export async function sendTransactionReceipt(
               </div>
             </div>
 
-            ${invoiceItems.length > 0 ? `
-              <h3 style="margin: 20px 0 10px; color: #2b825b;">Items Purchased</h3>
+            ${
+              invoiceItems.length > 0
+                ? `
+              <h3 style="margin: 20px 0 10px; color: #FDC020;">Items Purchased</h3>
               <table class="items-table">
                 <thead>
                   <tr>
@@ -285,17 +294,23 @@ export async function sendTransactionReceipt(
                   </tr>
                 </thead>
                 <tbody>
-                  ${invoiceItems.map((item: any) => `
+                  ${invoiceItems
+                    .map(
+                      (item: any) => `
                     <tr>
                       <td>${item.item_description || item.description || ""}</td>
                       <td>${item.quantity || 0}</td>
                       <td>${formatCurrency(item.unit_price || item.unitPrice || 0)}</td>
                       <td>${formatCurrency(item.total_amount || item.total || (item.quantity || 0) * (item.unit_price || item.unitPrice || 0))}</td>
                     </tr>
-                  `).join("")}
+                  `,
+                    )
+                    .join("")}
                 </tbody>
               </table>
-            ` : ""}
+            `
+                : ""
+            }
 
             <div class="payment-summary">
               <h3 style="margin: 0 0 15px 0; color: #166534;">Payment Summary</h3>
@@ -303,7 +318,9 @@ export async function sendTransactionReceipt(
                 <span class="info-label">Amount Paid:</span>
                 <span class="info-value" style="color: #16a34a; font-weight: bold;">${formatCurrency(amount)}</span>
               </div>
-              ${nombaFee > 0 ? `
+              ${
+                nombaFee > 0
+                  ? `
               <div class="info-row">
                 <span class="info-label">Processing Fee:</span>
                 <span class="info-value">${formatCurrency(nombaFee)}</span>
@@ -312,37 +329,51 @@ export async function sendTransactionReceipt(
                 <span class="info-label">Net Amount Credited:</span>
                 <span class="info-value">${formatCurrency(netAmount)}</span>
               </div>
-              ` : ""}
+              `
+                  : ""
+              }
             </div>
 
             <div class="totals">
               <div class="total-row"><strong>Subtotal:</strong> ${formatCurrency(subtotal)}</div>
               ${invoice.fee_amount > 0 ? `<div class="total-row"><strong>Processing Fee:</strong> ${formatCurrency(invoice.fee_amount)}</div>` : ""}
               <div class="total-row"><strong>Total Invoice Amount:</strong> ${formatCurrency(totalAmount)}</div>
-              ${remainingBalance > 0 ? `
+              ${
+                remainingBalance > 0
+                  ? `
                 <div class="total-row"><strong>Remaining Balance:</strong> ${formatCurrency(remainingBalance)}</div>
-              ` : ""}
+              `
+                  : ""
+              }
               <div class="grand-total">
                 <strong>PAYMENT RECEIVED:</strong> ${formatCurrency(amount)}
               </div>
             </div>
 
-            ${remainingBalance > 0 ? `
+            ${
+              remainingBalance > 0
+                ? `
               <div class="note">
                 <strong>⚠️ Note:</strong> This is a partial payment. Remaining balance of ${formatCurrency(remainingBalance)} is still due.
               </div>
-            ` : `
+            `
+                : `
               <div class="note" style="background: #dcfce7; color: #166534;">
                 <strong>✅ Invoice Fully Paid:</strong> Thank you for your payment. This invoice has been fully settled.
               </div>
-            `}
+            `
+            }
 
-            ${invoice.customer_note ? `
+            ${
+              invoice.customer_note
+                ? `
               <div class="info-section">
                 <h3>Note from Merchant</h3>
                 <p style="margin: 0; color: #475569;">${invoice.customer_note}</p>
               </div>
-            ` : ""}
+            `
+                : ""
+            }
           </div>
 
           <div class="footer">
@@ -363,7 +394,9 @@ export async function sendTransactionReceipt(
       html: receiptHTML,
     });
 
-    console.log(`✅ Receipt sent to ${payerEmail} for invoice ${invoice.invoice_id}`);
+    console.log(
+      `✅ Receipt sent to ${payerEmail} for invoice ${invoice.invoice_id}`,
+    );
   } catch (error) {
     console.error("Failed to send transaction receipt:", error);
   }

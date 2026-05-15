@@ -2,14 +2,15 @@
 import { transporter } from "@/lib/node-mailer";
 
 export async function sendPinResetEmail(
-  email: string, 
-  resetToken: string, 
+  email: string,
+  resetToken: string,
   userId: string,
-  userName?: string
+  userName?: string,
 ) {
-  const baseUrl = process.env.NODE_ENV === "development"
-    ? process.env.NEXT_PUBLIC_DEV_URL
-    : process.env.NEXT_PUBLIC_BASE_URL;
+  const baseUrl =
+    process.env.NODE_ENV === "development"
+      ? process.env.NEXT_PUBLIC_DEV_URL
+      : process.env.NEXT_PUBLIC_BASE_URL;
 
   const resetUrl = `${baseUrl}/reset-pin?token=${resetToken}&userId=${userId}`;
   const headerImageUrl = `${baseUrl}/zidwell-header.png`;
@@ -47,7 +48,7 @@ export async function sendPinResetEmail(
           <td style="padding:24px; color:#333; line-height:1.6;">
             <div style="max-width: 600px; margin: 0 auto;">
               <div style="text-align:center; margin-bottom:20px;">
-                <h2 style="color:#2b825b; margin:0; font-size:24px;">🔒 PIN Reset Required</h2>
+                <h2 style="color:#FDC020; margin:0; font-size:24px;">🔒 PIN Reset Required</h2>
               </div>
               
               <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px;">
@@ -64,7 +65,7 @@ export async function sendPinResetEmail(
                 background:#f8fafc; 
                 padding:20px; 
                 border-radius:8px; 
-                border-left:4px solid #2b825b; 
+                border-left:4px solid #FDC020; 
                 margin:20px 0;
               ">
                 <p style="margin:0 0 15px 0; font-weight:bold; font-size:16px; color:#1f2937;">Security Details:</p>
@@ -82,7 +83,7 @@ export async function sendPinResetEmail(
                    target="_blank"
                    style="
                      display:inline-block;
-                     background-color:#2b825b;
+                     background-color:#FDC020;
                      color:#fff;
                      padding:14px 28px;
                      border-radius:6px;
@@ -98,7 +99,7 @@ export async function sendPinResetEmail(
               <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0; text-align: center;">
                 <p style="margin:0; font-size: 14px; color: #6b7280;">
                   <strong>Alternative:</strong> Copy and paste this link in your browser:<br>
-                  <a href="${resetUrl}" style="color:#2b825b; font-size:13px; word-break: break-all;">
+                  <a href="${resetUrl}" style="color:#FDC020; font-size:13px; word-break: break-all;">
                     ${resetUrl}
                   </a>
                 </p>
@@ -151,7 +152,7 @@ export async function sendPinResetEmail(
 </html>
       `,
     });
-    
+
     console.log(`PIN reset email sent to: ${email}`);
     return true;
   } catch (error) {

@@ -314,7 +314,7 @@ const PageDetail = () => {
           <Button
             variant="default"
             onClick={() =>
-              router.push("/dashboard/services/payment/payment/dashboard")
+              router.push("/dashboard/services/payment/dashboard")
             }
             className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
           >

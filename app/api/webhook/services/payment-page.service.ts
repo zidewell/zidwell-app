@@ -534,155 +534,28 @@ export async function processPaymentPagePayment(
   payload: any,
   params: PaymentPageParams,
 ): Promise<ServiceResult> {
-  const { nombaTransactionId, nombaFee, orderReference } = params;
+  const { nombaTransactionId, orderReference } = params;
 
-  console.log("💰 Processing Payment Page CARD payment...");
-  console.log("🔑 Order Reference:", orderReference);
-  console.log("🆔 Nomba Transaction ID:", nombaTransactionId);
-
-  // Extract metadata from the payload
-  const metadata = payload.data?.order?.metadata || {};
-  let paymentPageId = metadata.paymentPageId;
-  let paymentId = metadata.paymentId;
-
-  console.log("📊 Metadata from payload:", { paymentPageId, paymentId });
-
-  // If paymentPageId not found in metadata, try to extract from orderReference
-  if (!paymentPageId && orderReference) {
-    const extractedId = extractPaymentPageIdFromReference(orderReference);
-    console.log("🔍 Extracted from orderReference:", extractedId);
-    
-    if (extractedId) {
-      // Find the full payment page ID by matching the short ID
-      const { data: allPages, error: searchError } = await supabase
-        .from("payment_pages")
-        .select("id, title, user_id");
-
-      if (!searchError && allPages) {
-        const foundPage = allPages.find((page) =>
-          page.id.endsWith(extractedId)
-        );
-        if (foundPage) {
-          paymentPageId = foundPage.id;
-          console.log("✅ Found payment page by ID suffix:", paymentPageId);
-        }
-      }
-    }
-  }
-
-  if (!paymentPageId) {
-    console.error("❌ Missing payment page identifier");
-    return { error: "Missing payment page identifier", status: 400 };
-  }
-
-  // Get payment page details
-  const { data: paymentPageCheck, error: pageError } = await supabase
-    .from("payment_pages")
-    .select("id, title, user_id, price_type, installment_count, price")
-    .eq("id", paymentPageId)
-    .maybeSingle();
-
-  if (pageError || !paymentPageCheck) {
-    console.error("❌ Payment page not found:", paymentPageId);
-    return { error: "Payment page not found", status: 404 };
-  }
-
-  console.log("✅ Payment page found:", { id: paymentPageCheck.id, title: paymentPageCheck.title });
-
-  // Find the payment record
-  let paymentRecord = null;
-
-  // First try by paymentId from metadata
-  if (paymentId) {
-    const { data: payment } = await supabase
-      .from("payment_page_payments")
-      .select("*")
-      .eq("id", paymentId)
-      .maybeSingle();
-    if (payment) {
-      paymentRecord = payment;
-      console.log("✅ Found payment by ID:", paymentRecord.id);
-    }
-  }
-
-  // If not found, try by order_reference
-  if (!paymentRecord) {
-    const { data: payment } = await supabase
-      .from("payment_page_payments")
-      .select("*")
-      .eq("order_reference", orderReference)
-      .maybeSingle();
-    if (payment) {
-      paymentRecord = payment;
-      console.log("✅ Found payment by order_reference:", paymentRecord.id);
-    }
-  }
-
-  // If still not found, try by reference column
-  if (!paymentRecord) {
-    const { data: payment } = await supabase
-      .from("payment_page_payments")
-      .select("*")
-      .eq("reference", orderReference)
-      .maybeSingle();
-    if (payment) {
-      paymentRecord = payment;
-      console.log("✅ Found payment by reference:", paymentRecord.id);
-    }
-  }
-
-  // If still not found, try by payment_page_id with pending status
-  if (!paymentRecord) {
-    const { data: payment } = await supabase
-      .from("payment_page_payments")
-      .select("*")
-      .eq("payment_page_id", paymentPageId)
-      .eq("status", "pending")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (payment) {
-      paymentRecord = payment;
-      console.log("✅ Found payment by page_id:", paymentRecord.id);
-    }
-  }
-
-  if (!paymentRecord) {
-    console.error("❌ Payment record not found for reference:", orderReference);
-    return { error: "Payment record not found", status: 404 };
-  }
-
-  console.log("✅ Payment record found:", { 
-    id: paymentRecord.id, 
-    status: paymentRecord.status,
-    amount: paymentRecord.amount,
-    userId: paymentRecord.user_id 
-  });
-
-  // Check for duplicate webhook processing
-  const { data: existingWebhook } = await supabase
+  // Find payment record
+  const { data: payment, error: paymentError } = await supabase
     .from("payment_page_payments")
-    .select("nomba_transaction_id, id")
-    .eq("nomba_transaction_id", nombaTransactionId)
+    .select("*")
+    .eq("order_reference", orderReference)
     .maybeSingle();
 
-  if (existingWebhook) {
-    console.log("⚠️ Duplicate webhook, already processed:", nombaTransactionId);
+  if (paymentError || !payment) {
+    return { error: "Payment not found", status: 404 };
+  }
+
+  if (payment.status === "completed") {
     return { success: true, message: "Already processed" };
   }
 
-  // Check if payment is already completed
-  if (paymentRecord.status === "completed") {
-    console.log("✅ Payment already completed");
-    return { success: true, message: "Already processed" };
-  }
-
-  // Calculate net amount after fee (creator bears the fee)
-  const netAmount = paymentRecord.amount - (paymentRecord.fee || 0);
-  console.log("💰 Net amount after fee:", netAmount);
+  // Calculate net amount after fee
+  const netAmount = payment.amount - (payment.fee || 0);
 
   // Update payment status
-  const { error: updateError, count } = await supabase
+  const { error: updateError } = await supabase
     .from("payment_page_payments")
     .update({
       status: "completed",
@@ -691,162 +564,23 @@ export async function processPaymentPagePayment(
       paid_at: new Date().toISOString(),
       net_amount: netAmount,
     })
-    .eq("id", paymentRecord.id)
+    .eq("id", payment.id)
     .eq("status", "pending");
 
   if (updateError) {
-    console.error("❌ Failed to update payment:", updateError);
     return { error: "Failed to update payment", status: 500 };
   }
 
-  if (!count || count === 0) {
-    console.log("⚠️ Payment already updated by another process");
-    return { success: true, message: "Already processed" };
-  }
-
-  console.log("✅ Payment updated to completed");
-
-  // Credit creator's balance with net amount (after fee deduction)
-  const { data: newBalance, error: balanceError } = await supabase.rpc(
-    "increment_page_balance",
-    { p_page_id: paymentPageId, p_amount: netAmount },
-  );
-
-  const finalBalance =
-    !balanceError && typeof newBalance === "number" ? newBalance : null;
-  
-  if (balanceError) {
-    console.error("❌ Failed to increment balance:", balanceError);
-  } else {
-    console.log("✅ Balance incremented. New balance:", finalBalance);
-  }
-
-  // Get payment page details for email
-  const { data: paymentPage } = await supabase
-    .from("payment_pages")
-    .select("title, user_id, page_type, metadata, price_type, installment_count, price")
-    .eq("id", paymentPageId)
-    .single();
-
-  // Handle installment tracking
-  await handleInstallmentTracking(paymentRecord, paymentPage, nombaTransactionId);
-
-  // Update student paid status for school pages (supports multiple students)
-  if (
-    paymentPage?.page_type === "school" &&
-    paymentRecord.metadata?.selectedStudents &&
-    paymentRecord.metadata.selectedStudents.length > 0
-  ) {
-    for (const studentName of paymentRecord.metadata.selectedStudents) {
-      await updateStudentPaidStatus(
-        paymentPageId,
-        studentName,
-        paymentRecord.metadata.parentName || paymentRecord.customer_name,
-        paymentRecord.amount / paymentRecord.metadata.selectedStudents.length,
-      );
-    }
-  } else if (
-    paymentPage?.page_type === "school" &&
-    paymentRecord.metadata?.childName
-  ) {
-    await updateStudentPaidStatus(
-      paymentPageId,
-      paymentRecord.metadata.childName,
-      paymentRecord.metadata.parentName || paymentRecord.customer_name,
-      paymentRecord.amount,
-    );
-  }
-
-  // Create transaction record
-  const { error: txError } = await supabase.from("transactions").insert({
-    user_id: paymentRecord.user_id,
-    type: "credit",
-    amount: paymentRecord.amount,
-    fee: paymentRecord.fee,
-    net_amount: netAmount,
-    status: "success",
-    reference: `PP-${paymentPageId}-${nombaTransactionId}`,
-    description: `Payment received for page "${paymentPage?.title}" from ${paymentRecord.customer_name}`,
-    channel: "payment_page",
-    sender: {
-      name: paymentRecord.customer_name,
-      email: paymentRecord.customer_email,
-      phone: paymentRecord.customer_phone,
-    },
-    receiver: {
-      user_id: paymentRecord.user_id,
-      payment_page_id: paymentPageId,
-    },
-    external_response: {
-      nomba_transaction_id: nombaTransactionId,
-      nomba_fee: nombaFee,
-      payment_method: "card",
-      fee_born_by: "creator",
-    },
+  // Credit page balance
+  await supabase.rpc("increment_page_balance", {
+    p_page_id: payment.payment_page_id,
+    p_amount: netAmount,
   });
-
-  if (txError) {
-    console.error("❌ Failed to create transaction:", txError);
-  } else {
-    console.log("✅ Transaction record created");
-  }
-
-  // Send receipt to customer
-  if (paymentRecord.customer_email) {
-    try {
-      await sendPaymentPageReceiptWithPDF(
-        paymentRecord.customer_email,
-        paymentPage || { title: "Payment Page" },
-        paymentRecord,
-        paymentRecord.customer_name,
-        paymentRecord.amount,
-        nombaTransactionId,
-        "card",
-        new Date().toISOString(),
-        {
-          ...paymentRecord.metadata,
-          payment_method: "card",
-          pageType: paymentPage?.page_type,
-          note: "Transaction fees are covered by the merchant",
-        },
-      );
-      console.log("✅ Receipt sent to customer:", paymentRecord.customer_email);
-    } catch (error) {
-      console.error("❌ Failed to send receipt:", error);
-    }
-  }
-
-  // Send notification to creator
-  const { data: creator } = await supabase
-    .from("users")
-    .select("email")
-    .eq("id", paymentRecord.user_id)
-    .single();
-
-  if (creator?.email) {
-    try {
-      await sendPaymentPageNotificationEmail(
-        creator.email,
-        paymentPage?.title || "Payment Page",
-        netAmount,
-        paymentRecord.customer_name,
-        paymentRecord.fee,
-        { ...paymentRecord.metadata, payment_method: "card", fee_born_by: "creator" },
-        "card",
-      );
-      console.log("✅ Notification sent to creator:", creator.email);
-    } catch (error) {
-      console.error("❌ Failed to send creator notification:", error);
-    }
-  }
-
-  console.log("🎉 Payment processing completed successfully!");
 
   return {
     success: true,
-    message: "Card payment processed",
+    message: "Payment processed",
     credited_amount: netAmount,
-    new_balance: finalBalance,
   };
 }
 

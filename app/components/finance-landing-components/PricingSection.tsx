@@ -211,7 +211,7 @@ const PricingSection = () => {
                       key={plan.key}
                       className={`relative bg-card border-2 border-foreground p-6 md:p-8 transition-all duration-300 ${
                         plan.popular
-                          ? "shadow-[8px_8px_0px_#2b825b] -translate-y-2"
+                          ? "shadow-[8px_8px_0px_#FDC020] -translate-y-2"
                           : "hover:shadow-[4px_4px_0px_#18171c]"
                       }`}
                     >
