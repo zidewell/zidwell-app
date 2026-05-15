@@ -1,4 +1,3 @@
-// app/api/payment-page/callback/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -29,23 +28,26 @@ export async function GET(request: NextRequest) {
       searchParams.get("reference") ||
       searchParams.get("orderRef") ||
       searchParams.get("tx_ref") ||
-      searchParams.get("transaction_reference");
+      searchParams.get("transaction_reference") ||
+      searchParams.get("merchantTxRef") ||
+      searchParams.get("tx_ref");
     
     let status = 
       searchParams.get("status") || 
       searchParams.get("paymentStatus") ||
       searchParams.get("event_type") ||
-      searchParams.get("state");
+      searchParams.get("state") ||
+      searchParams.get("code");
     
     let transactionId = 
       searchParams.get("transactionId") || 
       searchParams.get("transaction_id") || 
       searchParams.get("reference") ||
       searchParams.get("id") ||
-      searchParams.get("nomba_transaction_id");
+      searchParams.get("nomba_transaction_id") ||
+      searchParams.get("paymentReference");
     
-    // Check if parameters are in the request body (for POST-style redirects)
-    // Sometimes Nomba redirects with the data in the URL fragment
+    // Check if parameters are in the URL fragment (after #)
     if (!orderReference && request.url.includes("#")) {
       const fragment = request.url.split("#")[1];
       console.log("Fragment found:", fragment);
@@ -61,12 +63,17 @@ export async function GET(request: NextRequest) {
       transactionId,
     });
 
-    // If still no orderReference, try to get from session/cookie or default to error page
+    // If still no orderReference, try to get from cookies or session
     if (!orderReference) {
       console.error("No orderReference found in callback");
-      console.log("Redirecting to payment status page with error");
+      
+      // Try to get from the request body (for POST-style redirects)
+      // But we're in GET, so maybe we need to check referrer or other headers
+      console.log("Headers:", Object.fromEntries(request.headers.entries()));
+      
+      // Fallback: redirect to processing page with generic message
       return NextResponse.redirect(
-        `${baseUrl}/payment-page/status?status=error&message=Missing+payment+reference+from+payment+gateway`
+        `${baseUrl}/payment-page/status?status=processing&message=Payment+is+being+processed`
       );
     }
 
@@ -101,7 +108,7 @@ export async function GET(request: NextRequest) {
     }
 
     // If we have status from callback
-    if (status === "successful" || status === "success" || status === "completed" || status === "payment_success") {
+    if (status === "successful" || status === "success" || status === "completed" || status === "payment_success" || status === "00") {
       console.log("✅ Payment successful via callback, processing...");
       
       // Process the successful payment
@@ -110,7 +117,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(
         `${baseUrl}/payment-page/status?reference=${orderReference}&status=success`
       );
-    } else if (status === "failed" || status === "error" || status === "cancelled" || status === "payment_failed") {
+    } else if (status === "failed" || status === "error" || status === "cancelled" || status === "payment_failed" || status === "01") {
       console.log("❌ Payment failed via callback");
       
       await supabase
@@ -150,11 +157,23 @@ export async function POST(request: NextRequest) {
     console.log("====== Payment Page Callback Received (POST) ======");
     
     let body;
-    try {
-      body = await request.json();
-      console.log("Callback body received:", JSON.stringify(body, null, 2));
-    } catch (e) {
-      console.log("No JSON body, checking form data...");
+    let contentType = request.headers.get("content-type") || "";
+    
+    console.log("Content-Type:", contentType);
+    
+    // Try to parse as JSON first
+    if (contentType.includes("application/json")) {
+      try {
+        body = await request.json();
+        console.log("JSON body received:", JSON.stringify(body, null, 2));
+      } catch (e) {
+        console.log("Failed to parse JSON, trying form data...");
+        const formData = await request.formData();
+        body = Object.fromEntries(formData.entries());
+        console.log("Form data:", body);
+      }
+    } else {
+      // Try form data
       const formData = await request.formData();
       body = Object.fromEntries(formData.entries());
       console.log("Form data:", body);
@@ -167,24 +186,30 @@ export async function POST(request: NextRequest) {
       body.reference ||
       body.orderRef ||
       body.tx_ref ||
-      body.transaction_reference;
+      body.transaction_reference ||
+      body.merchantTxRef;
     
     let status = 
       body.status || 
       body.paymentStatus || 
       body.event_type ||
-      body.state;
+      body.state ||
+      body.code;
     
     let transactionId = 
       body.transactionId || 
       body.transaction_id || 
       body.id || 
       body.reference ||
-      body.nomba_transaction_id;
+      body.nomba_transaction_id ||
+      body.paymentReference;
     
     // Handle Nomba's specific nested format
     if (body.data?.order?.orderReference) {
       orderReference = body.data.order.orderReference;
+    }
+    if (body.data?.order?.reference) {
+      orderReference = body.data.order.reference;
     }
     if (body.data?.transaction?.transactionId) {
       transactionId = body.data.transaction.transactionId;
@@ -192,14 +217,28 @@ export async function POST(request: NextRequest) {
     if (body.data?.transaction?.status) {
       status = body.data.transaction.status;
     }
+    if (body.data?.status) {
+      status = body.data.status;
+    }
     if (body.event_type) {
       status = body.event_type;
     }
+    if (body.data?.paymentReference) {
+      transactionId = body.data.paymentReference;
+    }
+    
+    // Also check for success flags
+    const isSuccessFlag = 
+      body.success === true || 
+      body.statusCode === "00" ||
+      body.statusCode === 200 ||
+      body.paymentStatus === "SUCCESS";
 
-    console.log("Extracted data:", { orderReference, status, transactionId });
+    console.log("Extracted data:", { orderReference, status, transactionId, isSuccessFlag });
 
     if (!orderReference) {
       console.error("No orderReference found in POST body");
+      // Return a helpful response so Nomba doesn't retry
       return NextResponse.json({ error: "Missing order reference" }, { status: 400 });
     }
 
@@ -223,17 +262,20 @@ export async function POST(request: NextRequest) {
 
     // Handle successful payment
     const isSuccess = 
+      isSuccessFlag ||
       status === "payment_success" || 
       status === "success" || 
       status === "successful" ||
       status === "completed" ||
-      status === "SUCCESS";
+      status === "SUCCESS" ||
+      status === "00" ||
+      status === "200";
 
     if (isSuccess) {
       console.log("✅ Payment successful, processing...");
       await processSuccessfulPayment(payment, transactionId);
       return NextResponse.json({ success: true, message: "Payment processed successfully" });
-    } else if (status === "payment_failed" || status === "failed" || status === "error" || status === "FAILED") {
+    } else if (status === "payment_failed" || status === "failed" || status === "error" || status === "FAILED" || status === "01") {
       console.log("❌ Payment failed");
       await supabase
         .from("payment_page_payments")
@@ -243,6 +285,7 @@ export async function POST(request: NextRequest) {
             ...payment.metadata,
             failure_reason: status,
             failure_transaction_id: transactionId,
+            failure_time: new Date().toISOString(),
           },
         })
         .eq("id", payment.id);
@@ -269,7 +312,7 @@ async function processSuccessfulPayment(payment: any, transactionId?: string) {
   }
   
   // Update payment record
-  const { error: updateError } = await supabase
+  const { error: updateError, count } = await supabase
     .from("payment_page_payments")
     .update({
       status: "completed",
@@ -278,11 +321,16 @@ async function processSuccessfulPayment(payment: any, transactionId?: string) {
       paid_at: new Date().toISOString(),
     })
     .eq("id", payment.id)
-    .eq("status", "pending"); // Only update if still pending
+    .eq("status", "pending");
 
   if (updateError) {
     console.error("Failed to update payment:", updateError);
     throw updateError;
+  }
+
+  if (!count || count === 0) {
+    console.log("Payment already updated by another process");
+    return;
   }
 
   // Check if balance was already credited
