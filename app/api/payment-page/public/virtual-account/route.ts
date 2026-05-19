@@ -1,36 +1,22 @@
-// app/api/payment-page/public/checkout/route.ts
-
+// app/api/payment-page/public/virtual-account/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getNombaToken } from "@/lib/nomba";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const baseUrl = process.env.NODE_ENV === "development"
-  ? "http://localhost:3000"
-  : "https://zidwell.com";
-
-const generateOrderReference = (pageId: string): string => {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 6);
-  const shortId = pageId.slice(-12);
-  return `PP-${shortId}-${timestamp}-${random}`;
-};
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { pageSlug, customerName, customerEmail, customerPhone, amount, metadata } = body;
 
-    // Validate required fields
     if (!pageSlug || !customerName || !customerEmail) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Get payment page
+    // Get payment page with virtual account
     const { data: page, error: pageError } = await supabase
       .from("payment_pages")
       .select("*")
@@ -42,7 +28,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Payment page not found" }, { status: 404 });
     }
 
-    // Calculate final amount
+    // Get the payment page's dedicated virtual account
+    const virtualAccount = page.metadata?.virtual_account;
+    
+    if (!virtualAccount?.accountNumber) {
+      return NextResponse.json(
+        { error: "This payment page does not have a virtual account configured" },
+        { status: 400 }
+      );
+    }
+
+    console.log(`🏦 Using payment page's dedicated virtual account: ${virtualAccount.accountNumber}`);
+
+    // Calculate amount
     let finalAmount = amount;
     if (!finalAmount || finalAmount === 0) {
       if (page.page_type === "school" && page.metadata?.feeBreakdown?.length > 0) {
@@ -52,19 +50,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // Fee calculation (creator bears it)
-    const fee = Math.min(finalAmount * 0.02, 2000);
-    const numberOfStudents = metadata?.numberOfStudents || 1;
-    const totalForCustomer = finalAmount * numberOfStudents;
-    const orderReference = generateOrderReference(page.id);
+    const numberOfStudents = metadata?.selectedStudents?.length || metadata?.numberOfStudents || 1;
+    const totalAmount = finalAmount * numberOfStudents;
+    const orderReference = `VA-${page.id.substring(0, 8)}-${Date.now()}`;
+    const fee = Math.min(totalAmount * 0.02, 2000);
 
-    // Prepare payment record
+    // Create payment record
     const paymentData: any = {
       payment_page_id: page.id,
       user_id: page.user_id,
-      amount: totalForCustomer,
-      fee: fee * numberOfStudents,
-      net_amount: (finalAmount - fee) * numberOfStudents,
+      amount: totalAmount,
+      fee: fee,
+      net_amount: totalAmount - fee,
       status: "pending",
       customer_name: customerName,
       customer_email: customerEmail,
@@ -72,7 +69,13 @@ export async function POST(request: Request) {
       order_reference: orderReference,
       payment_type: metadata?.isInstallment ? "installment" : "full",
       total_amount: metadata?.totalAmount || finalAmount,
-      metadata: metadata,
+      payment_method: "virtual_account",
+      metadata: {
+        ...metadata,
+        virtual_account_number: virtualAccount.accountNumber,
+        bank_name: virtualAccount.bankName,
+        payment_method: "virtual_account",
+      },
     };
 
     // Add student tracking for school payments
@@ -91,7 +94,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create payment record
     const { data: payment, error: paymentError } = await supabase
       .from("payment_page_payments")
       .insert(paymentData)
@@ -103,60 +105,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
     }
 
-    // Get Nomba token
-    const accessToken = await getNombaToken();
-    if (!accessToken) {
-      return NextResponse.json({ error: "Payment service unavailable" }, { status: 503 });
-    }
-
-    const sessionId = `${payment.id}_${Date.now()}`;
-
-    // Create checkout
-    const checkoutPayload = {
-      order: {
-        callbackUrl: `${baseUrl}/api/payment-page/callback?session_id=${sessionId}`,
-        customerEmail: customerEmail,
-        amount: totalForCustomer.toString(),
-        currency: "NGN",
-        orderReference: orderReference,
-        customerId: page.user_id,
-        accountId: process.env.NOMBA_ACCOUNT_ID,
-        allowedPaymentMethods: ["Card", "Transfer"],
-        metadata: {
-          type: "payment_page",
-          paymentPageId: page.id,
-          paymentId: payment.id,
-          pageSlug: pageSlug,
-        },
-      },
-      tokenizeCard: false,
-    };
-
-    const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        accountId: process.env.NOMBA_ACCOUNT_ID!,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(checkoutPayload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || data.code !== "00") {
-      await supabase.from("payment_page_payments").update({ status: "failed" }).eq("id", payment.id);
-      throw new Error(data.description || "Failed to create checkout");
-    }
-
+    // Return virtual account details
     return NextResponse.json({
       success: true,
-      checkoutLink: data.data.checkoutLink,
-      orderReference: orderReference,
-      amount: totalForCustomer,
+      virtualAccount: {
+        accountNumber: virtualAccount.accountNumber,
+        bankName: virtualAccount.bankName,
+        accountName: virtualAccount.accountName,
+        amount: totalAmount,
+        orderReference: orderReference,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      },
+      instruction: `Please transfer exactly ₦${totalAmount.toLocaleString()} to the account above. Your payment will be confirmed automatically within minutes.`,
+      paymentId: payment.id,
     });
   } catch (error: any) {
-    console.error("Checkout error:", error);
+    console.error("Virtual account error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

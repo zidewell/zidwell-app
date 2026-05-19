@@ -1,5 +1,4 @@
-// app/payment-page/[slug]/page.tsx
-
+// app/pay/[slug]/client.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -9,23 +8,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
-  Calendar,
-  CreditCard,
   Loader2,
-  Package,
-  FileDown,
-  Briefcase,
-  Heart,
-  GraduationCap,
-  Building2,
-  UserCheck,
   CheckCircle,
   AlertCircle,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
-import { Textarea } from "@/app/components/ui/textarea";
+import { VirtualAccountModal } from "@/app/components/payment-page-components/VirtualAccountModal"; 
 
 interface Student {
   name: string;
@@ -53,6 +44,11 @@ interface PaymentPage {
   feeMode: "bearer" | "customer";
   pageType: string;
   metadata: any;
+  virtualAccount?: {
+    accountNumber: string;
+    bankName: string;
+    accountName: string;
+  };
 }
 
 interface PaymentPageClientProps {
@@ -71,6 +67,9 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<PaymentOption>("full");
   const [selectedStudentDetails, setSelectedStudentDetails] = useState<Student | null>(null);
+  const [showVirtualAccountModal, setShowVirtualAccountModal] = useState(false);
+  const [virtualAccountDetails, setVirtualAccountDetails] = useState<any>(null);
+  const [currentPaymentId, setCurrentPaymentId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -146,7 +145,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         }
         const data = await response.json();
         setPage(data.page);
-        console.log("Loaded page with student payments:", data.page.metadata?.students);
+        console.log("Loaded page with virtual account:", data.page.virtualAccount);
       } catch (err) {
         console.error("Error loading page:", err);
         setError("Failed to load page");
@@ -263,73 +262,81 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     return total;
   };
 
- 
-const handlePayment = async () => {
-  if (!validateForm()) return;
-  setIsProcessing(true);
-  
-  try {
-    const totalAmount = getTotalForSelectedStudents();
-    const isInstallmentPayment = selectedPaymentOption === "installment" && page?.installmentCount && page.installmentCount > 1;
+  const handlePayment = async () => {
+    if (!validateForm()) return;
+    setIsProcessing(true);
     
-    const metadata: any = {
-      pageType: page?.pageType,
-      pageTitle: page?.title,
-      paymentType: isInstallmentPayment ? "installment" : "full",
-      isInstallment: isInstallmentPayment,
-      feeBorneBy: "creator",
-    };
-
-    if (isInstallmentPayment) {
-      const installmentInfo = getInstallmentInfo();
-      metadata.totalAmount = installmentInfo?.totalAmount;
-      metadata.totalInstallments = installmentInfo?.installmentCount;
-      metadata.installmentAmount = installmentInfo?.installmentAmount;
-      metadata.currentInstallment = 1;
-    }
-
-    if (page?.pageType === "school") {
-      metadata.parentName = formData.parentName;
-      metadata.selectedStudents = Array.from(selectedStudents);
-      metadata.numberOfStudents = selectedStudents.size;
-      metadata.totalAmount = totalAmount;
-      metadata.amountPerStudent = totalAmount / selectedStudents.size;
+    try {
+      const totalAmount = getTotalForSelectedStudents();
+      const isInstallmentPayment = selectedPaymentOption === "installment" && page?.installmentCount && page.installmentCount > 1;
       
-      // Get student details for payment tracking
-      const selectedStudentData = Array.from(selectedStudents).map(name => {
-        const student = students.find(s => s.name === name);
-        return {
-          name,
-          remainingBalance: student?.remainingBalance,
-          paidAmount: student?.paidAmount,
-        };
+      const metadata: any = {
+        pageType: page?.pageType,
+        pageTitle: page?.title,
+        paymentType: isInstallmentPayment ? "installment" : "full",
+        isInstallment: isInstallmentPayment,
+        feeBorneBy: "creator",
+      };
+
+      if (isInstallmentPayment) {
+        const installmentInfo = getInstallmentInfo();
+        metadata.totalAmount = installmentInfo?.totalAmount;
+        metadata.totalInstallments = installmentInfo?.installmentCount;
+        metadata.installmentAmount = installmentInfo?.installmentAmount;
+        metadata.currentInstallment = 1;
+      }
+
+      if (page?.pageType === "school") {
+        metadata.parentName = formData.parentName;
+        metadata.selectedStudents = Array.from(selectedStudents);
+        metadata.numberOfStudents = selectedStudents.size;
+        metadata.totalAmount = totalAmount;
+        metadata.amountPerStudent = totalAmount / selectedStudents.size;
+        
+        const selectedStudentData = Array.from(selectedStudents).map(name => {
+          const student = students.find(s => s.name === name);
+          return {
+            name,
+            remainingBalance: student?.remainingBalance,
+            paidAmount: student?.paidAmount,
+          };
+        });
+        metadata.studentDetails = selectedStudentData;
+      }
+
+      // Get virtual account details
+      const response = await fetch("/api/payment-page/public/virtual-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageSlug: slug,
+          customerName: page?.pageType === "school" ? formData.parentName : formData.fullName,
+          customerEmail: formData.email,
+          customerPhone: formData.phone,
+          amount: totalAmount,
+          metadata,
+        }),
       });
-      metadata.studentDetails = selectedStudentData;
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      
+      // Show virtual account modal
+      setVirtualAccountDetails(data.virtualAccount);
+      setCurrentPaymentId(data.paymentId);
+      setShowVirtualAccountModal(true);
+      
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsProcessing(false);
     }
+  };
 
-    const response = await fetch("/api/payment-page/public/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pageSlug: slug,
-        customerName: page?.pageType === "school" ? formData.parentName : formData.fullName,
-        customerEmail: formData.email,
-        customerPhone: formData.phone,
-        amount: totalAmount,
-        metadata,
-      }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error);
-    
-    window.location.href = data.checkoutLink;
-  } catch (err: any) {
-    alert(err.message);
-  } finally {
-    setIsProcessing(false);
-  }
-};
+  const handlePaymentConfirmed = () => {
+    // Redirect to success page or refresh
+    window.location.href = `/payment-page/status?reference=${virtualAccountDetails?.orderReference}&status=success`;
+  };
 
   if (loading) {
     return (
@@ -412,6 +419,23 @@ const handlePayment = async () => {
           )}
           {page.description && <p className="text-[var(--text-secondary)] text-sm mt-2">{page.description}</p>}
         </div>
+
+        {/* Virtual Account Info Banner */}
+        {page.virtualAccount && (
+          <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                <Shield className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-green-800">Bank Transfer Payment</p>
+                <p className="text-xs text-green-700 mt-1">
+                  Pay via bank transfer to: <strong>{page.virtualAccount.bankName}</strong> - {page.virtualAccount.accountNumber}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Fee Breakdown */}
         {page.pageType === "school" && feeBreakdown.length > 0 && (
@@ -587,7 +611,7 @@ const handlePayment = async () => {
                                   </div>
                                   <div>
                                     <p className="text-xs text-[var(--text-secondary)]">Already Paid:</p>
-                                    <p className="text-sm font-semibold text-[var(--color-lemon-green)]">₦{student.paidAmount.toLocaleString()}</p>
+                                    <p className="text-sm font-semibold text-green-600">₦{student.paidAmount.toLocaleString()}</p>
                                   </div>
                                   <div>
                                     <p className="text-xs text-[var(--text-secondary)]">Remaining:</p>
@@ -598,11 +622,6 @@ const handlePayment = async () => {
                                     <p className="text-sm font-semibold text-[var(--color-accent-yellow)]">₦{payAmount.toLocaleString()}</p>
                                   </div>
                                 </div>
-                                {page.installmentCount && page.installmentCount > 1 && (
-                                  <p className="text-xs text-[var(--text-secondary)] mt-2">
-                                    Installment {Math.ceil(student.paidAmount / (student.totalAmount / page.installmentCount)) + 1} of {page.installmentCount}
-                                  </p>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -618,7 +637,7 @@ const handlePayment = async () => {
             {fullyPaidStudents.length > 0 && (
               <div className="mt-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <UserCheck className="h-4 w-4 text-[var(--color-lemon-green)]" />
+                  <UserCheck className="h-4 w-4 text-green-600" />
                   <p className="text-sm font-medium text-[var(--text-primary)]">Fully Paid Students</p>
                 </div>
                 <div className="space-y-2 opacity-60">
@@ -629,8 +648,8 @@ const handlePayment = async () => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-5 h-5 rounded border-2 border-[var(--color-lemon-green)] bg-[var(--color-lemon-green)]/20 flex items-center justify-center">
-                            <CheckCircle className="h-4 w-4 text-[var(--color-lemon-green)]" />
+                          <div className="w-5 h-5 rounded border-2 border-green-500 bg-green-500/20 flex items-center justify-center">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
                           </div>
                           <div>
                             <p className="font-medium text-[var(--text-primary)]">{student.name}</p>
@@ -641,7 +660,7 @@ const handlePayment = async () => {
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="text-xs text-[var(--color-lemon-green)] font-medium">PAID ✓</span>
+                          <span className="text-xs text-green-600 font-medium">PAID ✓</span>
                           <p className="text-xs text-[var(--text-secondary)]">₦{student.totalAmount.toLocaleString()}</p>
                         </div>
                       </div>
@@ -722,6 +741,9 @@ const handlePayment = async () => {
               ₦{(page.pageType === "school" ? totalForSelected : amountToPay).toLocaleString()}
             </span>
           </div>
+          <div className="text-xs text-[var(--text-secondary)] text-center">
+            Transaction fees are covered by the merchant
+          </div>
         </div>
 
         {/* Pay Button */}
@@ -738,7 +760,7 @@ const handlePayment = async () => {
               Processing...
             </>
           ) : (
-            `Pay ₦${(page.pageType === "school" ? totalForSelected : amountToPay).toLocaleString()}`
+            `Pay ₦{(page.pageType === "school" ? totalForSelected : amountToPay).toLocaleString()}`
           )}
         </Button>
 
@@ -746,6 +768,17 @@ const handlePayment = async () => {
           <Shield className="h-3.5 w-3.5" /> Secured by Zidwell
         </div>
       </div>
+
+      {/* Virtual Account Modal */}
+      {showVirtualAccountModal && virtualAccountDetails && (
+        <VirtualAccountModal
+          details={virtualAccountDetails}
+          instruction={`Please transfer exactly ₦${virtualAccountDetails.amount.toLocaleString()} to the account above. Your payment will be confirmed within minutes.`}
+          paymentId={currentPaymentId || ""}
+          onClose={() => setShowVirtualAccountModal(false)}
+          onPaymentConfirmed={handlePaymentConfirmed}
+        />
+      )}
     </div>
   );
 }
