@@ -82,14 +82,13 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          accountRef: userId, // Filter by accountRef which equals userId
-          expired: false,     // Only get non-expired accounts
+          accountRef: userId,
+          expired: false,
         }),
       }
     );
 
     const result = await response.json();
-    console.log("📡 Nomba list response:", JSON.stringify(result, null, 2));
 
     if (!response.ok || result.code !== "00" || !result.data?.results) {
       console.error("❌ Failed to fetch virtual accounts from Nomba");
@@ -103,7 +102,6 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
       return null;
     }
 
-    // Find the active account (not expired)
     const activeAccount = accounts.find(acc => !acc.expired);
     
     if (!activeAccount) {
@@ -128,6 +126,32 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
 }
 
 /**
+ * Clean account name for Nomba API - only allows letters, numbers, and spaces
+ * No special characters, no underscores
+ */
+function cleanAccountName(name: string): string {
+  // Remove any special characters except spaces
+  let cleaned = name
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, '') // Remove special chars, keep letters, numbers, spaces
+    .replace(/\s+/g, ' ')        // Replace multiple spaces with single space
+    .trim();
+  
+  // Ensure minimum length (Nomba likely requires at least 3 characters)
+  if (cleaned.length < 3) {
+    cleaned = `PAGE_${Date.now()}`;
+  }
+  
+  // Maximum 50 characters
+  if (cleaned.length > 50) {
+    cleaned = cleaned.substring(0, 50);
+  }
+  
+  console.log(`   Cleaned Account Name: "${cleaned}"`);
+  return cleaned;
+}
+
+/**
  * Create a dedicated virtual account for a payment page
  * This is SEPARATE from the user's wallet virtual account
  */
@@ -143,19 +167,13 @@ export async function createPaymentPageVirtualAccount(
       return null;
     }
 
-    // Format account name from page title (uppercase, no spaces, max 50 chars)
-    let accountName = paymentPageTitle
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "_")
-      .substring(0, 50);
-    
-    if (!accountName) {
-      accountName = `PAGE_${paymentPageId.substring(0, 8)}`;
-    }
+    // Clean the account name (remove special characters, keep spaces)
+    let accountName = cleanAccountName(paymentPageTitle);
     
     // Create unique account reference using payment page ID
-    // Prefix with PP- to distinguish from wallet accounts (which use user ID)
-    const accountRef = `PP-${paymentPageId.substring(0, 20)}`;
+    // Use a simple alphanumeric reference without special chars
+    const shortId = paymentPageId.replace(/-/g, '').substring(0, 15);
+    const accountRef = `PP${shortId}${Date.now().toString().slice(-6)}`;
 
     console.log(`🏦 Creating NEW virtual account for payment page: ${paymentPageTitle}`);
     console.log(`   Account Name: ${accountName}`);
