@@ -1,4 +1,3 @@
-// app/pay/[slug]/client.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -12,11 +11,16 @@ import {
   CheckCircle,
   AlertCircle,
   UserCheck,
+  Copy,
+  Check,
+  Banknote,
+  Clock,
+  X,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
-import { VirtualAccountModal } from "@/app/components/payment-page-components/VirtualAccountModal"; 
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Student {
   name: string;
@@ -67,9 +71,13 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<PaymentOption>("full");
   const [selectedStudentDetails, setSelectedStudentDetails] = useState<Student | null>(null);
-  const [showVirtualAccountModal, setShowVirtualAccountModal] = useState(false);
-  const [virtualAccountDetails, setVirtualAccountDetails] = useState<any>(null);
-  const [currentPaymentId, setCurrentPaymentId] = useState<string | null>(null);
+  
+  // Modal states
+  const [showModal, setShowModal] = useState(false);
+  const [modalData, setModalData] = useState<any>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [checkingPayment, setCheckingPayment] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -118,7 +126,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     return page?.metadata?.totalAmountPerStudent || page?.metadata?.totalAmount || page?.price || 0;
   }, [page?.metadata?.totalAmountPerStudent, page?.metadata?.totalAmount, page?.price]);
 
-  // Filter students - only fully paid go to paidStudents
   const partiallyPaidStudents = useMemo(() => {
     return students.filter((s: Student) => !s.paid && s.paidAmount > 0 && s.remainingBalance > 0);
   }, [students]);
@@ -145,7 +152,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         }
         const data = await response.json();
         setPage(data.page);
-        console.log("Loaded page with virtual account:", data.page.virtualAccount);
       } catch (err) {
         console.error("Error loading page:", err);
         setError("Failed to load page");
@@ -155,6 +161,32 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     };
     loadPage();
   }, [slug]);
+
+  // Countdown timer for modal
+  useEffect(() => {
+    if (!modalData?.expiresAt) return;
+    
+    const expiresAt = new Date(modalData.expiresAt);
+    const updateTimer = () => {
+      const now = new Date();
+      const diff = expiresAt.getTime() - now.getTime();
+      
+      if (diff <= 0) {
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      
+      setTimeLeft({
+        hours: Math.floor(diff / (1000 * 60 * 60)),
+        minutes: Math.floor((diff % (3600000)) / (1000 * 60)),
+        seconds: Math.floor((diff % (60000)) / 1000),
+      });
+    };
+    
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [modalData?.expiresAt]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -168,7 +200,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   };
 
   const handleStudentClick = (student: Student) => {
-    // Don't select fully paid students
     if (student.paid || student.remainingBalance <= 0) return;
     
     setSelectedStudentDetails(student);
@@ -192,10 +223,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
       }
       if (!formData.email.trim()) {
         alert("Please enter your email address");
-        return false;
-      }
-      if (!formData.phone.trim()) {
-        alert("Please enter your phone number");
         return false;
       }
     }
@@ -247,7 +274,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
   const getStudentPayAmount = (student: Student) => {
     const amountPerStudent = getAmountToPay();
-    // Only charge the remaining balance, not more
     return Math.min(amountPerStudent, student.remainingBalance);
   };
 
@@ -262,6 +288,37 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     return total;
   };
 
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const checkPaymentStatus = async () => {
+    if (!modalData?.orderReference) return;
+    
+    setCheckingPayment(true);
+    try {
+      const response = await fetch(`/api/payment-page/public/status?reference=${modalData.orderReference}`);
+      const data = await response.json();
+      
+      if (data.success && data.payment?.status === "completed") {
+        setModalData((prev: any) => ({ ...prev, isCompleted: true }));
+        setTimeout(() => {
+          setShowModal(false);
+          window.location.href = `/payment-page/status?reference=${modalData.orderReference}&status=success`;
+        }, 2000);
+      } else {
+        alert("Payment not confirmed yet. Please check again in a few minutes.");
+      }
+    } catch (error) {
+      console.error("Error checking payment:", error);
+      alert("Failed to check payment status. Please try again.");
+    } finally {
+      setCheckingPayment(false);
+    }
+  };
+
   const handlePayment = async () => {
     if (!validateForm()) return;
     setIsProcessing(true);
@@ -270,12 +327,17 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
       const totalAmount = getTotalForSelectedStudents();
       const isInstallmentPayment = selectedPaymentOption === "installment" && page?.installmentCount && page.installmentCount > 1;
       
+      // IMPORTANT: Include parent name and selected students for identification
       const metadata: any = {
         pageType: page?.pageType,
         pageTitle: page?.title,
         paymentType: isInstallmentPayment ? "installment" : "full",
         isInstallment: isInstallmentPayment,
         feeBorneBy: "creator",
+        // These will help identify who paid
+        payerName: page?.pageType === "school" ? formData.parentName : formData.fullName,
+        payerEmail: formData.email,
+        payerPhone: formData.phone,
       };
 
       if (isInstallmentPayment) {
@@ -293,18 +355,19 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         metadata.totalAmount = totalAmount;
         metadata.amountPerStudent = totalAmount / selectedStudents.size;
         
+        // Store student details for identification
         const selectedStudentData = Array.from(selectedStudents).map(name => {
           const student = students.find(s => s.name === name);
           return {
             name,
+            className: student?.className,
+            regNumber: student?.regNumber,
             remainingBalance: student?.remainingBalance,
-            paidAmount: student?.paidAmount,
           };
         });
         metadata.studentDetails = selectedStudentData;
       }
 
-      // Get virtual account details
       const response = await fetch("/api/payment-page/public/virtual-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -321,10 +384,13 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       
-      // Show virtual account modal
-      setVirtualAccountDetails(data.virtualAccount);
-      setCurrentPaymentId(data.paymentId);
-      setShowVirtualAccountModal(true);
+      setModalData({
+        ...data.virtualAccount,
+        instruction: data.instruction,
+        paymentId: data.paymentId,
+        isCompleted: false,
+      });
+      setShowModal(true);
       
     } catch (err: any) {
       alert(err.message);
@@ -333,9 +399,10 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     }
   };
 
-  const handlePaymentConfirmed = () => {
-    // Redirect to success page or refresh
-    window.location.href = `/payment-page/status?reference=${virtualAccountDetails?.orderReference}&status=success`;
+  const formatTime = (hours: number, minutes: number, seconds: number) => {
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
   };
 
   if (loading) {
@@ -420,23 +487,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           {page.description && <p className="text-[var(--text-secondary)] text-sm mt-2">{page.description}</p>}
         </div>
 
-        {/* Virtual Account Info Banner */}
-        {page.virtualAccount && (
-          <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                <Shield className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-green-800">Bank Transfer Payment</p>
-                <p className="text-xs text-green-700 mt-1">
-                  Pay via bank transfer to: <strong>{page.virtualAccount.bankName}</strong> - {page.virtualAccount.accountNumber}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Fee Breakdown */}
         {page.pageType === "school" && feeBreakdown.length > 0 && (
           <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
@@ -494,7 +544,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 space-y-4">
             <h3 className="font-bold text-lg text-[var(--text-primary)]">Select Students</h3>
             
-            {/* Unpaid Students - No payment yet */}
             {unpaidStudents.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -542,7 +591,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               </div>
             )}
 
-            {/* Partially Paid Students - Have some payment but not fully paid */}
             {partiallyPaidStudents.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-2 mt-4">
@@ -596,36 +644,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                             </p>
                           </div>
                         </div>
-                        
-                        {/* Show detailed payment info when selected */}
-                        {isSelected && selectedStudentDetails && selectedStudentDetails.name === student.name && (
-                          <div className="mt-3 p-3 bg-[var(--color-accent-yellow)]/5 rounded-lg border border-[var(--color-accent-yellow)]/20">
-                            <div className="flex items-start gap-2">
-                              <AlertCircle className="h-4 w-4 text-[var(--color-accent-yellow)] mt-0.5" />
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-[var(--text-primary)]">Payment Details</p>
-                                <div className="grid grid-cols-2 gap-2 mt-2">
-                                  <div>
-                                    <p className="text-xs text-[var(--text-secondary)]">Total Amount:</p>
-                                    <p className="text-sm font-semibold">₦{student.totalAmount.toLocaleString()}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-[var(--text-secondary)]">Already Paid:</p>
-                                    <p className="text-sm font-semibold text-green-600">₦{student.paidAmount.toLocaleString()}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-[var(--text-secondary)]">Remaining:</p>
-                                    <p className="text-sm font-semibold text-[var(--color-accent-yellow)]">₦{student.remainingBalance.toLocaleString()}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-[var(--text-secondary)]">This Payment:</p>
-                                    <p className="text-sm font-semibold text-[var(--color-accent-yellow)]">₦{payAmount.toLocaleString()}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -633,7 +651,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               </div>
             )}
 
-            {/* Fully Paid Students - Cannot select */}
             {fullyPaidStudents.length > 0 && (
               <div className="mt-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -769,16 +786,147 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         </div>
       </div>
 
-      {/* Virtual Account Modal */}
-      {showVirtualAccountModal && virtualAccountDetails && (
-        <VirtualAccountModal
-          details={virtualAccountDetails}
-          instruction={`Please transfer exactly ₦${virtualAccountDetails.amount.toLocaleString()} to the account above. Your payment will be confirmed within minutes.`}
-          paymentId={currentPaymentId || ""}
-          onClose={() => setShowVirtualAccountModal(false)}
-          onPaymentConfirmed={handlePaymentConfirmed}
-        />
-      )}
+      {/* Virtual Account Modal - Simplified */}
+      <AnimatePresence>
+        {showModal && modalData && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="max-w-md w-full bg-white rounded-2xl overflow-hidden shadow-2xl"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-[#FDC020] to-[#1a5c40] p-6 text-white relative">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="absolute top-4 right-4 text-white/80 hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                <h2 className="text-2xl font-bold">Bank Transfer Payment</h2>
+                <p className="text-white/80 text-sm mt-1">Transfer to the account below</p>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {/* Amount */}
+                <div className="text-center bg-gray-50 rounded-xl p-4">
+                  <p className="text-sm text-gray-500 mb-1">Amount to Pay</p>
+                  <p className="text-3xl font-bold text-[#1a5c40]">
+                    ₦{modalData.amount?.toLocaleString()}
+                  </p>
+                </div>
+
+                {/* Bank Name */}
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 mb-1">Bank Name</p>
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-lg">{modalData.bankName}</p>
+                    <button
+                      onClick={() => copyToClipboard(modalData.bankName, "bank")}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      {copiedField === "bank" ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Account Number */}
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 mb-1">Account Number</p>
+                  <div className="flex items-center justify-between">
+                    <p className="font-mono font-bold text-2xl tracking-wider">
+                      {modalData.accountNumber}
+                    </p>
+                    <button
+                      onClick={() => copyToClipboard(modalData.accountNumber, "account")}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      {copiedField === "account" ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Account Name */}
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 mb-1">Account Name</p>
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold">{modalData.accountName}</p>
+                    <button
+                      onClick={() => copyToClipboard(modalData.accountName, "name")}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      {copiedField === "name" ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* How to identify your payment */}
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 rounded-full bg-blue-200 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-blue-700 text-xs font-bold">i</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-blue-800">How to identify your payment</p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        When making the transfer, use your <strong>{page.pageType === "school" ? "student's name" : "full name"}</strong> as the narration/reference. 
+                        This helps us identify your payment quickly.
+                      </p>
+                      <div className="mt-2 p-2 bg-blue-100 rounded-lg">
+                        <p className="text-xs text-blue-800 font-mono">
+                          Example narration: {page.pageType === "school" && selectedStudents.size === 1 
+                            ? Array.from(selectedStudents)[0] 
+                            : page.pageType === "school" 
+                              ? "John Doe, Jane Smith" 
+                              : formData.fullName || "Your Name Here"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timer */}
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <Clock className="h-4 w-4" />
+                    <span>Expires in:</span>
+                  </div>
+                  <span className="font-mono font-semibold text-red-600">
+                    {formatTime(timeLeft.hours, timeLeft.minutes, timeLeft.seconds)}
+                  </span>
+                </div>
+
+                {/* Check Button */}
+                {!modalData.isCompleted ? (
+                  <button
+                    onClick={checkPaymentStatus}
+                    disabled={checkingPayment}
+                    className="w-full py-3 rounded-xl bg-[#FDC020] text-[#1a5c40] font-semibold hover:bg-[#FDC020]/90 transition-colors disabled:opacity-50"
+                  >
+                    {checkingPayment ? (
+                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                    ) : (
+                      "I've Completed the Transfer"
+                    )}
+                  </button>
+                ) : (
+                  <div className="bg-green-50 rounded-xl p-4 text-center">
+                    <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                    <p className="text-green-700 font-semibold">Payment Confirmed!</p>
+                    <p className="text-sm text-green-600">Redirecting...</p>
+                  </div>
+                )}
+
+                <p className="text-xs text-gray-400 text-center">
+                  Your payment will be confirmed automatically within 5-10 minutes after transfer.
+                  The transaction fee is covered by the merchant.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

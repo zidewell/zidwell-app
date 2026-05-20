@@ -35,14 +35,17 @@ type ServiceResult =
     }
   | { error: string; status?: number };
 
-// Function to send notification to merchant
+// Send notification to merchant about payment received
 async function sendPaymentPageNotificationEmail(
   creatorEmail: string,
   pageTitle: string,
   amount: number,
   customerName: string,
+  customerEmail: string,
+  customerPhone: string,
+  selectedStudents: string[],
+  narration: string,
   fee?: number,
-  metadata?: any,
 ): Promise<void> {
   console.log(`📧 [NOTIFICATION] Sending merchant notification to: ${creatorEmail}`);
   
@@ -52,37 +55,49 @@ async function sendPaymentPageNotificationEmail(
   }
   
   try {
-    let additionalInfo = "";
-
-    if (metadata?.pageType === "school") {
-      additionalInfo = `
+    const studentsList = selectedStudents.length > 0 
+      ? `
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
-          <p><strong>Student Information:</strong></p>
-          <p>Parent: ${metadata.parentName || "N/A"}</p>
-          <p>Number of Students: ${metadata.numberOfStudents || 1}</p>
-          ${metadata.selectedStudents ? `<p>Students: ${metadata.selectedStudents.join(", ")}</p>` : ""}
+          <p><strong>Students:</strong> ${selectedStudents.join(", ")}</p>
         </div>
-      `;
-    }
+      `
+      : '';
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: creatorEmail,
-      subject: `💰 Bank Transfer Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
+      subject: `💰 Payment Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #22c55e;">✅ Bank Transfer Received! 🏦</h3>
+          <h3 style="color: #22c55e;">✅ Payment Received! 🏦</h3>
           <p>You've received a bank transfer payment for your payment page <strong>${pageTitle}</strong>.</p>
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-            ${fee ? `<p><strong>Processing Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}
-            <p><strong>Customer:</strong> ${customerName}</p>
-            <p><strong>Payment Method:</strong> Bank Transfer</p>
-            <p><strong>Status:</strong> <span style="color: #22c55e;">Completed</span></p>
+          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+              <span><strong>Amount:</strong></span>
+              <span>₦${amount.toLocaleString()}</span>
+            </div>
+            ${fee ? `<div style="display: flex; justify-content: space-between; padding: 8px 0;"><span><strong>Fee:</strong></span><span>₦${fee.toLocaleString()}</span></div>` : ''}
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+              <span><strong>Payer Name:</strong></span>
+              <span>${customerName}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+              <span><strong>Payer Email:</strong></span>
+              <span>${customerEmail || 'Not provided'}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+              <span><strong>Payer Phone:</strong></span>
+              <span>${customerPhone || 'Not provided'}</span>
+            </div>
+            ${studentsList}
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+              <span><strong>Bank Narration:</strong></span>
+              <span>${narration || 'Not provided'}</span>
+            </div>
           </div>
-          ${additionalInfo}
-          <p>The funds have been added to your payment page balance. You can withdraw them to your bank account anytime.</p>
+          <p>The funds have been added to your payment page balance.</p>
+          <p>You can withdraw them to your bank account anytime.</p>
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
         </div>
       `,
@@ -90,14 +105,14 @@ async function sendPaymentPageNotificationEmail(
 
     console.log(`✅ Notification sent to ${creatorEmail}`);
   } catch (error) {
-    console.error(`❌ Failed to send notification to ${creatorEmail}:`, error);
+    console.error(`❌ Failed to send notification:`, error);
   }
 }
 
-// Function to update student paid status
+// Update student paid status in payment page metadata
 async function updateStudentPaidStatus(
   paymentPageId: string,
-  childName: string,
+  studentName: string,
   parentName: string,
   amount: number,
 ): Promise<void> {
@@ -109,17 +124,22 @@ async function updateStudentPaidStatus(
       .single();
 
     if (fetchError || !paymentPage?.metadata?.students) {
+      console.log(`⚠️ No students array found for page ${paymentPageId}`);
       return;
     }
 
     const updatedStudents = paymentPage.metadata.students.map((student: any) => {
-      const studentName = student.name || student.childName || student.studentName;
-      if (studentName?.toLowerCase().trim() === childName?.toLowerCase().trim()) {
+      const existingStudentName = student.name || student.childName || student.studentName;
+      if (existingStudentName?.toLowerCase().trim() === studentName?.toLowerCase().trim()) {
+        const currentPaidAmount = student.paidAmount || 0;
+        const newPaidAmount = currentPaidAmount + amount;
+        const totalAmount = student.totalAmount || paymentPage.metadata.totalAmountPerStudent || 0;
+        
         return {
           ...student,
-          paid: true,
+          paid: newPaidAmount >= totalAmount,
           paidAt: new Date().toISOString(),
-          paidAmount: (student.paidAmount || 0) + amount,
+          paidAmount: newPaidAmount,
           parentName: parentName,
           lastPaymentDate: new Date().toISOString(),
         };
@@ -136,15 +156,33 @@ async function updateStudentPaidStatus(
         },
       })
       .eq("id", paymentPageId);
+    
+    console.log(`✅ Updated paid status for student: ${studentName}`);
   } catch (error) {
     console.error("Error updating student paid status:", error);
   }
 }
 
-// ============================================================
-// PROCESS PAYMENT PAGE VIRTUAL ACCOUNT (BANK TRANSFER ONLY)
-// ============================================================
+// Extract payment page ID from virtual account reference
+function extractPaymentPageIdFromReference(aliasAccountReference: string): string | null {
+  if (!aliasAccountReference) return null;
+  
+  // Pattern for PP{id} format (no hyphens)
+  const ppPattern = /^PP([a-f0-9]{8,})/i;
+  const match = aliasAccountReference.match(ppPattern);
+  
+  if (match && match[1]) {
+    // The ID might be truncated, try to find full ID in database
+    const shortId = match[1];
+    return shortId;
+  }
+  
+  return null;
+}
 
+// ============================================================
+// PROCESS PAYMENT PAGE VIRTUAL ACCOUNT (BANK TRANSFER)
+// ============================================================
 export async function processPaymentPageVirtualAccount(
   payload: any,
   params: PaymentPageVirtualAccountParams,
@@ -162,36 +200,48 @@ export async function processPaymentPageVirtualAccount(
   console.log("🏦 Transaction ID:", nombaTransactionId);
   console.log("🏦 Virtual Account Ref:", aliasAccountReference);
   console.log("🏦 Amount:", transactionAmount);
+  console.log("🏦 Transaction Data:", JSON.stringify(tx, null, 2));
 
-  // Extract payment page ID from virtual account reference (PP- prefix)
-  const extractPaymentPageId = (ref: string): string | null => {
-    if (!ref) return null;
-    // Pattern for PP-{pageId} format
-    const ppPattern = /^PP-([a-f0-9]{8,36})/i;
-    const match = ref.match(ppPattern);
-    return match ? match[1] : null;
-  };
+  // Extract payment page ID from virtual account reference
+  const shortPageId = extractPaymentPageIdFromReference(aliasAccountReference);
 
-  const paymentPageId = extractPaymentPageId(aliasAccountReference);
-
-  if (!paymentPageId) {
-    console.error("❌ Invalid virtual account reference - no PP- prefix found");
+  if (!shortPageId) {
+    console.error("❌ Invalid virtual account reference - cannot extract page ID");
     return { error: "Invalid virtual account reference", status: 400 };
   }
 
-  // Get payment page details
-  const { data: paymentPage, error: pageError } = await supabase
+  // Find payment page by ID (try exact match or partial)
+  let paymentPage = null;
+  
+  // Try exact match first
+  const { data: exactMatch } = await supabase
     .from("payment_pages")
     .select("id, title, user_id, page_type, metadata")
-    .eq("id", paymentPageId)
-    .single();
+    .eq("id", shortPageId)
+    .maybeSingle();
+  
+  if (exactMatch) {
+    paymentPage = exactMatch;
+  } else {
+    // Try to find by ID containing the short ID
+    const { data: partialMatch } = await supabase
+      .from("payment_pages")
+      .select("id, title, user_id, page_type, metadata")
+      .ilike("id", `${shortPageId}%`)
+      .maybeSingle();
+    
+    if (partialMatch) {
+      paymentPage = partialMatch;
+    }
+  }
 
-  if (pageError || !paymentPage) {
-    console.error("❌ Payment page not found:", paymentPageId);
+  if (!paymentPage) {
+    console.error("❌ Payment page not found for ID:", shortPageId);
     return { error: "Payment page not found", status: 404 };
   }
 
   console.log("✅ Payment page found:", paymentPage.title);
+  console.log("   Page ID:", paymentPage.id);
 
   // Check for duplicate webhook
   const { data: existingTransfer } = await supabase
@@ -205,45 +255,88 @@ export async function processPaymentPageVirtualAccount(
     return { success: true, message: "Already processed" };
   }
 
-  const netAmount = transactionAmount - nombaFee;
-  const customerName = customer?.name || tx?.senderName || "Bank Transfer Customer";
-  const customerEmail = customer?.email || null;
-  const narration = tx?.narration || "";
-
-  // Find pending payment for this page with matching amount
-  const { data: pendingPayment } = await supabase
+  // Extract customer identification from narration and transaction data
+  const narration = tx?.narration || tx?.senderName || "";
+  const senderName = tx?.senderName || customer?.name || "Bank Transfer Customer";
+  
+  // Try to find pending payment with matching amount
+  const { data: pendingPayments } = await supabase
     .from("payment_page_payments")
     .select("*")
-    .eq("payment_page_id", paymentPageId)
+    .eq("payment_page_id", paymentPage.id)
     .eq("status", "pending")
     .eq("amount", transactionAmount)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: false });
 
-  let paymentRecord = pendingPayment;
+  let paymentRecord = pendingPayments?.[0] || null;
 
-  // If no pending payment found, create one
+  // If we found a pending payment, use its customer info
+  if (paymentRecord) {
+    console.log("✅ Found matching pending payment:", paymentRecord.id);
+    console.log("   Customer Name:", paymentRecord.customer_name);
+    console.log("   Customer Email:", paymentRecord.customer_email);
+    console.log("   Metadata:", paymentRecord.metadata);
+  } else {
+    console.log("⚠️ No pending payment found for amount:", transactionAmount);
+    
+    // Try to find by narration matching parent name
+    const { data: paymentsByNarration } = await supabase
+      .from("payment_page_payments")
+      .select("*")
+      .eq("payment_page_id", paymentPage.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    
+    if (paymentsByNarration && paymentsByNarration.length > 0) {
+      // Try to match narration with parent name
+      for (const payment of paymentsByNarration) {
+        const parentName = payment.metadata?.parentName || payment.customer_name;
+        if (parentName && narration.toLowerCase().includes(parentName.toLowerCase().substring(0, 10))) {
+          paymentRecord = payment;
+          console.log("✅ Found pending payment by narration match:", paymentRecord.id);
+          break;
+        }
+      }
+    }
+  }
+
+  const netAmount = transactionAmount - nombaFee;
+
+  // If no pending payment found, create one from the transfer data
   if (!paymentRecord) {
-    console.log("📝 No pending payment found, creating new payment record");
+    console.log("📝 No pending payment found, creating new payment record from transfer");
+    
     const orderReference = `VA-${paymentPage.id.substring(0, 8)}-${Date.now()}`;
+    
+    // Try to extract student names from narration
+    const potentialStudents = paymentPage.metadata?.students || [];
+    const matchedStudents = potentialStudents.filter((student: any) => 
+      narration.toLowerCase().includes((student.name || "").toLowerCase())
+    );
     
     const { data: newPayment, error: insertError } = await supabase
       .from("payment_page_payments")
       .insert({
-        payment_page_id: paymentPageId,
+        payment_page_id: paymentPage.id,
         user_id: paymentPage.user_id,
         amount: transactionAmount,
         fee: nombaFee,
         net_amount: netAmount,
         status: "pending",
-        customer_name: customerName,
-        customer_email: customerEmail,
+        customer_name: senderName,
+        customer_email: customer?.email || null,
+        customer_phone: customer?.phone || null,
         payment_method: "virtual_account",
         order_reference: orderReference,
         metadata: {
           virtual_account_number: aliasAccountReference,
+          bank_transfer: true,
           narration: narration,
+          identified_from_narration: matchedStudents.length > 0,
+          parentName: senderName,
+          selectedStudents: matchedStudents.map((s: any) => s.name),
+          bank_transaction_id: nombaTransactionId,
         },
       })
       .select()
@@ -255,8 +348,23 @@ export async function processPaymentPageVirtualAccount(
     }
 
     paymentRecord = newPayment;
-    console.log("✅ Created new payment record:", paymentRecord.id);
+    console.log("✅ Created new payment record from transfer:", paymentRecord.id);
   }
+
+  // Get customer identification from payment record
+  const customerName = paymentRecord.customer_name;
+  const customerEmail = paymentRecord.customer_email;
+  const customerPhone = paymentRecord.customer_phone;
+  const parentName = paymentRecord.metadata?.parentName || paymentRecord.customer_name;
+  const selectedStudents = paymentRecord.metadata?.selectedStudents || [];
+  const isSchoolPage = paymentPage.page_type === "school";
+
+  console.log("👤 Payment Identification:");
+  console.log("   Payer Name:", customerName);
+  console.log("   Payer Email:", customerEmail);
+  console.log("   Parent Name:", parentName);
+  console.log("   Selected Students:", selectedStudents);
+  console.log("   Narration from bank:", narration);
 
   // Update payment to completed
   const { error: updateError } = await supabase
@@ -266,6 +374,13 @@ export async function processPaymentPageVirtualAccount(
       nomba_transaction_id: nombaTransactionId,
       paid_at: new Date().toISOString(),
       net_amount: netAmount,
+      metadata: {
+        ...paymentRecord.metadata,
+        bank_transaction_id: nombaTransactionId,
+        bank_narration: narration,
+        sender_name: senderName,
+        payment_confirmed_at: new Date().toISOString(),
+      },
     })
     .eq("id", paymentRecord.id)
     .eq("status", "pending");
@@ -280,7 +395,7 @@ export async function processPaymentPageVirtualAccount(
   // Credit creator's balance
   const { data: newBalance, error: balanceError } = await supabase.rpc(
     "increment_page_balance",
-    { p_page_id: paymentPageId, p_amount: netAmount },
+    { p_page_id: paymentPage.id, p_amount: netAmount },
   );
 
   if (balanceError) {
@@ -290,14 +405,33 @@ export async function processPaymentPageVirtualAccount(
   }
 
   // Update student paid status for school pages
-  const childName = tx?.metadata?.childName;
-  const parentName = tx?.metadata?.parentName || customerName;
-  
-  if (paymentPage.page_type === "school" && childName) {
-    await updateStudentPaidStatus(paymentPageId, childName, parentName, transactionAmount);
+  if (isSchoolPage && selectedStudents.length > 0) {
+    const amountPerStudent = transactionAmount / selectedStudents.length;
+    for (const studentName of selectedStudents) {
+      await updateStudentPaidStatus(
+        paymentPage.id,
+        studentName,
+        parentName,
+        amountPerStudent,
+      );
+    }
+  } else if (isSchoolPage && narration) {
+    // Try to match student from narration
+    const students = paymentPage.metadata?.students || [];
+    const matchedStudent = students.find((s: any) => 
+      narration.toLowerCase().includes((s.name || "").toLowerCase())
+    );
+    if (matchedStudent) {
+      await updateStudentPaidStatus(
+        paymentPage.id,
+        matchedStudent.name,
+        parentName,
+        transactionAmount,
+      );
+    }
   }
 
-  // Create transaction record
+  // Create transaction record for accounting
   const { error: txError } = await supabase.from("transactions").insert({
     user_id: paymentPage.user_id,
     type: "credit",
@@ -305,15 +439,24 @@ export async function processPaymentPageVirtualAccount(
     fee: nombaFee,
     net_amount: netAmount,
     status: "success",
-    reference: `VA-${paymentPageId}-${nombaTransactionId}`,
-    description: `Bank transfer payment for page "${paymentPage.title}" from ${customerName}`,
+    reference: `VA-${paymentPage.id}-${nombaTransactionId}`,
+    description: `Bank transfer payment for page "${paymentPage.title}" from ${customerName}${selectedStudents.length > 0 ? ` for ${selectedStudents.join(", ")}` : ''}`,
     channel: "payment_page_virtual_account",
-    sender: { name: customerName, email: customerEmail },
-    receiver: { user_id: paymentPage.user_id, payment_page_id: paymentPageId },
+    sender: {
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone,
+      bank_transfer: true,
+      narration: narration,
+    },
+    receiver: {
+      user_id: paymentPage.user_id,
+      payment_page_id: paymentPage.id,
+    },
     external_response: {
       nomba_transaction_id: nombaTransactionId,
       nomba_fee: nombaFee,
-      virtual_account: aliasAccountReference,
+      payment_method: "virtual_account",
     },
   });
 
@@ -323,10 +466,11 @@ export async function processPaymentPageVirtualAccount(
     console.log("✅ Transaction record created");
   }
 
-  // Send receipt to customer
+  // ========== SEND PDF RECEIPT TO CUSTOMER ==========
   if (customerEmail) {
+    console.log(`📧 [WEBHOOK] Sending PDF receipt to: ${customerEmail}`);
     try {
-      await sendPaymentPageReceiptWithPDF(
+      const receiptResult = await sendPaymentPageReceiptWithPDF(
         customerEmail,
         paymentPage,
         paymentRecord,
@@ -335,12 +479,23 @@ export async function processPaymentPageVirtualAccount(
         nombaTransactionId,
         "virtual_account",
         new Date().toISOString(),
-        { narration, payment_method: "virtual_account" },
+        {
+          pageType: paymentPage.page_type,
+          pageTitle: paymentPage.title,
+          parentName: parentName,
+          selectedStudents: selectedStudents,
+          narration: narration,
+          payment_method: "virtual_account",
+          bank_transfer: true,
+        },
       );
-      console.log(`✅ Receipt sent to: ${customerEmail}`);
+      console.log(`✅ [WEBHOOK] PDF Receipt sent successfully to: ${customerEmail}`);
+      console.log(`📧 [WEBHOOK] Receipt result:`, receiptResult);
     } catch (error) {
-      console.error("Failed to send receipt:", error);
+      console.error(`❌ [WEBHOOK] Failed to send PDF receipt to ${customerEmail}:`, error);
     }
+  } else {
+    console.warn(`⚠️ [WEBHOOK] No customer email found, skipping receipt`);
   }
 
   // Send notification to merchant
@@ -351,17 +506,25 @@ export async function processPaymentPageVirtualAccount(
     .single();
 
   if (creator?.email) {
+    console.log(`📧 [WEBHOOK] Sending merchant notification to: ${creator.email}`);
     await sendPaymentPageNotificationEmail(
       creator.email,
       paymentPage.title,
       netAmount,
       customerName,
+      customerEmail || "",
+      customerPhone || "",
+      selectedStudents,
+      narration,
       nombaFee,
-      { pageType: paymentPage.page_type },
     );
   }
 
   console.log("🎉 ========== PAYMENT PAGE VIRTUAL ACCOUNT PROCESSING COMPLETED ==========");
+  console.log(`   Payer: ${customerName}`);
+  console.log(`   Students: ${selectedStudents.join(", ") || "N/A"}`);
+  console.log(`   Amount: ₦${transactionAmount.toLocaleString()}`);
+  console.log(`   Receipt sent to: ${customerEmail || "No email"}`);
 
   return {
     success: true,
@@ -377,6 +540,6 @@ export function checkIfPaymentPageVirtualAccount(
   aliasAccountReference: string,
 ): boolean {
   if (!aliasAccountReference) return false;
-  // Check for PP- prefix (Payment Page virtual accounts)
-  return aliasAccountReference.startsWith("PP-");
+  // Check for PP prefix (Payment Page virtual accounts)
+  return aliasAccountReference.startsWith("PP");
 }
