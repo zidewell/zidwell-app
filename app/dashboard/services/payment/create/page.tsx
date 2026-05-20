@@ -214,7 +214,7 @@ const validateTitleForVirtualAccount = (title: string, className?: string): { is
   if (length < 8) {
     return {
       isValid: false,
-      message: `⚠️ Virtual account name will be "${cleaned}" (${length} chars). Minimum 8 characters required. Please make your title longer.`,
+      message: `Account name will be "${cleaned}" (${length} chars). Minimum 8 characters required. Please make your title longer.`,
       cleanedName: cleaned
     };
   }
@@ -222,14 +222,14 @@ const validateTitleForVirtualAccount = (title: string, className?: string): { is
   if (length > 64) {
     return {
       isValid: false,
-      message: `⚠️ Virtual account name will be "${cleaned.substring(0, 50)}..." (${length} chars). Maximum 64 characters allowed. Please shorten your title.`,
+      message: `Account name will be "${cleaned.substring(0, 50)}..." (${length} chars). Maximum 64 characters allowed. Please shorten your title.`,
       cleanedName: cleaned.substring(0, 64)
     };
   }
   
   return {
     isValid: true,
-    message: `✅ Virtual account name will be "${cleaned}" (${length} chars)`,
+    message: `Account name will be "${cleaned}" (${length} chars)`,
     cleanedName: cleaned
   };
 };

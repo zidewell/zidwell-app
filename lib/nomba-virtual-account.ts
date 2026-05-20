@@ -59,7 +59,6 @@ export async function isBVNVerified(userId: string): Promise<boolean> {
 
 /**
  * Get user's BVN by filtering virtual accounts with accountRef = userId
- * Uses the POST /v1/accounts/virtual/list endpoint
  */
 export async function getUserBVNFromNomba(userId: string): Promise<string | null> {
   try {
@@ -71,7 +70,6 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
 
     console.log(`🔍 Searching for user's virtual account with accountRef: ${userId}`);
     
-    // Use the list endpoint to filter by accountRef (which is the userId)
     const response = await fetch(
       `${process.env.NOMBA_URL}/v1/accounts/virtual/list`,
       {
@@ -82,14 +80,13 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          accountRef: userId, // Filter by accountRef which equals userId
-          expired: false,     // Only get non-expired accounts
+          accountRef: userId,
+          expired: false,
         }),
       }
     );
 
     const result = await response.json();
-    console.log("📡 Nomba list response:", JSON.stringify(result, null, 2));
 
     if (!response.ok || result.code !== "00" || !result.data?.results) {
       console.error("❌ Failed to fetch virtual accounts from Nomba");
@@ -103,7 +100,6 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
       return null;
     }
 
-    // Find the active account (not expired)
     const activeAccount = accounts.find(acc => !acc.expired);
     
     if (!activeAccount) {
@@ -128,8 +124,8 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
 }
 
 /**
- * Format account name for Nomba API - uppercase with spaces
- * Includes class/group name for school pages
+ * Format account name - exactly like the wallet account (uppercase with spaces)
+ * Remove special characters but keep spaces
  */
 function formatAccountName(title: string, className?: string): string {
   let fullName = title;
@@ -142,7 +138,8 @@ function formatAccountName(title: string, className?: string): string {
   // Convert to uppercase
   let formatted = fullName.toUpperCase();
   
-  // Remove special characters but keep spaces
+  // Remove special characters but KEEP SPACES
+  // Only allow A-Z, 0-9, and spaces
   formatted = formatted.replace(/[^A-Z0-9\s]/g, '');
   
   // Replace multiple spaces with single space
@@ -164,13 +161,12 @@ function formatAccountName(title: string, className?: string): string {
 
 /**
  * Create a dedicated virtual account for a payment page
- * This is SEPARATE from the user's wallet virtual account
  */
 export async function createPaymentPageVirtualAccount(
   paymentPageId: string,
   paymentPageTitle: string,
   userBVN: string,
-  className?: string  // Add optional className parameter for school pages
+  className?: string
 ): Promise<VirtualAccountData | null> {
   try {
     const token = await getNombaToken();
@@ -179,25 +175,34 @@ export async function createPaymentPageVirtualAccount(
       return null;
     }
 
-    // Format account name with class name if provided
+    // Format account name
     let accountName = formatAccountName(paymentPageTitle, className);
     
     if (!accountName) {
       accountName = `PAGE ${paymentPageId.substring(0, 8)}`;
     }
     
-    // Create unique account reference using payment page ID
-    // Prefix with PP- to distinguish from wallet accounts (which use user ID)
-    const shortId = paymentPageId.replace(/-/g, '').substring(0, 15);
-    const accountRef = `PP-${shortId}`;
+    // Create account reference - must be 16-64 characters, alphanumeric
+    const cleanId = paymentPageId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+    const accountRef = `PP${cleanId}${Date.now().toString().slice(-6)}`;
 
-    console.log(`🏦 Creating NEW virtual account for payment page: ${paymentPageTitle}`);
+    console.log(`🏦 Creating NEW virtual account for payment page`);
+    console.log(`   Original Title: ${paymentPageTitle}`);
     if (className) {
       console.log(`   Class Name: ${className}`);
     }
-    console.log(`   Account Name: ${accountName}`);
+    console.log(`   Account Name: "${accountName}"`);
     console.log(`   Account Ref: ${accountRef}`);
+    console.log(`   Account Ref Length: ${accountRef.length}`);
     console.log(`   Using Merchant's BVN: ${userBVN.substring(0, 4)}****`);
+
+    const requestBody = {
+      accountName: accountName,
+      accountRef: accountRef,
+      bvn: userBVN,
+    };
+
+    console.log(`   Request Body:`, JSON.stringify(requestBody));
 
     const response = await fetch(
       `${process.env.NOMBA_URL}/v1/accounts/virtual`,
@@ -208,15 +213,12 @@ export async function createPaymentPageVirtualAccount(
           accountId: process.env.NOMBA_ACCOUNT_ID!,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          accountName: accountName,
-          accountRef: accountRef,
-          bvn: userBVN,
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 
     const result = await response.json();
+    console.log("📡 Nomba response:", JSON.stringify(result, null, 2));
 
     if (!response.ok || result.code !== "00" || !result.data) {
       console.error("❌ Failed to create virtual account:", result);
@@ -246,7 +248,7 @@ export async function createPaymentPageVirtualAccount(
 }
 
 /**
- * Verify if a virtual account exists for a user (for BVN verification check)
+ * Verify if a virtual account exists for a user
  */
 export async function verifyUserVirtualAccountExists(userId: string): Promise<boolean> {
   try {
