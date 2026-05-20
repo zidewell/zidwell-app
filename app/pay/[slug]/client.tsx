@@ -755,7 +755,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           <div className="flex justify-between font-bold text-lg">
             <span>Total to Pay</span>
             <span className="text-[var(--color-accent-yellow)]">
-              ₦{(page.pageType === "school" ? totalForSelected : amountToPay).toLocaleString()}
+              {`₦${(page.pageType === "school" ? totalForSelected : amountToPay).toLocaleString()}`}
             </span>
           </div>
           <div className="text-xs text-[var(--text-secondary)] text-center">
@@ -777,7 +777,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               Processing...
             </>
           ) : (
-            `Pay ₦{(page.pageType === "school" ? totalForSelected : amountToPay).toLocaleString()}`
+            `Pay ₦${(page.pageType === "school" ? totalForSelected : amountToPay).toLocaleString()}`
           )}
         </Button>
 

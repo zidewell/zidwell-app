@@ -1,5 +1,6 @@
+
 // app/api/payment-page/public/[slug]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -8,11 +9,11 @@ const supabase = createClient(
 );
 
 export async function GET(
-  request: Request,
-  { params }: { params: { slug: string } }
-) {
+   req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+ ) {
   try {
-    const { slug } = params;
+     const slug = (await params).id;
 
     console.log(`🔍 Fetching payment page with slug: ${slug}`);
 
