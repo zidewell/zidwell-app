@@ -124,23 +124,56 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
 }
 
 /**
- * Format account name - exactly like the wallet account (uppercase with spaces)
- * Remove special characters but keep spaces
+ * Convert numeric class names to words (e.g., "JSS1" -> "JSS ONE")
+ */
+function normalizeClassName(className: string): string {
+  if (!className) return className;
+  
+  // Map of numbers to words
+  const numberWords: Record<string, string> = {
+    '1': 'ONE',
+    '2': 'TWO',
+    '3': 'THREE',
+    '4': 'FOUR',
+    '5': 'FIVE',
+    '6': 'SIX',
+    '7': 'SEVEN',
+    '8': 'EIGHT',
+    '9': 'NINE',
+    '0': 'ZERO'
+  };
+  
+  // Replace numbers with words
+  let normalized = className.replace(/\d+/g, (match) => {
+    return ' ' + match.split('').map(d => numberWords[d] || d).join(' ');
+  });
+  
+  // Clean up multiple spaces
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+  
+  // Convert to uppercase
+  normalized = normalized.toUpperCase();
+  
+  return normalized;
+}
+
+/**
+ * Format account name - uppercase with spaces, no special characters or numbers
  */
 function formatAccountName(title: string, className?: string): string {
   let fullName = title;
   
-  // If class name is provided (for school pages), prepend it
+  // If class name is provided, prepend it (after normalization)
   if (className && className.trim()) {
-    fullName = `${className} ${title}`;
+    const normalizedClass = normalizeClassName(className);
+    fullName = `${normalizedClass} ${title}`;
   }
   
   // Convert to uppercase
   let formatted = fullName.toUpperCase();
   
   // Remove special characters but KEEP SPACES
-  // Only allow A-Z, 0-9, and spaces
-  formatted = formatted.replace(/[^A-Z0-9\s]/g, '');
+  formatted = formatted.replace(/[^A-Z\s]/g, '');
   
   // Replace multiple spaces with single space
   formatted = formatted.replace(/\s+/g, ' ').trim();
@@ -175,7 +208,7 @@ export async function createPaymentPageVirtualAccount(
       return null;
     }
 
-    // Format account name
+    // Format account name (includes class name if provided)
     let accountName = formatAccountName(paymentPageTitle, className);
     
     if (!accountName) {
@@ -189,11 +222,11 @@ export async function createPaymentPageVirtualAccount(
     console.log(`🏦 Creating NEW virtual account for payment page`);
     console.log(`   Original Title: ${paymentPageTitle}`);
     if (className) {
-      console.log(`   Class Name: ${className}`);
+      console.log(`   Original Class: ${className}`);
+      console.log(`   Normalized Class: ${normalizeClassName(className)}`);
     }
     console.log(`   Account Name: "${accountName}"`);
     console.log(`   Account Ref: ${accountRef}`);
-    console.log(`   Account Ref Length: ${accountRef.length}`);
     console.log(`   Using Merchant's BVN: ${userBVN.substring(0, 4)}****`);
 
     const requestBody = {
@@ -201,8 +234,6 @@ export async function createPaymentPageVirtualAccount(
       accountRef: accountRef,
       bvn: userBVN,
     };
-
-    console.log(`   Request Body:`, JSON.stringify(requestBody));
 
     const response = await fetch(
       `${process.env.NOMBA_URL}/v1/accounts/virtual`,
@@ -218,7 +249,6 @@ export async function createPaymentPageVirtualAccount(
     );
 
     const result = await response.json();
-    console.log("📡 Nomba response:", JSON.stringify(result, null, 2));
 
     if (!response.ok || result.code !== "00" || !result.data) {
       console.error("❌ Failed to create virtual account:", result);

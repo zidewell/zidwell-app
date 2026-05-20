@@ -344,7 +344,7 @@ const SchoolFields = ({
           Class / Group Name
         </Label>
         <Input
-          placeholder="e.g. JSS One, Grade 5, Primary 4"
+          placeholder="e.g. JSS One, Grade five, Primary four"
           value={className}
           onChange={(e) => handleClassNameChange(e.target.value)}
           className={`h-12 text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${
@@ -371,7 +371,7 @@ const SchoolFields = ({
         
         {!className && (
           <p className="text-xs text-[var(--text-secondary)] mt-1">
-            Example: JSS One, Grade 5, Primary 4 (letters and spaces only)
+            Example: JSS One, Grade five, Primary four (letters and spaces only)
           </p>
         )}
       </div>
