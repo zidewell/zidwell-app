@@ -48,11 +48,6 @@ import TrustSignals from "@/app/components/payment-page-components/TrustSignals"
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 
-const baseUrl =
-  process.env.NODE_ENV === "development"
-    ? process.env.NEXT_PUBLIC_DEV_URL || "http://localhost:3000"
-    : process.env.NEXT_PUBLIC_BASE_URL || "https://www.zidwell.com";
-
 const typeLabels: Record<PageType, string> = {
   school: "School Fees",
   donation: "Donation",
@@ -640,12 +635,12 @@ const CreatePage = () => {
     setIsCreating(true);
 
     try {
-      // Upload images only when creating
+      // Upload images only when creating - using relative URLs
       const uploadPromises: Record<string, Promise<string | null>> = {};
 
       // Upload cover image if exists
       if (coverImageBase64) {
-        uploadPromises.cover = fetch(`${baseUrl}/api/payment-page/upload-image`, {
+        uploadPromises.cover = fetch(`/api/payment-page/upload-image`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: coverImageBase64, type: "covers" }),
@@ -654,7 +649,7 @@ const CreatePage = () => {
 
       // Upload logo if uploaded by user (not profile picture)
       if (logoBase64) {
-        uploadPromises.logo = fetch(`${baseUrl}/api/payment-page/upload-image`, {
+        uploadPromises.logo = fetch(`/api/payment-page/upload-image`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: logoBase64, type: "logos" }),
@@ -665,7 +660,7 @@ const CreatePage = () => {
 
       // Upload product images
       const productUploadPromises = productImagesBase64.map(img =>
-        fetch(`${baseUrl}/api/payment-page/upload-image`, {
+        fetch(`/api/payment-page/upload-image`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: img, type: "products" }),
@@ -776,7 +771,7 @@ const CreatePage = () => {
     }
   };
 
-  const pageUrl = `${baseUrl}/pay/${createdSlug}`;
+  const pageUrl = `${window.location.origin}/pay/${createdSlug}`;
   const copyPageUrl = () => copyToClipboard(pageUrl, setCopied);
   const previewPage = () => router.push(`/pay/${createdSlug}`);
 
@@ -950,7 +945,7 @@ const CreatePage = () => {
                     </div>
                     <div className="flex items-center gap-2 bg-(--bg-primary) p-3 rounded-lg border border-(--border-color)">
                       <Link2 className="h-4 w-4 text-(--color-accent-yellow) shrink-0" />
-                      <code className="text-sm font-mono text-(--text-primary) break-all">{baseUrl}/pay/{generateSlug()}</code>
+                      <code className="text-sm font-mono text-(--text-primary) break-all">{window.location.origin}/pay/{generateSlug()}</code>
                     </div>
                     {pageType === "school" && schoolClass && <p className="text-xs text-(--color-accent-yellow) mt-2">URL includes class name: {slugify(schoolClass)}</p>}
                   </div>
