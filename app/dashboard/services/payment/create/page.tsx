@@ -51,7 +51,7 @@ import DashboardHeader from "@/app/components/dashboard-component/DashboardHeade
 const baseUrl =
   process.env.NODE_ENV === "development"
     ? process.env.NEXT_PUBLIC_DEV_URL || "http://localhost:3000"
-    : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
+    : process.env.NEXT_PUBLIC_BASE_URL || "https://www.zidwell.com";
 
 const typeLabels: Record<PageType, string> = {
   school: "School Fees",
