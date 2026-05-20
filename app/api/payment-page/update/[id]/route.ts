@@ -1,5 +1,5 @@
 // app/api/payment-page/update/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh } from "@/lib/auth-check-api";
 
@@ -9,12 +9,15 @@ const supabase = createClient(
 );
 
 export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Check authentication
-    const { user, newTokens } = await isAuthenticatedWithRefresh(request as any);
+    const { id } = await params;
+    
+    // Check authentication - pass the request properly
+    const authResult = await isAuthenticatedWithRefresh(req);
+    const { user, newTokens } = authResult;
     
     if (!user) {
       return NextResponse.json(
@@ -23,8 +26,7 @@ export async function PUT(
       );
     }
 
-    const { id } = params;
-    const body = await request.json();
+    const body = await req.json();
     console.log("Updating page:", id, body);
     
     const { 
