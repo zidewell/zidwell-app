@@ -13,6 +13,61 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+/**
+ * Upload an image to Supabase Storage and return the public URL
+ */
+async function uploadImageToStorage(userId: string, base64Image: string, type: string): Promise<string | null> {
+  if (!base64Image) return null;
+  
+  // If it's already a URL (not base64), return as is
+  if (base64Image.startsWith('http://') || base64Image.startsWith('https://')) {
+    return base64Image;
+  }
+  
+  // Check if it's a base64 image
+  if (!base64Image.startsWith('data:image')) {
+    return null;
+  }
+  
+  try {
+    // Convert base64 to buffer
+    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
+    const imageBuffer = Buffer.from(base64Data, "base64");
+
+    // Determine file extension
+    const matches = base64Image.match(/^data:image\/(\w+);base64,/);
+    const extension = matches ? matches[1] : "jpg";
+    
+    // Generate unique filename
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 8);
+    const filename = `${userId}/${type}/${timestamp}-${randomString}.${extension}`;
+
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from("payment-page-images")
+      .upload(filename, imageBuffer, {
+        contentType: `image/${extension}`,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      return null;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from("payment-page-images")
+      .getPublicUrl(filename);
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error("Error uploading image:", error);
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     // Check authentication
@@ -140,6 +195,43 @@ export async function POST(request: Request) {
     
     console.log(`✅ User BVN retrieved: ${userBVN.substring(0, 4)}****`);
 
+    // ========== STEP 2.5: UPLOAD IMAGES ==========
+    console.log("🖼️ Step 2.5: Uploading images to storage...");
+    
+    // Upload cover image
+    let uploadedCoverImage = null;
+    if (coverImage) {
+      uploadedCoverImage = await uploadImageToStorage(user.id, coverImage, "covers");
+      console.log(`   Cover image uploaded: ${uploadedCoverImage || 'failed'}`);
+    }
+    
+    // Upload logo (if provided and is base64)
+    let uploadedLogo = null;
+    if (logo && logo.startsWith('data:image')) {
+      uploadedLogo = await uploadImageToStorage(user.id, logo, "logos");
+      console.log(`   Logo uploaded: ${uploadedLogo || 'failed'}`);
+    } else if (logo) {
+      // Logo is already a URL (profile picture)
+      uploadedLogo = logo;
+      console.log(`   Logo is existing URL: ${logo}`);
+    }
+    
+    // Upload product images
+    const uploadedProductImages: string[] = [];
+    if (productImages && productImages.length > 0) {
+      for (const img of productImages) {
+        if (img.startsWith('data:image')) {
+          const uploadedUrl = await uploadImageToStorage(user.id, img, "products");
+          if (uploadedUrl) {
+            uploadedProductImages.push(uploadedUrl);
+          }
+        } else {
+          uploadedProductImages.push(img);
+        }
+      }
+      console.log(`   Product images uploaded: ${uploadedProductImages.length}`);
+    }
+
     // Prepare metadata
     const finalMetadata: any = { ...metadata };
 
@@ -245,6 +337,9 @@ export async function POST(request: Request) {
 
     // ========== STEP 4: CREATE PAYMENT PAGE IN DATABASE ==========
     console.log("💾 Step 4: Saving payment page to database...");
+    console.log("   Cover image URL:", uploadedCoverImage);
+    console.log("   Logo URL:", uploadedLogo);
+    console.log("   Product images:", uploadedProductImages.length);
     
     const { data: page, error: pageError } = await supabase
       .from("payment_pages")
@@ -253,9 +348,9 @@ export async function POST(request: Request) {
         title,
         slug,
         description: description || "",
-        cover_image: coverImage || null,
-        logo: logo || null,
-        product_images: productImages || [],
+        cover_image: uploadedCoverImage,
+        logo: uploadedLogo,
+        product_images: uploadedProductImages,
         price_type: priceType,
         price: finalPrice || 0,
         installment_count: installmentCount,
@@ -281,6 +376,7 @@ export async function POST(request: Request) {
     }
 
     console.log(`✅ Payment page created successfully: ${page.id}`);
+    console.log(`   Cover image saved: ${page.cover_image}`);
 
     // ========== STEP 5: UPDATE VIRTUAL ACCOUNT REFERENCE ==========
     const updatedVirtualAccount = {
@@ -303,6 +399,7 @@ export async function POST(request: Request) {
     console.log(`📱 Payment Page Virtual Account: ${virtualAccount.accountNumber}`);
     console.log(`🏦 Bank: ${virtualAccount.bankName}`);
     console.log(`📄 Page Slug: ${slug}`);
+    console.log(`🖼️ Cover Image: ${page.cover_image || 'No cover image'}`);
 
     const responseData = {
       success: true,

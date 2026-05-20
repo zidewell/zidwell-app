@@ -195,22 +195,17 @@ const getPlaceholderText = (
 
 // Function to validate title for virtual account naming (matches backend logic)
 const validateTitleForVirtualAccount = (title: string, className?: string): { isValid: boolean; message: string; cleanedName: string } => {
-  // Combine class name and title for school pages
   let fullName = title;
   if (className && className.trim()) {
     fullName = `${className} ${title}`;
   }
   
-  // Clean the name (same logic as backend)
   let cleaned = fullName.toUpperCase();
-  // Remove special characters but keep spaces
   cleaned = cleaned.replace(/[^A-Z0-9\s]/g, '');
-  // Replace multiple spaces with single space
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
   
   const length = cleaned.length;
   
-  // Nomba requires account name between 8-64 characters
   if (length < 8) {
     return {
       isValid: false,
@@ -229,7 +224,7 @@ const validateTitleForVirtualAccount = (title: string, className?: string): { is
   
   return {
     isValid: true,
-    message: `Account name will be "${cleaned}" (${length} chars)`,
+    message: `✓ Account name will be "${cleaned}" (${length} chars)`,
     cleanedName: cleaned
   };
 };
@@ -264,11 +259,7 @@ const triggerConfetti = () => {
   }, 150);
 };
 
-// Copy to clipboard with feedback
-const copyToClipboard = async (
-  text: string,
-  setCopied: (value: boolean) => void,
-) => {
+const copyToClipboard = async (text: string, setCopied: (value: boolean) => void) => {
   try {
     await navigator.clipboard.writeText(text);
     setCopied(true);
@@ -292,8 +283,17 @@ const CreatePage = () => {
     Math.floor(100 + Math.random() * 900).toString(),
   );
   
-  // Virtual account name validation state
   const [titleValidation, setTitleValidation] = useState<{ isValid: boolean; message: string }>({ isValid: true, message: "" });
+
+  // Image state - store base64 images, will be uploaded on submit
+  const [coverImageBase64, setCoverImageBase64] = useState<string | null>(null);
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [productImagesBase64, setProductImagesBase64] = useState<string[]>([]);
+  
+  // Preview states
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [productPreviews, setProductPreviews] = useState<string[]>([]);
 
   // Image drag adjustment states for cover image preview
   const [imagePosition, setImagePosition] = useState({ x: 50, y: 50 });
@@ -301,7 +301,6 @@ const CreatePage = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [showImageControls, setShowImageControls] = useState(false);
-  const [coverPreviewFile, setCoverPreviewFile] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -309,16 +308,12 @@ const CreatePage = () => {
   const [form, setForm] = useState({
     title: "",
     description: "",
-    coverImage: null as string | null,
-    logo: null as string | null,
-    productImages: [] as string[],
     priceType: "fixed" as "fixed" | "installment",
     price: "",
     installmentCount: "3",
-    feeMode: "bearer" as "bearer" | "customer", // Always bearer
+    feeMode: "bearer" as "bearer" | "customer",
   });
 
-  // Installment state
   const [installmentAmount, setInstallmentAmount] = useState(0);
   const [installmentPeriod, setInstallmentPeriod] = useState("monthly");
 
@@ -329,9 +324,7 @@ const CreatePage = () => {
   const [requiredFields, setRequiredFields] = useState<string[]>([]);
 
   // Donation fields
-  const [suggestedAmounts, setSuggestedAmounts] = useState<number[]>([
-    5000, 10000, 20000,
-  ]);
+  const [suggestedAmounts, setSuggestedAmounts] = useState<number[]>([5000, 10000, 20000]);
   const [showDonorList, setShowDonorList] = useState(false);
   const [allowDonorMessage, setAllowDonorMessage] = useState(true);
 
@@ -353,9 +346,7 @@ const CreatePage = () => {
   const [expectedReturn, setExpectedReturn] = useState("");
   const [tenure, setTenure] = useState("");
   const [charges, setCharges] = useState("");
-  const [paymentFrequency, setPaymentFrequency] = useState<
-    "one-time" | "recurring"
-  >("one-time");
+  const [paymentFrequency, setPaymentFrequency] = useState<"one-time" | "recurring">("one-time");
   const [termsAndConditions, setTermsAndConditions] = useState("");
   const [riskExplanation, setRiskExplanation] = useState("");
 
@@ -363,9 +354,7 @@ const CreatePage = () => {
   const [cacCertificate, setCacCertificate] = useState("");
   const [taxClearance, setTaxClearance] = useState("");
   const [explainerVideo, setExplainerVideo] = useState("");
-  const [socialLinks, setSocialLinks] = useState<
-    { platform: string; url: string }[]
-  >([]);
+  const [socialLinks, setSocialLinks] = useState<{ platform: string; url: string }[]>([]);
   const [website, setWebsite] = useState("");
   const [contactInfo, setContactInfo] = useState("");
 
@@ -373,7 +362,6 @@ const CreatePage = () => {
   const logoRef = useRef<HTMLInputElement>(null);
   const productRef = useRef<HTMLInputElement>(null);
 
-  // Fee calculation - ALWAYS bearer mode (creator pays fee)
   const [feeCalculation, setFeeCalculation] = useState({
     subtotal: 0,
     fee: 0,
@@ -383,7 +371,7 @@ const CreatePage = () => {
     feeCap: 2000,
   });
 
-  // Validate title whenever title or school class changes
+  // Validate title
   useEffect(() => {
     if (form.title) {
       const validation = validateTitleForVirtualAccount(form.title, pageType === "school" ? schoolClass : undefined);
@@ -393,7 +381,14 @@ const CreatePage = () => {
     }
   }, [form.title, schoolClass, pageType]);
 
-  // Drag and drop handlers for cover image
+  // Set default logo from profile picture
+  useEffect(() => {
+    if (userData?.profilePicture && !logoPreview) {
+      setLogoPreview(userData.profilePicture);
+    }
+  }, [userData?.profilePicture]);
+
+  // Drag and drop handlers
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -420,31 +415,27 @@ const CreatePage = () => {
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
-
       if (!file.type.startsWith("image/")) {
-        alert("Please drop an image file (JPEG, PNG, etc.)");
+        alert("Please drop an image file");
         return;
       }
-
       if (file.size > 5 * 1024 * 1024) {
         alert("Image size should be less than 5MB");
         return;
       }
-
       const reader = new FileReader();
       reader.onload = (ev) => {
         const result = ev.target?.result as string;
-        setForm((f) => ({ ...f, coverImage: result }));
-        setCoverPreviewFile(result);
+        setCoverImageBase64(result);
+        setCoverPreview(result);
         resetImagePosition();
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Image drag handlers for repositioning
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!coverPreviewFile && !form.coverImage) return;
+    if (!coverPreview) return;
     e.preventDefault();
     setIsDragging(true);
 
@@ -491,38 +482,25 @@ const CreatePage = () => {
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    if (!coverPreviewFile && !form.coverImage) return;
+    if (!coverPreview) return;
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     setImageScale((prev) => Math.min(Math.max(prev + delta, 0.5), 2));
   };
 
-  const handleZoomIn = () => {
-    setImageScale((prev) => Math.min(prev + 0.1, 2));
-  };
-
-  const handleZoomOut = () => {
-    setImageScale((prev) => Math.max(prev - 0.1, 0.5));
-  };
-
+  const handleZoomIn = () => setImageScale((prev) => Math.min(prev + 0.1, 2));
+  const handleZoomOut = () => setImageScale((prev) => Math.max(prev - 0.1, 0.5));
   const resetImagePosition = () => {
     setImagePosition({ x: 50, y: 50 });
     setImageScale(1);
   };
 
-  // Global mouse up handler
   useEffect(() => {
     const handleGlobalMouseUp = () => {
-      if (isDragging) {
-        setIsDragging(false);
-      }
+      if (isDragging) setIsDragging(false);
     };
-
     window.addEventListener("mouseup", handleGlobalMouseUp);
-
-    return () => {
-      window.removeEventListener("mouseup", handleGlobalMouseUp);
-    };
+    return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
   }, [isDragging]);
 
   const calculateFeeBreakdownTotal = () => {
@@ -539,21 +517,24 @@ const CreatePage = () => {
     }
   };
 
+  const getFeePerInstallment = () => {
+    const perInstallment = installmentAmount;
+    const fee = Math.min(perInstallment * 0.02, 2000);
+    return fee;
+  };
+
   useEffect(() => {
     calculateInstallmentAmount();
   }, [form.price, form.installmentCount]);
 
-  // Always calculate as bearer mode (creator pays fee)
   useEffect(() => {
     const amount = Number(form.price) || 0;
     const fee = Math.min(amount * 0.02, 2000);
     const creatorReceives = amount - fee;
-    const totalWithFee = amount; // Customer pays exact amount
-    
     setFeeCalculation({
       subtotal: amount,
       fee,
-      totalWithFee,
+      totalWithFee: amount,
       creatorReceives,
       feePercentage: 2,
       feeCap: 2000,
@@ -567,44 +548,50 @@ const CreatePage = () => {
     }
   }, [feeBreakdown, pageType]);
 
-  useEffect(() => {
-    if (userData?.profilePicture && !form.logo) {
-      setForm((f) => ({ ...f, logo: userData.profilePicture }));
-    }
-  }, [userData?.profilePicture]);
-
   const handleImageSelect = (
     e: React.ChangeEvent<HTMLInputElement>,
-    field: "coverImage" | "logo" | "productImages",
+    type: "cover" | "logo" | "product"
   ) => {
     const files = e.target.files;
     if (!files) return;
 
-    if (field === "coverImage") {
+    if (type === "cover") {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const result = ev.target?.result as string;
-        setForm((f) => ({ ...f, coverImage: result }));
-        setCoverPreviewFile(result);
+        setCoverImageBase64(result);
+        setCoverPreview(result);
         resetImagePosition();
       };
       reader.readAsDataURL(files[0]);
-    } else if (field === "logo") {
+    } else if (type === "logo") {
       const reader = new FileReader();
-      reader.onload = (ev) =>
-        setForm((f) => ({ ...f, logo: ev.target?.result as string }));
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        setLogoBase64(result);
+        setLogoPreview(result);
+      };
       reader.readAsDataURL(files[0]);
-    } else if (field === "productImages") {
-      const newImages = [...form.productImages];
+    } else if (type === "product") {
+      const newImages = [...productImagesBase64];
+      const newPreviews = [...productPreviews];
       Array.from(files).forEach((file) => {
         const reader = new FileReader();
         reader.onload = (ev) => {
-          newImages.push(ev.target?.result as string);
-          setForm((f) => ({ ...f, productImages: newImages }));
+          const result = ev.target?.result as string;
+          newImages.push(result);
+          newPreviews.push(result);
+          setProductImagesBase64(newImages);
+          setProductPreviews(newPreviews);
         };
         reader.readAsDataURL(file);
       });
     }
+  };
+
+  const removeProductImage = (index: number) => {
+    setProductImagesBase64(productImagesBase64.filter((_, i) => i !== index));
+    setProductPreviews(productPreviews.filter((_, i) => i !== index));
   };
 
   const slugify = (text: string) =>
@@ -616,11 +603,9 @@ const CreatePage = () => {
   const generateSlug = () => {
     const titleSlug = slugify(form.title);
     let prefix = "";
-
     if (pageType === "school" && schoolClass) {
       prefix = slugify(schoolClass) + "-";
     }
-
     return `${prefix}${titleSlug}-${dynamicId}`;
   };
 
@@ -632,13 +617,9 @@ const CreatePage = () => {
 
   const canCreate = () => {
     if (!form.title.trim() || !pageType) return false;
-    
-    // Check title validation for virtual account
     if (!titleValidation.isValid) return false;
-    
     if (pageType === "school") {
-      const hasValidFeeItems =
-        feeBreakdown.length > 0 && feeBreakdown.some((item) => item.amount > 0);
+      const hasValidFeeItems = feeBreakdown.length > 0 && feeBreakdown.some((item) => item.amount > 0);
       if (!hasValidFeeItems) return false;
     }
     if (form.priceType === "installment") {
@@ -654,92 +635,59 @@ const CreatePage = () => {
     return true;
   };
 
-  const uploadSingleImage = async (
-    base64Image: string,
-    type: string,
-  ): Promise<string | null> => {
-    try {
-      const response = await fetch(`${baseUrl}/api/payment-page/upload-image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64Image, type }),
-      });
-      if (!response.ok) throw new Error("Upload failed");
-      const data = await response.json();
-      return data.url;
-    } catch (error) {
-      console.error("Upload error:", error);
-      return null;
-    }
-  };
-
-  const uploadAllImages = async () => {
-    const uploadedUrls = {
-      coverImage: null as string | null,
-      logo: null as string | null,
-      productImages: [] as string[],
-    };
-
-    if (form.coverImage?.startsWith("data:image")) {
-      uploadedUrls.coverImage = await uploadSingleImage(
-        form.coverImage,
-        "covers",
-      );
-    } else if (form.coverImage) {
-      uploadedUrls.coverImage = form.coverImage;
-    }
-
-    if (
-      form.logo &&
-      form.logo !== userData?.profilePicture &&
-      form.logo.startsWith("data:image")
-    ) {
-      uploadedUrls.logo = await uploadSingleImage(form.logo, "logos");
-    } else if (form.logo && form.logo === userData?.profilePicture) {
-      uploadedUrls.logo = form.logo;
-    }
-
-    for (const img of form.productImages) {
-      if (img.startsWith("data:image")) {
-        const url = await uploadSingleImage(img, "products");
-        if (url) uploadedUrls.productImages.push(url);
-      } else {
-        uploadedUrls.productImages.push(img);
-      }
-    }
-
-    return uploadedUrls;
-  };
-
-  const getFeePerInstallment = () => {
-    const perInstallment = installmentAmount;
-    const fee = Math.min(perInstallment * 0.02, 2000);
-    return fee;
-  };
-
   const handleCreate = async () => {
     if (!canCreate() || !pageType) return;
     setIsCreating(true);
 
     try {
-      const uploadedImages = await uploadAllImages();
+      // Upload images only when creating
+      const uploadPromises: Record<string, Promise<string | null>> = {};
 
-      let finalCoverImage = uploadedImages.coverImage;
-      const pageTypesWithProductImages = [
-        "physical",
-        "digital",
-        "services",
-        "real_estate",
-        "stock",
-        "savings",
-        "crypto",
-      ];
-      if (
-        !finalCoverImage &&
-        uploadedImages.productImages.length > 0 &&
-        pageTypesWithProductImages.includes(pageType)
-      ) {
-        finalCoverImage = uploadedImages.productImages[0];
+      // Upload cover image if exists
+      if (coverImageBase64) {
+        uploadPromises.cover = fetch(`${baseUrl}/api/payment-page/upload-image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: coverImageBase64, type: "covers" }),
+        }).then(res => res.json()).then(data => data.url);
+      }
+
+      // Upload logo if uploaded by user (not profile picture)
+      if (logoBase64) {
+        uploadPromises.logo = fetch(`${baseUrl}/api/payment-page/upload-image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: logoBase64, type: "logos" }),
+        }).then(res => res.json()).then(data => data.url);
+      } else if (userData?.profilePicture) {
+        uploadPromises.logo = Promise.resolve(userData.profilePicture);
+      }
+
+      // Upload product images
+      const productUploadPromises = productImagesBase64.map(img =>
+        fetch(`${baseUrl}/api/payment-page/upload-image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: img, type: "products" }),
+        }).then(res => res.json()).then(data => data.url)
+      );
+
+      const [uploadedCover, uploadedLogo, ...uploadedProducts] = await Promise.all([
+        uploadPromises.cover || Promise.resolve(null),
+        uploadPromises.logo || Promise.resolve(null),
+        ...productUploadPromises,
+      ]);
+
+      // Determine final cover image (fallback to logo if no cover)
+      let finalCoverImage = uploadedCover;
+      const pageTypesWithProductImages = ["physical", "digital", "services", "real_estate", "stock", "savings", "crypto"];
+      
+      if (!finalCoverImage && uploadedProducts.length > 0 && pageTypesWithProductImages.includes(pageType)) {
+        finalCoverImage = uploadedProducts[0];
+      }
+      
+      if (!finalCoverImage && uploadedLogo) {
+        finalCoverImage = uploadedLogo;
       }
 
       const metadata: any = {};
@@ -788,23 +736,19 @@ const CreatePage = () => {
 
       const finalSlug = generateSlug();
       let finalPrice = form.price;
-      if (pageType === "school")
-        finalPrice = calculateFeeBreakdownTotal().toString();
+      if (pageType === "school") finalPrice = calculateFeeBreakdownTotal().toString();
 
       const pageData = {
         title: form.title,
         slug: finalSlug,
         description: form.description,
         coverImage: finalCoverImage,
-        logo: uploadedImages.logo,
-        productImages: uploadedImages.productImages,
+        logo: uploadedLogo,
+        productImages: uploadedProducts.filter(url => url !== null),
         priceType: pageType === "donation" ? "open" : form.priceType,
         price: pageType === "donation" ? 0 : Number(finalPrice),
-        installmentCount:
-          form.priceType === "installment"
-            ? Number(form.installmentCount)
-            : undefined,
-        feeMode: "bearer", // Always bearer mode
+        installmentCount: form.priceType === "installment" ? Number(form.installmentCount) : undefined,
+        feeMode: "bearer",
         pageType: pageType,
         metadata: metadata,
       };
@@ -836,17 +780,12 @@ const CreatePage = () => {
   const copyPageUrl = () => copyToClipboard(pageUrl, setCopied);
   const previewPage = () => router.push(`/pay/${createdSlug}`);
 
-  const currentImageSpecs = pageType
-    ? IMAGE_SPECS[pageType]
-    : IMAGE_SPECS.digital;
+  const currentImageSpecs = pageType ? IMAGE_SPECS[pageType] : IMAGE_SPECS.digital;
 
   if (!pageType) {
     return (
       <div className="min-h-screen dark:bg-[#0e0e0e]">
-        <DashboardSidebar
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="lg:pl-72 min-h-screen flex flex-col">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -867,10 +806,7 @@ const CreatePage = () => {
 
   return (
     <div className="min-h-screen dark:bg-[#0e0e0e]">
-      <DashboardSidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -883,56 +819,37 @@ const CreatePage = () => {
             </button>
 
             <div className="pb-32">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-8"
-              >
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+                
                 {/* Cover Image */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <Label className="text-sm font-semibold text-(--text-primary)">
-                      Cover Image{" "}
-                      <span className="text-(--text-secondary)">
-                        (Optional)
-                      </span>
+                      Cover Image <span className="text-(--text-secondary)">(Optional)</span>
                     </Label>
-                    <div className="text-xs text-(--text-secondary)">
-                      Recommended: {currentImageSpecs.description}
-                    </div>
+                    <div className="text-xs text-(--text-secondary)">Recommended: {currentImageSpecs.description}</div>
                   </div>
 
-                  <input
-                    type="file"
-                    ref={coverRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => handleImageSelect(e, "coverImage")}
-                  />
+                  <input type="file" ref={coverRef} className="hidden" accept="image/*" onChange={(e) => handleImageSelect(e, "cover")} />
 
-                  {form.coverImage || coverPreviewFile ? (
+                  {coverPreview ? (
                     <div
                       ref={imageContainerRef}
                       className="relative overflow-hidden rounded-2xl cursor-move group"
                       style={{ height: "280px", backgroundColor: "#0a0a0a" }}
                       onMouseEnter={() => setShowImageControls(true)}
-                      onMouseLeave={() => {
-                        setShowImageControls(false);
-                        setIsDragging(false);
-                      }}
+                      onMouseLeave={() => { setShowImageControls(false); setIsDragging(false); }}
                       onWheel={handleWheel}
                     >
                       <img
                         ref={imageRef}
-                        src={form.coverImage || coverPreviewFile || ""}
+                        src={coverPreview}
                         alt="Cover preview"
                         className="w-full h-full object-cover select-none"
                         style={{
                           objectPosition: `${imagePosition.x}% ${imagePosition.y}%`,
                           transform: `scale(${imageScale})`,
-                          transition: isDragging
-                            ? "none"
-                            : "transform 0.2s ease, object-position 0.2s ease",
+                          transition: isDragging ? "none" : "transform 0.2s ease, object-position 0.2s ease",
                         }}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
@@ -940,56 +857,17 @@ const CreatePage = () => {
                         onMouseLeave={handleMouseUp}
                         draggable={false}
                       />
-
                       {showImageControls && (
-                        <div className="absolute bottom-4 right-4 flex gap-2 bg-black/70 rounded-lg p-2 backdrop-blur-sm z-10">
-                          <button
-                            onClick={handleZoomOut}
-                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
-                            title="Zoom Out"
-                          >
-                            <ZoomOut className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={resetImagePosition}
-                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
-                            title="Reset Position"
-                          >
-                            <Move className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={handleZoomIn}
-                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
-                            title="Zoom In"
-                          >
-                            <ZoomIn className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setForm((f) => ({ ...f, coverImage: null }));
-                              setCoverPreviewFile(null);
-                              resetImagePosition();
-                            }}
-                            className="p-1.5 hover:bg-white/20 rounded transition text-white"
-                            title="Remove Image"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      )}
-
-                      {showImageControls && (
-                        <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center gap-1 z-10">
-                          <ImageIcon className="h-3 w-3" />
-                          <span>{currentImageSpecs.description}</span>
-                        </div>
-                      )}
-
-                      {showImageControls && (
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm flex items-center gap-1 z-10 whitespace-nowrap">
-                          <Move className="h-3 w-3" />
-                          <span>Drag to reposition • Scroll to zoom</span>
-                        </div>
+                        <>
+                          <div className="absolute bottom-4 right-4 flex gap-2 bg-black/70 rounded-lg p-2 backdrop-blur-sm z-10">
+                            <button onClick={handleZoomOut} className="p-1.5 hover:bg-white/20 rounded" title="Zoom Out"><ZoomOut className="h-4 w-4" /></button>
+                            <button onClick={resetImagePosition} className="p-1.5 hover:bg-white/20 rounded" title="Reset"><Move className="h-4 w-4" /></button>
+                            <button onClick={handleZoomIn} className="p-1.5 hover:bg-white/20 rounded" title="Zoom In"><ZoomIn className="h-4 w-4" /></button>
+                            <button onClick={() => { setCoverImageBase64(null); setCoverPreview(null); resetImagePosition(); }} className="p-1.5 hover:bg-white/20 rounded" title="Remove"><X className="h-4 w-4" /></button>
+                          </div>
+                          <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">{currentImageSpecs.description}</div>
+                          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm whitespace-nowrap">Drag to reposition • Scroll to zoom</div>
+                        </>
                       )}
                     </div>
                   ) : (
@@ -1000,60 +878,28 @@ const CreatePage = () => {
                       onDragOver={handleDragOver}
                       onDrop={handleDrop}
                       className={`w-full h-56 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 cursor-pointer group ${
-                        isDragOver
-                          ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/20"
-                          : "border-(--border-color) bg-(--bg-secondary)/50 hover:border-(--color-accent-yellow)"
+                        isDragOver ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/20" : "border-(--border-color) bg-(--bg-secondary)/50 hover:border-(--color-accent-yellow)"
                       }`}
                     >
-                      <Upload
-                        className={`h-8 w-8 transition-colors ${
-                          isDragOver
-                            ? "text-(--color-accent-yellow)"
-                            : "text-(--text-secondary) group-hover:text-(--color-accent-yellow)"
-                        }`}
-                      />
-                      <span
-                        className={`text-sm transition-colors ${
-                          isDragOver
-                            ? "text-(--color-accent-yellow)"
-                            : "text-(--text-secondary) group-hover:text-(--color-accent-yellow)"
-                        }`}
-                      >
-                        {isDragOver
-                          ? "Drop image here"
-                          : "Click or drag & drop to upload"}
+                      <Upload className={`h-8 w-8 transition-colors ${isDragOver ? "text-(--color-accent-yellow)" : "text-(--text-secondary) group-hover:text-(--color-accent-yellow)"}`} />
+                      <span className={`text-sm transition-colors ${isDragOver ? "text-(--color-accent-yellow)" : "text-(--text-secondary) group-hover:text-(--color-accent-yellow)"}`}>
+                        {isDragOver ? "Drop image here" : "Click or drag & drop to upload"}
                       </span>
-                      <span className="text-xs text-(--text-secondary)">
-                        {currentImageSpecs.description}
-                      </span>
-                      <span className="text-xs text-(--text-secondary)">
-                        If no cover image, first product image will be used as
-                        fallback
-                      </span>
+                      <span className="text-xs text-(--text-secondary)">{currentImageSpecs.description}</span>
+                      <span className="text-xs text-(--text-secondary)">If no cover image, your logo will be used as fallback</span>
                     </div>
                   )}
                 </div>
 
                 {/* Logo */}
                 <div>
-                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                    Logo / Profile Picture
-                  </Label>
+                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Logo / Profile Picture</Label>
                   <div className="flex items-center gap-4">
-                    {form.logo || userData?.profilePicture ? (
+                    {logoPreview ? (
                       <div className="relative group">
-                        <img
-                          src={form.logo || userData?.profilePicture}
-                          alt="Logo"
-                          className={`h-20 w-20 object-cover ${!form.logo && userData?.profilePicture ? "rounded-full" : "rounded-2xl"}`}
-                        />
-                        {form.logo && (
-                          <button
-                            onClick={() =>
-                              setForm((f) => ({ ...f, logo: null }))
-                            }
-                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
-                          >
+                        <img src={logoPreview} alt="Logo" className={`h-20 w-20 object-cover ${!logoBase64 && userData?.profilePicture ? "rounded-full" : "rounded-2xl"}`} />
+                        {logoBase64 && (
+                          <button onClick={() => { setLogoBase64(null); setLogoPreview(null); }} className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
                             <X className="h-3 w-3 text-white" />
                           </button>
                         )}
@@ -1064,166 +910,78 @@ const CreatePage = () => {
                       </div>
                     )}
                     <div className="flex-1">
-                      <input
-                        type="file"
-                        ref={logoRef}
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => handleImageSelect(e, "logo")}
-                      />
-                      <button
-                        onClick={() => logoRef.current?.click()}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-(--border-color) rounded-xl bg-(--bg-secondary)/50 hover:border-(--color-accent-yellow) transition-colors"
-                      >
+                      <input type="file" ref={logoRef} className="hidden" accept="image/*" onChange={(e) => handleImageSelect(e, "logo")} />
+                      <button onClick={() => logoRef.current?.click()} className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-(--border-color) rounded-xl bg-(--bg-secondary)/50 hover:border-(--color-accent-yellow) transition-colors">
                         <Upload className="h-4 w-4" />
                         <span className="text-sm">Upload Logo</span>
                       </button>
-                      <p className="text-xs text-(--text-secondary) mt-1">
-                        Square image recommended (e.g., 200x200px)
-                      </p>
+                      <p className="text-xs text-(--text-secondary) mt-1">Square image recommended (e.g., 200x200px)</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Title with Real-time Validation */}
+                {/* Title */}
                 <div>
-                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                    Page Title *
-                  </Label>
+                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Page Title *</Label>
                   <Input
                     placeholder={getPlaceholderText(pageType, "title")}
                     value={form.title}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, title: e.target.value }))
-                    }
-                    className={`h-12 text-base border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${
-                      !titleValidation.isValid && form.title ? "border-red-500 focus:ring-red-500" : ""
-                    }`}
-                    style={{ outline: "none", boxShadow: "none" }}
+                    onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                    className={`h-12 text-base border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${!titleValidation.isValid && form.title ? "border-red-500" : ""}`}
                   />
-                  
-                  {/* Real-time validation message */}
                   {form.title && (
-                    <div className={`mt-2 text-xs flex items-start gap-2 p-2 rounded-lg ${
-                      titleValidation.isValid 
-                        ? "bg-green-50 text-green-700 border border-green-200" 
-                        : "bg-red-50 text-red-700 border border-red-200"
-                    }`}>
-                      {titleValidation.isValid ? (
-                        <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      ) : (
-                        <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      )}
+                    <div className={`mt-2 text-xs flex items-start gap-2 p-2 rounded-lg ${titleValidation.isValid ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                      {titleValidation.isValid ? <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />}
                       <span className="flex-1">{titleValidation.message}</span>
                     </div>
                   )}
-                  
-                  <p className="text-xs text-(--text-secondary) mt-1">
-                    Example: {getPlaceholderText(pageType, "title")}
-                  </p>
-                  <p className="text-xs text-(--text-secondary) mt-1">
-                    ℹ️ This title will be used as your virtual account name. Only letters, numbers, and spaces are allowed.
-                    {pageType === "school" && schoolClass && " The class name will be included automatically."}
-                  </p>
+                  <p className="text-xs text-(--text-secondary) mt-1">Example: {getPlaceholderText(pageType, "title")}</p>
+                  <p className="text-xs text-(--text-secondary) mt-1">This title will be used as your virtual account name.</p>
                 </div>
 
                 {/* URL Preview */}
                 {form.title && (
                   <div className="bg-(--bg-secondary)/50 rounded-lg p-4 border border-(--border-color)">
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-xs font-semibold text-(--color-accent-yellow)">
-                        Your Page URL:
-                      </Label>
-                      <button
-                        onClick={regenerateId}
-                        className="flex items-center gap-1 text-xs text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80"
-                      >
+                      <Label className="text-xs font-semibold text-(--color-accent-yellow)">Your Page URL:</Label>
+                      <button onClick={regenerateId} className="flex items-center gap-1 text-xs text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80">
                         <RefreshCw className="h-3 w-3" /> New ID
                       </button>
                     </div>
                     <div className="flex items-center gap-2 bg-(--bg-primary) p-3 rounded-lg border border-(--border-color)">
                       <Link2 className="h-4 w-4 text-(--color-accent-yellow) shrink-0" />
-                      <code className="text-sm font-mono text-(--text-primary) break-all">
-                        {baseUrl}/pay/{generateSlug()}
-                      </code>
+                      <code className="text-sm font-mono text-(--text-primary) break-all">{baseUrl}/pay/{generateSlug()}</code>
                     </div>
-                    {pageType === "school" && schoolClass && (
-                      <p className="text-xs text-(--color-accent-yellow) mt-2">
-                        URL includes class name: {slugify(schoolClass)}
-                      </p>
-                    )}
+                    {pageType === "school" && schoolClass && <p className="text-xs text-(--color-accent-yellow) mt-2">URL includes class name: {slugify(schoolClass)}</p>}
                   </div>
                 )}
 
                 {/* Description */}
                 <div>
-                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                    Description
-                  </Label>
+                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Description</Label>
                   <Textarea
                     placeholder={getPlaceholderText(pageType, "description")}
                     value={form.description}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, description: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                     rows={4}
                     className="text-base resize-none border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
-                    style={{ outline: "none", boxShadow: "none" }}
                   />
-                  <p className="text-xs text-(--text-secondary) mt-1">
-                    Example:{" "}
-                    {getPlaceholderText(pageType, "description").substring(
-                      0,
-                      100,
-                    )}
-                    ...
-                  </p>
+                  <p className="text-xs text-(--text-secondary) mt-1">Example: {getPlaceholderText(pageType, "description").substring(0, 100)}...</p>
                 </div>
 
                 {/* Product Images */}
                 {pageType !== "school" && pageType !== "donation" && (
                   <div>
-                    <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                      Product Images
-                    </Label>
-                    <input
-                      type="file"
-                      ref={productRef}
-                      className="hidden"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => handleImageSelect(e, "productImages")}
-                    />
+                    <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Product Images</Label>
+                    <input type="file" ref={productRef} className="hidden" accept="image/*" multiple onChange={(e) => handleImageSelect(e, "product")} />
                     <div className="flex gap-3 flex-wrap">
-                      {form.productImages.map((img, i) => (
-                        <div
-                          key={i}
-                          className="relative h-24 w-24 rounded-xl overflow-hidden group"
-                        >
-                          <img
-                            src={img}
-                            className="w-full h-full object-cover"
-                            alt={`Product ${i + 1}`}
-                          />
-                          <button
-                            onClick={() =>
-                              setForm((f) => ({
-                                ...f,
-                                productImages: f.productImages.filter(
-                                  (_, idx) => idx !== i,
-                                ),
-                              }))
-                            }
-                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100"
-                          >
-                            <X className="h-4 w-4 text-white" />
-                          </button>
+                      {productPreviews.map((img, i) => (
+                        <div key={i} className="relative h-24 w-24 rounded-xl overflow-hidden group">
+                          <img src={img} className="w-full h-full object-cover" alt="" />
+                          <button onClick={() => removeProductImage(i)} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100"><X className="h-4 w-4 text-white" /></button>
                         </div>
                       ))}
-                      <button
-                        onClick={() => productRef.current?.click()}
-                        className="h-24 w-24 rounded-xl border-2 border-dashed border-(--border-color) bg-(--bg-secondary)/50 flex items-center justify-center hover:border-(--color-accent-yellow)"
-                      >
+                      <button onClick={() => productRef.current?.click()} className="h-24 w-24 rounded-xl border-2 border-dashed border-(--border-color) bg-(--bg-secondary)/50 flex items-center justify-center hover:border-(--color-accent-yellow)">
                         <ImagePlus className="h-5 w-5 text-(--text-secondary)" />
                       </button>
                     </div>
@@ -1232,9 +990,7 @@ const CreatePage = () => {
 
                 {/* Type-Specific Fields */}
                 <div className="p-5 rounded-2xl border border-(--border-color) bg-(--bg-secondary)">
-                  <h3 className="font-bold text-sm mb-4 text-(--color-accent-yellow)">
-                    {typeLabels[pageType]} Settings
-                  </h3>
+                  <h3 className="font-bold text-sm mb-4 text-(--color-accent-yellow)">{typeLabels[pageType]} Settings</h3>
                   {pageType === "school" && (
                     <SchoolFields
                       students={students}
@@ -1327,20 +1083,14 @@ const CreatePage = () => {
                 {pageType !== "donation" && (
                   <>
                     <div>
-                      <Label className="text-sm font-semibold mb-3 block text-(--text-primary)">
-                        Pricing
-                      </Label>
+                      <Label className="text-sm font-semibold mb-3 block text-(--text-primary)">Pricing</Label>
                       <div className="grid grid-cols-2 gap-3">
                         {(["fixed", "installment"] as const).map((val) => (
                           <button
                             key={val}
-                            onClick={() =>
-                              setForm((f) => ({ ...f, priceType: val }))
-                            }
+                            onClick={() => setForm((f) => ({ ...f, priceType: val }))}
                             className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                              form.priceType === val
-                                ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)"
-                                : "border-(--border-color) bg-(--bg-secondary) text-(--text-secondary) hover:border-(--color-accent-yellow)/50"
+                              form.priceType === val ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)" : "border-(--border-color) bg-(--bg-secondary) text-(--text-secondary) hover:border-(--color-accent-yellow)/50"
                             }`}
                           >
                             {val === "fixed" ? "Fixed Price" : "Installment"}
@@ -1352,55 +1102,26 @@ const CreatePage = () => {
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                          {form.priceType === "installment"
-                            ? "Total Amount (₦)"
-                            : "Amount (₦)"}
+                          {form.priceType === "installment" ? "Total Amount (₦)" : "Amount (₦)"}
                         </Label>
                         <Input
                           type="number"
                           placeholder="0.00"
                           value={form.price}
-                          onChange={(e) =>
-                            pageType !== "school" &&
-                            setForm((f) => ({ ...f, price: e.target.value }))
-                          }
-                          className="h-12 text-base border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
-                          style={{ outline: "none", boxShadow: "none" }}
+                          onChange={(e) => pageType !== "school" && setForm((f) => ({ ...f, price: e.target.value }))}
+                          className="h-12 text-base border-(--border-color) bg-(--bg-primary) text-(--text-primary)"
                           disabled={pageType === "school"}
                         />
                       </div>
                       {form.priceType === "installment" && (
                         <>
                           <div className="w-32">
-                            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                              Installments
-                            </Label>
-                            <Input
-                              type="number"
-                              value={form.installmentCount}
-                              onChange={(e) =>
-                                setForm((f) => ({
-                                  ...f,
-                                  installmentCount: e.target.value,
-                                }))
-                              }
-                              className="h-12 text-base border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
-                              style={{ outline: "none", boxShadow: "none" }}
-                              min={2}
-                              max={12}
-                            />
+                            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Installments</Label>
+                            <Input type="number" value={form.installmentCount} onChange={(e) => setForm((f) => ({ ...f, installmentCount: e.target.value }))} min={2} max={12} />
                           </div>
                           <div className="w-32">
-                            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                              Period
-                            </Label>
-                            <select
-                              value={installmentPeriod}
-                              onChange={(e) =>
-                                setInstallmentPeriod(e.target.value)
-                              }
-                              className="h-12 text-base bg-(--bg-primary) border-(--border-color) rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) text-(--text-primary)"
-                            >
+                            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Period</Label>
+                            <select value={installmentPeriod} onChange={(e) => setInstallmentPeriod(e.target.value)} className="h-12 w-full rounded-xl border border-(--border-color) bg-(--bg-primary) px-3">
                               <option value="weekly">Weekly</option>
                               <option value="bi-weekly">Bi-Weekly</option>
                               <option value="monthly">Monthly</option>
@@ -1410,110 +1131,27 @@ const CreatePage = () => {
                       )}
                     </div>
 
-                    {/* Fee Information Display */}
                     {Number(form.price) > 0 && (
                       <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Info className="h-4 w-4 text-(--color-accent-yellow)" />
-                          <h4 className="text-sm font-semibold text-(--text-primary)">
-                            Fee Information
-                          </h4>
-                        </div>
+                        <div className="flex items-center gap-2 mb-3"><Info className="h-4 w-4 text-(--color-accent-yellow)" /><h4 className="text-sm font-semibold">Fee Information</h4></div>
                         <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-(--text-secondary)">
-                              Customer Pays:
-                            </span>
-                            <span className="font-semibold text-(--color-accent-yellow)">
-                              ₦{Number(form.price).toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-(--text-secondary)">
-                              Transaction Fee (2% capped at ₦2,000):
-                            </span>
-                            <span className="font-medium text-[var(--destructive)]">
-                              - ₦{feeCalculation.fee.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="border-t border-(--color-accent-yellow)/20 pt-2 mt-2">
-                            <div className="flex justify-between">
-                              <span className="font-semibold text-(--text-primary)">
-                                You Receive:
-                              </span>
-                              <span className="font-semibold text-(--color-lemon-green)">
-                                ₦{feeCalculation.creatorReceives.toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
+                          <div className="flex justify-between"><span className="text-(--text-secondary)">Customer Pays:</span><span className="font-semibold text-(--color-accent-yellow)">₦{Number(form.price).toLocaleString()}</span></div>
+                          <div className="flex justify-between"><span className="text-(--text-secondary)">Transaction Fee (2% capped at ₦2,000):</span><span className="font-medium text-[var(--destructive)]">- ₦{feeCalculation.fee.toLocaleString()}</span></div>
+                          <div className="border-t border-(--color-accent-yellow)/20 pt-2 mt-2"><div className="flex justify-between"><span className="font-semibold">You Receive:</span><span className="font-semibold text-(--color-lemon-green)">₦{feeCalculation.creatorReceives.toLocaleString()}</span></div></div>
                         </div>
-                        <p className="text-xs text-(--text-secondary) mt-3">
-                          ✓ The 2% transaction fee is deducted from your payout. 
-                          Customers pay exactly the amount shown.
-                        </p>
+                        <p className="text-xs text-(--text-secondary) mt-3">✓ The 2% transaction fee is deducted from your payout. Customers pay exactly the amount shown.</p>
                       </div>
                     )}
 
                     {form.priceType === "installment" && installmentAmount > 0 && (
                       <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Calendar className="h-4 w-4 text-(--color-accent-yellow)" />
-                          <h4 className="text-sm font-semibold text-(--text-primary)">
-                            Installment Breakdown
-                          </h4>
-                        </div>
-                        <div className="space-y-2 text-sm text-(--text-primary)">
-                          <div className="flex justify-between">
-                            <span className="text-(--text-secondary)">
-                              Total Amount:
-                            </span>
-                            <span className="font-semibold">
-                              ₦{Number(form.price).toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-(--text-secondary)">
-                              Number of Installments:
-                            </span>
-                            <span className="font-semibold">
-                              {form.installmentCount}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-(--text-secondary)">
-                              Customer Pays Per Installment:
-                            </span>
-                            <span className="font-semibold text-(--color-accent-yellow)">
-                              ₦{installmentAmount.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-(--text-secondary)">
-                              Fee Deducted Per Installment:
-                            </span>
-                            <span className="font-semibold text-[var(--destructive)]">
-                              - ₦{getFeePerInstallment().toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="border-t border-(--color-accent-yellow)/20 pt-2 mt-2">
-                            <div className="flex justify-between">
-                              <span className="font-semibold text-(--text-primary)">
-                                You Receive Per Installment:
-                              </span>
-                              <span className="font-semibold text-(--color-lemon-green)">
-                                ₦{(installmentAmount - getFeePerInstallment()).toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-3 p-2 bg-(--color-accent-yellow)/5 rounded-lg">
-                          <div className="flex items-start gap-2">
-                            <Info className="h-3 w-3 text-(--color-accent-yellow) mt-0.5" />
-                            <p className="text-xs text-(--text-secondary)">
-                              You will receive ₦{(installmentAmount - getFeePerInstallment()).toLocaleString()} per installment. 
-                              Total you'll receive: ₦{((installmentAmount - getFeePerInstallment()) * Number(form.installmentCount)).toLocaleString()}
-                            </p>
-                          </div>
+                        <div className="flex items-center gap-2 mb-2"><Calendar className="h-4 w-4 text-(--color-accent-yellow)" /><h4 className="text-sm font-semibold">Installment Breakdown</h4></div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between"><span className="text-(--text-secondary)">Total Amount:</span><span className="font-semibold">₦{Number(form.price).toLocaleString()}</span></div>
+                          <div className="flex justify-between"><span className="text-(--text-secondary)">Number of Installments:</span><span className="font-semibold">{form.installmentCount}</span></div>
+                          <div className="flex justify-between"><span className="text-(--text-secondary)">Customer Pays Per Installment:</span><span className="font-semibold text-(--color-accent-yellow)">₦{installmentAmount.toLocaleString()}</span></div>
+                          <div className="flex justify-between"><span className="text-(--text-secondary)">Fee Deducted Per Installment:</span><span className="font-semibold text-[var(--destructive)]">- ₦{getFeePerInstallment().toLocaleString()}</span></div>
+                          <div className="border-t pt-2"><div className="flex justify-between"><span className="font-semibold">You Receive Per Installment:</span><span className="font-semibold text-(--color-lemon-green)">₦{(installmentAmount - getFeePerInstallment()).toLocaleString()}</span></div></div>
                         </div>
                       </div>
                     )}
@@ -1534,18 +1172,13 @@ const CreatePage = () => {
               onClick={handleCreate}
               disabled={!canCreate() || isCreating}
             >
-              {isCreating ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...
-                </>
-              ) : (
-                `Create ${typeLabels[pageType]} Page`
-              )}
+              {isCreating ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...</> : `Create ${typeLabels[pageType]} Page`}
             </Button>
           </div>
         </div>
       </div>
 
+      {/* Success Modal */}
       <AnimatePresence>
         {showSuccess && (
           <motion.div
@@ -1559,82 +1192,40 @@ const CreatePage = () => {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg lg:max-w-xl w-full text-center shadow-2xl border border-[var(--border-color)] squircle-lg mx-4"
+              className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg lg:max-w-xl w-full text-center shadow-2xl border border-[var(--border-color)] mx-4"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">🎉</div>
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">
-                Payment Page Created!
-              </h2>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
-                Your page is now live and ready to collect payments.
-              </p>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">Payment Page Created!</h2>
+              <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">Your page is now live and ready to collect payments.</p>
 
-              <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-[var(--border-color)] squircle-lg">
-                <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">
-                  Your Payment Link:
-                </Label>
+              <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-[var(--border-color)]">
+                <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">Your Payment Link:</Label>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <div className="flex items-center gap-2 flex-1 bg-[var(--bg-primary)] rounded-lg p-2 sm:p-3 border border-[var(--border-color)]">
                     <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
-                    <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">
-                      {pageUrl}
-                    </code>
+                    <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">{pageUrl}</code>
                   </div>
-                  <button
-                    onClick={copyPageUrl}
-                    className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0"
-                  >
-                    {copied ? (
-                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)]" />
-                    ) : (
-                      <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)]" />
-                    )}
-                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-ink)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap squircle-sm">
+                  <button onClick={copyPageUrl} className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0">
+                    {copied ? <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)]" /> : <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)]" />}
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-ink)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                       {copied ? "Copied!" : "Copy link"}
                     </span>
                   </button>
                 </div>
-                {copied && (
-                  <p className="text-xs text-[var(--color-lemon-green)] mt-2 text-center animate-pulse">
-                    ✓ Link copied to clipboard!
-                  </p>
-                )}
+                {copied && <p className="text-xs text-[var(--color-lemon-green)] mt-2 text-center animate-pulse">✓ Link copied to clipboard!</p>}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
-                  onClick={() => {
-                    setShowSuccess(false);
-                    const previewUrl = pageUrl; 
-                    window.open(previewUrl, '_blank');
-                    if (typeof previewPage === 'function') {
-                      previewPage();
-                    }
-                  }}
-                >
+                <Button variant="outline" className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]" onClick={() => { setShowSuccess(false); window.open(pageUrl, '_blank'); }}>
                   Preview Page
                 </Button>
-                <Button
-                  variant="default"
-                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
-                  onClick={() => {
-                    setShowSuccess(false);
-                    router.push("/dashboard/services/payment/dashboard");
-                  }}
-                >
+                <Button variant="default" className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90" onClick={() => { setShowSuccess(false); router.push("/dashboard/services/payment/dashboard"); }}>
                   Go to Dashboard
                 </Button>
               </div>
 
-              <button
-                onClick={() => setShowSuccess(false)}
-                className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-              >
-                Close
-              </button>
+              <button onClick={() => setShowSuccess(false)} className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Close</button>
             </motion.div>
           </motion.div>
         )}
