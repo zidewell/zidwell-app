@@ -1,7 +1,8 @@
+// app/components/payment-page-components/SchoolFields.tsx
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import { Upload, Plus, X, HelpCircle, AlertCircle, Trash2 } from "lucide-react";
+import { Upload, Plus, X, HelpCircle, AlertCircle, Trash2, CheckCircle } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
@@ -21,6 +22,27 @@ interface Props {
   price?: number;
   onPriceChange?: (price: number) => void;
 }
+
+// Helper function to validate class name (no special characters, no numbers)
+const validateClassName = (className: string): { isValid: boolean; message: string; cleanedValue: string } => {
+  if (!className.trim()) {
+    return { isValid: true, message: "", cleanedValue: "" };
+  }
+  
+  // Check for special characters
+  const specialCharsRegex = /[^a-zA-Z\s]/;
+  if (specialCharsRegex.test(className)) {
+    // Clean the value by removing special characters and numbers
+    const cleaned = className.replace(/[^a-zA-Z\s]/g, '').trim();
+    return { 
+      isValid: false, 
+      message: "Use letters only (no numbers or special characters like 1,2,3 or @,#,$)",
+      cleanedValue: cleaned 
+    };
+  }
+  
+  return { isValid: true, message: "", cleanedValue: className };
+};
 
 // Helper function to find the name column in any row
 const findNameColumn = (row: any): string => {
@@ -64,6 +86,7 @@ const SchoolFields = ({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [classNameError, setClassNameError] = useState<{ show: boolean; message: string }>({ show: false, message: "" });
 
   // Default fee items
   const defaultFeeItems: FeeItem[] = [
@@ -78,6 +101,21 @@ const SchoolFields = ({
       setFeeBreakdown(defaultFeeItems);
     }
   }, []);
+
+  // Validate class name on change
+  const handleClassNameChange = (value: string) => {
+    const validation = validateClassName(value);
+    
+    if (!validation.isValid && value) {
+      setClassNameError({ show: true, message: validation.message });
+      // Optionally auto-clean the value
+      // setClassName(validation.cleanedValue);
+    } else {
+      setClassNameError({ show: false, message: "" });
+    }
+    
+    setClassName(value);
+  };
 
   // Calculate total from fee breakdown
   const calculateTotal = () => {
@@ -118,7 +156,7 @@ const SchoolFields = ({
       }
       
       if (!name) {
-        errors.push(`Row ${i + 2}: Could not find a valid name. Please ensure a name column exists.`);
+        errors.push(`Row ${i + 2}: Could not find a valid name.`);
         continue;
       }
       
@@ -168,19 +206,9 @@ const SchoolFields = ({
           header: true,
           skipEmptyLines: true,
           complete: (results) => {
-            console.log("CSV Parse Results:", results);
-            
-            if (results.errors && results.errors.length > 0) {
-              console.warn("CSV parsing warnings:", results.errors);
-            }
-            
             const mapped = parseStudentData(results.data);
-            console.log("Mapped students:", mapped);
-            
             if (mapped.length === 0 && !uploadError) {
-              setUploadError(
-                "No valid student data found in the file. Please ensure a 'Name' or 'Full Name' column exists."
-              );
+              setUploadError("No valid student data found. Please ensure a 'Name' column exists.");
             } else if (mapped.length > 0) {
               setStudents([...students, ...mapped]);
               setUploadError(null);
@@ -189,7 +217,7 @@ const SchoolFields = ({
           },
           error: (error) => {
             console.error("CSV Parse Error:", error);
-            setUploadError("Failed to parse CSV file. Please check the file format.");
+            setUploadError("Failed to parse CSV file.");
             setUploading(false);
           },
         });
@@ -202,15 +230,10 @@ const SchoolFields = ({
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData = XLSX.utils.sheet_to_json(firstSheet) as any[];
             
-            console.log("Excel Parse Results:", jsonData);
-            
             const mapped = parseStudentData(jsonData);
-            console.log("Mapped students from Excel:", mapped);
             
             if (mapped.length === 0 && !uploadError) {
-              setUploadError(
-                "No valid student data found in the Excel file. Please ensure a 'Name' or 'Full Name' column exists."
-              );
+              setUploadError("No valid student data found.");
             } else if (mapped.length > 0) {
               setStudents([...students, ...mapped]);
               setUploadError(null);
@@ -218,7 +241,7 @@ const SchoolFields = ({
             setUploading(false);
           } catch (error) {
             console.error("Excel Parse Error:", error);
-            setUploadError("Failed to parse Excel file. Please check the file format.");
+            setUploadError("Failed to parse Excel file.");
             setUploading(false);
           }
         };
@@ -315,18 +338,42 @@ const SchoolFields = ({
 
   return (
     <div className="space-y-6">
-      {/* Class Name */}
+      {/* Class Name - with validation */}
       <div>
         <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">
           Class / Group Name
         </Label>
         <Input
-          placeholder="e.g. JSS1, SS2, Primary 4"
+          placeholder="e.g. JSS One, Grade 5, Primary 4"
           value={className}
-          onChange={(e) => setClassName(e.target.value)}
-          className="h-12 text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md"
+          onChange={(e) => handleClassNameChange(e.target.value)}
+          className={`h-12 text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${
+            classNameError.show ? "border-red-500" : ""
+          }`}
           style={{ outline: "none", boxShadow: "none" }}
         />
+        
+        {/* Validation message */}
+        {classNameError.show && (
+          <div className="mt-2 flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded-lg">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{classNameError.message}</span>
+          </div>
+        )}
+        
+        {/* Helper text */}
+        {!classNameError.show && className && (
+          <div className="mt-2 text-xs text-green-600 flex items-center gap-1">
+            <CheckCircle className="h-3 w-3" />
+            <span>Class name: {className.toUpperCase()}</span>
+          </div>
+        )}
+        
+        {!className && (
+          <p className="text-xs text-[var(--text-secondary)] mt-1">
+            Example: JSS One, Grade 5, Primary 4 (letters and spaces only)
+          </p>
+        )}
       </div>
 
       {/* Fee Breakdown */}
@@ -341,8 +388,7 @@ const SchoolFields = ({
           </div>
         </div>
         <p className="text-xs text-[var(--text-secondary)] mb-3">
-          Add all fee items that make up the total amount (e.g., Tuition,
-          uniform, textbooks, sports, exam fee)
+          Add all fee items that make up the total amount
         </p>
         
         <div className="space-y-2">
@@ -360,7 +406,7 @@ const SchoolFields = ({
                 placeholder="Amount (₦)"
                 value={item.amount || ""}
                 onChange={(e) => updateFeeItem(i, "amount", e.target.value)}
-                className="w-32 md:34 h-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md"
+                className="w-32 md:w-34 h-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md"
                 style={{ outline: "none", boxShadow: "none" }}
               />
               <button
@@ -399,23 +445,19 @@ const SchoolFields = ({
             
             <div className="space-y-2 pt-3 border-t border-[var(--color-accent-yellow)]/20">
               <div className="flex justify-between text-sm">
-                <span className="text-[var(--text-secondary)]">Transaction Fee (2%):</span>
+                <span className="text-[var(--text-secondary)]">Fee (2%):</span>
                 <span className="font-medium text-[var(--destructive)]">- ₦{feeAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm font-semibold pt-2 border-t border-dashed border-[var(--color-accent-yellow)]/20">
-                <span className="text-[var(--text-primary)]">You Will Receive:</span>
+                <span className="text-[var(--text-primary)]">You Receive:</span>
                 <span className="text-[var(--color-lemon-green)]">₦{creatorReceives.toLocaleString()}</span>
               </div>
             </div>
             
             <div className="mt-3 p-2 bg-[var(--color-accent-yellow)]/5 rounded-lg">
-              <div className="flex items-start gap-2">
-                <HelpCircle className="h-3 w-3 text-[var(--color-accent-yellow)] mt-0.5 shrink-0" />
-                <p className="text-xs text-[var(--text-secondary)]">
-                  <strong>Fee Information:</strong> Parents pay exactly ₦{totalAmount.toLocaleString()} 
-                  (no additional fees). The 2% transaction fee (capped at ₦2,000) will be deducted from your payout.
-                </p>
-              </div>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Parents pay exactly ₦{totalAmount.toLocaleString()}. The 2% fee is deducted from your payout.
+              </p>
             </div>
           </div>
         )}
@@ -438,7 +480,7 @@ const SchoolFields = ({
           </Button>
         </div>
         <p className="text-xs text-[var(--text-secondary)] mb-3">
-          Upload the list of students in this particular class. Upload either an Excel file or CSV. You can also manually add them individually.
+          Upload CSV or Excel file with student list
         </p>
 
         <input
@@ -461,24 +503,16 @@ const SchoolFields = ({
             <Upload className="h-5 w-5 text-[var(--text-secondary)]" />
           )}
           <span className="text-sm text-[var(--text-secondary)]">
-            {uploading ? "Processing file..." : "Upload CSV or Excel file"}
-          </span>
-          <span className="text-xs text-[var(--text-secondary)]/60">
-            Required columns: Full Name (required), Class, Registration Number (optional)
+            {uploading ? "Processing..." : "Upload CSV or Excel file"}
           </span>
         </button>
 
         {uploadError && (
           <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 squircle-md">
-            <AlertCircle className="h-4 w-4 text-[var(--destructive)] mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm text-[var(--destructive)]">{uploadError}</p>
-            </div>
-            <button
-              onClick={() => setUploadError(null)}
-              className="text-[var(--destructive)] hover:text-[var(--destructive)]/80"
-            >
-              <X className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+            <p className="text-sm text-red-600">{uploadError}</p>
+            <button onClick={() => setUploadError(null)} className="ml-auto">
+              <X className="h-4 w-4 text-red-500" />
             </button>
           </div>
         )}
@@ -488,26 +522,21 @@ const SchoolFields = ({
             {students.map((s, i) => (
               <div key={i} className="flex gap-2 items-center bg-[var(--bg-primary)] p-2 rounded-lg">
                 <Input
-                  placeholder="Student full name"
+                  placeholder="Student name"
                   value={s.name}
                   onChange={(e) => updateStudent(i, "name", e.target.value)}
                   className="flex-1 h-9 text-sm border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-sm"
-                  style={{ outline: "none", boxShadow: "none" }}
                 />
                 <Input
                   placeholder="Reg #"
                   value={s.regNumber || ""}
-                  onChange={(e) =>
-                    updateStudent(i, "regNumber", e.target.value)
-                  }
+                  onChange={(e) => updateStudent(i, "regNumber", e.target.value)}
                   className="w-24 h-9 text-sm border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-sm"
-                  style={{ outline: "none", boxShadow: "none" }}
                 />
                 <button
                   type="button"
                   onClick={() => removeStudent(i)}
-                  className="h-7 w-7 rounded-md bg-[var(--destructive)]/10 flex items-center justify-center text-[var(--destructive)] shrink-0 hover:bg-[var(--destructive)]/20 transition-opacity"
-                  title="Remove student"
+                  className="h-7 w-7 rounded-md bg-[var(--destructive)]/10 flex items-center justify-center text-[var(--destructive)] shrink-0 hover:bg-[var(--destructive)]/20"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -533,30 +562,28 @@ const SchoolFields = ({
         )}
       </div>
 
-      {/* Additional Questions for the customer */}
+      {/* Additional Questions */}
       <div>
         <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">
-          Additional Information (Optional)
+          Additional Info (Optional)
         </Label>
         <p className="text-xs text-[var(--text-secondary)] mb-3">
-          Ask the parent or guardian for any additional information you require.
+          Ask parents for extra information
         </p>
       
         <div className="space-y-2">
           {requiredFields.map((f, i) => (
             <div key={i} className="flex gap-2 items-center">
               <Input
-                placeholder="e.g. House/Hostel, Sport choice, Medical condition"
+                placeholder="e.g. House, Sport choice, Medical condition"
                 value={f}
                 onChange={(e) => updateField(i, e.target.value)}
                 className="flex-1 h-9 text-sm border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-sm"
-                style={{ outline: "none", boxShadow: "none" }}
               />
               <button
                 type="button"
                 onClick={() => removeField(i)}
-                className="h-7 w-7 rounded-md bg-[var(--destructive)]/10 flex items-center justify-center text-[var(--destructive)] shrink-0 hover:bg-[var(--destructive)]/20 transition-opacity"
-                title="Remove question"
+                className="h-7 w-7 rounded-md bg-[var(--destructive)]/10 flex items-center justify-center text-[var(--destructive)] shrink-0 hover:bg-[var(--destructive)]/20"
               >
                 <X className="h-3 w-3" />
               </button>

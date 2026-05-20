@@ -1,4 +1,5 @@
-"use client"
+// hooks/useStore.ts
+"use client";
 import { ReactNode, createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useUserContextData } from "../context/userData";
 import { usePathname } from "next/navigation";
@@ -10,6 +11,9 @@ export interface Student {
   className: string;
   regNumber?: string;
   paid?: boolean;
+  paidAmount?: number;
+  paidAt?: string;
+  parentName?: string;
 }
 
 export interface FeeItem {
@@ -89,6 +93,7 @@ interface StoreContextType {
   withdrawFromPage: (pageId: string, amount: number) => Promise<any>;
   addPage: (page: PaymentPage) => void;
   refreshPages: () => Promise<void>;
+  updatePage: (id: string, pageData: any) => Promise<any>;
 }
 
 const StoreContext = createContext<StoreContextType>({
@@ -101,6 +106,7 @@ const StoreContext = createContext<StoreContextType>({
   withdrawFromPage: async () => {},
   addPage: () => {},
   refreshPages: async () => {},
+  updatePage: async () => {},
 });
 
 export const useStore = () => useContext(StoreContext);
@@ -114,13 +120,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
   // Helper function to check if current route is dashboard/services/payment
   const shouldFetchPages = useCallback(() => {
-    // Check if the current path includes dashboard/services/payment
     return pathname?.includes('/dashboard/services/payment') || 
            pathname?.includes('/dashboard/services/payment/');
   }, [pathname]);
 
   const fetchPages = useCallback(async () => {
-    // Only fetch if we're on a page that includes dashboard/services/payment
     if (!shouldFetchPages()) {
       console.log("Skipping API call - not on dashboard/services/payment page. Current path:", pathname);
       setLoading(false);
@@ -155,7 +159,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   }, [shouldFetchPages, pathname]);
 
   const refreshPages = useCallback(async () => {
-    // Only refresh if we're on a page that includes dashboard/services/payment
     if (!shouldFetchPages()) {
       console.log("Skipping refresh - not on dashboard/services/payment page");
       return;
@@ -203,13 +206,51 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
       console.log("Page created successfully:", data);
       
-      // Refresh the pages list after creation
       await refreshPages();
       
       return data;
       
     } catch (error) {
       console.error("Error in createPage:", error);
+      throw error;
+    }
+  };
+  
+  const updatePage = async (id: string, pageData: any) => {
+    console.log("Updating page:", id, pageData);
+
+    try {
+      const response = await fetch(`/api/payment-page/update/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(pageData),
+      });
+
+      const rawResponse = await response.text();
+      console.log("Raw response:", rawResponse);
+      
+      let data;
+      try {
+        data = JSON.parse(rawResponse);
+      } catch (e) {
+        console.error("Failed to parse JSON:", e);
+        throw new Error("Invalid response from server");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to update page: ${response.status}`);
+      }
+
+      console.log("Page updated successfully:", data);
+      
+      await refreshPages();
+      
+      return data;
+      
+    } catch (error) {
+      console.error("Error in updatePage:", error);
       throw error;
     }
   };
@@ -270,11 +311,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     setPages((prev) => [page, ...prev]);
   };
 
-  // Fetch pages on mount and when the window gets focus, but only on allowed routes
   useEffect(() => {
     fetchPages();
     
-    // Optional: Refetch when window gets focus (tab becomes active)
     const handleFocus = () => {
       console.log("Window focused, checking if should refresh pages...");
       if (shouldFetchPages()) {
@@ -292,14 +331,10 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [fetchPages, shouldFetchPages]);
 
-  // Also re-fetch when pathname changes
   useEffect(() => {
     if (shouldFetchPages() && initialFetchDone) {
-      
-      
       fetchPages();
     } else if (!shouldFetchPages() && !initialFetchDone) {
-      // If not on the right page and initial fetch hasn't been done, just set loading to false
       setLoading(false);
       setInitialFetchDone(true);
     }
@@ -317,6 +352,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         withdrawFromPage,
         addPage,
         refreshPages,
+        updatePage,
       }}
     >
       {children}
