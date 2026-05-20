@@ -1,5 +1,4 @@
 // app/dashboard/services/payment/create/page.tsx
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -22,6 +21,7 @@ import {
   Image as ImageIcon,
   CheckCircle,
   Copy,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -193,6 +193,47 @@ const getPlaceholderText = (
   );
 };
 
+// Function to validate title for virtual account naming (matches backend logic)
+const validateTitleForVirtualAccount = (title: string, className?: string): { isValid: boolean; message: string; cleanedName: string } => {
+  // Combine class name and title for school pages
+  let fullName = title;
+  if (className && className.trim()) {
+    fullName = `${className} ${title}`;
+  }
+  
+  // Clean the name (same logic as backend)
+  let cleaned = fullName.toUpperCase();
+  // Remove special characters but keep spaces
+  cleaned = cleaned.replace(/[^A-Z0-9\s]/g, '');
+  // Replace multiple spaces with single space
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  const length = cleaned.length;
+  
+  // Nomba requires account name between 8-64 characters
+  if (length < 8) {
+    return {
+      isValid: false,
+      message: `⚠️ Virtual account name will be "${cleaned}" (${length} chars). Minimum 8 characters required. Please make your title longer.`,
+      cleanedName: cleaned
+    };
+  }
+  
+  if (length > 64) {
+    return {
+      isValid: false,
+      message: `⚠️ Virtual account name will be "${cleaned.substring(0, 50)}..." (${length} chars). Maximum 64 characters allowed. Please shorten your title.`,
+      cleanedName: cleaned.substring(0, 64)
+    };
+  }
+  
+  return {
+    isValid: true,
+    message: `✅ Virtual account name will be "${cleaned}" (${length} chars)`,
+    cleanedName: cleaned
+  };
+};
+
 // Trigger confetti animation
 const triggerConfetti = () => {
   confetti({
@@ -250,6 +291,9 @@ const CreatePage = () => {
   const [dynamicId, setDynamicId] = useState(() =>
     Math.floor(100 + Math.random() * 900).toString(),
   );
+  
+  // Virtual account name validation state
+  const [titleValidation, setTitleValidation] = useState<{ isValid: boolean; message: string }>({ isValid: true, message: "" });
 
   // Image drag adjustment states for cover image preview
   const [imagePosition, setImagePosition] = useState({ x: 50, y: 50 });
@@ -338,6 +382,16 @@ const CreatePage = () => {
     feePercentage: 2,
     feeCap: 2000,
   });
+
+  // Validate title whenever title or school class changes
+  useEffect(() => {
+    if (form.title) {
+      const validation = validateTitleForVirtualAccount(form.title, pageType === "school" ? schoolClass : undefined);
+      setTitleValidation(validation);
+    } else {
+      setTitleValidation({ isValid: true, message: "" });
+    }
+  }, [form.title, schoolClass, pageType]);
 
   // Drag and drop handlers for cover image
   const handleDragEnter = (e: React.DragEvent) => {
@@ -578,6 +632,10 @@ const CreatePage = () => {
 
   const canCreate = () => {
     if (!form.title.trim() || !pageType) return false;
+    
+    // Check title validation for virtual account
+    if (!titleValidation.isValid) return false;
+    
     if (pageType === "school") {
       const hasValidFeeItems =
         feeBreakdown.length > 0 && feeBreakdown.some((item) => item.amount > 0);
@@ -1027,7 +1085,7 @@ const CreatePage = () => {
                   </div>
                 </div>
 
-                {/* Title */}
+                {/* Title with Real-time Validation */}
                 <div>
                   <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
                     Page Title *
@@ -1038,11 +1096,34 @@ const CreatePage = () => {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, title: e.target.value }))
                     }
-                    className="h-12 text-base border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                    className={`h-12 text-base border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${
+                      !titleValidation.isValid && form.title ? "border-red-500 focus:ring-red-500" : ""
+                    }`}
                     style={{ outline: "none", boxShadow: "none" }}
                   />
+                  
+                  {/* Real-time validation message */}
+                  {form.title && (
+                    <div className={`mt-2 text-xs flex items-start gap-2 p-2 rounded-lg ${
+                      titleValidation.isValid 
+                        ? "bg-green-50 text-green-700 border border-green-200" 
+                        : "bg-red-50 text-red-700 border border-red-200"
+                    }`}>
+                      {titleValidation.isValid ? (
+                        <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      )}
+                      <span className="flex-1">{titleValidation.message}</span>
+                    </div>
+                  )}
+                  
                   <p className="text-xs text-(--text-secondary) mt-1">
                     Example: {getPlaceholderText(pageType, "title")}
+                  </p>
+                  <p className="text-xs text-(--text-secondary) mt-1">
+                    ℹ️ This title will be used as your virtual account name. Only letters, numbers, and spaces are allowed.
+                    {pageType === "school" && schoolClass && " The class name will be included automatically."}
                   </p>
                 </div>
 
@@ -1465,101 +1546,99 @@ const CreatePage = () => {
         </div>
       </div>
 
-    <AnimatePresence>
-  {showSuccess && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
-      onClick={() => setShowSuccess(false)}
-    >
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.8, opacity: 0 }}
-        className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg lg:max-w-xl w-full text-center shadow-2xl border border-[var(--border-color)] squircle-lg mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">🎉</div>
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">
-          Payment Page Created!
-        </h2>
-        <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
-          Your page is now live and ready to collect payments.
-        </p>
-
-        <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-[var(--border-color)] squircle-lg">
-          <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">
-            Your Payment Link:
-          </Label>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <div className="flex items-center gap-2 flex-1 bg-[var(--bg-primary)] rounded-lg p-2 sm:p-3 border border-[var(--border-color)]">
-              <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
-              <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">
-                {pageUrl}
-              </code>
-            </div>
-            <button
-              onClick={copyPageUrl}
-              className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0"
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
+            onClick={() => setShowSuccess(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg lg:max-w-xl w-full text-center shadow-2xl border border-[var(--border-color)] squircle-lg mx-4"
+              onClick={(e) => e.stopPropagation()}
             >
-              {copied ? (
-                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)]" />
-              ) : (
-                <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)]" />
-              )}
-              <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-ink)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap squircle-sm">
-                {copied ? "Copied!" : "Copy link"}
-              </span>
-            </button>
-          </div>
-          {copied && (
-            <p className="text-xs text-[var(--color-lemon-green)] mt-2 text-center animate-pulse">
-              ✓ Link copied to clipboard!
-            </p>
-          )}
-        </div>
+              <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">🎉</div>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">
+                Payment Page Created!
+              </h2>
+              <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
+                Your page is now live and ready to collect payments.
+              </p>
 
-        <div className="flex flex-col sm:flex-row gap-3">
-  <Button
-    variant="outline"
-    className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
-    onClick={() => {
-      setShowSuccess(false);
-     
-      const previewUrl = pageUrl; 
-      window.open(previewUrl, '_blank');
-     
-      if (typeof previewPage === 'function') {
-        previewPage();
-      }
-    }}
-  >
-    Preview Page
-  </Button>
-  <Button
-    variant="default"
-    className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
-    onClick={() => {
-      setShowSuccess(false);
-      router.push("/dashboard/services/payment/dashboard");
-    }}
-  >
-    Go to Dashboard
-  </Button>
-</div>
+              <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-[var(--border-color)] squircle-lg">
+                <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">
+                  Your Payment Link:
+                </Label>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="flex items-center gap-2 flex-1 bg-[var(--bg-primary)] rounded-lg p-2 sm:p-3 border border-[var(--border-color)]">
+                    <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
+                    <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">
+                      {pageUrl}
+                    </code>
+                  </div>
+                  <button
+                    onClick={copyPageUrl}
+                    className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0"
+                  >
+                    {copied ? (
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)]" />
+                    ) : (
+                      <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)]" />
+                    )}
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-ink)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap squircle-sm">
+                      {copied ? "Copied!" : "Copy link"}
+                    </span>
+                  </button>
+                </div>
+                {copied && (
+                  <p className="text-xs text-[var(--color-lemon-green)] mt-2 text-center animate-pulse">
+                    ✓ Link copied to clipboard!
+                  </p>
+                )}
+              </div>
 
-        <button
-          onClick={() => setShowSuccess(false)}
-          className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-        >
-          Close
-        </button>
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    const previewUrl = pageUrl; 
+                    window.open(previewUrl, '_blank');
+                    if (typeof previewPage === 'function') {
+                      previewPage();
+                    }
+                  }}
+                >
+                  Preview Page
+                </Button>
+                <Button
+                  variant="default"
+                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    router.push("/dashboard/services/payment/dashboard");
+                  }}
+                >
+                  Go to Dashboard
+                </Button>
+              </div>
+
+              <button
+                onClick={() => setShowSuccess(false)}
+                className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
