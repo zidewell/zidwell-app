@@ -59,7 +59,6 @@ export async function isBVNVerified(userId: string): Promise<boolean> {
 
 /**
  * Get user's BVN by filtering virtual accounts with accountRef = userId
- * Uses the POST /v1/accounts/virtual/list endpoint
  */
 export async function getUserBVNFromNomba(userId: string): Promise<string | null> {
   try {
@@ -71,7 +70,6 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
 
     console.log(`🔍 Searching for user's virtual account with accountRef: ${userId}`);
     
-    // Use the list endpoint to filter by accountRef (which is the userId)
     const response = await fetch(
       `${process.env.NOMBA_URL}/v1/accounts/virtual/list`,
       {
@@ -127,19 +125,20 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
 
 /**
  * Clean account name for Nomba API - only allows letters, numbers, and spaces
- * No special characters, no underscores
  */
 function cleanAccountName(name: string): string {
-  // Remove any special characters except spaces
-  let cleaned = name
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s]/g, '') // Remove special chars, keep letters, numbers, spaces
-    .replace(/\s+/g, ' ')        // Replace multiple spaces with single space
-    .trim();
+  // First, trim and convert to uppercase
+  let cleaned = name.toUpperCase().trim();
   
-  // Ensure minimum length (Nomba likely requires at least 3 characters)
+  // Replace multiple spaces with single space
+  cleaned = cleaned.replace(/\s+/g, ' ');
+  
+  // Remove any special characters (keep letters, numbers, spaces)
+  cleaned = cleaned.replace(/[^A-Z0-9\s]/g, '');
+  
+  // Ensure minimum length
   if (cleaned.length < 3) {
-    cleaned = `PAGE_${Date.now()}`;
+    cleaned = `PAGE${Date.now().toString().slice(-8)}`;
   }
   
   // Maximum 50 characters
@@ -153,7 +152,6 @@ function cleanAccountName(name: string): string {
 
 /**
  * Create a dedicated virtual account for a payment page
- * This is SEPARATE from the user's wallet virtual account
  */
 export async function createPaymentPageVirtualAccount(
   paymentPageId: string,
@@ -171,11 +169,11 @@ export async function createPaymentPageVirtualAccount(
     let accountName = cleanAccountName(paymentPageTitle);
     
     // Create unique account reference using payment page ID
-    // Use a simple alphanumeric reference without special chars
     const shortId = paymentPageId.replace(/-/g, '').substring(0, 15);
     const accountRef = `PP${shortId}${Date.now().toString().slice(-6)}`;
 
-    console.log(`🏦 Creating NEW virtual account for payment page: ${paymentPageTitle}`);
+    console.log(`🏦 Creating NEW virtual account for payment page`);
+    console.log(`   Original Name: ${paymentPageTitle}`);
     console.log(`   Account Name: ${accountName}`);
     console.log(`   Account Ref: ${accountRef}`);
     console.log(`   Using Merchant's BVN: ${userBVN.substring(0, 4)}****`);
@@ -227,7 +225,7 @@ export async function createPaymentPageVirtualAccount(
 }
 
 /**
- * Verify if a virtual account exists for a user (for BVN verification check)
+ * Verify if a virtual account exists for a user
  */
 export async function verifyUserVirtualAccountExists(userId: string): Promise<boolean> {
   try {

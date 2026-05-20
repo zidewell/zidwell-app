@@ -200,6 +200,16 @@ export async function POST(request: Request) {
       finalPrice = finalMetadata.feeBreakdown.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
     }
 
+    // ========== BUILD VIRTUAL ACCOUNT NAME WITH CLASS/GROUP NAME ==========
+    let virtualAccountName = title;
+    
+    // For school pages, include the class/group name
+    if (pageType === "school" && metadata?.className) {
+      virtualAccountName = `${metadata.className} ${title}`;
+    }
+    
+    console.log(`📝 Virtual account name: ${virtualAccountName}`);
+
     // Generate temporary ID for virtual account
     const tempPageId = crypto.randomUUID();
     
@@ -208,7 +218,7 @@ export async function POST(request: Request) {
     
     const virtualAccount = await createPaymentPageVirtualAccount(
       tempPageId,
-      title,
+      virtualAccountName,  // Pass the enhanced name with class
       userBVN
     );
     
@@ -236,6 +246,7 @@ export async function POST(request: Request) {
 
     // ========== STEP 4: CREATE PAYMENT PAGE IN DATABASE ==========
     console.log("💾 Step 4: Saving payment page to database...");
+    console.log("Cover Image URL being saved:", coverImage);
     
     const { data: page, error: pageError } = await supabase
       .from("payment_pages")
@@ -244,7 +255,7 @@ export async function POST(request: Request) {
         title,
         slug,
         description: description || "",
-        cover_image: coverImage || null,
+        cover_image: coverImage || null,  // Make sure this is saved correctly
         logo: logo || null,
         product_images: productImages || [],
         price_type: priceType,
@@ -272,12 +283,13 @@ export async function POST(request: Request) {
     }
 
     console.log(`✅ Payment page created successfully: ${page.id}`);
+    console.log(`✅ Cover image saved: ${page.cover_image}`);
 
     // ========== STEP 5: UPDATE VIRTUAL ACCOUNT REFERENCE ==========
     const updatedVirtualAccount = {
       ...finalMetadata.virtual_account,
       paymentPageId: page.id,
-      accountRef: `PP-${page.id.substring(0, 20)}`,
+      accountRef: `PP${page.id.replace(/-/g, '').substring(0, 15)}${Date.now().toString().slice(-6)}`,
     };
     
     await supabase
@@ -294,6 +306,7 @@ export async function POST(request: Request) {
     console.log(`📱 Payment Page Virtual Account: ${virtualAccount.accountNumber}`);
     console.log(`🏦 Bank: ${virtualAccount.bankName}`);
     console.log(`📄 Page Slug: ${slug}`);
+    console.log(`🖼️ Cover Image: ${page.cover_image || 'No cover image'}`);
 
     const responseData = {
       success: true,
@@ -310,6 +323,7 @@ export async function POST(request: Request) {
         title: page.title,
         slug: page.slug,
         pageType: page.page_type,
+        coverImage: page.cover_image,
       }
     };
 

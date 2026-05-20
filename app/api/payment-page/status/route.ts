@@ -1,19 +1,22 @@
-import { NextRequest, NextResponse } from "next/server";
+// app/api/payment-page/public/status/route.ts
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const reference = searchParams.get("reference");
+    const url = new URL(request.url);
+    const reference = url.searchParams.get("reference");
 
     if (!reference) {
       return NextResponse.json({ error: "Reference required" }, { status: 400 });
     }
+
+    console.log(`🔍 Checking payment status for reference: ${reference}`);
 
     const { data: payment, error } = await supabase
       .from("payment_page_payments")
@@ -21,9 +24,16 @@ export async function GET(request: NextRequest) {
       .eq("order_reference", reference)
       .maybeSingle();
 
-    if (error || !payment) {
+    if (error) {
+      console.error("Error fetching payment:", error);
+      return NextResponse.json({ error: "Failed to fetch payment" }, { status: 500 });
+    }
+
+    if (!payment) {
       return NextResponse.json({ error: "Payment not found" }, { status: 404 });
     }
+
+    console.log(`✅ Payment status: ${payment.status}`);
 
     return NextResponse.json({
       success: true,

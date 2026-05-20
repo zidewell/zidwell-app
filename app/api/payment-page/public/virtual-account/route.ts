@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       .single();
 
     if (pageError || !page) {
+      console.error("Page not found:", pageError);
       return NextResponse.json({ error: "Payment page not found" }, { status: 404 });
     }
 
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
         orderReference: orderReference,
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       },
-      instruction: `Please transfer exactly ₦${totalAmount.toLocaleString()} to the account above. Your payment will be confirmed automatically within minutes.`,
+      instruction: `Please transfer exactly ₦${totalAmount.toLocaleString()} to the account above.`,
       paymentId: payment.id,
     });
   } catch (error: any) {

@@ -1,5 +1,5 @@
 // app/api/payment-page/public/[slug]/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -8,12 +8,13 @@ const supabase = createClient(
 );
 
 export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: Request,
+  { params }: { params: { slug: string } }
 ) {
   try {
-     const slug = (await params).id;
- 
+    const { slug } = params;
+
+    console.log(`🔍 Fetching payment page with slug: ${slug}`);
 
     const { data: page, error } = await supabase
       .from("payment_pages")
@@ -23,11 +24,14 @@ export async function GET(
       .single();
 
     if (error || !page) {
+      console.error("❌ Page not found:", error);
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
     }
 
-    // Return page with virtual account info
-    return NextResponse.json({
+    console.log(`✅ Page found: ${page.title}`);
+
+    // Return page with virtual account info from metadata
+    const response = {
       page: {
         id: page.id,
         title: page.title,
@@ -43,10 +47,16 @@ export async function GET(
         pageType: page.page_type,
         metadata: page.metadata,
         virtualAccount: page.metadata?.virtual_account || null,
+        pageViews: page.page_views,
+        totalPayments: page.total_payments,
+        pageBalance: page.page_balance,
+        totalRevenue: page.total_revenue,
       }
-    });
+    };
+
+    return NextResponse.json(response);
   } catch (error: any) {
-    console.error("Error:", error);
+    console.error("Error fetching payment page:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
