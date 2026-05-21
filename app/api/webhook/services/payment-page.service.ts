@@ -5,7 +5,7 @@ import { sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-p
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 const baseUrl =
@@ -32,10 +32,19 @@ type ServiceResult =
       credited_amount?: number;
       new_balance?: number | null;
       payment_id?: string;
+      gross_amount?: number;
+      nomba_fee?: number;
+      app_fee?: number;
+      total_fee?: number;
+      net_credit?: number;
     }
   | { error: string; status?: number };
 
-// Send notification to merchant
+function calculateAppFee(amount: number): number {
+  const FEE_PERCENTAGE = 0.02; // 2%
+  return amount * FEE_PERCENTAGE;
+}
+
 async function sendPaymentPageNotificationEmail(
   creatorEmail: string,
   pageTitle: string,
@@ -43,28 +52,35 @@ async function sendPaymentPageNotificationEmail(
   customerName: string,
   customerEmail: string,
   narration: string,
-  fee?: number,
+  nombaFee: number,
+  appFee: number,
 ): Promise<void> {
   if (!creatorEmail || !creatorEmail.includes('@')) return;
+  
+  const totalFee = nombaFee + appFee;
+  const netAmount = amount - totalFee;
   
   try {
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: creatorEmail,
-      subject: `💰 Payment Received for "${pageTitle}" - ₦${amount.toLocaleString()}`,
+      subject: `💰 Payment Received for "${pageTitle}" - ₦${netAmount.toLocaleString()}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
           <h3 style="color: #22c55e;">✅ Payment Received! 🏦</h3>
           <p>You've received a bank transfer payment for <strong>${pageTitle}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-            ${fee ? `<p><strong>Fee:</strong> ₦${fee.toLocaleString()}</p>` : ''}
+            <p><strong>Gross Amount:</strong> ₦${amount.toLocaleString()}</p>
+            <p><strong>Nomba Fee:</strong> - ₦${nombaFee.toLocaleString()}</p>
+            <p><strong>Platform Fee (2%):</strong> - ₦${appFee.toLocaleString()}</p>
+            <p><strong>Total Fees:</strong> - ₦${totalFee.toLocaleString()}</p>
+            <p><strong>Net Amount Credited:</strong> ₦${netAmount.toLocaleString()}</p>
             <p><strong>Sender:</strong> ${customerName}</p>
             <p><strong>Email:</strong> ${customerEmail || 'Not provided'}</p>
             <p><strong>Narration:</strong> ${narration || 'Not provided'}</p>
           </div>
-          <p>Funds added to your page balance.</p>
+          <p>Funds added to your page balance after fee deductions.</p>
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
         </div>
       `,
@@ -74,18 +90,67 @@ async function sendPaymentPageNotificationEmail(
   }
 }
 
-// Extract payment page ID from virtual account reference
-function extractPaymentPageId(aliasAccountReference: string): string | null {
-  if (!aliasAccountReference) return null;
-  // Pattern for PP followed by alphanumeric
-  const match = aliasAccountReference.match(/^PP([a-f0-9]+)/i);
-  if (match) return match[1];
-  return null;
+async function updateStudentPaidStatus(
+  paymentPageId: string,
+  studentName: string,
+  parentName: string,
+  amount: number,
+): Promise<void> {
+  try {
+    const { data: paymentPage, error: fetchError } = await supabase
+      .from("payment_pages")
+      .select("metadata")
+      .eq("id", paymentPageId)
+      .single();
+
+    if (fetchError || !paymentPage?.metadata?.students) {
+      return;
+    }
+
+    const updatedStudents = paymentPage.metadata.students.map((student: any) => {
+      const existingStudentName = student.name || student.childName || student.studentName;
+      if (existingStudentName?.toLowerCase().trim() === studentName?.toLowerCase().trim()) {
+        const currentPaidAmount = student.paidAmount || 0;
+        const newPaidAmount = currentPaidAmount + amount;
+        const totalAmount = student.totalAmount || paymentPage.metadata.totalAmountPerStudent || 0;
+        
+        return {
+          ...student,
+          paid: newPaidAmount >= totalAmount,
+          paidAt: new Date().toISOString(),
+          paidAmount: newPaidAmount,
+          parentName: parentName,
+          lastPaymentDate: new Date().toISOString(),
+        };
+      }
+      return student;
+    });
+
+    await supabase
+      .from("payment_pages")
+      .update({
+        metadata: {
+          ...paymentPage.metadata,
+          students: updatedStudents,
+        },
+      })
+      .eq("id", paymentPageId);
+    
+    console.log(`✅ Updated paid status for student: ${studentName}`);
+  } catch (error) {
+    console.error("Error updating student paid status:", error);
+  }
 }
 
-// ============================================================
-// PROCESS PAYMENT PAGE VIRTUAL ACCOUNT
-// ============================================================
+function extractPaymentPageId(aliasAccountReference: string): string | null {
+  if (!aliasAccountReference) return null;
+  let cleanRef = aliasAccountReference.replace(/^PP/i, '');
+  if (cleanRef.length === 32) {
+    return cleanRef;
+  }
+  return cleanRef;
+}
+
 export async function processPaymentPageVirtualAccount(
   payload: any,
   params: PaymentPageVirtualAccountParams,
@@ -102,28 +167,58 @@ export async function processPaymentPageVirtualAccount(
   console.log("🏦 ========== PROCESSING PAYMENT PAGE VIRTUAL ACCOUNT ==========");
   console.log("Transaction ID:", nombaTransactionId);
   console.log("Virtual Account Ref:", aliasAccountReference);
-  console.log("Amount:", transactionAmount);
-  console.log("Transaction Data:", JSON.stringify(tx, null, 2));
+  console.log("Gross Amount:", transactionAmount);
+  console.log("Nomba Fee:", nombaFee);
 
-  // Extract payment page ID
-  const shortPageId = extractPaymentPageId(aliasAccountReference);
-  if (!shortPageId) {
-    return { error: "Invalid virtual account reference", status: 400 };
+  const appFee = calculateAppFee(transactionAmount);
+  const totalFee = nombaFee + appFee;
+  const netAmount = transactionAmount - totalFee;
+
+  console.log(`💰 Fee Breakdown:`);
+  console.log(`   Nomba Fee: ₦${nombaFee.toLocaleString()}`);
+  console.log(`   App Fee (2%): ₦${appFee.toLocaleString()}`);
+  console.log(`   Total Fees: ₦${totalFee.toLocaleString()}`);
+  console.log(`   Net to Merchant: ₦${netAmount.toLocaleString()}`);
+
+  const virtualAccountNumber = tx.aliasAccountNumber;
+  let paymentPage = null;
+
+  if (virtualAccountNumber) {
+    const { data: foundPage, error: pageError } = await supabase
+      .from("payment_pages")
+      .select("id, title, user_id, page_type, metadata")
+      .eq("metadata->virtual_account->>accountNumber", virtualAccountNumber)
+      .maybeSingle();
+    
+    if (foundPage) {
+      paymentPage = foundPage;
+      console.log("✅ Found payment page by account number:", paymentPage.id);
+    }
   }
 
-  // Find payment page
-  const { data: paymentPage, error: pageError } = await supabase
-    .from("payment_pages")
-    .select("id, title, user_id, page_type, metadata")
-    .ilike("id", `${shortPageId}%`)
-    .single();
+  if (!paymentPage) {
+    const shortPageId = extractPaymentPageId(aliasAccountReference);
+    if (shortPageId) {
+      const { data: foundPage, error: pageError } = await supabase
+        .from("payment_pages")
+        .select("id, title, user_id, page_type, metadata")
+        .ilike("id", `%${shortPageId.substring(0, 15)}%`)
+        .maybeSingle();
+      
+      if (foundPage) {
+        paymentPage = foundPage;
+        console.log("✅ Found payment page by ID match:", paymentPage.id);
+      }
+    }
+  }
 
-  if (pageError || !paymentPage) {
-    console.error("Payment page not found:", shortPageId);
+  if (!paymentPage) {
+    console.error("❌ Payment page not found for reference:", aliasAccountReference);
     return { error: "Payment page not found", status: 404 };
   }
 
-  // Check for duplicate
+  console.log("✅ Payment page found:", paymentPage.title);
+
   const { data: existing } = await supabase
     .from("payment_page_payments")
     .select("id")
@@ -134,20 +229,14 @@ export async function processPaymentPageVirtualAccount(
     return { success: true, message: "Already processed" };
   }
 
-  // Extract payment details from narration
   const narration = tx?.narration || tx?.senderName || "";
   const senderName = tx?.senderName || customer?.name || "Bank Transfer Customer";
   const customerEmail = customer?.email || null;
 
-  console.log("📝 Narration:", narration);
-  console.log("👤 Sender:", senderName);
-
-  // Try to find matching student from narration (for school pages)
   let matchedStudentName = null;
   let matchedParentName = null;
   const students = paymentPage.metadata?.students || [];
   
-  // Check if narration contains any student name
   for (const student of students) {
     const studentName = student.name || student.childName;
     if (studentName && narration.toLowerCase().includes(studentName.toLowerCase())) {
@@ -158,9 +247,7 @@ export async function processPaymentPageVirtualAccount(
     }
   }
 
-  // Create payment record
   const orderReference = `VA-${paymentPage.id.substring(0, 8)}-${Date.now()}`;
-  const netAmount = transactionAmount - nombaFee;
 
   const { data: payment, error: insertError } = await supabase
     .from("payment_page_payments")
@@ -168,7 +255,9 @@ export async function processPaymentPageVirtualAccount(
       payment_page_id: paymentPage.id,
       user_id: paymentPage.user_id,
       amount: transactionAmount,
-      fee: nombaFee,
+      fee: totalFee,
+      nomba_fee: nombaFee,
+      app_fee: appFee,
       net_amount: netAmount,
       status: "pending",
       customer_name: senderName,
@@ -180,6 +269,11 @@ export async function processPaymentPageVirtualAccount(
         bank_transaction_id: nombaTransactionId,
         matched_student: matchedStudentName,
         matched_parent: matchedParentName,
+        gross_amount: transactionAmount,
+        nomba_fee: nombaFee,
+        app_fee: appFee,
+        total_fee: totalFee,
+        net_credit: netAmount,
       },
     })
     .select()
@@ -190,7 +284,6 @@ export async function processPaymentPageVirtualAccount(
     return { error: "Failed to create payment", status: 500 };
   }
 
-  // Update payment to completed
   await supabase
     .from("payment_page_payments")
     .update({
@@ -201,27 +294,75 @@ export async function processPaymentPageVirtualAccount(
     })
     .eq("id", payment.id);
 
-  // Credit page balance
-  await supabase.rpc("increment_page_balance", {
-    p_page_id: paymentPage.id,
-    p_amount: netAmount,
-  });
+  const { data: newBalance, error: balanceError } = await supabase.rpc(
+    "increment_page_balance",
+    { p_page_id: paymentPage.id, p_amount: netAmount },
+  );
 
-  // Create transaction record
+  const finalBalance = !balanceError && typeof newBalance === "number" ? newBalance : null;
+
+  if (balanceError) {
+    console.error("❌ Failed to increment balance:", balanceError);
+    const { data: page } = await supabase
+      .from("payment_pages")
+      .select("page_balance")
+      .eq("id", paymentPage.id)
+      .single();
+    
+    if (page) {
+      const newBalanceValue = Number(page.page_balance) + netAmount;
+      await supabase
+        .from("payment_pages")
+        .update({ page_balance: newBalanceValue })
+        .eq("id", paymentPage.id);
+      console.log(`✅ Manually updated balance to ₦${newBalanceValue}`);
+    }
+  } else {
+    console.log(`✅ Credited ₦${netAmount} to page balance. New balance: ₦${newBalance}`);
+  }
+
   await supabase.from("transactions").insert({
     user_id: paymentPage.user_id,
     type: "credit",
     amount: transactionAmount,
-    fee: nombaFee,
+    fee: totalFee,
     net_amount: netAmount,
     status: "success",
     reference: `VA-${paymentPage.id}-${nombaTransactionId}`,
-    description: `Bank transfer for "${paymentPage.title}" from ${senderName}`,
+    description: `Bank transfer payment for "${paymentPage.title}" from ${senderName}`,
     channel: "payment_page_virtual_account",
-    sender: { name: senderName, email: customerEmail, narration: narration },
+    sender: { 
+      name: senderName, 
+      email: customerEmail, 
+      narration: narration,
+      gross_amount: transactionAmount,
+      nomba_fee: nombaFee,
+      app_fee: appFee,
+      total_fee: totalFee,
+      net_credit: netAmount,
+    },
+    receiver: {
+      user_id: paymentPage.user_id,
+      payment_page_id: paymentPage.id,
+    },
+    external_response: {
+      nomba_transaction_id: nombaTransactionId,
+      nomba_fee: nombaFee,
+      app_fee: appFee,
+      gross_amount: transactionAmount,
+      net_amount: netAmount,
+    },
   });
 
-  // Send receipt
+  if (matchedStudentName && paymentPage.page_type === "school") {
+    await updateStudentPaidStatus(
+      paymentPage.id,
+      matchedStudentName,
+      matchedParentName || senderName,
+      transactionAmount,
+    );
+  }
+
   if (customerEmail) {
     await sendPaymentPageReceiptWithPDF(
       customerEmail,
@@ -232,11 +373,18 @@ export async function processPaymentPageVirtualAccount(
       nombaTransactionId,
       "virtual_account",
       new Date().toISOString(),
-      { narration, matched_student: matchedStudentName },
+      { 
+        narration, 
+        matched_student: matchedStudentName,
+        gross_amount: transactionAmount,
+        nomba_fee: nombaFee,
+        app_fee: appFee,
+        total_fee: totalFee,
+        net_amount: netAmount,
+      },
     );
   }
 
-  // Send merchant notification
   const { data: creator } = await supabase
     .from("users")
     .select("email")
@@ -247,19 +395,34 @@ export async function processPaymentPageVirtualAccount(
     await sendPaymentPageNotificationEmail(
       creator.email,
       paymentPage.title,
-      netAmount,
+      transactionAmount,
       senderName,
       customerEmail || "",
       narration,
       nombaFee,
+      appFee,
     );
   }
 
+  console.log("🎉 ========== PAYMENT PROCESSING COMPLETED ==========");
+  console.log(`   Gross: ₦${transactionAmount.toLocaleString()}`);
+  console.log(`   Nomba Fee: -₦${nombaFee.toLocaleString()}`);
+  console.log(`   App Fee (2%): -₦${appFee.toLocaleString()}`);
+  console.log(`   Total Fees: -₦${totalFee.toLocaleString()}`);
+  console.log(`   Net Credited: ₦${netAmount.toLocaleString()}`);
+  console.log(`   Student: ${matchedStudentName || 'N/A'}`);
+
   return {
     success: true,
-    message: "Payment processed",
+    message: "Virtual account payment processed",
     credited_amount: netAmount,
+    new_balance: finalBalance,
     payment_id: payment.id,
+    gross_amount: transactionAmount,
+    nomba_fee: nombaFee,
+    app_fee: appFee,
+    total_fee: totalFee,
+    net_credit: netAmount,
   };
 }
 
