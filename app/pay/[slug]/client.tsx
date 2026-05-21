@@ -1,3 +1,4 @@
+// app/pay/[slug]/client.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -28,7 +29,7 @@ interface Student {
   parentName?: string;
   remainingBalance?: number;
   totalAmount?: number;
-  paidPercentage?: number;  // Add this property
+  paidPercentage?: number;
 }
 
 interface PaymentPage {
@@ -69,7 +70,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<PaymentOption>("full");
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  // Extract data from metadata
   const students = useMemo(() => {
     const rawStudents = page?.metadata?.students || [];
     return rawStudents.map((student: Student) => {
@@ -130,7 +130,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
   const getStudentPayAmount = (student: Student) => {
     const amountPerStudent = getAmountToPay();
-    // Only charge the remaining balance, not more
     return Math.min(amountPerStudent, student.remainingBalance || 0);
   };
 
@@ -220,7 +219,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      {/* Header */}
       <div className="bg-[var(--color-ink)] text-white sticky top-0 z-10">
         <div className="container py-4 flex items-center gap-3">
           <button onClick={() => router.back()} className="hover:opacity-80">
@@ -236,7 +234,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         </div>
       </div>
 
-      {/* Images Carousel */}
       {allImages.length > 0 && (
         <div className="relative bg-black/5">
           <img src={allImages[currentImage]} alt={page.title} className="w-full h-64 md:h-80 object-cover" />
@@ -258,9 +255,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         </div>
       )}
 
-      {/* Content */}
       <div className="max-w-lg mx-auto py-6 space-y-6 px-4 pb-32">
-        {/* Title */}
         <div>
           <h2 className="text-2xl font-bold text-[var(--text-primary)]">{page.title}</h2>
           {className && (
@@ -271,7 +266,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           {page.description && <p className="text-[var(--text-secondary)] text-sm mt-2">{page.description}</p>}
         </div>
 
-        {/* Fee Breakdown */}
         {page.pageType === "school" && feeBreakdown.length > 0 && (
           <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
             <h3 className="font-bold text-lg mb-4 text-[var(--text-primary)]">Fee Breakdown</h3>
@@ -288,7 +282,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           </div>
         )}
 
-        {/* Payment Options */}
         {canDoInstallments && (
           <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
             <h3 className="font-bold text-lg mb-4 text-[var(--text-primary)]">Payment Options</h3>
@@ -327,12 +320,10 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           </div>
         )}
 
-        {/* School Page - Student Selection with Progress Bar */}
         {page.pageType === "school" && (
           <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 space-y-4">
             <h3 className="font-bold text-lg text-[var(--text-primary)]">Select Students</h3>
             
-            {/* Partially Paid Students - Have some payment but not fully paid */}
             {students.filter((s: Student) => !s.paid && (s.paidAmount || 0) > 0).length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -376,7 +367,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                           </div>
                         </div>
                         
-                        {/* Progress Bar */}
                         <div className="mt-3">
                           <div className="flex justify-between text-xs text-[var(--text-secondary)] mb-1">
                             <span>Payment Progress</span>
@@ -394,7 +384,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                           </div>
                         </div>
                         
-                        {/* Installment Info */}
                         {selectedPaymentOption === "installment" && installmentInfo && (
                           <div className="mt-3 pt-2 border-t border-[var(--border-color)]">
                             <p className="text-xs text-[var(--color-accent-yellow)]">
@@ -409,7 +398,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               </div>
             )}
 
-            {/* Unpaid Students - No payment yet */}
             {students.filter((s: Student) => !s.paid && (s.paidAmount || 0) === 0).length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -451,7 +439,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                           </div>
                         </div>
                         
-                        {/* Installment Info */}
                         {selectedPaymentOption === "installment" && installmentInfo && (
                           <div className="mt-3 pt-2 border-t border-[var(--border-color)]">
                             <p className="text-xs text-[var(--color-accent-yellow)]">
@@ -466,7 +453,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               </div>
             )}
 
-            {/* Fully Paid Students - Cannot select */}
             {students.filter((s: Student) => s.paid === true || (s.remainingBalance && s.remainingBalance <= 0)).length > 0 && (
               <div className="mt-4">
                 <div className="flex items-center gap-2 mb-3">
@@ -523,7 +509,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           </div>
         )}
 
-        {/* Virtual Account Display */}
         {page.virtualAccount && (
           <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800">
             <div className="flex items-center gap-3 mb-4">
@@ -537,7 +522,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             </div>
 
             <div className="space-y-4">
-              {/* Bank Name */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">Bank Name</p>
                 <div className="flex items-center justify-between">
@@ -551,7 +535,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 </div>
               </div>
 
-              {/* Account Number */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">Account Number</p>
                 <div className="flex items-center justify-between">
@@ -565,7 +548,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 </div>
               </div>
 
-              {/* Account Name */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">Account Name</p>
                 <div className="flex items-center justify-between">
@@ -580,7 +562,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               </div>
             </div>
 
-            {/* Total Amount to Pay */}
             <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-xl text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Amount to Pay</p>
               <p className="text-3xl font-bold text-green-600 dark:text-green-400">
@@ -591,14 +572,8 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                   For {selectedStudents.size} student(s)
                 </p>
               )}
-              {selectedPaymentOption === "installment" && installmentInfo && selectedStudents.size > 0 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Installment payment: ₦{(totalForSelected / selectedStudents.size).toLocaleString()} per student
-                </p>
-              )}
             </div>
 
-            {/* Payment Instructions */}
             <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
@@ -614,7 +589,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               </div>
             </div>
 
-            {/* Copy All Button */}
             {totalForSelected > 0 && (
               <button
                 onClick={() => {

@@ -68,9 +68,20 @@ export async function GET(
       return NextResponse.json({ error: "Page not available" }, { status: 404 });
     }
 
+    // INCREMENT PAGE VIEWS - Add this here
+    const { error: viewError } = await supabase.rpc("increment_page_views", {
+      p_page_id: page.id,
+    });
+
+    if (viewError) {
+      console.error("❌ Error incrementing page views:", viewError);
+    } else {
+      console.log(`✅ Page views incremented for: ${page.title}`);
+    }
+
     console.log(`✅ API - Page found: ${page.title}`);
 
-    // Format the response
+    // Format the response with updated view count
     const response = {
       page: {
         id: page.id,
@@ -87,7 +98,7 @@ export async function GET(
         pageType: page.page_type,
         metadata: page.metadata || {},
         virtualAccount: page.metadata?.virtual_account || null,
-        pageViews: page.page_views || 0,
+        pageViews: (page.page_views || 0) + 1,
         totalPayments: page.total_payments || 0,
         pageBalance: Number(page.page_balance),
         totalRevenue: Number(page.total_revenue),
