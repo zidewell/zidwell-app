@@ -37,6 +37,7 @@ import {
   Edit2,
   RefreshCw,
   AlertCircle,
+  Ban,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore, isInvestmentType } from "@/app/hooks/useStore";
@@ -176,6 +177,7 @@ const PageDetail = () => {
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2000);
   };
+  
   useEffect(() => {
     const foundPage = pages.find((p) => p.id === id);
     setPage(foundPage);
@@ -289,16 +291,54 @@ const PageDetail = () => {
     return null;
   };
 
+  // Verify payment authenticity before allowing acknowledgment
+  const canAcknowledgePayment = (payment: any): { allowed: boolean; reason: string } => {
+    // Check if payment is completed
+    if (payment.status !== "completed") {
+      return { allowed: false, reason: "Payment not completed yet" };
+    }
+
+    // Check if payment has a valid Nomba transaction ID
+    if (!payment.nomba_transaction_id) {
+      return { allowed: false, reason: "No valid bank transaction reference" };
+    }
+
+    // Check if already acknowledged
+    if (isPaymentAcknowledged(payment)) {
+      return { allowed: false, reason: "Already acknowledged" };
+    }
+
+    // Check if payment has customer name (must have a real payer)
+    if (!payment.customer_name || payment.customer_name === "Anonymous") {
+      return { allowed: false, reason: "Missing payer information" };
+    }
+
+    // Check if payment has a narration (bank transfer reference)
+    const narration = getNarration(payment);
+    if (!narration) {
+      return { allowed: false, reason: "No bank narration reference" };
+    }
+
+    return { allowed: true, reason: "" };
+  };
+
   // Acknowledge payment and mark student as paid
   const acknowledgePaymentAndMarkStudent = async (
     payment: any,
     studentName: string,
   ) => {
+    // Verify before proceeding
+    const verification = canAcknowledgePayment(payment);
+    if (!verification.allowed) {
+      alert(`Cannot mark as paid: ${verification.reason}`);
+      return;
+    }
+
     setAcknowledgingPayment(payment.id);
     setUpdatingStudent(true);
 
     try {
-      // Update payment metadata
+      // Update payment metadata with acknowledgment
       const { error: updatePaymentError } = await supabase
         .from("payment_page_payments")
         .update({
@@ -307,6 +347,7 @@ const PageDetail = () => {
             acknowledged_student: studentName,
             acknowledged_at: new Date().toISOString(),
             acknowledged_by: "merchant",
+            verified: true,
           },
         })
         .eq("id", payment.id);
@@ -327,8 +368,11 @@ const PageDetail = () => {
             paidAt: new Date().toISOString(),
             paidAmount: newPaidAmount,
             parentName: payment.customer_name,
+            parentEmail: payment.customer_email,
+            transactionId: payment.nomba_transaction_id,
             paymentId: payment.id,
             lastPaymentDate: new Date().toISOString(),
+            verified: true,
           };
         }
         return student;
@@ -348,7 +392,7 @@ const PageDetail = () => {
 
       // Refresh data
       await loadPageDetails();
-      alert(`✅ Successfully marked "${studentName}" as paid!`);
+      alert(`✅ Successfully verified and marked "${studentName}" as paid!`);
     } catch (error) {
       console.error("Error acknowledging payment:", error);
       alert("Failed to mark student as paid. Please try again.");
@@ -358,8 +402,30 @@ const PageDetail = () => {
     }
   };
 
-  // Toggle student paid status directly
+  // Toggle student paid status directly (with verification)
   const toggleStudentPaidStatus = async (student: any, isPaid: boolean) => {
+    // If trying to mark as paid, verify that there's a valid payment record
+    if (isPaid) {
+      // Check if there's a completed payment for this student
+      const hasValidPayment = stats.payments.some((payment: any) => {
+        const studentName =
+          student.name || student.childName || student.studentName;
+        const paymentStudentName = getStudentName(payment);
+        return (
+          payment.status === "completed" &&
+          payment.nomba_transaction_id &&
+          paymentStudentName?.toLowerCase() === studentName?.toLowerCase()
+        );
+      });
+
+      if (!hasValidPayment) {
+        alert(
+          "Cannot mark as paid: No verified bank transfer found for this student."
+        );
+        return;
+      }
+    }
+
     setUpdatingStudent(true);
 
     try {
@@ -374,6 +440,10 @@ const PageDetail = () => {
             paidAmount: isPaid
               ? s.paidAmount || s.totalAmount || page?.price || 0
               : 0,
+            ...(isPaid && {
+              verified: true,
+              verifiedAt: new Date().toISOString(),
+            }),
           };
         }
         return s;
@@ -634,9 +704,8 @@ const PageDetail = () => {
                 </p>
                 {isSchoolPage && (
                   <p className="text-xs text-(--text-secondary) mt-2">
-                    💡 <strong>Tip:</strong> When customers add student names in
-                    bank narration, they'll appear below for easy
-                    acknowledgment.
+                    💡 <strong>Tip:</strong> Only verified bank transfers can be
+                    marked as paid.
                   </p>
                 )}
               </div>
@@ -662,8 +731,12 @@ const PageDetail = () => {
                       payment.paid_at || payment.created_at,
                     );
                     const isCompleted =
-                      payment.status === "completed" ||
+                      payment.status === "completed" &&
                       payment.paid_at !== null;
+                    
+                    // Check if payment can be acknowledged
+                    const verification = canAcknowledgePayment(payment);
+                    const canMarkAsPaid = verification.allowed && !isAcknowledged;
 
                     return (
                       <div
@@ -710,7 +783,7 @@ const PageDetail = () => {
                                 </DropdownMenuItem>
                                 {isSchoolPage &&
                                   extractedStudent &&
-                                  !isAcknowledged && (
+                                  canMarkAsPaid && (
                                     <DropdownMenuItem
                                       className="cursor-pointer text-green-600"
                                       onClick={() =>
@@ -726,7 +799,7 @@ const PageDetail = () => {
                                       ) : (
                                         <CheckCircle2 className="h-3 w-3 mr-2" />
                                       )}
-                                      Mark "{extractedStudent}" as Paid
+                                      Verify & Mark "{extractedStudent}" as Paid
                                     </DropdownMenuItem>
                                   )}
                               </DropdownMenuContent>
@@ -742,41 +815,69 @@ const PageDetail = () => {
                                 ({payerEmail})
                               </span>
                             )}
-                            {isCompleted && (
+                            {isCompleted && payment.nomba_transaction_id && (
                               <span className="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
-                                Completed
+                                ✓ Verified Transfer
+                              </span>
+                            )}
+                            {!payment.nomba_transaction_id && (
+                              <span className="text-xs text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-0.5 rounded-full">
+                                ⚠ Pending Verification
                               </span>
                             )}
                           </div>
 
+                          {/* Verification Status */}
+                          {!verification.allowed && !isAcknowledged && (
+                            <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                              <Ban className="h-3 w-3 text-red-600 shrink-0" />
+                              <p className="text-xs text-red-700 flex-1">
+                                Cannot mark as paid: {verification.reason}
+                              </p>
+                            </div>
+                          )}
+
                           {/* Recipient Info for School Pages */}
                           {isSchoolPage &&
-                            extractedStudent &&
-                            !isAcknowledged && (
-                              <div className="flex items-center gap-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                                <AlertCircle className="h-3 w-3 text-yellow-600 shrink-0" />
-                                <p className="text-xs text-yellow-700 flex-1">
-                                  Detected student:{" "}
-                                  <strong>{extractedStudent}</strong>
-                                </p>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs border-yellow-300 text-yellow-700"
-                                  onClick={() =>
-                                    acknowledgePaymentAndMarkStudent(
-                                      payment,
-                                      extractedStudent,
-                                    )
-                                  }
-                                  disabled={updatingStudent}
-                                >
-                                  {acknowledgingPayment === payment.id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    "Mark as Paid"
+                            extractedStudent && (
+                              <div className={`p-2 rounded-lg ${
+                                canMarkAsPaid 
+                                  ? "bg-yellow-50 dark:bg-yellow-900/20"
+                                  : "bg-gray-50 dark:bg-gray-800/50"
+                              }`}>
+                                <div className="flex items-center gap-2">
+                                  <AlertCircle className={`h-3 w-3 ${
+                                    canMarkAsPaid ? "text-yellow-600" : "text-gray-400"
+                                  } shrink-0`} />
+                                  <p className="text-xs flex-1">
+                                    Detected student: <strong>{extractedStudent}</strong>
+                                  </p>
+                                  {canMarkAsPaid && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs border-yellow-300 text-yellow-700"
+                                      onClick={() =>
+                                        acknowledgePaymentAndMarkStudent(
+                                          payment,
+                                          extractedStudent,
+                                        )
+                                      }
+                                      disabled={updatingStudent}
+                                    >
+                                      {acknowledgingPayment === payment.id ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        "Verify & Mark as Paid"
+                                      )}
+                                    </Button>
                                   )}
-                                </Button>
+                                </div>
+                                {!canMarkAsPaid && !isAcknowledged && (
+                                  <p className="text-xs text-gray-500 mt-1 ml-5">
+                                    {verification.reason}
+                                  </p>
+                                )}
                               </div>
                             )}
 
@@ -809,7 +910,7 @@ const PageDetail = () => {
                             <div className="flex items-center gap-2 text-green-600">
                               <CheckCircle2 className="h-3 w-3" />
                               <p className="text-xs">
-                                ✓ Marked as paid for:{" "}
+                                ✓ Verified and marked as paid for:{" "}
                                 {payment.metadata?.acknowledged_student}
                               </p>
                             </div>
@@ -842,7 +943,7 @@ const PageDetail = () => {
                       {paidStudentsCount}
                     </div>
                     <div className="text-[10px] sm:text-xs text-(--text-secondary)">
-                      Paid
+                      Verified Paid
                     </div>
                   </div>
                   <div className="p-3 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 text-center">
@@ -858,7 +959,7 @@ const PageDetail = () => {
                       ₦{totalPaidAmount.toLocaleString()}
                     </div>
                     <div className="text-[10px] sm:text-xs text-(--text-secondary)">
-                      Total Paid
+                      Total Received
                     </div>
                   </div>
                 </div>
@@ -882,6 +983,16 @@ const PageDetail = () => {
                       const parentName = student.parentName;
                       const expectedAmount =
                         student.totalAmount || page.price || 0;
+                      
+                      // Check if there's a verified payment for this student
+                      const hasVerifiedPayment = stats.payments.some((payment: any) => {
+                        const paymentStudentName = getStudentName(payment);
+                        return (
+                          payment.status === "completed" &&
+                          payment.nomba_transaction_id &&
+                          paymentStudentName?.toLowerCase() === studentName?.toLowerCase()
+                        );
+                      });
 
                       return (
                         <div
@@ -889,6 +1000,8 @@ const PageDetail = () => {
                           className={`flex flex-col p-3 rounded-lg gap-2 transition-all ${
                             hasPaid
                               ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"
+                              : hasVerifiedPayment
+                              ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
                               : "bg-(--bg-secondary) border border-transparent"
                           }`}
                         >
@@ -896,14 +1009,25 @@ const PageDetail = () => {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <GraduationCap
-                                  className={`h-3 w-3 sm:h-4 sm:w-4 ${hasPaid ? "text-green-600" : "text-(--text-secondary)"}`}
+                                  className={`h-3 w-3 sm:h-4 sm:w-4 ${
+                                    hasPaid 
+                                      ? "text-green-600" 
+                                      : hasVerifiedPayment
+                                      ? "text-yellow-600"
+                                      : "text-(--text-secondary)"
+                                  }`}
                                 />
                                 <p className="font-medium text-xs sm:text-sm text-(--text-primary)">
                                   {studentName}
                                 </p>
                                 {hasPaid && (
                                   <span className="text-[10px] font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded-full">
-                                    Paid
+                                    ✓ Verified Paid
+                                  </span>
+                                )}
+                                {hasVerifiedPayment && !hasPaid && (
+                                  <span className="text-[10px] font-medium text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded-full">
+                                    Payment Detected - Awaiting Verification
                                   </span>
                                 )}
                               </div>
@@ -956,15 +1080,25 @@ const PageDetail = () => {
                                   onClick={() =>
                                     toggleStudentPaidStatus(student, true)
                                   }
-                                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 text-green-600 hover:bg-green-100 text-xs"
-                                  disabled={updatingStudent}
+                                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs ${
+                                    hasVerifiedPayment
+                                      ? "bg-green-50 text-green-600 hover:bg-green-100"
+                                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                  }`}
+                                  disabled={!hasVerifiedPayment || updatingStudent}
+                                  title={!hasVerifiedPayment ? "No verified payment found for this student" : ""}
                                 >
                                   <CheckCircle2 className="h-3 w-3" />
-                                  Mark Paid
+                                  Mark as Paid
                                 </button>
                               )}
                             </div>
                           </div>
+                          {!hasPaid && hasVerifiedPayment && (
+                            <p className="text-xs text-yellow-600 mt-1 ml-5">
+                              A verified bank transfer has been detected. Click "Mark as Paid" to confirm.
+                            </p>
+                          )}
                         </div>
                       );
                     })}
@@ -977,12 +1111,8 @@ const PageDetail = () => {
                     <p className="text-xs text-(--text-secondary) flex items-center gap-2">
                       <FileText className="h-3 w-3" />
                       {paidStudentsCount} of {students.length} students have
-                      paid ₦{totalPaidAmount.toLocaleString()}
-                      out of ₦
-                      {(
-                        students.length * (page.price || 0)
-                      ).toLocaleString()}{" "}
-                      expected.
+                      been verified and marked as paid. Total received: ₦
+                      {totalPaidAmount.toLocaleString()}
                     </p>
                   </div>
                 )}

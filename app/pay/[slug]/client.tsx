@@ -14,13 +14,9 @@ import {
   Copy,
   Check,
   Banknote,
-  Clock,
-  X,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface Student {
   name: string;
@@ -52,6 +48,7 @@ interface PaymentPage {
     accountNumber: string;
     bankName: string;
     accountName: string;
+    bankAccountName?: string;
   };
 }
 
@@ -67,56 +64,33 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentImage, setCurrentImage] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<PaymentOption>("full");
-  const [selectedStudentDetails, setSelectedStudentDetails] = useState<Student | null>(null);
-  
-  // Modal states
-  const [showModal, setShowModal] = useState(false);
-  const [modalData, setModalData] = useState<any>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
-  const [checkingPayment, setCheckingPayment] = useState(false);
-
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    amount: "",
-    parentName: "",
-    customFields: {} as Record<string, string>,
-    selectedVariants: {} as Record<string, string>,
-    quantity: "1",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    bookingDate: "",
-    bookingTime: "",
-    customerNote: "",
-    donorMessage: "",
-  });
 
   // Extract data from metadata
   const students = useMemo(() => {
     const rawStudents = page?.metadata?.students || [];
-    return rawStudents.map((student: Student) => ({
-      ...student,
-      paidAmount: student.paidAmount || 0,
-      remainingBalance: student.remainingBalance !== undefined ? student.remainingBalance : (page?.metadata?.totalAmountPerStudent || page?.price || 0),
-      paid: student.paid || false,
-      totalAmount: page?.metadata?.totalAmountPerStudent || page?.metadata?.totalAmount || page?.price || 0,
-    }));
-  }, [page?.metadata?.students, page?.metadata?.totalAmountPerStudent, page?.metadata?.totalAmount, page?.price]);
+    return rawStudents.map((student: Student) => {
+      const totalAmount = page?.metadata?.totalAmountPerStudent || page?.price || 0;
+      const paidAmount = student.paidAmount || 0;
+      const remainingBalance = totalAmount - paidAmount;
+      const paidPercentage = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
+      
+      return {
+        ...student,
+        paidAmount,
+        remainingBalance: remainingBalance > 0 ? remainingBalance : 0,
+        paid: student.paid || paidAmount >= totalAmount,
+        totalAmount,
+        paidPercentage,
+      };
+    });
+  }, [page?.metadata?.students, page?.metadata?.totalAmountPerStudent, page?.price]);
 
   const feeBreakdown = useMemo(() => {
     return page?.metadata?.feeBreakdown || [];
   }, [page?.metadata?.feeBreakdown]);
-
-  const requiredFields = useMemo(() => {
-    return page?.metadata?.requiredFields || [];
-  }, [page?.metadata?.requiredFields]);
 
   const className = useMemo(() => {
     return page?.metadata?.className || "";
@@ -125,125 +99,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const totalAmountPerStudent = useMemo(() => {
     return page?.metadata?.totalAmountPerStudent || page?.metadata?.totalAmount || page?.price || 0;
   }, [page?.metadata?.totalAmountPerStudent, page?.metadata?.totalAmount, page?.price]);
-
-  const partiallyPaidStudents = useMemo(() => {
-    return students.filter((s: Student) => !s.paid && s.paidAmount > 0 && s.remainingBalance > 0);
-  }, [students]);
-
-  const unpaidStudents = useMemo(() => {
-    return students.filter((s: Student) => !s.paid && s.paidAmount === 0 && s.remainingBalance > 0);
-  }, [students]);
-
-  const fullyPaidStudents = useMemo(() => {
-    return students.filter((s: Student) => s.paid === true || s.remainingBalance <= 0);
-  }, [students]);
-
-  useEffect(() => {
-    const loadPage = async () => {
-      try {
-        const response = await fetch(`/api/payment-page/public/${slug}`);
-        if (!response.ok) {
-          if (response.status === 404) {
-            setError("Page not found");
-          } else {
-            setError("Failed to load page");
-          }
-          return;
-        }
-        const data = await response.json();
-        setPage(data.page);
-      } catch (err) {
-        console.error("Error loading page:", err);
-        setError("Failed to load page");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadPage();
-  }, [slug]);
-
-  // Countdown timer for modal
-  useEffect(() => {
-    if (!modalData?.expiresAt) return;
-    
-    const expiresAt = new Date(modalData.expiresAt);
-    const updateTimer = () => {
-      const now = new Date();
-      const diff = expiresAt.getTime() - now.getTime();
-      
-      if (diff <= 0) {
-        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
-        return;
-      }
-      
-      setTimeLeft({
-        hours: Math.floor(diff / (1000 * 60 * 60)),
-        minutes: Math.floor((diff % (3600000)) / (1000 * 60)),
-        seconds: Math.floor((diff % (60000)) / 1000),
-      });
-    };
-    
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [modalData?.expiresAt]);
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleCustomFieldChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      customFields: { ...prev.customFields, [field]: value },
-    }));
-  };
-
-  const handleStudentClick = (student: Student) => {
-    if (student.paid || student.remainingBalance <= 0) return;
-    
-    setSelectedStudentDetails(student);
-    setSelectedStudents((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(student.name)) {
-        newSet.delete(student.name);
-        setSelectedStudentDetails(null);
-      } else {
-        newSet.add(student.name);
-      }
-      return newSet;
-    });
-  };
-
-  const validateForm = () => {
-    if (page?.pageType !== "school") {
-      if (!formData.fullName.trim()) {
-        alert("Please enter your full name");
-        return false;
-      }
-      if (!formData.email.trim()) {
-        alert("Please enter your email address");
-        return false;
-      }
-    }
-
-    if (page?.pageType === "school") {
-      if (!formData.parentName.trim()) {
-        alert("Please enter parent's full name");
-        return false;
-      }
-      if (!formData.email.trim()) {
-        alert("Please enter your email address");
-        return false;
-      }
-      if (selectedStudents.size === 0) {
-        alert("Please select at least one student to pay for");
-        return false;
-      }
-    }
-
-    return true;
-  };
 
   const getTotalAmount = () => {
     if (feeBreakdown.length > 0) {
@@ -274,6 +129,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
   const getStudentPayAmount = (student: Student) => {
     const amountPerStudent = getAmountToPay();
+    // Only charge the remaining balance, not more
     return Math.min(amountPerStudent, student.remainingBalance);
   };
 
@@ -294,116 +150,50 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const checkPaymentStatus = async () => {
-    if (!modalData?.orderReference) return;
+  useEffect(() => {
+    const loadPage = async () => {
+      try {
+        const response = await fetch(`/api/payment-page/public/${slug}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError("Page not found");
+          } else {
+            setError("Failed to load page");
+          }
+          return;
+        }
+        const data = await response.json();
+        setPage(data.page);
+      } catch (err) {
+        console.error("Error loading page:", err);
+        setError("Failed to load page");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadPage();
+  }, [slug]);
+
+  const handleStudentClick = (student: Student) => {
+    if (student.paid || student.remainingBalance <= 0) return;
     
-    setCheckingPayment(true);
-    try {
-      const response = await fetch(`/api/payment-page/public/status?reference=${modalData.orderReference}`);
-      const data = await response.json();
-      
-      if (data.success && data.payment?.status === "completed") {
-        setModalData((prev: any) => ({ ...prev, isCompleted: true }));
-        setTimeout(() => {
-          setShowModal(false);
-          window.location.href = `/payment-page/status?reference=${modalData.orderReference}&status=success`;
-        }, 2000);
+    setSelectedStudents((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(student.name)) {
+        newSet.delete(student.name);
       } else {
-        alert("Payment not confirmed yet. Please check again in a few minutes.");
+        newSet.add(student.name);
       }
-    } catch (error) {
-      console.error("Error checking payment:", error);
-      alert("Failed to check payment status. Please try again.");
-    } finally {
-      setCheckingPayment(false);
-    }
+      return newSet;
+    });
   };
 
-  const handlePayment = async () => {
-    if (!validateForm()) return;
-    setIsProcessing(true);
-    
-    try {
-      const totalAmount = getTotalForSelectedStudents();
-      const isInstallmentPayment = selectedPaymentOption === "installment" && page?.installmentCount && page.installmentCount > 1;
-      
-      // IMPORTANT: Include parent name and selected students for identification
-      const metadata: any = {
-        pageType: page?.pageType,
-        pageTitle: page?.title,
-        paymentType: isInstallmentPayment ? "installment" : "full",
-        isInstallment: isInstallmentPayment,
-        feeBorneBy: "creator",
-        // These will help identify who paid
-        payerName: page?.pageType === "school" ? formData.parentName : formData.fullName,
-        payerEmail: formData.email,
-        payerPhone: formData.phone,
-      };
-
-      if (isInstallmentPayment) {
-        const installmentInfo = getInstallmentInfo();
-        metadata.totalAmount = installmentInfo?.totalAmount;
-        metadata.totalInstallments = installmentInfo?.installmentCount;
-        metadata.installmentAmount = installmentInfo?.installmentAmount;
-        metadata.currentInstallment = 1;
-      }
-
-      if (page?.pageType === "school") {
-        metadata.parentName = formData.parentName;
-        metadata.selectedStudents = Array.from(selectedStudents);
-        metadata.numberOfStudents = selectedStudents.size;
-        metadata.totalAmount = totalAmount;
-        metadata.amountPerStudent = totalAmount / selectedStudents.size;
-        
-        // Store student details for identification
-        const selectedStudentData = Array.from(selectedStudents).map(name => {
-          const student = students.find(s => s.name === name);
-          return {
-            name,
-            className: student?.className,
-            regNumber: student?.regNumber,
-            remainingBalance: student?.remainingBalance,
-          };
-        });
-        metadata.studentDetails = selectedStudentData;
-      }
-
-      const response = await fetch("/api/payment-page/public/virtual-account", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pageSlug: slug,
-          customerName: page?.pageType === "school" ? formData.parentName : formData.fullName,
-          customerEmail: formData.email,
-          customerPhone: formData.phone,
-          amount: totalAmount,
-          metadata,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      
-      setModalData({
-        ...data.virtualAccount,
-        instruction: data.instruction,
-        paymentId: data.paymentId,
-        isCompleted: false,
-      });
-      setShowModal(true);
-      
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const formatTime = (hours: number, minutes: number, seconds: number) => {
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    if (minutes > 0) return `${minutes}m ${seconds}s`;
-    return `${seconds}s`;
-  };
+  const totalAmount = getTotalAmount();
+  const amountToPay = getAmountToPay();
+  const installmentInfo = getInstallmentInfo();
+  const canDoInstallments = page?.priceType === "installment" && page.installmentCount && page.installmentCount > 1;
+  const totalForSelected = getTotalForSelectedStudents();
+  const allImages = [...(page?.coverImage ? [page.coverImage] : []), ...(page?.productImages || [])];
 
   if (loading) {
     return (
@@ -426,13 +216,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
       </div>
     );
   }
-
-  const totalAmount = getTotalAmount();
-  const amountToPay = getAmountToPay();
-  const installmentInfo = getInstallmentInfo();
-  const canDoInstallments = page.priceType === "installment" && page.installmentCount && page.installmentCount > 1;
-  const totalForSelected = getTotalForSelectedStudents();
-  const allImages = [...(page.coverImage ? [page.coverImage] : []), ...(page.productImages || [])];
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
@@ -511,59 +294,65 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             <div className="space-y-3">
               <div
                 onClick={() => setSelectedPaymentOption("full")}
-                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer ${
-                  selectedPaymentOption === "full" ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" : "border-[var(--border-color)]"
+                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  selectedPaymentOption === "full" 
+                    ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" 
+                    : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
                 }`}
               >
                 <div>
                   <p className="font-semibold">Pay in Full</p>
-                  <p className="text-sm text-[var(--text-secondary)]">Pay ₦{totalAmount.toLocaleString()} once</p>
+                  <p className="text-sm text-[var(--text-secondary)]">Pay once</p>
                 </div>
                 <p className="font-bold text-[var(--color-accent-yellow)]">₦{totalAmount.toLocaleString()}</p>
               </div>
               <div
                 onClick={() => setSelectedPaymentOption("installment")}
-                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer ${
-                  selectedPaymentOption === "installment" ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" : "border-[var(--border-color)]"
+                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  selectedPaymentOption === "installment" 
+                    ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" 
+                    : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
                 }`}
               >
                 <div>
                   <p className="font-semibold">Pay in Installments</p>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    {page.installmentCount} payments of ₦{installmentInfo?.installmentAmount.toLocaleString()}
+                    {page.installmentCount} payments
                   </p>
                 </div>
-                <p className="font-bold text-[var(--color-accent-yellow)]">₦{installmentInfo?.installmentAmount.toLocaleString()}</p>
+                <p className="font-bold text-[var(--color-accent-yellow)]">₦{installmentInfo?.installmentAmount.toLocaleString()} / month</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* School Page - Student Selection */}
+        {/* School Page - Student Selection with Progress Bar */}
         {page.pageType === "school" && (
           <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 space-y-4">
             <h3 className="font-bold text-lg text-[var(--text-primary)]">Select Students</h3>
             
-            {unpaidStudents.length > 0 && (
+            {/* Partially Paid Students - Have some payment but not fully paid */}
+            {students.filter((s: Student) => !s.paid && s.paidAmount > 0).length > 0 && (
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-[var(--color-accent-yellow)]"></div>
-                  <p className="text-sm font-medium text-[var(--text-primary)]">Not Paid Yet</p>
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Partially Paid (Continue Payment)</p>
                 </div>
-                <div className="space-y-2">
-                  {unpaidStudents.map((student: Student) => {
+                <div className="space-y-3">
+                  {students.filter((s: Student) => !s.paid && s.paidAmount > 0).map((student: Student) => {
                     const isSelected = selectedStudents.has(student.name);
                     const payAmount = getStudentPayAmount(student);
+                    const paidPercentage = student.paidPercentage;
                     
                     return (
                       <div
                         key={student.name}
                         onClick={() => handleStudentClick(student)}
-                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                          isSelected ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" : "border-[var(--border-color)]"
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          isSelected ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
                         }`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-3 flex-1">
                             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
                               isSelected ? "bg-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]" : "border-[var(--text-secondary)]"
@@ -571,79 +360,47 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                               {isSelected && <CheckCircle className="h-4 w-4 text-white" />}
                             </div>
                             <div>
-                              <p className="font-medium text-[var(--text-primary)]">{student.name}</p>
+                              <p className="font-semibold text-[var(--text-primary)]">{student.name}</p>
                               <div className="flex gap-3 text-xs text-[var(--text-secondary)]">
                                 {student.className && <span>Class: {student.className}</span>}
                                 {student.regNumber && <span>Reg: {student.regNumber}</span>}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-[var(--color-accent-yellow)]">
-                              ₦{payAmount.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {partiallyPaidStudents.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-2 mt-4">
-                  <div className="w-2 h-2 rounded-full bg-[var(--color-accent-yellow)]"></div>
-                  <p className="text-sm font-medium text-[var(--text-primary)]">Partially Paid (Remaining Balance)</p>
-                </div>
-                <div className="space-y-2">
-                  {partiallyPaidStudents.map((student: Student) => {
-                    const isSelected = selectedStudents.has(student.name);
-                    const payAmount = getStudentPayAmount(student);
-                    const paidPercentage = (student.paidAmount / student.totalAmount) * 100;
-                    
-                    return (
-                      <div
-                        key={student.name}
-                        onClick={() => handleStudentClick(student)}
-                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                          isSelected ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" : "border-[var(--border-color)]"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                              isSelected ? "bg-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]" : "border-[var(--text-secondary)]"
-                            }`}>
-                              {isSelected && <CheckCircle className="h-4 w-4 text-white" />}
-                            </div>
-                            <div>
-                              <p className="font-medium text-[var(--text-primary)]">{student.name}</p>
-                              <div className="flex gap-3 text-xs text-[var(--text-secondary)]">
-                                {student.className && <span>Class: {student.className}</span>}
-                                {student.regNumber && <span>Reg: {student.regNumber}</span>}
-                              </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <div className="w-24 h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-[var(--color-accent-yellow)] rounded-full"
-                                    style={{ width: `${paidPercentage}%` }}
-                                  />
-                                </div>
-                                <span className="text-xs text-[var(--color-accent-yellow)]">
-                                  {paidPercentage.toFixed(0)}% paid
-                                </span>
                               </div>
                             </div>
                           </div>
                           <div className="text-right">
                             <p className="text-xs text-[var(--text-secondary)]">Remaining</p>
-                            <p className="font-semibold text-[var(--color-accent-yellow)]">
+                            <p className="font-bold text-[var(--color-accent-yellow)]">
                               ₦{payAmount.toLocaleString()}
                             </p>
                           </div>
                         </div>
+                        
+                        {/* Progress Bar */}
+                        <div className="mt-3">
+                          <div className="flex justify-between text-xs text-[var(--text-secondary)] mb-1">
+                            <span>Payment Progress</span>
+                            <span>{paidPercentage.toFixed(0)}% paid</span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-300"
+                              style={{ width: `${paidPercentage}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-xs text-[var(--text-secondary)] mt-1">
+                            <span>Paid: ₦{student.paidAmount.toLocaleString()}</span>
+                            <span>Total: ₦{student.totalAmount.toLocaleString()}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Installment Info */}
+                        {selectedPaymentOption === "installment" && installmentInfo && (
+                          <div className="mt-3 pt-2 border-t border-[var(--border-color)]">
+                            <p className="text-xs text-[var(--color-accent-yellow)]">
+                              This payment: ₦{payAmount.toLocaleString()} (Installment)
+                            </p>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -651,14 +408,72 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               </div>
             )}
 
-            {fullyPaidStudents.length > 0 && (
+            {/* Unpaid Students - No payment yet */}
+            {students.filter((s: Student) => !s.paid && s.paidAmount === 0).length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-[var(--color-accent-yellow)]"></div>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Not Paid Yet</p>
+                </div>
+                <div className="space-y-3">
+                  {students.filter((s: Student) => !s.paid && s.paidAmount === 0).map((student: Student) => {
+                    const isSelected = selectedStudents.has(student.name);
+                    const payAmount = getStudentPayAmount(student);
+                    
+                    return (
+                      <div
+                        key={student.name}
+                        onClick={() => handleStudentClick(student)}
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          isSelected ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                              isSelected ? "bg-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]" : "border-[var(--text-secondary)]"
+                            }`}>
+                              {isSelected && <CheckCircle className="h-4 w-4 text-white" />}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-[var(--text-primary)]">{student.name}</p>
+                              <div className="flex gap-3 text-xs text-[var(--text-secondary)]">
+                                {student.className && <span>Class: {student.className}</span>}
+                                {student.regNumber && <span>Reg: {student.regNumber}</span>}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-[var(--color-accent-yellow)]">
+                              ₦{payAmount.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Installment Info */}
+                        {selectedPaymentOption === "installment" && installmentInfo && (
+                          <div className="mt-3 pt-2 border-t border-[var(--border-color)]">
+                            <p className="text-xs text-[var(--color-accent-yellow)]">
+                              This payment: ₦{payAmount.toLocaleString()} (Installment)
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Fully Paid Students - Cannot select */}
+            {students.filter((s: Student) => s.paid === true || s.remainingBalance <= 0).length > 0 && (
               <div className="mt-4">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-3">
                   <UserCheck className="h-4 w-4 text-green-600" />
-                  <p className="text-sm font-medium text-[var(--text-primary)]">Fully Paid Students</p>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Fully Paid Students</p>
                 </div>
                 <div className="space-y-2 opacity-60">
-                  {fullyPaidStudents.map((student: Student) => (
+                  {students.filter((s: Student) => s.paid === true || s.remainingBalance <= 0).map((student: Student) => (
                     <div
                       key={student.name}
                       className="p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] cursor-not-allowed"
@@ -688,245 +503,124 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             )}
 
             {selectedStudents.size > 0 && (
-              <div className="p-3 bg-[var(--color-accent-yellow)]/10 rounded-lg">
-                <div className="flex justify-between">
-                  <span className="text-sm">Selected:</span>
+              <div className="p-4 bg-[var(--color-accent-yellow)]/10 rounded-xl">
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm">Selected Students:</span>
                   <span className="font-bold">{selectedStudents.size} student(s)</span>
                 </div>
-                <div className="flex justify-between mt-2 pt-2 border-t border-[var(--color-accent-yellow)]/20">
+                <div className="flex justify-between pt-2 border-t border-[var(--color-accent-yellow)]/20">
                   <span className="font-semibold">Total to Pay:</span>
-                  <span className="text-lg font-bold text-[var(--color-accent-yellow)]">₦{totalForSelected.toLocaleString()}</span>
+                  <span className="text-xl font-bold text-[var(--color-accent-yellow)]">₦{totalForSelected.toLocaleString()}</span>
                 </div>
-              </div>
-            )}
-
-            <div>
-              <Label className="text-sm font-semibold mb-1.5 block">Parent/Guardian Name *</Label>
-              <Input
-                placeholder="Enter parent or guardian's full name"
-                value={formData.parentName}
-                onChange={(e) => handleInputChange("parentName", e.target.value)}
-                className="h-12"
-              />
-            </div>
-
-            <div>
-              <Label className="text-sm font-semibold mb-1.5 block">Email Address *</Label>
-              <Input
-                type="email"
-                placeholder="parent@example.com"
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                className="h-12"
-              />
-              <p className="text-xs text-[var(--text-secondary)] mt-1">Receipt will be sent here</p>
-            </div>
-
-            <div>
-              <Label className="text-sm font-semibold mb-1.5 block">Phone Number</Label>
-              <Input
-                type="tel"
-                placeholder="08012345678"
-                value={formData.phone}
-                onChange={(e) => handleInputChange("phone", e.target.value)}
-                className="h-12"
-              />
-            </div>
-
-            {requiredFields.length > 0 && (
-              <div className="space-y-4">
-                <Label className="text-sm font-semibold">Additional Information</Label>
-                {requiredFields.map((field: string) => (
-                  <Input
-                    key={field}
-                    placeholder={field}
-                    value={formData.customFields[field] || ""}
-                    onChange={(e) => handleCustomFieldChange(field, e.target.value)}
-                    className="h-12"
-                  />
-                ))}
+                {selectedPaymentOption === "installment" && installmentInfo && (
+                  <p className="text-xs text-[var(--text-secondary)] mt-2">
+                    Installment payment: ₦{(totalForSelected / selectedStudents.size).toLocaleString()} per student
+                  </p>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* Payment Summary */}
-        <div className="bg-[var(--bg-secondary)] rounded-2xl p-5 space-y-3 border">
-          <div className="flex justify-between font-bold text-lg">
-            <span>Total to Pay</span>
-            <span className="text-[var(--color-accent-yellow)]">
-              {`₦${(page.pageType === "school" ? totalForSelected : amountToPay).toLocaleString()}`}
-            </span>
-          </div>
-          <div className="text-xs text-[var(--text-secondary)] text-center">
-            Transaction fees are covered by the merchant
-          </div>
-        </div>
+        {/* Virtual Account Display */}
+        {page.virtualAccount && (
+          <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                <Banknote className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-[var(--text-primary)]">Bank Transfer Details</h3>
+                <p className="text-xs text-[var(--text-secondary)]">Use these details to make your payment</p>
+              </div>
+            </div>
 
-        {/* Pay Button */}
-        <Button
-          variant="default"
-          size="lg"
-          className="w-full py-6 text-base bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-          onClick={handlePayment}
-          disabled={isProcessing || (page.pageType === "school" && selectedStudents.size === 0)}
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            `Pay ₦${(page.pageType === "school" ? totalForSelected : amountToPay).toLocaleString()}`
-          )}
-        </Button>
+            <div className="space-y-4">
+              {/* Bank Name */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">Bank Name</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-lg">{page.virtualAccount.bankName}</p>
+                  <button
+                    onClick={() => copyToClipboard(page.virtualAccount.bankName, "bank")}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    {copiedField === "bank" ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
 
-        <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-secondary)]">
+              {/* Account Number */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">Account Number</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-mono font-bold text-2xl tracking-wider">{page.virtualAccount.accountNumber}</p>
+                  <button
+                    onClick={() => copyToClipboard(page.virtualAccount.accountNumber, "account")}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    {copiedField === "account" ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Account Name */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">Account Name</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold break-all">{page.virtualAccount.bankAccountName || page.virtualAccount.accountName}</p>
+                  <button
+                    onClick={() => copyToClipboard(page.virtualAccount.bankAccountName || page.virtualAccount.accountName, "name")}
+                    className="text-blue-500 hover:text-blue-700 shrink-0 ml-2"
+                  >
+                    {copiedField === "name" ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Amount to Pay */}
+            <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-xl text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Amount to Pay</p>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                ₦{totalForSelected.toLocaleString()}
+              </p>
+              {selectedStudents.size > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  For {selectedStudents.size} student(s)
+                </p>
+              )}
+              {selectedPaymentOption === "installment" && installmentInfo && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Installment payment: ₦{(totalForSelected / selectedStudents.size).toLocaleString()} per student
+                </p>
+              )}
+            </div>
+
+            {/* Payment Instructions */}
+            <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Important Instructions</p>
+                  <ul className="text-xs text-yellow-700 dark:text-yellow-400 mt-2 space-y-1 list-disc list-inside">
+                    <li>Transfer the exact amount shown above</li>
+                    <li>Use <strong>student name(s)</strong> as narration/reference</li>
+                    <li>Payment confirms automatically within 5-10 minutes</li>
+                    <li>Transaction fee is covered by the merchant</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+          
+          </div>
+        )}
+
+        <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-secondary)] pt-4">
           <Shield className="h-3.5 w-3.5" /> Secured by Zidwell
         </div>
       </div>
-
-      {/* Virtual Account Modal - Simplified */}
-      <AnimatePresence>
-        {showModal && modalData && (
-          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="max-w-md w-full bg-white rounded-2xl overflow-hidden shadow-2xl"
-            >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-[#FDC020] to-[#1a5c40] p-6 text-white relative">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="absolute top-4 right-4 text-white/80 hover:text-white"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-                <h2 className="text-2xl font-bold">Bank Transfer Payment</h2>
-                <p className="text-white/80 text-sm mt-1">Transfer to the account below</p>
-              </div>
-
-              <div className="p-6 space-y-5">
-                {/* Amount */}
-                <div className="text-center bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-500 mb-1">Amount to Pay</p>
-                  <p className="text-3xl font-bold text-[#1a5c40]">
-                    ₦{modalData.amount?.toLocaleString()}
-                  </p>
-                </div>
-
-                {/* Bank Name */}
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-500 mb-1">Bank Name</p>
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-lg">{modalData.bankName}</p>
-                    <button
-                      onClick={() => copyToClipboard(modalData.bankName, "bank")}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      {copiedField === "bank" ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Account Number */}
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-500 mb-1">Account Number</p>
-                  <div className="flex items-center justify-between">
-                    <p className="font-mono font-bold text-2xl tracking-wider">
-                      {modalData.accountNumber}
-                    </p>
-                    <button
-                      onClick={() => copyToClipboard(modalData.accountNumber, "account")}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      {copiedField === "account" ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Account Name */}
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-500 mb-1">Account Name</p>
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold">{modalData.accountName}</p>
-                    <button
-                      onClick={() => copyToClipboard(modalData.accountName, "name")}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      {copiedField === "name" ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* How to identify your payment */}
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                  <div className="flex items-start gap-2">
-                    <div className="w-5 h-5 rounded-full bg-blue-200 flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="text-blue-700 text-xs font-bold">i</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-blue-800">How to identify your payment</p>
-                      <p className="text-xs text-blue-700 mt-1">
-                        When making the transfer, use your <strong>{page.pageType === "school" ? "student's name" : "full name"}</strong> as the narration/reference. 
-                        This helps us identify your payment quickly.
-                      </p>
-                      <div className="mt-2 p-2 bg-blue-100 rounded-lg">
-                        <p className="text-xs text-blue-800 font-mono">
-                          Example narration: {page.pageType === "school" && selectedStudents.size === 1 
-                            ? Array.from(selectedStudents)[0] 
-                            : page.pageType === "school" 
-                              ? "John Doe, Jane Smith" 
-                              : formData.fullName || "Your Name Here"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Timer */}
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-gray-500">
-                    <Clock className="h-4 w-4" />
-                    <span>Expires in:</span>
-                  </div>
-                  <span className="font-mono font-semibold text-red-600">
-                    {formatTime(timeLeft.hours, timeLeft.minutes, timeLeft.seconds)}
-                  </span>
-                </div>
-
-                {/* Check Button */}
-                {!modalData.isCompleted ? (
-                  <button
-                    onClick={checkPaymentStatus}
-                    disabled={checkingPayment}
-                    className="w-full py-3 rounded-xl bg-[#FDC020] text-[#1a5c40] font-semibold hover:bg-[#FDC020]/90 transition-colors disabled:opacity-50"
-                  >
-                    {checkingPayment ? (
-                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                    ) : (
-                      "I've Completed the Transfer"
-                    )}
-                  </button>
-                ) : (
-                  <div className="bg-green-50 rounded-xl p-4 text-center">
-                    <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                    <p className="text-green-700 font-semibold">Payment Confirmed!</p>
-                    <p className="text-sm text-green-600">Redirecting...</p>
-                  </div>
-                )}
-
-                <p className="text-xs text-gray-400 text-center">
-                  Your payment will be confirmed automatically within 5-10 minutes after transfer.
-                  The transaction fee is covered by the merchant.
-                </p>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

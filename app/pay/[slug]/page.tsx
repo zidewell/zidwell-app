@@ -1,3 +1,4 @@
+// app/pay/[slug]/page.tsx
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import PaymentPageClient from "./client";
@@ -13,12 +14,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? "http://localhost:3000" 
     : "https://zidwell.com";
   
+  console.log(`🔍 generateMetadata - Fetching page with slug: ${slug}`);
+  
   try {
     const response = await fetch(`${baseUrl}/api/payment-page/public/${slug}`, {
       cache: "no-store"
     });
     
     if (!response.ok) {
+      console.log(`❌ generateMetadata - Page not found for slug: ${slug}`);
       return {
         title: "Payment Page | Zidwell",
         description: "Secure payment page on Zidwell",
@@ -101,16 +105,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PaymentPage({ params }: Props) {
   const { slug } = await params;
   
+  console.log(`🔍 PaymentPage - Loading page with slug: ${slug}`);
+  
+  if (!slug) {
+    console.error("❌ No slug provided in URL");
+    notFound();
+  }
+  
   try {
     const baseUrl = process.env.NODE_ENV === "development" 
       ? "http://localhost:3000" 
       : "https://zidwell.com";
     
-    const response = await fetch(`${baseUrl}/api/payment-page/public/${slug}`, {
+    const apiUrl = `${baseUrl}/api/payment-page/public/${slug}`;
+    console.log(`🔍 Fetching from API: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl, {
       cache: "no-store"
     });
     
+    console.log(`📡 API Response status: ${response.status}`);
+    
     if (!response.ok) {
+      console.log(`❌ Page not found for slug: ${slug} (Status: ${response.status})`);
       notFound();
     }
     
@@ -118,8 +135,11 @@ export default async function PaymentPage({ params }: Props) {
     const page = data.page;
     
     if (!page) {
+      console.log(`❌ No page data returned for slug: ${slug}`);
       notFound();
     }
+    
+    console.log(`✅ Page found: ${page.title}`);
     
     return <PaymentPageClient slug={slug} />;
   } catch (error) {

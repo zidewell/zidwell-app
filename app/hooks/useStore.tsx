@@ -193,8 +193,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Invalid response from server");
       }
       
-      console.log("Parsed data:", data);
-
+   
       if (!response.ok) {
         throw new Error(data.error || `Failed to create page: ${response.status}`);
       }
