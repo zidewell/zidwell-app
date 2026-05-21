@@ -28,6 +28,7 @@ interface Student {
   parentName?: string;
   remainingBalance?: number;
   totalAmount?: number;
+  paidPercentage?: number;  // Add this property
 }
 
 interface PaymentPage {
@@ -130,7 +131,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const getStudentPayAmount = (student: Student) => {
     const amountPerStudent = getAmountToPay();
     // Only charge the remaining balance, not more
-    return Math.min(amountPerStudent, student.remainingBalance);
+    return Math.min(amountPerStudent, student.remainingBalance || 0);
   };
 
   const getTotalForSelectedStudents = () => {
@@ -175,7 +176,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   }, [slug]);
 
   const handleStudentClick = (student: Student) => {
-    if (student.paid || student.remainingBalance <= 0) return;
+    if (student.paid || (student.remainingBalance && student.remainingBalance <= 0)) return;
     
     setSelectedStudents((prev) => {
       const newSet = new Set(prev);
@@ -332,17 +333,17 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             <h3 className="font-bold text-lg text-[var(--text-primary)]">Select Students</h3>
             
             {/* Partially Paid Students - Have some payment but not fully paid */}
-            {students.filter((s: Student) => !s.paid && s.paidAmount > 0).length > 0 && (
+            {students.filter((s: Student) => !s.paid && (s.paidAmount || 0) > 0).length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <TrendingUp className="h-4 w-4 text-[var(--color-accent-yellow)]" />
                   <p className="text-sm font-semibold text-[var(--text-primary)]">Partially Paid (Continue Payment)</p>
                 </div>
                 <div className="space-y-3">
-                  {students.filter((s: Student) => !s.paid && s.paidAmount > 0).map((student: Student) => {
+                  {students.filter((s: Student) => !s.paid && (s.paidAmount || 0) > 0).map((student: Student) => {
                     const isSelected = selectedStudents.has(student.name);
                     const payAmount = getStudentPayAmount(student);
-                    const paidPercentage = student.paidPercentage;
+                    const paidPercentage = student.paidPercentage || 0;
                     
                     return (
                       <div
@@ -388,8 +389,8 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                             />
                           </div>
                           <div className="flex justify-between text-xs text-[var(--text-secondary)] mt-1">
-                            <span>Paid: ₦{student.paidAmount.toLocaleString()}</span>
-                            <span>Total: ₦{student.totalAmount.toLocaleString()}</span>
+                            <span>Paid: ₦{(student.paidAmount || 0).toLocaleString()}</span>
+                            <span>Total: ₦{(student.totalAmount || 0).toLocaleString()}</span>
                           </div>
                         </div>
                         
@@ -409,14 +410,14 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             )}
 
             {/* Unpaid Students - No payment yet */}
-            {students.filter((s: Student) => !s.paid && s.paidAmount === 0).length > 0 && (
+            {students.filter((s: Student) => !s.paid && (s.paidAmount || 0) === 0).length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 rounded-full bg-[var(--color-accent-yellow)]"></div>
                   <p className="text-sm font-semibold text-[var(--text-primary)]">Not Paid Yet</p>
                 </div>
                 <div className="space-y-3">
-                  {students.filter((s: Student) => !s.paid && s.paidAmount === 0).map((student: Student) => {
+                  {students.filter((s: Student) => !s.paid && (s.paidAmount || 0) === 0).map((student: Student) => {
                     const isSelected = selectedStudents.has(student.name);
                     const payAmount = getStudentPayAmount(student);
                     
@@ -466,14 +467,14 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             )}
 
             {/* Fully Paid Students - Cannot select */}
-            {students.filter((s: Student) => s.paid === true || s.remainingBalance <= 0).length > 0 && (
+            {students.filter((s: Student) => s.paid === true || (s.remainingBalance && s.remainingBalance <= 0)).length > 0 && (
               <div className="mt-4">
                 <div className="flex items-center gap-2 mb-3">
                   <UserCheck className="h-4 w-4 text-green-600" />
                   <p className="text-sm font-semibold text-[var(--text-primary)]">Fully Paid Students</p>
                 </div>
                 <div className="space-y-2 opacity-60">
-                  {students.filter((s: Student) => s.paid === true || s.remainingBalance <= 0).map((student: Student) => (
+                  {students.filter((s: Student) => s.paid === true || (s.remainingBalance && s.remainingBalance <= 0)).map((student: Student) => (
                     <div
                       key={student.name}
                       className="p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] cursor-not-allowed"
@@ -493,7 +494,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                         </div>
                         <div className="text-right">
                           <span className="text-xs text-green-600 font-medium">PAID ✓</span>
-                          <p className="text-xs text-[var(--text-secondary)]">₦{student.totalAmount.toLocaleString()}</p>
+                          <p className="text-xs text-[var(--text-secondary)]">₦{(student.totalAmount || 0).toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
@@ -512,7 +513,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                   <span className="font-semibold">Total to Pay:</span>
                   <span className="text-xl font-bold text-[var(--color-accent-yellow)]">₦{totalForSelected.toLocaleString()}</span>
                 </div>
-                {selectedPaymentOption === "installment" && installmentInfo && (
+                {selectedPaymentOption === "installment" && installmentInfo && selectedStudents.size > 0 && (
                   <p className="text-xs text-[var(--text-secondary)] mt-2">
                     Installment payment: ₦{(totalForSelected / selectedStudents.size).toLocaleString()} per student
                   </p>
@@ -590,7 +591,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                   For {selectedStudents.size} student(s)
                 </p>
               )}
-              {selectedPaymentOption === "installment" && installmentInfo && (
+              {selectedPaymentOption === "installment" && installmentInfo && selectedStudents.size > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
                   Installment payment: ₦{(totalForSelected / selectedStudents.size).toLocaleString()} per student
                 </p>
@@ -613,7 +614,28 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
               </div>
             </div>
 
-          
+            {/* Copy All Button */}
+            {totalForSelected > 0 && (
+              <button
+                onClick={() => {
+                  const allDetails = `Bank: ${page.virtualAccount?.bankName}\nAccount Number: ${page.virtualAccount?.accountNumber}\nAccount Name: ${page.virtualAccount?.bankAccountName || page.virtualAccount?.accountName}\nAmount: ₦${totalForSelected.toLocaleString()}\nStudents: ${Array.from(selectedStudents).join(", ")}`;
+                  copyToClipboard(allDetails, "all");
+                }}
+                className="mt-4 w-full py-2 text-sm text-blue-600 hover:text-blue-700 flex items-center justify-center gap-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                {copiedField === "all" ? (
+                  <>
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span className="text-green-600">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    <span>Copy All Details</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         )}
 
