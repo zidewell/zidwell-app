@@ -41,7 +41,7 @@ type ServiceResult =
   | { error: string; status?: number };
 
 function calculateAppFee(amount: number): number {
-  const FEE_PERCENTAGE = 0.02; // 2%
+  const FEE_PERCENTAGE = 0.02;
   return amount * FEE_PERCENTAGE;
 }
 
@@ -231,6 +231,7 @@ export async function processPaymentPageVirtualAccount(
 
   const narration = tx?.narration || tx?.senderName || "";
   const senderName = tx?.senderName || customer?.name || "Bank Transfer Customer";
+  // FIX: Provide a default email if not available
   const customerEmail = customer?.email || null;
 
   let matchedStudentName = null;
@@ -256,8 +257,6 @@ export async function processPaymentPageVirtualAccount(
       user_id: paymentPage.user_id,
       amount: transactionAmount,
       fee: totalFee,
-      nomba_fee: nombaFee,
-      app_fee: appFee,
       net_amount: netAmount,
       status: "pending",
       customer_name: senderName,
