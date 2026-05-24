@@ -1,56 +1,37 @@
+// app/dashboard/services/payment/page/[id]/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Eye,
-  CreditCard,
   TrendingUp,
-  Users,
   Copy,
-  Check,
   Wallet,
-  BarChart3,
   ExternalLink,
   GraduationCap,
   CheckCircle2,
-  XCircle,
   Shield,
-  Clock,
   DollarSign,
   Loader2,
-  Mail,
   User,
   Calendar,
-  FileText,
-  Package,
-  Heart,
-  Briefcase,
-  Building2,
-  LineChart,
-  PiggyBank,
-  Bitcoin,
-  FileDown,
-  MoreVertical,
-  Edit2,
   RefreshCw,
+  Edit2,
+  Clock,
   AlertCircle,
-  Ban,
+  Check,
+  X,
+  Search,
+  Banknote
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { useStore, isInvestmentType } from "@/app/hooks/useStore";
+import { useStore } from "@/app/hooks/useStore";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/app/components/ui/dropdown-menu";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -69,84 +50,6 @@ const typeLabels: Record<string, string> = {
   crypto: "Crypto Investment",
 };
 
-// Get payer label based on page type
-const getPayerLabel = (pageType: string): string => {
-  switch (pageType) {
-    case "school":
-      return "Parent";
-    case "donation":
-      return "Donor";
-    case "physical":
-      return "Customer";
-    case "digital":
-      return "Customer";
-    case "services":
-      return "Client";
-    case "real_estate":
-      return "Investor";
-    case "stock":
-      return "Investor";
-    case "savings":
-      return "Saver";
-    case "crypto":
-      return "Investor";
-    default:
-      return "Customer";
-  }
-};
-
-// Get recipient label based on page type
-const getRecipientLabel = (pageType: string): string => {
-  switch (pageType) {
-    case "school":
-      return "Student";
-    case "donation":
-      return "Beneficiary";
-    case "physical":
-      return "Product";
-    case "digital":
-      return "Product";
-    case "services":
-      return "Service";
-    case "real_estate":
-      return "Property";
-    case "stock":
-      return "Investment";
-    case "savings":
-      return "Savings Plan";
-    case "crypto":
-      return "Crypto Asset";
-    default:
-      return "Item";
-  }
-};
-
-// Get icon for page type
-const getPageTypeIcon = (pageType: string) => {
-  switch (pageType) {
-    case "school":
-      return <GraduationCap className="h-4 w-4 text-(--color-accent-yellow)" />;
-    case "donation":
-      return <Heart className="h-4 w-4 text-(--color-accent-yellow)" />;
-    case "physical":
-      return <Package className="h-4 w-4 text-(--color-accent-yellow)" />;
-    case "digital":
-      return <FileDown className="h-4 w-4 text-(--color-accent-yellow)" />;
-    case "services":
-      return <Briefcase className="h-4 w-4 text-(--color-accent-yellow)" />;
-    case "real_estate":
-      return <Building2 className="h-4 w-4 text-(--color-accent-yellow)" />;
-    case "stock":
-      return <LineChart className="h-4 w-4 text-(--color-accent-yellow)" />;
-    case "savings":
-      return <PiggyBank className="h-4 w-4 text-(--color-accent-yellow)" />;
-    case "crypto":
-      return <Bitcoin className="h-4 w-4 text-(--color-accent-yellow)" />;
-    default:
-      return <CreditCard className="h-4 w-4 text-(--color-accent-yellow)" />;
-  }
-};
-
 const PageDetail = () => {
   const params = useParams();
   const id = params.id as string;
@@ -154,35 +57,17 @@ const PageDetail = () => {
   const { pages, getPageDetails, withdrawFromPage } = useStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [page, setPage] = useState<any>(null);
-  const [stats, setStats] = useState({
-    payments: [],
-    totalAmount: 0,
-    totalCount: 0,
-  });
-  const [showWithdrawal, setShowWithdrawal] = useState(false);
-  const [withdrawalAmount, setWithdrawalAmount] = useState("");
-  const [withdrawing, setWithdrawing] = useState(false);
-  const [withdrawalError, setWithdrawalError] = useState("");
-  const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
-  const [updatingStudent, setUpdatingStudent] = useState(false);
-  const [acknowledgingPayment, setAcknowledgingPayment] = useState<
-    string | null
-  >(null);
+  const [payments, setPayments] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [assigningPayment, setAssigningPayment] = useState<string | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<Record<string, string>>({});
 
-  // Add copy function
-  const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-  
   useEffect(() => {
     const foundPage = pages.find((p) => p.id === id);
-    setPage(foundPage);
     if (foundPage) {
-      loadStats(foundPage.id);
+      setPage(foundPage);
+      loadPayments(foundPage.id);
     } else if (id) {
       loadPageDetails();
     }
@@ -193,29 +78,27 @@ const PageDetail = () => {
       const pageDetails = await getPageDetails(id);
       if (pageDetails) {
         setPage(pageDetails);
-        setStats({
-          payments: pageDetails.recentPayments || [],
-          totalAmount: pageDetails.paymentStats?.totalAmount || 0,
-          totalCount: pageDetails.paymentStats?.totalCount || 0,
-        });
+        await loadPayments(pageDetails.id);
       }
     } catch (error) {
-      console.error("Error loading page details:", error);
+      console.error("Error loading page:", error);
     }
   };
 
-  const loadStats = async (pageId: string) => {
+  const loadPayments = async (pageId: string) => {
     try {
-      const pageDetails = await getPageDetails(pageId);
-      if (pageDetails) {
-        setStats({
-          payments: pageDetails.recentPayments || [],
-          totalAmount: pageDetails.paymentStats?.totalAmount || 0,
-          totalCount: pageDetails.paymentStats?.totalCount || 0,
-        });
+      const { data, error } = await supabase
+        .from("payment_page_payments")
+        .select("*")
+        .eq("payment_page_id", pageId)
+        .eq("status", "completed")
+        .order("paid_at", { ascending: false });
+
+      if (!error && data) {
+        setPayments(data);
       }
     } catch (error) {
-      console.error("Error loading stats:", error);
+      console.error("Error loading payments:", error);
     }
   };
 
@@ -225,1022 +108,515 @@ const PageDetail = () => {
     setRefreshing(false);
   };
 
-  // Get child/student name from payment metadata
-  const getStudentName = (payment: any) => {
-    if (payment.metadata?.childName) return payment.metadata.childName;
-    if (payment.metadata?.studentName) return payment.metadata.studentName;
-    if (payment.metadata?.student_name) return payment.metadata.student_name;
-    if (payment.metadata?.matched_student)
-      return payment.metadata.matched_student;
-    return null;
-  };
-
-  // Get product name from payment metadata
-  const getProductName = (payment: any) => {
-    if (payment.metadata?.productName) return payment.metadata.productName;
-    if (payment.metadata?.selectedVariants) {
-      const variants = Object.values(payment.metadata.selectedVariants);
-      if (variants.length > 0) return variants.join(" - ");
-    }
-    if (payment.metadata?.quantity)
-      return `Quantity: ${payment.metadata.quantity}`;
-    return null;
-  };
-
-  // Get payer name from payment
-  const getPayerName = (payment: any) => {
-    return payment.customer_name || payment.customerName || "Anonymous";
-  };
-
-  // Get payer email
-  const getPayerEmail = (payment: any) => {
-    return payment.customer_email || payment.customerEmail;
-  };
-
-  // Get narration from payment
-  const getNarration = (payment: any) => {
-    return (
-      payment.metadata?.narration || payment.metadata?.bank_narration || ""
-    );
-  };
-
-  // Check if payment has been acknowledged
-  const isPaymentAcknowledged = (payment: any): boolean => {
-    return !!payment.metadata?.acknowledged_student;
-  };
-
-  // Extract student name from narration
-  const extractStudentFromNarration = (payment: any): string | null => {
-    if (payment.metadata?.matched_student)
-      return payment.metadata.matched_student;
-
-    const narration = getNarration(payment);
-    if (!narration) return null;
-
-    const students = page?.metadata?.students || [];
-    for (const student of students) {
-      const studentName =
-        student.name || student.childName || student.studentName;
-      if (
-        studentName &&
-        narration.toLowerCase().includes(studentName.toLowerCase())
-      ) {
-        return studentName;
+  const handleWithdraw = async () => {
+    const amount = window.prompt("Enter amount to withdraw (Min ₦1,000)", "1000");
+    if (amount) {
+      const numAmount = parseInt(amount);
+      if (numAmount >= 1000 && numAmount <= page.pageBalance) {
+        setWithdrawing(true);
+        try {
+          await withdrawFromPage(page.id, numAmount);
+          alert("Withdrawal initiated successfully!");
+          refreshData();
+        } catch (error) {
+          alert("Withdrawal failed. Please try again.");
+        } finally {
+          setWithdrawing(false);
+        }
+      } else {
+        alert(`Amount must be between ₦1,000 and ₦${page.pageBalance.toLocaleString()}`);
       }
     }
-    return null;
   };
 
-  // Verify payment authenticity before allowing acknowledgment
-  const canAcknowledgePayment = (payment: any): { allowed: boolean; reason: string } => {
-    // Check if payment is completed
-    if (payment.status !== "completed") {
-      return { allowed: false, reason: "Payment not completed yet" };
-    }
-
-    // Check if payment has a valid Nomba transaction ID
-    if (!payment.nomba_transaction_id) {
-      return { allowed: false, reason: "No valid bank transaction reference" };
-    }
-
-    // Check if already acknowledged
-    if (isPaymentAcknowledged(payment)) {
-      return { allowed: false, reason: "Already acknowledged" };
-    }
-
-    // Check if payment has customer name (must have a real payer)
-    if (!payment.customer_name || payment.customer_name === "Anonymous") {
-      return { allowed: false, reason: "Missing payer information" };
-    }
-
-    // Check if payment has a narration (bank transfer reference)
-    const narration = getNarration(payment);
-    if (!narration) {
-      return { allowed: false, reason: "No bank narration reference" };
-    }
-
-    return { allowed: true, reason: "" };
-  };
-
-  // Acknowledge payment and mark student as paid
-  const acknowledgePaymentAndMarkStudent = async (
-    payment: any,
-    studentName: string,
-  ) => {
-    // Verify before proceeding
-    const verification = canAcknowledgePayment(payment);
-    if (!verification.allowed) {
-      alert(`Cannot mark as paid: ${verification.reason}`);
-      return;
-    }
-
-    setAcknowledgingPayment(payment.id);
-    setUpdatingStudent(true);
-
+  const assignPaymentToStudent = async (paymentId: string, studentName: string, amount: number) => {
+    setAssigningPayment(paymentId);
+    
     try {
-      // Update payment metadata with acknowledgment
+      // Find the payment record
+      const payment = payments.find(p => p.id === paymentId);
+      if (!payment) return;
+      
+      // Update payment metadata with assigned student
       const { error: updatePaymentError } = await supabase
         .from("payment_page_payments")
         .update({
           metadata: {
             ...payment.metadata,
-            acknowledged_student: studentName,
-            acknowledged_at: new Date().toISOString(),
-            acknowledged_by: "merchant",
-            verified: true,
-          },
+            assigned_student: studentName,
+            assigned_at: new Date().toISOString(),
+            assigned_by: "merchant",
+            matched_student: studentName,
+          }
         })
-        .eq("id", payment.id);
-
+        .eq("id", paymentId);
+      
       if (updatePaymentError) throw updatePaymentError;
-
+      
       // Update student paid status in page metadata
       const currentStudents = page?.metadata?.students || [];
       const updatedStudents = currentStudents.map((student: any) => {
-        const studentIdentifier =
-          student.name || student.childName || student.studentName;
+        const studentIdentifier = student.name || student.childName || student.studentName;
         if (studentIdentifier === studentName) {
           const currentPaidAmount = student.paidAmount || 0;
-          const newPaidAmount = currentPaidAmount + payment.amount;
+          const newPaidAmount = currentPaidAmount + amount;
+          const totalAmount = page.price || 0;
+          
           return {
             ...student,
-            paid: true,
+            paid: newPaidAmount >= totalAmount,
             paidAt: new Date().toISOString(),
             paidAmount: newPaidAmount,
             parentName: payment.customer_name,
             parentEmail: payment.customer_email,
-            transactionId: payment.nomba_transaction_id,
-            paymentId: payment.id,
+            paymentId: paymentId,
             lastPaymentDate: new Date().toISOString(),
-            verified: true,
           };
         }
         return student;
       });
-
+      
       const { error: updatePageError } = await supabase
         .from("payment_pages")
         .update({
           metadata: {
             ...page?.metadata,
             students: updatedStudents,
-          },
+          }
         })
         .eq("id", page?.id);
-
+      
       if (updatePageError) throw updatePageError;
-
-      // Refresh data
-      await loadPageDetails();
-      alert(`✅ Successfully verified and marked "${studentName}" as paid!`);
+      
+      alert(`✅ Payment assigned to "${studentName}" successfully!`);
+      refreshData();
+      
     } catch (error) {
-      console.error("Error acknowledging payment:", error);
-      alert("Failed to mark student as paid. Please try again.");
+      console.error("Error assigning payment:", error);
+      alert("Failed to assign payment. Please try again.");
     } finally {
-      setAcknowledgingPayment(null);
-      setUpdatingStudent(false);
+      setAssigningPayment(null);
     }
   };
-
-  // Toggle student paid status directly (with verification)
-  const toggleStudentPaidStatus = async (student: any, isPaid: boolean) => {
-    // If trying to mark as paid, verify that there's a valid payment record
-    if (isPaid) {
-      // Check if there's a completed payment for this student
-      const hasValidPayment = stats.payments.some((payment: any) => {
-        const studentName =
-          student.name || student.childName || student.studentName;
-        const paymentStudentName = getStudentName(payment);
-        return (
-          payment.status === "completed" &&
-          payment.nomba_transaction_id &&
-          paymentStudentName?.toLowerCase() === studentName?.toLowerCase()
-        );
-      });
-
-      if (!hasValidPayment) {
-        alert(
-          "Cannot mark as paid: No verified bank transfer found for this student."
-        );
-        return;
-      }
-    }
-
-    setUpdatingStudent(true);
-
-    try {
-      const currentStudents = page?.metadata?.students || [];
-      const updatedStudents = currentStudents.map((s: any) => {
-        const studentIdentifier = s.name || s.childName || s.studentName;
-        if (studentIdentifier === (student.name || student.childName)) {
-          return {
-            ...s,
-            paid: isPaid,
-            paidAt: isPaid ? new Date().toISOString() : null,
-            paidAmount: isPaid
-              ? s.paidAmount || s.totalAmount || page?.price || 0
-              : 0,
-            ...(isPaid && {
-              verified: true,
-              verifiedAt: new Date().toISOString(),
-            }),
-          };
-        }
-        return s;
-      });
-
-      const { error } = await supabase
-        .from("payment_pages")
-        .update({
-          metadata: {
-            ...page?.metadata,
-            students: updatedStudents,
-          },
-        })
-        .eq("id", page?.id);
-
-      if (error) throw error;
-
-      await loadPageDetails();
-      alert(`✅ Student marked as ${isPaid ? "paid" : "unpaid"}`);
-    } catch (error) {
-      console.error("Error updating student status:", error);
-      alert("Failed to update student status");
-    } finally {
-      setUpdatingStudent(false);
-    }
-  };
-
-  const handleWithdraw = async () => {
-    const amount = Number(withdrawalAmount);
-    const minAmount = 1000;
-
-    if (amount < minAmount) {
-      setWithdrawalError(
-        `Minimum withdrawal is ₦${minAmount.toLocaleString()}`,
-      );
-      return;
-    }
-
-    if (amount > page.pageBalance) {
-      setWithdrawalError(
-        `Insufficient balance. Available: ₦${page.pageBalance.toLocaleString()}`,
-      );
-      return;
-    }
-
-    setWithdrawing(true);
-    setWithdrawalError("");
-
-    try {
-      await withdrawFromPage(page.id, amount);
-      setWithdrawalSuccess(true);
-      setTimeout(() => {
-        setShowWithdrawal(false);
-        setWithdrawalSuccess(false);
-        setWithdrawalAmount("");
-        refreshData();
-      }, 2000);
-    } catch (err: any) {
-      setWithdrawalError(err.message);
-    } finally {
-      setWithdrawing(false);
-    }
-  };
-
-  const withdrawalFee = 200;
-  const netAmount = Number(withdrawalAmount) - withdrawalFee;
-
-  const students = page?.metadata?.students || [];
-  const paidStudentsCount = students.filter(
-    (student: any) => student.paid === true,
-  ).length;
-  const unpaidStudentsCount = students.length - paidStudentsCount;
-  const totalPaidAmount = students.reduce((total: number, student: any) => {
-    return total + (student.paidAmount || 0);
-  }, 0);
 
   if (!page) {
     return (
-      <div className="min-h-screen bg-(--bg-secondary) dark:bg-[#0e0e0e] flex items-center justify-center p-4">
-        <div className="text-center">
-          <h1 className="text-xl sm:text-2xl font-bold text-(--text-primary) mb-2">
-            Page not found
-          </h1>
-          <Button
-            variant="default"
-            onClick={() => router.push("/dashboard/services/payment/dashboard")}
-            className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-          >
-            Back to Dashboard
-          </Button>
-        </div>
+      <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#e1bf46]" />
       </div>
     );
   }
 
-  const pageUrl = `zidwell.com/pay/${page.slug}`;
-  const payerLabel = getPayerLabel(page.pageType);
-  const recipientLabel = getRecipientLabel(page.pageType);
-  const pageTypeIcon = getPageTypeIcon(page.pageType);
-  const isSchoolPage = page.pageType === "school";
+  const pageUrl = `https://zidwell.com/pay/${page.slug}`;
+  const students = page.metadata?.students || [];
+  
+  // Calculate student payment statuses
+  const studentsWithStatus = students.map((student: any) => {
+    const totalAmount = page.price || 0;
+    const paidAmount = student.paidAmount || 0;
+    const isFullyPaid = paidAmount >= totalAmount;
+    const isPartiallyPaid = paidAmount > 0 && !isFullyPaid;
+    
+    return {
+      ...student,
+      totalAmount,
+      paidAmount,
+      isFullyPaid,
+      isPartiallyPaid,
+      remainingAmount: totalAmount - paidAmount,
+    };
+  });
 
-  const statsCards = [
-    {
-      label: "Page Views",
-      value: page.pageViews || 0,
-      icon: Eye,
-      color: "text-(--color-accent-yellow)",
-    },
-    {
-      label: "Total Payments",
-      value: page.totalPayments || 0,
-      icon: CreditCard,
-      color: "text-(--color-lemon-green)",
-    },
-    {
-      label: "Page Balance",
-      value: `₦${(page.pageBalance || 0).toLocaleString()}`,
-      icon: Wallet,
-      color: "text-(--color-accent-yellow)",
-    },
-    {
-      label: "Total Revenue",
-      value: `₦${(page.totalRevenue || 0).toLocaleString()}`,
-      icon: TrendingUp,
-      color: "text-(--color-lemon-green)",
-    },
-  ];
+  // Separate payments: assigned vs unassigned
+  const assignedPayments = payments.filter(p => p.metadata?.matched_student || p.metadata?.assigned_student);
+  const unassignedPayments = payments.filter(p => !p.metadata?.matched_student && !p.metadata?.assigned_student);
+
+  const paidStudents = studentsWithStatus.filter((s: any) => s.isFullyPaid);
+  const partiallyPaidStudents = studentsWithStatus.filter((s: any) => s.isPartiallyPaid);
+  const unpaidStudents = studentsWithStatus.filter((s: any) => !s.isFullyPaid && !s.isPartiallyPaid);
+  
+  const totalCollected = studentsWithStatus.reduce((sum: number, s: any) => sum + (s.paidAmount || 0), 0);
+  const totalExpected = students.length * (page.price || 0);
+
+  // Available students for assignment (not fully paid)
+  const availableStudents = studentsWithStatus.filter((s: any) => !s.isFullyPaid);
 
   return (
-    <div className="min-h-screen dark:bg-[#0e0e0e]">
-      <DashboardSidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
+    <div className="min-h-screen bg-[#0e0e0e]">
+      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
-            {/* Back Button */}
+          <div className="max-w-6xl mx-auto space-y-6">
+            {/* Header */}
             <div className="flex items-center justify-between">
-              <button
-                onClick={() => router.back()}
-                className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors"
-              >
+              <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#e1bf46] transition-colors">
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
-              <button
-                onClick={refreshData}
-                disabled={refreshing}
-                className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-                />
-                Refresh
+              <button onClick={refreshData} disabled={refreshing} className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#e1bf46] transition-colors">
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
               </button>
             </div>
 
-            {/* Header */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
-                  {page.logo ? (
-                    <img
-                      src={page.logo}
-                      className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover"
-                      alt="Logo"
-                    />
-                  ) : (
-                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-(--bg-secondary) flex items-center justify-center">
-                      {pageTypeIcon}
-                    </div>
-                  )}
-                  <div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
-                      <h1 className="text-xl sm:text-2xl font-bold wrap-break-word text-(--text-primary)">
-                        {page.title}
-                      </h1>
-                      <span className="px-2 py-0.5 rounded-full bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) text-xs font-medium self-start sm:self-center">
-                        {typeLabels[page.pageType]}
-                      </span>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <span className="text-xs sm:text-sm text-(--text-secondary) break-all">
-                        {pageUrl}
-                      </span>
-                      <button
-                        onClick={() => navigator.clipboard.writeText(pageUrl)}
-                        className="text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors self-start sm:self-center"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Link href={`/dashboard/services/payment/edit/${page.id}`}>
-                    <Button
-                      variant="outline"
-                      className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
-                    >
-                      <Edit2 className="h-4 w-4 mr-1" /> Edit
-                    </Button>
-                  </Link>
-                  <Link
-                    href={`/pay/${page.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button
-                      variant="default"
-                      className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-1" /> View Page
-                    </Button>
-                  </Link>
+            {/* Page Info */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                {page.logo && <img src={page.logo} className="h-12 w-12 rounded-xl object-cover" />}
+                <div>
+                  <h1 className="text-2xl font-bold text-white">{page.title}</h1>
+                  <p className="text-sm text-gray-400">{typeLabels[page.pageType]}</p>
                 </div>
               </div>
-            </motion.div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
-              {statsCards.map((s, i) => (
-                <motion.div
-                  key={s.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="p-3 sm:p-4 rounded-2xl bg-(--bg-primary) border border-(--border-color) shadow-soft"
-                >
-                  <s.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${s.color} mb-2`} />
-                  <div className="text-lg sm:text-2xl font-bold truncate text-(--text-primary)">
-                    {s.value}
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-(--text-secondary)">
-                    {s.label}
-                  </div>
-                </motion.div>
-              ))}
+              <div className="flex gap-2">
+                <Link href={`/dashboard/services/payment/edit/${page.id}`}>
+                  <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white">
+                    <Edit2 className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                </Link>
+                <Link href={`/pay/${page.slug}`} target="_blank">
+                  <Button variant="default" size="sm" className="bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90">
+                    <ExternalLink className="h-4 w-4 mr-1" /> View
+                  </Button>
+                </Link>
+              </div>
             </div>
 
-            {/* Recent Payments with Acknowledgment */}
-            <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) overflow-hidden shadow-soft">
-              <div className="p-4 sm:p-5 border-b border-(--border-color)">
-                <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 text-(--text-primary)">
-                  {pageTypeIcon}
-                  Recent {typeLabels[page.pageType]} Payments
-                </h3>
-                <p className="text-xs sm:text-sm text-(--text-secondary) mt-1">
-                  {stats.totalCount} payment{stats.totalCount !== 1 ? "s" : ""}{" "}
-                  • Total: ₦{stats.totalAmount.toLocaleString()}
-                </p>
-                {isSchoolPage && (
-                  <p className="text-xs text-(--text-secondary) mt-2">
-                    💡 <strong>Tip:</strong> Only verified bank transfers can be
-                    marked as paid.
-                  </p>
-                )}
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl bg-[#1a1a1a] border border-gray-800">
+                <Eye className="h-4 w-4 text-[#e1bf46] mb-2" />
+                <p className="text-2xl font-bold text-white">{page.pageViews || 0}</p>
+                <p className="text-xs text-gray-500">Views</p>
               </div>
-              <div className="divide-y divide-(--border-color)">
-                {stats.payments.length === 0 ? (
-                  <div className="p-6 sm:p-8 text-center text-(--text-secondary)">
-                    <DollarSign className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm sm:text-base">No payments yet</p>
-                    <p className="text-xs mt-2">
-                      Share your payment page to start receiving payments
-                    </p>
-                  </div>
-                ) : (
-                  stats.payments.map((payment: any) => {
-                    const payerName = getPayerName(payment);
-                    const payerEmail = getPayerEmail(payment);
-                    const narration = getNarration(payment);
-                    const matchedStudent = payment.metadata?.matched_student;
-                    const isAcknowledged = isPaymentAcknowledged(payment);
-                    const extractedStudent =
-                      extractStudentFromNarration(payment);
-                    const paymentDate = new Date(
-                      payment.paid_at || payment.created_at,
-                    );
-                    const isCompleted =
-                      payment.status === "completed" &&
-                      payment.paid_at !== null;
+              <div className="p-4 rounded-xl bg-[#1a1a1a] border border-gray-800">
+                <DollarSign className="h-4 w-4 text-green-500 mb-2" />
+                <p className="text-2xl font-bold text-white">₦{totalCollected.toLocaleString()}</p>
+                <p className="text-xs text-gray-500">Collected</p>
+              </div>
+              <div className="p-4 rounded-xl bg-[#1a1a1a] border border-gray-800">
+                <Wallet className="h-4 w-4 text-[#e1bf46] mb-2" />
+                <p className="text-2xl font-bold text-white">₦{(page.pageBalance || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-500">Balance</p>
+              </div>
+              <div className="p-4 rounded-xl bg-[#1a1a1a] border border-gray-800">
+                <TrendingUp className="h-4 w-4 text-green-500 mb-2" />
+                <p className="text-2xl font-bold text-white">{payments.length}</p>
+                <p className="text-xs text-gray-500">Payments</p>
+              </div>
+            </div>
+
+            {/* Progress Summary */}
+            <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-5">
+              <h3 className="font-semibold text-white mb-3">Payment Progress</h3>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-400">Overall Progress</span>
+                <span className="text-white">₦{totalCollected.toLocaleString()} of ₦{totalExpected.toLocaleString()}</span>
+              </div>
+              <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-[#e1bf46] rounded-full transition-all duration-300"
+                  style={{ width: `${totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0}%` }}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3 mt-4 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-green-500">{paidStudents.length}</p>
+                  <p className="text-xs text-gray-500">Fully Paid</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-yellow-500">{partiallyPaidStudents.length}</p>
+                  <p className="text-xs text-gray-500">Partially Paid</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-500">{unpaidStudents.length}</p>
+                  <p className="text-xs text-gray-500">Unpaid</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Unassigned Payments - Important Section */}
+            {unassignedPayments.length > 0 && (
+              <div className="bg-yellow-900/20 rounded-xl border border-yellow-800 overflow-hidden">
+                <div className="p-4 border-b border-yellow-800 bg-yellow-900/30">
+                  <h3 className="font-semibold text-yellow-400 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Unassigned Payments ({unassignedPayments.length})
+                  </h3>
+                  <p className="text-xs text-yellow-500/80 mt-1">
+                    These payments don't have a student name in the narration. Please assign them to the correct student.
+                  </p>
+                </div>
+                <div className="divide-y divide-yellow-800 max-h-[400px] overflow-y-auto custom-scrollbar">
+                  {unassignedPayments.map((payment: any) => {
+                    const bankName = page.metadata?.virtual_account?.bankName || "Nombank MFB";
+                    const accountNumber = page.metadata?.virtual_account?.accountNumber || "N/A";
+                    const narration = payment.metadata?.narration || "";
+                    const paymentAmount = payment.amount || 0;
                     
-                    // Check if payment can be acknowledged
-                    const verification = canAcknowledgePayment(payment);
-                    const canMarkAsPaid = verification.allowed && !isAcknowledged;
-
                     return (
-                      <div
-                        key={payment.id}
-                        className="p-4 hover:bg-(--bg-secondary) transition-colors"
-                      >
-                        <div className="space-y-3">
-                          {/* Header with amount and action menu */}
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-bold text-(--color-lemon-green) text-base sm:text-lg">
-                                ₦{payment.amount?.toLocaleString()}
-                              </p>
-                              <p className="text-xs text-(--text-secondary)">
-                                {paymentDate.toLocaleDateString()} at{" "}
-                                {paymentDate.toLocaleTimeString()}
-                              </p>
+                      <div key={payment.id} className="p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                          {/* Payment Details */}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <p className="font-bold text-[#e1bf46] text-lg">₦{paymentAmount.toLocaleString()}</p>
+                              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">Unassigned</span>
                             </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button className="p-2 hover:bg-(--bg-secondary) rounded-lg">
-                                  <MoreVertical className="h-4 w-4 text-(--text-secondary)" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent
-                                align="end"
-                                className="bg-(--bg-primary) border border-(--border-color)"
-                              >
-                                <DropdownMenuItem
-                                  className="cursor-pointer"
-                                  onClick={() =>
-                                    navigator.clipboard.writeText(payment.id)
-                                  }
-                                >
-                                  Copy Transaction ID
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="cursor-pointer"
-                                  onClick={() =>
-                                    navigator.clipboard.writeText(narration)
-                                  }
-                                >
-                                  Copy Narration
-                                </DropdownMenuItem>
-                                {isSchoolPage &&
-                                  extractedStudent &&
-                                  canMarkAsPaid && (
-                                    <DropdownMenuItem
-                                      className="cursor-pointer text-green-600"
-                                      onClick={() =>
-                                        acknowledgePaymentAndMarkStudent(
-                                          payment,
-                                          extractedStudent,
-                                        )
-                                      }
-                                      disabled={updatingStudent}
-                                    >
-                                      {acknowledgingPayment === payment.id ? (
-                                        <Loader2 className="h-3 w-3 animate-spin mr-2" />
-                                      ) : (
-                                        <CheckCircle2 className="h-3 w-3 mr-2" />
-                                      )}
-                                      Verify & Mark "{extractedStudent}" as Paid
-                                    </DropdownMenuItem>
-                                  )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-
-                          {/* Payer Info */}
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <User className="h-3 w-3 text-(--color-accent-yellow)" />
-                            <p className="text-sm font-medium">{payerName}</p>
-                            {payerEmail && (
-                              <span className="text-xs text-(--text-secondary)">
-                                ({payerEmail})
-                              </span>
-                            )}
-                            {isCompleted && payment.nomba_transaction_id && (
-                              <span className="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
-                                ✓ Verified Transfer
-                              </span>
-                            )}
-                            {!payment.nomba_transaction_id && (
-                              <span className="text-xs text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-0.5 rounded-full">
-                                ⚠ Pending Verification
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Verification Status */}
-                          {!verification.allowed && !isAcknowledged && (
-                            <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                              <Ban className="h-3 w-3 text-red-600 shrink-0" />
-                              <p className="text-xs text-red-700 flex-1">
-                                Cannot mark as paid: {verification.reason}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Recipient Info for School Pages */}
-                          {isSchoolPage &&
-                            extractedStudent && (
-                              <div className={`p-2 rounded-lg ${
-                                canMarkAsPaid 
-                                  ? "bg-yellow-50 dark:bg-yellow-900/20"
-                                  : "bg-gray-50 dark:bg-gray-800/50"
-                              }`}>
-                                <div className="flex items-center gap-2">
-                                  <AlertCircle className={`h-3 w-3 ${
-                                    canMarkAsPaid ? "text-yellow-600" : "text-gray-400"
-                                  } shrink-0`} />
-                                  <p className="text-xs flex-1">
-                                    Detected student: <strong>{extractedStudent}</strong>
-                                  </p>
-                                  {canMarkAsPaid && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 text-xs border-yellow-300 text-yellow-700"
-                                      onClick={() =>
-                                        acknowledgePaymentAndMarkStudent(
-                                          payment,
-                                          extractedStudent,
-                                        )
-                                      }
-                                      disabled={updatingStudent}
-                                    >
-                                      {acknowledgingPayment === payment.id ? (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        "Verify & Mark as Paid"
-                                      )}
-                                    </Button>
-                                  )}
+                            <p className="text-xs text-gray-400">
+                              {new Date(payment.paid_at).toLocaleDateString()} at {new Date(payment.paid_at).toLocaleTimeString()}
+                            </p>
+                            <div className="mt-2 space-y-1">
+                              <div className="flex items-center gap-2 text-sm">
+                                <User className="h-3 w-3 text-yellow-500" />
+                                <span className="text-gray-300">Sender: {payment.customer_name || "Unknown"}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <Banknote className="h-3 w-3 text-yellow-500" />
+                                <span className="text-gray-300">Bank: {bankName}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <Shield className="h-3 w-3 text-yellow-500" />
+                                <span className="text-gray-300 font-mono">Account: {accountNumber}</span>
+                              </div>
+                              {narration && (
+                                <div className="mt-2 p-2 bg-gray-800 rounded-lg">
+                                  <p className="text-xs text-gray-400">📝 Narration: "{narration}"</p>
                                 </div>
-                                {!canMarkAsPaid && !isAcknowledged && (
-                                  <p className="text-xs text-gray-500 mt-1 ml-5">
-                                    {verification.reason}
-                                  </p>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Assignment Section */}
+                          <div className="sm:w-64">
+                            <label className="text-xs text-gray-400 block mb-2">Assign to student:</label>
+                            <div className="flex gap-2">
+                              <select
+                                value={selectedStudent[payment.id] || ""}
+                                onChange={(e) => setSelectedStudent(prev => ({ ...prev, [payment.id]: e.target.value }))}
+                                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-[#e1bf46]"
+                              >
+                                <option value="">Select student...</option>
+                                {availableStudents.map((student: any) => (
+                                  <option key={student.name} value={student.name}>
+                                    {student.name} (Remaining: ₦{student.remainingAmount.toLocaleString()})
+                                  </option>
+                                ))}
+                              </select>
+                              <Button
+                                onClick={() => assignPaymentToStudent(payment.id, selectedStudent[payment.id], paymentAmount)}
+                                disabled={!selectedStudent[payment.id] || assigningPayment === payment.id}
+                                size="sm"
+                                className="bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90"
+                              >
+                                {assigningPayment === payment.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4" />
                                 )}
-                              </div>
+                              </Button>
+                            </div>
+                            {availableStudents.length === 0 && (
+                              <p className="text-xs text-red-400 mt-2">No available students to assign</p>
                             )}
-
-                          {/* Recipient Info for non-School Pages */}
-                          {!isSchoolPage && getProductName(payment) && (
-                            <div className="ml-3 sm:ml-6 pl-3 sm:pl-4 border-l-2 border-(--color-accent-yellow)/30">
-                              <div className="flex items-center gap-2">
-                                {pageTypeIcon}
-                                <p className="font-medium text-sm text-(--text-primary)">
-                                  {recipientLabel}: {getProductName(payment)}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Narration - Important for tracking */}
-                          {narration && (
-                            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2">
-                              <p className="text-xs text-(--text-secondary) mb-1">
-                                📝 Bank Narration:
-                              </p>
-                              <p className="text-xs sm:text-sm font-mono text-(--text-primary) break-all">
-                                "{narration}"
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Acknowledged status */}
-                          {isAcknowledged && (
-                            <div className="flex items-center gap-2 text-green-600">
-                              <CheckCircle2 className="h-3 w-3" />
-                              <p className="text-xs">
-                                ✓ Verified and marked as paid for:{" "}
-                                {payment.metadata?.acknowledged_student}
-                              </p>
-                            </div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     );
-                  })
-                )}
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Student Payment Status - Only for School Pages */}
-            {isSchoolPage && students.length > 0 && (
-              <div className="bg-(--bg-primary) rounded-2xl border border-(--border-color) p-4 sm:p-5 shadow-soft">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 text-(--text-primary)">
-                    <GraduationCap className="h-4 w-4 text-(--color-accent-yellow)" />
-                    Student Payment Status
+            {/* Students & Assigned Payments Section */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Student List with Scroll */}
+              <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 overflow-hidden">
+                <div className="p-4 border-b border-gray-800">
+                  <h3 className="font-semibold text-white flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4 text-[#e1bf46]" />
+                    Students ({students.length})
                   </h3>
-                  {updatingStudent && (
-                    <Loader2 className="h-4 w-4 animate-spin text-(--color-accent-yellow)" />
-                  )}
                 </div>
-
-                {/* Stats Summary */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 text-center">
-                    <div className="text-lg sm:text-xl font-bold text-green-600">
-                      {paidStudentsCount}
+                <div className="divide-y divide-gray-800 max-h-[500px] overflow-y-auto custom-scrollbar">
+                  {students.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      <p>No students added yet</p>
                     </div>
-                    <div className="text-[10px] sm:text-xs text-(--text-secondary)">
-                      Verified Paid
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 text-center">
-                    <div className="text-lg sm:text-xl font-bold text-yellow-600">
-                      {unpaidStudentsCount}
-                    </div>
-                    <div className="text-[10px] sm:text-xs text-(--text-secondary)">
-                      Unpaid
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-center">
-                    <div className="text-lg sm:text-xl font-bold text-blue-600">
-                      ₦{totalPaidAmount.toLocaleString()}
-                    </div>
-                    <div className="text-[10px] sm:text-xs text-(--text-secondary)">
-                      Total Received
-                    </div>
-                  </div>
-                </div>
-
-                {/* Student List with Toggle Buttons */}
-                <div className="mt-4">
-                  <h4 className="font-medium text-xs sm:text-sm mb-3 text-(--text-primary)">
-                    Student List
-                  </h4>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {students.map((student: any, idx: number) => {
-                      const studentName =
-                        student.name ||
-                        student.childName ||
-                        student.studentName;
-                      const hasPaid = student.paid === true;
-                      const paidAmount = student.paidAmount || 0;
-                      const paidDate = student.paidAt
-                        ? new Date(student.paidAt).toLocaleDateString()
-                        : null;
-                      const parentName = student.parentName;
-                      const expectedAmount =
-                        student.totalAmount || page.price || 0;
+                  ) : (
+                    studentsWithStatus.map((student: any, idx: number) => {
+                      const totalAmount = student.totalAmount;
+                      const paidAmount = student.paidAmount;
+                      const percentage = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
                       
-                      // Check if there's a verified payment for this student
-                      const hasVerifiedPayment = stats.payments.some((payment: any) => {
-                        const paymentStudentName = getStudentName(payment);
-                        return (
-                          payment.status === "completed" &&
-                          payment.nomba_transaction_id &&
-                          paymentStudentName?.toLowerCase() === studentName?.toLowerCase()
-                        );
-                      });
-
                       return (
-                        <div
-                          key={idx}
-                          className={`flex flex-col p-3 rounded-lg gap-2 transition-all ${
-                            hasPaid
-                              ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"
-                              : hasVerifiedPayment
-                              ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-                              : "bg-(--bg-secondary) border border-transparent"
-                          }`}
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <GraduationCap
-                                  className={`h-3 w-3 sm:h-4 sm:w-4 ${
-                                    hasPaid 
-                                      ? "text-green-600" 
-                                      : hasVerifiedPayment
-                                      ? "text-yellow-600"
-                                      : "text-(--text-secondary)"
-                                  }`}
-                                />
-                                <p className="font-medium text-xs sm:text-sm text-(--text-primary)">
-                                  {studentName}
-                                </p>
-                                {hasPaid && (
-                                  <span className="text-[10px] font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded-full">
-                                    ✓ Verified Paid
-                                  </span>
-                                )}
-                                {hasVerifiedPayment && !hasPaid && (
-                                  <span className="text-[10px] font-medium text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded-full">
-                                    Payment Detected - Awaiting Verification
-                                  </span>
-                                )}
-                              </div>
+                        <div key={idx} className="p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-medium text-white">{student.name}</p>
                               {student.className && (
-                                <p className="text-[10px] sm:text-xs text-(--text-secondary) ml-5 sm:ml-6 mt-0.5">
-                                  📚 Class: {student.className}
-                                </p>
+                                <p className="text-xs text-gray-500">📚 Class: {student.className}</p>
                               )}
                               {student.regNumber && (
-                                <p className="text-[10px] sm:text-xs text-(--text-secondary) ml-5 sm:ml-6">
-                                  🔢 Reg: {student.regNumber}
-                                </p>
-                              )}
-                              {hasPaid && paidAmount > 0 && (
-                                <div className="ml-5 sm:ml-6 mt-1 space-y-0.5">
-                                  <p className="text-[10px] sm:text-xs text-green-600">
-                                    💰 Paid: ₦{paidAmount.toLocaleString()}
-                                    {expectedAmount > 0 &&
-                                      ` / ₦${expectedAmount.toLocaleString()}`}
-                                  </p>
-                                  {paidDate && (
-                                    <p className="text-[10px] text-(--text-secondary) flex items-center gap-1">
-                                      <Calendar className="h-2.5 w-2.5" />
-                                      Paid on: {paidDate}
-                                    </p>
-                                  )}
-                                  {parentName && (
-                                    <p className="text-[10px] text-(--text-secondary) flex items-center gap-1">
-                                      <User className="h-2.5 w-2.5" />
-                                      Paid by: {parentName}
-                                    </p>
-                                  )}
-                                </div>
+                                <p className="text-xs text-gray-500">🔢 Reg: {student.regNumber}</p>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
-                              {hasPaid ? (
-                                <button
-                                  onClick={() =>
-                                    toggleStudentPaidStatus(student, false)
-                                  }
-                                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100 text-xs"
-                                  disabled={updatingStudent}
-                                >
-                                  <XCircle className="h-3 w-3" />
-                                  Mark Unpaid
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() =>
-                                    toggleStudentPaidStatus(student, true)
-                                  }
-                                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs ${
-                                    hasVerifiedPayment
-                                      ? "bg-green-50 text-green-600 hover:bg-green-100"
-                                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                  }`}
-                                  disabled={!hasVerifiedPayment || updatingStudent}
-                                  title={!hasVerifiedPayment ? "No verified payment found for this student" : ""}
-                                >
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  Mark as Paid
-                                </button>
-                              )}
+                            {student.isFullyPaid ? (
+                              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" /> PAID
+                              </span>
+                            ) : student.isPartiallyPaid ? (
+                              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <Clock className="h-3 w-3" /> PARTIAL
+                              </span>
+                            ) : (
+                              <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">PENDING</span>
+                            )}
+                          </div>
+                          
+                          {/* Progress Bar for each student */}
+                          <div className="mt-3">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-gray-500">Paid {paidAmount.toLocaleString()} of {totalAmount.toLocaleString()}</span>
+                              <span className="text-[#e1bf46]">{percentage.toFixed(0)}%</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-[#e1bf46] rounded-full transition-all duration-300"
+                                style={{ width: `${percentage}%` }}
+                              />
                             </div>
                           </div>
-                          {!hasPaid && hasVerifiedPayment && (
-                            <p className="text-xs text-yellow-600 mt-1 ml-5">
-                              A verified bank transfer has been detected. Click "Mark as Paid" to confirm.
+                          
+                          {student.parentName && (
+                            <p className="text-xs text-gray-500 mt-2">Paid by: {student.parentName}</p>
+                          )}
+                          {student.paidAt && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(student.paidAt).toLocaleDateString()}
                             </p>
                           )}
                         </div>
                       );
-                    })}
-                  </div>
+                    })
+                  )}
                 </div>
-
-                {/* Summary Note */}
-                {paidStudentsCount > 0 && (
-                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
-                    <p className="text-xs text-(--text-secondary) flex items-center gap-2">
-                      <FileText className="h-3 w-3" />
-                      {paidStudentsCount} of {students.length} students have
-                      been verified and marked as paid. Total received: ₦
-                      {totalPaidAmount.toLocaleString()}
-                    </p>
-                  </div>
-                )}
               </div>
-            )}
+
+              {/* Assigned Payments */}
+              <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 overflow-hidden">
+                <div className="p-4 border-b border-gray-800">
+                  <h3 className="font-semibold text-white flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    Assigned Payments ({assignedPayments.length})
+                  </h3>
+                </div>
+                <div className="divide-y divide-gray-800 max-h-[500px] overflow-y-auto custom-scrollbar">
+                  {assignedPayments.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                      <p>No assigned payments yet</p>
+                      <p className="text-xs mt-1">Assign unassigned payments to students</p>
+                    </div>
+                  ) : (
+                    assignedPayments.map((payment: any) => {
+                      const matchedStudent = payment.metadata?.matched_student || payment.metadata?.assigned_student;
+                      const narration = payment.metadata?.narration || "";
+                      const appFee = payment.metadata?.app_fee || 0;
+                      const nombaFee = payment.metadata?.nomba_fee || 0;
+                      const totalFee = (appFee + nombaFee);
+                      
+                      return (
+                        <div key={payment.id} className="p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-bold text-green-500 text-lg">₦{payment.amount?.toLocaleString()}</p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(payment.paid_at).toLocaleDateString()} at {new Date(payment.paid_at).toLocaleTimeString()}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(payment.id)}
+                              className="text-gray-500 hover:text-[#e1bf46] transition-colors"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm">
+                            <User className="h-3 w-3 text-[#e1bf46]" />
+                            <span className="text-gray-300">{payment.customer_name || "Anonymous"}</span>
+                          </div>
+                          
+                          {matchedStudent && (
+                            <div className="mt-2 p-2 bg-green-900/20 rounded-lg border border-green-800">
+                              <p className="text-xs text-green-400">✓ Assigned to: <strong>{matchedStudent}</strong></p>
+                            </div>
+                          )}
+                          
+                          {narration && !matchedStudent && (
+                            <div className="mt-2 p-2 bg-gray-800 rounded-lg">
+                              <p className="text-xs text-gray-400">Narration: "{narration}"</p>
+                            </div>
+                          )}
+                          
+                          {totalFee > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              <span>Fee: ₦{totalFee.toLocaleString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
 
             {/* Virtual Account Info */}
             {page.metadata?.virtual_account && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-4 sm:p-5 border border-blue-200 dark:border-blue-800">
+              <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800">
                 <div className="flex items-start gap-3">
-                  <Shield className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+                  <Shield className="h-5 w-5 text-blue-400 mt-0.5 shrink-0" />
                   <div className="flex-1">
-                    <h3 className="font-semibold text-sm text-blue-800 dark:text-blue-300">
-                      Payment Account
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
-                      {/* Bank Name */}
-                      <div className="bg-white dark:bg-blue-900/30 rounded-lg p-2">
-                        <p className="text-xs text-blue-500 mb-1">Bank</p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                            {page.metadata.virtual_account.bankName}
-                          </p>
-                          <button
-                            onClick={() =>
-                              copyToClipboard(
-                                page.metadata.virtual_account.bankName,
-                                "bank",
-                              )
-                            }
-                            className="text-blue-500 hover:text-blue-700"
-                          >
-                            {copiedField === "bank" ? (
-                              <Check className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
+                    <p className="text-sm font-semibold text-blue-300">Payment Account</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
+                      <div>
+                        <p className="text-xs text-blue-400">Bank</p>
+                        <p className="font-medium text-white">{page.metadata.virtual_account.bankName}</p>
                       </div>
-
-                      {/* Account Number */}
-                      <div className="bg-white dark:bg-blue-900/30 rounded-lg p-2">
-                        <p className="text-xs text-blue-500 mb-1">
-                          Account Number
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-mono font-bold text-blue-800 dark:text-blue-200">
-                            {page.metadata.virtual_account.accountNumber}
-                          </p>
-                          <button
-                            onClick={() =>
-                              copyToClipboard(
-                                page.metadata.virtual_account.accountNumber,
-                                "account",
-                              )
-                            }
-                            className="text-blue-500 hover:text-blue-700"
-                          >
-                            {copiedField === "account" ? (
-                              <Check className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
+                      <div>
+                        <p className="text-xs text-blue-400">Account Number</p>
+                        <p className="font-mono font-bold text-white">{page.metadata.virtual_account.accountNumber}</p>
                       </div>
-
-                      {/* Account Name */}
-                      <div className="bg-white dark:bg-blue-900/30 rounded-lg p-2">
-                        <p className="text-xs text-blue-500 mb-1">
-                          Account Name
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-blue-800 dark:text-blue-200 truncate">
-                            {page.metadata.virtual_account.bankAccountName ||
-                              page.metadata.virtual_account.accountName}
-                          </p>
-                          <button
-                            onClick={() =>
-                              copyToClipboard(
-                                page.metadata.virtual_account.bankAccountName ||
-                                  page.metadata.virtual_account.accountName,
-                                "name",
-                              )
-                            }
-                            className="text-blue-500 hover:text-blue-700 shrink-0 ml-2"
-                          >
-                            {copiedField === "name" ? (
-                              <Check className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
+                      <div>
+                        <p className="text-xs text-blue-400">Account Name</p>
+                        <p className="text-white truncate">{page.metadata.virtual_account.bankAccountName}</p>
                       </div>
                     </div>
-
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-3 pt-2 border-t border-blue-200 dark:border-blue-700">
-                      💡 Share this account with customers. They can transfer
-                      directly. Ask them to add <strong>student name</strong> in
-                      narration for easy tracking.
+                    <p className="text-xs text-blue-400 mt-2">
+                      💡 Ask customers to add <strong className="text-blue-300">student name</strong> as narration for automatic assignment
                     </p>
                   </div>
                 </div>
               </div>
             )}
+
             {/* Withdraw Button */}
             {page.pageBalance > 0 && (
-              <div className="bg-(--color-ink) rounded-2xl p-4 sm:p-5 text-white">
+              <div className="bg-gradient-to-r from-[#023528] to-[#1a5c40] rounded-xl p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
-                    <h3 className="font-bold text-base sm:text-lg">
-                      Available Balance
-                    </h3>
-                    <p className="text-2xl sm:text-3xl font-bold">
-                      ₦{page.pageBalance.toLocaleString()}
-                    </p>
-                    <p className="text-xs sm:text-sm opacity-80 mt-1">
-                      Withdraw to your main wallet (₦200 fee)
-                    </p>
+                    <p className="text-sm text-white/80">Available Balance</p>
+                    <p className="text-3xl font-bold text-white">₦{page.pageBalance.toLocaleString()}</p>
+                    <p className="text-xs text-white/60 mt-1">Withdraw to main wallet (₦200 fee)</p>
                   </div>
                   <Button
-                    variant="secondary"
-                    className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 w-full sm:w-auto"
-                    onClick={() => setShowWithdrawal(true)}
+                    onClick={handleWithdraw}
+                    disabled={withdrawing}
+                    className="bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
                   >
-                    <Wallet className="h-4 w-4 mr-1" /> Withdraw Funds
+                    {withdrawing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wallet className="h-4 w-4 mr-2" />}
+                    {withdrawing ? "Processing..." : "Withdraw Funds"}
                   </Button>
                 </div>
               </div>
@@ -1249,136 +625,23 @@ const PageDetail = () => {
         </main>
       </div>
 
-      {/* Withdrawal Modal */}
-      {showWithdrawal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="max-w-md w-full bg-(--bg-primary) rounded-2xl mx-4 sm:mx-0 border border-(--border-color) shadow-xl"
-          >
-            <div className="p-4 sm:p-6 border-b border-(--border-color)">
-              <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
-                Withdraw Funds
-              </h2>
-              <p className="text-(--text-secondary) text-xs sm:text-sm mt-1">
-                Withdraw from "{page.title}" to your main wallet
-              </p>
-            </div>
-
-            <div className="p-4 sm:p-6 space-y-4">
-              {withdrawalSuccess ? (
-                <div className="text-center py-6 sm:py-8">
-                  <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-bold text-(--text-primary) mb-2">
-                    Withdrawal Successful!
-                  </h3>
-                  <p className="text-xs sm:text-sm text-(--text-secondary)">
-                    ₦{netAmount.toLocaleString()} has been transferred to your
-                    main wallet.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="text-xs sm:text-sm font-medium mb-1 block text-(--text-primary)">
-                      Available Balance
-                    </label>
-                    <p className="text-xl sm:text-2xl font-bold text-(--color-accent-yellow)">
-                      ₦{page.pageBalance.toLocaleString()}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="text-xs sm:text-sm font-medium mb-1 block text-(--text-primary)">
-                      Withdrawal Amount (₦)
-                    </label>
-                    <input
-                      type="number"
-                      className="w-full p-2 sm:p-3 border border-(--border-color) rounded-xl focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) bg-(--bg-primary) text-(--text-primary) text-sm sm:text-base"
-                      placeholder="Enter amount"
-                      value={withdrawalAmount}
-                      onChange={(e) => setWithdrawalAmount(e.target.value)}
-                      min={1000}
-                      max={page.pageBalance}
-                    />
-                    <p className="text-[10px] sm:text-xs text-(--text-secondary) mt-1">
-                      Minimum: ₦1,000 | Fee: ₦200
-                    </p>
-                  </div>
-
-                  {Number(withdrawalAmount) >= 1000 && (
-                    <div className="bg-(--bg-secondary) rounded-xl p-3 sm:p-4 space-y-2">
-                      <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-(--text-secondary)">
-                          Withdrawal amount:
-                        </span>
-                        <span className="text-(--text-primary)">
-                          ₦{Number(withdrawalAmount).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-(--text-secondary)">
-                          Processing fee:
-                        </span>
-                        <span className="text-(--text-primary)">
-                          ₦{withdrawalFee.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between font-bold pt-2 border-t border-(--border-color) text-sm sm:text-base">
-                        <span className="text-(--text-primary)">
-                          You'll receive:
-                        </span>
-                        <span className="text-(--color-lemon-green)">
-                          ₦{netAmount.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {withdrawalError && (
-                    <div className="p-2 sm:p-3 rounded-xl bg-red-50 text-red-600 text-xs sm:text-sm">
-                      {withdrawalError}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => {
-                        setShowWithdrawal(false);
-                        setWithdrawalAmount("");
-                        setWithdrawalError("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="default"
-                      className="flex-1 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-                      onClick={handleWithdraw}
-                      disabled={
-                        withdrawing ||
-                        !withdrawalAmount ||
-                        Number(withdrawalAmount) < 1000 ||
-                        Number(withdrawalAmount) > page.pageBalance
-                      }
-                    >
-                      {withdrawing ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : null}
-                      {withdrawing ? "Processing..." : "Confirm Withdrawal"}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
+      {/* Custom Scrollbar Styles */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #2a2a2a;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e1bf46;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #c9a832;
+        }
+      `}</style>
     </div>
   );
 };

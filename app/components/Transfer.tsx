@@ -82,6 +82,72 @@ interface ExpenseCategory {
 
 type PaymentMethod = "checkout" | "virtual_account" | "bank_transfer" | "p2p";
 
+// DAILY ESSENTIALS categories in exact order as specified
+const DAILY_ESSENTIALS_LIST = [
+  "Food",
+  "Household Items",
+  "Electricity bill",
+  "Water bill",
+  "Fuel",
+  "Data / Internet",
+  "Call Airtime",
+  "Cleaning fee",
+  "Transport",
+  "Cash Withdrawal",
+  "Children Expenses",
+  "Family Support",
+  "Gifts Given",
+  "Hospital Bills",
+  "Medication",
+  "Digital Subscriptions",
+  "Vehicle Maintenance"
+];
+
+// OTHER CATEGORIES as specified
+const OTHER_CATEGORIES_LIST = [
+  "Inventory / Stock Purchase",
+  "Utilities (Business)",
+  "Logistics & Delivery",
+  "Shop Rent",
+  "Staff Salaries",
+  "School Fees",
+  "Contractor Payment",
+  "Marketing & Ads",
+  "Branding & Design",
+  "Software & Tool",
+  "Professional Fees (lawyer, accountant)",
+  "Bank Charges / POS Fee",
+  "Business Compliance",
+  "Equipment Purchase",
+  "Repairs & Maintenance (Business)",
+  "Rent (business)",
+  "Rent (personal)",
+  "Travel / Flights",
+  "Hotel bill",
+  "Family & Lifestyle",
+  "Events",
+  "Health & Wellness",
+  "Cable Subscriptions",
+  "Digital tool Purchases",
+  "Financial Obligations",
+  "Loan Repayment",
+  "Debt Payment",
+  "Taxes",
+  "Insurance",
+  "Lifestyle & Discretionary",
+  "Clothing & Fashion",
+  "Beauty & Personal Care",
+  "Property Purchase",
+  "Car Purchase",
+  "Gadgets Purchase",
+  "Furniture",
+  "Transfer to Self",
+  "Transfer to Savings",
+  "Business to Personal Transfer",
+  "Personal to Business Transfer",
+  "Emergency Expenses"
+];
+
 export default function Transfer() {
   const inputCount = 4;
   const [isOpen, setIsOpen] = useState(false);
@@ -444,21 +510,58 @@ export default function Transfer() {
     }
   };
 
-  // Sort categories: favorites first, then by name
+  // Sort categories: favorites first, then Daily Essentials, then Other Categories
   const getSortedCategories = () => {
-    return [...expenseCategories].sort((a, b) => {
-      if (a.is_favorite && !b.is_favorite) return -1;
-      if (!a.is_favorite && b.is_favorite) return 1;
-      if (a.is_favorite && b.is_favorite) {
-        return (a.favorite_order || 0) - (b.favorite_order || 0);
+    // Separate categories into groups
+    const favorites: ExpenseCategory[] = [];
+    const dailyEssentials: ExpenseCategory[] = [];
+    const otherCategories: ExpenseCategory[] = [];
+
+    expenseCategories.forEach(cat => {
+      if (cat.is_favorite) {
+        favorites.push(cat);
+      } else if (DAILY_ESSENTIALS_LIST.includes(cat.name)) {
+        dailyEssentials.push(cat);
+      } else {
+        otherCategories.push(cat);
       }
-      return a.name.localeCompare(b.name);
     });
+
+    // Sort favorites by favorite_order
+    favorites.sort((a, b) => (a.favorite_order || 0) - (b.favorite_order || 0));
+    
+    // Sort daily essentials according to the specified order
+    dailyEssentials.sort((a, b) => {
+      return DAILY_ESSENTIALS_LIST.indexOf(a.name) - DAILY_ESSENTIALS_LIST.indexOf(b.name);
+    });
+    
+    // Sort other categories alphabetically
+    otherCategories.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Return combined array with group separators
+    const result: (ExpenseCategory | { isGroupHeader: boolean; groupName: string })[] = [];
+    
+    // Add FAVOURITES section header if there are favorites
+    if (favorites.length > 0) {
+      result.push({ isGroupHeader: true, groupName: "FAVOURITES" });
+      result.push(...favorites);
+    }
+    
+    // Add DAILY ESSENTIALS section
+    result.push({ isGroupHeader: true, groupName: "DAILY ESSENTIALS" });
+    result.push(...dailyEssentials);
+    
+    // Add OTHER CATEGORIES section
+    result.push({ isGroupHeader: true, groupName: "OTHER CATEGORIES" });
+    result.push(...otherCategories);
+    
+    return result;
   };
 
-  const filteredCategories = getSortedCategories().filter((cat) =>
-    cat.name.toLowerCase().includes(categorySearch.toLowerCase()),
-  );
+  const filteredCategories = getSortedCategories().filter(item => {
+    if (typeof item === 'object' && 'isGroupHeader' in item) return true;
+    return (item as ExpenseCategory).name.toLowerCase().includes(categorySearch.toLowerCase());
+  });
 
   const handleSelectCategory = (category: ExpenseCategory) => {
     setExpenseCategory(category.id);
@@ -690,8 +793,7 @@ export default function Transfer() {
       !accountName ||
       !bankCode ||
       !bankName
-    )
-      return;
+    ) return;
     try {
       const response = await fetch("/api/saved-accounts", {
         method: "POST",
@@ -1567,41 +1669,61 @@ export default function Transfer() {
                           No category found.
                         </CommandEmpty>
                         <CommandGroup>
-                          {filteredCategories.map((category) => (
-                            <CommandItem
-                              key={category.id}
-                              onSelect={() => handleSelectCategory(category)}
-                              className="flex items-center justify-between cursor-pointer hover:bg-(--bg-secondary)"
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="text-xl">{category.icon}</span>
-                                <span className="text-(--text-primary)">
-                                  {category.name}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) =>
-                                    toggleFavoriteCategory(category, e)
-                                  }
-                                  className="p-1 hover:scale-110 transition-transform"
-                                >
-                                  <Star
-                                    className={cn(
-                                      "h-4 w-4",
-                                      category.is_favorite
-                                        ? "fill-[#f59e0b] text-[#f59e0b]"
-                                        : "text-(--text-secondary)",
-                                    )}
-                                  />
-                                </button>
-                                {expenseCategory === category.id && (
-                                  <Check className="h-4 w-4 text-(--color-accent-yellow)" />
-                                )}
-                              </div>
-                            </CommandItem>
-                          ))}
+                          {filteredCategories.map((item, index) => {
+                            // Check if this is a group header
+                            if (typeof item === 'object' && 'isGroupHeader' in item && item.isGroupHeader) {
+                              const hasFavorites = expenseCategories.some(cat => cat.is_favorite);
+                              return (
+                                <div key={`header-${item.groupName}`} className="px-2 py-2 mt-2 first:mt-0">
+                                  <div className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider">
+                                    {item.groupName}
+                                  </div>
+                                  {item.groupName === "DAILY ESSENTIALS" && !hasFavorites && (
+                                    <div className="text-xs text-(--text-secondary) mt-0.5">
+                                      Empty till you add favourites
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+                            
+                            const category = item as ExpenseCategory;
+                            return (
+                              <CommandItem
+                                key={category.id}
+                                onSelect={() => handleSelectCategory(category)}
+                                className="flex items-center justify-between cursor-pointer hover:bg-(--bg-secondary)"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl">{category.icon}</span>
+                                  <span className="text-(--text-primary)">
+                                    {category.name}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) =>
+                                      toggleFavoriteCategory(category, e)
+                                    }
+                                    className="p-1 hover:scale-110 transition-transform"
+                                  >
+                                    <Star
+                                      className={cn(
+                                        "h-4 w-4",
+                                        category.is_favorite
+                                          ? "fill-[#f59e0b] text-[#f59e0b]"
+                                          : "text-(--text-secondary)",
+                                      )}
+                                    />
+                                  </button>
+                                  {expenseCategory === category.id && (
+                                    <Check className="h-4 w-4 text-(--color-accent-yellow)" />
+                                  )}
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
                         </CommandGroup>
                       </CommandList>
                     </Command>
@@ -1612,8 +1734,7 @@ export default function Transfer() {
                 <p className="text-red-600 text-sm">{errors.expenseCategory}</p>
               )}
               <p className="text-xs text-(--text-secondary) mt-1">
-                ⭐ Click the star to favorite a category - favorites appear at
-                the top for quick access
+                ⭐ Click the star to favorite a category - favorites appear at the top for quick access
               </p>
             </div>
 

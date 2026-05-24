@@ -15,7 +15,6 @@ import {
   Copy,
   Check,
   Banknote,
-  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 
@@ -24,12 +23,11 @@ interface Student {
   className: string;
   regNumber?: string;
   paid?: boolean;
-  paidAt?: string;
+  isPartiallyPaid?: boolean;
   paidAmount?: number;
   parentName?: string;
   remainingBalance?: number;
   totalAmount?: number;
-  paidPercentage?: number;
 }
 
 interface PaymentPage {
@@ -69,25 +67,27 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<PaymentOption>("full");
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const students = useMemo(() => {
     const rawStudents = page?.metadata?.students || [];
+    const totalAmount = page?.price || 0;
+    
     return rawStudents.map((student: Student) => {
-      const totalAmount = page?.metadata?.totalAmountPerStudent || page?.price || 0;
       const paidAmount = student.paidAmount || 0;
       const remainingBalance = totalAmount - paidAmount;
-      const paidPercentage = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
+      const isFullyPaid = paidAmount >= totalAmount;
       
       return {
         ...student,
         paidAmount,
         remainingBalance: remainingBalance > 0 ? remainingBalance : 0,
-        paid: student.paid || paidAmount >= totalAmount,
+        paid: isFullyPaid,
+        isPartiallyPaid: paidAmount > 0 && !isFullyPaid,
         totalAmount,
-        paidPercentage,
       };
     });
-  }, [page?.metadata?.students, page?.metadata?.totalAmountPerStudent, page?.price]);
+  }, [page?.metadata?.students, page?.price]);
 
   const feeBreakdown = useMemo(() => {
     return page?.metadata?.feeBreakdown || [];
@@ -98,8 +98,8 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   }, [page?.metadata?.className]);
 
   const totalAmountPerStudent = useMemo(() => {
-    return page?.metadata?.totalAmountPerStudent || page?.metadata?.totalAmount || page?.price || 0;
-  }, [page?.metadata?.totalAmountPerStudent, page?.metadata?.totalAmount, page?.price]);
+    return page?.price || 0;
+  }, [page?.price]);
 
   const getTotalAmount = () => {
     if (feeBreakdown.length > 0) {
@@ -175,7 +175,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   }, [slug]);
 
   const handleStudentClick = (student: Student) => {
-    if (student.paid || (student.remainingBalance && student.remainingBalance <= 0)) return;
+    if (student.paid || student.remainingBalance <= 0) return;
     
     setSelectedStudents((prev) => {
       const newSet = new Set(prev);
@@ -188,6 +188,60 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     });
   };
 
+  const handlePayment = async () => {
+    if (selectedStudents.size === 0) {
+      alert("Please select at least one student");
+      return;
+    }
+
+    const totalAmount = getTotalForSelectedStudents();
+    const isInstallmentPayment = selectedPaymentOption === "installment" && page?.installmentCount && page.installmentCount > 1;
+    
+    const metadata: any = {
+      pageType: page?.pageType,
+      pageTitle: page?.title,
+      paymentType: isInstallmentPayment ? "installment" : "full",
+      isInstallment: isInstallmentPayment,
+      selectedStudents: Array.from(selectedStudents),
+      numberOfStudents: selectedStudents.size,
+      totalAmount: totalAmount,
+    };
+
+    if (isInstallmentPayment) {
+      const installmentInfo = getInstallmentInfo();
+      metadata.totalAmount = installmentInfo?.totalAmount;
+      metadata.totalInstallments = installmentInfo?.installmentCount;
+      metadata.installmentAmount = installmentInfo?.installmentAmount;
+      metadata.currentInstallment = 1;
+    }
+
+    try {
+      const response = await fetch("/api/payment-page/public/virtual-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageSlug: slug,
+          customerName: "Customer",
+          customerEmail: "customer@example.com",
+          customerPhone: "",
+          amount: totalAmount,
+          metadata,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      
+      const accountDetails = `Bank: ${data.virtualAccount.bankName}\nAccount Number: ${data.virtualAccount.accountNumber}\nAccount Name: ${data.virtualAccount.accountName}\nAmount: ₦${totalAmount.toLocaleString()}`;
+      await copyToClipboard(accountDetails, "all");
+      
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 5000);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const totalAmount = getTotalAmount();
   const amountToPay = getAmountToPay();
   const installmentInfo = getInstallmentInfo();
@@ -197,19 +251,19 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-accent-yellow)]"></div>
+      <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e1bf46]"></div>
       </div>
     );
   }
 
   if (error || !page) {
     return (
-      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Page not found</h1>
-          <p className="text-[var(--text-secondary)] mb-4">This payment page doesn't exist or has been removed.</p>
-          <Button variant="default" onClick={() => router.push("/")} className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)]">
+          <h1 className="text-2xl font-bold text-white mb-2">Page not found</h1>
+          <p className="text-gray-400 mb-4">This payment page doesn't exist or has been removed.</p>
+          <Button variant="default" onClick={() => router.push("/")} className="bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90">
             Go Home
           </Button>
         </div>
@@ -218,8 +272,9 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <div className="bg-[var(--color-ink)] text-white sticky top-0 z-10">
+    <div className="min-h-screen bg-[#0e0e0e]">
+      {/* Header */}
+      <div className="bg-[#023528] text-white sticky top-0 z-10">
         <div className="container py-4 flex items-center gap-3">
           <button onClick={() => router.back()} className="hover:opacity-80">
             <ArrowLeft className="h-5 w-5" />
@@ -234,6 +289,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         </div>
       </div>
 
+      {/* Images Carousel */}
       {allImages.length > 0 && (
         <div className="relative bg-black/5">
           <img src={allImages[currentImage]} alt={page.title} className="w-full h-64 md:h-80 object-cover" />
@@ -255,368 +311,283 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         </div>
       )}
 
+      {/* Content */}
       <div className="max-w-lg mx-auto py-6 space-y-6 px-4 pb-32">
+        {/* Title */}
         <div>
-          <h2 className="text-2xl font-bold text-[var(--text-primary)]">{page.title}</h2>
+          <h2 className="text-2xl font-bold text-white">{page.title}</h2>
           {className && (
-            <span className="inline-block px-3 py-1 rounded-full bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] text-sm font-medium mt-2">
+            <span className="inline-block px-3 py-1 rounded-full bg-[#e1bf46]/10 text-[#e1bf46] text-sm font-medium mt-2">
               {className}
             </span>
           )}
-          {page.description && <p className="text-[var(--text-secondary)] text-sm mt-2">{page.description}</p>}
+          {page.description && <p className="text-gray-400 text-sm mt-2">{page.description}</p>}
         </div>
 
+        {/* Fee Breakdown */}
         {page.pageType === "school" && feeBreakdown.length > 0 && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
-            <h3 className="font-bold text-lg mb-4 text-[var(--text-primary)]">Fee Breakdown</h3>
+          <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5">
+            <h3 className="font-bold text-lg mb-4 text-white">Fee Breakdown</h3>
             {feeBreakdown.map((item, index) => (
-              <div key={index} className="flex justify-between py-2 border-b border-[var(--border-color)]">
-                <span className="text-[var(--text-secondary)]">{item.label}</span>
-                <span className="font-semibold">₦{item.amount.toLocaleString()}</span>
+              <div key={index} className="flex justify-between py-2 border-b border-gray-800">
+                <span className="text-gray-400">{item.label}</span>
+                <span className="font-semibold text-white">₦{item.amount.toLocaleString()}</span>
               </div>
             ))}
             <div className="flex justify-between pt-3 font-bold">
-              <span>Total per Student</span>
-              <span className="text-[var(--color-accent-yellow)]">₦{totalAmount.toLocaleString()}</span>
+              <span className="text-white">Total per Student</span>
+              <span className="text-[#e1bf46]">₦{totalAmount.toLocaleString()}</span>
             </div>
           </div>
         )}
 
+        {/* Payment Options */}
         {canDoInstallments && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5">
-            <h3 className="font-bold text-lg mb-4 text-[var(--text-primary)]">Payment Options</h3>
+          <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5">
+            <h3 className="font-bold text-lg mb-4 text-white">Payment Options</h3>
             <div className="space-y-3">
               <div
                 onClick={() => setSelectedPaymentOption("full")}
                 className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
                   selectedPaymentOption === "full" 
-                    ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" 
-                    : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
+                    ? "border-[#e1bf46] bg-[#e1bf46]/10" 
+                    : "border-gray-700 hover:border-[#e1bf46]/50"
                 }`}
               >
                 <div>
-                  <p className="font-semibold">Pay in Full</p>
-                  <p className="text-sm text-[var(--text-secondary)]">Pay once</p>
+                  <p className="font-semibold text-white">Pay in Full</p>
+                  <p className="text-sm text-gray-400">Pay once</p>
                 </div>
-                <p className="font-bold text-[var(--color-accent-yellow)]">₦{totalAmount.toLocaleString()}</p>
+                <p className="font-bold text-[#e1bf46]">₦{totalAmount.toLocaleString()}</p>
               </div>
               <div
                 onClick={() => setSelectedPaymentOption("installment")}
                 className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
                   selectedPaymentOption === "installment" 
-                    ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" 
-                    : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
+                    ? "border-[#e1bf46] bg-[#e1bf46]/10" 
+                    : "border-gray-700 hover:border-[#e1bf46]/50"
                 }`}
               >
                 <div>
-                  <p className="font-semibold">Pay in Installments</p>
-                  <p className="text-sm text-[var(--text-secondary)]">
+                  <p className="font-semibold text-white">Pay in Installments</p>
+                  <p className="text-sm text-gray-400">
                     {page.installmentCount} payments
                   </p>
                 </div>
-                <p className="font-bold text-[var(--color-accent-yellow)]">₦{installmentInfo?.installmentAmount.toLocaleString()} / month</p>
+                <p className="font-bold text-[#e1bf46]">₦{installmentInfo?.installmentAmount.toLocaleString()} / month</p>
               </div>
             </div>
           </div>
         )}
 
+        {/* Student Selection with Scroll */}
         {page.pageType === "school" && (
-          <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-5 space-y-4">
-            <h3 className="font-bold text-lg text-[var(--text-primary)]">Select Students</h3>
+          <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5 space-y-4">
+            <h3 className="font-bold text-lg text-white">Select Students</h3>
             
-            {students.filter((s: Student) => !s.paid && (s.paidAmount || 0) > 0).length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <TrendingUp className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">Partially Paid (Continue Payment)</p>
-                </div>
-                <div className="space-y-3">
-                  {students.filter((s: Student) => !s.paid && (s.paidAmount || 0) > 0).map((student: Student) => {
-                    const isSelected = selectedStudents.has(student.name);
-                    const payAmount = getStudentPayAmount(student);
-                    const paidPercentage = student.paidPercentage || 0;
-                    
-                    return (
-                      <div
-                        key={student.name}
-                        onClick={() => handleStudentClick(student)}
-                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          isSelected ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                              isSelected ? "bg-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]" : "border-[var(--text-secondary)]"
-                            }`}>
-                              {isSelected && <CheckCircle className="h-4 w-4 text-white" />}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-[var(--text-primary)]">{student.name}</p>
-                              <div className="flex gap-3 text-xs text-[var(--text-secondary)]">
-                                {student.className && <span>Class: {student.className}</span>}
-                                {student.regNumber && <span>Reg: {student.regNumber}</span>}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-[var(--text-secondary)]">Remaining</p>
-                            <p className="font-bold text-[var(--color-accent-yellow)]">
-                              ₦{payAmount.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="mt-3">
-                          <div className="flex justify-between text-xs text-[var(--text-secondary)] mb-1">
-                            <span>Payment Progress</span>
-                            <span>{paidPercentage.toFixed(0)}% paid</span>
-                          </div>
-                          <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-300"
-                              style={{ width: `${paidPercentage}%` }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-xs text-[var(--text-secondary)] mt-1">
-                            <span>Paid: ₦{(student.paidAmount || 0).toLocaleString()}</span>
-                            <span>Total: ₦{(student.totalAmount || 0).toLocaleString()}</span>
-                          </div>
-                        </div>
-                        
-                        {selectedPaymentOption === "installment" && installmentInfo && (
-                          <div className="mt-3 pt-2 border-t border-[var(--border-color)]">
-                            <p className="text-xs text-[var(--color-accent-yellow)]">
-                              This payment: ₦{payAmount.toLocaleString()} (Installment)
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {students.filter((s: Student) => !s.paid && (s.paidAmount || 0) === 0).length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-[var(--color-accent-yellow)]"></div>
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">Not Paid Yet</p>
-                </div>
-                <div className="space-y-3">
-                  {students.filter((s: Student) => !s.paid && (s.paidAmount || 0) === 0).map((student: Student) => {
-                    const isSelected = selectedStudents.has(student.name);
-                    const payAmount = getStudentPayAmount(student);
-                    
-                    return (
-                      <div
-                        key={student.name}
-                        onClick={() => handleStudentClick(student)}
-                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          isSelected ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10" : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                              isSelected ? "bg-[var(--color-accent-yellow)] border-[var(--color-accent-yellow)]" : "border-[var(--text-secondary)]"
-                            }`}>
-                              {isSelected && <CheckCircle className="h-4 w-4 text-white" />}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-[var(--text-primary)]">{student.name}</p>
-                              <div className="flex gap-3 text-xs text-[var(--text-secondary)]">
-                                {student.className && <span>Class: {student.className}</span>}
-                                {student.regNumber && <span>Reg: {student.regNumber}</span>}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-[var(--color-accent-yellow)]">
-                              ₦{payAmount.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {selectedPaymentOption === "installment" && installmentInfo && (
-                          <div className="mt-3 pt-2 border-t border-[var(--border-color)]">
-                            <p className="text-xs text-[var(--color-accent-yellow)]">
-                              This payment: ₦{payAmount.toLocaleString()} (Installment)
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {students.filter((s: Student) => s.paid === true || (s.remainingBalance && s.remainingBalance <= 0)).length > 0 && (
-              <div className="mt-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <UserCheck className="h-4 w-4 text-green-600" />
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">Fully Paid Students</p>
-                </div>
-                <div className="space-y-2 opacity-60">
-                  {students.filter((s: Student) => s.paid === true || (s.remainingBalance && s.remainingBalance <= 0)).map((student: Student) => (
+            {/* Scrollable Student List */}
+            <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar pr-1">
+              {students.map((student: Student) => {
+                const isSelected = selectedStudents.has(student.name);
+                const isPaid = student.paid;
+                const isPartiallyPaid = student.isPartiallyPaid;
+                const payAmount = getStudentPayAmount(student);
+                const totalAmount = student.totalAmount;
+                const paidAmount = student.paidAmount || 0;
+                
+                // Fully paid - show as paid
+                if (isPaid) {
+                  return (
                     <div
                       key={student.name}
-                      className="p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] cursor-not-allowed"
+                      className="p-4 rounded-xl bg-green-900/20 border border-green-800 opacity-70"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-5 h-5 rounded border-2 border-green-500 bg-green-500/20 flex items-center justify-center">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
+                        <div>
+                          <p className="font-semibold text-white">{student.name}</p>
+                          <div className="flex gap-3 text-xs text-gray-400">
+                            {student.className && <span>📚 {student.className}</span>}
+                            {student.regNumber && <span>🔢 {student.regNumber}</span>}
                           </div>
-                          <div>
-                            <p className="font-medium text-[var(--text-primary)]">{student.name}</p>
-                            <div className="flex gap-3 text-xs text-[var(--text-secondary)]">
-                              {student.className && <span>Class: {student.className}</span>}
-                              {student.regNumber && <span>Reg: {student.regNumber}</span>}
-                            </div>
-                          </div>
+                          <p className="text-xs text-green-400 mt-1">
+                            ✓ Paid {paidAmount.toLocaleString()} of {totalAmount.toLocaleString()}
+                          </p>
                         </div>
                         <div className="text-right">
-                          <span className="text-xs text-green-600 font-medium">PAID ✓</span>
-                          <p className="text-xs text-[var(--text-secondary)]">₦{(student.totalAmount || 0).toLocaleString()}</p>
+                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" /> PAID
+                          </span>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  );
+                }
+                
+                // Partially paid - installment payment in progress
+                if (isPartiallyPaid) {
+                  return (
+                    <div
+                      key={student.name}
+                      className="p-4 rounded-xl bg-yellow-900/20 border border-yellow-800"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-white">{student.name}</p>
+                          <div className="flex gap-3 text-xs text-gray-400">
+                            {student.className && <span>📚 {student.className}</span>}
+                            {student.regNumber && <span>🔢 {student.regNumber}</span>}
+                          </div>
+                          <p className="text-xs text-yellow-400 mt-1">
+                            Partially paid {paidAmount.toLocaleString()} of {totalAmount.toLocaleString()}
+                          </p>
+                          <p className="text-xs text-[#e1bf46] mt-1">
+                            Remaining: ₦{student.remainingBalance.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
+                            PARTIAL
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                // Unpaid - selectable
+                return (
+                  <div
+                    key={student.name}
+                    onClick={() => handleStudentClick(student)}
+                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      isSelected ? "border-[#e1bf46] bg-[#e1bf46]/10" : "border-gray-700 hover:border-[#e1bf46]/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-white">{student.name}</p>
+                        <div className="flex gap-3 text-xs text-gray-400">
+                          {student.className && <span>📚 {student.className}</span>}
+                          {student.regNumber && <span>🔢 {student.regNumber}</span>}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-[#e1bf46]">₦{payAmount.toLocaleString()}</p>
+                        {selectedPaymentOption === "installment" && installmentInfo && (
+                          <p className="text-xs text-gray-400">Installment</p>
+                        )}
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className="mt-2 pt-2 border-t border-[#e1bf46]/20">
+                        <p className="text-xs text-[#e1bf46]">✓ Selected for payment</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
             {selectedStudents.size > 0 && (
-              <div className="p-4 bg-[var(--color-accent-yellow)]/10 rounded-xl">
+              <div className="p-4 bg-[#e1bf46]/10 rounded-xl border border-[#e1bf46]/20">
                 <div className="flex justify-between mb-2">
-                  <span className="text-sm">Selected Students:</span>
-                  <span className="font-bold">{selectedStudents.size} student(s)</span>
+                  <span className="text-sm text-gray-300">Selected:</span>
+                  <span className="font-bold text-white">{selectedStudents.size} student(s)</span>
                 </div>
-                <div className="flex justify-between pt-2 border-t border-[var(--color-accent-yellow)]/20">
-                  <span className="font-semibold">Total to Pay:</span>
-                  <span className="text-xl font-bold text-[var(--color-accent-yellow)]">₦{totalForSelected.toLocaleString()}</span>
+                <div className="flex justify-between pt-2 border-t border-[#e1bf46]/20">
+                  <span className="font-semibold text-white">Total to Pay:</span>
+                  <span className="text-xl font-bold text-[#e1bf46]">₦{totalForSelected.toLocaleString()}</span>
                 </div>
-                {selectedPaymentOption === "installment" && installmentInfo && selectedStudents.size > 0 && (
-                  <p className="text-xs text-[var(--text-secondary)] mt-2">
-                    Installment payment: ₦{(totalForSelected / selectedStudents.size).toLocaleString()} per student
-                  </p>
-                )}
               </div>
             )}
           </div>
         )}
 
+        {/* Bank Transfer Details */}
         {page.virtualAccount && (
-          <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800">
+          <div className="bg-gradient-to-r from-blue-900/30 to-green-900/30 rounded-2xl p-6 border border-blue-800">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-                <Banknote className="h-5 w-5 text-blue-600" />
+              <div className="w-10 h-10 rounded-full bg-blue-900/40 flex items-center justify-center">
+                <Banknote className="h-5 w-5 text-blue-400" />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-[var(--text-primary)]">Bank Transfer Details</h3>
-                <p className="text-xs text-[var(--text-secondary)]">Use these details to make your payment</p>
+                <h3 className="font-bold text-lg text-white">Bank Transfer Details</h3>
+                <p className="text-xs text-gray-400">Transfer to this account</p>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Bank Name</p>
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-lg">{page.virtualAccount.bankName}</p>
-                  <button
-                    onClick={() => copyToClipboard(page.virtualAccount.bankName, "bank")}
-                    className="text-blue-500 hover:text-blue-700"
-                  >
-                    {copiedField === "bank" ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                  </button>
-                </div>
+            <div className="space-y-3">
+              <div className="bg-gray-900 rounded-xl p-3">
+                <p className="text-xs text-gray-500">Bank Name</p>
+                <p className="font-semibold text-white">{page.virtualAccount.bankName}</p>
               </div>
-
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Account Number</p>
-                <div className="flex items-center justify-between">
-                  <p className="font-mono font-bold text-2xl tracking-wider">{page.virtualAccount.accountNumber}</p>
-                  <button
-                    onClick={() => copyToClipboard(page.virtualAccount.accountNumber, "account")}
-                    className="text-blue-500 hover:text-blue-700"
-                  >
-                    {copiedField === "account" ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                  </button>
-                </div>
+              <div className="bg-gray-900 rounded-xl p-3">
+                <p className="text-xs text-gray-500">Account Number</p>
+                <p className="font-mono font-bold text-xl text-white">{page.virtualAccount.accountNumber}</p>
               </div>
-
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Account Name</p>
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold break-all">{page.virtualAccount.bankAccountName || page.virtualAccount.accountName}</p>
-                  <button
-                    onClick={() => copyToClipboard(page.virtualAccount.bankAccountName || page.virtualAccount.accountName, "name")}
-                    className="text-blue-500 hover:text-blue-700 shrink-0 ml-2"
-                  >
-                    {copiedField === "name" ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                  </button>
-                </div>
+              <div className="bg-gray-900 rounded-xl p-3">
+                <p className="text-xs text-gray-500">Account Name</p>
+                <p className="font-semibold text-white break-all">{page.virtualAccount.bankAccountName || page.virtualAccount.accountName}</p>
               </div>
             </div>
 
-            <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-xl text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Amount to Pay</p>
-              <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                ₦{totalForSelected.toLocaleString()}
+            <div className="mt-4 p-3 bg-yellow-900/20 rounded-xl border border-yellow-800">
+              <p className="text-xs text-yellow-400">
+                📝 Important: Use <strong className="text-yellow-300">student name(s)</strong> as narration/reference
               </p>
-              {selectedStudents.size > 0 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  For {selectedStudents.size} student(s)
-                </p>
-              )}
-            </div>
-
-            <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Important Instructions</p>
-                  <ul className="text-xs text-yellow-700 dark:text-yellow-400 mt-2 space-y-1 list-disc list-inside">
-                    <li>Transfer the exact amount shown above</li>
-                    <li>Use <strong>student name(s)</strong> as narration/reference</li>
-                    <li>Payment confirms automatically within 5-10 minutes</li>
-                    <li>Transaction fee is covered by the merchant</li>
-                  </ul>
-                </div>
-              </div>
             </div>
 
             {totalForSelected > 0 && (
-              <button
-                onClick={() => {
-                  const allDetails = `Bank: ${page.virtualAccount?.bankName}\nAccount Number: ${page.virtualAccount?.accountNumber}\nAccount Name: ${page.virtualAccount?.bankAccountName || page.virtualAccount?.accountName}\nAmount: ₦${totalForSelected.toLocaleString()}\nStudents: ${Array.from(selectedStudents).join(", ")}`;
-                  copyToClipboard(allDetails, "all");
-                }}
-                className="mt-4 w-full py-2 text-sm text-blue-600 hover:text-blue-700 flex items-center justify-center gap-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+              <Button
+                onClick={handlePayment}
+                className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
               >
-                {copiedField === "all" ? (
-                  <>
-                    <Check className="h-4 w-4 text-green-600" />
-                    <span className="text-green-600">Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4" />
-                    <span>Copy All Details</span>
-                  </>
-                )}
-              </button>
+                <Banknote className="h-4 w-4 mr-2" />
+                Pay ₦{totalForSelected.toLocaleString()}
+              </Button>
             )}
           </div>
         )}
 
-        <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-secondary)] pt-4">
+        <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
           <Shield className="h-3.5 w-3.5" /> Secured by Zidwell
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccess && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full text-center border border-gray-700">
+            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+            <h3 className="text-xl font-bold text-white mb-2">Account Details Copied!</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Bank details have been copied to your clipboard.
+              Make your transfer using the information provided.
+            </p>
+            <Button onClick={() => setShowSuccess(false)} className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90">
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Scrollbar Styles */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #2a2a2a;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e1bf46;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #c9a832;
+        }
+      `}</style>
     </div>
   );
 }
