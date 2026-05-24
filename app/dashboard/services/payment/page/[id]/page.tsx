@@ -16,14 +16,11 @@ import {
   DollarSign,
   Loader2,
   User,
-  Calendar,
   RefreshCw,
   Edit2,
   Clock,
   AlertCircle,
   Check,
-  X,
-  Search,
   Banknote
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -32,7 +29,6 @@ import DashboardSidebar from "@/app/components/dashboard-component/DashboardSide
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import Loader from "@/app/components/Loader";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -134,11 +130,9 @@ const PageDetail = () => {
     setAssigningPayment(paymentId);
     
     try {
-      // Find the payment record
       const payment = payments.find(p => p.id === paymentId);
       if (!payment) return;
       
-      // Update payment metadata with assigned student
       const { error: updatePaymentError } = await supabase
         .from("payment_page_payments")
         .update({
@@ -154,7 +148,6 @@ const PageDetail = () => {
       
       if (updatePaymentError) throw updatePaymentError;
       
-      // Update student paid status in page metadata
       const currentStudents = page?.metadata?.students || [];
       const updatedStudents = currentStudents.map((student: any) => {
         const studentIdentifier = student.name || student.childName || student.studentName;
@@ -202,9 +195,8 @@ const PageDetail = () => {
 
   if (!page) {
     return (
-      <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center">
-        <Loader/>
-        {/* <Loader2 className="h-8 w-8 animate-spin text-[#e1bf46]" /> */}
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-yellow)]" />
       </div>
     );
   }
@@ -212,7 +204,6 @@ const PageDetail = () => {
   const pageUrl = `https://zidwell.com/pay/${page.slug}`;
   const students = page.metadata?.students || [];
   
-  // Calculate student payment statuses
   const studentsWithStatus = students.map((student: any) => {
     const totalAmount = page.price || 0;
     const paidAmount = student.paidAmount || 0;
@@ -229,7 +220,6 @@ const PageDetail = () => {
     };
   });
 
-  // Separate payments: assigned vs unassigned
   const assignedPayments = payments.filter(p => p.metadata?.matched_student || p.metadata?.assigned_student);
   const unassignedPayments = payments.filter(p => !p.metadata?.matched_student && !p.metadata?.assigned_student);
 
@@ -239,12 +229,10 @@ const PageDetail = () => {
   
   const totalCollected = studentsWithStatus.reduce((sum: number, s: any) => sum + (s.paidAmount || 0), 0);
   const totalExpected = students.length * (page.price || 0);
-
-  // Available students for assignment (not fully paid)
   const availableStudents = studentsWithStatus.filter((s: any) => !s.isFullyPaid);
 
   return (
-    <div className="min-h-screen bg-[#0e0e0e]">
+    <div className="min-h-screen bg-[var(--bg-secondary)]">
       <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
@@ -252,10 +240,10 @@ const PageDetail = () => {
           <div className="max-w-6xl mx-auto space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#e1bf46] transition-colors">
+              <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors">
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
-              <button onClick={refreshData} disabled={refreshing} className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#e1bf46] transition-colors">
+              <button onClick={refreshData} disabled={refreshing} className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors">
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
               </button>
             </div>
@@ -263,20 +251,20 @@ const PageDetail = () => {
             {/* Page Info */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-3">
-                {page.logo && <img src={page.logo} className="h-12 w-12 rounded-xl object-cover" />}
+                {page.logo && <img src={page.logo} className="h-12 w-12 rounded-xl object-cover" alt="Logo" />}
                 <div>
-                  <h1 className="text-2xl font-bold text-white">{page.title}</h1>
-                  <p className="text-sm text-gray-400">{typeLabels[page.pageType]}</p>
+                  <h1 className="text-2xl font-bold text-[var(--text-primary)]">{page.title}</h1>
+                  <p className="text-sm text-[var(--text-secondary)]">{typeLabels[page.pageType]}</p>
                 </div>
               </div>
               <div className="flex gap-2">
                 <Link href={`/dashboard/services/payment/edit/${page.id}`}>
-                  <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white">
+                  <Button variant="outline" size="sm" className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]">
                     <Edit2 className="h-4 w-4 mr-1" /> Edit
                   </Button>
                 </Link>
                 <Link href={`/pay/${page.slug}`} target="_blank">
-                  <Button variant="default" size="sm" className="bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90">
+                  <Button variant="default" size="sm" className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90">
                     <ExternalLink className="h-4 w-4 mr-1" /> View
                   </Button>
                 </Link>
@@ -285,70 +273,70 @@ const PageDetail = () => {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl bg-[#1a1a1a] border border-gray-800">
-                <Eye className="h-4 w-4 text-[#e1bf46] mb-2" />
-                <p className="text-2xl font-bold text-white">{page.pageViews || 0}</p>
-                <p className="text-xs text-gray-500">Views</p>
+              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <Eye className="h-4 w-4 text-[var(--color-accent-yellow)] mb-2" />
+                <p className="text-2xl font-bold text-[var(--text-primary)]">{page.pageViews || 0}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Views</p>
               </div>
-              <div className="p-4 rounded-xl bg-[#1a1a1a] border border-gray-800">
-                <DollarSign className="h-4 w-4 text-green-500 mb-2" />
-                <p className="text-2xl font-bold text-white">₦{totalCollected.toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Collected</p>
+              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <DollarSign className="h-4 w-4 text-[var(--color-lemon-green)] mb-2" />
+                <p className="text-2xl font-bold text-[var(--text-primary)]">₦{totalCollected.toLocaleString()}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Collected</p>
               </div>
-              <div className="p-4 rounded-xl bg-[#1a1a1a] border border-gray-800">
-                <Wallet className="h-4 w-4 text-[#e1bf46] mb-2" />
-                <p className="text-2xl font-bold text-white">₦{(page.pageBalance || 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Balance</p>
+              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <Wallet className="h-4 w-4 text-[var(--color-accent-yellow)] mb-2" />
+                <p className="text-2xl font-bold text-[var(--text-primary)]">₦{(page.pageBalance || 0).toLocaleString()}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Balance</p>
               </div>
-              <div className="p-4 rounded-xl bg-[#1a1a1a] border border-gray-800">
-                <TrendingUp className="h-4 w-4 text-green-500 mb-2" />
-                <p className="text-2xl font-bold text-white">{payments.length}</p>
-                <p className="text-xs text-gray-500">Payments</p>
+              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <TrendingUp className="h-4 w-4 text-[var(--color-lemon-green)] mb-2" />
+                <p className="text-2xl font-bold text-[var(--text-primary)]">{payments.length}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Payments</p>
               </div>
             </div>
 
             {/* Progress Summary */}
-            <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-5">
-              <h3 className="font-semibold text-white mb-3">Payment Progress</h3>
+            <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-5">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-3">Payment Progress</h3>
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-400">Overall Progress</span>
-                <span className="text-white">₦{totalCollected.toLocaleString()} of ₦{totalExpected.toLocaleString()}</span>
+                <span className="text-[var(--text-secondary)]">Overall Progress</span>
+                <span className="text-[var(--text-primary)]">₦{totalCollected.toLocaleString()} of ₦{totalExpected.toLocaleString()}</span>
               </div>
-              <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-[#e1bf46] rounded-full transition-all duration-300"
+                  className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-300"
                   style={{ width: `${totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0}%` }}
                 />
               </div>
               <div className="grid grid-cols-3 gap-3 mt-4 text-center">
                 <div>
-                  <p className="text-2xl font-bold text-green-500">{paidStudents.length}</p>
-                  <p className="text-xs text-gray-500">Fully Paid</p>
+                  <p className="text-2xl font-bold text-[var(--color-lemon-green)]">{paidStudents.length}</p>
+                  <p className="text-xs text-[var(--text-secondary)]">Fully Paid</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-yellow-500">{partiallyPaidStudents.length}</p>
-                  <p className="text-xs text-gray-500">Partially Paid</p>
+                  <p className="text-xs text-[var(--text-secondary)]">Partially Paid</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-500">{unpaidStudents.length}</p>
-                  <p className="text-xs text-gray-500">Unpaid</p>
+                  <p className="text-2xl font-bold text-[var(--text-secondary)]">{unpaidStudents.length}</p>
+                  <p className="text-xs text-[var(--text-secondary)]">Unpaid</p>
                 </div>
               </div>
             </div>
 
-            {/* Unassigned Payments - Important Section */}
+            {/* Unassigned Payments */}
             {unassignedPayments.length > 0 && (
-              <div className="bg-yellow-900/20 rounded-xl border border-yellow-800 overflow-hidden">
-                <div className="p-4 border-b border-yellow-800 bg-yellow-900/30">
-                  <h3 className="font-semibold text-yellow-400 flex items-center gap-2">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 overflow-hidden">
+                <div className="p-4 border-b border-yellow-200 dark:border-yellow-800 bg-yellow-100 dark:bg-yellow-900/30">
+                  <h3 className="font-semibold text-yellow-800 dark:text-yellow-400 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" />
                     Unassigned Payments ({unassignedPayments.length})
                   </h3>
-                  <p className="text-xs text-yellow-500/80 mt-1">
-                    These payments don't have a student name in the narration. Please assign them to the correct student.
-                  </p>
-                </div>
-                <div className="divide-y divide-yellow-800 max-h-[400px] overflow-y-auto custom-scrollbar">
+                  <p className="text-xs text-yellow-600 dark:text-yellow-500/80 mt-1">
+                      These payments don't have a student name in the narration. Please assign them to the correct student.
+                    </p>
+                  </div>
+                <div className="divide-y divide-yellow-200 dark:divide-yellow-800 max-h-[400px] overflow-y-auto custom-scrollbar">
                   {unassignedPayments.map((payment: any) => {
                     const bankName = page.metadata?.virtual_account?.bankName || "Nombank MFB";
                     const accountNumber = page.metadata?.virtual_account?.accountNumber || "N/A";
@@ -358,44 +346,42 @@ const PageDetail = () => {
                     return (
                       <div key={payment.id} className="p-4">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                          {/* Payment Details */}
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <p className="font-bold text-[#e1bf46] text-lg">₦{paymentAmount.toLocaleString()}</p>
-                              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">Unassigned</span>
+                              <p className="font-bold text-[var(--color-accent-yellow)] text-lg">₦{paymentAmount.toLocaleString()}</p>
+                              <span className="text-xs bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full">Unassigned</span>
                             </div>
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-[var(--text-secondary)]">
                               {new Date(payment.paid_at).toLocaleDateString()} at {new Date(payment.paid_at).toLocaleTimeString()}
                             </p>
                             <div className="mt-2 space-y-1">
                               <div className="flex items-center gap-2 text-sm">
-                                <User className="h-3 w-3 text-yellow-500" />
-                                <span className="text-gray-300">Sender: {payment.customer_name || "Unknown"}</span>
+                                <User className="h-3 w-3 text-yellow-600 dark:text-yellow-500" />
+                                <span className="text-[var(--text-primary)]">Sender: {payment.customer_name || "Unknown"}</span>
                               </div>
                               <div className="flex items-center gap-2 text-sm">
-                                <Banknote className="h-3 w-3 text-yellow-500" />
-                                <span className="text-gray-300">Bank: {bankName}</span>
+                                <Banknote className="h-3 w-3 text-yellow-600 dark:text-yellow-500" />
+                                <span className="text-[var(--text-primary)]">Bank: {bankName}</span>
                               </div>
                               <div className="flex items-center gap-2 text-sm">
-                                <Shield className="h-3 w-3 text-yellow-500" />
-                                <span className="text-gray-300 font-mono">Account: {accountNumber}</span>
+                                <Shield className="h-3 w-3 text-yellow-600 dark:text-yellow-500" />
+                                <span className="text-[var(--text-primary)] font-mono">Account: {accountNumber}</span>
                               </div>
                               {narration && (
-                                <div className="mt-2 p-2 bg-gray-800 rounded-lg">
-                                  <p className="text-xs text-gray-400">📝 Narration: "{narration}"</p>
+                                <div className="mt-2 p-2 bg-[var(--bg-secondary)] rounded-lg">
+                                  <p className="text-xs text-[var(--text-secondary)]">📝 Narration: "{narration}"</p>
                                 </div>
                               )}
                             </div>
                           </div>
                           
-                          {/* Assignment Section */}
                           <div className="sm:w-64">
-                            <label className="text-xs text-gray-400 block mb-2">Assign to student:</label>
+                            <label className="text-xs text-[var(--text-secondary)] block mb-2">Assign to student:</label>
                             <div className="flex gap-2">
                               <select
                                 value={selectedStudent[payment.id] || ""}
                                 onChange={(e) => setSelectedStudent(prev => ({ ...prev, [payment.id]: e.target.value }))}
-                                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-[#e1bf46]"
+                                className="flex-1 px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--color-accent-yellow)]"
                               >
                                 <option value="">Select student...</option>
                                 {availableStudents.map((student: any) => (
@@ -408,7 +394,7 @@ const PageDetail = () => {
                                 onClick={() => assignPaymentToStudent(payment.id, selectedStudent[payment.id], paymentAmount)}
                                 disabled={!selectedStudent[payment.id] || assigningPayment === payment.id}
                                 size="sm"
-                                className="bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90"
+                                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                               >
                                 {assigningPayment === payment.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -418,7 +404,7 @@ const PageDetail = () => {
                               </Button>
                             </div>
                             {availableStudents.length === 0 && (
-                              <p className="text-xs text-red-400 mt-2">No available students to assign</p>
+                              <p className="text-xs text-red-500 dark:text-red-400 mt-2">No available students to assign</p>
                             )}
                           </div>
                         </div>
@@ -429,19 +415,19 @@ const PageDetail = () => {
               </div>
             )}
 
-            {/* Students & Assigned Payments Section */}
+            {/* Students & Assigned Payments */}
             <div className="grid lg:grid-cols-2 gap-6">
-              {/* Student List with Scroll */}
-              <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 overflow-hidden">
-                <div className="p-4 border-b border-gray-800">
-                  <h3 className="font-semibold text-white flex items-center gap-2">
-                    <GraduationCap className="h-4 w-4 text-[#e1bf46]" />
+              {/* Student List */}
+              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+                <div className="p-4 border-b border-[var(--border-color)]">
+                  <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4 text-[var(--color-accent-yellow)]" />
                     Students ({students.length})
                   </h3>
                 </div>
-                <div className="divide-y divide-gray-800 max-h-[500px] overflow-y-auto custom-scrollbar">
+                <div className="divide-y divide-[var(--border-color)] max-h-[500px] overflow-y-auto custom-scrollbar">
                   {students.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
+                    <div className="p-8 text-center text-[var(--text-secondary)]">
                       <p>No students added yet</p>
                     </div>
                   ) : (
@@ -454,46 +440,45 @@ const PageDetail = () => {
                         <div key={idx} className="p-4">
                           <div className="flex justify-between items-start mb-2">
                             <div>
-                              <p className="font-medium text-white">{student.name}</p>
+                              <p className="font-medium text-[var(--text-primary)]">{student.name}</p>
                               {student.className && (
-                                <p className="text-xs text-gray-500">📚 Class: {student.className}</p>
+                                <p className="text-xs text-[var(--text-secondary)]">📚 Class: {student.className}</p>
                               )}
                               {student.regNumber && (
-                                <p className="text-xs text-gray-500">🔢 Reg: {student.regNumber}</p>
+                                <p className="text-xs text-[var(--text-secondary)]">🔢 Reg: {student.regNumber}</p>
                               )}
                             </div>
                             {student.isFullyPaid ? (
-                              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <span className="text-xs bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
                                 <CheckCircle2 className="h-3 w-3" /> PAID
                               </span>
                             ) : student.isPartiallyPaid ? (
-                              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <span className="text-xs bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
                                 <Clock className="h-3 w-3" /> PARTIAL
                               </span>
                             ) : (
-                              <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">PENDING</span>
+                              <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">PENDING</span>
                             )}
                           </div>
                           
-                          {/* Progress Bar for each student */}
                           <div className="mt-3">
                             <div className="flex justify-between text-xs mb-1">
-                              <span className="text-gray-500">Paid {paidAmount.toLocaleString()} of {totalAmount.toLocaleString()}</span>
-                              <span className="text-[#e1bf46]">{percentage.toFixed(0)}%</span>
+                              <span className="text-[var(--text-secondary)]">Paid {paidAmount.toLocaleString()} of {totalAmount.toLocaleString()}</span>
+                              <span className="text-[var(--color-accent-yellow)]">{percentage.toFixed(0)}%</span>
                             </div>
-                            <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div className="w-full h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
                               <div 
-                                className="h-full bg-[#e1bf46] rounded-full transition-all duration-300"
+                                className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-300"
                                 style={{ width: `${percentage}%` }}
                               />
                             </div>
                           </div>
                           
                           {student.parentName && (
-                            <p className="text-xs text-gray-500 mt-2">Paid by: {student.parentName}</p>
+                            <p className="text-xs text-[var(--text-secondary)] mt-2">Paid by: {student.parentName}</p>
                           )}
                           {student.paidAt && (
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-[var(--text-secondary)] mt-1">
                               {new Date(student.paidAt).toLocaleDateString()}
                             </p>
                           )}
@@ -505,16 +490,16 @@ const PageDetail = () => {
               </div>
 
               {/* Assigned Payments */}
-              <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 overflow-hidden">
-                <div className="p-4 border-b border-gray-800">
-                  <h3 className="font-semibold text-white flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+                <div className="p-4 border-b border-[var(--border-color)]">
+                  <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-[var(--color-lemon-green)]" />
                     Assigned Payments ({assignedPayments.length})
                   </h3>
                 </div>
-                <div className="divide-y divide-gray-800 max-h-[500px] overflow-y-auto custom-scrollbar">
+                <div className="divide-y divide-[var(--border-color)] max-h-[500px] overflow-y-auto custom-scrollbar">
                   {assignedPayments.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
+                    <div className="p-8 text-center text-[var(--text-secondary)]">
                       <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
                       <p>No assigned payments yet</p>
                       <p className="text-xs mt-1">Assign unassigned payments to students</p>
@@ -531,38 +516,38 @@ const PageDetail = () => {
                         <div key={payment.id} className="p-4">
                           <div className="flex justify-between items-start mb-2">
                             <div>
-                              <p className="font-bold text-green-500 text-lg">₦{payment.amount?.toLocaleString()}</p>
-                              <p className="text-xs text-gray-500">
+                              <p className="font-bold text-[var(--color-lemon-green)] text-lg">₦{payment.amount?.toLocaleString()}</p>
+                              <p className="text-xs text-[var(--text-secondary)]">
                                 {new Date(payment.paid_at).toLocaleDateString()} at {new Date(payment.paid_at).toLocaleTimeString()}
                               </p>
                             </div>
                             <button
                               onClick={() => navigator.clipboard.writeText(payment.id)}
-                              className="text-gray-500 hover:text-[#e1bf46] transition-colors"
+                              className="text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors"
                             >
                               <Copy className="h-3 w-3" />
                             </button>
                           </div>
                           
                           <div className="flex items-center gap-2 text-sm">
-                            <User className="h-3 w-3 text-[#e1bf46]" />
-                            <span className="text-gray-300">{payment.customer_name || "Anonymous"}</span>
+                            <User className="h-3 w-3 text-[var(--color-accent-yellow)]" />
+                            <span className="text-[var(--text-primary)]">{payment.customer_name || "Anonymous"}</span>
                           </div>
                           
                           {matchedStudent && (
-                            <div className="mt-2 p-2 bg-green-900/20 rounded-lg border border-green-800">
-                              <p className="text-xs text-green-400">✓ Assigned to: <strong>{matchedStudent}</strong></p>
+                            <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                              <p className="text-xs text-green-700 dark:text-green-400">✓ Assigned to: <strong>{matchedStudent}</strong></p>
                             </div>
                           )}
                           
                           {narration && !matchedStudent && (
-                            <div className="mt-2 p-2 bg-gray-800 rounded-lg">
-                              <p className="text-xs text-gray-400">Narration: "{narration}"</p>
+                            <div className="mt-2 p-2 bg-[var(--bg-secondary)] rounded-lg">
+                              <p className="text-xs text-[var(--text-secondary)]">Narration: "{narration}"</p>
                             </div>
                           )}
                           
                           {totalFee > 0 && (
-                            <div className="mt-2 text-xs text-gray-500">
+                            <div className="mt-2 text-xs text-[var(--text-secondary)]">
                               <span>Fee: ₦{totalFee.toLocaleString()}</span>
                             </div>
                           )}
@@ -576,27 +561,27 @@ const PageDetail = () => {
 
             {/* Virtual Account Info */}
             {page.metadata?.virtual_account && (
-              <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
                 <div className="flex items-start gap-3">
-                  <Shield className="h-5 w-5 text-blue-400 mt-0.5 shrink-0" />
+                  <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-blue-300">Payment Account</p>
+                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Payment Account</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
                       <div>
-                        <p className="text-xs text-blue-400">Bank</p>
-                        <p className="font-medium text-white">{page.metadata.virtual_account.bankName}</p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400">Bank</p>
+                        <p className="font-medium text-[var(--text-primary)]">{page.metadata.virtual_account.bankName}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-blue-400">Account Number</p>
-                        <p className="font-mono font-bold text-white">{page.metadata.virtual_account.accountNumber}</p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400">Account Number</p>
+                        <p className="font-mono font-bold text-[var(--text-primary)]">{page.metadata.virtual_account.accountNumber}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-blue-400">Account Name</p>
-                        <p className="text-white truncate">{page.metadata.virtual_account.bankAccountName}</p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400">Account Name</p>
+                        <p className="text-[var(--text-primary)] truncate">{page.metadata.virtual_account.bankAccountName}</p>
                       </div>
                     </div>
-                    <p className="text-xs text-blue-400 mt-2">
-                      💡 Ask customers to add <strong className="text-blue-300">student name</strong> as narration for automatic assignment
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                      💡 Ask customers to add <strong className="text-blue-800 dark:text-blue-300">student name</strong> as narration for automatic assignment
                     </p>
                   </div>
                 </div>
@@ -605,7 +590,7 @@ const PageDetail = () => {
 
             {/* Withdraw Button */}
             {page.pageBalance > 0 && (
-              <div className="bg-gradient-to-r from-[#023528] to-[#1a5c40] rounded-xl p-5">
+              <div className="bg-gradient-to-r from-[var(--color-ink)] to-[#1a5c40] rounded-xl p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <p className="text-sm text-white/80">Available Balance</p>
@@ -615,7 +600,7 @@ const PageDetail = () => {
                   <Button
                     onClick={handleWithdraw}
                     disabled={withdrawing}
-                    className="bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
+                    className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 font-semibold"
                   >
                     {withdrawing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wallet className="h-4 w-4 mr-2" />}
                     {withdrawing ? "Processing..." : "Withdraw Funds"}
@@ -627,17 +612,16 @@ const PageDetail = () => {
         </main>
       </div>
 
-      {/* Custom Scrollbar Styles */}
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: #2a2a2a;
+          background: var(--bg-secondary);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e1bf46;
+          background: var(--color-accent-yellow);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
