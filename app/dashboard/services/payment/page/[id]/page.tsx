@@ -21,7 +21,9 @@ import {
   Clock,
   AlertCircle,
   Check,
-  Banknote
+  Banknote,
+  Search,
+  XCircle
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore } from "@/app/hooks/useStore";
@@ -59,6 +61,7 @@ const PageDetail = () => {
   const [withdrawing, setWithdrawing] = useState(false);
   const [assigningPayment, setAssigningPayment] = useState<string | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const foundPage = pages.find((p) => p.id === id);
@@ -84,15 +87,32 @@ const PageDetail = () => {
 
   const loadPayments = async (pageId: string) => {
     try {
+      console.log("Loading payments for pageId:", pageId);
+      
+      // Get all completed payments - don't filter by status just yet
       const { data, error } = await supabase
         .from("payment_page_payments")
         .select("*")
         .eq("payment_page_id", pageId)
         .eq("status", "completed")
-        .order("paid_at", { ascending: false });
+        .order("created_at", { ascending: false });
 
-      if (!error && data) {
+      if (error) {
+        console.error("Error loading payments:", error);
+      }
+      
+      if (data && data.length > 0) {
+        console.log("Completed payments found:", data.length);
+        console.log("Payment details:", data.map(p => ({ 
+          id: p.id, 
+          amount: p.amount, 
+          matched_student: p.metadata?.matched_student,
+          narration: p.metadata?.narration 
+        })));
         setPayments(data);
+      } else {
+        console.log("No completed payments found");
+        setPayments([]);
       }
     } catch (error) {
       console.error("Error loading payments:", error);
@@ -131,23 +151,30 @@ const PageDetail = () => {
     
     try {
       const payment = payments.find(p => p.id === paymentId);
-      if (!payment) return;
+      if (!payment) {
+        alert("Payment not found");
+        return;
+      }
+      
+      // Update payment metadata with assigned student
+      const updatedMetadata = {
+        ...payment.metadata,
+        assigned_student: studentName,
+        assigned_at: new Date().toISOString(),
+        assigned_by: "merchant",
+        matched_student: studentName,
+      };
       
       const { error: updatePaymentError } = await supabase
         .from("payment_page_payments")
         .update({
-          metadata: {
-            ...payment.metadata,
-            assigned_student: studentName,
-            assigned_at: new Date().toISOString(),
-            assigned_by: "merchant",
-            matched_student: studentName,
-          }
+          metadata: updatedMetadata,
         })
         .eq("id", paymentId);
       
       if (updatePaymentError) throw updatePaymentError;
       
+      // Update student paid status in page metadata
       const currentStudents = page?.metadata?.students || [];
       const updatedStudents = currentStudents.map((student: any) => {
         const studentIdentifier = student.name || student.childName || student.studentName;
@@ -182,14 +209,18 @@ const PageDetail = () => {
       
       if (updatePageError) throw updatePageError;
       
-      alert(`✅ Payment assigned to "${studentName}" successfully!`);
-      refreshData();
+      alert(`✅ Payment of ₦${amount.toLocaleString()} assigned to "${studentName}" successfully!`);
+      
+      // Refresh both payments and page data
+      await loadPayments(page.id);
+      await loadPageDetails();
       
     } catch (error) {
       console.error("Error assigning payment:", error);
       alert("Failed to assign payment. Please try again.");
     } finally {
       setAssigningPayment(null);
+      setSelectedStudent(prev => ({ ...prev, [paymentId]: "" }));
     }
   };
 
@@ -201,9 +232,9 @@ const PageDetail = () => {
     );
   }
 
-  const pageUrl = `https://zidwell.com/pay/${page.slug}`;
   const students = page.metadata?.students || [];
   
+  // Calculate student payment statuses based on actual payments
   const studentsWithStatus = students.map((student: any) => {
     const totalAmount = page.price || 0;
     const paidAmount = student.paidAmount || 0;
@@ -220,8 +251,21 @@ const PageDetail = () => {
     };
   });
 
-  const assignedPayments = payments.filter(p => p.metadata?.matched_student || p.metadata?.assigned_student);
-  const unassignedPayments = payments.filter(p => !p.metadata?.matched_student && !p.metadata?.assigned_student);
+  // Filter students by search query
+  const filteredStudents = studentsWithStatus.filter((student: any) =>
+    student.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Separate payments: assigned vs unassigned (based on metadata)
+  const assignedPayments = payments.filter(p => {
+    const metadata = p.metadata || {};
+    return metadata.matched_student || metadata.assigned_student;
+  });
+  
+  const unassignedPayments = payments.filter(p => {
+    const metadata = p.metadata || {};
+    return !metadata.matched_student && !metadata.assigned_student;
+  });
 
   const paidStudents = studentsWithStatus.filter((s: any) => s.isFullyPaid);
   const partiallyPaidStudents = studentsWithStatus.filter((s: any) => s.isPartiallyPaid);
@@ -324,40 +368,49 @@ const PageDetail = () => {
               </div>
             </div>
 
-            {/* Unassigned Payments */}
-            {unassignedPayments.length > 0 && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 overflow-hidden">
-                <div className="p-4 border-b border-yellow-200 dark:border-yellow-800 bg-yellow-100 dark:bg-yellow-900/30">
-                  <h3 className="font-semibold text-yellow-800 dark:text-yellow-400 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    Unassigned Payments ({unassignedPayments.length})
-                  </h3>
-                  <p className="text-xs text-yellow-600 dark:text-yellow-500/80 mt-1">
-                      These payments don't have a student name in the narration. Please assign them to the correct student.
-                    </p>
+            {/* Unassigned Payments Section - For manual assignment */}
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 overflow-hidden">
+              <div className="p-4 border-b border-yellow-200 dark:border-yellow-800 bg-yellow-100 dark:bg-yellow-900/30">
+                <h3 className="font-semibold text-yellow-800 dark:text-yellow-400 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Unassigned Payments ({unassignedPayments.length})
+                </h3>
+                <p className="text-xs text-yellow-600 dark:text-yellow-500/80 mt-1">
+                  These payments don't have a student name. Please assign them to the correct student.
+                </p>
+              </div>
+              <div className="divide-y divide-yellow-200 dark:divide-yellow-800 max-h-[400px] overflow-y-auto custom-scrollbar">
+                {unassignedPayments.length === 0 ? (
+                  <div className="p-8 text-center text-yellow-700 dark:text-yellow-400">
+                    <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                    <p>No unassigned payments</p>
+                    <p className="text-xs mt-1">All payments have been assigned to students</p>
                   </div>
-                <div className="divide-y divide-yellow-200 dark:divide-yellow-800 max-h-[400px] overflow-y-auto custom-scrollbar">
-                  {unassignedPayments.map((payment: any) => {
+                ) : (
+                  unassignedPayments.map((payment: any) => {
                     const bankName = page.metadata?.virtual_account?.bankName || "Nombank MFB";
                     const accountNumber = page.metadata?.virtual_account?.accountNumber || "N/A";
                     const narration = payment.metadata?.narration || "";
                     const paymentAmount = payment.amount || 0;
+                    const senderName = payment.customer_name || "Unknown";
+                    const paymentDate = payment.paid_at || payment.created_at;
                     
                     return (
                       <div key={payment.id} className="p-4">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                          {/* Payment Details */}
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <p className="font-bold text-[var(--color-accent-yellow)] text-lg">₦{paymentAmount.toLocaleString()}</p>
                               <span className="text-xs bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full">Unassigned</span>
                             </div>
                             <p className="text-xs text-[var(--text-secondary)]">
-                              {new Date(payment.paid_at).toLocaleDateString()} at {new Date(payment.paid_at).toLocaleTimeString()}
+                              {new Date(paymentDate).toLocaleDateString()} at {new Date(paymentDate).toLocaleTimeString()}
                             </p>
                             <div className="mt-2 space-y-1">
                               <div className="flex items-center gap-2 text-sm">
                                 <User className="h-3 w-3 text-yellow-600 dark:text-yellow-500" />
-                                <span className="text-[var(--text-primary)]">Sender: {payment.customer_name || "Unknown"}</span>
+                                <span className="text-[var(--text-primary)]">Sender: {senderName}</span>
                               </div>
                               <div className="flex items-center gap-2 text-sm">
                                 <Banknote className="h-3 w-3 text-yellow-600 dark:text-yellow-500" />
@@ -375,7 +428,8 @@ const PageDetail = () => {
                             </div>
                           </div>
                           
-                          <div className="sm:w-64">
+                          {/* Assignment Section */}
+                          <div className="sm:w-72">
                             <label className="text-xs text-[var(--text-secondary)] block mb-2">Assign to student:</label>
                             <div className="flex gap-2">
                               <select
@@ -394,44 +448,79 @@ const PageDetail = () => {
                                 onClick={() => assignPaymentToStudent(payment.id, selectedStudent[payment.id], paymentAmount)}
                                 disabled={!selectedStudent[payment.id] || assigningPayment === payment.id}
                                 size="sm"
-                                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 whitespace-nowrap"
                               >
                                 {assigningPayment === payment.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <Check className="h-4 w-4" />
+                                  <>
+                                    <Check className="h-4 w-4 mr-1" /> Assign Payment
+                                  </>
                                 )}
                               </Button>
                             </div>
                             {availableStudents.length === 0 && (
-                              <p className="text-xs text-red-500 dark:text-red-400 mt-2">No available students to assign</p>
+                              <p className="text-xs text-red-500 dark:text-red-400 mt-2">No available students to assign (all are fully paid)</p>
                             )}
                           </div>
                         </div>
                       </div>
                     );
-                  })}
-                </div>
+                  })
+                )}
               </div>
-            )}
+            </div>
 
             {/* Students & Assigned Payments */}
             <div className="grid lg:grid-cols-2 gap-6">
-              {/* Student List */}
+              {/* Student List - Shows ALL students with search */}
               <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
                 <div className="p-4 border-b border-[var(--border-color)]">
-                  <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                    <GraduationCap className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                    Students ({students.length})
-                  </h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                      All Students ({students.length})
+                    </h3>
+                    
+                    {/* Search Bar */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
+                      <input
+                        type="text"
+                        placeholder="Search student..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 pr-8 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)] w-full sm:w-64"
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={() => setSearchQuery("")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2"
+                        >
+                          <XCircle className="h-4 w-4 text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)]" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="divide-y divide-[var(--border-color)] max-h-[500px] overflow-y-auto custom-scrollbar">
-                  {students.length === 0 ? (
+                  {filteredStudents.length === 0 ? (
                     <div className="p-8 text-center text-[var(--text-secondary)]">
-                      <p>No students added yet</p>
+                      {searchQuery ? (
+                        <>
+                          <Search className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                          <p>No students found matching "{searchQuery}"</p>
+                        </>
+                      ) : (
+                        <>
+                          <GraduationCap className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                          <p>No students added yet</p>
+                          <p className="text-xs mt-1">Add students when creating the payment page</p>
+                        </>
+                      )}
                     </div>
                   ) : (
-                    studentsWithStatus.map((student: any, idx: number) => {
+                    filteredStudents.map((student: any, idx: number) => {
                       const totalAmount = student.totalAmount;
                       const paidAmount = student.paidAmount;
                       const percentage = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
@@ -461,6 +550,7 @@ const PageDetail = () => {
                             )}
                           </div>
                           
+                          {/* Progress Bar for each student */}
                           <div className="mt-3">
                             <div className="flex justify-between text-xs mb-1">
                               <span className="text-[var(--text-secondary)]">Paid {paidAmount.toLocaleString()} of {totalAmount.toLocaleString()}</span>
@@ -489,7 +579,7 @@ const PageDetail = () => {
                 </div>
               </div>
 
-              {/* Assigned Payments */}
+              {/* Assigned Payments - Shows payments that have been assigned */}
               <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
                 <div className="p-4 border-b border-[var(--border-color)]">
                   <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
@@ -502,7 +592,7 @@ const PageDetail = () => {
                     <div className="p-8 text-center text-[var(--text-secondary)]">
                       <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
                       <p>No assigned payments yet</p>
-                      <p className="text-xs mt-1">Assign unassigned payments to students</p>
+                      <p className="text-xs mt-1">Assign unassigned payments to students above</p>
                     </div>
                   ) : (
                     assignedPayments.map((payment: any) => {
@@ -511,6 +601,7 @@ const PageDetail = () => {
                       const appFee = payment.metadata?.app_fee || 0;
                       const nombaFee = payment.metadata?.nomba_fee || 0;
                       const totalFee = (appFee + nombaFee);
+                      const paymentDate = payment.paid_at || payment.created_at;
                       
                       return (
                         <div key={payment.id} className="p-4">
@@ -518,7 +609,7 @@ const PageDetail = () => {
                             <div>
                               <p className="font-bold text-[var(--color-lemon-green)] text-lg">₦{payment.amount?.toLocaleString()}</p>
                               <p className="text-xs text-[var(--text-secondary)]">
-                                {new Date(payment.paid_at).toLocaleDateString()} at {new Date(payment.paid_at).toLocaleTimeString()}
+                                {new Date(paymentDate).toLocaleDateString()} at {new Date(paymentDate).toLocaleTimeString()}
                               </p>
                             </div>
                             <button
