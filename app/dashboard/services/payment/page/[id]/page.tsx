@@ -32,6 +32,7 @@ import DashboardSidebar from "@/app/components/dashboard-component/DashboardSide
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import Loader from "@/app/components/Loader";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -202,7 +203,8 @@ const PageDetail = () => {
   if (!page) {
     return (
       <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#e1bf46]" />
+        <Loader/>
+        {/* <Loader2 className="h-8 w-8 animate-spin text-[#e1bf46]" /> */}
       </div>
     );
   }
