@@ -71,14 +71,12 @@ async function sendPaymentPageNotificationEmail(
           <h3 style="color: #22c55e;">✅ Payment Received! 🏦</h3>
           <p>You've received a bank transfer payment for <strong>${pageTitle}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Gross Amount:</strong> ₦${amount.toLocaleString()}</p>
-            <p><strong>Nomba Fee:</strong> - ₦${nombaFee.toLocaleString()}</p>
-            <p><strong>Platform Fee (2%):</strong> - ₦${appFee.toLocaleString()}</p>
+            <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
+           
             <p><strong>Total Fees:</strong> - ₦${totalFee.toLocaleString()}</p>
-            <p><strong>Net Amount Credited:</strong> ₦${netAmount.toLocaleString()}</p>
+            <p><strong>Amount Credited:</strong> ₦${netAmount.toLocaleString()}</p>
             <p><strong>Sender:</strong> ${customerName}</p>
-            <p><strong>Email:</strong> ${customerEmail || 'Not provided'}</p>
-            <p><strong>Narration:</strong> ${narration || 'Not provided'}</p>
+          
           </div>
           <p>Funds added to your page balance after fee deductions.</p>
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
