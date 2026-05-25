@@ -82,7 +82,7 @@ const plans = [
   },
   {
     name: "Premium",
-    price: "₦49,900",
+    price: "₦99,900",
     period: "/month",
     yearlyPrice: "₦499,000/year (save ₦99,800)",
     description: "Best for: founders and CEOs who want hands-on help",
@@ -100,12 +100,12 @@ const plans = [
     tier: "premium",
     priceId: "price_premium_monthly",
     yearlyPriceId: "price_premium_yearly",
-    amount: 49900,
-    yearlyAmount: 499000,
+    amount: 99900,
+    yearlyAmount: 999000,
   },
   {
     name: "Elite",
-    price: "₦100,000+",
+    price: "₦250,000+",
     period: "/month",
     yearlyPrice: "Customized price",
     description: "For established businesses & founders that need tax support",
@@ -126,7 +126,7 @@ const plans = [
     highlight: false,
     tier: "elite",
     priceId: "elite",
-    amount: 100000,
+    amount: 250000,
   },
 ];
 
@@ -533,7 +533,7 @@ export default function Pricing() {
           })}
         </div>
 
-        <div className="mt-20 max-w-4xl mx-auto">
+        {/* <div className="mt-20 max-w-4xl mx-auto">
           <div className="bg-(--bg-primary) border-2 border-(--border-color) shadow-[6px_6px_0px_var(--border-color)] p-8 rounded-2xl">
             <h3 className="text-2xl md:text-3xl font-black mb-4 text-(--text-primary)">
               The ZidCoin Economy:{" "}
@@ -598,7 +598,7 @@ export default function Pricing() {
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </section>
   );

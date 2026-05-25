@@ -87,7 +87,7 @@ const tierDetails: Record<TierType, TierDetail> = {
     bgColor: "bg-(--color-accent-yellow)/10",
     borderColor: "border-(--color-accent-yellow)",
     textColor: "text-(--color-accent-yellow)",
-    price: "₦49,900/month",
+    price: "₦99,900/month",
     yearlyPrice: "₦499,000/year",
     features: [
       "Full tax calculator",
@@ -105,7 +105,7 @@ const tierDetails: Record<TierType, TierDetail> = {
     bgColor: "bg-purple-50 dark:bg-purple-900/20",
     borderColor: "border-purple-200 dark:border-purple-800",
     textColor: "text-purple-600 dark:text-purple-400",
-    price: "₦100,000+/month",
+    price: "₦250,000+/month",
     features: [
       "Full tax filing (VAT, PAYE, WHT)",
       "CFO-level guidance",

@@ -41,6 +41,18 @@ const PageTypeSelector = ({ onSelect }: Props) => (
         What are you selling?
       </h2>
       <p className="text-[var(--text-secondary)] mt-1">Choose the type that best fits your use case</p>
+      <div className="mt-3 p-4 rounded-xl bg-[var(--color-accent-yellow)]/5 border border-[var(--color-accent-yellow)]/20 text-left">
+        <p className="text-xs font-bold text-[var(--color-accent-yellow)] mb-2">Please Note:</p>
+        <ul className="text-xs text-[var(--text-secondary)] space-y-1 list-disc pl-4">
+          <li>Every payment page carries its own account number</li>
+          <li>The page title = account name of the attached account</li>
+          <li>Don't randomly create payment pages</li>
+          <li>Inactive payment pages will be deleted after 30 days</li>
+          <li>Only verified businesses with an RC Number can create payment pages</li>
+          <li>We charge a 2% fee on every payment — set your prices accordingly</li>
+          <li>We manually review all pages — fraudulent/suspicious pages will be deleted and users blocked</li>
+        </ul>
+      </div>
     </div>
     
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

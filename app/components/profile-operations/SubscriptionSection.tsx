@@ -73,7 +73,7 @@ const tiers: {
   {
     id: "premium",
     name: "Premium",
-    price: "₦49,900/mo",
+    price: "₦99,900/mo",
     yearlyPrice: "₦499,000/year (save ₦99,800)",
     features: [
       "Everything in Growth, plus:",
@@ -89,7 +89,7 @@ const tiers: {
   {
     id: "elite",
     name: "Elite",
-    price: "₦100,000+",
+    price: "₦250,000+",
     yearlyPrice: "Customized price",
     features: [
       "Everything in Premium, plus:",

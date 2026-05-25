@@ -92,7 +92,7 @@ const plans = [
   {
     name: "Premium",
     tier: "premium",
-    price: "₦49,900",
+    price: "₦99,900",
     period: "/month",
     yearlyPrice: "₦499,000/year (save ₦99,800)",
     icon: Crown,
@@ -107,14 +107,14 @@ const plans = [
       "Priority support",
     ],
     cta: "Upgrade to Premium",
-    amount: 49900,
-    yearlyAmount: 499000,
+    amount: 99000,
+    yearlyAmount: 999000,
     color: "amber",
   },
   {
     name: "Elite",
     tier: "elite",
-    price: "₦100,000+",
+    price: "₦250,000+",
     period: "/month",
     yearlyPrice: "Customized price",
     icon: Sparkles,
@@ -133,7 +133,7 @@ const plans = [
       "Annual Audit Coordination",
     ],
     cta: "Contact Us",
-    amount: 100000,
+    amount: 250000,
     color: "purple",
   },
 ];
@@ -620,7 +620,7 @@ function PricingPage() {
           </div>
 
           {/* ZidCoin Economy Section */}
-          <div className="mt-20 max-w-4xl mx-auto">
+          {/* <div className="mt-20 max-w-4xl mx-auto">
             <div className="bg-(--bg-primary) border-2 border-(--border-color) shadow-[6px_6px_0px_var(--border-color)] p-8 rounded-2xl">
               <h3 className="text-2xl md:text-3xl font-black mb-4 text-(--text-primary)">
                 The ZidCoin Economy:{" "}
@@ -688,7 +688,7 @@ function PricingPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </section>
       <Footer />

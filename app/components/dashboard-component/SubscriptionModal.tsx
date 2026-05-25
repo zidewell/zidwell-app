@@ -100,7 +100,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           icon: <Crown className="h-6 w-6 text-white" />,
           badge: "GO PREMIUM",
           primaryCta: "Upgrade to Premium",
-          monthlyPrice: "₦49,900",
+          monthlyPrice: "₦99,900",
           annualPrice: "₦499,000",
           annualSavings: "save ₦99,800",
           features: [
@@ -119,7 +119,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           icon: <Gem className="h-6 w-6 text-white" />,
           badge: "GO ELITE",
           primaryCta: "Contact Us",
-          monthlyPrice: "₦100,000+",
+          monthlyPrice: "₦250,000+",
           annualPrice: "Custom",
           annualSavings: "",
           features: [
