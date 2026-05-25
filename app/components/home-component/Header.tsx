@@ -50,9 +50,9 @@ const Header = () => {
   const navLinks = [
     { name: "Invoice", href: "/features/invoice" },
     { name: "Receipt", href: "/features/receipt" },
-    { name: "Bookkeeping", href: "/#" },
+    { name: "Bookkeeping", href: "/bookkeeping" },
+    { name: "Schools", href: "/schools" },
     { name: "Blog", href: "/blog" },
-    { name: "FAQ", href: "faq" },
     { name: "Contact", href: "contact" },
   ];
 
