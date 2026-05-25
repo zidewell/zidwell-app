@@ -456,6 +456,56 @@ const PageDetail = () => {
               </div>
             </div>
 
+             {/* Virtual Account Info */}
+            {page.metadata?.virtual_account && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start gap-3">
+                  <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                      Payment Account
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
+                      <div>
+                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                          Bank
+                        </p>
+                        <p className="font-medium text-[var(--text-primary)] break-words">
+                          {page.metadata.virtual_account.bankName}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                          Account Number
+                        </p>
+                        <p 
+                          className="font-mono font-bold text-[var(--text-primary)] break-words cursor-pointer hover:text-[var(--color-accent-yellow)]"
+                          onClick={() => copyToClipboard(page.metadata.virtual_account.accountNumber, "Account Number")}
+                        >
+                          {page.metadata.virtual_account.accountNumber}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                          Account Name
+                        </p>
+                        <p className="text-[var(--text-primary)] truncate">
+                          {page.metadata.virtual_account.bankAccountName}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                      💡 Ask customers to add{" "}
+                      <strong className="text-blue-800 dark:text-blue-300">
+                        student name
+                      </strong>{" "}
+                      as narration
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Progress Summary */}
             <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-5">
               <h3 className="font-semibold text-[var(--text-primary)] mb-3">
@@ -874,55 +924,7 @@ const PageDetail = () => {
               </div>
             </div>
 
-            {/* Virtual Account Info */}
-            {page.metadata?.virtual_account && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-3">
-                  <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-                      Payment Account
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
-                      <div>
-                        <p className="text-xs text-blue-600 dark:text-blue-400">
-                          Bank
-                        </p>
-                        <p className="font-medium text-[var(--text-primary)] break-words">
-                          {page.metadata.virtual_account.bankName}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-blue-600 dark:text-blue-400">
-                          Account Number
-                        </p>
-                        <p 
-                          className="font-mono font-bold text-[var(--text-primary)] break-words cursor-pointer hover:text-[var(--color-accent-yellow)]"
-                          onClick={() => copyToClipboard(page.metadata.virtual_account.accountNumber, "Account Number")}
-                        >
-                          {page.metadata.virtual_account.accountNumber}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-blue-600 dark:text-blue-400">
-                          Account Name
-                        </p>
-                        <p className="text-[var(--text-primary)] truncate">
-                          {page.metadata.virtual_account.bankAccountName}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-                      💡 Ask customers to add{" "}
-                      <strong className="text-blue-800 dark:text-blue-300">
-                        student name
-                      </strong>{" "}
-                      as narration
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+           
 
             {/* Withdraw Button */}
             {page.pageBalance > 0 && (
