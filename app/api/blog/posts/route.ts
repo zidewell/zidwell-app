@@ -100,7 +100,6 @@ export async function GET(request: NextRequest) {
         .select("*")
         .eq("slug", slug);
       
-      // Only filter by published if specifically requested
       if (published === 'true') {
         query = query.eq("is_published", true);
       }
@@ -119,7 +118,6 @@ export async function GET(request: NextRequest) {
       .from("blog_posts")
       .select("*", { count: "exact" });
 
-    // Apply filters
     if (category) {
       query = query.contains("categories", [category]);
     }
@@ -138,10 +136,8 @@ export async function GET(request: NextRequest) {
       query = query.eq("is_published", false);
     }
 
-    // Apply sorting
     query = query.order(sortBy, { ascending: sortOrder === 'asc' });
 
-    // Apply pagination
     const from = (page - 1) * limit;
     const to = from + limit - 1;
     query = query.range(from, to);
@@ -153,7 +149,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Format posts
     const formattedPosts = posts.map(formatPost);
 
     return NextResponse.json({
@@ -190,7 +185,6 @@ export async function POST(request: NextRequest) {
     const authorBio = formData.get("authorBio") as string;
     const isPublished = formData.get("isPublished") === "true";
     
-    // Check for featured image - could be file or URL
     const featuredImageFile = formData.get("featuredImage") as File | null;
     const featuredImageUrl = formData.get("featuredImageUrl") as string;
     const audioFile = formData.get("audioFile") as File | null;
@@ -202,7 +196,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate slug
     const slug = title
       .toLowerCase()
       .replace(/[^\w\s-]/g, "")
@@ -213,99 +206,83 @@ export async function POST(request: NextRequest) {
     let featuredImageFinalUrl = null;
     let audioFileUrl = null;
 
-    // Handle featured image - CASE 1: File upload from device
+    // Handle featured image - File upload
     if (featuredImageFile && featuredImageFile.size > 0) {
-      console.log("POST - Processing uploaded image file:", {
-        name: featuredImageFile.name,
-        type: featuredImageFile.type,
-        size: featuredImageFile.size
-      });
+      console.log("📸 POST - Uploading image:", featuredImageFile.name);
 
       try {
+        const bytes = await featuredImageFile.arrayBuffer();
+        const buffer = Buffer.from(bytes);
         const fileExt = featuredImageFile.name.split('.').pop();
-        const fileName = `${slug}-${Date.now()}.${fileExt}`;
-        const filePath = `featured-images/${fileName}`;
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 8);
+        const fileName = `featured-images/${slug}-${timestamp}-${randomString}.${fileExt}`;
 
-        const { error: uploadError } = await supabaseBlog
+        const { error: uploadError, data: uploadData } = await supabaseBlog
           .storage
           .from('blog-images')
-          .upload(filePath, featuredImageFile, {
-            cacheControl: '3600',
+          .upload(fileName, buffer, {
+            contentType: featuredImageFile.type,
+            cacheControl: '31536000',
             upsert: false
           });
 
         if (uploadError) {
-          console.error("Error uploading image:", uploadError);
+          console.error("❌ Upload error:", uploadError);
           return NextResponse.json(
             { error: "Failed to upload image: " + uploadError.message },
             { status: 500 }
           );
         }
 
-        // Get public URL from Supabase
+        console.log("✅ Upload success:", uploadData);
+
         const { data: { publicUrl } } = supabaseBlog
           .storage
           .from('blog-images')
-          .getPublicUrl(filePath);
+          .getPublicUrl(fileName);
 
         featuredImageFinalUrl = publicUrl;
-        console.log("POST - Image uploaded successfully, URL:", featuredImageFinalUrl);
+        console.log("✅ Image URL saved:", featuredImageFinalUrl);
       } catch (error) {
-        console.error("Error in image upload:", error);
+        console.error("❌ Image error:", error);
         return NextResponse.json(
           { error: "Failed to process image upload" },
           { status: 500 }
         );
       }
     } 
-    // Handle featured image - CASE 2: HTTPS URL provided
     else if (featuredImageUrl && featuredImageUrl.startsWith('http')) {
-      console.log("POST - Using provided image URL:", featuredImageUrl);
+      console.log("📸 Using provided URL:", featuredImageUrl);
       featuredImageFinalUrl = featuredImageUrl;
     }
 
-    // Upload audio file to Supabase Storage
+    // Handle audio file
     if (audioFile && audioFile.size > 0) {
-      console.log("POST - Processing uploaded audio file:", {
-        name: audioFile.name,
-        type: audioFile.type,
-        size: audioFile.size
-      });
-
       try {
+        const bytes = await audioFile.arrayBuffer();
+        const buffer = Buffer.from(bytes);
         const fileExt = audioFile.name.split('.').pop();
-        const fileName = `${slug}-audio-${Date.now()}.${fileExt}`;
-        const filePath = `audio-files/${fileName}`;
+        const fileName = `audio-files/${slug}-${Date.now()}.${fileExt}`;
 
         const { error: uploadError } = await supabaseBlog
           .storage
           .from('blog-images')
-          .upload(filePath, audioFile, {
-            cacheControl: '3600',
+          .upload(fileName, buffer, {
+            contentType: audioFile.type,
+            cacheControl: '31536000',
             upsert: false
           });
 
-        if (uploadError) {
-          console.error("Error uploading audio:", uploadError);
-          return NextResponse.json(
-            { error: "Failed to upload audio: " + uploadError.message },
-            { status: 500 }
-          );
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabaseBlog
+            .storage
+            .from('blog-images')
+            .getPublicUrl(fileName);
+          audioFileUrl = publicUrl;
         }
-
-        const { data: { publicUrl } } = supabaseBlog
-          .storage
-          .from('blog-images')
-          .getPublicUrl(filePath);
-
-        audioFileUrl = publicUrl;
-        console.log("POST - Audio uploaded successfully, URL:", audioFileUrl);
       } catch (error) {
-        console.error("Error in audio upload:", error);
-        return NextResponse.json(
-          { error: "Failed to process audio upload" },
-          { status: 500 }
-        );
+        console.error("Audio error:", error);
       }
     }
 
@@ -330,11 +307,7 @@ export async function POST(request: NextRequest) {
       published_at: isPublished ? new Date().toISOString() : null
     };
 
-    console.log("POST - Inserting post with data:", {
-      ...postData,
-      featured_image: postData.featured_image ? "URL present" : "null",
-      audio_file: postData.audio_file ? "URL present" : "null"
-    });
+    console.log("💾 Saving post with image:", featuredImageFinalUrl);
 
     const { data: post, error } = await supabaseBlog
       .from("blog_posts")
@@ -346,6 +319,8 @@ export async function POST(request: NextRequest) {
       console.error("Insert error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    console.log("✅ Post saved, image in DB:", post.featured_image);
 
     return NextResponse.json(formatPost(post), { status: 201 });
 
@@ -372,9 +347,6 @@ export async function PUT(request: NextRequest) {
 
     const formData = await request.formData();
     
-    // Log all form data keys for debugging
-    // console.log("PUT - Form data keys received:", Array.from(formData.keys()));
-    
     const title = formData.get("title") as string;
     const content = formData.get("content") as string;
     const excerpt = formData.get("excerpt") as string;
@@ -385,14 +357,11 @@ export async function PUT(request: NextRequest) {
     const authorBio = formData.get("authorBio") as string;
     const isPublished = formData.get("isPublished") === "true";
     
-    // Check for featured image - could be file or URL
     const featuredImageFile = formData.get("featuredImage") as File | null;
     const featuredImageUrl = formData.get("featuredImageUrl") as string;
-    
-    // Check for audio file
     const audioFile = formData.get("audioFile") as File | null;
 
-    // Get existing post to check for files to delete
+    // Get existing post
     const { data: existingPost, error: fetchError } = await supabaseBlog
       .from("blog_posts")
       .select("featured_image, audio_file, slug, published_at")
@@ -411,7 +380,6 @@ export async function PUT(request: NextRequest) {
       updated_at: new Date().toISOString()
     };
 
-    // Generate slug from title if title is provided
     let slug = existingPost?.slug;
     if (title) {
       updateData.title = title;
@@ -434,26 +402,21 @@ export async function PUT(request: NextRequest) {
     
     if (isPublished !== undefined) {
       updateData.is_published = isPublished;
-      // Only set published_at if it's being published now and wasn't published before
       if (isPublished && !existingPost?.published_at) {
         updateData.published_at = new Date().toISOString();
       }
     }
 
-    // Handle featured image - CASE 1: New file upload from device
+    // Handle featured image - New file upload
     if (featuredImageFile && featuredImageFile.size > 0) {
-      console.log("PUT - Processing new uploaded image file:", {
-        name: featuredImageFile.name,
-        type: featuredImageFile.type,
-        size: featuredImageFile.size
-      });
+      console.log("📸 PUT - Uploading new image:", featuredImageFile.name);
 
       try {
-        // Delete old image from storage if it exists and was uploaded to Supabase
+        // Delete old image
         if (existingPost?.featured_image && existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!)) {
           const oldPath = extractPathFromUrl(existingPost.featured_image);
           if (oldPath) {
-            console.log("PUT - Deleting old image:", oldPath);
+            console.log("Deleting old image:", oldPath);
             await supabaseBlog.storage
               .from('blog-images')
               .remove([oldPath]);
@@ -461,15 +424,19 @@ export async function PUT(request: NextRequest) {
         }
 
         // Upload new image
+        const bytes = await featuredImageFile.arrayBuffer();
+        const buffer = Buffer.from(bytes);
         const fileExt = featuredImageFile.name.split('.').pop();
-        const fileName = `${slug || 'post'}-${Date.now()}.${fileExt}`;
-        const filePath = `featured-images/${fileName}`;
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 8);
+        const fileName = `featured-images/${slug || 'post'}-${timestamp}-${randomString}.${fileExt}`;
 
         const { error: uploadError } = await supabaseBlog
           .storage
           .from('blog-images')
-          .upload(filePath, featuredImageFile, {
-            cacheControl: '3600',
+          .upload(fileName, buffer, {
+            contentType: featuredImageFile.type,
+            cacheControl: '31536000',
             upsert: false
           });
 
@@ -478,10 +445,10 @@ export async function PUT(request: NextRequest) {
         const { data: { publicUrl } } = supabaseBlog
           .storage
           .from('blog-images')
-          .getPublicUrl(filePath);
+          .getPublicUrl(fileName);
 
         updateData.featured_image = publicUrl;
-        console.log("PUT - New image uploaded, URL:", publicUrl);
+        console.log("✅ New image uploaded:", publicUrl);
       } catch (error) {
         console.error("Error uploading image:", error);
         return NextResponse.json(
@@ -490,15 +457,13 @@ export async function PUT(request: NextRequest) {
         );
       }
     } 
-    // Handle featured image - CASE 2: HTTPS URL provided
+    // Handle featured image - URL provided
     else if (featuredImageUrl && featuredImageUrl.startsWith('http')) {
-      console.log("PUT - Using provided image URL:", featuredImageUrl);
+      console.log("📸 Using provided URL:", featuredImageUrl);
       
-      // If there was an old Supabase image, delete it
       if (existingPost?.featured_image && existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!)) {
         const oldPath = extractPathFromUrl(existingPost.featured_image);
         if (oldPath) {
-          console.log("PUT - Deleting old Supabase image:", oldPath);
           await supabaseBlog.storage
             .from('blog-images')
             .remove([oldPath]);
@@ -507,15 +472,13 @@ export async function PUT(request: NextRequest) {
       
       updateData.featured_image = featuredImageUrl;
     }
-    // Handle featured image - CASE 3: No image provided (remove image)
+    // Remove image
     else if (!featuredImageFile && !featuredImageUrl) {
-      console.log("PUT - Removing featured image");
+      console.log("📸 Removing featured image");
       
-      // Delete old image from storage if it exists
       if (existingPost?.featured_image && existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!)) {
         const oldPath = extractPathFromUrl(existingPost.featured_image);
         if (oldPath) {
-          console.log("PUT - Deleting old Supabase image:", oldPath);
           await supabaseBlog.storage
             .from('blog-images')
             .remove([oldPath]);
@@ -523,63 +486,47 @@ export async function PUT(request: NextRequest) {
       }
       updateData.featured_image = null;
     }
-    // If none of the above, keep existing featured_image (no change)
 
-    // Handle audio file - similar logic
+    // Handle audio file similarly
     if (audioFile && audioFile.size > 0) {
-      console.log("PUT - Processing new uploaded audio file:", {
-        name: audioFile.name,
-        type: audioFile.type,
-        size: audioFile.size
-      });
-
       try {
-        // Delete old audio if exists and was uploaded to Supabase
         if (existingPost?.audio_file && existingPost.audio_file.includes(process.env.BLOG_SUPABASE_URL!)) {
           const oldPath = extractPathFromUrl(existingPost.audio_file);
           if (oldPath) {
-            console.log("PUT - Deleting old audio:", oldPath);
             await supabaseBlog.storage
               .from('blog-images')
               .remove([oldPath]);
           }
         }
 
-        // Upload new audio
+        const bytes = await audioFile.arrayBuffer();
+        const buffer = Buffer.from(bytes);
         const fileExt = audioFile.name.split('.').pop();
-        const fileName = `${slug || 'post'}-audio-${Date.now()}.${fileExt}`;
-        const filePath = `audio-files/${fileName}`;
+        const fileName = `audio-files/${slug || 'post'}-${Date.now()}.${fileExt}`;
 
         const { error: uploadError } = await supabaseBlog
           .storage
           .from('blog-images')
-          .upload(filePath, audioFile, {
-            cacheControl: '3600',
+          .upload(fileName, buffer, {
+            contentType: audioFile.type,
+            cacheControl: '31536000',
             upsert: false
           });
 
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabaseBlog
-          .storage
-          .from('blog-images')
-          .getPublicUrl(filePath);
-
-        updateData.audio_file = publicUrl;
-        console.log("PUT - New audio uploaded, URL:", publicUrl);
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabaseBlog
+            .storage
+            .from('blog-images')
+            .getPublicUrl(fileName);
+          updateData.audio_file = publicUrl;
+        }
       } catch (error) {
-        console.error("Error uploading audio:", error);
-        return NextResponse.json(
-          { error: "Failed to upload audio" },
-          { status: 500 }
-        );
+        console.error("Audio error:", error);
       }
     } else if (!audioFile) {
-      // No audio file provided, remove it
       if (existingPost?.audio_file && existingPost.audio_file.includes(process.env.BLOG_SUPABASE_URL!)) {
         const oldPath = extractPathFromUrl(existingPost.audio_file);
         if (oldPath) {
-          console.log("PUT - Deleting old audio:", oldPath);
           await supabaseBlog.storage
             .from('blog-images')
             .remove([oldPath]);
@@ -587,12 +534,6 @@ export async function PUT(request: NextRequest) {
       }
       updateData.audio_file = null;
     }
-
-    console.log("PUT - Updating post with data:", {
-      ...updateData,
-      featured_image: updateData.featured_image ? "URL present" : "null",
-      audio_file: updateData.audio_file ? "URL present" : "null"
-    });
 
     const { data: post, error } = await supabaseBlog
       .from("blog_posts")
@@ -631,9 +572,7 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
     
-    // Handle atomic increment for views
     if (body.increment_view === true) {
-      // First get current count
       const { data: currentPost, error: fetchError } = await supabaseBlog
         .from("blog_posts")
         .select("view_count")
@@ -641,7 +580,6 @@ export async function PATCH(request: NextRequest) {
         .single();
       
       if (fetchError) {
-        console.error('Fetch error:', fetchError);
         return NextResponse.json({ error: fetchError.message }, { status: 500 });
       }
       
@@ -658,43 +596,23 @@ export async function PATCH(request: NextRequest) {
         .single();
 
       if (error) {
-        console.error('Update error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
       return NextResponse.json(formatPost(post));
     }
     
-    // Regular update for other fields
     const updateData: any = {
       updated_at: new Date().toISOString()
     };
 
-    // Handle view_count
-    if (body.view_count !== undefined) {
-      updateData.view_count = body.view_count;
-    }
-    if (body.viewCount !== undefined) {
-      updateData.view_count = body.viewCount;
-    }
+    if (body.view_count !== undefined) updateData.view_count = body.view_count;
+    if (body.viewCount !== undefined) updateData.view_count = body.viewCount;
+    if (body.likes_count !== undefined) updateData.likes_count = body.likes_count;
+    if (body.likesCount !== undefined) updateData.likes_count = body.likesCount;
+    if (body.comment_count !== undefined) updateData.comment_count = body.comment_count;
+    if (body.commentCount !== undefined) updateData.comment_count = body.commentCount;
     
-    // Handle likes_count
-    if (body.likes_count !== undefined) {
-      updateData.likes_count = body.likes_count;
-    }
-    if (body.likesCount !== undefined) {
-      updateData.likes_count = body.likesCount;
-    }
-    
-    // Handle comment_count
-    if (body.comment_count !== undefined) {
-      updateData.comment_count = body.comment_count;
-    }
-    if (body.commentCount !== undefined) {
-      updateData.comment_count = body.commentCount;
-    }
-    
-    // Handle is_published
     if (body.is_published !== undefined || body.isPublished !== undefined) {
       const isPublished = body.is_published !== undefined ? body.is_published : body.isPublished;
       updateData.is_published = isPublished;
@@ -711,7 +629,6 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Supabase error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -738,14 +655,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Get post to delete associated files
     const { data: post } = await supabaseBlog
       .from("blog_posts")
       .select("featured_image, audio_file")
       .eq("id", id)
       .single();
 
-    // Delete associated files from storage
     if (post) {
       const filesToDelete = [];
       
@@ -760,7 +675,7 @@ export async function DELETE(request: NextRequest) {
       }
       
       if (filesToDelete.length > 0) {
-        console.log("DELETE - Deleting files:", filesToDelete);
+        console.log("Deleting files:", filesToDelete);
         await supabaseBlog.storage
           .from('blog-images')
           .remove(filesToDelete);
@@ -773,7 +688,6 @@ export async function DELETE(request: NextRequest) {
       .eq("id", id);
 
     if (error) {
-      console.error("Delete error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -793,14 +707,14 @@ export async function DELETE(request: NextRequest) {
 
 // Helper function to format post data
 function formatPost(post: any): FormattedPost {
-  // Ensure image URL is properly formatted
   let featuredImage = post.featured_image;
+  
   if (featuredImage && !featuredImage.startsWith('http')) {
-    // If it's a relative path from Supabase storage
     if (featuredImage.startsWith('/storage/v1/')) {
       featuredImage = `${process.env.BLOG_SUPABASE_URL}${featuredImage}`;
+    } else if (featuredImage.includes('featured-images/')) {
+      featuredImage = `${process.env.BLOG_SUPABASE_URL}/storage/v1/object/public/blog-images/${featuredImage}`;
     } else if (!featuredImage.startsWith('blob:')) {
-      // For local development or other relative paths
       const baseUrl = process.env.NODE_ENV === "development"
         ? "http://localhost:3000"
         : "https://zidwell.com";
@@ -841,7 +755,6 @@ function extractPathFromUrl(url: string): string | null {
   try {
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split('/');
-    // The path is after /storage/v1/object/public/blog-images/
     const bucketIndex = pathParts.indexOf('blog-images');
     if (bucketIndex !== -1 && bucketIndex + 1 < pathParts.length) {
       return pathParts.slice(bucketIndex + 1).join('/');

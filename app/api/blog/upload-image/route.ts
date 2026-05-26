@@ -1,4 +1,3 @@
-// app/api/blog/upload-image/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -17,54 +16,41 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const image = formData.get('image') as File;
-    const tempId = formData.get('tempId') as string;
 
     if (!image) {
-      return NextResponse.json(
-        { error: 'No image file provided' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'No image provided' }, { status: 400 });
     }
 
-    // Validate file type
-    const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-    if (!validImageTypes.includes(image.type)) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Please upload an image.' },
-        { status: 400 }
-      );
-    }
+    console.log("📸 Uploading image:", image.name, image.type, image.size);
 
-    // Validate file size (max 5MB)
-    if (image.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: 'File too large. Maximum size is 5MB.' },
-        { status: 400 }
-      );
-    }
+    // Convert to buffer
+    const bytes = await image.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
-    // Generate unique filename
+    // Generate unique filename in featured-images folder
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
     const fileExt = image.name.split('.').pop();
-    const fileName = `blog-images/${timestamp}-${randomString}.${fileExt}`;
+    const fileName = `featured-images/${timestamp}-${randomString}.${fileExt}`;
 
-    // Upload to Supabase Storage
-    const { error: uploadError } = await supabaseBlog
+    console.log("📸 Saving to:", fileName);
+
+    // Upload
+    const { data: uploadData, error: uploadError } = await supabaseBlog
       .storage
       .from('blog-images')
-      .upload(fileName, image, {
-        cacheControl: '3600',
+      .upload(fileName, buffer, {
+        contentType: image.type,
+        cacheControl: '31536000', // Cache for 1 year
         upsert: false
       });
 
     if (uploadError) {
-      console.error('Error uploading image:', uploadError);
-      return NextResponse.json(
-        { error: 'Failed to upload image' },
-        { status: 500 }
-      );
+      console.error('Upload error:', uploadError);
+      return NextResponse.json({ error: uploadError.message }, { status: 500 });
     }
+
+    console.log("✅ Upload successful:", uploadData);
 
     // Get public URL
     const { data: { publicUrl } } = supabaseBlog
@@ -72,17 +58,12 @@ export async function POST(request: NextRequest) {
       .from('blog-images')
       .getPublicUrl(fileName);
 
-    return NextResponse.json({ 
-      url: publicUrl,
-      tempId,
-      message: 'Image uploaded successfully' 
-    }, { status: 200 });
+    console.log("✅ Public URL:", publicUrl);
+
+    return NextResponse.json({ url: publicUrl });
 
   } catch (error) {
-    console.error('Error in image upload:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Error:', error);
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }

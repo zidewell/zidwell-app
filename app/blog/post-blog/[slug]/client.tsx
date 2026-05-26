@@ -1,4 +1,3 @@
-// app/blog/post-blog/client.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -63,6 +62,7 @@ export default function BlogPostClient({
 }) {
   const router = useRouter();
   const [post] = useState(initialPost);
+
   const [viewCount, setViewCount] = useState(initialPost.view_count || 0);
   const [likeCount, setLikeCount] = useState(initialPost.likes_count || 0);
   const [isLiked, setIsLiked] = useState(false);
@@ -170,9 +170,29 @@ export default function BlogPostClient({
     }
   };
 
-  // Simple content renderer (assumes HTML content)
+  // Process content to ensure links open in new tab and have proper styling
+  const processContent = (html: string): string => {
+    if (!html) return "";
+    
+    // Add target="_blank" and rel="noopener noreferrer" to all links
+    let processed = html.replace(
+      /<a\s+(?:[^>]*?\s+)?href="([^"]*)"([^>]*)>/gi,
+      (match, href, rest) => {
+        // Skip if already has target attribute
+        if (rest.includes('target=')) {
+          return match;
+        }
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer"${rest}>`;
+      }
+    );
+    
+    return processed;
+  };
+
+  // Simple content renderer
   const renderContent = () => {
-    return { __html: post.content };
+    const processedContent = processContent(post.content);
+    return { __html: processedContent };
   };
 
   return (
@@ -303,11 +323,8 @@ export default function BlogPostClient({
             </div>
           )}
 
-          {/* Content */}
-          <div
-            className="prose prose-lg prose-headings:font-bold prose-headings:text-(--text-primary) prose-p:text-(--text-primary) prose-a:text-(--color-accent-yellow) prose-img:rounded-lg prose-img:shadow-md max-w-none mb-8"
-            dangerouslySetInnerHTML={renderContent()}
-          />
+          {/* Content with editor-like spacing */}
+          <div className="blog-content" dangerouslySetInnerHTML={renderContent()} />
 
           {/* Tags */}
           {post.tags.length > 0 && (
@@ -354,6 +371,141 @@ export default function BlogPostClient({
           <CommentSection postId={post.id} />
         </article>
       </main>
+
+      {/* Custom styles to match editor spacing exactly */}
+      <style jsx global>{`
+        .blog-content {
+          font-size: 1.125rem;
+          line-height: 1.75;
+    
+        }
+        
+        /* Paragraph spacing - matches editor */
+        .blog-content p {
+          margin-bottom: 1rem;
+          margin-top: 0;
+        }
+        
+        /* Headings */
+        .blog-content h1 {
+          font-size: 2rem;
+          font-weight: 700;
+          margin-top: 2rem;
+          margin-bottom: 1rem;
+        }
+        
+        .blog-content h2 {
+          font-size: 1.5rem;
+          font-weight: 600;
+          margin-top: 1.75rem;
+          margin-bottom: 0.875rem;
+        }
+        
+        .blog-content h3 {
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin-top: 1.5rem;
+          margin-bottom: 0.75rem;
+        }
+        
+        .blog-content h4 {
+          font-size: 1.125rem;
+          font-weight: 600;
+          margin-top: 1.25rem;
+          margin-bottom: 0.5rem;
+        }
+        
+        /* Lists */
+        .blog-content ul,
+        .blog-content ol {
+          margin-bottom: 1.5rem;
+          padding-left: 1.75rem;
+        }
+        
+        .blog-content li {
+          margin-bottom: 0.5rem;
+        }
+        
+        /* Links - BLUE and visible */
+        .blog-content a {
+          color: #2563eb;
+          text-decoration: underline;
+          text-decoration-thickness: 2px;
+          text-decoration-color: #bfdbfe;
+        }
+        
+        .blog-content a:hover {
+          color: #1d4ed8;
+          text-decoration-color: #2563eb;
+        }
+        
+        /* Images */
+        .blog-content img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 0.5rem;
+          margin: 2rem auto;
+          display: block;
+        }
+        
+        /* Blockquotes */
+        .blog-content blockquote {
+          border-left: 4px solid #eab308;
+          padding-left: 1.25rem;
+          margin: 1.5rem 0;
+          font-style: italic;
+          color: #6b7280;
+        }
+        
+        /* Code */
+        .blog-content code {
+          background-color: #f3f4f6;
+          padding: 0.2rem 0.4rem;
+          border-radius: 0.25rem;
+          font-size: 0.875em;
+        }
+        
+        .blog-content pre {
+          background-color: #1f2937;
+          color: #f3f4f6;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          overflow-x: auto;
+          margin: 1.5rem 0;
+        }
+        
+        .blog-content pre code {
+          background-color: transparent;
+          padding: 0;
+          color: inherit;
+        }
+        
+        /* Horizontal rule */
+        .blog-content hr {
+          margin: 2rem 0;
+          border: 0;
+          border-top: 1px solid #e5e7eb;
+        }
+        
+        /* Tables */
+        .blog-content table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 1.5rem 0;
+        }
+        
+        .blog-content th,
+        .blog-content td {
+          border: 1px solid #e5e7eb;
+          padding: 0.75rem;
+          text-align: left;
+        }
+        
+        .blog-content th {
+          background-color: #f9fafb;
+          font-weight: 600;
+        }
+      `}</style>
     </div>
   );
 }
