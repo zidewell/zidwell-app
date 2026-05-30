@@ -101,13 +101,6 @@ const getFallbackEmojiIcon = (walletTransactionType: string | undefined, entryTy
   return "📦";
 };
 
-// AlertCircle icon component
-const AlertCircleIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
 // Get icon color based on transaction type
 const getIconColor = (type: string) => {
   if (type === "income") return "var(--color-lemon-green)";
@@ -128,14 +121,15 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   const [visibleCount, setVisibleCount] = useState(limit || 5);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Create a map of category name to category object for quick lookup
+  // Create maps for quick lookup
   const categoryMap = useMemo(() => {
-    const map = new Map();
+    const byName = new Map();
+    const byId = new Map();
     categories.forEach(cat => {
-      map.set(cat.name.toLowerCase(), cat);
-      map.set(cat.id, cat);
+      byName.set(cat.name.toLowerCase(), cat);
+      byId.set(cat.id, cat);
     });
-    return map;
+    return { byName, byId };
   }, [categories]);
 
   // Get visible entries based on count
@@ -245,18 +239,24 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
     return entry.type === "income" ? "Income" : "Expense";
   };
 
-  // Get category name - USE THE CATEGORY FIELD FROM TRANSACTION
+  // Get category name - with proper fallback
   const getCategoryName = (entry: any) => {
-    // Priority 1: Use the categoryName from the entry (which comes from transactions.category)
+    // Priority 1: Use categoryName from entry (from transactions.category)
     if (entry.categoryName && typeof entry.categoryName === 'string' && entry.categoryName.trim()) {
-      return entry.categoryName;
+      const catName = entry.categoryName.trim();
+      // Try to find matching category in journal_categories for exact display
+      const matched = categoryMap.byName.get(catName.toLowerCase());
+      if (matched && matched.name) {
+        return matched.name;
+      }
+      return catName;
     }
     
-    // Priority 2: Try to match categoryId with journal_categories
+    // Priority 2: Try to get from categoryId
     if (entry.categoryId) {
-      const matchedCategory = categories.find(c => c.id === entry.categoryId);
-      if (matchedCategory && matchedCategory.name) {
-        return matchedCategory.name;
+      const matched = categoryMap.byId.get(entry.categoryId);
+      if (matched && matched.name) {
+        return matched.name;
       }
     }
     
@@ -264,22 +264,22 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
     return getDisplayCategoryNameFromType(entry.walletTransactionType, entry.type);
   };
 
-  // Get category icon - USE THE CATEGORY NAME TO FIND ICON
+  // Get category icon - based on category name or type
   const getCategoryIconValue = (entry: any): string => {
     // Priority 1: Use categoryName to find icon from journal_categories
     if (entry.categoryName && typeof entry.categoryName === 'string' && entry.categoryName.trim()) {
       const categoryName = entry.categoryName.trim();
-      const matchedCategory = categoryMap.get(categoryName.toLowerCase());
-      if (matchedCategory && matchedCategory.icon) {
-        return matchedCategory.icon;
+      const matched = categoryMap.byName.get(categoryName.toLowerCase());
+      if (matched && matched.icon) {
+        return matched.icon;
       }
     }
     
     // Priority 2: Try to get icon from categoryId
     if (entry.categoryId) {
-      const matchedCategory = categories.find(c => c.id === entry.categoryId);
-      if (matchedCategory && matchedCategory.icon) {
-        return matchedCategory.icon;
+      const matched = categoryMap.byId.get(entry.categoryId);
+      if (matched && matched.icon) {
+        return matched.icon;
       }
     }
     
@@ -325,7 +325,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
               {/* Content - Middle */}
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* Category Name Badge - Shows the actual category name from transaction */}
+                  {/* Category Name Badge */}
                   <span className="text-xs px-2 py-0.5 rounded-full bg-(--bg-secondary) text-(--text-secondary) font-medium">
                     {categoryName}
                   </span>
@@ -435,9 +435,9 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
         )}
       </div>
 
-      {/* Edit Category Dialog - Responsive */}
+      {/* Edit Category Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-md w-[95%] sm:w-full max-h-[90vh] overflow-y-auto bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
+        <DialogContent className="sm:max-w-lg w-[95%] sm:w-full max-h-[90vh] overflow-y-auto bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
           <DialogHeader>
             <DialogTitle
               className="text-xl text-(--text-primary)"
@@ -449,7 +449,6 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
 
           {editingEntry && (
             <div className="space-y-5 mt-4">
-              {/* Transaction Info */}
               <div className="p-4 rounded-xl bg-(--bg-secondary) squircle-md">
                 <p className="text-sm text-(--text-secondary)">Transaction</p>
                 <p className="font-medium text-(--text-primary) text-sm sm:text-base line-clamp-2">
@@ -468,7 +467,6 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                 </p>
               </div>
 
-              {/* Category Selection Grid */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-(--text-secondary)">
                   Select Category
@@ -500,7 +498,6 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                 </div>
               </div>
 
-              {/* Update Button */}
               <Button
                 onClick={handleUpdateCategory}
                 disabled={!selectedCategory}

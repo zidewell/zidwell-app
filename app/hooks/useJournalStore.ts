@@ -20,7 +20,7 @@ export interface UnifiedTransaction {
   type: 'income' | 'expense';
   amount: number;
   categoryId: string;
-  categoryName?: string; // Store the actual category name from transactions table
+  categoryName?: string;
   note: string;
   source: 'manual' | 'wallet';
   journalType: JournalType;
@@ -43,7 +43,7 @@ interface WalletTransaction {
   narration?: string;
   merchant_tx_ref?: string;
   user_id: string;
-  category?: string; // This is the category name from transactions table
+  category?: string;
 }
 
 const API_BASE = '/api/journal';
@@ -59,7 +59,7 @@ const INFLOW_TYPES = [
 const OUTFLOW_TYPES = [
   'transfer', 'withdrawal', 'debit', 'airtime', 'data', 
   'electricity', 'cable', 'p2p_transfer', 'bill_payment', 
-  'purchase', 'subscription', 'fee', 'charge'
+  'purchase', 'subscription', 'fee', 'charge', 'bill'
 ];
 
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId: string) {
@@ -134,6 +134,11 @@ export function useJournalStore() {
   const getWalletTransactionType = useCallback((transaction: WalletTransaction): 'income' | 'expense' => {
     const transactionType = transaction.type?.toLowerCase();
     
+    // Bill payments are always expenses
+    if (transactionType === 'bill_payment' || transactionType === 'bill' || (transactionType && transactionType.includes('bill'))) {
+      return 'expense';
+    }
+    
     if (INFLOW_TYPES.includes(transactionType)) {
       return 'income';
     }
@@ -167,31 +172,64 @@ export function useJournalStore() {
     const type = transactionType?.toLowerCase();
     
     if (isOutflow) {
+      // BILL PAYMENT - Map to Bills category (HIGHEST PRIORITY)
+      if (type === 'bill_payment' || type === 'bill' || (type && type.includes('bill'))) {
+        const billsCat = categories.find(c => c.name === 'Bills');
+        if (billsCat) return billsCat.id;
+        const billsById = categories.find(c => c.id === 'bills');
+        if (billsById) return billsById.id;
+      }
+      
+      // ELECTRICITY
+      if (type === 'electricity') {
+        const cat = categories.find(c => c.name === 'Electricity bill' || c.id === 'electricity_bill');
+        if (cat) return cat.id;
+      }
+      
+      // CABLE
+      if (type === 'cable') {
+        const cat = categories.find(c => c.name === 'Cable Subscriptions' || c.id === 'cable_subscriptions');
+        if (cat) return cat.id;
+      }
+      
+      // WITHDRAWAL
       if (type === 'withdrawal') {
-        const cat = categories.find(c => c.name === 'Withdrawal');
+        const cat = categories.find(c => c.name === 'Cash Withdrawal' || c.id === 'cash_withdrawal');
         if (cat) return cat.id;
         const transferCat = categories.find(c => c.name === 'Transfer');
         if (transferCat) return transferCat.id;
       }
+      
+      // TRANSFER / P2P TRANSFER / DEBIT
       if (type === 'transfer' || type === 'p2p_transfer' || type === 'debit') {
         const cat = categories.find(c => c.name === 'Transfer');
         if (cat) return cat.id;
       }
-      if (type === 'airtime' || type === 'data') {
-        const cat = categories.find(c => c.name === 'Data & Airtime');
+      
+      // AIRTIME
+      if (type === 'airtime') {
+        const cat = categories.find(c => c.name === 'Call Airtime' || c.id === 'call_airtime');
         if (cat) return cat.id;
       }
-      if (type === 'electricity' || type === 'cable') {
-        const cat = categories.find(c => c.name === 'Utilities');
+      
+      // DATA
+      if (type === 'data') {
+        const cat = categories.find(c => c.name === 'Data / Internet' || c.id === 'data_internet');
         if (cat) return cat.id;
       }
-      if (type === 'bill_payment') {
-        const cat = categories.find(c => c.name === 'Bills');
-        if (cat) return cat.id;
-      }
-      const expenseCat = categories.find(c => c.type === 'expense');
-      return expenseCat?.id || '';
+      
+      // Default expense - Use "Other Expense" (NEVER Food!)
+      const otherExpense = categories.find(c => c.name === 'Other Expense' || c.id === 'other_expense');
+      if (otherExpense) return otherExpense.id;
+      
+      // If no other expense, find any expense category that's not Food
+      const anyExpense = categories.find(c => c.type === 'expense' && c.name !== 'Food' && c.name !== 'food');
+      if (anyExpense) return anyExpense.id;
+      
+      const lastResort = categories.find(c => c.type === 'expense');
+      return lastResort?.id || '';
     } else {
+      // Income types
       if (type === 'deposit' || type === 'virtual_account_deposit' || type === 'card_deposit') {
         const cat = categories.find(c => c.name === 'Bank Deposit');
         if (cat) return cat.id;
@@ -216,8 +254,13 @@ export function useJournalStore() {
         const cat = categories.find(c => c.name === 'Salary');
         if (cat) return cat.id;
       }
-      const incomeCat = categories.find(c => c.type === 'income');
-      return incomeCat?.id || '';
+      
+      // Default income
+      const otherIncome = categories.find(c => c.name === 'Other Income');
+      if (otherIncome) return otherIncome.id;
+      
+      const anyIncome = categories.find(c => c.type === 'income');
+      return anyIncome?.id || '';
     }
   }, [categories]);
 
@@ -461,7 +504,7 @@ export function useJournalStore() {
       journalType: entry.journalType,
     }));
 
-    // Wallet transactions - USE THE CATEGORY NAME FROM transactions.category field
+    // Wallet transactions
     const walletEntries: UnifiedTransaction[] = walletTransactions
       .filter(tx => {
         const walletId = `wallet_${tx.id}`;
@@ -472,20 +515,15 @@ export function useJournalStore() {
         const primaryDescription = tx.narration || tx.description || `${tx.type} transaction`;
         const isOutflow = OUTFLOW_TYPES.includes(tx.type?.toLowerCase()) || tx.amount < 0;
         
-        // Use the category name from the transaction record directly
-        const transactionCategoryName = tx.category || ''; // This is the category name saved during transfer
+        const transactionCategoryName = tx.category || '';
         
-        // Get category ID from the category name (or fallback to transaction type)
         let categoryId = getCategoryIdFromName(transactionCategoryName, tx.type, isOutflow);
         
-        // Check for override (if user manually changed category)
         if (walletCategoryOverrides[tx.id]) {
           categoryId = walletCategoryOverrides[tx.id];
         }
         
         const amount = Math.abs(tx.amount);
-        
-        // Find the matched category to get icon
         const matchedCategory = categories.find(c => c.id === categoryId);
         
         return {
@@ -494,7 +532,7 @@ export function useJournalStore() {
           type: txType,
           amount: amount,
           categoryId: categoryId,
-          categoryName: transactionCategoryName || matchedCategory?.name, // Use the category name from transaction
+          categoryName: transactionCategoryName || matchedCategory?.name,
           note: primaryDescription,
           source: 'wallet',
           journalType: activeJournalType,

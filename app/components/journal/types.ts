@@ -91,6 +91,7 @@ export const EXPENSE_CATEGORIES: Omit<Category, 'isCustom' | 'isFavorite' | 'fav
   // DAILY ESSENTIALS
   { id: 'food', name: 'Food', icon: '🍽️', type: 'expense' },
   { id: 'household_items', name: 'Household Items', icon: '🛒', type: 'expense' },
+  { id: 'bills', name: 'Bills', icon: '📄', type: 'expense' }, 
   { id: 'electricity_bill', name: 'Electricity bill', icon: '💡', type: 'expense' },
   { id: 'water_bill', name: 'Water bill', icon: '💧', type: 'expense' },
   { id: 'fuel', name: 'Fuel', icon: '⛽', type: 'expense' },
