@@ -295,7 +295,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
     } else {
       console.log("✅ Found user, sending deposit email to:", userExists.email);
       await sendVirtualAccountDepositEmail(
-        userExists.id, // Use the verified user ID
+        userExists.id, 
         transactionAmount,
         nombaTransactionId,
         customer.bankName || "N/A",
