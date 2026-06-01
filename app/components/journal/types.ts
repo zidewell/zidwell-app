@@ -9,8 +9,8 @@ export interface Category {
   icon: string;
   type: EntryType | 'both';
   isCustom: boolean;
-  isFavorite?: boolean; // Add favorite flag
-  favoriteOrder?: number; // Order for favorites
+  isFavorite?: boolean; 
+  favoriteOrder?: number; 
 }
 
 export interface JournalEntry {
@@ -107,6 +107,11 @@ export const EXPENSE_CATEGORIES: Omit<Category, 'isCustom' | 'isFavorite' | 'fav
   { id: 'medication', name: 'Medication', icon: '💊', type: 'expense' },
   { id: 'digital_subscriptions', name: 'Digital Subscriptions', icon: '📱', type: 'expense' },
   { id: 'vehicle_maintenance', name: 'Vehicle Maintenance', icon: '🚗', type: 'expense' },
+  
+  // RELIGIOUS & CHARITABLE GIVING
+  { id: 'religious_giving', name: 'Religious Giving', icon: '⛪', type: 'expense' },
+  { id: 'charity_donations', name: 'Charity Donations', icon: '🤝', type: 'expense' },
+  { id: 'tithe_offering', name: 'Tithe & Offering', icon: '🙏', type: 'expense' },
 
   // OTHER CATEGORIES
   { id: 'inventory_stock', name: 'Inventory / Stock Purchase', icon: '📦', type: 'expense' },
