@@ -322,6 +322,8 @@ const CreatePage = () => {
   const [suggestedAmounts, setSuggestedAmounts] = useState<number[]>([5000, 10000, 20000]);
   const [showDonorList, setShowDonorList] = useState(false);
   const [allowDonorMessage, setAllowDonorMessage] = useState(true);
+  const [requireDonorName, setRequireDonorName] = useState(true);
+  const [minimumDonation, setMinimumDonation] = useState(100);
 
   // Physical product fields
   const [variants, setVariants] = useState<Variant[]>([]);
@@ -703,6 +705,8 @@ const CreatePage = () => {
         metadata.suggestedAmounts = suggestedAmounts;
         metadata.showDonorList = showDonorList;
         metadata.allowDonorMessage = allowDonorMessage;
+        metadata.requireDonorName = requireDonorName;
+        metadata.minimumDonation = minimumDonation;
       } else if (pageType === "physical") {
         metadata.variants = variants;
         metadata.requiresShipping = requiresShipping;
@@ -1006,6 +1010,10 @@ const CreatePage = () => {
                       setShowDonorList={setShowDonorList}
                       allowDonorMessage={allowDonorMessage}
                       setAllowDonorMessage={setAllowDonorMessage}
+                      requireDonorName={requireDonorName}
+                      setRequireDonorName={setRequireDonorName}
+                      minimumDonation={minimumDonation}
+                      setMinimumDonation={setMinimumDonation}
                     />
                   )}
                   {pageType === "physical" && (
