@@ -15,8 +15,15 @@ import {
   Copy,
   Check,
   Banknote,
+  ShoppingCart,
+  Download,
+  Truck,
+  PackageIcon,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
 
 interface Student {
   name: string;
@@ -28,6 +35,13 @@ interface Student {
   parentName?: string;
   remainingBalance?: number;
   totalAmount?: number;
+}
+
+interface Variant {
+  name: string;
+  price: number;
+  sku?: string;
+  stock?: number;
 }
 
 interface PaymentPage {
@@ -68,6 +82,13 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<PaymentOption>("full");
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Product-specific states
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [isProcessingProduct, setIsProcessingProduct] = useState(false);
+  const [selectedProductImage, setSelectedProductImage] = useState<string | null>(null);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   const students = useMemo(() => {
     const rawStudents = page?.metadata?.students || [];
@@ -100,6 +121,24 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const totalAmountPerStudent = useMemo(() => {
     return page?.price || 0;
   }, [page?.price]);
+
+  // Get product variants
+  const variants = useMemo(() => {
+    return page?.metadata?.variants || [];
+  }, [page?.metadata?.variants]);
+
+  // Get base price (from variants or page price)
+  const getBasePrice = () => {
+    if (selectedVariant && selectedVariant.price) {
+      return selectedVariant.price;
+    }
+    return page?.price || 0;
+  };
+
+  // Calculate total product price
+  const getTotalProductPrice = () => {
+    return getBasePrice() * quantity;
+  };
 
   const getTotalAmount = () => {
     if (feeBreakdown.length > 0) {
@@ -164,6 +203,11 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         }
         const data = await response.json();
         setPage(data.page);
+        
+        // Set default variant if available
+        if (data.page?.metadata?.variants?.length > 0) {
+          setSelectedVariant(data.page.metadata.variants[0]);
+        }
       } catch (err) {
         console.error("Error loading page:", err);
         setError("Failed to load page");
@@ -188,7 +232,63 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     });
   };
 
-  const handlePayment = async () => {
+  const handleProductPayment = async () => {
+    const totalAmount = getTotalProductPrice();
+    
+    if (totalAmount <= 0) {
+      alert("Invalid amount");
+      return;
+    }
+
+    setIsProcessingProduct(true);
+
+    const metadata: any = {
+      pageType: page?.pageType,
+      pageTitle: page?.title,
+      paymentType: "product",
+      productName: page?.title,
+      quantity: quantity,
+      variant: selectedVariant?.name || null,
+      totalAmount: totalAmount,
+    };
+
+    try {
+      const response = await fetch("/api/payment-page/public/virtual-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageSlug: slug,
+          customerName: "Customer",
+          customerEmail: "customer@example.com",
+          customerPhone: "",
+          amount: totalAmount,
+          metadata,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      
+      // Create narration with product info
+      let narration = `PRODUCT: ${page?.title}`;
+      if (selectedVariant?.name) {
+        narration += ` - ${selectedVariant.name}`;
+      }
+      narration += ` x${quantity}`;
+      
+      const accountDetails = `Bank: ${data.virtualAccount.bankName}\nAccount Number: ${data.virtualAccount.accountNumber}\nAccount Name: ${data.virtualAccount.accountName}\nAmount: ₦${totalAmount.toLocaleString()}\n\nNarration: ${narration}`;
+      await copyToClipboard(accountDetails, "all");
+      
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 5000);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsProcessingProduct(false);
+    }
+  };
+
+  const handleSchoolPayment = async () => {
     if (selectedStudents.size === 0) {
       alert("Please select at least one student");
       return;
@@ -247,7 +347,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const installmentInfo = getInstallmentInfo();
   const canDoInstallments = page?.priceType === "installment" && page.installmentCount && page.installmentCount > 1;
   const totalForSelected = getTotalForSelectedStudents();
-  const allImages = [...(page?.coverImage ? [page.coverImage] : []), ...(page?.productImages || [])];
+  const allImages = [...(page?.coverImage ? [page.coverImage] : [])];
 
   if (loading) {
     return (
@@ -289,7 +389,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         </div>
       </div>
 
-      {/* Images Carousel */}
+      {/* Images Carousel - Only cover image */}
       {allImages.length > 0 && (
         <div className="relative bg-black/5">
           <img src={allImages[currentImage]} alt={page.title} className="w-full h-64 md:h-80 object-cover" />
@@ -311,6 +411,39 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         </div>
       )}
 
+      {/* PRODUCT IMAGES GALLERY - Separate section below cover image */}
+      {page.productImages && page.productImages.length > 0 && (
+        <div className="bg-[#0e0e0e] py-6 px-4 border-b border-gray-800">
+          <div className="max-w-lg mx-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-400">Product Gallery</h3>
+              <span className="text-xs text-gray-500">{page.productImages.length} images</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {page.productImages.map((img, idx) => (
+                <div 
+                  key={idx} 
+                  className="relative aspect-square rounded-xl overflow-hidden bg-[#1a1a1a] border border-gray-800 cursor-pointer hover:border-[#e1bf46] transition-all group"
+                  onClick={() => {
+                    setSelectedProductImage(img);
+                    setIsLightboxOpen(true);
+                  }}
+                >
+                  <img 
+                    src={img} 
+                    alt={`${page.title} - ${idx + 1}`} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <ImageIcon className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="max-w-lg mx-auto py-6 space-y-6 px-4 pb-32">
         {/* Title */}
@@ -324,7 +457,125 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           {page.description && <p className="text-gray-400 text-sm mt-2">{page.description}</p>}
         </div>
 
-        {/* Fee Breakdown */}
+        {/* PHYSICAL PRODUCT SECTION - Buy Now Button Removed */}
+        {page.pageType === "physical" && (
+          <div className="space-y-4">
+            <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <PackageIcon className="h-5 w-5 text-[#e1bf46]" />
+                <h3 className="font-bold text-lg text-white">Product Details</h3>
+              </div>
+              
+              {/* Variants Selection */}
+              {variants.length > 0 && (
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block text-white">Select Variant</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {variants.map((variant: Variant, idx: number) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedVariant(variant)}
+                        className={`p-3 rounded-xl border-2 text-center transition-all ${
+                          selectedVariant?.name === variant.name
+                            ? "border-[#e1bf46] bg-[#e1bf46]/10 text-[#e1bf46]"
+                            : "border-gray-700 hover:border-[#e1bf46]/50 text-gray-300"
+                        }`}
+                      >
+                        <p className="font-semibold">{variant.name}</p>
+                        <p className="text-sm mt-1">₦{(variant.price || page.price).toLocaleString()}</p>
+                        {variant.stock !== undefined && variant.stock > 0 && (
+                          <p className="text-xs text-gray-500 mt-1">Stock: {variant.stock}</p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Quantity Selector */}
+              <div>
+                <Label className="text-sm font-semibold mb-2 block text-white">Quantity</Label>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="h-10 w-10 rounded-xl bg-gray-800 text-white hover:bg-gray-700 transition-colors"
+                  >
+                    -
+                  </button>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20 text-center bg-[#1a1a1a] border-gray-700 text-white"
+                  />
+                  <button
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="h-10 w-10 rounded-xl bg-gray-800 text-white hover:bg-gray-700 transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              
+              {/* Shipping Info */}
+              {page.metadata?.requiresShipping && (
+                <div className="flex items-center gap-2 p-3 bg-blue-900/20 rounded-xl border border-blue-800">
+                  <Truck className="h-4 w-4 text-blue-400" />
+                  <p className="text-xs text-blue-300">Shipping address will be required</p>
+                </div>
+              )}
+              
+              {/* Price Summary - No Buy Button */}
+              <div className="pt-4 border-t border-gray-800">
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-400">Unit Price:</span>
+                  <span className="text-white">₦{getBasePrice().toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-400">Quantity:</span>
+                  <span className="text-white">x{quantity}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-gray-800">
+                  <span className="font-semibold text-white">Total:</span>
+                  <span className="text-2xl font-bold text-[#e1bf46]">₦{getTotalProductPrice().toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DIGITAL PRODUCT SECTION - Buy Now Button Removed */}
+        {page.pageType === "digital" && (
+          <div className="space-y-4">
+            <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Download className="h-5 w-5 text-[#e1bf46]" />
+                <h3 className="font-bold text-lg text-white">Digital Product</h3>
+              </div>
+              
+              {/* Price Display */}
+              <div className="p-4 bg-[#e1bf46]/10 rounded-xl border border-[#e1bf46]/20">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold text-white">Price:</span>
+                  <span className="text-2xl font-bold text-[#e1bf46]">
+                    ₦{page.price.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Delivery Info */}
+              {page.metadata?.emailDelivery !== false && (
+                <div className="flex items-center gap-2 p-3 bg-green-900/20 rounded-xl border border-green-800">
+                  <CheckCircle className="h-4 w-4 text-green-400" />
+                  <p className="text-xs text-green-300">Download link will be sent to your email</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Fee Breakdown - School Only */}
         {page.pageType === "school" && feeBreakdown.length > 0 && (
           <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5">
             <h3 className="font-bold text-lg mb-4 text-white">Fee Breakdown</h3>
@@ -341,8 +592,8 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           </div>
         )}
 
-        {/* Payment Options */}
-        {canDoInstallments && (
+        {/* Payment Options - School Only */}
+        {page.pageType === "school" && canDoInstallments && (
           <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5">
             <h3 className="font-bold text-lg mb-4 text-white">Payment Options</h3>
             <div className="space-y-3">
@@ -380,12 +631,11 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           </div>
         )}
 
-        {/* Student Selection with Scroll */}
+        {/* Student Selection - School Only */}
         {page.pageType === "school" && (
           <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5 space-y-4">
             <h3 className="font-bold text-lg text-white">Select Students</h3>
             
-            {/* Scrollable Student List */}
             <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar pr-1">
               {students.map((student: Student) => {
                 const isSelected = selectedStudents.has(student.name);
@@ -395,13 +645,9 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 const totalAmount = student.totalAmount;
                 const paidAmount = student.paidAmount || 0;
                 
-                // Fully paid - show as paid
                 if (isPaid) {
                   return (
-                    <div
-                      key={student.name}
-                      className="p-4 rounded-xl bg-green-900/20 border border-green-800 opacity-70"
-                    >
+                    <div key={student.name} className="p-4 rounded-xl bg-green-900/20 border border-green-800 opacity-70">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-semibold text-white">{student.name}</p>
@@ -423,13 +669,9 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                   );
                 }
                 
-                // Partially paid - installment payment in progress
                 if (isPartiallyPaid) {
                   return (
-                    <div
-                      key={student.name}
-                      className="p-4 rounded-xl bg-yellow-900/20 border border-yellow-800"
-                    >
+                    <div key={student.name} className="p-4 rounded-xl bg-yellow-900/20 border border-yellow-800">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-semibold text-white">{student.name}</p>
@@ -454,7 +696,6 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                   );
                 }
                 
-                // Unpaid - selectable
                 return (
                   <div
                     key={student.name}
@@ -533,13 +774,15 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
             <div className="mt-4 p-3 bg-yellow-900/20 rounded-xl border border-yellow-800">
               <p className="text-xs text-yellow-400">
-                📝 Important: Use <strong className="text-yellow-300">student name(s)</strong> as narration/reference
+                📝 Important: Use <strong className="text-yellow-300">
+                  {page.pageType === "school" ? "student name(s)" : "product name"}
+                </strong> as narration/reference
               </p>
             </div>
 
-            {totalForSelected > 0 && (
+            {page.pageType === "school" && totalForSelected > 0 && (
               <Button
-                onClick={handlePayment}
+                onClick={handleSchoolPayment}
                 className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
               >
                 <Banknote className="h-4 w-4 mr-2" />
@@ -567,6 +810,28 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             <Button onClick={() => setShowSuccess(false)} className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90">
               Close
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Image Lightbox Modal */}
+      {isLightboxOpen && selectedProductImage && (
+        <div 
+          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          <div className="relative max-w-4xl w-full">
+            <img 
+              src={selectedProductImage} 
+              alt="Product view" 
+              className="w-full h-auto rounded-xl"
+            />
+            <button
+              onClick={() => setIsLightboxOpen(false)}
+              className="absolute top-4 right-4 bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 text-white" />
+            </button>
           </div>
         </div>
       )}
