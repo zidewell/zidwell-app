@@ -44,7 +44,6 @@ import {
 import { useDebouncedCallback } from "use-debounce";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import Loader from "../../Loader";
 import { useUserContextData } from "@/app/context/userData";
 import PostPreviewModal from "./PostPreviewModal";
 
@@ -76,8 +75,13 @@ interface PostEditorProps {
   isDraft?: boolean;
 }
 
-// Default categories
-const DEFAULT_CATEGORIES = [
+interface Category {
+  id: string;
+  name: string;
+}
+
+// Default categories (initial fallback)
+const DEFAULT_CATEGORIES: Category[] = [
   { id: "1", name: "Technology" },
   { id: "2", name: "Business" },
   { id: "3", name: "Health" },
@@ -87,6 +91,14 @@ const DEFAULT_CATEGORIES = [
   { id: "7", name: "Productivity" },
   { id: "8", name: "Self-Improvement" },
 ];
+
+// Cache for categories
+let categoriesCache: {
+  data: Category[];
+  timestamp: number;
+  expiryTime: number;
+} | null = null;
+const CACHE_EXPIRY = 3 * 60 * 1000;
 
 // Validation functions
 const validatePost = (
@@ -264,6 +276,8 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
   const [excerpt, setExcerpt] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState("");
+  const [availableCategories, setAvailableCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [featuredImage, setFeaturedImage] = useState("");
   const [featuredImageFile, setFeaturedImageFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState("");
@@ -302,8 +316,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     setIsMounted(true);
   }, []);
 
-  const categories = useMemo(() => DEFAULT_CATEGORIES, []);
-
   const getApiKey = useCallback(() => {
     if (typeof window !== "undefined") {
       return (
@@ -314,6 +326,77 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     }
     return process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
   }, []);
+
+  // Fetch categories with caching
+  const fetchCategories = useCallback(async (forceRefresh = false) => {
+    // Check cache first
+    if (!forceRefresh && categoriesCache && (Date.now() - categoriesCache.timestamp) < CACHE_EXPIRY) {
+      console.log("Using cached categories", categoriesCache.data.length);
+      setAvailableCategories(categoriesCache.data);
+      return;
+    }
+
+    try {
+      setIsLoadingCategories(true);
+      const response = await fetch('/api/blog/categories');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.categories && data.categories.length > 0) {
+          const formattedCategories = data.categories.map((cat: any) => ({
+            id: cat.id,
+            name: cat.name
+          }));
+          
+          // Update cache
+          categoriesCache = {
+            data: formattedCategories,
+            timestamp: Date.now(),
+            expiryTime: CACHE_EXPIRY
+          };
+          
+          setAvailableCategories(formattedCategories);
+        } else {
+          setAvailableCategories(DEFAULT_CATEGORIES);
+        }
+      } else {
+        setAvailableCategories(DEFAULT_CATEGORIES);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setAvailableCategories(DEFAULT_CATEGORIES);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  }, []);
+
+  // Save new category to database with cache invalidation
+  const saveCategoryToDatabase = useCallback(async (categoryName: string) => {
+    try {
+      const apiKey = getApiKey();
+      const response = await fetch('/api/blog/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({ name: categoryName }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Invalidate cache when new category is added
+        categoriesCache = null;
+        return { id: data.id, name: categoryName };
+      } else if (response.status === 409) {
+        showInfoAlert("Category Exists", `Category "${categoryName}" already exists`);
+        return { id: Date.now().toString(), name: categoryName };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error saving category:', error);
+      return null;
+    }
+  }, [getApiKey, showInfoAlert]);
 
   useEffect(() => {
     if (userData && isMounted) {
@@ -327,6 +410,11 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       }
     }
   }, [userData, isMounted]);
+
+  // Load categories on mount (uses cache)
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const saveToLocalDraft = useDebouncedCallback(() => {
     if (
@@ -674,6 +762,90 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       "bg-(--color-accent-yellow)/10",
     );
   }, []);
+
+  // Updated addCategory function with cache invalidation
+  const addCategory = useCallback(async () => {
+    const trimmedCategory = newCategory.trim();
+    if (!trimmedCategory) {
+      showErrorAlert("Invalid Category", "Category name cannot be empty");
+      return;
+    }
+
+    if (trimmedCategory.length > 50) {
+      showErrorAlert(
+        "Invalid Category",
+        "Category name cannot exceed 50 characters",
+      );
+      return;
+    }
+
+    if (selectedCategories.includes(trimmedCategory)) {
+      showWarningAlert("Duplicate Category", "This category already exists");
+      return;
+    }
+
+    // Try to save to database
+    const savedCategory = await saveCategoryToDatabase(trimmedCategory);
+    
+    if (savedCategory) {
+      // Add to available categories if new
+      if (!availableCategories.find(c => c.name === trimmedCategory)) {
+        setAvailableCategories(prev => [...prev, { id: savedCategory.id, name: trimmedCategory }]);
+      }
+      
+      // Add to selected categories for current post
+      setSelectedCategories([...selectedCategories, trimmedCategory]);
+      setNewCategory("");
+      showSuccessAlert("Category Added", `Added category: ${trimmedCategory}`);
+      setValidationErrors((prev) => ({ ...prev, categories: "" }));
+      
+      // Refresh categories from server (force refresh to update cache)
+      await fetchCategories(true);
+    }
+  }, [
+    newCategory,
+    selectedCategories,
+    availableCategories,
+    saveCategoryToDatabase,
+    fetchCategories,
+    showErrorAlert,
+    showWarningAlert,
+    showSuccessAlert,
+  ]);
+
+  const removeCategory = useCallback(
+    async (category: string) => {
+      const confirmed = await MySwal.fire({
+        title: "Remove Category",
+        text: `Are you sure you want to remove "${category}" from this post?`,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Yes, remove it",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#ef4444",
+        cancelButtonColor: swalTheme.cancelButtonColor,
+        background: swalTheme.background,
+        color: swalTheme.color,
+        iconColor: swalTheme.iconColor.question,
+      });
+
+      if (confirmed.isConfirmed) {
+        setSelectedCategories(selectedCategories.filter((c) => c !== category));
+        showInfoAlert("Category Removed", `Removed category: ${category}`);
+      }
+    },
+    [selectedCategories, showInfoAlert],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addCategory();
+      }
+    },
+    [addCategory],
+  );
 
   const saveDraft = useCallback(
     async (silent = false): Promise<string | null> => {
@@ -1027,72 +1199,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
     router,
   ]);
 
-  const addCategory = useCallback(() => {
-    const trimmedCategory = newCategory.trim();
-    if (!trimmedCategory) {
-      showErrorAlert("Invalid Category", "Category name cannot be empty");
-      return;
-    }
-
-    if (trimmedCategory.length > 50) {
-      showErrorAlert(
-        "Invalid Category",
-        "Category name cannot exceed 50 characters",
-      );
-      return;
-    }
-
-    if (selectedCategories.includes(trimmedCategory)) {
-      showWarningAlert("Duplicate Category", "This category already exists");
-      return;
-    }
-
-    setSelectedCategories([...selectedCategories, trimmedCategory]);
-    setNewCategory("");
-    showSuccessAlert("Category Added", `Added category: ${trimmedCategory}`);
-    setValidationErrors((prev) => ({ ...prev, categories: "" }));
-  }, [
-    newCategory,
-    selectedCategories,
-    showErrorAlert,
-    showWarningAlert,
-    showSuccessAlert,
-  ]);
-
-  const removeCategory = useCallback(
-    async (category: string) => {
-      const confirmed = await MySwal.fire({
-        title: "Remove Category",
-        text: `Are you sure you want to remove "${category}"?`,
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonText: "Yes, remove it",
-        cancelButtonText: "Cancel",
-        confirmButtonColor: "#ef4444",
-        cancelButtonColor: swalTheme.cancelButtonColor,
-        background: swalTheme.background,
-        color: swalTheme.color,
-        iconColor: swalTheme.iconColor.question,
-      });
-
-      if (confirmed.isConfirmed) {
-        setSelectedCategories(selectedCategories.filter((c) => c !== category));
-        showInfoAlert("Category Removed", `Removed category: ${category}`);
-      }
-    },
-    [selectedCategories, showInfoAlert],
-  );
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        addCategory();
-      }
-    },
-    [addCategory],
-  );
-
   const handlePreview = useCallback(() => {
     if (!title.trim()) {
       showErrorAlert("Preview Error", "Please add a title to preview the post");
@@ -1126,7 +1232,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
     if (!confirmed.isConfirmed) return;
 
-    // If it's a local blob URL (not uploaded yet)
     if (featuredImage.startsWith("blob:")) {
       URL.revokeObjectURL(featuredImage);
       setFeaturedImage("");
@@ -1135,7 +1240,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
       return;
     }
 
-    // If it's an uploaded image, delete from storage
     if (featuredImage && postId) {
       try {
         setIsLoading(true);
@@ -1170,7 +1274,6 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
         setIsLoading(false);
       }
     } else {
-      // External URL or new post
       setFeaturedImage("");
       setFeaturedImageFile(null);
       showInfoAlert("Image Removed", "Featured image has been removed");
@@ -1586,13 +1689,13 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
                         }
                       }
                     }}
-                    disabled={isLoading}
+                    disabled={isLoading || isLoadingCategories}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select categories" />
+                      <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select categories"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((cat) => (
+                      {availableCategories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.name}>
                           {cat.name}
                         </SelectItem>
