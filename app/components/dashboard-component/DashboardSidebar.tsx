@@ -26,10 +26,13 @@ import {
   Tv,
   Lightbulb,
   Captions,
+  Sun,
+  Moon,
 } from "lucide-react";
 import Image from "next/image";
 import { useUserContextData } from "@/app/context/userData";
 import { ProtectedLink } from "../ProtectedLink";
+import { useTheme } from "../ThemeProvider";
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -67,6 +70,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
 
   const pathname = usePathname();
   const { userData, balance } = useUserContextData();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -138,6 +142,33 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   };
 
   const showPaymentPage = canAccessPaymentPage(userData?.email);
+
+  const ThemeToggle = () => (
+    <div className="flex items-center gap-2 p-1 bg-(--bg-secondary) rounded-xl">
+      <button
+        onClick={() => setTheme("light")}
+        className={`p-2 rounded-lg transition-all ${
+          theme === "light"
+            ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-sm"
+            : "text-(--text-secondary) hover:bg-(--bg-secondary)"
+        }`}
+        aria-label="Light mode"
+      >
+        <Sun size={18} />
+      </button>
+      <button
+        onClick={() => setTheme("dark")}
+        className={`p-2 rounded-lg transition-all ${
+          theme === "dark"
+            ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-sm"
+            : "text-(--text-secondary) hover:bg-(--bg-secondary)"
+        }`}
+        aria-label="Dark mode"
+      >
+        <Moon size={18} />
+      </button>
+    </div>
+  );
 
   const NavigationContent = () => (
     <div className="space-y-6">
@@ -291,6 +322,16 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         />
       ))}
 
+      {/* Theme Toggle in Preferences */}
+      <div className="mt-4 pt-2 border-t border-(--border-color)/50">
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="text-sm font-medium text-(--text-primary)">
+            Theme
+          </span>
+          <ThemeToggle />
+        </div>
+      </div>
+
       {userData && (
         <>
           {[
@@ -345,7 +386,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     <>
       {open && (
         <div
-          className="fixed inset-0 bg-(--color-ink)/40 dark:bg-[#000000]/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-(--color-ink)/40 dark:bg-black/40 z-40 lg:hidden"
           onClick={onClose}
         />
       )}
@@ -436,7 +477,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     <aside className="hidden lg:block fixed top-0 left-0 z-40 h-screen w-72 bg-(--bg-primary) border-r-2 border-(--border-color) overflow-y-auto tiny-scrollbar">
       <style>{scrollbarStyles}</style>
       <div className="flex flex-col min-h-full">
-        <div className="flex items-center h-20 px-7 border-b-2 border-(--border-color)">
+        <div className="flex items-center justify-between h-20 px-7 border-b-2 border-(--border-color)">
           <Link href="/dashboard" className="flex items-center gap-2">
             <Image
               src="/logo.png"
@@ -449,6 +490,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
               Zidwell
             </span>
           </Link>
+          
         </div>
 
         {userData && userData.fullName && (

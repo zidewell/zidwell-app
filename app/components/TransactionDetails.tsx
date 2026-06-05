@@ -11,6 +11,9 @@ import {
   Building,
   Loader2,
   MessageSquare,
+  CheckCircle,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import { useUserContextData } from "../context/userData";
 import { useEffect, useState } from "react";
@@ -48,6 +51,34 @@ export default function TransactionDetailsPage() {
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [base64Logo, setBase64Logo] = useState<string>("");
+
+  // Load logo as base64 for PDF generation
+  const getBase64Logo = async (): Promise<string> => {
+    try {
+      const response = await fetch("/logo.png");
+      if (!response.ok) throw new Error("Logo not found");
+      const blob = await response.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error("Error loading logo:", error);
+      return "";
+    }
+  };
+
+  // Pre-load logo when component mounts
+  useEffect(() => {
+    const loadLogo = async () => {
+      const logo = await getBase64Logo();
+      setBase64Logo(logo);
+    };
+    loadLogo();
+  }, []);
 
   useEffect(() => {
     const fetchTransactionDetails = async () => {
@@ -139,7 +170,6 @@ export default function TransactionDetailsPage() {
         display: "₦0.00",
         isOutflow: false,
         rawAmount: 0,
-        signedDisplay: "₦0.00",
       };
 
     const isOutflowTransaction = isOutflow(transaction.type);
@@ -151,11 +181,6 @@ export default function TransactionDetailsPage() {
       })}`,
       isOutflow: isOutflowTransaction,
       rawAmount: amount,
-      signedDisplay: `${
-        isOutflowTransaction ? "-" : "+"
-      }₦${amount.toLocaleString("en-NG", {
-        minimumFractionDigits: 2,
-      })}`,
     };
   };
 
@@ -176,170 +201,447 @@ export default function TransactionDetailsPage() {
     return null;
   };
 
+  const getStatusMeta = (status: string) => {
+    const s = (status || "pending").toLowerCase();
+    if (s === "success") return { title: "Transfer Successful", message: "Your transaction has been completed successfully.", statusClass: "success", color: "#E5B333" };
+    if (s === "pending") return { title: "Transfer Pending", message: "Your transaction is being processed.", statusClass: "pending", color: "#f5a524" };
+    return { title: "Transfer Failed", message: "Transaction could not be completed.", statusClass: "failed", color: "#ff3b30" };
+  };
+
+  // Helper function to get real sender email and account number
+  const getSenderEmail = (transaction: any) => {
+    if (transaction.sender?.email) return transaction.sender.email;
+    if (transaction.from_email) return transaction.from_email;
+    if (transaction.external_response?.data?.customer?.senderEmail) return transaction.external_response.data.customer.senderEmail;
+    if (transaction.external_response?.metadata?.sender_email) return transaction.external_response.metadata.sender_email;
+    return null;
+  };
+
+  const getSenderAccount = (transaction: any) => {
+    if (transaction.sender?.accountNumber) return transaction.sender.accountNumber;
+    if (transaction.sender?.account_number) return transaction.sender.account_number;
+    if (transaction.from_account) return transaction.from_account;
+    if (transaction.external_response?.withdrawal_details?.account_number) return transaction.external_response.withdrawal_details.account_number;
+    if (transaction.external_response?.data?.customer?.accountNumber) return transaction.external_response.data.customer.accountNumber;
+    return null;
+  };
+
+  const getReceiverEmail = (transaction: any) => {
+    if (transaction.receiver?.email) return transaction.receiver.email;
+    if (transaction.to_email) return transaction.to_email;
+    if (transaction.external_response?.data?.customer?.recipientEmail) return transaction.external_response.data.customer.recipientEmail;
+    if (transaction.external_response?.metadata?.recipient_email) return transaction.external_response.metadata.recipient_email;
+    return null;
+  };
+
+  const getReceiverAccount = (transaction: any) => {
+    if (transaction.receiver?.accountNumber) return transaction.receiver.accountNumber;
+    if (transaction.receiver?.account_number) return transaction.receiver.account_number;
+    if (transaction.to_account) return transaction.to_account;
+    if (transaction.external_response?.receiver_details?.account_number) return transaction.external_response.receiver_details.account_number;
+    if (transaction.external_response?.data?.transaction?.aliasAccountNumber) return transaction.external_response.data.transaction.aliasAccountNumber;
+    return null;
+  };
+
   const handleDownloadReceipt = async () => {
     if (!transaction) return;
 
     setDownloading(true);
 
-    const amountInfo = formatAmount(transaction);
-    const narration = getNarration(transaction);
-
-    const senderData = transaction.sender || {};
-    const receiverData = transaction.receiver || {};
-    const externalData = transaction.external_response || {};
-
-    const displaySender = {
-      name:
-        senderData.name ||
-        externalData?.withdrawal_details?.account_name ||
-        externalData?.data?.customer?.senderName ||
-        externalData?.metadata?.sender_name ||
-        "N/A",
-      accountNumber:
-        senderData.accountNumber ||
-        externalData?.withdrawal_details?.account_number ||
-        externalData?.data?.customer?.accountNumber ||
-        "N/A",
-      bankName:
-        senderData.bankName ||
-        externalData?.withdrawal_details?.bank_name ||
-        externalData?.data?.customer?.bankName ||
-        "N/A",
-      bankCode:
-        senderData.bankCode ||
-        externalData?.withdrawal_details?.bank_code ||
-        externalData?.data?.customer?.bankCode ||
-        "N/A",
-    };
-
-    const displayReceiver = {
-      name:
-        receiverData.name ||
-        externalData?.receiver_details?.account_name ||
-        externalData?.data?.customer?.recipientName ||
-        externalData?.data?.transaction?.aliasAccountName ||
-        externalData?.data?.meta?.recipientName ||
-        "N/A",
-      accountNumber:
-        receiverData.accountNumber ||
-        externalData?.receiver_details?.account_number ||
-        externalData?.data?.customer?.accountNumber ||
-        externalData?.data?.transaction?.aliasAccountNumber ||
-        "N/A",
-      bankName:
-        receiverData.bankName ||
-        externalData?.receiver_details?.bank_name ||
-        externalData?.data?.customer?.bankName ||
-        "N/A",
-      bankCode:
-        receiverData.bankCode ||
-        externalData?.receiver_details?.bank_code ||
-        externalData?.data?.customer?.bankCode ||
-        "N/A",
-    };
-
-    const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
-
-    const receiptHTML = `
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Transaction Receipt - ${transaction.reference || transaction.id}</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: white; color: #333; }
-      .receipt-container { max-width: 500px; margin: 0 auto; border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; background: white; }
-      .header { text-align: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 20px; }
-      .header h1 { color: #111827; margin: 8px 0 4px 0; font-size: 24px; }
-      .amount-section { text-align: center; margin: 20px 0; }
-      .amount { font-size: 28px; font-weight: bold; }
-      .section { margin: 20px 0; }
-      .section-title { color: #374151; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
-      .details-card { background: #f9fafb; border-radius: 8px; padding: 16px; }
-      .detail-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-      .detail-label { color: #6b7280; }
-      .detail-value { color: #111827; font-weight: 500; }
-      .narration-section { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
-      .narration-text { font-style: italic; color: #0369a1; font-weight: 500; }
-      .footer { text-align: center; border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 20px; color: #6b7280; font-size: 12px; }
-      @media (max-width: 640px) { body { padding: 10px; } .receipt-container { padding: 16px; } .amount { font-size: 24px; } .header h1 { font-size: 20px; } .detail-row { flex-direction: column; gap: 4px; } .detail-label, .detail-value { width: 100%; } }
-    </style>
-  </head>
-  <body>
-    <div class="receipt-container">
-      <div class="header">
-        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
-          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14,2 14,8 20,8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-          </svg>
-          <h1>Transaction Receipt</h1>
-        </div>
-        <p style="color:#6b7280;margin:4px 0;font-size:14px;">Reference: ${transaction.reference || transaction.id}</p>
-        <p style="color:#9ca3af;margin:0;font-size:12px;">${new Date(transaction.created_at).toLocaleDateString()} • ${new Date(transaction.created_at).toLocaleTimeString()}</p>
-      </div>
-
-      <div class="amount-section">
-        <div style="color:#6b7280;font-size:14px;margin-bottom:8px;">Transaction Amount</div>
-        <div class="amount" style="color:${transaction.status?.toLowerCase() === "success" ? "var(--color-accent-yellow)" : transaction.status?.toLowerCase() === "pending" ? "#2563eb" : "#dc2626"};">
-          ${amountInfo.signedDisplay}
-        </div>
-        <div style="color:#6b7280;font-size:12px;margin-top:4px;">
-          ${transaction.status?.toLowerCase() === "success" ? "Transaction Successful" : transaction.status?.toLowerCase() === "pending" ? "Transaction Pending" : "Transaction Failed"}
-        </div>
-      </div>
-
-      ${
-        narration
-          ? `
-      <div class="narration-section">
-        <div class="section-title">Transaction Narration</div>
-        <div class="narration-text">"${narration}"</div>
-      </div>
-      `
-          : ""
+    try {
+      // Get logo as base64
+      let logoBase64 = base64Logo;
+      if (!logoBase64) {
+        logoBase64 = await getBase64Logo();
       }
 
-      <div class="section">
-        <div class="section-title">Transaction Details</div>
-        <div class="details-card">
-          <div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">${transaction.type || "N/A"}</span></div>
-          <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value">${transaction.description || "N/A"}</span></div>
-          <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value" style="color:${transaction.status?.toLowerCase() === "success" ? "var(--color-accent-yellow)" : transaction.status?.toLowerCase() === "pending" ? "#2563eb" : "#dc2626"}">${transaction.status}</span></div>
-          ${transaction.fee > 0 ? `<div class="detail-row"><span class="detail-label">Transaction Fee</span><span class="detail-value">₦${Number(transaction.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}</span></div>` : ""}
-          ${transaction.total_deduction > 0 && transaction.total_deduction !== transaction.amount ? `<div class="detail-row"><span class="detail-label">Total Deduction</span><span class="detail-value">₦${Number(transaction.total_deduction).toLocaleString("en-NG", { minimumFractionDigits: 2 })}</span></div>` : ""}
-        </div>
-      </div>
+      const amountInfo = formatAmount(transaction);
+      const narration = getNarration(transaction);
+      const statusMeta = getStatusMeta(transaction.status);
+      const transactionIdDisplay = transaction.reference || transaction.merchant_tx_ref || transaction.id;
+      
+      // Format date
+      const dateObj = new Date(transaction.created_at);
+      const formattedDate = `${dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} • ${dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+      
+      // Get REAL sender and receiver data (only if available)
+      const senderName = transaction.sender?.name || transaction.from_name || null;
+      const senderEmail = getSenderEmail(transaction);
+      const senderAccount = getSenderAccount(transaction);
+      
+      const receiverName = transaction.receiver?.name || transaction.to_name || null;
+      const receiverEmail = getReceiverEmail(transaction);
+      const receiverAccount = getReceiverAccount(transaction);
+      
+      const feeAmount = transaction.fee || 0;
 
-      <div class="section">
-        <div class="section-title">${isWithdrawal ? "From (Zidwell)" : "Sender Information"}</div>
-        <div class="details-card">
-          <div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">${displaySender.name}</span></div>
-          ${displaySender.accountNumber && displaySender.accountNumber !== "N/A" ? `<div class="detail-row"><span class="detail-label">Account Number</span><span class="detail-value">${displaySender.accountNumber}</span></div>` : ""}
-          ${displaySender.bankName && displaySender.bankName !== "N/A" ? `<div class="detail-row"><span class="detail-label">Bank Name</span><span class="detail-value">${displaySender.bankName}</span></div>` : ""}
-        </div>
-      </div>
+      // Logo HTML - use base64 if available, otherwise fallback to path
+      const logoSrc = logoBase64 || "/logo.png";
 
-      <div class="section">
-        <div class="section-title">${isWithdrawal ? "To (Recipient)" : "Receiver Information"}</div>
-        <div class="details-card">
-          <div class="detail-row"><span class="detail-label">${isWithdrawal ? "Recipient Name" : "Account Name"}</span><span class="detail-value">${displayReceiver.name}</span></div>
-          ${displayReceiver.accountNumber && displayReceiver.accountNumber !== "N/A" ? `<div class="detail-row"><span class="detail-label">Account Number</span><span class="detail-value">${displayReceiver.accountNumber}</span></div>` : ""}
-          ${displayReceiver.bankName && displayReceiver.bankName !== "N/A" ? `<div class="detail-row"><span class="detail-label">Bank Name</span><span class="detail-value">${displayReceiver.bankName}</span></div>` : ""}
-        </div>
-      </div>
+      // Get status icon HTML based on status class - using inline SVG for reliability in PDF
+      let statusIconSvg = '';
+      if (statusMeta.statusClass === 'success') {
+        statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
+          <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+      } else if (statusMeta.statusClass === 'pending') {
+        statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" fill="#f5a524" stroke="none"/>
+          <circle cx="12" cy="12" r="3" fill="white"/>
+          <path d="M12 8V12L14 14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>`;
+      } else {
+        statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" fill="#ff3b30" stroke="none"/>
+          <path d="M15 9L9 15" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <path d="M9 9L15 15" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>`;
+      }
 
-      <div class="footer">
-        <p>This is an automated receipt. Please keep it for your records.</p>
-        <p style="margin-top:8px;">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-      </div>
+      // RECEIPT HTML with SVG icons
+      const receiptHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zidwell Receipt | ${transactionIdDisplay}</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Arial', 'Helvetica', sans-serif;
+  }
+  body {
+    background: #101010;
+    display: flex;
+    justify-content: center;
+    padding: 30px 20px;
+  }
+  .receipt {
+    width: 550px;
+    background: #fff;
+    border: 2px solid ${statusMeta.color};
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+  }
+  .header {
+    height: 120px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .header::after {
+    content: "";
+    position: absolute;
+    bottom: 0px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    height: 130px;
+    background: #101010;
+    border: 2px solid #E5B333;
+    clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%);
+    border-radius: 0 0 240px 240px;
+  }
+  .logo {
+    position: relative;
+    z-index: 2;
+  }
+  .logo img {
+    width: 130px;
+  }
+  .content {
+    padding: 30px 40px 30px;
+  }
+  .status-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .status-icon svg {
+    width: 48px;
+    height: 48px;
+  }
+  .title {
+    text-align: center;
+  }
+  .title h1 {
+    font-size: 25px;
+    margin-bottom: 10px;
+  }
+  .title p {
+    color: #777;
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 20px 0;
+  }
+  .divider-line {
+    flex: 1;
+    height: 1px;
+    background: #E5B333;
+  }
+  .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #E5B333;
+  }
+  .amount {
+    text-align: center;
+  }
+  .amount-label {
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .amount-value {
+    font-size: 30px;
+    font-weight: 700;
+    margin-top: 10px;
+  }
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin: 40px 0 25px;
+  }
+  .section-title .line {
+    flex: 1;
+    height: 1px;
+    background: #E5B333;
+  }
+  .section-title span {
+    color: #E5B333;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 0;
+    border-bottom: 1px solid #f0e0a3;
+  }
+  .detail-row-last {
+ 
+    border-bottom: none;
+  }
+  .left {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+  }
+  .icon {
+    width: 42px;
+    height: 42px;
+    background: #101010;
+    border-radius: 50%;
+    color: #E5B333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .detail-title {
+    font-size: 15px;
+    color: #444;
+  }
+  .detail-value {
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .sub {
+    color: #777;
+    font-size: 14px;
+  }
+  .right {
+    font-weight: 600;
+  }
+  .footer {
+    height: 50px;
+    color: #fff;
+    font-size:12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    background: #101010;
+  }
+  .footer::before {
+    content: "";
+    position: absolute;
+    top: -40px;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    background: #101010;
+    border-top: 2px solid #E5B333;
+    border-top-left-radius: 70%;
+    border-top-right-radius: 70%;
+  }
+  .footer span {
+    position: relative;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+
+<div class="receipt">
+  <div class="header">
+    <div class="logo">
+      <img src="${logoSrc}" alt="Zidwell Logo">
     </div>
-  </body>
-</html>
-`;
+  </div>
 
-    try {
+  <div class="content">
+    <div class="status-icon">
+      ${statusIconSvg}
+    </div>
+
+    <div class="title">
+      <h1>${statusMeta.title}</h1>
+      <p>${statusMeta.message}</p>
+    </div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="divider-line"></div>
+    </div>
+
+    <div class="amount">
+      <div class="amount-label">Amount</div>
+      <div class="amount-value">${amountInfo.display}</div>
+    </div>
+
+    <div class="section-title">
+      <div class="line"></div>
+      <span>Transaction Details</span>
+      <div class="line"></div>
+    </div>
+
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">Date & Time</div>
+        </div>
+      </div>
+      <div class="right">${formattedDate}</div>
+    </div>
+
+    ${senderName ? `
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="19" x2="12" y2="5"/>
+            <polyline points="5 12 12 5 19 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">From</div>
+          <div class="detail-value">${escapeHtml(senderName)}</div>
+          ${senderEmail ? `<div class="sub">${escapeHtml(senderEmail)}</div>` : ''}
+        </div>
+      </div>
+      ${senderAccount ? `<div class="right">${escapeHtml(senderAccount)}</div>` : '<div class="right"></div>'}
+    </div>
+    ` : ''}
+
+    ${receiverName ? `
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <polyline points="19 12 12 19 5 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">To</div>
+          <div class="detail-value">${escapeHtml(receiverName)}</div>
+          ${receiverEmail ? `<div class="sub">${escapeHtml(receiverEmail)}</div>` : ''}
+        </div>
+      </div>
+      ${receiverAccount ? `<div class="right">${escapeHtml(receiverAccount)}</div>` : '<div class="right"></div>'}
+    </div>
+    ` : ''}
+
+    ${feeAmount > 0 ? `
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">Fee</div>
+        </div>
+      </div>
+      <div class="right">₦${feeAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
+    </div>
+    ` : ''}
+
+    <div class="detail-row detail-row-last">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">Transaction ID</div>
+          <div class="detail-value">${escapeHtml(transactionIdDisplay)}</div>
+        </div>
+      </div>
+     
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Thank you for using Zidwell.</span>
+  </div>
+</div>
+
+</body>
+</html>`;
+
+      function escapeHtml(str: string): string {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+          if (m === '&') return '&amp;';
+          if (m === '<') return '&lt;';
+          if (m === '>') return '&gt;';
+          return m;
+        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+          return c;
+        });
+      }
+
       const response = await fetch("/api/generate-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -354,23 +656,14 @@ export default function TransactionDetailsPage() {
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `transaction-receipt-${transaction.reference || transaction.id}.pdf`;
+      a.download = `zidwell-receipt-${transactionIdDisplay}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error generating PDF:", error);
-      const blob = new Blob([receiptHTML], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `transaction-receipt-${transaction.reference || transaction.id}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      alert("PDF generation failed. Downloading as HTML instead.");
+      alert("PDF generation failed. Please try again.");
     } finally {
       setDownloading(false);
     }
@@ -431,58 +724,28 @@ export default function TransactionDetailsPage() {
   const amountInfo = formatAmount(transaction);
   const narration = getNarration(transaction);
 
+  // Get REAL data for display in the UI (only if available)
+  const realSenderEmail = getSenderEmail(transaction);
+  const realSenderAccount = getSenderAccount(transaction);
+  const realReceiverEmail = getReceiverEmail(transaction);
+  const realReceiverAccount = getReceiverAccount(transaction);
+
   const senderData = transaction.sender || {};
   const receiverData = transaction.receiver || {};
   const externalData = transaction.external_response || {};
 
   const displaySender = {
-    name:
-      senderData.name ||
-      externalData?.withdrawal_details?.account_name ||
-      externalData?.data?.customer?.senderName ||
-      externalData?.metadata?.sender_name ||
-      "N/A",
-    accountNumber:
-      senderData.accountNumber ||
-      externalData?.withdrawal_details?.account_number ||
-      externalData?.data?.customer?.accountNumber ||
-      "N/A",
-    bankName:
-      senderData.bankName ||
-      externalData?.withdrawal_details?.bank_name ||
-      externalData?.data?.customer?.bankName ||
-      "N/A",
-    bankCode:
-      senderData.bankCode ||
-      externalData?.withdrawal_details?.bank_code ||
-      externalData?.data?.customer?.bankCode ||
-      "N/A",
+    name: senderData.name || externalData?.withdrawal_details?.account_name || externalData?.data?.customer?.senderName || externalData?.metadata?.sender_name || null,
+    accountNumber: realSenderAccount || null,
+    bankName: senderData.bankName || externalData?.withdrawal_details?.bank_name || externalData?.data?.customer?.bankName || null,
+    email: realSenderEmail || null,
   };
 
   const displayReceiver = {
-    name:
-      receiverData.name ||
-      externalData?.receiver_details?.account_name ||
-      externalData?.data?.customer?.recipientName ||
-      externalData?.data?.transaction?.aliasAccountName ||
-      externalData?.data?.meta?.recipientName ||
-      "N/A",
-    accountNumber:
-      receiverData.accountNumber ||
-      externalData?.receiver_details?.account_number ||
-      externalData?.data?.customer?.accountNumber ||
-      externalData?.data?.transaction?.aliasAccountNumber ||
-      "N/A",
-    bankName:
-      receiverData.bankName ||
-      externalData?.receiver_details?.bank_name ||
-      externalData?.data?.customer?.bankName ||
-      "N/A",
-    bankCode:
-      receiverData.bankCode ||
-      externalData?.receiver_details?.bank_code ||
-      externalData?.data?.customer?.bankCode ||
-      "N/A",
+    name: receiverData.name || externalData?.receiver_details?.account_name || externalData?.data?.customer?.recipientName || externalData?.data?.transaction?.aliasAccountName || externalData?.data?.meta?.recipientName || null,
+    accountNumber: realReceiverAccount || null,
+    bankName: receiverData.bankName || externalData?.receiver_details?.bank_name || externalData?.data?.customer?.bankName || null,
+    email: realReceiverEmail || null,
   };
 
   const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
@@ -559,7 +822,7 @@ export default function TransactionDetailsPage() {
                             : "text-(--color-accent-yellow)"
                         }`}
                       >
-                        {amountInfo.signedDisplay}
+                        {amountInfo.display}
                       </div>
 
                       <p className="text-(--text-secondary) mt-2 text-sm sm:text-base capitalize">
@@ -573,7 +836,7 @@ export default function TransactionDetailsPage() {
                   </CardContent>
                 </Card>
 
-                {/* Narration Card */}
+                {/* Narration Card - Only show if narration exists */}
                 {narration && (
                   <Card className="bg-(--bg-primary) border border-(--border-color)">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
@@ -592,9 +855,8 @@ export default function TransactionDetailsPage() {
                   </Card>
                 )}
 
-                {/* Sender Information */}
-                {(displaySender.name !== "N/A" ||
-                  displaySender.accountNumber !== "N/A") && (
+                {/* Sender Information - Only show if any data exists */}
+                {(displaySender.name || displaySender.accountNumber || displaySender.email || displaySender.bankName) && (
                   <Card className="bg-(--bg-primary) border border-(--border-color)">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <User className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-secondary)" />
@@ -603,83 +865,100 @@ export default function TransactionDetailsPage() {
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                        <span className="text-(--text-secondary) text-sm sm:text-base">
-                          Name
-                        </span>
-                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                          {displaySender.name}
-                        </span>
-                      </div>
-                      {displaySender.accountNumber &&
-                        displaySender.accountNumber !== "N/A" && (
-                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                            <span className="text-(--text-secondary) text-sm sm:text-base">
-                              Account Number
-                            </span>
-                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                              {displaySender.accountNumber}
-                            </span>
-                          </div>
-                        )}
-                      {displaySender.bankName &&
-                        displaySender.bankName !== "N/A" && (
-                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                            <span className="text-(--text-secondary) text-sm sm:text-base">
-                              Bank Name
-                            </span>
-                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                              {displaySender.bankName}
-                            </span>
-                          </div>
-                        )}
+                      {displaySender.name && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-(--text-secondary) text-sm sm:text-base">
+                            Name
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                            {displaySender.name}
+                          </span>
+                        </div>
+                      )}
+                      {displaySender.email && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-(--text-secondary) text-sm sm:text-base">
+                            Email
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                            {displaySender.email}
+                          </span>
+                        </div>
+                      )}
+                      {displaySender.accountNumber && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-(--text-secondary) text-sm sm:text-base">
+                            Account Number
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                            {displaySender.accountNumber}
+                          </span>
+                        </div>
+                      )}
+                      {displaySender.bankName && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-(--text-secondary) text-sm sm:text-base">
+                            Bank Name
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                            {displaySender.bankName}
+                          </span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
 
-                {/* Receiver Information */}
-                {(displayReceiver.name !== "N/A" ||
-                  displayReceiver.accountNumber !== "N/A") && (
+                {/* Receiver Information - Only show if any data exists */}
+                {(displayReceiver.name || displayReceiver.accountNumber || displayReceiver.email || displayReceiver.bankName) && (
                   <Card className="bg-(--bg-primary) border border-(--border-color)">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <Building className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-secondary)" />
                       <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
-                        {isWithdrawal
-                          ? "To (Recipient)"
-                          : "Receiver Information"}
+                        {isWithdrawal ? "To (Recipient)" : "Receiver Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                        <span className="text-(--text-secondary) text-sm sm:text-base">
-                          {isWithdrawal ? "Recipient Name" : "Account Name"}
-                        </span>
-                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                          {displayReceiver.name}
-                        </span>
-                      </div>
-                      {displayReceiver.accountNumber &&
-                        displayReceiver.accountNumber !== "N/A" && (
-                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                            <span className="text-(--text-secondary) text-sm sm:text-base">
-                              Account Number
-                            </span>
-                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                              {displayReceiver.accountNumber}
-                            </span>
-                          </div>
-                        )}
-                      {displayReceiver.bankName &&
-                        displayReceiver.bankName !== "N/A" && (
-                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                            <span className="text-(--text-secondary) text-sm sm:text-base">
-                              Bank Name
-                            </span>
-                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                              {displayReceiver.bankName}
-                            </span>
-                          </div>
-                        )}
+                      {displayReceiver.name && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-(--text-secondary) text-sm sm:text-base">
+                            {isWithdrawal ? "Recipient Name" : "Account Name"}
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                            {displayReceiver.name}
+                          </span>
+                        </div>
+                      )}
+                      {displayReceiver.email && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-(--text-secondary) text-sm sm:text-base">
+                            Email
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                            {displayReceiver.email}
+                          </span>
+                        </div>
+                      )}
+                      {displayReceiver.accountNumber && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-(--text-secondary) text-sm sm:text-base">
+                            Account Number
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                            {displayReceiver.accountNumber}
+                          </span>
+                        </div>
+                      )}
+                      {displayReceiver.bankName && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-(--text-secondary) text-sm sm:text-base">
+                            Bank Name
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                            {displayReceiver.bankName}
+                          </span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
@@ -704,22 +983,22 @@ export default function TransactionDetailsPage() {
                         {transaction.type || "N/A"}
                       </span>
                     </div>
-                    <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                      <span className="text-(--text-secondary) text-sm sm:text-base">
-                        Description
-                      </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                        {transaction.description || "N/A"}
-                      </span>
-                    </div>
+                    {transaction.description && (
+                      <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
+                        <span className="text-(--text-secondary) text-sm sm:text-base">
+                          Description
+                        </span>
+                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                          {transaction.description}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
                       <span className="text-(--text-secondary) text-sm sm:text-base">
                         Reference
                       </span>
                       <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                        {transaction.reference ||
-                          transaction.merchant_tx_ref ||
-                          transaction.id}
+                        {transaction.reference || transaction.merchant_tx_ref || transaction.id}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
