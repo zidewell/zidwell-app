@@ -287,14 +287,46 @@ export function useJournalStore() {
     }
   }, [userId, loadData]);
 
-  // No manual add/update/delete for entries - only from transactions
-  const addEntry = useCallback(async () => {
-    throw new Error('Manual entry creation is disabled. Use wallet transactions instead.');
-  }, []);
+ const addEntry = useCallback(async (entry: Omit<JournalEntry, 'id' | 'createdAt'>) => {
+  console.warn('Manual entry creation is disabled. Use wallet transactions instead.');
+  
+  // Show a toast notification to inform the user
+  if (typeof window !== 'undefined') {
+    const Swal = require('sweetalert2').default;
+    Swal.fire({
+      icon: "info",
+      title: "Manual Entry Disabled",
+      text: "All transactions are automatically synced from your wallet activity. Manual entries are not available.",
+      confirmButtonColor: "var(--color-accent-yellow)",
+      timer: 3000,
+    });
+  }
+  
+  // Return a mock entry to prevent UI errors
+  return {
+    id: crypto.randomUUID(),
+    ...entry,
+    createdAt: new Date().toISOString(),
+  } as JournalEntry;
+}, []);
 
-  const updateEntry = useCallback(async () => {
-    throw new Error('Manual entry update is disabled. Edit categories via the edit button.');
-  }, []);
+const updateEntry = useCallback(async (id: string, updates: any) => {
+  console.warn('Manual entry update is disabled. Use wallet transactions instead.');
+  
+  // Show a toast notification to inform the user
+  if (typeof window !== 'undefined') {
+    const Swal = require('sweetalert2').default;
+    Swal.fire({
+      icon: "info",
+      title: "Manual Update Disabled",
+      text: "Transactions are automatically synced from your wallet. Category changes can be made via the edit button on each entry.",
+      confirmButtonColor: "var(--color-accent-yellow)",
+      timer: 3000,
+    });
+  }
+  
+  return { id, ...updates };
+}, []);
 
   const deleteEntry = useCallback(async (id: string) => {
     if (!userId) throw new Error('User not authenticated');
