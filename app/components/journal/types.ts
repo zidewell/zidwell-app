@@ -78,7 +78,7 @@ export const INCOME_CATEGORIES: Omit<Category, 'isCustom' | 'isFavorite' | 'favo
   
   // Other Income
   { id: 'other_income', name: 'Other Income', icon: '🎁', type: 'income' },
-  { id: 'gifts_received', name: 'Gifts Received', icon: '🎁', type: 'income' },
+  { id: 'gifts_received', name: 'Religious Giving', icon: '🎁', type: 'income' },
   { id: 'grants_funding', name: 'Grants / Funding', icon: '💰', type: 'income' },
   { id: 'government_support', name: 'Government Support', icon: '🏛️', type: 'income' },
   { id: 'refunds', name: 'Refunds', icon: '💳', type: 'income' },

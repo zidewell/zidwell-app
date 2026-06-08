@@ -474,6 +474,15 @@ export default function RootLayout({
           `}
         </Script>
 
+                {/* Google AdSense Script */}
+        <Script
+          id="adsbygoogle-init"
+          strategy="afterInteractive"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3255896105120976"
+          crossOrigin="anonymous"
+        />
+
+
         <ThemeProvider>
           <ThemeWrapper>
             <UserProvider>
