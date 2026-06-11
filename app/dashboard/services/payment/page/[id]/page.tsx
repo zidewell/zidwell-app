@@ -24,6 +24,10 @@ import {
   Banknote,
   Search,
   XCircle,
+  QrCode,
+  Code2,
+  Download,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore } from "@/app/hooks/useStore";
@@ -64,6 +68,12 @@ const PageDetail = () => {
     Record<string, string>
   >({});
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // New states for QR, Embed, and Card Payment
+  const [copiedEmbed, setCopiedEmbed] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"card" | "transfer">("transfer");
+  const [processingCardPayment, setProcessingCardPayment] = useState(false);
+  const [selectedStudentForCard, setSelectedStudentForCard] = useState<any>(null);
 
   useEffect(() => {
     const foundPage = pages.find((p) => p.id === id);
@@ -122,93 +132,106 @@ const PageDetail = () => {
     setRefreshing(false);
   };
 
- const handleWithdraw = async () => {
-  try {
-    const { value: amount, isConfirmed } = await Swal.fire<number>({
-      title: 'Withdraw Funds',
-      html: `
-        <div class="text-left">
-          <p class="mb-2">Available balance: <strong>₦${(page.pageBalance || 0).toLocaleString()}</strong></p>
-          <p class="text-sm text-gray-600">Minimum withdrawal: ₦1,000</p>
-          <p class="text-sm text-gray-600">Withdrawal fee: ₦200</p>
-        </div>
-      `,
-      input: 'number',
-      inputLabel: 'Enter amount to withdraw',
-      inputPlaceholder: 'Enter amount',
-      inputValue: '1000',
-      inputAttributes: {
-        min: '1000',
-        max: String(page.pageBalance || 0),
-        step: '100',
-      },
-      showCancelButton: true,
-      confirmButtonColor: '#F5B81B',
-      confirmButtonText: 'Withdraw',
-      cancelButtonText: 'Cancel',
-      inputValidator: (value) => {
-        const numAmount = Number(value);
-        if (!value || isNaN(numAmount) || numAmount <= 0) {
-          return 'Please enter a valid amount';
-        }
-        if (numAmount < 1000) {
-          return 'Minimum withdrawal amount is ₦1,000';
-        }
-        if (numAmount > (page.pageBalance || 0)) {
-          return `Maximum withdrawal amount is ₦${(page.pageBalance || 0).toLocaleString()}`;
-        }
-        return null;
-      }
+  const copyToClipboard = async (text: string, label: string) => {
+    await navigator.clipboard.writeText(text);
+    await Swal.fire({
+      icon: 'success',
+      title: 'Copied!',
+      text: `${label} copied to clipboard`,
+      timer: 1500,
+      showConfirmButton: false,
+      toast: true,
+      position: 'top-end',
     });
+  };
 
-    if (isConfirmed && amount) {
-      setWithdrawing(true);
-      
-      const withdrawAmount = Number(amount);
-      
-      // Show loading toast
-      Swal.fire({
-        title: 'Processing...',
-        text: 'Please wait while we process your withdrawal',
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
+  const handleWithdraw = async () => {
+    try {
+      const { value: amount, isConfirmed } = await Swal.fire<number>({
+        title: 'Withdraw Funds',
+        html: `
+          <div class="text-left">
+            <p class="mb-2">Available balance: <strong>₦${(page.pageBalance || 0).toLocaleString()}</strong></p>
+            <p class="text-sm text-gray-600">Minimum withdrawal: ₦1,000</p>
+            <p class="text-sm text-gray-600">Withdrawal fee: ₦200</p>
+          </div>
+        `,
+        input: 'number',
+        inputLabel: 'Enter amount to withdraw',
+        inputPlaceholder: 'Enter amount',
+        inputValue: '1000',
+        inputAttributes: {
+          min: '1000',
+          max: String(page.pageBalance || 0),
+          step: '100',
+        },
+        showCancelButton: true,
+        confirmButtonColor: '#F5B81B',
+        confirmButtonText: 'Withdraw',
+        cancelButtonText: 'Cancel',
+        inputValidator: (value) => {
+          const numAmount = Number(value);
+          if (!value || isNaN(numAmount) || numAmount <= 0) {
+            return 'Please enter a valid amount';
+          }
+          if (numAmount < 1000) {
+            return 'Minimum withdrawal amount is ₦1,000';
+          }
+          if (numAmount > (page.pageBalance || 0)) {
+            return `Maximum withdrawal amount is ₦${(page.pageBalance || 0).toLocaleString()}`;
+          }
+          return null;
         }
       });
 
-      await withdrawFromPage(page.id, withdrawAmount);
-      
+      if (isConfirmed && amount) {
+        setWithdrawing(true);
+        
+        const withdrawAmount = Number(amount);
+        
+        Swal.fire({
+          title: 'Processing...',
+          text: 'Please wait while we process your withdrawal',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        await withdrawFromPage(page.id, withdrawAmount);
+        
+        await Swal.fire({
+          icon: 'success',
+          title: 'Withdrawal Initiated!',
+          html: `
+            <div class="text-left">
+              <p>✅ ₦${withdrawAmount.toLocaleString()} has been withdrawn successfully.</p>
+              <p class="text-sm text-gray-600 mt-2">Funds will be sent to your wallet shortly.</p>
+            </div>
+          `,
+          confirmButtonColor: '#F5B81B',
+        });
+        
+        refreshData();
+      }
+    } catch (error: any) {
+      console.error('Withdrawal error:', error);
       await Swal.fire({
-        icon: 'success',
-        title: 'Withdrawal Initiated!',
+        icon: 'error',
+        title: 'Withdrawal Failed',
         html: `
           <div class="text-left">
-            <p>✅ ₦${withdrawAmount.toLocaleString()} has been withdrawn successfully.</p>
-            <p class="text-sm text-gray-600 mt-2">Funds will be sent to your wallet shortly.</p>
+            <p>${error.message || 'Please try again later.'}</p>
+            <p class="text-sm text-gray-600 mt-2">If the problem persists, contact support.</p>
           </div>
         `,
         confirmButtonColor: '#F5B81B',
       });
-      
-      refreshData();
+    } finally {
+      setWithdrawing(false);
     }
-  } catch (error: any) {
-    console.error('Withdrawal error:', error);
-    await Swal.fire({
-      icon: 'error',
-      title: 'Withdrawal Failed',
-      html: `
-        <div class="text-left">
-          <p>${error.message || 'Please try again later.'}</p>
-          <p class="text-sm text-gray-600 mt-2">If the problem persists, contact support.</p>
-        </div>
-      `,
-      confirmButtonColor: '#F5B81B',
-    });
-  } finally {
-    setWithdrawing(false);
-  }
-};
+  };
+
   const assignPaymentToStudent = async (
     paymentId: string,
     studentName: string,
@@ -265,7 +288,6 @@ const PageDetail = () => {
       await loadPayments(page.id);
       await loadPageDetails();
       
-      // Clear selected student for this payment
       setSelectedStudent((prev) => ({ ...prev, [paymentId]: "" }));
       
     } catch (error: any) {
@@ -281,17 +303,132 @@ const PageDetail = () => {
     }
   };
 
-  const copyToClipboard = async (text: string, label: string) => {
-    await navigator.clipboard.writeText(text);
-    await Swal.fire({
-      icon: 'success',
-      title: 'Copied!',
-      text: `${label} copied to clipboard`,
-      timer: 1500,
-      showConfirmButton: false,
-      toast: true,
-      position: 'top-end',
-    });
+  const getPaymentPageUrl = () => {
+    return `${window.location.origin}/pay/${page?.slug}`;
+  };
+
+  const getEmbedCode = () => {
+    const pageUrl = getPaymentPageUrl();
+    return `<iframe 
+  src="${pageUrl}?embed=1" 
+  width="100%" 
+  height="600" 
+  frameborder="0" 
+  style="border: none; border-radius: 12px;"
+  title="Payment Page">
+</iframe>`;
+  };
+
+  const copyEmbedCode = async () => {
+    await copyToClipboard(getEmbedCode(), "Embed code");
+    setCopiedEmbed(true);
+    setTimeout(() => setCopiedEmbed(false), 2000);
+  };
+
+  const downloadQRCode = async () => {
+    const pageUrl = getPaymentPageUrl();
+    const qrUrl = `/api/payment-page/qrcode?url=${encodeURIComponent(pageUrl)}`;
+    
+    try {
+      const response = await fetch(qrUrl);
+      const svgText = await response.text();
+      
+      const blob = new Blob([svgText], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `qrcode-${page.slug}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'QR Code Downloaded!',
+        text: 'The QR code has been saved to your device.',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error("Error downloading QR code:", error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Download Failed',
+        text: 'Could not download QR code. Please try again.',
+      });
+    }
+  };
+
+  const handleCardPayment = async (student?: any) => {
+    if (page.page_type === "school" && !student && selectedStudentForCard) {
+      student = selectedStudentForCard;
+    }
+    
+    setProcessingCardPayment(true);
+    
+    try {
+      const metadata: any = {
+        pageType: page.page_type,
+        pageTitle: page.title,
+        paymentType: "full",
+      };
+      
+      let amount = page.price;
+      let customerName = "Customer";
+      
+      if (page.page_type === "school" && student) {
+        metadata.selectedStudents = [student.name];
+        metadata.numberOfStudents = 1;
+        metadata.childName = student.name;
+        metadata.parentName = "Customer";
+        customerName = `Parent of ${student.name}`;
+        amount = page.price;
+      }
+      
+      const response = await fetch("/api/payment-page/public/card-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageSlug: page.slug,
+          customerName: customerName,
+          customerEmail: "customer@example.com",
+          customerPhone: "",
+          amount: amount,
+          metadata: metadata,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error);
+      }
+      
+      window.open(data.checkoutLink, "_blank", "width=500,height=700");
+      
+      await Swal.fire({
+        icon: 'info',
+        title: 'Payment Window Opened',
+        text: 'Complete your card payment in the new window.',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+      
+      setTimeout(() => {
+        refreshData();
+      }, 5000);
+      
+    } catch (error: any) {
+      console.error("Card payment error:", error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Payment Failed',
+        text: error.message || 'Could not initiate card payment. Please try again.',
+      });
+    } finally {
+      setProcessingCardPayment(false);
+    }
   };
 
   if (!page) {
@@ -347,9 +484,6 @@ const PageDetail = () => {
     0,
   );
   const totalExpected = students.length * (page.price || 0);
-  const availableStudents = studentsWithStatus.filter(
-    (s: any) => !s.isFullyPaid,
-  );
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
@@ -456,7 +590,87 @@ const PageDetail = () => {
               </div>
             </div>
 
-             {/* Virtual Account Info */}
+            {/* QR Code & Embed Code Section */}
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* QR Code Card */}
+              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+                <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
+                  <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                    <QrCode className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                    QR Code
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadQRCode}
+                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  >
+                    <Download className="h-3 w-3 mr-1" /> Download
+                  </Button>
+                </div>
+                <div className="p-6 flex flex-col items-center">
+                  <div className="bg-white p-4 rounded-xl mb-4">
+                    <img 
+                      src={`/api/payment-page/qrcode?url=${encodeURIComponent(getPaymentPageUrl())}`}
+                      alt="Payment Page QR Code"
+                      className="w-48 h-48"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23ddd'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3EQR Code%3C/text%3E%3C/svg%3E";
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)] text-center">
+                    Scan this QR code with your phone camera to open the payment page
+                  </p>
+                  <button
+                    onClick={() => copyToClipboard(getPaymentPageUrl(), "Payment link")}
+                    className="mt-3 text-xs text-[var(--color-accent-yellow)] hover:underline flex items-center gap-1"
+                  >
+                    <Copy className="h-3 w-3" /> Copy payment link
+                  </button>
+                </div>
+              </div>
+
+              {/* Embed Code Card */}
+              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+                <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
+                  <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                    <Code2 className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                    Embed Code
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copyEmbedCode}
+                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  >
+                    {copiedEmbed ? (
+                      <Check className="h-3 w-3 mr-1 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3 mr-1" />
+                    )}
+                    {copiedEmbed ? "Copied!" : "Copy Code"}
+                  </Button>
+                </div>
+                <div className="p-4">
+                  <p className="text-xs text-[var(--text-secondary)] mb-3">
+                    Embed this payment page on your website:
+                  </p>
+                  <div className="bg-[var(--bg-secondary)] rounded-lg p-3 overflow-x-auto">
+                    <code className="text-xs font-mono text-[var(--text-primary)] break-all">
+                      {getEmbedCode()}
+                    </code>
+                  </div>
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                      💡 <strong>Pro tip:</strong> Paste this code into your website's HTML where you want the payment form to appear.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Virtual Account Info */}
             {page.metadata?.virtual_account && (
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
                 <div className="flex items-start gap-3">
@@ -554,6 +768,121 @@ const PageDetail = () => {
               </div>
             </div>
 
+            {/* Payment Method Selector - Card vs Transfer */}
+            {page.page_type === "school" && unpaidStudents.length > 0 && (
+              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-5">
+                <h3 className="font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                  Payment Methods
+                </h3>
+                
+                <div className="flex gap-3 mb-4">
+                  <button
+                    onClick={() => setSelectedPaymentMethod("transfer")}
+                    className={`flex-1 p-3 rounded-xl border-2 transition-all ${
+                      selectedPaymentMethod === "transfer"
+                        ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10"
+                        : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
+                    }`}
+                  >
+                    <Banknote className="h-5 w-5 mx-auto mb-1 text-[var(--color-accent-yellow)]" />
+                    <p className="font-medium text-sm">Bank Transfer</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Pay with virtual account</p>
+                  </button>
+                  <button
+                    onClick={() => setSelectedPaymentMethod("card")}
+                    className={`flex-1 p-3 rounded-xl border-2 transition-all ${
+                      selectedPaymentMethod === "card"
+                        ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10"
+                        : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
+                    }`}
+                  >
+                    <CreditCard className="h-5 w-5 mx-auto mb-1 text-[var(--color-accent-yellow)]" />
+                    <p className="font-medium text-sm">Card Payment</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Pay with credit/debit card</p>
+                  </button>
+                </div>
+                
+                {selectedPaymentMethod === "transfer" && page.metadata?.virtual_account && (
+                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
+                      Transfer to this account:
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-blue-600 dark:text-blue-400">Bank:</span>
+                        <span className="font-medium">{page.metadata.virtual_account.bankName}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-blue-600 dark:text-blue-400">Account Number:</span>
+                        <span 
+                          className="font-mono font-bold cursor-pointer hover:text-[var(--color-accent-yellow)]"
+                          onClick={() => copyToClipboard(page.metadata.virtual_account.accountNumber, "Account Number")}
+                        >
+                          {page.metadata.virtual_account.accountNumber}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-blue-600 dark:text-blue-400">Account Name:</span>
+                        <span className="font-medium">{page.metadata.virtual_account.bankAccountName}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedPaymentMethod === "card" && (
+                  <div className="mt-4">
+                    <p className="text-sm text-[var(--text-secondary)] mb-3">
+                      Select a student to pay with card:
+                    </p>
+                    <div className="space-y-2">
+                      {unpaidStudents.map((student: any) => (
+                        <div
+                          key={student.name}
+                          onClick={() => setSelectedStudentForCard(student)}
+                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                            selectedStudentForCard?.name === student.name
+                              ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10"
+                              : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="font-medium">{student.name}</p>
+                              {student.className && (
+                                <p className="text-xs text-[var(--text-secondary)]">Class: {student.className}</p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-[var(--color-accent-yellow)]">₦{(page.price || 0).toLocaleString()}</p>
+                              {student.remainingAmount > 0 && student.remainingAmount < (page.price || 0) && (
+                                <p className="text-xs text-yellow-500">Remaining: ₦{student.remainingAmount.toLocaleString()}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {selectedStudentForCard && (
+                      <Button
+                        onClick={() => handleCardPayment(selectedStudentForCard)}
+                        disabled={processingCardPayment}
+                        className="w-full mt-4 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                      >
+                        {processingCardPayment ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <CreditCard className="h-4 w-4 mr-2" />
+                        )}
+                        Pay ₦{(page.price || 0).toLocaleString()} with Card
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Unassigned Payments Section */}
             {unassignedPayments.length > 0 && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 overflow-hidden">
@@ -581,7 +910,7 @@ const PageDetail = () => {
                     let suggestedStudent = null;
                     if (narration) {
                       const lowerNarration = narration.toLowerCase();
-                      const matchingStudent = availableStudents.find((s) =>
+                      const matchingStudent = unpaidStudents.find((s) =>
                         lowerNarration.includes(s.name.toLowerCase()),
                       );
                       if (matchingStudent) {
@@ -659,7 +988,7 @@ const PageDetail = () => {
                                 className="flex-1 px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--color-accent-yellow)]"
                               >
                                 <option value="">Select student...</option>
-                                {availableStudents.map((student: any) => (
+                                {unpaidStudents.map((student: any) => (
                                   <option
                                     key={student.name}
                                     value={student.name}
@@ -695,7 +1024,7 @@ const PageDetail = () => {
                                 )}
                               </Button>
                             </div>
-                            {availableStudents.length === 0 && (
+                            {unpaidStudents.length === 0 && (
                               <p className="text-xs text-red-500 dark:text-red-400 mt-2">
                                 No available students to assign
                               </p>
@@ -923,8 +1252,6 @@ const PageDetail = () => {
                 </div>
               </div>
             </div>
-
-           
 
             {/* Withdraw Button */}
             {page.pageBalance > 0 && (

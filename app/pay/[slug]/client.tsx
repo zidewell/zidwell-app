@@ -1,4 +1,3 @@
-// app/pay/[slug]/client.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -20,6 +19,8 @@ import {
   Truck,
   PackageIcon,
   Image as ImageIcon,
+  CreditCard,
+  X,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -71,6 +72,7 @@ interface PaymentPageClientProps {
 }
 
 type PaymentOption = "full" | "installment";
+type PaymentMethodType = "virtual_account" | "card";
 
 export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const router = useRouter();
@@ -81,12 +83,20 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<PaymentOption>("full");
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
+  
+  // New states for payment method selection
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType>("virtual_account");
+  const [processingCardPayment, setProcessingCardPayment] = useState(false);
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [cardPaymentAmount, setCardPaymentAmount] = useState(0);
+  const [cardPaymentMetadata, setCardPaymentMetadata] = useState<any>({});
   
   // Product-specific states
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [isProcessingProduct, setIsProcessingProduct] = useState(false);
   const [selectedProductImage, setSelectedProductImage] = useState<string | null>(null);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
@@ -232,114 +242,149 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     });
   };
 
-  const handleProductPayment = async () => {
-    const totalAmount = getTotalProductPrice();
-    
-    if (totalAmount <= 0) {
-      alert("Invalid amount");
-      return;
-    }
-
-    setIsProcessingProduct(true);
-
-    const metadata: any = {
-      pageType: page?.pageType,
-      pageTitle: page?.title,
-      paymentType: "product",
-      productName: page?.title,
-      quantity: quantity,
-      variant: selectedVariant?.name || null,
-      totalAmount: totalAmount,
-    };
-
-    try {
-      const response = await fetch("/api/payment-page/public/virtual-account", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pageSlug: slug,
-          customerName: "Customer",
-          customerEmail: "customer@example.com",
-          customerPhone: "",
-          amount: totalAmount,
-          metadata,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      
-      // Create narration with product info
-      let narration = `PRODUCT: ${page?.title}`;
-      if (selectedVariant?.name) {
-        narration += ` - ${selectedVariant.name}`;
-      }
-      narration += ` x${quantity}`;
-      
-      const accountDetails = `Bank: ${data.virtualAccount.bankName}\nAccount Number: ${data.virtualAccount.accountNumber}\nAccount Name: ${data.virtualAccount.accountName}\nAmount: ₦${totalAmount.toLocaleString()}\n\nNarration: ${narration}`;
-      await copyToClipboard(accountDetails, "all");
-      
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 5000);
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setIsProcessingProduct(false);
+  // Get the current total amount based on page type and selections
+  const getCurrentTotalAmount = () => {
+    if (page?.pageType === "school") {
+      return getTotalForSelectedStudents();
+    } else if (page?.pageType === "physical" || page?.pageType === "digital") {
+      return getTotalProductPrice();
+    } else {
+      return page?.price || 0;
     }
   };
 
-  const handleSchoolPayment = async () => {
-    if (selectedStudents.size === 0) {
-      alert("Please select at least one student");
+  // Handle Card Payment
+  const handleCardPayment = async () => {
+    let totalAmount = getCurrentTotalAmount();
+    let metadata: any = {};
+    
+    if (page?.pageType === "school") {
+      if (totalAmount <= 0) {
+        alert("Please select at least one student");
+        return;
+      }
+      
+      const isInstallmentPayment = selectedPaymentOption === "installment" && page?.installmentCount && page.installmentCount > 1;
+      
+      metadata = {
+        pageType: page.pageType,
+        pageTitle: page.title,
+        paymentType: isInstallmentPayment ? "installment" : "full",
+        isInstallment: isInstallmentPayment,
+        selectedStudents: Array.from(selectedStudents),
+        numberOfStudents: selectedStudents.size,
+        totalAmount: totalAmount,
+      };
+
+      if (isInstallmentPayment) {
+        const installmentInfo = getInstallmentInfo();
+        metadata.totalAmount = installmentInfo?.totalAmount;
+        metadata.totalInstallments = installmentInfo?.installmentCount;
+        metadata.installmentAmount = installmentInfo?.installmentAmount;
+        metadata.currentInstallment = 1;
+      }
+    } else if (page?.pageType === "physical" || page?.pageType === "digital") {
+      if (totalAmount <= 0) {
+        alert("Invalid amount");
+        return;
+      }
+      
+      metadata = {
+        pageType: page.pageType,
+        pageTitle: page.title,
+        paymentType: "product",
+        productName: page.title,
+        quantity: quantity,
+        variant: selectedVariant?.name || null,
+        totalAmount: totalAmount,
+      };
+    } else {
+      metadata = {
+        pageType: page?.pageType,
+        pageTitle: page?.title,
+        paymentType: "full",
+        totalAmount: totalAmount,
+      };
+    }
+    
+    // Validate customer info for card payment
+    if (!customerName.trim()) {
+      alert("Please enter your name");
       return;
     }
-
-    const totalAmount = getTotalForSelectedStudents();
-    const isInstallmentPayment = selectedPaymentOption === "installment" && page?.installmentCount && page.installmentCount > 1;
-    
-    const metadata: any = {
-      pageType: page?.pageType,
-      pageTitle: page?.title,
-      paymentType: isInstallmentPayment ? "installment" : "full",
-      isInstallment: isInstallmentPayment,
-      selectedStudents: Array.from(selectedStudents),
-      numberOfStudents: selectedStudents.size,
-      totalAmount: totalAmount,
-    };
-
-    if (isInstallmentPayment) {
-      const installmentInfo = getInstallmentInfo();
-      metadata.totalAmount = installmentInfo?.totalAmount;
-      metadata.totalInstallments = installmentInfo?.installmentCount;
-      metadata.installmentAmount = installmentInfo?.installmentAmount;
-      metadata.currentInstallment = 1;
+    if (!customerEmail.trim() || !customerEmail.includes("@")) {
+      alert("Please enter a valid email address");
+      return;
     }
-
+    
+    setProcessingCardPayment(true);
+    setShowCardModal(false);
+    
     try {
-      const response = await fetch("/api/payment-page/public/virtual-account", {
+      const response = await fetch("/api/payment-page/public/card-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pageSlug: slug,
-          customerName: "Customer",
-          customerEmail: "customer@example.com",
-          customerPhone: "",
+          customerName: customerName,
+          customerEmail: customerEmail,
+          customerPhone: customerPhone,
           amount: totalAmount,
-          metadata,
+          metadata: metadata,
         }),
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
       
-      const accountDetails = `Bank: ${data.virtualAccount.bankName}\nAccount Number: ${data.virtualAccount.accountNumber}\nAccount Name: ${data.virtualAccount.accountName}\nAmount: ₦${totalAmount.toLocaleString()}`;
-      await copyToClipboard(accountDetails, "all");
+      if (!response.ok) {
+        throw new Error(data.error);
+      }
       
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 5000);
+      // Open checkout in new window
+      const checkoutWindow = window.open(data.checkoutLink, "_blank", "width=500,height=700");
+      
+      if (!checkoutWindow) {
+        alert("Please allow pop-ups to complete payment");
+      }
+      
+      // Poll for payment completion
+      const checkInterval = setInterval(async () => {
+        const statusResponse = await fetch(`/api/payment-page/public/status?reference=${data.orderReference}`);
+        const statusData = await statusResponse.json();
+        if (statusData.payment?.status === "completed") {
+          clearInterval(checkInterval);
+          alert("Payment successful!");
+          window.location.reload();
+        }
+      }, 5000);
+      
+      setTimeout(() => clearInterval(checkInterval), 300000); // Stop after 5 minutes
+      
     } catch (err: any) {
-      alert(err.message);
+      console.error("Card payment error:", err);
+      alert(err.message || "Failed to initiate card payment. Please try again.");
+    } finally {
+      setProcessingCardPayment(false);
     }
+  };
+
+  const openCardModal = () => {
+    let totalAmount = getCurrentTotalAmount();
+    
+    if (page?.pageType === "school") {
+      if (totalAmount <= 0) {
+        alert("Please select at least one student");
+        return;
+      }
+    } else if (page?.pageType === "physical" || page?.pageType === "digital") {
+      if (totalAmount <= 0) {
+        alert("Invalid amount");
+        return;
+      }
+    }
+    
+    setCardPaymentAmount(totalAmount);
+    setShowCardModal(true);
   };
 
   const totalAmount = getTotalAmount();
@@ -348,6 +393,8 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const canDoInstallments = page?.priceType === "installment" && page.installmentCount && page.installmentCount > 1;
   const totalForSelected = getTotalForSelectedStudents();
   const allImages = [...(page?.coverImage ? [page.coverImage] : [])];
+  const currentTotalAmount = getCurrentTotalAmount();
+  const hasValidAmount = currentTotalAmount > 0;
 
   if (loading) {
     return (
@@ -457,7 +504,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           {page.description && <p className="text-gray-400 text-sm mt-2">{page.description}</p>}
         </div>
 
-        {/* PHYSICAL PRODUCT SECTION - Buy Now Button Removed */}
+        {/* PHYSICAL PRODUCT SECTION */}
         {page.pageType === "physical" && (
           <div className="space-y-4">
             <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5 space-y-4">
@@ -526,7 +573,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
                 </div>
               )}
               
-              {/* Price Summary - No Buy Button */}
+              {/* Price Summary */}
               <div className="pt-4 border-t border-gray-800">
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-400">Unit Price:</span>
@@ -545,7 +592,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           </div>
         )}
 
-        {/* DIGITAL PRODUCT SECTION - Buy Now Button Removed */}
+        {/* DIGITAL PRODUCT SECTION */}
         {page.pageType === "digital" && (
           <div className="space-y-4">
             <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5 space-y-4">
@@ -744,72 +791,207 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
           </div>
         )}
 
-        {/* Bank Transfer Details */}
-        {page.virtualAccount && (
-          <div className="bg-gradient-to-r from-blue-900/30 to-green-900/30 rounded-2xl p-6 border border-blue-800">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-blue-900/40 flex items-center justify-center">
-                <Banknote className="h-5 w-5 text-blue-400" />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-white">Bank Transfer Details</h3>
-                <p className="text-xs text-gray-400">Transfer to this account</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="bg-gray-900 rounded-xl p-3">
-                <p className="text-xs text-gray-500">Bank Name</p>
-                <p className="font-semibold text-white">{page.virtualAccount.bankName}</p>
-              </div>
-              <div className="bg-gray-900 rounded-xl p-3">
-                <p className="text-xs text-gray-500">Account Number</p>
-                <p className="font-mono font-bold text-xl text-white">{page.virtualAccount.accountNumber}</p>
-              </div>
-              <div className="bg-gray-900 rounded-xl p-3">
-                <p className="text-xs text-gray-500">Account Name</p>
-                <p className="font-semibold text-white break-all">{page.virtualAccount.bankAccountName || page.virtualAccount.accountName}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 p-3 bg-yellow-900/20 rounded-xl border border-yellow-800">
-              <p className="text-xs text-yellow-400">
-                📝 Important: Use <strong className="text-yellow-300">
-                  {page.pageType === "school" ? "student name(s)" : "product name"}
-                </strong> as narration/reference
-              </p>
-            </div>
-
-            {page.pageType === "school" && totalForSelected > 0 && (
-              <Button
-                onClick={handleSchoolPayment}
-                className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
-              >
-                <Banknote className="h-4 w-4 mr-2" />
-                Pay ₦{totalForSelected.toLocaleString()}
-              </Button>
-            )}
+        {/* PAYMENT METHOD SELECTOR - Two Options */}
+        <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5">
+          <h3 className="font-bold text-lg mb-4 text-white">Payment Method</h3>
+          
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <button
+              onClick={() => setSelectedPaymentMethod("virtual_account")}
+              className={`p-4 rounded-xl border-2 transition-all ${
+                selectedPaymentMethod === "virtual_account"
+                  ? "border-[#e1bf46] bg-[#e1bf46]/10"
+                  : "border-gray-700 hover:border-[#e1bf46]/50"
+              }`}
+            >
+              <Banknote className={`h-6 w-6 mx-auto mb-2 ${
+                selectedPaymentMethod === "virtual_account" ? "text-[#e1bf46]" : "text-gray-400"
+              }`} />
+              <p className={`font-medium ${
+                selectedPaymentMethod === "virtual_account" ? "text-[#e1bf46]" : "text-white"
+              }`}>Bank Transfer</p>
+              <p className="text-xs text-gray-500 mt-1">Pay via Virtual Account</p>
+            </button>
+            
+            <button
+              onClick={() => setSelectedPaymentMethod("card")}
+              className={`p-4 rounded-xl border-2 transition-all ${
+                selectedPaymentMethod === "card"
+                  ? "border-[#e1bf46] bg-[#e1bf46]/10"
+                  : "border-gray-700 hover:border-[#e1bf46]/50"
+              }`}
+            >
+              <CreditCard className={`h-6 w-6 mx-auto mb-2 ${
+                selectedPaymentMethod === "card" ? "text-[#e1bf46]" : "text-gray-400"
+              }`} />
+              <p className={`font-medium ${
+                selectedPaymentMethod === "card" ? "text-[#e1bf46]" : "text-white"
+              }`}>Card Payment</p>
+              <p className="text-xs text-gray-500 mt-1">Pay with Credit/Debit Card</p>
+            </button>
           </div>
-        )}
+
+          {/* Virtual Account Details - Only show when selected */}
+          {selectedPaymentMethod === "virtual_account" && page.virtualAccount && (
+            <>
+              <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800 mb-4">
+                <p className="text-sm font-medium text-blue-400 mb-2">Transfer to this account:</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-400">Bank:</span>
+                    <span className="font-medium text-white">{page.virtualAccount.bankName}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-400">Account Number:</span>
+                    <span 
+                      className="font-mono font-bold text-white cursor-pointer hover:text-[#e1bf46]"
+                      onClick={() => copyToClipboard(page.virtualAccount!.accountNumber, "Account Number")}
+                    >
+                      {page.virtualAccount.accountNumber}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-400">Account Name:</span>
+                    <span className="font-medium text-white truncate max-w-[200px]">
+                      {page.virtualAccount.bankAccountName || page.virtualAccount.accountName}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 p-2 bg-yellow-900/20 rounded-lg border border-yellow-800">
+                  <p className="text-xs text-yellow-400">
+                    📝 Use <strong className="text-yellow-300">
+                      {page.pageType === "school" ? "student name(s)" : "product name"}
+                    </strong> as narration
+                  </p>
+                </div>
+              </div>
+              
+              {/* Total Amount Display for Virtual Account */}
+              <div className="bg-[#0e0e0e] rounded-xl p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Total Amount:</span>
+                  <span className="text-2xl font-bold text-[#e1bf46]">
+                    ₦{currentTotalAmount.toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  You'll receive account details above to complete your transfer
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* Card Payment Section - Only show when selected */}
+          {selectedPaymentMethod === "card" && (
+            <>
+              {/* Customer Info Fields */}
+              <div className="space-y-3 mb-4">
+                <div>
+                  <Label className="text-sm font-semibold mb-1 block text-white">Your Name *</Label>
+                  <Input
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="bg-[#0e0e0e] border-gray-700 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold mb-1 block text-white">Email Address *</Label>
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    className="bg-[#0e0e0e] border-gray-700 text-white"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Receipt will be sent to this email</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold mb-1 block text-white">Phone Number (Optional)</Label>
+                  <Input
+                    type="tel"
+                    placeholder="08012345678"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="bg-[#0e0e0e] border-gray-700 text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Total Amount Display for Card */}
+              <div className="bg-[#0e0e0e] rounded-xl p-4 mb-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Total Amount:</span>
+                  <span className="text-2xl font-bold text-[#e1bf46]">
+                    ₦{currentTotalAmount.toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  You'll be redirected to complete your card payment
+                </p>
+              </div>
+
+              {/* Pay Button - Only for Card Payment */}
+              {hasValidAmount ? (
+                <Button
+                  onClick={openCardModal}
+                  disabled={!customerName || !customerEmail}
+                  className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold py-6 text-lg"
+                >
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Pay ₦{currentTotalAmount.toLocaleString()} with Card
+                </Button>
+              ) : (
+                <div className="text-center p-4 bg-gray-800/30 rounded-xl">
+                  <p className="text-gray-400 text-sm">Please select items to continue</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
           <Shield className="h-3.5 w-3.5" /> Secured by Zidwell
         </div>
       </div>
 
-      {/* Success Modal */}
-      {showSuccess && (
+      {/* Card Payment Modal - Customer Info Collection */}
+      {showCardModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full text-center border border-gray-700">
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-            <h3 className="text-xl font-bold text-white mb-2">Account Details Copied!</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              Bank details have been copied to your clipboard.
-              Make your transfer using the information provided.
-            </p>
-            <Button onClick={() => setShowSuccess(false)} className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90">
-              Close
-            </Button>
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-white">Complete Payment</h3>
+              <button onClick={() => setShowCardModal(false)} className="text-gray-400 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-[#0e0e0e] rounded-xl p-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Amount:</span>
+                  <span className="text-xl font-bold text-[#e1bf46]">₦{cardPaymentAmount.toLocaleString()}</span>
+                </div>
+              </div>
+              
+              <div className="bg-blue-900/20 rounded-xl p-3">
+                <p className="text-sm text-blue-400">You'll be redirected to our secure payment gateway to complete your transaction.</p>
+              </div>
+              
+              <Button
+                onClick={handleCardPayment}
+                disabled={processingCardPayment}
+                className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold py-3"
+              >
+                {processingCardPayment ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CreditCard className="h-4 w-4 mr-2" />
+                )}
+                {processingCardPayment ? "Processing..." : "Proceed to Payment"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
