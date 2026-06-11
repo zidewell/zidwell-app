@@ -309,14 +309,24 @@ const PageDetail = () => {
 
   const getEmbedCode = () => {
     const pageUrl = getPaymentPageUrl();
-    return `<iframe 
-  src="${pageUrl}?embed=1" 
-  width="100%" 
-  height="600" 
-  frameborder="0" 
-  style="border: none; border-radius: 12px;"
-  title="Payment Page">
-</iframe>`;
+
+ 
+    return `<a
+  href=${pageUrl}
+  target="_blank"
+  rel="noopener noreferrer"
+  style="
+    display:inline-block;
+    padding:12px 24px;
+    background:#2563eb;
+    color:white;
+    text-decoration:none;
+    border-radius:8px;
+    font-weight:600;
+  "
+>
+  Pay Now
+</a>`;
   };
 
   const copyEmbedCode = async () => {
