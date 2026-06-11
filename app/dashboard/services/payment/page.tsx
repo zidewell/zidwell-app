@@ -31,7 +31,7 @@ const useCases = [
   { emoji: "🏫", label: "School Fees" },
   { emoji: "🎨", label: "Freelance Services" },
   { emoji: "🎫", label: "Event Tickets" },
-  { emoji: "📦", label: "Digital Products" },
+  { emoji: "🔗", label: "Payment Link" },
   { emoji: "💝", label: "Donations" },
   { emoji: "🏪", label: "Small Business" },
 ];

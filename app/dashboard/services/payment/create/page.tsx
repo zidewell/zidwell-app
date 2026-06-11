@@ -52,7 +52,7 @@ const typeLabels: Record<PageType, string> = {
   school: "School Fees",
   donation: "Donation",
   physical: "Physical Product",
-  digital: "Digital Product",
+  digital: "Payment LInk",
   services: "Service",
   real_estate: "Real Estate Investment",
   stock: "Stock Investment",

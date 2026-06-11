@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       school: "School Fees",
       donation: "Donation",
       physical: "Product",
-      digital: "Digital Product",
+      digital: "Payment Link",
       services: "Service",
       real_estate: "Real Estate",
       stock: "Investment",

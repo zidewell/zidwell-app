@@ -74,7 +74,7 @@ export const INCOME_CATEGORIES: Omit<Category, 'isCustom' | 'isFavorite' | 'favo
   { id: 'content_creation', name: 'Content Creation', icon: '📱', type: 'income' },
   { id: 'royalties', name: 'Royalties', icon: '🎧', type: 'income' },
   { id: 'affiliate_income', name: 'Affiliate Income', icon: '🧾', type: 'income' },
-  { id: 'digital_products', name: 'Digital Products', icon: '🛒', type: 'income' },
+  { id: 'digital_products', name: 'Digital Product', icon: '🛒', type: 'income' },
   
   // Other Income
   { id: 'other_income', name: 'Other Income', icon: '🎁', type: 'income' },

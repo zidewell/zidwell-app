@@ -11,7 +11,8 @@ import {
   LineChart, 
   PiggyBank, 
   Bitcoin, 
-  AlertTriangle 
+  AlertTriangle,
+  Link
 } from "lucide-react";
 import type { PageType } from "@/app/hooks/useStore";
 
@@ -19,7 +20,7 @@ const types: { value: PageType; label: string; icon: typeof GraduationCap; descr
   { value: "school", label: "School Fees", icon: GraduationCap, description: "Collect tuition, fees & levies with student tracking" },
   { value: "donation", label: "Donation", icon: Heart, description: "Accept donations with suggested amounts & donor messages", disabled: true},
   { value: "physical", label: "Physical Product", icon: Package, description: "Sell items with variants, quantity & shipping"},
-  { value: "digital", label: "Digital Product", icon: FileDown, description: "Sell downloads, links or files with instant delivery" },
+  { value: "digital", label: "Payment Link", icon: Link, description: "Sell downloads, links or files with instant delivery" },
   { value: "services", label: "Services", icon: Briefcase, description: "Offer services with optional booking & customer notes", disabled: true },
 ];
 

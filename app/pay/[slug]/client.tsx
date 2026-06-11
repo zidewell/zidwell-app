@@ -598,7 +598,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <Download className="h-5 w-5 text-[#e1bf46]" />
-                <h3 className="font-bold text-lg text-white">Digital Product</h3>
+                <h3 className="font-bold text-lg text-white">Payment Link</h3>
               </div>
               
               {/* Price Display */}

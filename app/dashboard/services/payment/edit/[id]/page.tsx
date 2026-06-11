@@ -31,7 +31,7 @@ const typeLabels: Record<string, string> = {
   school: "School Fees",
   donation: "Donation",
   physical: "Physical Product",
-  digital: "Digital Product",
+  digital: "Payment Link",
   services: "Service",
   real_estate: "Real Estate Investment",
   stock: "Stock Investment",

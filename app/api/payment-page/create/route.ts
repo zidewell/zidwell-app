@@ -137,13 +137,13 @@ export async function POST(request: Request) {
     if (pageType === "digital") {
       if (!price || price <= 0) {
         return NextResponse.json(
-          { error: "Price is required for digital products" },
+          { error: "Price is required for payment link" },
           { status: 400 }
         );
       }
       if (!metadata?.downloadUrl && !metadata?.accessLink) {
         return NextResponse.json(
-          { error: "Download URL or access link is required for digital products" },
+          { error: "Download URL or access link is required for payment link" },
           { status: 400 }
         );
       }
