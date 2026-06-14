@@ -1,4 +1,3 @@
-// app/api/payment-page/public/[slug]/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -17,20 +16,18 @@ export async function GET(
     console.log(`🔍 API - Fetching payment page with slug: "${slug}"`);
     
     if (!slug) {
-      console.error("❌ API - No slug provided");
       return NextResponse.json({ error: "Slug is required" }, { status: 400 });
     }
 
-    // First try exact match
+    // Try exact match
     let { data: page, error } = await supabase
       .from("payment_pages")
       .select("*")
       .eq("slug", slug)
       .single();
 
-    // If not found, try case-insensitive match
+    // Try case-insensitive match if not found
     if (error && error.code === 'PGRST116') {
-      console.log(`🔍 No exact match, trying case-insensitive for: ${slug}`);
       const { data: pageCaseInsensitive, error: caseError } = await supabase
         .from("payment_pages")
         .select("*")
@@ -40,48 +37,22 @@ export async function GET(
       if (!caseError && pageCaseInsensitive) {
         page = pageCaseInsensitive;
         error = null;
-        console.log(`✅ Found case-insensitive match: ${page.slug}`);
       }
     }
 
-    if (error) {
-      console.error("❌ API - Database error:", error);
-      
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: "Page not found" }, { status: 404 });
-      }
-      
-      return NextResponse.json(
-        { error: "Failed to fetch page", details: error.message },
-        { status: 500 }
-      );
-    }
-
-    if (!page) {
-      console.error("❌ API - No page found for slug:", slug);
+    if (error || !page) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
     }
 
     // Check if page is published
     if (!page.is_published) {
-      console.error(`❌ Page "${page.title}" is not published`);
       return NextResponse.json({ error: "Page not available" }, { status: 404 });
     }
 
-    // INCREMENT PAGE VIEWS - Add this here
-    const { error: viewError } = await supabase.rpc("increment_page_views", {
-      p_page_id: page.id,
-    });
+    // Increment page views
+    await supabase.rpc("increment_page_views", { p_page_id: page.id });
 
-    if (viewError) {
-      console.error("❌ Error incrementing page views:", viewError);
-    } else {
-      console.log(`✅ Page views incremented for: ${page.title}`);
-    }
-
-    console.log(`✅ API - Page found: ${page.title}`);
-
-    // Format the response with updated view count
+    // Format response
     const response = {
       page: {
         id: page.id,
@@ -98,6 +69,7 @@ export async function GET(
         pageType: page.page_type,
         metadata: page.metadata || {},
         virtualAccount: page.metadata?.virtual_account || null,
+        linkConfig: page.link_config || null,
         pageViews: (page.page_views || 0) + 1,
         totalPayments: page.total_payments || 0,
         pageBalance: Number(page.page_balance),

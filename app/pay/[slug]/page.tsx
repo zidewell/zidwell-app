@@ -10,17 +10,18 @@ type Props = {
 // Generate metadata for social sharing
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const baseUrl = process.env.NODE_ENV === "development" 
-    ? "http://localhost:3000" 
-    : "https://zidwell.com";
-  
+  const baseUrl =
+    process.env.NODE_ENV === "development"
+      ? "http://localhost:3000"
+      : "https://zidwell.com";
+
   console.log(`🔍 generateMetadata - Fetching page with slug: ${slug}`);
-  
+
   try {
     const response = await fetch(`${baseUrl}/api/payment-page/public/${slug}`, {
-      cache: "no-store"
+      cache: "no-store",
     });
-    
+
     if (!response.ok) {
       console.log(`❌ generateMetadata - Page not found for slug: ${slug}`);
       return {
@@ -28,10 +29,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description: "Secure payment page on Zidwell",
       };
     }
-    
+
     const data = await response.json();
     const page = data.page;
-    
+
     if (!page) {
       return {
         title: "Payment Page | Zidwell",
@@ -44,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (!featuredImage && page.productImages && page.productImages.length > 0) {
       featuredImage = page.productImages[0];
     }
-    
+
     const defaultImage = `${baseUrl}/zidwell-og-image.png`;
     const imageUrl = featuredImage || defaultImage;
 
@@ -52,19 +53,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const typeLabels: Record<string, string> = {
       school: "School Fees",
       donation: "Donation",
-      physical: "Product",
-      digital: "Payment Link",
+      physical: "Physical Product",
+      digital: "Digital Product",
       services: "Service",
-      real_estate: "Real Estate",
-      stock: "Investment",
-      savings: "Savings",
-      crypto: "Crypto",
+      real_estate: "Real Estate Investment",
+      stock: "Stock Investment",
+      savings: "Savings / Ajo",
+      crypto: "Crypto Investment",
+      link: "Payment Link",
     };
 
     const pageTypeLabel = typeLabels[page.pageType] || "Payment";
-    
-    const description = page.description 
-      ? `${page.title} - ${page.description.substring(0, 150)}...` 
+
+    const description = page.description
+      ? `${page.title} - ${page.description.substring(0, 150)}...`
       : `Pay for ${page.title} securely on Zidwell. ${pageTypeLabel} payment made easy.`;
 
     return {
@@ -104,43 +106,46 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // Server component that renders the client component
 export default async function PaymentPage({ params }: Props) {
   const { slug } = await params;
-  
+
   console.log(`🔍 PaymentPage - Loading page with slug: ${slug}`);
-  
+
   if (!slug) {
     console.error("❌ No slug provided in URL");
     notFound();
   }
-  
+
   try {
-    const baseUrl = process.env.NODE_ENV === "development" 
-      ? "http://localhost:3000" 
-      : "https://zidwell.com";
-    
+    const baseUrl =
+      process.env.NODE_ENV === "development"
+        ? "http://localhost:3000"
+        : "https://zidwell.com";
+
     const apiUrl = `${baseUrl}/api/payment-page/public/${slug}`;
     console.log(`🔍 Fetching from API: ${apiUrl}`);
-    
+
     const response = await fetch(apiUrl, {
-      cache: "no-store"
+      cache: "no-store",
     });
-    
+
     console.log(`📡 API Response status: ${response.status}`);
-    
+
     if (!response.ok) {
-      console.log(`❌ Page not found for slug: ${slug} (Status: ${response.status})`);
+      console.log(
+        `❌ Page not found for slug: ${slug} (Status: ${response.status})`,
+      );
       notFound();
     }
-    
+
     const data = await response.json();
     const page = data.page;
-    
+
     if (!page) {
       console.log(`❌ No page data returned for slug: ${slug}`);
       notFound();
     }
-    
+
     console.log(`✅ Page found: ${page.title}`);
-    
+
     return <PaymentPageClient slug={slug} />;
   } catch (error) {
     console.error("Error loading payment page:", error);

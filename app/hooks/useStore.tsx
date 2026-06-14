@@ -1,10 +1,9 @@
-// hooks/useStore.ts
 "use client";
 import { ReactNode, createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useUserContextData } from "../context/userData";
 import { usePathname } from "next/navigation";
 
-export type PageType = "school" | "donation" | "physical" | "digital" | "services" | "real_estate" | "stock" | "savings" | "crypto";
+export type PageType = "school" | "donation" | "physical" | "digital" | "services" | "real_estate" | "stock" | "savings" | "crypto" | "link";
 
 export interface Student {
   name: string;
@@ -24,6 +23,38 @@ export interface FeeItem {
 export interface Variant {
   name: string;
   options: string[];
+}
+
+export interface CustomField {
+  id: string;
+  label: string;
+  type: "text" | "number" | "date" | "dropdown" | "checkbox" | "paragraph";
+  required: boolean;
+  options?: string[];
+}
+
+export interface LinkConfig {
+  currency: "NGN" | "USD" | "GBP" | "EUR";
+  amountMode: "fixed" | "variable";
+  active: boolean;
+  brandColor: string;
+  buttonColor: string;
+  buttonText: string;
+  successMessage: string;
+  thankYouMessage: string;
+  redirectUrl?: string;
+  altRedirectUrl?: string;
+  referenceCode?: string;
+  collectName: boolean;
+  collectEmail: boolean;
+  collectPhone: boolean;
+  nameRequired: boolean;
+  emailRequired: boolean;
+  phoneRequired: boolean;
+  customFields: CustomField[];
+  qrColor: string;
+  qrBackground: string;
+  qrFrame: "round" | "rounded" | "square";
 }
 
 export const isInvestmentType = (t: PageType) => {
@@ -81,6 +112,8 @@ export interface PaymentPage {
   contactInfo?: string;
   totalInvestments?: number;
   totalParticipants?: number;
+  linkConfig?: LinkConfig;
+  submissions?: any[];
 }
 
 interface StoreContextType {
@@ -118,7 +151,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const { userData } = useUserContextData();
   const pathname = usePathname();
 
-  // Helper function to check if current route is dashboard/services/payment
   const shouldFetchPages = useCallback(() => {
     return pathname?.includes('/dashboard/services/payment') || 
            pathname?.includes('/dashboard/services/payment/');
@@ -126,7 +158,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchPages = useCallback(async () => {
     if (!shouldFetchPages()) {
-      console.log("Skipping API call - not on dashboard/services/payment page. Current path:", pathname);
       setLoading(false);
       setInitialFetchDone(true);
       return;
@@ -135,9 +166,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await fetch("/api/payment-page/list", {
         cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
+        headers: { 'Cache-Control': 'no-cache' }
       });
       
       if (!response.ok) {
@@ -145,7 +174,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
       
       const data = await response.json();
-      console.log("Fetched pages:", data.pages?.length || 0);
       setPages(data.pages || []);
       return data;
     } catch (error) {
@@ -159,56 +187,33 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   }, [shouldFetchPages, pathname]);
 
   const refreshPages = useCallback(async () => {
-    if (!shouldFetchPages()) {
-      console.log("Skipping refresh - not on dashboard/services/payment page");
-      return;
-    }
-    
+    if (!shouldFetchPages()) return;
     setLoading(true);
     await fetchPages();
   }, [fetchPages, shouldFetchPages]);
 
   const createPage = async (pageData: any) => {
-    console.log("Creating page with data:", pageData);
-
     try {
       const response = await fetch("/api/payment-page/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(pageData),
       });
-
-      console.log("Response status:", response.status);
       
       const rawResponse = await response.text();
-      console.log("Raw response:", rawResponse);
-      
       let data;
       try {
         data = JSON.parse(rawResponse);
       } catch (e) {
-        console.error("Failed to parse JSON:", e);
         throw new Error("Invalid response from server");
       }
       
-   
       if (!response.ok) {
         throw new Error(data.error || `Failed to create page: ${response.status}`);
       }
-
-      if (!data || (!data.page && !data.slug)) {
-        console.error("Missing page/slug property in response:", data);
-        throw new Error("Server returned invalid response - missing page data");
-      }
-
-      console.log("Page created successfully:", data);
       
       await refreshPages();
-      
       return data;
-      
     } catch (error) {
       console.error("Error in createPage:", error);
       throw error;
@@ -216,38 +221,27 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const updatePage = async (id: string, pageData: any) => {
-    console.log("Updating page:", id, pageData);
-
     try {
       const response = await fetch(`/api/payment-page/update/${id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(pageData),
       });
 
       const rawResponse = await response.text();
-      console.log("Raw response:", rawResponse);
-      
       let data;
       try {
         data = JSON.parse(rawResponse);
       } catch (e) {
-        console.error("Failed to parse JSON:", e);
         throw new Error("Invalid response from server");
       }
 
       if (!response.ok) {
         throw new Error(data.error || `Failed to update page: ${response.status}`);
       }
-
-      console.log("Page updated successfully:", data);
       
       await refreshPages();
-      
       return data;
-      
     } catch (error) {
       console.error("Error in updatePage:", error);
       throw error;
@@ -286,9 +280,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await fetch("/api/payment-page/withdraw", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pageId, amount }),
       });
 
@@ -314,20 +306,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     fetchPages();
     
     const handleFocus = () => {
-      console.log("Window focused, checking if should refresh pages...");
-      if (shouldFetchPages()) {
-        console.log("Refreshing pages...");
-        fetchPages();
-      } else {
-        console.log("Skipping refresh - not on dashboard/services/payment page");
-      }
+      if (shouldFetchPages()) fetchPages();
     };
     
     window.addEventListener('focus', handleFocus);
-    
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
+    return () => window.removeEventListener('focus', handleFocus);
   }, [fetchPages, shouldFetchPages]);
 
   useEffect(() => {

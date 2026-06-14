@@ -522,7 +522,7 @@ export default function TransactionDetailsPage() {
 
     <div class="amount">
       <div class="amount-label">Amount</div>
-      <div class="amount-value">${amountInfo.display}</div>
+      <div class="amount-value">₦${amountInfo.display}</div>
     </div>
 
     <div class="section-title">

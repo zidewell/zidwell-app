@@ -31,12 +31,13 @@ const typeLabels: Record<string, string> = {
   school: "School Fees",
   donation: "Donation",
   physical: "Physical Product",
-  digital: "Payment Link",
+  digital: "Digital Product",
   services: "Service",
   real_estate: "Real Estate Investment",
   stock: "Stock Investment",
   savings: "Savings / Ajo",
   crypto: "Crypto Investment",
+  link: "Payment Link",
 };
 
 const EditPaymentPage = () => {

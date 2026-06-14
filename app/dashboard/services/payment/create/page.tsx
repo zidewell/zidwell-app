@@ -1,4 +1,3 @@
-// app/dashboard/services/payment/create/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -52,12 +51,13 @@ const typeLabels: Record<PageType, string> = {
   school: "School Fees",
   donation: "Donation",
   physical: "Physical Product",
-  digital: "Payment LInk",
+  digital: "Digital Product",
   services: "Service",
   real_estate: "Real Estate Investment",
   stock: "Stock Investment",
   savings: "Savings / Ajo",
   crypto: "Crypto Investment",
+  link: "Payment Link",
 };
 
 // Image size specifications for different page types
@@ -119,6 +119,12 @@ const IMAGE_SPECS: Record<
     ratio: "1.91:1",
     description: "1200 x 630px - Modern crypto banner",
   },
+  link: {
+    width: 1200,
+    height: 630,
+    ratio: "1.91:1",
+    description: "1200 x 630px - Perfect for payment links",
+  },
 };
 
 // Placeholder text based on page type
@@ -177,6 +183,11 @@ const getPlaceholderText = (
         title: "Bitcoin Investment Package",
         description:
           "Start your crypto journey with our secure investment packages. Expert managed funds with proven returns. Join the crypto revolution.",
+      },
+      link: {
+        title: "Premium Service Payment",
+        description:
+          "Secure payment link for your premium service. Fast, easy, and secure checkout.",
       },
     };
 
@@ -968,8 +979,8 @@ const CreatePage = () => {
                   <p className="text-xs text-(--text-secondary) mt-1">Example: {getPlaceholderText(pageType, "description").substring(0, 100)}...</p>
                 </div>
 
-                {/* Product Images */}
-                {pageType !== "school" && pageType !== "donation" && (
+                {/* Product Images - Show for all types except school, donation, and link */}
+                {pageType !== "school" && pageType !== "donation" && pageType !== "link" && (
                   <div>
                     <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Product Images</Label>
                     <input type="file" ref={productRef} className="hidden" accept="image/*" multiple onChange={(e) => handleImageSelect(e, "product")} />
@@ -984,85 +995,105 @@ const CreatePage = () => {
                         <ImagePlus className="h-5 w-5 text-(--text-secondary)" />
                       </button>
                     </div>
+                    <p className="text-xs text-(--text-secondary) mt-2">Add images to showcase your product</p>
                   </div>
                 )}
 
                 {/* Type-Specific Fields */}
                 <div className="p-5 rounded-2xl border border-(--border-color) bg-(--bg-secondary)">
                   <h3 className="font-bold text-sm mb-4 text-(--color-accent-yellow)">{typeLabels[pageType]} Settings</h3>
-                  {pageType === "school" && (
-                    <SchoolFields
-                      students={students}
-                      setStudents={setStudents}
-                      className={schoolClass}
-                      setClassName={setSchoolClass}
-                      feeBreakdown={feeBreakdown}
-                      setFeeBreakdown={setFeeBreakdown}
-                      requiredFields={requiredFields}
-                      setRequiredFields={setRequiredFields}
-                    />
-                  )}
-                  {pageType === "donation" && (
-                    <DonationFields
-                      suggestedAmounts={suggestedAmounts}
-                      setSuggestedAmounts={setSuggestedAmounts}
-                      showDonorList={showDonorList}
-                      setShowDonorList={setShowDonorList}
-                      allowDonorMessage={allowDonorMessage}
-                      setAllowDonorMessage={setAllowDonorMessage}
-                      requireDonorName={requireDonorName}
-                      setRequireDonorName={setRequireDonorName}
-                      minimumDonation={minimumDonation}
-                      setMinimumDonation={setMinimumDonation}
-                    />
-                  )}
-                  {pageType === "physical" && (
-                    <PhysicalFields
-                      variants={variants}
-                      setVariants={setVariants}
-                      requiresShipping={requiresShipping}
-                      setRequiresShipping={setRequiresShipping}
-                    />
-                  )}
-                  {pageType === "digital" && (
-                    <DigitalFields
-                      downloadUrl={downloadUrl}
-                      setDownloadUrl={setDownloadUrl}
-                      accessLink={accessLink}
-                      setAccessLink={setAccessLink}
-                      emailDelivery={emailDelivery}
-                      setEmailDelivery={setEmailDelivery}
-                    />
-                  )}
-                  {pageType === "services" && (
-                    <ServicesFields
-                      bookingEnabled={bookingEnabled}
-                      setBookingEnabled={setBookingEnabled}
-                      customerNoteEnabled={customerNoteEnabled}
-                      setCustomerNoteEnabled={setCustomerNoteEnabled}
-                    />
-                  )}
-                  {isInvestment && (
-                    <InvestmentFields
-                      minimumAmount={minimumAmount}
-                      setMinimumAmount={setMinimumAmount}
-                      expectedReturn={expectedReturn}
-                      setExpectedReturn={setExpectedReturn}
-                      tenure={tenure}
-                      setTenure={setTenure}
-                      charges={charges}
-                      setCharges={setCharges}
-                      paymentFrequency={paymentFrequency}
-                      setPaymentFrequency={setPaymentFrequency}
-                      termsAndConditions={termsAndConditions}
-                      setTermsAndConditions={setTermsAndConditions}
-                      riskExplanation={riskExplanation}
-                      setRiskExplanation={setRiskExplanation}
-                    />
+                  
+                  {/* For link type, show a message since it has its own creation flow */}
+                  {pageType === "link" ? (
+                    <div className="text-center py-8">
+                      <Link2 className="h-12 w-12 text-(--color-accent-yellow) mx-auto mb-3 opacity-50" />
+                      <p className="text-(--text-primary) font-medium mb-2">Payment Link has its own creation flow</p>
+                      <p className="text-sm text-(--text-secondary)">Click the button below to create a customizable payment link with QR code and embed options</p>
+                      <Button
+                        onClick={() => router.push("/dashboard/services/payment/create-link")}
+                        className="mt-4 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+                      >
+                        <Link2 className="h-4 w-4 mr-2" />
+                        Create Payment Link
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {pageType === "school" && (
+                        <SchoolFields
+                          students={students}
+                          setStudents={setStudents}
+                          className={schoolClass}
+                          setClassName={setSchoolClass}
+                          feeBreakdown={feeBreakdown}
+                          setFeeBreakdown={setFeeBreakdown}
+                          requiredFields={requiredFields}
+                          setRequiredFields={setRequiredFields}
+                        />
+                      )}
+                      {pageType === "donation" && (
+                        <DonationFields
+                          suggestedAmounts={suggestedAmounts}
+                          setSuggestedAmounts={setSuggestedAmounts}
+                          showDonorList={showDonorList}
+                          setShowDonorList={setShowDonorList}
+                          allowDonorMessage={allowDonorMessage}
+                          setAllowDonorMessage={setAllowDonorMessage}
+                          requireDonorName={requireDonorName}
+                          setRequireDonorName={setRequireDonorName}
+                          minimumDonation={minimumDonation}
+                          setMinimumDonation={setMinimumDonation}
+                        />
+                      )}
+                      {pageType === "physical" && (
+                        <PhysicalFields
+                          variants={variants}
+                          setVariants={setVariants}
+                          requiresShipping={requiresShipping}
+                          setRequiresShipping={setRequiresShipping}
+                        />
+                      )}
+                      {pageType === "digital" && (
+                        <DigitalFields
+                          downloadUrl={downloadUrl}
+                          setDownloadUrl={setDownloadUrl}
+                          accessLink={accessLink}
+                          setAccessLink={setAccessLink}
+                          emailDelivery={emailDelivery}
+                          setEmailDelivery={setEmailDelivery}
+                        />
+                      )}
+                      {pageType === "services" && (
+                        <ServicesFields
+                          bookingEnabled={bookingEnabled}
+                          setBookingEnabled={setBookingEnabled}
+                          customerNoteEnabled={customerNoteEnabled}
+                          setCustomerNoteEnabled={setCustomerNoteEnabled}
+                        />
+                      )}
+                      {isInvestment && (
+                        <InvestmentFields
+                          minimumAmount={minimumAmount}
+                          setMinimumAmount={setMinimumAmount}
+                          expectedReturn={expectedReturn}
+                          setExpectedReturn={setExpectedReturn}
+                          tenure={tenure}
+                          setTenure={setTenure}
+                          charges={charges}
+                          setCharges={setCharges}
+                          paymentFrequency={paymentFrequency}
+                          setPaymentFrequency={setPaymentFrequency}
+                          termsAndConditions={termsAndConditions}
+                          setTermsAndConditions={setTermsAndConditions}
+                          riskExplanation={riskExplanation}
+                          setRiskExplanation={setRiskExplanation}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
 
-                {/* Trust Signals */}
+                {/* Trust Signals - Only for investment types */}
                 {isInvestment && (
                   <div className="p-5 rounded-2xl border border-(--border-color) bg-(--bg-secondary)">
                     <TrustSignals
@@ -1082,8 +1113,8 @@ const CreatePage = () => {
                   </div>
                 )}
 
-                {/* Pricing */}
-                {pageType !== "donation" && (
+                {/* Pricing - Skip for link type since it has its own flow */}
+                {pageType !== "donation" && pageType !== "link" && (
                   <>
                     <div>
                       <Label className="text-sm font-semibold mb-3 block text-(--text-primary)">Pricing</Label>
@@ -1165,20 +1196,22 @@ const CreatePage = () => {
           </div>
         </main>
 
-        {/* Sticky CTA */}
-        <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
-          <div className="max-w-2xl mx-auto">
-            <Button
-              variant="default"
-              size="lg"
-              className="w-full py-6 text-base bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-              onClick={handleCreate}
-              disabled={!canCreate() || isCreating}
-            >
-              {isCreating ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...</> : `Create ${typeLabels[pageType]} Page`}
-            </Button>
+        {/* Sticky CTA - Hide for link type since it has its own flow */}
+        {pageType !== "link" && (
+          <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
+            <div className="max-w-2xl mx-auto">
+              <Button
+                variant="default"
+                size="lg"
+                className="w-full py-6 text-base bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+                onClick={handleCreate}
+                disabled={!canCreate() || isCreating}
+              >
+                {isCreating ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...</> : `Create ${typeLabels[pageType]} Page`}
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Success Modal */}
