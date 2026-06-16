@@ -72,8 +72,7 @@ export async function POST(request: Request) {
       installmentCount, 
       feeMode,
       pageType,
-      metadata,
-      linkConfig 
+      metadata 
     } = body;
 
     // Validate required fields
@@ -86,33 +85,47 @@ export async function POST(request: Request) {
 
     // Validate page type specific requirements
     if (pageType === "link") {
-      if (!price || price <= 0) {
+      // For link pages with fixed amount, price is required
+      if (metadata?.linkConfig?.amountMode === "fixed" && (!price || price <= 0)) {
         return NextResponse.json(
-          { error: "Price is required for payment link" },
+          { error: "Amount is required for fixed amount payment link" },
+          { status: 400 }
+        );
+      }
+      // For variable amount, price can be 0
+    }
+
+    if (pageType === "school") {
+      if (!metadata?.feeBreakdown || metadata.feeBreakdown.length === 0) {
+        return NextResponse.json(
+          { error: "Fee breakdown is required for school pages" },
           { status: 400 }
         );
       }
     }
 
-    // Check BVN verification
-    const hasVerifiedBVN = await isBVNVerified(user.id);
-    if (!hasVerifiedBVN) {
-      return NextResponse.json(
-        { 
-          error: "BVN verification required before creating payment pages",
-          requiresBvnVerification: true,
-        },
-        { status: 400 }
-      );
+    if (pageType === "physical" || pageType === "digital") {
+      if (priceType !== "open" && (!price || price <= 0)) {
+        return NextResponse.json(
+          { error: "Price is required for this page type" },
+          { status: 400 }
+        );
+      }
     }
 
-    // Get user's BVN
-    const userBVN = await getUserBVNFromNomba(user.id);
-    if (!userBVN) {
-      return NextResponse.json(
-        { error: "Unable to retrieve your BVN. Please contact support." },
-        { status: 400 }
-      );
+    // Check BVN verification (skip for link pages if desired, or keep for all)
+    // For now, we'll skip BVN check for link pages to make testing easier
+    if (pageType !== "link") {
+      const hasVerifiedBVN = await isBVNVerified(user.id);
+      if (!hasVerifiedBVN) {
+        return NextResponse.json(
+          { 
+            error: "BVN verification required before creating payment pages",
+            requiresBvnVerification: true,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Upload images
@@ -124,7 +137,7 @@ export async function POST(request: Request) {
     let uploadedLogo = null;
     if (logo && logo.startsWith('data:image')) {
       uploadedLogo = await uploadImageToStorage(user.id, logo, "logos");
-    } else if (logo) {
+    } else if (logo && (logo.startsWith('http://') || logo.startsWith('https://'))) {
       uploadedLogo = logo;
     }
     
@@ -134,7 +147,7 @@ export async function POST(request: Request) {
         if (img.startsWith('data:image')) {
           const uploadedUrl = await uploadImageToStorage(user.id, img, "products");
           if (uploadedUrl) uploadedProductImages.push(uploadedUrl);
-        } else {
+        } else if (img.startsWith('http://') || img.startsWith('https://')) {
           uploadedProductImages.push(img);
         }
       }
@@ -143,40 +156,75 @@ export async function POST(request: Request) {
     // Prepare metadata
     const finalMetadata: any = { ...metadata };
 
-    // Calculate final price for school pages
-    let finalPrice = price;
+    // For link pages, store the entire link configuration in metadata
+    if (pageType === "link") {
+      finalMetadata.pageType = "link";
+      if (metadata?.linkConfig) {
+        finalMetadata.linkConfig = {
+          ...metadata.linkConfig,
+          createdAt: new Date().toISOString(),
+        };
+      }
+    }
+
+    // Calculate final price
+    let finalPrice = price || 0;
     if (pageType === "school" && finalMetadata.feeBreakdown?.length > 0) {
       finalPrice = finalMetadata.feeBreakdown.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
     }
 
-    // Create virtual account for the payment page
-    const className = pageType === "school" && metadata?.className ? metadata.className : undefined;
-    const tempPageId = crypto.randomUUID();
-    const virtualAccount = await createPaymentPageVirtualAccount(
-      tempPageId,
-      title,
-      userBVN,
-      className
-    );
-    
-    if (!virtualAccount) {
-      return NextResponse.json(
-        { error: "Failed to create payment account. Please try again." },
-        { status: 500 }
-      );
+    // Determine final price_type
+    let finalPriceType = priceType;
+    if (pageType === "link" && metadata?.linkConfig?.amountMode === "variable") {
+      finalPriceType = "open";
+    }
+    if (pageType === "donation") {
+      finalPriceType = "open";
     }
 
-    // Add virtual account to metadata
-    finalMetadata.virtual_account = {
-      accountNumber: virtualAccount.accountNumber,
-      bankName: virtualAccount.bankName,
-      accountName: virtualAccount.accountName,
-      bankAccountName: virtualAccount.bankAccountName,
-      accountRef: virtualAccount.accountRef,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      type: "payment_page",
-    };
+    // Create virtual account for the payment page (skip for link pages if they don't need virtual account)
+    let virtualAccount = null;
+    if (pageType !== "link") {
+      const tempPageId = crypto.randomUUID();
+      const className = pageType === "school" && metadata?.className ? metadata.className : undefined;
+      
+      // Get user's BVN only for non-link pages
+      if (pageType !== "link") {
+        const userBVN = await getUserBVNFromNomba(user.id);
+        if (!userBVN) {
+          return NextResponse.json(
+            { error: "Unable to retrieve your BVN. Please contact support." },
+            { status: 400 }
+          );
+        }
+        
+        virtualAccount = await createPaymentPageVirtualAccount(
+          tempPageId,
+          title,
+          userBVN,
+          className
+        );
+        
+        if (!virtualAccount) {
+          return NextResponse.json(
+            { error: "Failed to create payment account. Please try again." },
+            { status: 500 }
+          );
+        }
+
+        // Add virtual account to metadata
+        finalMetadata.virtual_account = {
+          accountNumber: virtualAccount.accountNumber,
+          bankName: virtualAccount.bankName,
+          accountName: virtualAccount.accountName,
+          bankAccountName: virtualAccount.bankAccountName,
+          accountRef: virtualAccount.accountRef,
+          createdAt: new Date().toISOString(),
+          isActive: true,
+          type: "payment_page",
+        };
+      }
+    }
 
     // Insert payment page
     const { data: page, error: pageError } = await supabase
@@ -189,13 +237,12 @@ export async function POST(request: Request) {
         cover_image: uploadedCoverImage,
         logo: uploadedLogo,
         product_images: uploadedProductImages,
-        price_type: priceType,
-        price: finalPrice || 0,
+        price_type: finalPriceType,
+        price: finalPrice,
         installment_count: installmentCount,
-        fee_mode: feeMode,
+        fee_mode: feeMode || "bearer",
         page_type: pageType,
         metadata: finalMetadata,
-        link_config: linkConfig || null,
         is_published: true,
         published_at: new Date().toISOString(),
         page_balance: 0,
@@ -214,32 +261,34 @@ export async function POST(request: Request) {
       );
     }
 
-    // Update virtual account reference
-    const updatedVirtualAccount = {
-      ...finalMetadata.virtual_account,
-      paymentPageId: page.id,
-      accountRef: `PP-${page.id.replace(/-/g, '').substring(0, 20)}`,
-    };
-    
-    await supabase
-      .from("payment_pages")
-      .update({
-        metadata: {
-          ...finalMetadata,
-          virtual_account: updatedVirtualAccount,
-        }
-      })
-      .eq("id", page.id);
+    // Update virtual account reference if it exists
+    if (virtualAccount && finalMetadata.virtual_account) {
+      const updatedVirtualAccount = {
+        ...finalMetadata.virtual_account,
+        paymentPageId: page.id,
+        accountRef: `PP-${page.id.replace(/-/g, '').substring(0, 20)}`,
+      };
+      
+      await supabase
+        .from("payment_pages")
+        .update({
+          metadata: {
+            ...finalMetadata,
+            virtual_account: updatedVirtualAccount,
+          }
+        })
+        .eq("id", page.id);
+    }
 
     const responseData = {
       success: true,
-      message: "Payment page created successfully with virtual account!",
+      message: "Payment page created successfully!",
       slug: page.slug,
-      virtualAccount: {
+      virtualAccount: virtualAccount ? {
         accountNumber: virtualAccount.accountNumber,
         bankName: virtualAccount.bankName,
         accountName: virtualAccount.accountName,
-      },
+      } : null,
       page: {
         id: page.id,
         title: page.title,

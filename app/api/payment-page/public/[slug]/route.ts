@@ -50,7 +50,18 @@ export async function GET(
     }
 
     // Increment page views
-    await supabase.rpc("increment_page_views", { p_page_id: page.id });
+    try {
+      await supabase.rpc("increment_page_views", { p_page_id: page.id });
+    } catch (rpcError) {
+      console.warn("Could not increment page views:", rpcError);
+      // Don't fail the request if view increment fails
+    }
+
+    // Extract linkConfig from metadata for link pages
+    let linkConfig = null;
+    if (page.page_type === "link" && page.metadata?.linkConfig) {
+      linkConfig = page.metadata.linkConfig;
+    }
 
     // Format response
     const response = {
@@ -69,7 +80,7 @@ export async function GET(
         pageType: page.page_type,
         metadata: page.metadata || {},
         virtualAccount: page.metadata?.virtual_account || null,
-        linkConfig: page.link_config || null,
+        linkConfig: linkConfig, // Extract from metadata
         pageViews: (page.page_views || 0) + 1,
         totalPayments: page.total_payments || 0,
         pageBalance: Number(page.page_balance),
@@ -79,6 +90,8 @@ export async function GET(
       }
     };
 
+    console.log(`✅ API - Found page: ${page.title} (type: ${page.page_type})`);
+    
     return NextResponse.json(response);
   } catch (error: any) {
     console.error("❌ API - Error fetching payment page:", error);

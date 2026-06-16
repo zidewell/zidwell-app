@@ -69,9 +69,11 @@ const PageDetail = () => {
     Record<string, string>
   >({});
   const [searchQuery, setSearchQuery] = useState("");
-
-  // New states for QR, Embed, and Card Payment
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
+
+  // Card Payment states
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
     "card" | "transfer"
   >("transfer");
@@ -312,7 +314,6 @@ const PageDetail = () => {
 
   const getEmbedCode = () => {
     const pageUrl = getPaymentPageUrl();
-
     return `<a
   href=${pageUrl}
   target="_blank"
@@ -335,6 +336,7 @@ const PageDetail = () => {
     await copyToClipboard(getEmbedCode(), "Embed code");
     setCopiedEmbed(true);
     setTimeout(() => setCopiedEmbed(false), 2000);
+    setShowEmbedModal(false);
   };
 
   const downloadQRCode = async () => {
@@ -362,6 +364,7 @@ const PageDetail = () => {
         timer: 2000,
         showConfirmButton: false,
       });
+      setShowQRModal(false);
     } catch (error) {
       console.error("Error downloading QR code:", error);
       await Swal.fire({
@@ -602,89 +605,32 @@ const PageDetail = () => {
               </div>
             </div>
 
-            {/* QR Code & Embed Code Section */}
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* QR Code Card */}
-              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
-                <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
-                  <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                    <QrCode className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                    QR Code
-                  </h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={downloadQRCode}
-                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
-                  >
-                    <Download className="h-3 w-3 mr-1" /> Download
-                  </Button>
-                </div>
-                <div className="p-6 flex flex-col items-center">
-                  <div className="bg-white p-4 rounded-xl mb-4">
-                    <img
-                      src={`/api/payment-page/qrcode?url=${encodeURIComponent(getPaymentPageUrl())}`}
-                      alt="Payment Page QR Code"
-                      className="w-48 h-48"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23ddd'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3EQR Code%3C/text%3E%3C/svg%3E";
-                      }}
-                    />
-                  </div>
-                  <p className="text-xs text-[var(--text-secondary)] text-center">
-                    Scan this QR code with your phone camera to open the payment
-                    page
-                  </p>
-                  <button
-                    onClick={() =>
-                      copyToClipboard(getPaymentPageUrl(), "Payment link")
-                    }
-                    className="mt-3 text-xs text-[var(--color-accent-yellow)] hover:underline flex items-center gap-1"
-                  >
-                    <Copy className="h-3 w-3" /> Copy payment link
-                  </button>
-                </div>
-              </div>
-
-              {/* Embed Code Card */}
-              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
-                <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
-                  <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                    <Code2 className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                    Embed Code
-                  </h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={copyEmbedCode}
-                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
-                  >
-                    {copiedEmbed ? (
-                      <Check className="h-3 w-3 mr-1 text-green-500" />
-                    ) : (
-                      <Copy className="h-3 w-3 mr-1" />
-                    )}
-                    {copiedEmbed ? "Copied!" : "Copy Code"}
-                  </Button>
-                </div>
-                <div className="p-4">
-                  <p className="text-xs text-[var(--text-secondary)] mb-3">
-                    Embed this payment page on your website:
-                  </p>
-                  <div className="bg-[var(--bg-secondary)] rounded-lg p-3 overflow-x-auto">
-                    <code className="text-xs font-mono text-[var(--text-primary)] break-all">
-                      {getEmbedCode()}
-                    </code>
-                  </div>
-                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <p className="text-xs text-blue-600 dark:text-blue-400">
-                      💡 <strong>Pro tip:</strong> Paste this code into your
-                      website's HTML where you want the payment form to appear.
-                    </p>
-                  </div>
-                </div>
-              </div>
+            {/* QR Code & Embed Code - Compact Buttons */}
+            <div className="flex flex-wrap gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowQRModal(true)}
+                className="border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]"
+              >
+                <QrCode className="h-4 w-4 mr-2" />
+                QR Code
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowEmbedModal(true)}
+                className="border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]"
+              >
+                <Code2 className="h-4 w-4 mr-2" />
+                Embed Code
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => copyToClipboard(getPaymentPageUrl(), "Payment link")}
+                className="border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Copy Link
+              </Button>
             </div>
 
             {/* Virtual Account Info */}
@@ -1338,6 +1284,120 @@ const PageDetail = () => {
           </div>
         </main>
       </div>
+
+      {/* QR Code Modal */}
+      {showQRModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--bg-primary)] rounded-2xl p-6 max-w-md w-full border border-[var(--border-color)]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                <QrCode className="h-5 w-5 text-[var(--color-accent-yellow)]" />
+                QR Code
+              </h3>
+              <button
+                onClick={() => setShowQRModal(false)}
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="bg-white p-4 rounded-xl mb-4">
+                <img
+                  src={`/api/payment-page/qrcode?url=${encodeURIComponent(getPaymentPageUrl())}`}
+                  alt="Payment Page QR Code"
+                  className="w-48 h-48"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23ddd'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3EQR Code%3C/text%3E%3C/svg%3E";
+                  }}
+                />
+              </div>
+              <p className="text-sm text-[var(--text-secondary)] text-center mb-4">
+                Scan this QR code with your phone camera to open the payment page
+              </p>
+              <div className="flex gap-3 w-full">
+                <Button
+                  onClick={downloadQRCode}
+                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+                <Button
+                  onClick={() => {
+                    copyToClipboard(getPaymentPageUrl(), "Payment link");
+                    setShowQRModal(false);
+                  }}
+                  variant="outline"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)]"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy Link
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Embed Code Modal */}
+      {showEmbedModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--bg-primary)] rounded-2xl p-6 max-w-md w-full border border-[var(--border-color)]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                <Code2 className="h-5 w-5 text-[var(--color-accent-yellow)]" />
+                Embed Code
+              </h3>
+              <button
+                onClick={() => setShowEmbedModal(false)}
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-sm text-[var(--text-secondary)] mb-3">
+              Copy this code to embed the payment button on your website:
+            </p>
+            <div className="bg-[var(--bg-secondary)] rounded-lg p-3 mb-4 overflow-x-auto">
+              <code className="text-xs font-mono text-[var(--text-primary)] break-all whitespace-pre-wrap">
+                {getEmbedCode()}
+              </code>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                onClick={copyEmbedCode}
+                className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+              >
+                {copiedEmbed ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Code
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => setShowEmbedModal(false)}
+                variant="outline"
+                className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)]"
+              >
+                Close
+              </Button>
+            </div>
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                💡 <strong>Pro tip:</strong> Paste this code into your website's HTML where you want the payment button to appear.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar {

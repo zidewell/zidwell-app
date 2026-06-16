@@ -12,9 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-   
-     const id = (await params).id;
-   
+    const id = (await params).id;
    
     // Check authentication
     const { user, newTokens } = await isAuthenticatedWithRefresh(req);
@@ -50,6 +48,12 @@ export async function GET(
 
     const totalAmount = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
 
+    // Extract linkConfig if it's a link page
+    let linkConfig = null;
+    if (page.page_type === "link" && page.metadata?.linkConfig) {
+      linkConfig = page.metadata.linkConfig;
+    }
+
     const formattedPage = {
       id: page.id,
       title: page.title,
@@ -69,6 +73,7 @@ export async function GET(
       createdAt: page.created_at,
       pageType: page.page_type,
       metadata: page.metadata,
+      linkConfig: linkConfig, // Add this for link pages
       recentPayments: payments?.slice(0, 10).map(p => ({
         id: p.id,
         customerName: p.customer_name,

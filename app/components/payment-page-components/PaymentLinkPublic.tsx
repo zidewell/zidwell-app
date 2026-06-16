@@ -1,8 +1,9 @@
+// app/components/payment-page-components/PaymentLinkPublic.tsx
 "use client";
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Shield, CreditCard, Banknote, Loader2, CheckCircle, ArrowLeft } from "lucide-react";
+import { Shield, CreditCard, Loader2, CheckCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -10,7 +11,6 @@ import { Textarea } from "@/app/components/ui/textarea";
 import { useRouter } from "next/navigation";
 import type { LinkConfig, CustomField } from "@/app/hooks/useStore";
 
-// Simplified Payment Page interface for the public component
 interface PaymentPagePublic {
   id: string;
   title: string;
@@ -34,12 +34,22 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Check if link is active
+  if (!config.active) {
+    return (
+      <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center p-4">
+        <div className="bg-[#1a1a1a] rounded-2xl p-8 text-center max-w-md">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Link Not Available</h2>
+          <p className="text-gray-400">This payment link is currently inactive.</p>
+        </div>
+      </div>
+    );
+  }
+
   const validateField = (field: { label: string; required: boolean; type: string }, value: any): string => {
     if (field.required && (!value || (typeof value === "string" && !value.trim()))) {
       return `${field.label} is required`;
-    }
-    if (field.type === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      return "Please enter a valid email address";
     }
     return "";
   };
@@ -72,6 +82,14 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
     setLoading(true);
     
     try {
+      const amount = config.amountMode === "fixed" 
+        ? page.price 
+        : formData.customAmount;
+
+      if (!amount || amount <= 0) {
+        throw new Error("Please enter a valid amount");
+      }
+
       const response = await fetch("/api/payment-page/public/card-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -80,7 +98,8 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
           customerName: formData.name || "Anonymous",
           customerEmail: formData.email || "customer@example.com",
           customerPhone: formData.phone || "",
-          amount: config.amountMode === "fixed" ? page.price : formData.customAmount,
+          amount: amount,
+          currency: config.currency,
           metadata: {
             pageType: "link",
             pageTitle: page.title,
@@ -93,9 +112,14 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
       
       const data = await response.json();
       
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok) throw new Error(data.error || "Payment failed");
       
-      window.open(data.checkoutLink, "_blank", "width=500,height=700");
+      // Open payment modal or redirect to checkout
+      if (data.checkoutUrl) {
+        window.open(data.checkoutUrl, "_blank", "width=500,height=700");
+      } else if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      }
       
     } catch (err: any) {
       console.error("Payment error:", err);
@@ -223,19 +247,21 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
     ? amount && amount > 0 
     : page.price > 0;
 
+  const currencySymbol = config.currency === "NGN" ? "₦" : config.currency === "USD" ? "$" : config.currency === "GBP" ? "£" : "€";
+
   return (
     <div className="min-h-screen bg-[#0e0e0e]">
       {/* Header */}
-      <div className="bg-[#023528] text-white sticky top-0 z-10">
+      <div className="sticky top-0 z-10" style={{ backgroundColor: config.brandColor }}>
         <div className="container py-4 flex items-center gap-3">
-          <button onClick={() => router.back()} className="hover:opacity-80">
+          <button onClick={() => router.back()} className="hover:opacity-80 text-white">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-3">
             {page.logo && <img src={page.logo} className="h-10 w-10 rounded-xl object-cover" alt="Logo" />}
             <div>
-              <h1 className="font-bold text-lg leading-tight">{page.title}</h1>
-              <p className="text-white/60 text-xs">Secure Payment Link</p>
+              <h1 className="font-bold text-lg leading-tight text-white">{page.title}</h1>
+              <p className="text-white/70 text-xs">Secure Payment Link</p>
             </div>
           </div>
         </div>
@@ -268,8 +294,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
                 <>
                   <p className="text-xs text-gray-500">Amount</p>
                   <p className="text-3xl font-bold" style={{ color: config.brandColor }}>
-                    {config.currency === "NGN" ? "₦" : config.currency + " "}
-                    {page.price.toLocaleString()}
+                    {currencySymbol}{page.price.toLocaleString()}
                   </p>
                 </>
               ) : (
@@ -279,7 +304,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
                   </Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      {config.currency === "NGN" ? "₦" : config.currency}
+                      {currencySymbol}
                     </span>
                     <Input
                       type="number"
@@ -304,6 +329,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
                     value={formData.name || ""}
                     onChange={(e) => handleInputChange("name", e.target.value)}
                     className="bg-[#1a1a1a] border-gray-700 text-white"
+                    placeholder="John Doe"
                   />
                   {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
                 </div>
@@ -319,6 +345,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
                     value={formData.email || ""}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     className="bg-[#1a1a1a] border-gray-700 text-white"
+                    placeholder="customer@example.com"
                   />
                   {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                 </div>
@@ -334,6 +361,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
                     value={formData.phone || ""}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
                     className="bg-[#1a1a1a] border-gray-700 text-white"
+                    placeholder="+234 123 456 7890"
                   />
                   {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
                 </div>
@@ -345,7 +373,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
               {config.referenceCode && (
                 <div className="bg-gray-800/30 rounded-lg p-3 text-center">
                   <p className="text-xs text-gray-500">Reference Code</p>
-                  <p className="text-sm font-mono text-[#e1bf46]">{config.referenceCode}</p>
+                  <p className="text-sm font-mono" style={{ color: config.brandColor }}>{config.referenceCode}</p>
                 </div>
               )}
 
