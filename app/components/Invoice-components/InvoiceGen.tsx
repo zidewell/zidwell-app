@@ -6,11 +6,10 @@ import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import InvoiceList  from "@/app/components/Invoice-components/InvoiceList";
-
-import { useUserContextData } from "../../context/userData";
-import Loader from "../Loader";
 import { useRouter } from "next/navigation";
+import { useUserContextData } from "@/app/context/userData";
+import InvoiceList from "./InvoiceList";
+
 
 export interface InvoiceItem {
   id: string;
