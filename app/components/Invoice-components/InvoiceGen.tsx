@@ -6,7 +6,7 @@ import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import InvoiceList from "../../components/Invoice-components/InvoiceLIst"; 
+import InvoiceList from "./InvoiceList"; 
 import { useUserContextData } from "../../context/userData";
 import Loader from "../Loader";
 import { useRouter } from "next/navigation";

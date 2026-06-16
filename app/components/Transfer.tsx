@@ -469,12 +469,17 @@ export default function Transfer() {
 const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   const rawValue = e.target.value;
   const numericValue = rawValue.replace(/\D/g, '');
-
   const limitedValue = numericValue.slice(0, 10);
   
   setAccountNumber(limitedValue);
   setBeneficiarySearch(limitedValue);
-  setShowBeneficiarySuggestions(true);
+  
+  // Only show suggestions if there's input and we're not selecting a saved account
+  if (limitedValue.length > 0 && !selectedSavedAccount) {
+    setShowBeneficiarySuggestions(true);
+  } else if (limitedValue.length === 0) {
+    setShowBeneficiarySuggestions(false);
+  }
   
   if (selectedSavedAccount && limitedValue !== selectedSavedAccount.account_number) {
     setSelectedSavedAccount(null);
@@ -484,16 +489,22 @@ const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   }
 };
 
-  const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setRecepientAcc(newValue);
-    setBeneficiarySearch(newValue);
+const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const newValue = e.target.value;
+  setRecepientAcc(newValue);
+  setBeneficiarySearch(newValue);
+  
+  if (newValue.length > 0 && !selectedSavedP2PBeneficiary) {
     setShowBeneficiarySuggestions(true);
-    if (selectedSavedP2PBeneficiary && newValue !== selectedSavedP2PBeneficiary.account_number) {
-      setSelectedSavedP2PBeneficiary(null);
-      setP2pDetails(null);
-    }
-  };
+  } else if (newValue.length === 0) {
+    setShowBeneficiarySuggestions(false);
+  }
+  
+  if (selectedSavedP2PBeneficiary && newValue !== selectedSavedP2PBeneficiary.account_number) {
+    setSelectedSavedP2PBeneficiary(null);
+    setP2pDetails(null);
+  }
+};
 
   // Fetch expense categories from database
   const fetchExpenseCategories = async () => {
@@ -1080,6 +1091,23 @@ const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     return "bank_transfer";
   };
 
+  useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.beneficiary-suggestions-container')) {
+      setShowBeneficiarySuggestions(false);
+    }
+  };
+
+  if (showBeneficiarySuggestions) {
+    document.addEventListener('mousedown', handleClickOutside);
+  }
+
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, [showBeneficiarySuggestions]);
+
   const beneficiarySuggestions = getBeneficiarySuggestions();
   const showSuggestions = showBeneficiarySuggestions && (beneficiarySuggestions.length > 0 || beneficiarySearch.length > 0);
 
@@ -1239,36 +1267,55 @@ const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               <>
                 {/* Beneficiary Suggestions Dropdown */}
                 {showSuggestions && (
-                  <div className="relative">
-                    <div className="absolute z-10 w-full mt-1 bg-(--bg-primary) border border-(--border-color) rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      <div className="p-2 border-b border-(--border-color)">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-(--text-secondary)">RECENT & SAVED BENEFICIARIES</span>
-                          <button type="button" onClick={() => setShowBeneficiarySuggestions(false)} className="p-1 hover:bg-(--bg-secondary) rounded">
-                            <X className="h-3 w-3 text-(--text-secondary)" />
-                          </button>
-                        </div>
-                      </div>
-                      {beneficiarySuggestions.map((beneficiary) => (
-                        <div
-                          key={beneficiary.id}
-                          onClick={() => handleSelectBeneficiary(beneficiary)}
-                          className="p-3 hover:bg-(--bg-secondary) cursor-pointer transition-colors border-b border-(--border-color) last:border-0"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-(--bg-secondary) flex items-center justify-center">
-                              <User className="h-4 w-4 text-(--text-secondary)" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-(--text-primary)">{beneficiary.account_name}</p>
-                              <p className="text-xs text-(--text-secondary)">{beneficiary.account_number} • {beneficiary.bank_name}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+  <div className="beneficiary-suggestions-container relative">
+  <div className="relative">
+    <div className="absolute z-50 w-full mt-1 bg-(--bg-primary) border border-(--border-color) rounded-lg shadow-lg max-h-60 overflow-y-auto">
+      <div className="p-2 border-b border-(--border-color) sticky top-0 bg-(--bg-primary) z-10">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-(--text-secondary)">RECENT & SAVED BENEFICIARIES</span>
+          <button 
+            type="button" 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowBeneficiarySuggestions(false);
+            }} 
+            className="p-1 hover:bg-(--bg-secondary) rounded"
+          >
+            <X className="h-3 w-3 text-(--text-secondary)" />
+          </button>
+        </div>
+      </div>
+      {beneficiarySuggestions.length === 0 && beneficiarySearch.length > 0 ? (
+        <div className="p-4 text-center text-(--text-secondary) text-sm">
+          No beneficiaries found matching "{beneficiarySearch}"
+        </div>
+      ) : (
+        beneficiarySuggestions.map((beneficiary) => (
+          <div
+            key={beneficiary.id}
+            onClick={() => handleSelectBeneficiary(beneficiary)}
+            className="p-3 hover:bg-(--bg-secondary) cursor-pointer transition-colors border-b border-(--border-color) last:border-0"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-(--bg-secondary) flex items-center justify-center flex-shrink-0">
+                <User className="h-4 w-4 text-(--text-secondary)" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-(--text-primary) truncate">{beneficiary.account_name}</p>
+                <p className="text-xs text-(--text-secondary) truncate">{beneficiary.account_number} • {beneficiary.bank_name || 'Zidwell'}</p>
+              </div>
+              {beneficiary.type === 'p2p' && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 flex-shrink-0">P2P</span>
+              )}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
+</div>
+)}
 
                 {/* Saved Accounts Button */}
                 {savedAccounts.length > 0 && (
