@@ -17,7 +17,7 @@ import DashboardSidebar from "@/app/components/dashboard-component/DashboardSide
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
-import InvoiceGen from "@/app/components/Invoice-components/InvoiceGen";
+import InvoiceGen from "@/app/components/Invoice-components/InvoiceGen"; 
 import { SubscriptionPageGuard } from "@/app/components/subscription-components/SubscriptionGuard";
 import { useSubscription } from "@/app/hooks/useSubscripion";
 import { useUserContextData } from "@/app/context/userData";

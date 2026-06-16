@@ -10,8 +10,8 @@ import { useRouter } from "next/navigation";
 import { useUserContextData } from "../../context/userData";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import Loader from "../Loader";
-import InvoicePDFGenerator from "./InvoicePDFGenerator";
+
+import InvoicePDFGenerator from "@/app/components/Invoice-components/InvoicePDFGenerator";
 
 const getBase64Logo = async () => {
   const response = await fetch("/logo.png");
