@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
+import { Textarea } from "@/app/components/ui/textarea";
 import { Label } from "@/app/components/ui/label";
 
 interface Student {
@@ -40,6 +41,38 @@ interface Variant {
   price: number;
   sku?: string;
   stock?: number;
+}
+
+interface CustomField {
+  id: string;
+  label: string;
+  type: "text" | "number" | "date" | "dropdown" | "checkbox" | "paragraph";
+  required: boolean;
+  options?: string[];
+}
+
+interface LinkConfig {
+  currency: "NGN" | "USD" | "GBP" | "EUR";
+  amountMode: "fixed" | "variable";
+  active: boolean;
+  brandColor: string;
+  buttonColor: string;
+  buttonText: string;
+  successMessage: string;
+  thankYouMessage: string;
+  redirectUrl?: string;
+  altRedirectUrl?: string;
+  referenceCode?: string;
+  collectName: boolean;
+  collectEmail: boolean;
+  collectPhone: boolean;
+  nameRequired: boolean;
+  emailRequired: boolean;
+  phoneRequired: boolean;
+  customFields: CustomField[];
+  qrColor: string;
+  qrBackground: string;
+  qrFrame: "round" | "rounded" | "square";
 }
 
 interface PaymentPage {
@@ -62,7 +95,7 @@ interface PaymentPage {
     accountName: string;
     bankAccountName?: string;
   };
-  linkConfig?: any;
+  linkConfig?: LinkConfig;
 }
 
 interface PaymentPageClientProps {
@@ -72,13 +105,13 @@ interface PaymentPageClientProps {
 type PaymentOption = "full" | "installment";
 type PaymentMethodType = "virtual_account" | "card";
 
-// Payment Link Component
+// Payment Link Component - Works like other page types
 function PaymentLinkComponent({
   page,
   config,
 }: {
   page: PaymentPage;
-  config: any;
+  config: LinkConfig;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -87,12 +120,69 @@ function PaymentLinkComponent({
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountDetails, setAccountDetails] = useState("");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType>("virtual_account");
+  const [processingCardPayment, setProcessingCardPayment] = useState(false);
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [cardPaymentAmount, setCardPaymentAmount] = useState(0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const amount = config.amountMode === "fixed" ? page.price : formData.customAmount;
+  const isValidAmount = config.amountMode === "variable" ? amount && amount > 0 : page.price > 0;
 
+  const copyToClipboard = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Handle Virtual Account Payment - Just show account details (NO API CALL)
+  const handleVirtualAccountPayment = () => {
+    const virtualAccount = page.virtualAccount;
+    if (!virtualAccount) {
+      alert("Virtual account not available. Please try card payment.");
+      return;
+    }
+
+    const totalAmount = config.amountMode === "fixed" ? page.price : formData.customAmount;
+    if (!totalAmount || totalAmount <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    // Build narration from custom fields and customer info
+    let narration = page.title;
+    if (customerName) narration += ` - ${customerName}`;
+    
+    // Add custom fields to narration
+    const customFieldsText = Object.entries(formData)
+      .filter(([key]) => key !== "customAmount")
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(", ");
+    if (customFieldsText) narration += ` (${customFieldsText})`;
+
+    const details = `Bank: ${virtualAccount.bankName}
+Account Number: ${virtualAccount.accountNumber}
+Account Name: ${virtualAccount.bankAccountName || virtualAccount.accountName}
+Amount: ₦${totalAmount.toLocaleString()}
+Narration: ${narration}`;
+
+    setAccountDetails(details);
+    setShowAccountModal(true);
+  };
+
+  // Handle Card Payment - Creates checkout session
+  const handleCardPayment = async () => {
+    const totalAmount = config.amountMode === "fixed" ? page.price : formData.customAmount;
+    
+    if (!totalAmount || totalAmount <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    // Validate required fields
     const newErrors: Record<string, string> = {};
-
     if (config.collectName && config.nameRequired && !customerName) {
       newErrors.name = "Name is required";
     }
@@ -102,13 +192,19 @@ function PaymentLinkComponent({
     if (config.collectPhone && config.phoneRequired && !customerPhone) {
       newErrors.phone = "Phone number is required";
     }
+    config.customFields.forEach((field) => {
+      if (field.required && !formData[field.id]) {
+        newErrors[field.id] = `${field.label} is required`;
+      }
+    });
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    setLoading(true);
+    setProcessingCardPayment(true);
+    setShowCardModal(false);
 
     try {
       const response = await fetch("/api/payment-page/public/card-payment", {
@@ -116,11 +212,10 @@ function PaymentLinkComponent({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pageSlug: page.slug,
-          customerName: customerName,
-          customerEmail: customerEmail,
-          customerPhone: customerPhone,
-          amount:
-            config.amountMode === "fixed" ? page.price : formData.customAmount,
+          customerName: customerName || "Customer",
+          customerEmail: customerEmail || "customer@example.com",
+          customerPhone: customerPhone || "",
+          amount: totalAmount,
           metadata: {
             pageType: "link",
             pageTitle: page.title,
@@ -135,20 +230,134 @@ function PaymentLinkComponent({
       if (!response.ok) throw new Error(data.error);
 
       window.open(data.checkoutLink, "_blank", "width=500,height=700");
+
+      // Poll for payment completion
+      const checkInterval = setInterval(async () => {
+        const statusResponse = await fetch(
+          `/api/payment-page/public/status?reference=${data.orderReference}`
+        );
+        const statusData = await statusResponse.json();
+        if (statusData.payment?.status === "completed") {
+          clearInterval(checkInterval);
+          alert("Payment successful!");
+          window.location.reload();
+        }
+      }, 5000);
+
+      setTimeout(() => clearInterval(checkInterval), 300000);
     } catch (err: any) {
-      alert(err.message || "Failed to initiate payment. Please try again.");
+      alert(err.message || "Failed to initiate card payment. Please try again.");
     } finally {
-      setLoading(false);
+      setProcessingCardPayment(false);
     }
   };
 
-  const amount =
-    config.amountMode === "fixed" ? page.price : formData.customAmount;
-  const isValidAmount =
-    config.amountMode === "variable" ? amount && amount > 0 : page.price > 0;
+  const renderCustomField = (field: CustomField) => {
+    const value = formData[field.id] || "";
+    const error = errors[field.id];
+
+    switch (field.type) {
+      case "text":
+        return (
+          <div key={field.id}>
+            <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
+              {field.label} {field.required && "*"}
+            </Label>
+            <Input
+              value={value}
+              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+              className="bg-[#1a1a1a] border-gray-700 text-white"
+            />
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+          </div>
+        );
+      case "number":
+        return (
+          <div key={field.id}>
+            <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
+              {field.label} {field.required && "*"}
+            </Label>
+            <Input
+              type="number"
+              value={value}
+              onChange={(e) => setFormData({ ...formData, [field.id]: parseFloat(e.target.value) })}
+              className="bg-[#1a1a1a] border-gray-700 text-white"
+            />
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+          </div>
+        );
+      case "date":
+        return (
+          <div key={field.id}>
+            <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
+              {field.label} {field.required && "*"}
+            </Label>
+            <Input
+              type="date"
+              value={value}
+              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+              className="bg-[#1a1a1a] border-gray-700 text-white"
+            />
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+          </div>
+        );
+      case "dropdown":
+        return (
+          <div key={field.id}>
+            <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
+              {field.label} {field.required && "*"}
+            </Label>
+            <select
+              value={value}
+              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+              className="w-full h-12 rounded-lg border border-gray-700 bg-[#1a1a1a] px-3 text-white"
+            >
+              <option value="">Select...</option>
+              {field.options?.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+          </div>
+        );
+      case "checkbox":
+        return (
+          <div key={field.id} className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={value}
+              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-700 bg-[#1a1a1a]"
+            />
+            <Label className="text-sm text-gray-300">
+              {field.label} {field.required && "*"}
+            </Label>
+            {error && <p className="text-xs text-red-500">{error}</p>}
+          </div>
+        );
+      case "paragraph":
+        return (
+          <div key={field.id}>
+            <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
+              {field.label} {field.required && "*"}
+            </Label>
+            <Textarea
+              value={value}
+              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+              rows={3}
+              className="bg-[#1a1a1a] border-gray-700 text-white resize-none"
+            />
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0e0e0e]">
+      {/* Header */}
       <div className="bg-[#023528] text-white sticky top-0 z-10">
         <div className="container py-4 flex items-center gap-3">
           <button onClick={() => router.back()} className="hover:opacity-80">
@@ -186,6 +395,7 @@ function PaymentLinkComponent({
           )}
 
           <div className="p-6 space-y-6">
+            {/* Title & Description */}
             <div className="text-center">
               <h2 className="text-2xl font-bold text-white">{page.title}</h2>
               {page.description && (
@@ -193,6 +403,7 @@ function PaymentLinkComponent({
               )}
             </div>
 
+            {/* Amount Display */}
             <div className="bg-[#0e0e0e] rounded-xl p-4 text-center">
               {config.amountMode === "fixed" ? (
                 <>
@@ -231,7 +442,8 @@ function PaymentLinkComponent({
               )}
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Customer Info Fields */}
+            <div className="space-y-4">
               {config.collectName && (
                 <div>
                   <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
@@ -282,31 +494,138 @@ function PaymentLinkComponent({
                 </div>
               )}
 
-              {config.referenceCode && (
-                <div className="bg-gray-800/30 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Reference Code</p>
-                  <p className="text-sm font-mono text-[#e1bf46]">
-                    {config.referenceCode}
+              {config.customFields.map(renderCustomField)}
+            </div>
+
+            {/* Reference Code Display */}
+            {config.referenceCode && (
+              <div className="bg-gray-800/30 rounded-lg p-3 text-center">
+                <p className="text-xs text-gray-500">Reference Code</p>
+                <p className="text-sm font-mono text-[#e1bf46]">
+                  {config.referenceCode}
+                </p>
+              </div>
+            )}
+
+            {/* PAYMENT METHOD SELECTOR - Just like other page types */}
+            <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5">
+              <h3 className="font-bold text-lg mb-4 text-white">Payment Method</h3>
+
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <button
+                  onClick={() => setSelectedPaymentMethod("virtual_account")}
+                  className={`p-4 rounded-xl border-2 transition-all ${selectedPaymentMethod === "virtual_account" ? "border-[#e1bf46] bg-[#e1bf46]/10" : "border-gray-700 hover:border-[#e1bf46]/50"}`}
+                >
+                  <Banknote
+                    className={`h-6 w-6 mx-auto mb-2 ${selectedPaymentMethod === "virtual_account" ? "text-[#e1bf46]" : "text-gray-400"}`}
+                  />
+                  <p
+                    className={`font-medium ${selectedPaymentMethod === "virtual_account" ? "text-[#e1bf46]" : "text-white"}`}
+                  >
+                    Bank Transfer
                   </p>
-                </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Pay via Virtual Account
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setSelectedPaymentMethod("card")}
+                  className={`p-4 rounded-xl border-2 transition-all ${selectedPaymentMethod === "card" ? "border-[#e1bf46] bg-[#e1bf46]/10" : "border-gray-700 hover:border-[#e1bf46]/50"}`}
+                >
+                  <CreditCard
+                    className={`h-6 w-6 mx-auto mb-2 ${selectedPaymentMethod === "card" ? "text-[#e1bf46]" : "text-gray-400"}`}
+                  />
+                  <p
+                    className={`font-medium ${selectedPaymentMethod === "card" ? "text-[#e1bf46]" : "text-white"}`}
+                  >
+                    Card Payment
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Pay with Credit/Debit Card
+                  </p>
+                </button>
+              </div>
+
+              {/* Virtual Account Section - Just show account details (NO API CALL) */}
+              {selectedPaymentMethod === "virtual_account" && page.virtualAccount && (
+                <>
+                  <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800 mb-4">
+                    <p className="text-sm font-medium text-blue-400 mb-2">
+                      Transfer to this account:
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Bank:</span>
+                        <span className="font-medium text-white">
+                          {page.virtualAccount.bankName}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Account Number:</span>
+                        <span className="font-mono font-bold text-white">
+                          {page.virtualAccount.accountNumber}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Account Name:</span>
+                        <span className="font-medium text-white truncate max-w-[200px]">
+                          {page.virtualAccount.bankAccountName || page.virtualAccount.accountName}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-3 p-2 bg-yellow-900/20 rounded-lg border border-yellow-800">
+                      <p className="text-xs text-yellow-400">
+                        📝 Use <strong className="text-yellow-300">{page.title}</strong> as narration
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#0e0e0e] rounded-xl p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Total Amount:</span>
+                      <span className="text-2xl font-bold text-[#e1bf46]">
+                        ₦{(config.amountMode === "fixed" ? page.price : formData.customAmount || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <Button
+                      onClick={handleVirtualAccountPayment}
+                      disabled={!isValidAmount}
+                      className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
+                    >
+                      <Banknote className="h-4 w-4 mr-2" />
+                      Copy Account Details
+                    </Button>
+                  </div>
+                </>
               )}
 
-              <Button
-                type="submit"
-                disabled={loading || !isValidAmount}
-                className="w-full h-14 text-lg font-semibold transition-transform hover:scale-[1.02]"
-                style={{
-                  background: config.buttonColor,
-                  color: config.brandColor,
-                }}
-              >
-                {loading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <>{config.buttonText}</>
-                )}
-              </Button>
-            </form>
+              {/* Card Payment Section */}
+              {selectedPaymentMethod === "card" && (
+                <>
+                  <div className="bg-[#0e0e0e] rounded-xl p-4 mb-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Total Amount:</span>
+                      <span className="text-2xl font-bold text-[#e1bf46]">
+                        ₦{(config.amountMode === "fixed" ? page.price : formData.customAmount || 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={() => {
+                      setCardPaymentAmount(config.amountMode === "fixed" ? page.price : formData.customAmount || 0);
+                      setShowCardModal(true);
+                    }}
+                    disabled={!isValidAmount}
+                    className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold py-6 text-lg"
+                  >
+                    <CreditCard className="h-5 w-5 mr-2" />
+                    Pay with Card
+                  </Button>
+                </>
+              )}
+            </div>
 
             <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
               <Shield className="h-3.5 w-3.5" /> Secured by Zidwell
@@ -314,6 +633,82 @@ function PaymentLinkComponent({
           </div>
         </motion.div>
       </div>
+
+      {/* Card Payment Modal */}
+      {showCardModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-white">Complete Payment</h3>
+              <button
+                onClick={() => setShowCardModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="bg-[#0e0e0e] rounded-xl p-3 mb-4">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Amount:</span>
+                <span className="text-xl font-bold text-[#e1bf46]">
+                  ₦{cardPaymentAmount.toLocaleString()}
+                </span>
+              </div>
+            </div>
+            <div className="bg-blue-900/20 rounded-xl p-3 mb-4">
+              <p className="text-sm text-blue-400">
+                You'll be redirected to our secure payment gateway to complete
+                your transaction.
+              </p>
+            </div>
+            <Button
+              onClick={handleCardPayment}
+              disabled={processingCardPayment}
+              className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold py-3"
+            >
+              {processingCardPayment ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CreditCard className="h-4 w-4 mr-2" />
+              )}
+              {processingCardPayment ? "Processing..." : "Proceed to Payment"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Virtual Account Details Modal */}
+      {showAccountModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-white">
+                Bank Transfer Details
+              </h3>
+              <button
+                onClick={() => setShowAccountModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="bg-[#0e0e0e] rounded-xl p-4 mb-4 whitespace-pre-wrap font-mono text-sm text-gray-300">
+              {accountDetails}
+            </div>
+            <Button
+              onClick={() => copyToClipboard(accountDetails)}
+              className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
+            >
+              {copied ? (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              ) : (
+                <Copy className="h-4 w-4 mr-2" />
+              )}
+              {copied ? "Copied!" : "Copy Details"}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

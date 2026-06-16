@@ -139,7 +139,7 @@ const CreatePaymentLink = () => {
     try {
       const finalSlug = slug || generateSlug();
       
-      // Prepare metadata with link configuration
+      // Prepare metadata with link configuration - this will be stored in the database
       const metadata = {
         pageType: "link",
         linkConfig: {
@@ -168,12 +168,13 @@ const CreatePaymentLink = () => {
       };
 
       // Use the same create API as other page types
+      // The backend will automatically create a virtual account for this page
       const pageData = {
         title: title,
         slug: finalSlug,
         description: description,
         coverImage: null, // No cover image for payment links
-        logo: logo, // Logo can be uploaded or use profile picture
+        logo: logo || userData?.profilePicture || null, // Use uploaded logo or profile picture
         productImages: [],
         priceType: config.amountMode === "variable" ? "open" : "fixed",
         price: Number(price) || 0,
@@ -217,7 +218,7 @@ const CreatePaymentLink = () => {
 
   return (
     <div className="min-h-screen bg-[#0e0e0e]">
-      <nav className=" bg-[#0e0e0e]/80 backdrop-blur-lg border-b border-gray-800">
+      <nav className="sticky top-0 z-50 bg-[#0e0e0e]/80 backdrop-blur-lg border-b border-gray-800">
         <div className="container max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
           <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#e1bf46] transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back
