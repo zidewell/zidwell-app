@@ -168,11 +168,15 @@ export default function Transfer() {
   const [recentBeneficiaries, setRecentBeneficiaries] = useState<RecentBeneficiary[]>([]);
   const [showBeneficiarySuggestions, setShowBeneficiarySuggestions] = useState(false);
   const [beneficiarySearch, setBeneficiarySearch] = useState("");
+  const [matchingBeneficiaries, setMatchingBeneficiaries] = useState<RecentBeneficiary[]>([]);
 
   // Polling refs
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const alertShownRef = useRef<boolean>(false);
   const currentTransactionIdRef = useRef<string | null>(null);
+
+  // Ref for beneficiary suggestions container
+  const beneficiaryContainerRef = useRef<HTMLDivElement>(null);
 
   const formatNumber = (value: number) =>
     new Intl.NumberFormat("en-US", {
@@ -199,6 +203,7 @@ export default function Transfer() {
     setBeneficiarySearch("");
     setShowBeneficiarySuggestions(false);
     setP2pDetails(null);
+    setMatchingBeneficiaries([]);
   };
 
   const stopPolling = () => {
@@ -403,8 +408,8 @@ export default function Transfer() {
     });
   };
 
-  // Get filtered beneficiary suggestions for both P2P and bank
-  const getBeneficiarySuggestions = () => {
+  // Get all beneficiaries (for matching)
+  const getAllBeneficiaries = () => {
     const allBeneficiaries: RecentBeneficiary[] = [
       ...recentBeneficiaries,
       ...savedAccounts.map(acc => ({
@@ -433,15 +438,22 @@ export default function Transfer() {
     // Sort by last_used (most recent first)
     unique.sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime());
 
+    return unique;
+  };
+
+  // Get filtered beneficiary suggestions based on search
+  const getBeneficiarySuggestions = () => {
+    const all = getAllBeneficiaries();
+    
     // Filter by search term
     if (beneficiarySearch) {
-      return unique.filter(b =>
+      return all.filter(b =>
         b.account_name.toLowerCase().includes(beneficiarySearch.toLowerCase()) ||
         b.account_number.includes(beneficiarySearch)
       );
     }
 
-    return unique.slice(0, 5);
+    return all.slice(0, 5);
   };
 
   const handleSelectBeneficiary = (beneficiary: RecentBeneficiary) => {
@@ -455,6 +467,7 @@ export default function Transfer() {
       }
       setShowBeneficiarySuggestions(false);
       setBeneficiarySearch("");
+      setMatchingBeneficiaries([]);
     } else {
       setRecepientAcc(beneficiary.account_number);
       setP2pDetails({
@@ -463,48 +476,77 @@ export default function Transfer() {
       });
       setShowBeneficiarySuggestions(false);
       setBeneficiarySearch("");
+      setMatchingBeneficiaries([]);
     }
   };
 
-const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const rawValue = e.target.value;
-  const numericValue = rawValue.replace(/\D/g, '');
-  const limitedValue = numericValue.slice(0, 10);
-  
-  setAccountNumber(limitedValue);
-  setBeneficiarySearch(limitedValue);
-  
-  // Only show suggestions if there's input and we're not selecting a saved account
-  if (limitedValue.length > 0 && !selectedSavedAccount) {
-    setShowBeneficiarySuggestions(true);
-  } else if (limitedValue.length === 0) {
-    setShowBeneficiarySuggestions(false);
-  }
-  
-  if (selectedSavedAccount && limitedValue !== selectedSavedAccount.account_number) {
-    setSelectedSavedAccount(null);
-    setAccountName("");
-    setBankCode("");
-    setBankName("");
-  }
-};
+  const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    const numericValue = rawValue.replace(/\D/g, '');
+    const limitedValue = numericValue.slice(0, 10);
+    
+    setAccountNumber(limitedValue);
+    setBeneficiarySearch(limitedValue);
+    
+    // Only show suggestions if there's input and we're not selecting a saved account
+    if (limitedValue.length > 0 && !selectedSavedAccount) {
+      // Find matching beneficiaries
+      const allBeneficiaries = getAllBeneficiaries();
+      const matches = allBeneficiaries.filter(b => 
+        b.account_number.includes(limitedValue) || 
+        b.account_name.toLowerCase().includes(limitedValue.toLowerCase())
+      );
+      
+      if (matches.length > 0) {
+        setMatchingBeneficiaries(matches);
+        setShowBeneficiarySuggestions(true);
+      } else {
+        setMatchingBeneficiaries([]);
+        setShowBeneficiarySuggestions(false);
+      }
+    } else if (limitedValue.length === 0) {
+      setShowBeneficiarySuggestions(false);
+      setMatchingBeneficiaries([]);
+    }
+    
+    if (selectedSavedAccount && limitedValue !== selectedSavedAccount.account_number) {
+      setSelectedSavedAccount(null);
+      setAccountName("");
+      setBankCode("");
+      setBankName("");
+    }
+  };
 
-const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const newValue = e.target.value;
-  setRecepientAcc(newValue);
-  setBeneficiarySearch(newValue);
-  
-  if (newValue.length > 0 && !selectedSavedP2PBeneficiary) {
-    setShowBeneficiarySuggestions(true);
-  } else if (newValue.length === 0) {
-    setShowBeneficiarySuggestions(false);
-  }
-  
-  if (selectedSavedP2PBeneficiary && newValue !== selectedSavedP2PBeneficiary.account_number) {
-    setSelectedSavedP2PBeneficiary(null);
-    setP2pDetails(null);
-  }
-};
+  const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setRecepientAcc(newValue);
+    setBeneficiarySearch(newValue);
+    
+    if (newValue.length > 0 && !selectedSavedP2PBeneficiary) {
+      // Find matching beneficiaries
+      const allBeneficiaries = getAllBeneficiaries();
+      const matches = allBeneficiaries.filter(b => 
+        b.account_number.includes(newValue) || 
+        b.account_name.toLowerCase().includes(newValue.toLowerCase())
+      );
+      
+      if (matches.length > 0) {
+        setMatchingBeneficiaries(matches);
+        setShowBeneficiarySuggestions(true);
+      } else {
+        setMatchingBeneficiaries([]);
+        setShowBeneficiarySuggestions(false);
+      }
+    } else if (newValue.length === 0) {
+      setShowBeneficiarySuggestions(false);
+      setMatchingBeneficiaries([]);
+    }
+    
+    if (selectedSavedP2PBeneficiary && newValue !== selectedSavedP2PBeneficiary.account_number) {
+      setSelectedSavedP2PBeneficiary(null);
+      setP2pDetails(null);
+    }
+  };
 
   // Fetch expense categories from database
   const fetchExpenseCategories = async () => {
@@ -659,6 +701,30 @@ const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     };
   }, []);
 
+  // Click outside handler for beneficiary suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // Check if click is outside the beneficiary suggestions container and input
+      if (beneficiaryContainerRef.current && !beneficiaryContainerRef.current.contains(target)) {
+        // Check if click is on an input field that should keep the dropdown open
+        const isInputTrigger = target.closest('.beneficiary-input-trigger');
+        if (!isInputTrigger) {
+          setShowBeneficiarySuggestions(false);
+          setMatchingBeneficiaries([]);
+        }
+      }
+    };
+
+    if (showBeneficiarySuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showBeneficiarySuggestions]);
+
   useEffect(() => {
     if (!userData?.id) return;
 
@@ -806,6 +872,7 @@ const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setShowSavedAccounts(false);
     setSaveAccount(false);
     setShowBeneficiarySuggestions(false);
+    setMatchingBeneficiaries([]);
   };
 
   const handleSelectSavedP2PBeneficiary = (beneficiary: SavedP2PBeneficiary) => {
@@ -818,6 +885,7 @@ const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setShowSavedP2PBeneficiaries(false);
     setSaveP2PBeneficiary(false);
     setShowBeneficiarySuggestions(false);
+    setMatchingBeneficiaries([]);
   };
 
   const saveAccountToProfile = async () => {
@@ -1091,25 +1159,8 @@ const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     return "bank_transfer";
   };
 
-  useEffect(() => {
-  const handleClickOutside = (event: MouseEvent) => {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.beneficiary-suggestions-container')) {
-      setShowBeneficiarySuggestions(false);
-    }
-  };
-
-  if (showBeneficiarySuggestions) {
-    document.addEventListener('mousedown', handleClickOutside);
-  }
-
-  return () => {
-    document.removeEventListener('mousedown', handleClickOutside);
-  };
-}, [showBeneficiarySuggestions]);
-
-  const beneficiarySuggestions = getBeneficiarySuggestions();
-  const showSuggestions = showBeneficiarySuggestions && (beneficiarySuggestions.length > 0 || beneficiarySearch.length > 0);
+  // Use matchingBeneficiaries for display
+  const showSuggestions = showBeneficiarySuggestions && matchingBeneficiaries.length > 0;
 
   return (
     <>
@@ -1222,6 +1273,7 @@ const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) =>
                 setSaveP2PBeneficiary(false);
                 setShowBeneficiarySuggestions(false);
                 setBeneficiarySearch("");
+                setMatchingBeneficiaries([]);
               }}>
                 <SelectTrigger className="bg-(--bg-primary) border-(--border-color) text-(--text-primary)">
                   <SelectValue placeholder="Select transfer type" />
@@ -1265,57 +1317,50 @@ const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) =>
             {/* Other Bank */}
             {transferType === "other-bank" && (
               <>
-                {/* Beneficiary Suggestions Dropdown */}
+                {/* Beneficiary Suggestions Dropdown - Only shows when there are matches */}
                 {showSuggestions && (
-  <div className="beneficiary-suggestions-container relative">
-  <div className="relative">
-    <div className="absolute z-50 w-full mt-1 bg-(--bg-primary) border border-(--border-color) rounded-lg shadow-lg max-h-60 overflow-y-auto">
-      <div className="p-2 border-b border-(--border-color) sticky top-0 bg-(--bg-primary) z-10">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-(--text-secondary)">RECENT & SAVED BENEFICIARIES</span>
-          <button 
-            type="button" 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowBeneficiarySuggestions(false);
-            }} 
-            className="p-1 hover:bg-(--bg-secondary) rounded"
-          >
-            <X className="h-3 w-3 text-(--text-secondary)" />
-          </button>
-        </div>
-      </div>
-      {beneficiarySuggestions.length === 0 && beneficiarySearch.length > 0 ? (
-        <div className="p-4 text-center text-(--text-secondary) text-sm">
-          No beneficiaries found matching "{beneficiarySearch}"
-        </div>
-      ) : (
-        beneficiarySuggestions.map((beneficiary) => (
-          <div
-            key={beneficiary.id}
-            onClick={() => handleSelectBeneficiary(beneficiary)}
-            className="p-3 hover:bg-(--bg-secondary) cursor-pointer transition-colors border-b border-(--border-color) last:border-0"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-(--bg-secondary) flex items-center justify-center flex-shrink-0">
-                <User className="h-4 w-4 text-(--text-secondary)" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-(--text-primary) truncate">{beneficiary.account_name}</p>
-                <p className="text-xs text-(--text-secondary) truncate">{beneficiary.account_number} • {beneficiary.bank_name || 'Zidwell'}</p>
-              </div>
-              {beneficiary.type === 'p2p' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 flex-shrink-0">P2P</span>
-              )}
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  </div>
-</div>
-)}
+                  <div ref={beneficiaryContainerRef} className="beneficiary-suggestions-container relative z-50">
+                    <div className="absolute w-full mt-1 bg-(--bg-primary) border border-(--border-color) rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <div className="p-2 border-b border-(--border-color) sticky top-0 bg-(--bg-primary) z-10">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-(--text-secondary)">MATCHING BENEFICIARIES</span>
+                          <button 
+                            type="button" 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setShowBeneficiarySuggestions(false);
+                              setMatchingBeneficiaries([]);
+                            }} 
+                            className="p-1 hover:bg-(--bg-secondary) rounded"
+                          >
+                            <X className="h-3 w-3 text-(--text-secondary)" />
+                          </button>
+                        </div>
+                      </div>
+                      {matchingBeneficiaries.map((beneficiary) => (
+                        <div
+                          key={beneficiary.id}
+                          onClick={() => handleSelectBeneficiary(beneficiary)}
+                          className="p-3 hover:bg-(--bg-secondary) cursor-pointer transition-colors border-b border-(--border-color) last:border-0"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-(--bg-secondary) flex items-center justify-center flex-shrink-0">
+                              <User className="h-4 w-4 text-(--text-secondary)" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-(--text-primary) truncate">{beneficiary.account_name}</p>
+                              <p className="text-xs text-(--text-secondary) truncate">{beneficiary.account_number} • {beneficiary.bank_name || 'Zidwell'}</p>
+                            </div>
+                            {beneficiary.type === 'p2p' && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 flex-shrink-0">P2P</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Saved Accounts Button */}
                 {savedAccounts.length > 0 && (
@@ -1374,21 +1419,34 @@ const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) =>
                   {errors.otherBank && <p className="text-red-600 text-sm">{errors.otherBank}</p>}
                 </div>
 
-              <div className="space-y-1 relative">
-  <Label className="text-(--text-primary)">Account Number</Label>
-  <Input
-    type="text"
-    inputMode="numeric"
-    pattern="[0-9]*"
-    maxLength={10}
-    value={accountNumber}
-    onChange={handleAccountNumberChange}
-    onFocus={() => setShowBeneficiarySuggestions(true)}
-    placeholder="10-digit account number"
-    className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary) [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-  />
-  {errors.accountNumber && <p className="text-red-600 text-sm">{errors.accountNumber}</p>}
-</div>
+                <div className="space-y-1 relative beneficiary-input-trigger">
+                  <Label className="text-(--text-primary)">Account Number</Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={10}
+                    value={accountNumber}
+                    onChange={handleAccountNumberChange}
+                    onFocus={() => {
+                      // Only show suggestions on focus if there's a matching beneficiary
+                      if (accountNumber.length > 0) {
+                        const allBeneficiaries = getAllBeneficiaries();
+                        const matches = allBeneficiaries.filter(b => 
+                          b.account_number.includes(accountNumber) || 
+                          b.account_name.toLowerCase().includes(accountNumber.toLowerCase())
+                        );
+                        if (matches.length > 0) {
+                          setMatchingBeneficiaries(matches);
+                          setShowBeneficiarySuggestions(true);
+                        }
+                      }
+                    }}
+                    placeholder="10-digit account number"
+                    className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary) [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  {errors.accountNumber && <p className="text-red-600 text-sm">{errors.accountNumber}</p>}
+                </div>
 
                 {lookupLoading && <p className="text-(--color-accent-yellow) text-sm flex items-center gap-2"><Loader2 className="animate-spin" /> Verifying account...</p>}
                 {accountName && !errors.accountNumber && (
@@ -1411,33 +1469,44 @@ const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) =>
             {/* P2P */}
             {transferType === "p2p" && (
               <>
-                {/* Beneficiary Suggestions Dropdown for P2P */}
+                {/* Beneficiary Suggestions Dropdown - Only shows when there are matches */}
                 {showSuggestions && (
-                  <div className="relative">
-                    <div className="absolute z-10 w-full mt-1 bg-(--bg-primary) border border-(--border-color) rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      <div className="p-2 border-b border-(--border-color)">
+                  <div ref={beneficiaryContainerRef} className="beneficiary-suggestions-container relative z-50">
+                    <div className="absolute w-full mt-1 bg-(--bg-primary) border border-(--border-color) rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <div className="p-2 border-b border-(--border-color) sticky top-0 bg-(--bg-primary) z-10">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-(--text-secondary)">RECENT & SAVED BENEFICIARIES</span>
-                          <button type="button" onClick={() => setShowBeneficiarySuggestions(false)} className="p-1 hover:bg-(--bg-secondary) rounded">
+                          <span className="text-xs font-medium text-(--text-secondary)">MATCHING BENEFICIARIES</span>
+                          <button 
+                            type="button" 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setShowBeneficiarySuggestions(false);
+                              setMatchingBeneficiaries([]);
+                            }} 
+                            className="p-1 hover:bg-(--bg-secondary) rounded"
+                          >
                             <X className="h-3 w-3 text-(--text-secondary)" />
                           </button>
                         </div>
                       </div>
-                      {beneficiarySuggestions.map((beneficiary) => (
+                      {matchingBeneficiaries.map((beneficiary) => (
                         <div
                           key={beneficiary.id}
                           onClick={() => handleSelectBeneficiary(beneficiary)}
                           className="p-3 hover:bg-(--bg-secondary) cursor-pointer transition-colors border-b border-(--border-color) last:border-0"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-(--bg-secondary) flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-(--bg-secondary) flex items-center justify-center flex-shrink-0">
                               <User className="h-4 w-4 text-(--text-secondary)" />
                             </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-(--text-primary)">{beneficiary.account_name}</p>
-                              <p className="text-xs text-(--text-secondary)">{beneficiary.account_number} • {beneficiary.bank_name || 'Zidwell'}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-(--text-primary) truncate">{beneficiary.account_name}</p>
+                              <p className="text-xs text-(--text-secondary) truncate">{beneficiary.account_number} • {beneficiary.bank_name || 'Zidwell'}</p>
                             </div>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">P2P</span>
+                            {beneficiary.type === 'p2p' && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 flex-shrink-0">P2P</span>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -1473,13 +1542,26 @@ const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) =>
                   </div>
                 )}
 
-                <div className="space-y-1 relative">
+                <div className="space-y-1 relative beneficiary-input-trigger">
                   <Label className="text-(--text-primary)">Account Number (Zidwell User)</Label>
                   <Input
                     type="text"
                     value={recepientAcc}
                     onChange={handleP2PAccountNumberChange}
-                    onFocus={() => setShowBeneficiarySuggestions(true)}
+                    onFocus={() => {
+                      // Only show suggestions on focus if there's a matching beneficiary
+                      if (recepientAcc.length > 0) {
+                        const allBeneficiaries = getAllBeneficiaries();
+                        const matches = allBeneficiaries.filter(b => 
+                          b.account_number.includes(recepientAcc) || 
+                          b.account_name.toLowerCase().includes(recepientAcc.toLowerCase())
+                        );
+                        if (matches.length > 0) {
+                          setMatchingBeneficiaries(matches);
+                          setShowBeneficiarySuggestions(true);
+                        }
+                      }
+                    }}
                     placeholder="Enter account number"
                     className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)"
                   />
