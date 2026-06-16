@@ -200,38 +200,41 @@ const getPlaceholderText = (
 };
 
 // Function to validate title for virtual account naming (matches backend logic)
-const validateTitleForVirtualAccount = (title: string, className?: string): { isValid: boolean; message: string; cleanedName: string } => {
+const validateTitleForVirtualAccount = (
+  title: string,
+  className?: string,
+): { isValid: boolean; message: string; cleanedName: string } => {
   let fullName = title;
   if (className && className.trim()) {
     fullName = `${className} ${title}`;
   }
-  
+
   let cleaned = fullName.toUpperCase();
-  cleaned = cleaned.replace(/[^A-Z0-9\s]/g, '');
-  cleaned = cleaned.replace(/\s+/g, ' ').trim();
-  
+  cleaned = cleaned.replace(/[^A-Z0-9\s]/g, "");
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+
   const length = cleaned.length;
-  
+
   if (length < 8) {
     return {
       isValid: false,
       message: `Account name will be "${cleaned}" (${length} chars). Minimum 8 characters required. Please make your title longer.`,
-      cleanedName: cleaned
+      cleanedName: cleaned,
     };
   }
-  
+
   if (length > 64) {
     return {
       isValid: false,
       message: `Account name will be "${cleaned.substring(0, 50)}..." (${length} chars). Maximum 64 characters allowed. Please shorten your title.`,
-      cleanedName: cleaned.substring(0, 64)
+      cleanedName: cleaned.substring(0, 64),
     };
   }
-  
+
   return {
     isValid: true,
     message: `✓ Account name will be "${cleaned}" (${length} chars)`,
-    cleanedName: cleaned
+    cleanedName: cleaned,
   };
 };
 
@@ -265,7 +268,10 @@ const triggerConfetti = () => {
   }, 150);
 };
 
-const copyToClipboard = async (text: string, setCopied: (value: boolean) => void) => {
+const copyToClipboard = async (
+  text: string,
+  setCopied: (value: boolean) => void,
+) => {
   try {
     await navigator.clipboard.writeText(text);
     setCopied(true);
@@ -274,6 +280,17 @@ const copyToClipboard = async (text: string, setCopied: (value: boolean) => void
     console.error("Failed to copy:", err);
   }
 };
+
+// Define product types that can use product images
+const PRODUCT_TYPES_WITH_IMAGES: PageType[] = [
+  "physical",
+  "digital",
+  "services",
+  "real_estate",
+  "stock",
+  "savings",
+  "crypto",
+];
 
 const CreatePage = () => {
   const router = useRouter();
@@ -288,14 +305,17 @@ const CreatePage = () => {
   const [dynamicId, setDynamicId] = useState(() =>
     Math.floor(100 + Math.random() * 900).toString(),
   );
-  
-  const [titleValidation, setTitleValidation] = useState<{ isValid: boolean; message: string }>({ isValid: true, message: "" });
+
+  const [titleValidation, setTitleValidation] = useState<{
+    isValid: boolean;
+    message: string;
+  }>({ isValid: true, message: "" });
 
   // Image state - store base64 images, will be uploaded on submit
   const [coverImageBase64, setCoverImageBase64] = useState<string | null>(null);
   const [logoBase64, setLogoBase64] = useState<string | null>(null);
   const [productImagesBase64, setProductImagesBase64] = useState<string[]>([]);
-  
+
   // Preview states
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -330,7 +350,9 @@ const CreatePage = () => {
   const [requiredFields, setRequiredFields] = useState<string[]>([]);
 
   // Donation fields
-  const [suggestedAmounts, setSuggestedAmounts] = useState<number[]>([5000, 10000, 20000]);
+  const [suggestedAmounts, setSuggestedAmounts] = useState<number[]>([
+    5000, 10000, 20000,
+  ]);
   const [showDonorList, setShowDonorList] = useState(false);
   const [allowDonorMessage, setAllowDonorMessage] = useState(true);
   const [requireDonorName, setRequireDonorName] = useState(true);
@@ -354,7 +376,9 @@ const CreatePage = () => {
   const [expectedReturn, setExpectedReturn] = useState("");
   const [tenure, setTenure] = useState("");
   const [charges, setCharges] = useState("");
-  const [paymentFrequency, setPaymentFrequency] = useState<"one-time" | "recurring">("one-time");
+  const [paymentFrequency, setPaymentFrequency] = useState<
+    "one-time" | "recurring"
+  >("one-time");
   const [termsAndConditions, setTermsAndConditions] = useState("");
   const [riskExplanation, setRiskExplanation] = useState("");
 
@@ -362,7 +386,9 @@ const CreatePage = () => {
   const [cacCertificate, setCacCertificate] = useState("");
   const [taxClearance, setTaxClearance] = useState("");
   const [explainerVideo, setExplainerVideo] = useState("");
-  const [socialLinks, setSocialLinks] = useState<{ platform: string; url: string }[]>([]);
+  const [socialLinks, setSocialLinks] = useState<
+    { platform: string; url: string }[]
+  >([]);
   const [website, setWebsite] = useState("");
   const [contactInfo, setContactInfo] = useState("");
 
@@ -382,7 +408,10 @@ const CreatePage = () => {
   // Validate title
   useEffect(() => {
     if (form.title) {
-      const validation = validateTitleForVirtualAccount(form.title, pageType === "school" ? schoolClass : undefined);
+      const validation = validateTitleForVirtualAccount(
+        form.title,
+        pageType === "school" ? schoolClass : undefined,
+      );
       setTitleValidation(validation);
     } else {
       setTitleValidation({ isValid: true, message: "" });
@@ -497,7 +526,8 @@ const CreatePage = () => {
   };
 
   const handleZoomIn = () => setImageScale((prev) => Math.min(prev + 0.1, 2));
-  const handleZoomOut = () => setImageScale((prev) => Math.max(prev - 0.1, 0.5));
+  const handleZoomOut = () =>
+    setImageScale((prev) => Math.max(prev - 0.1, 0.5));
   const resetImagePosition = () => {
     setImagePosition({ x: 50, y: 50 });
     setImageScale(1);
@@ -558,7 +588,7 @@ const CreatePage = () => {
 
   const handleImageSelect = (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: "cover" | "logo" | "product"
+    type: "cover" | "logo" | "product",
   ) => {
     const files = e.target.files;
     if (!files) return;
@@ -627,7 +657,8 @@ const CreatePage = () => {
     if (!form.title.trim() || !pageType) return false;
     if (!titleValidation.isValid) return false;
     if (pageType === "school") {
-      const hasValidFeeItems = feeBreakdown.length > 0 && feeBreakdown.some((item) => item.amount > 0);
+      const hasValidFeeItems =
+        feeBreakdown.length > 0 && feeBreakdown.some((item) => item.amount > 0);
       if (!hasValidFeeItems) return false;
     }
     if (form.priceType === "installment") {
@@ -644,6 +675,12 @@ const CreatePage = () => {
   };
 
   const handleCreate = async () => {
+    // Early return for link type
+    if (pageType === "link") {
+      router.push("/dashboard/services/payment/create-link");
+      return;
+    }
+
     if (!canCreate() || !pageType) return;
     setIsCreating(true);
 
@@ -657,7 +694,9 @@ const CreatePage = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: coverImageBase64, type: "covers" }),
-        }).then(res => res.json()).then(data => data.url);
+        })
+          .then((res) => res.json())
+          .then((data) => data.url);
       }
 
       // Upload logo if uploaded by user (not profile picture)
@@ -666,34 +705,42 @@ const CreatePage = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: logoBase64, type: "logos" }),
-        }).then(res => res.json()).then(data => data.url);
+        })
+          .then((res) => res.json())
+          .then((data) => data.url);
       } else if (userData?.profilePicture) {
         uploadPromises.logo = Promise.resolve(userData.profilePicture);
       }
 
       // Upload product images
-      const productUploadPromises = productImagesBase64.map(img =>
+      const productUploadPromises = productImagesBase64.map((img) =>
         fetch(`/api/payment-page/upload-image`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: img, type: "products" }),
-        }).then(res => res.json()).then(data => data.url)
+        })
+          .then((res) => res.json())
+          .then((data) => data.url),
       );
 
-      const [uploadedCover, uploadedLogo, ...uploadedProducts] = await Promise.all([
-        uploadPromises.cover || Promise.resolve(null),
-        uploadPromises.logo || Promise.resolve(null),
-        ...productUploadPromises,
-      ]);
+      const [uploadedCover, uploadedLogo, ...uploadedProducts] =
+        await Promise.all([
+          uploadPromises.cover || Promise.resolve(null),
+          uploadPromises.logo || Promise.resolve(null),
+          ...productUploadPromises,
+        ]);
 
-      // Determine final cover image (fallback to logo if no cover)
       let finalCoverImage = uploadedCover;
-      const pageTypesWithProductImages = ["physical", "digital", "services", "real_estate", "stock", "savings", "crypto"];
       
-      if (!finalCoverImage && uploadedProducts.length > 0 && pageTypesWithProductImages.includes(pageType)) {
-        finalCoverImage = uploadedProducts[0];
+      // Use the imported constant - now pageType is guaranteed not to be "link" due to early return
+      if (!finalCoverImage && uploadedProducts.length > 0) {
+        const isProductType = PRODUCT_TYPES_WITH_IMAGES.includes(pageType as PageType);
+        if (isProductType) {
+          finalCoverImage = uploadedProducts[0];
+        }
       }
-      
+
+      // Fallback to logo if no cover and no product images
       if (!finalCoverImage && uploadedLogo) {
         finalCoverImage = uploadedLogo;
       }
@@ -728,7 +775,7 @@ const CreatePage = () => {
       } else if (pageType === "services") {
         metadata.bookingEnabled = bookingEnabled;
         metadata.customerNoteEnabled = customerNoteEnabled;
-      } else if (isInvestment) {
+      } else if (isInvestmentType(pageType)) {
         metadata.minimumAmount = Number(minimumAmount);
         metadata.expectedReturn = expectedReturn;
         metadata.tenure = tenure;
@@ -746,7 +793,9 @@ const CreatePage = () => {
 
       const finalSlug = generateSlug();
       let finalPrice = form.price;
-      if (pageType === "school") finalPrice = calculateFeeBreakdownTotal().toString();
+      if (pageType === "school") {
+        finalPrice = calculateFeeBreakdownTotal().toString();
+      }
 
       const pageData = {
         title: form.title,
@@ -754,10 +803,13 @@ const CreatePage = () => {
         description: form.description,
         coverImage: finalCoverImage,
         logo: uploadedLogo,
-        productImages: uploadedProducts.filter(url => url !== null),
+        productImages: uploadedProducts.filter((url) => url !== null),
         priceType: pageType === "donation" ? "open" : form.priceType,
         price: pageType === "donation" ? 0 : Number(finalPrice),
-        installmentCount: form.priceType === "installment" ? Number(form.installmentCount) : undefined,
+        installmentCount:
+          form.priceType === "installment"
+            ? Number(form.installmentCount)
+            : undefined,
         feeMode: "bearer",
         pageType: pageType,
         metadata: metadata,
@@ -790,12 +842,18 @@ const CreatePage = () => {
   const copyPageUrl = () => copyToClipboard(pageUrl, setCopied);
   const previewPage = () => router.push(`/pay/${createdSlug}`);
 
-  const currentImageSpecs = pageType ? IMAGE_SPECS[pageType] : IMAGE_SPECS.digital;
+  const currentImageSpecs = pageType
+    ? IMAGE_SPECS[pageType]
+    : IMAGE_SPECS.digital;
 
+  // If no page type selected, show the selector
   if (!pageType) {
     return (
       <div className="min-h-screen dark:bg-[#0e0e0e]">
-        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <DashboardSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
         <div className="lg:pl-72 min-h-screen flex flex-col">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -822,7 +880,10 @@ const CreatePage = () => {
 
   return (
     <div className="min-h-screen dark:bg-[#0e0e0e]">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -835,18 +896,32 @@ const CreatePage = () => {
             </button>
 
             <div className="pb-32">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-                
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-8"
+              >
                 {/* Cover Image */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <Label className="text-sm font-semibold text-(--text-primary)">
-                      Cover Image <span className="text-(--text-secondary)">(Optional)</span>
+                      Cover Image{" "}
+                      <span className="text-(--text-secondary)">
+                        (Optional)
+                      </span>
                     </Label>
-                    <div className="text-xs text-(--text-secondary)">Recommended: {currentImageSpecs.description}</div>
+                    <div className="text-xs text-(--text-secondary)">
+                      Recommended: {currentImageSpecs.description}
+                    </div>
                   </div>
 
-                  <input type="file" ref={coverRef} className="hidden" accept="image/*" onChange={(e) => handleImageSelect(e, "cover")} />
+                  <input
+                    type="file"
+                    ref={coverRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => handleImageSelect(e, "cover")}
+                  />
 
                   {coverPreview ? (
                     <div
@@ -854,7 +929,10 @@ const CreatePage = () => {
                       className="relative overflow-hidden rounded-2xl cursor-move group"
                       style={{ height: "280px", backgroundColor: "#0a0a0a" }}
                       onMouseEnter={() => setShowImageControls(true)}
-                      onMouseLeave={() => { setShowImageControls(false); setIsDragging(false); }}
+                      onMouseLeave={() => {
+                        setShowImageControls(false);
+                        setIsDragging(false);
+                      }}
                       onWheel={handleWheel}
                     >
                       <img
@@ -865,7 +943,9 @@ const CreatePage = () => {
                         style={{
                           objectPosition: `${imagePosition.x}% ${imagePosition.y}%`,
                           transform: `scale(${imageScale})`,
-                          transition: isDragging ? "none" : "transform 0.2s ease, object-position 0.2s ease",
+                          transition: isDragging
+                            ? "none"
+                            : "transform 0.2s ease, object-position 0.2s ease",
                         }}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
@@ -876,13 +956,45 @@ const CreatePage = () => {
                       {showImageControls && (
                         <>
                           <div className="absolute bottom-4 right-4 flex gap-2 bg-black/70 rounded-lg p-2 backdrop-blur-sm z-10">
-                            <button onClick={handleZoomOut} className="p-1.5 hover:bg-white/20 rounded" title="Zoom Out"><ZoomOut className="h-4 w-4" /></button>
-                            <button onClick={resetImagePosition} className="p-1.5 hover:bg-white/20 rounded" title="Reset"><Move className="h-4 w-4" /></button>
-                            <button onClick={handleZoomIn} className="p-1.5 hover:bg-white/20 rounded" title="Zoom In"><ZoomIn className="h-4 w-4" /></button>
-                            <button onClick={() => { setCoverImageBase64(null); setCoverPreview(null); resetImagePosition(); }} className="p-1.5 hover:bg-white/20 rounded" title="Remove"><X className="h-4 w-4" /></button>
+                            <button
+                              onClick={handleZoomOut}
+                              className="p-1.5 hover:bg-white/20 rounded"
+                              title="Zoom Out"
+                            >
+                              <ZoomOut className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={resetImagePosition}
+                              className="p-1.5 hover:bg-white/20 rounded"
+                              title="Reset"
+                            >
+                              <Move className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={handleZoomIn}
+                              className="p-1.5 hover:bg-white/20 rounded"
+                              title="Zoom In"
+                            >
+                              <ZoomIn className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setCoverImageBase64(null);
+                                setCoverPreview(null);
+                                resetImagePosition();
+                              }}
+                              className="p-1.5 hover:bg-white/20 rounded"
+                              title="Remove"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
                           </div>
-                          <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">{currentImageSpecs.description}</div>
-                          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm whitespace-nowrap">Drag to reposition • Scroll to zoom</div>
+                          <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+                            {currentImageSpecs.description}
+                          </div>
+                          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
+                            Drag to reposition • Scroll to zoom
+                          </div>
                         </>
                       )}
                     </div>
@@ -894,28 +1006,52 @@ const CreatePage = () => {
                       onDragOver={handleDragOver}
                       onDrop={handleDrop}
                       className={`w-full h-56 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 cursor-pointer group ${
-                        isDragOver ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/20" : "border-(--border-color) bg-(--bg-secondary)/50 hover:border-(--color-accent-yellow)"
+                        isDragOver
+                          ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/20"
+                          : "border-(--border-color) bg-(--bg-secondary)/50 hover:border-(--color-accent-yellow)"
                       }`}
                     >
-                      <Upload className={`h-8 w-8 transition-colors ${isDragOver ? "text-(--color-accent-yellow)" : "text-(--text-secondary) group-hover:text-(--color-accent-yellow)"}`} />
-                      <span className={`text-sm transition-colors ${isDragOver ? "text-(--color-accent-yellow)" : "text-(--text-secondary) group-hover:text-(--color-accent-yellow)"}`}>
-                        {isDragOver ? "Drop image here" : "Click or drag & drop to upload"}
+                      <Upload
+                        className={`h-8 w-8 transition-colors ${isDragOver ? "text-(--color-accent-yellow)" : "text-(--text-secondary) group-hover:text-(--color-accent-yellow)"}`}
+                      />
+                      <span
+                        className={`text-sm transition-colors ${isDragOver ? "text-(--color-accent-yellow)" : "text-(--text-secondary) group-hover:text-(--color-accent-yellow)"}`}
+                      >
+                        {isDragOver
+                          ? "Drop image here"
+                          : "Click or drag & drop to upload"}
                       </span>
-                      <span className="text-xs text-(--text-secondary)">{currentImageSpecs.description}</span>
-                      <span className="text-xs text-(--text-secondary)">If no cover image, your logo will be used as fallback</span>
+                      <span className="text-xs text-(--text-secondary)">
+                        {currentImageSpecs.description}
+                      </span>
+                      <span className="text-xs text-(--text-secondary)">
+                        If no cover image, your logo will be used as fallback
+                      </span>
                     </div>
                   )}
                 </div>
 
                 {/* Logo */}
                 <div>
-                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Logo / Profile Picture</Label>
+                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+                    Logo / Profile Picture
+                  </Label>
                   <div className="flex items-center gap-4">
                     {logoPreview ? (
                       <div className="relative group">
-                        <img src={logoPreview} alt="Logo" className={`h-20 w-20 object-cover ${!logoBase64 && userData?.profilePicture ? "rounded-full" : "rounded-2xl"}`} />
+                        <img
+                          src={logoPreview}
+                          alt="Logo"
+                          className={`h-20 w-20 object-cover ${!logoBase64 && userData?.profilePicture ? "rounded-full" : "rounded-2xl"}`}
+                        />
                         {logoBase64 && (
-                          <button onClick={() => { setLogoBase64(null); setLogoPreview(null); }} className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                          <button
+                            onClick={() => {
+                              setLogoBase64(null);
+                              setLogoPreview(null);
+                            }}
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                          >
                             <X className="h-3 w-3 text-white" />
                           </button>
                         )}
@@ -926,87 +1062,161 @@ const CreatePage = () => {
                       </div>
                     )}
                     <div className="flex-1">
-                      <input type="file" ref={logoRef} className="hidden" accept="image/*" onChange={(e) => handleImageSelect(e, "logo")} />
-                      <button onClick={() => logoRef.current?.click()} className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-(--border-color) rounded-xl bg-(--bg-secondary)/50 hover:border-(--color-accent-yellow) transition-colors">
+                      <input
+                        type="file"
+                        ref={logoRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handleImageSelect(e, "logo")}
+                      />
+                      <button
+                        onClick={() => logoRef.current?.click()}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-(--border-color) rounded-xl bg-(--bg-secondary)/50 hover:border-(--color-accent-yellow) transition-colors"
+                      >
                         <Upload className="h-4 w-4" />
                         <span className="text-sm">Upload Logo</span>
                       </button>
-                      <p className="text-xs text-(--text-secondary) mt-1">Square image recommended (e.g., 200x200px)</p>
+                      <p className="text-xs text-(--text-secondary) mt-1">
+                        Square image recommended (e.g., 200x200px)
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Title */}
                 <div>
-                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Page Title *</Label>
+                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+                    Page Title *
+                  </Label>
                   <Input
                     placeholder={getPlaceholderText(pageType, "title")}
                     value={form.title}
-                    onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, title: e.target.value }))
+                    }
                     className={`h-12 text-base border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) ${!titleValidation.isValid && form.title ? "border-red-500" : ""}`}
                   />
                   {form.title && (
-                    <div className={`mt-2 text-xs flex items-start gap-2 p-2 rounded-lg ${titleValidation.isValid ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
-                      {titleValidation.isValid ? <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />}
+                    <div
+                      className={`mt-2 text-xs flex items-start gap-2 p-2 rounded-lg ${titleValidation.isValid ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}
+                    >
+                      {titleValidation.isValid ? (
+                        <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      )}
                       <span className="flex-1">{titleValidation.message}</span>
                     </div>
                   )}
-                  <p className="text-xs text-(--text-secondary) mt-1">Example: {getPlaceholderText(pageType, "title")}</p>
-                  <p className="text-xs text-(--text-secondary) mt-1">This title will be used as your virtual account name.</p>
+                  <p className="text-xs text-(--text-secondary) mt-1">
+                    Example: {getPlaceholderText(pageType, "title")}
+                  </p>
+                  <p className="text-xs text-(--text-secondary) mt-1">
+                    This title will be used as your virtual account name.
+                  </p>
                 </div>
 
                 {/* URL Preview */}
                 {form.title && (
                   <div className="bg-(--bg-secondary)/50 rounded-lg p-4 border border-(--border-color)">
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-xs font-semibold text-(--color-accent-yellow)">Your Page URL:</Label>
-                      <button onClick={regenerateId} className="flex items-center gap-1 text-xs text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80">
+                      <Label className="text-xs font-semibold text-(--color-accent-yellow)">
+                        Your Page URL:
+                      </Label>
+                      <button
+                        onClick={regenerateId}
+                        className="flex items-center gap-1 text-xs text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80"
+                      >
                         <RefreshCw className="h-3 w-3" /> New ID
                       </button>
                     </div>
                     <div className="flex items-center gap-2 bg-(--bg-primary) p-3 rounded-lg border border-(--border-color)">
                       <Link2 className="h-4 w-4 text-(--color-accent-yellow) shrink-0" />
-                      <code className="text-sm font-mono text-(--text-primary) break-all">{window.location.origin}/pay/{generateSlug()}</code>
+                      <code className="text-sm font-mono text-(--text-primary) break-all">
+                        {window.location.origin}/pay/{generateSlug()}
+                      </code>
                     </div>
-                    {pageType === "school" && schoolClass && <p className="text-xs text-(--color-accent-yellow) mt-2">URL includes class name: {slugify(schoolClass)}</p>}
+                    {pageType === "school" && schoolClass && (
+                      <p className="text-xs text-(--color-accent-yellow) mt-2">
+                        URL includes class name: {slugify(schoolClass)}
+                      </p>
+                    )}
                   </div>
                 )}
 
                 {/* Description */}
                 <div>
-                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Description</Label>
+                  <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+                    Description
+                  </Label>
                   <Textarea
                     placeholder={getPlaceholderText(pageType, "description")}
                     value={form.description}
-                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, description: e.target.value }))
+                    }
                     rows={4}
                     className="text-base resize-none border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                   />
-                  <p className="text-xs text-(--text-secondary) mt-1">Example: {getPlaceholderText(pageType, "description").substring(0, 100)}...</p>
+                  <p className="text-xs text-(--text-secondary) mt-1">
+                    Example:{" "}
+                    {getPlaceholderText(pageType, "description").substring(
+                      0,
+                      100,
+                    )}
+                    ...
+                  </p>
                 </div>
 
-                {/* Product Images */}
-                {pageType !== "school" && pageType !== "donation" && pageType !== "link" && (
-                  <div>
-                    <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Product Images</Label>
-                    <input type="file" ref={productRef} className="hidden" accept="image/*" multiple onChange={(e) => handleImageSelect(e, "product")} />
-                    <div className="flex gap-3 flex-wrap">
-                      {productPreviews.map((img, i) => (
-                        <div key={i} className="relative h-24 w-24 rounded-xl overflow-hidden group">
-                          <img src={img} className="w-full h-full object-cover" alt="" />
-                          <button onClick={() => removeProductImage(i)} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100"><X className="h-4 w-4 text-white" /></button>
-                        </div>
-                      ))}
-                      <button onClick={() => productRef.current?.click()} className="h-24 w-24 rounded-xl border-2 border-dashed border-(--border-color) bg-(--bg-secondary)/50 flex items-center justify-center hover:border-(--color-accent-yellow)">
-                        <ImagePlus className="h-5 w-5 text-(--text-secondary)" />
-                      </button>
+                {/* Product Images - only for product types */}
+                {pageType !== "school" &&
+                  pageType !== "donation" && (
+                    <div>
+                      <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+                        Product Images
+                      </Label>
+                      <input
+                        type="file"
+                        ref={productRef}
+                        className="hidden"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleImageSelect(e, "product")}
+                      />
+                      <div className="flex gap-3 flex-wrap">
+                        {productPreviews.map((img, i) => (
+                          <div
+                            key={i}
+                            className="relative h-24 w-24 rounded-xl overflow-hidden group"
+                          >
+                            <img
+                              src={img}
+                              className="w-full h-full object-cover"
+                              alt=""
+                            />
+                            <button
+                              onClick={() => removeProductImage(i)}
+                              className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                            >
+                              <X className="h-4 w-4 text-white" />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => productRef.current?.click()}
+                          className="h-24 w-24 rounded-xl border-2 border-dashed border-(--border-color) bg-(--bg-secondary)/50 flex items-center justify-center hover:border-(--color-accent-yellow)"
+                        >
+                          <ImagePlus className="h-5 w-5 text-(--text-secondary)" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Type-Specific Fields */}
                 <div className="p-5 rounded-2xl border border-(--border-color) bg-(--bg-secondary)">
-                  <h3 className="font-bold text-sm mb-4 text-(--color-accent-yellow)">{typeLabels[pageType]} Settings</h3>
+                  <h3 className="font-bold text-sm mb-4 text-(--color-accent-yellow)">
+                    {typeLabels[pageType]} Settings
+                  </h3>
                   {pageType === "school" && (
                     <SchoolFields
                       students={students}
@@ -1103,14 +1313,20 @@ const CreatePage = () => {
                 {pageType !== "donation" && (
                   <>
                     <div>
-                      <Label className="text-sm font-semibold mb-3 block text-(--text-primary)">Pricing</Label>
+                      <Label className="text-sm font-semibold mb-3 block text-(--text-primary)">
+                        Pricing
+                      </Label>
                       <div className="grid grid-cols-2 gap-3">
                         {(["fixed", "installment"] as const).map((val) => (
                           <button
                             key={val}
-                            onClick={() => setForm((f) => ({ ...f, priceType: val }))}
+                            onClick={() =>
+                              setForm((f) => ({ ...f, priceType: val }))
+                            }
                             className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                              form.priceType === val ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)" : "border-(--border-color) bg-(--bg-secondary) text-(--text-secondary) hover:border-(--color-accent-yellow)/50"
+                              form.priceType === val
+                                ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)"
+                                : "border-(--border-color) bg-(--bg-secondary) text-(--text-secondary) hover:border-(--color-accent-yellow)/50"
                             }`}
                           >
                             {val === "fixed" ? "Fixed Price" : "Installment"}
@@ -1122,13 +1338,18 @@ const CreatePage = () => {
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                          {form.priceType === "installment" ? "Total Amount (₦)" : "Amount (₦)"}
+                          {form.priceType === "installment"
+                            ? "Total Amount (₦)"
+                            : "Amount (₦)"}
                         </Label>
                         <Input
                           type="number"
                           placeholder="0.00"
                           value={form.price}
-                          onChange={(e) => pageType !== "school" && setForm((f) => ({ ...f, price: e.target.value }))}
+                          onChange={(e) =>
+                            pageType !== "school" &&
+                            setForm((f) => ({ ...f, price: e.target.value }))
+                          }
                           className="h-12 text-base border-(--border-color) bg-(--bg-primary) text-(--text-primary)"
                           disabled={pageType === "school"}
                         />
@@ -1136,12 +1357,33 @@ const CreatePage = () => {
                       {form.priceType === "installment" && (
                         <>
                           <div className="w-32">
-                            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Installments</Label>
-                            <Input type="number" value={form.installmentCount} onChange={(e) => setForm((f) => ({ ...f, installmentCount: e.target.value }))} min={2} max={12} />
+                            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+                              Installments
+                            </Label>
+                            <Input
+                              type="number"
+                              value={form.installmentCount}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  installmentCount: e.target.value,
+                                }))
+                              }
+                              min={2}
+                              max={12}
+                            />
                           </div>
                           <div className="w-32">
-                            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">Period</Label>
-                            <select value={installmentPeriod} onChange={(e) => setInstallmentPeriod(e.target.value)} className="h-12 w-full rounded-xl border border-(--border-color) bg-(--bg-primary) px-3">
+                            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+                              Period
+                            </Label>
+                            <select
+                              value={installmentPeriod}
+                              onChange={(e) =>
+                                setInstallmentPeriod(e.target.value)
+                              }
+                              className="h-12 w-full rounded-xl border border-(--border-color) bg-(--bg-primary) px-3"
+                            >
                               <option value="weekly">Weekly</option>
                               <option value="bi-weekly">Bi-Weekly</option>
                               <option value="monthly">Monthly</option>
@@ -1153,28 +1395,106 @@ const CreatePage = () => {
 
                     {Number(form.price) > 0 && (
                       <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
-                        <div className="flex items-center gap-2 mb-3"><Info className="h-4 w-4 text-(--color-accent-yellow)" /><h4 className="text-sm font-semibold">Fee Information</h4></div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between"><span className="text-(--text-secondary)">Customer Pays:</span><span className="font-semibold text-(--color-accent-yellow)">₦{Number(form.price).toLocaleString()}</span></div>
-                          <div className="flex justify-between"><span className="text-(--text-secondary)">Transaction Fee (2% capped at ₦2,000):</span><span className="font-medium text-[var(--destructive)]">- ₦{feeCalculation.fee.toLocaleString()}</span></div>
-                          <div className="border-t border-(--color-accent-yellow)/20 pt-2 mt-2"><div className="flex justify-between"><span className="font-semibold">You Receive:</span><span className="font-semibold text-(--color-lemon-green)">₦{feeCalculation.creatorReceives.toLocaleString()}</span></div></div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Info className="h-4 w-4 text-(--color-accent-yellow)" />
+                          <h4 className="text-sm font-semibold">
+                            Fee Information
+                          </h4>
                         </div>
-                        <p className="text-xs text-(--text-secondary) mt-3">✓ The 2% transaction fee is deducted from your payout. Customers pay exactly the amount shown.</p>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-(--text-secondary)">
+                              Customer Pays:
+                            </span>
+                            <span className="font-semibold text-(--color-accent-yellow)">
+                              ₦{Number(form.price).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-(--text-secondary)">
+                              Transaction Fee (2% capped at ₦2,000):
+                            </span>
+                            <span className="font-medium text-[var(--destructive)]">
+                              - ₦{feeCalculation.fee.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="border-t border-(--color-accent-yellow)/20 pt-2 mt-2">
+                            <div className="flex justify-between">
+                              <span className="font-semibold">
+                                You Receive:
+                              </span>
+                              <span className="font-semibold text-(--color-lemon-green)">
+                                ₦
+                                {feeCalculation.creatorReceives.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-(--text-secondary) mt-3">
+                          ✓ The 2% transaction fee is deducted from your payout.
+                          Customers pay exactly the amount shown.
+                        </p>
                       </div>
                     )}
 
-                    {form.priceType === "installment" && installmentAmount > 0 && (
-                      <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
-                        <div className="flex items-center gap-2 mb-2"><Calendar className="h-4 w-4 text-(--color-accent-yellow)" /><h4 className="text-sm font-semibold">Installment Breakdown</h4></div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between"><span className="text-(--text-secondary)">Total Amount:</span><span className="font-semibold">₦{Number(form.price).toLocaleString()}</span></div>
-                          <div className="flex justify-between"><span className="text-(--text-secondary)">Number of Installments:</span><span className="font-semibold">{form.installmentCount}</span></div>
-                          <div className="flex justify-between"><span className="text-(--text-secondary)">Customer Pays Per Installment:</span><span className="font-semibold text-(--color-accent-yellow)">₦{installmentAmount.toLocaleString()}</span></div>
-                          <div className="flex justify-between"><span className="text-(--text-secondary)">Fee Deducted Per Installment:</span><span className="font-semibold text-[var(--destructive)]">- ₦{getFeePerInstallment().toLocaleString()}</span></div>
-                          <div className="border-t pt-2"><div className="flex justify-between"><span className="font-semibold">You Receive Per Installment:</span><span className="font-semibold text-(--color-lemon-green)">₦{(installmentAmount - getFeePerInstallment()).toLocaleString()}</span></div></div>
+                    {form.priceType === "installment" &&
+                      installmentAmount > 0 && (
+                        <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Calendar className="h-4 w-4 text-(--color-accent-yellow)" />
+                            <h4 className="text-sm font-semibold">
+                              Installment Breakdown
+                            </h4>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-(--text-secondary)">
+                                Total Amount:
+                              </span>
+                              <span className="font-semibold">
+                                ₦{Number(form.price).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-(--text-secondary)">
+                                Number of Installments:
+                              </span>
+                              <span className="font-semibold">
+                                {form.installmentCount}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-(--text-secondary)">
+                                Customer Pays Per Installment:
+                              </span>
+                              <span className="font-semibold text-(--color-accent-yellow)">
+                                ₦{installmentAmount.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-(--text-secondary)">
+                                Fee Deducted Per Installment:
+                              </span>
+                              <span className="font-semibold text-[var(--destructive)]">
+                                - ₦{getFeePerInstallment().toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="border-t pt-2">
+                              <div className="flex justify-between">
+                                <span className="font-semibold">
+                                  You Receive Per Installment:
+                                </span>
+                                <span className="font-semibold text-(--color-lemon-green)">
+                                  ₦
+                                  {(
+                                    installmentAmount - getFeePerInstallment()
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </>
                 )}
               </motion.div>
@@ -1192,7 +1512,13 @@ const CreatePage = () => {
               onClick={handleCreate}
               disabled={!canCreate() || isCreating}
             >
-              {isCreating ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...</> : `Create ${typeLabels[pageType]} Page`}
+              {isCreating ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...
+                </>
+              ) : (
+                `Create ${typeLabels[pageType]} Page`
+              )}
             </Button>
           </div>
         </div>
@@ -1215,37 +1541,77 @@ const CreatePage = () => {
               className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg lg:max-w-xl w-full text-center shadow-2xl border border-[var(--border-color)] mx-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">🎉</div>
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">Payment Page Created!</h2>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">Your page is now live and ready to collect payments.</p>
+              <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">
+                🎉
+              </div>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">
+                Payment Page Created!
+              </h2>
+              <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
+                Your page is now live and ready to collect payments.
+              </p>
 
               <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-[var(--border-color)]">
-                <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">Your Payment Link:</Label>
+                <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">
+                  Your Payment Link:
+                </Label>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <div className="flex items-center gap-2 flex-1 bg-[var(--bg-primary)] rounded-lg p-2 sm:p-3 border border-[var(--border-color)]">
                     <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
-                    <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">{pageUrl}</code>
+                    <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">
+                      {pageUrl}
+                    </code>
                   </div>
-                  <button onClick={copyPageUrl} className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0">
-                    {copied ? <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)]" /> : <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)]" />}
+                  <button
+                    onClick={copyPageUrl}
+                    className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0"
+                  >
+                    {copied ? (
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)]" />
+                    ) : (
+                      <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)]" />
+                    )}
                     <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-ink)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                       {copied ? "Copied!" : "Copy link"}
                     </span>
                   </button>
                 </div>
-                {copied && <p className="text-xs text-[var(--color-lemon-green)] mt-2 text-center animate-pulse">✓ Link copied to clipboard!</p>}
+                {copied && (
+                  <p className="text-xs text-[var(--color-lemon-green)] mt-2 text-center animate-pulse">
+                    ✓ Link copied to clipboard!
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="outline" className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]" onClick={() => { setShowSuccess(false); window.open(pageUrl, '_blank'); }}>
+                <Button
+                  variant="outline"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    window.open(pageUrl, "_blank");
+                  }}
+                >
                   Preview Page
                 </Button>
-                <Button variant="default" className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90" onClick={() => { setShowSuccess(false); router.push("/dashboard/services/payment/dashboard"); }}>
+                <Button
+                  variant="default"
+                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    router.push("/dashboard/services/payment/dashboard");
+                  }}
+                >
                   Go to Dashboard
                 </Button>
               </div>
 
-              <button onClick={() => setShowSuccess(false)} className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Close</button>
+              <button
+                onClick={() => setShowSuccess(false)}
+                className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Close
+              </button>
             </motion.div>
           </motion.div>
         )}

@@ -17,16 +17,23 @@ import { useStore } from "@/app/hooks/useStore";
 import { useRouter } from "next/navigation";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
+import Loader from "@/app/components/Loader"; // Import the loader component
 
 const Dashboard = () => {
   const router = useRouter();
   const { pages, loading, fetchPages, refreshPages } = useStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     console.log("Dashboard mounted, fetching pages...");
-    fetchPages();
+    const loadPages = async () => {
+      setIsLoading(true);
+      await fetchPages();
+      setIsLoading(false);
+    };
+    loadPages();
   }, [fetchPages]);
 
   const handleRefresh = async () => {
@@ -52,7 +59,8 @@ const Dashboard = () => {
     0,
   );
 
-  if (loading && pages.length === 0) {
+  // Show loader while loading or refreshing
+  if (isLoading || (loading && pages.length === 0)) {
     return (
       <div className="min-h-screen dark:bg-[#0e0e0e]">
         <DashboardSidebar
@@ -61,43 +69,12 @@ const Dashboard = () => {
         />
         <div className="lg:pl-72 min-h-screen flex flex-col">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-          <main className="flex-1 p-4 sm:p-6 lg:p-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-                <div>
-                  <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                  <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded mt-2 animate-pulse"></div>
-                </div>
-                <div className="h-10 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="p-3 sm:p-4 rounded-2xl bg-white dark:bg-[#121212] border border-(--border-color)"
-                  >
-                    <div className="h-5 w-5 bg-gray-200 dark:bg-gray-700 rounded mb-2 animate-pulse"></div>
-                    <div className="h-7 sm:h-8 w-20 sm:w-24 bg-gray-200 dark:bg-gray-700 rounded mb-1 animate-pulse"></div>
-                    <div className="h-3 w-14 sm:w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                  </div>
-                ))}
-              </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#121212] border border-(--border-color)"
-                  >
-                    <div className="h-32 rounded-xl bg-gray-200 dark:bg-gray-700 mb-4 animate-pulse"></div>
-                    <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded mb-2 animate-pulse"></div>
-                    <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded mb-4 animate-pulse"></div>
-                    <div className="flex flex-wrap gap-3 sm:gap-4">
-                      <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                      <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <Loader />
+              <p className="text-(--text-secondary) text-sm animate-pulse">
+                Loading your payment pages...
+              </p>
             </div>
           </main>
         </div>

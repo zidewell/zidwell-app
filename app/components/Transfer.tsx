@@ -466,18 +466,23 @@ export default function Transfer() {
     }
   };
 
-  const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setAccountNumber(newValue);
-    setBeneficiarySearch(newValue);
-    setShowBeneficiarySuggestions(true);
-    if (selectedSavedAccount && newValue !== selectedSavedAccount.account_number) {
-      setSelectedSavedAccount(null);
-      setAccountName("");
-      setBankCode("");
-      setBankName("");
-    }
-  };
+const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const rawValue = e.target.value;
+  const numericValue = rawValue.replace(/\D/g, '');
+
+  const limitedValue = numericValue.slice(0, 10);
+  
+  setAccountNumber(limitedValue);
+  setBeneficiarySearch(limitedValue);
+  setShowBeneficiarySuggestions(true);
+  
+  if (selectedSavedAccount && limitedValue !== selectedSavedAccount.account_number) {
+    setSelectedSavedAccount(null);
+    setAccountName("");
+    setBankCode("");
+    setBankName("");
+  }
+};
 
   const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
@@ -1322,19 +1327,21 @@ export default function Transfer() {
                   {errors.otherBank && <p className="text-red-600 text-sm">{errors.otherBank}</p>}
                 </div>
 
-                <div className="space-y-1 relative">
-                  <Label className="text-(--text-primary)">Account Number</Label>
-                  <Input
-                    type="text"
-                    maxLength={10}
-                    value={accountNumber}
-                    onChange={handleAccountNumberChange}
-                    onFocus={() => setShowBeneficiarySuggestions(true)}
-                    placeholder="10-digit account number"
-                    className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)"
-                  />
-                  {errors.accountNumber && <p className="text-red-600 text-sm">{errors.accountNumber}</p>}
-                </div>
+              <div className="space-y-1 relative">
+  <Label className="text-(--text-primary)">Account Number</Label>
+  <Input
+    type="text"
+    inputMode="numeric"
+    pattern="[0-9]*"
+    maxLength={10}
+    value={accountNumber}
+    onChange={handleAccountNumberChange}
+    onFocus={() => setShowBeneficiarySuggestions(true)}
+    placeholder="10-digit account number"
+    className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary) [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+  />
+  {errors.accountNumber && <p className="text-red-600 text-sm">{errors.accountNumber}</p>}
+</div>
 
                 {lookupLoading && <p className="text-(--color-accent-yellow) text-sm flex items-center gap-2"><Loader2 className="animate-spin" /> Verifying account...</p>}
                 {accountName && !errors.accountNumber && (

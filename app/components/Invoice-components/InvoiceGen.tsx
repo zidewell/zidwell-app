@@ -6,7 +6,7 @@ import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import InvoiceLIst from "./InvoiceLIst";
+import InvoiceList from "./InvoiceList";
 import { useUserContextData } from "../../context/userData";
 import Loader from "../Loader";
 import { useRouter } from "next/navigation";
@@ -70,6 +70,11 @@ export default function InvoiceGen() {
   const { userData } = useUserContextData();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const fetchInvoice = async (email: string) => {
     setLoading(true);
@@ -100,6 +105,37 @@ export default function InvoiceGen() {
       setError(err.message || "Something went wrong while fetching invoices");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Refresh function to pass to InvoiceList
+  const refreshInvoices = async () => {
+    if (userData?.email) {
+      await fetchInvoice(userData.email);
+    }
+  };
+
+  // Delete function with API call to delete-invoice
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    try {
+      const response = await fetch("/api/delete-invoice", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ invoiceId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete invoice");
+      }
+
+      // Refresh the list after successful deletion
+      await refreshInvoices();
+    } catch (error) {
+      console.error("Delete error:", error);
+      throw error;
     }
   };
 
@@ -166,18 +202,9 @@ export default function InvoiceGen() {
     return statusMatch && searchMatch;
   });
 
-  const [pageLoading, setPageLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPageLoading(false);
-    }, 2500);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (pageLoading) {
-    return <Loader />;
+  // Don't render anything until mounted to avoid hydration issues
+  if (!isMounted) {
+    return null;
   }
 
   if (loading && invoices.length === 0) {
@@ -424,10 +451,11 @@ export default function InvoiceGen() {
           </Card>
 
           {/* Invoice list */}
-          <InvoiceLIst
+          <InvoiceList
             invoices={filteredInvoices}
             loading={loading}
-            onRefresh={() => userData?.email && fetchInvoice(userData.email)}
+            onRefresh={refreshInvoices}
+            onDelete={handleDeleteInvoice}
           />
         </TabsContent>
       </Tabs>

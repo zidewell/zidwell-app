@@ -67,7 +67,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
   onError,
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [base64Logo, setBase64Logo] = useState<string>("");
 
   const getBase64Logo = async (): Promise<string> => {
     try {
@@ -155,330 +154,551 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
     }
     
     body {
-      font-family: 'Arial', sans-serif;
-      background: #f7f3ee;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f5f5;
       padding: 40px 20px;
-      color: #191919;
-      line-height: 1.5;
+      color: #1a1a1a;
+      line-height: 1.6;
     }
     
-    .container {
-      max-width: 800px;
+    .invoice-container {
+      max-width: 880px;
       margin: 0 auto;
-      background: #FFFFFF;
-      border: 1px solid #E5E5E5;
-      border-radius: 28px;
-      overflow: hidden;
-      box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.15), 0 5px 12px -4px rgba(0, 0, 0, 0.1);
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 16px rgba(0, 0, 0, 0.06);
+      padding: 48px 56px;
     }
     
+    /* Header */
     .header {
       display: flex;
-      justify-content: space-between;
       align-items: flex-start;
-      background: #FDC020;
-      padding: 32px;
-      color: #191919;
-      border-bottom: 2px solid #E5E5E5;
+      justify-content: space-between;
+      gap: 24px;
     }
     
-    .business-info {
-      flex: 1;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
     
-    .invoice-info {
+    .brand-logo {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    
+    .brand-name {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      color: #1a1a1a;
+    }
+    
+    .invoice-title-wrapper {
       text-align: right;
     }
     
-    .logo {
-      max-height: 80px;
-      max-width: 200px;
-      margin-bottom: 15px;
+    .invoice-title {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #1a1a1a;
+      margin: 0;
+      line-height: 1;
     }
     
-    .account-details {
+    .title-underline {
+      width: 64px;
+      height: 4px;
+      background: #FDC020;
+      border-radius: 4px;
+      margin-top: 8px;
+      margin-left: auto;
+    }
+    
+    /* Meta Section */
+    .meta-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 40px;
+    }
+    
+    .from-block {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding-right: 32px;
+      border-right: 1px solid #e5e7eb;
+    }
+    
+    .icon-circle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #FEF3C7;
+      color: #FDC020;
+      flex-shrink: 0;
+    }
+    
+    .label-small {
+      font-size: 13px;
+      font-weight: 600;
+      color: #FDC020;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .name-large {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-top: 4px;
+    }
+    
+    .email-text {
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .meta-list {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-top: 20px;
+      gap: 12px;
+      padding-left: 4px;
     }
     
-    .account-details h2 {
-      color: #191919;
+    .meta-row {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .meta-label {
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .meta-value {
       font-size: 18px;
-      margin: 0 0 5px 0;
-    }
-    
-    .account-details h3 {
-      margin: 0;
-      font-size: 14px;
-      font-weight: normal;
-      color: #191919;
-    }
-    
-    h1 {
-      color: #191919;
-      margin: 0 0 10px 0;
-      font-size: 32px;
-      font-weight: bold;
-    }
-    
-    h2 {
-      margin: 0 0 10px 0;
-      font-size: 24px;
-      color: #191919;
-    }
-    
-    h3 {
-      margin: 0 0 15px 0;
-      font-size: 18px;
-      color: #191919;
-    }
-    
-    .section {
-      margin: 30px 0;
-    }
-    
-    .billing-info {
-      display: flex;
-      justify-content: space-between;
-      gap: 40px;
-    }
-    
-    .billing-section {
-      flex: 1;
-    }
-    
-    .items-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 30px 0;
-      font-size: 14px;
-    }
-    
-    .items-table th {
-      background-color: #F5F5F5;
-      border: 1px solid #E5E5E5;
-      padding: 12px 15px;
-      text-align: left;
-      font-weight: bold;
-      color: #191919;
-    }
-    
-    .items-table td {
-      border: 1px solid #E5E5E5;
-      padding: 12px 15px;
-      text-align: left;
-    }
-    
-    .items-table tr:nth-child(even) {
-      background-color: #F5F5F5;
-    }
-    
-    .totals {
-      margin-top: 30px;
-      text-align: right;
-      font-size: 16px;
-    }
-    
-    .total-row {
-      margin: 8px 0;
-    }
-    
-    .grand-total {
-      font-size: 20px;
-      font-weight: bold;
-      color: #FDC020;
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 2px solid #E5E5E5;
-    }
-    
-    .message-box {
-      background-color: #F5F5F5;
-      padding: 20px;
-      border-radius: 8px;
-      border-left: 4px solid #FDC020;
-      margin: 20px 0;
-    }
-    
-    .payment-info {
-      background-color: #e8f4fd;
-      padding: 20px;
-      border-radius: 8px;
-      border-left: 4px solid #2196F3;
-      margin: 20px 0;
-    }
-    
-    .invoice-narration {
-      display: block;
-      margin-top: 10px;
-      font-size: 12px;
-      color: #666666;
-    }
-    
-    .footer {
-      margin-top: 50px;
-      text-align: center;
-      color: #666666;
-      font-size: 14px;
-      padding-top: 20px;
-      border-top: 1px solid #E5E5E5;
+      font-weight: 700;
+      color: #1a1a1a;
     }
     
     .status-badge {
       display: inline-block;
-      padding: 4px 12px;
-      background-color: #FDC020;
-      color: #191919;
-      border-radius: 20px;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      background: ${statusColor}20;
+      color: ${statusColor};
+    }
+    
+    /* Info Banner */
+    .info-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-top: 32px;
+      padding: 16px 20px;
+      background: #FEF3C7;
+      border-radius: 8px;
+    }
+    
+    .info-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid #FDC020;
+      color: #FDC020;
+      flex-shrink: 0;
+    }
+    
+    .info-text {
+      font-size: 14px;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+    
+    .info-text strong {
+      color: #FDC020;
+      font-weight: 700;
+    }
+    
+    /* Parties */
+    .parties-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 32px;
+    }
+    
+    .party-block {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    
+    .party-label-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 4px;
+      background: #FEF3C7;
+      font-size: 13px;
+      font-weight: 600;
+      color: #FDC020;
+    }
+    
+    .party-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-top: 6px;
+    }
+    
+    .party-detail {
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .account-number {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-top: 2px;
+    }
+    
+    /* Items Table */
+    .items-section {
+      position: relative;
+      margin-top: 48px;
+    }
+    
+    .items-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 16px;
+    }
+    
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 18rem;
+      font-weight: 900;
+      color: #f3f4f6;
+      opacity: 0.5;
+      pointer-events: none;
+      user-select: none;
+      line-height: 1;
+      z-index: 0;
+    }
+    
+    .table-wrapper {
+      position: relative;
+      overflow-x: auto;
+      z-index: 1;
+    }
+    
+    .items-table {
+      width: 100%;
+      min-width: 520px;
+      border-collapse: collapse;
+    }
+    
+    .items-table thead th {
+      text-align: left;
+      padding: 0 16px 12px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    .items-table thead th:last-child {
+      padding-right: 0;
+    }
+    
+    .table-divider {
+      height: 2px;
+      background: #FDC020;
+      border: none;
+      margin: 0 0 4px 0;
+    }
+    
+    .items-table tbody td {
+      padding: 20px 16px 20px 0;
+      font-size: 14px;
+      color: #1a1a1a;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .items-table tbody td:last-child {
+      padding-right: 0;
+    }
+    
+    .items-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .subtotal-row td {
+      padding: 16px 16px 4px 0 !important;
+      border-bottom: none !important;
+    }
+    
+    .subtotal-label {
+      text-align: right;
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .subtotal-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    .total-row td {
+      padding: 4px 16px 20px 0 !important;
+      border-bottom: none !important;
+    }
+    
+    .total-label {
+      text-align: right;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #1a1a1a;
+    }
+    
+    .total-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #FDC020;
+    }
+    
+    /* Footer Divider */
+    .footer-divider {
+      height: 2px;
+      background: #FDC020;
+      margin-top: 40px;
+      border: none;
+    }
+    
+    /* Footer */
+    .footer {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-top: 32px;
+    }
+    
+    .footer-text {
+      font-size: 14px;
+    }
+    
+    .footer-text strong {
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    .footer-text .contact-email {
+      font-weight: 500;
+      color: #FDC020;
+    }
+    
+    .footer-muted {
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    
+    .generated-at {
+      margin-top: 40px;
       font-size: 12px;
-      font-weight: bold;
-      margin-left: 10px;
-    }
-    
-    .progress-bar {
-      background-color: #E5E5E5;
-      border-radius: 10px;
-      height: 10px;
-      margin: 10px 0;
-      overflow: hidden;
-    }
-    
-    .progress-fill {
-      background-color: #FDC020;
-      height: 100%;
-      transition: width 0.3s ease;
-    }
-    
-    .note-box {
-      background-color: #f0f9ff;
-      padding: 20px;
-      border-radius: 8px;
-      border-left: 4px solid #0ea5e9;
-    }
-    
-    .payment-progress-info {
-      margin-top: 15px;
-    }
-    
-    .multiple-payment-info {
-      background-color: #fef3c7;
-      padding: 15px;
-      border-radius: 8px;
-      border-left: 4px solid #f59e0b;
-      margin: 20px 0;
-    }
-    
-    .content {
-      padding: 32px;
+      color: #6b7280;
     }
     
     @media print {
       body {
         background: white;
-        padding: 0;
+        padding: 20px;
       }
-      .container {
+      .invoice-container {
         box-shadow: none;
         border-radius: 0;
+        padding: 40px;
+      }
+    }
+    
+    @media (max-width: 640px) {
+      .invoice-container {
+        padding: 24px;
+      }
+      .header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+      }
+      .invoice-title-wrapper {
+        text-align: left;
+      }
+      .title-underline {
+        margin-left: 0;
+      }
+      .meta-section {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      .from-block {
+        border-right: none;
+        padding-right: 0;
+      }
+      .parties-section {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      .meta-row {
+        grid-template-columns: 100px 1fr;
+      }
+      .meta-value {
+        font-size: 16px;
+      }
+      .watermark {
+        font-size: 10rem;
       }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="business-info">
-        ${logoBase64 ? `<img src="${logoBase64}" alt="Logo" class="logo">` : ""}
-        ${invoice.business_logo && !logoBase64 ? `<img src="${invoice.business_logo}" alt="Logo" class="logo">` : ""}
-        <h2>${invoice.business_name}</h2>
-        <p>${invoice.from_email}</p>
-        ${invoice.bill_to ? `<p>${invoice.bill_to}</p>` : ""}
-
-        ${invoice.initiator_account_name && invoice.initiator_account_number ? `
-          <div class="account-details">
-            <h2>Account Details</h2>
-            <h3>${invoice.initiator_account_name}</h3>
-            <h3>${invoice.initiator_account_number}</h3>
-            <h3>${invoice.initiator_bank_name || ""}</h3>
-          </div>
-        ` : ""}
+  <div class="invoice-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        ${logoBase64 ? `
+          <img src="${logoBase64}" alt="Zidwell Logo" class="brand-logo">
+        ` : `
+          <div style="width: 44px; height: 44px; border-radius: 50%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 20px; flex-shrink: 0;">Z</div>
+        `}
+        <span class="brand-name">${invoice.business_name || "Zidwell"}</span>
       </div>
-      <div class="invoice-info">
-        <h1>INVOICE</h1>
-        <p><strong>Invoice #:</strong> ${invoice.invoice_id}</p>
-        <p><strong>Issue Date:</strong> ${formatDate(invoice.issue_date)}</p>
-        ${invoice.due_date ? `<p><strong>Due Date:</strong> ${formatDate(invoice.due_date)}</p>` : ""}
-        <p><strong>Status:</strong> ${invoice.status} <span class="status-badge">${invoice.status.toUpperCase()}</span></p>
-
-        <small class="invoice-narration">
-          Ensure this invoice number <strong>${invoice.invoice_id}</strong> is used as the narration when you transfer to make payment valid.
-        </small>
+      <div class="invoice-title-wrapper">
+        <h1 class="invoice-title">INVOICE</h1>
+        <div class="title-underline"></div>
       </div>
+    </header>
+
+    <!-- Meta + From -->
+    <section class="meta-section">
+      <div class="from-block">
+        <div class="icon-circle">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="label-small">From:</div>
+          <div class="name-large">${invoice.from_name}</div>
+          <div class="email-text">${invoice.from_email}</div>
+        </div>
+      </div>
+
+      <div class="meta-list">
+        <div class="meta-row">
+          <span class="meta-label">Invoice #:</span>
+          <span class="meta-value">${invoice.invoice_id}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Issue Date:</span>
+          <span class="meta-value">${formatDate(invoice.issue_date)}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Status:</span>
+          <span class="status-badge">${invoice.status}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Info Banner -->
+    <div class="info-banner">
+      <div class="info-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="12" x2="12" y2="16"/>
+          <line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+      </div>
+      <p class="info-text">
+        Ensure this invoice number <strong>${invoice.invoice_id}</strong> is used as the narration when you transfer to make payment valid.
+      </p>
     </div>
 
-    <div class="content">
-      <div class="section">
-        <div class="billing-info">
-          <div class="billing-section">
-            <h3>Bill To:</h3>
-            <p><strong>${invoice.client_name || "Client Information"}</strong></p>
-            ${invoice.client_email ? `<p>📧 ${invoice.client_email}</p>` : ""}
-            ${invoice.client_phone ? `<p>📞 ${invoice.client_phone}</p>` : ""}
-          </div>
-          <div class="billing-section">
-            <h3>From:</h3>
-            <p><strong>${invoice.from_name}</strong></p>
-            <p>📧 ${invoice.from_email}</p>
-            ${invoice.initiator_phone ? `<p>📞 ${invoice.initiator_phone}</p>` : ""}
-          </div>
+    <!-- Bill To + Account Details -->
+    <section class="parties-section">
+      <div class="party-block">
+        <div class="icon-circle">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+        </div>
+        <div>
+          <span class="party-label-badge">Bill To:</span>
+          <div class="party-name">${invoice.client_name || "Client"}</div>
+          <div class="party-detail">${invoice.client_email}</div>
         </div>
       </div>
-
-      ${invoice.message ? `
-        <div class="section">
-          <div class="message-box">
-            <h3>Message from ${invoice.from_name}:</h3>
-            <p>${invoice.message}</p>
+      ${invoice.initiator_account_name && invoice.initiator_account_number ? `
+        <div class="party-block">
+          <div class="icon-circle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div>
+            <span class="party-label-badge">Account Details</span>
+            <div class="party-name" style="font-size: 18px;">${invoice.initiator_account_name}</div>
+            <div class="account-number">${invoice.initiator_account_number}</div>
+            ${invoice.initiator_bank_name ? `<div class="party-detail">${invoice.initiator_bank_name}</div>` : ""}
           </div>
         </div>
       ` : ""}
+    </section>
 
-      ${invoice.allow_multiple_payments && paymentProgress ? `
-        <div class="section">
-          <div class="multiple-payment-info">
-            <h3>Multiple Payments Plan</h3>
-            <p><strong>Payment Progress:</strong> ${paymentProgress.paidCount} of ${paymentProgress.targetQuantity} payments completed</p>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${paymentProgress.progress}%"></div>
-            </div>
-            <p>${paymentProgress.isComplete ? "✅ All payments completed!" : `⏳ ${Math.round(paymentProgress.progress)}% complete`}</p>
-          </div>
-        </div>
-      ` : paidAmount > 0 ? `
-        <div class="section">
-          <div class="payment-info">
-            <h3>Payment Information</h3>
-            <p><strong>Amount Paid:</strong> ${formatCurrency(paidAmount)}</p>
-            <p><strong>Balance Due:</strong> ${formatCurrency(remainingAmount)}</p>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${(paidAmount / invoice.total_amount) * 100}%"></div>
-            </div>
-            <p>Payment Progress: ${Math.round((paidAmount / invoice.total_amount) * 100)}%</p>
-          </div>
-        </div>
-      ` : ""}
-
-      <div class="section">
-        <h3>Invoice Items</h3>
+    <!-- Items -->
+    <section class="items-section">
+      <h2 class="items-title">Invoice Items</h2>
+      
+      <div class="watermark">${invoice.business_name ? invoice.business_name.charAt(0).toUpperCase() : 'Z'}</div>
+      
+      <div class="table-wrapper">
         <table class="items-table">
           <thead>
             <tr>
               <th>Description</th>
-              <th width="100">Qty</th>
-              <th width="120">Unit Price</th>
-              <th width="120">Total</th>
+              <th>Qty</th>
+              <th>Unit Price</th>
+              <th>Total</th>
+            </tr>
+            <tr>
+              <td colspan="4"><div class="table-divider"></div></td>
             </tr>
           </thead>
           <tbody>
@@ -490,55 +710,49 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
                 <td>${formatCurrency(item.total_amount || item.total || 0)}</td>
               </tr>
             `).join("")}
+            <tr class="subtotal-row">
+              <td colspan="2"></td>
+              <td class="subtotal-label">Subtotal</td>
+              <td class="subtotal-value">${formatCurrency(invoice.subtotal)}</td>
+            </tr>
+            ${invoice.fee_amount > 0 ? `
+              <tr class="subtotal-row">
+                <td colspan="2"></td>
+                <td class="subtotal-label">Fee</td>
+                <td class="subtotal-value">${formatCurrency(invoice.fee_amount)}</td>
+              </tr>
+            ` : ""}
+            <tr class="total-row">
+              <td colspan="2"></td>
+              <td class="total-label">TOTAL AMOUNT:</td>
+              <td class="total-value">${formatCurrency(invoice.total_amount)}</td>
+            </tr>
           </tbody>
         </table>
       </div>
+    </section>
 
-      <div class="totals">
-        <div class="total-row">
-          <strong>Subtotal:</strong> ${formatCurrency(invoice.subtotal)}
-        </div>
-        ${invoice.fee_amount > 0 ? `
-          <div class="total-row">
-            <strong>Processing Fee:</strong> ${formatCurrency(invoice.fee_amount)}
-          </div>
-        ` : ""}
-        ${paidAmount > 0 ? `
-          <div class="total-row">
-            <strong>Amount Paid:</strong> ${formatCurrency(paidAmount)}
-          </div>
-          <div class="total-row">
-            <strong>Balance Due:</strong> ${formatCurrency(remainingAmount)}
-          </div>
-        ` : ""}
-        <div class="total-row grand-total">
-          <strong>TOTAL AMOUNT:</strong> ${formatCurrency(invoice.total_amount)}
-        </div>
-        ${invoice.fee_option === "absorbed" ? `
-          <div class="total-row" style="font-size: 12px; color: #666666;">
-            *Processing fees absorbed by merchant
-          </div>
-        ` : invoice.fee_option === "customer" && invoice.fee_amount > 0 ? `
-          <div class="total-row" style="font-size: 12px; color: #666666;">
-            *2% processing fee added
-          </div>
-        ` : ""}
+    <!-- Footer Divider -->
+    <hr class="footer-divider">
+
+    <!-- Thank you -->
+    <footer class="footer">
+      <div class="icon-circle" style="background: #FEF3C7; color: #FDC020;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
       </div>
+      <div class="footer-text">
+        <strong>Thank you for your business!</strong>
+        <p class="footer-muted">
+          If you have any questions about this invoice,<br>
+          please contact <span class="contact-email">${invoice.from_email}</span>
+        </p>
+      </div>
+    </footer>
 
-      ${invoice.customer_note ? `
-        <div class="section">
-          <div class="note-box">
-            <h3>Note to Customer:</h3>
-            <p>${invoice.customer_note}</p>
-          </div>
-        </div>
-      ` : ""}
-    </div>
-
-    <div class="footer">
-      <p><strong>Thank you for your business!</strong></p>
-      <p>If you have any questions about this invoice, please contact ${invoice.from_email}</p>
-      <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+    <div class="generated-at">
+      Generated on ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })} at ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
     </div>
   </div>
 </body>
@@ -549,8 +763,8 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
     setIsGenerating(true);
     
     try {
-      const logo = await getBase64Logo();
-      const fullHtml = generateInvoiceHTML(logo);
+      const logoBase64 = await getBase64Logo();
+      const fullHtml = generateInvoiceHTML(logoBase64);
       
       const response = await fetch("/api/generate-pdf", {
         method: "POST",

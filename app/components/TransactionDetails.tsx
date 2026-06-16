@@ -27,6 +27,7 @@ const inflowTypes = [
   "virtual_account_deposit",
   "card_deposit",
   "p2p_received",
+  "p2p_credit",
   "referral",
   "referral_reward",
 ];
@@ -41,6 +42,7 @@ const outflowTypes = [
   "cable",
   "transfer",
   "p2p_transfer",
+  "p2p_debit",
 ];
 
 export default function TransactionDetailsPage() {
@@ -187,15 +189,25 @@ export default function TransactionDetailsPage() {
   const getNarration = (transaction: any) => {
     if (!transaction) return null;
 
+    // Check for narration directly on the transaction (P2P uses this)
     if (transaction.narration) {
       return transaction.narration;
     }
 
+    // Check for description
+    if (transaction.description) {
+      return transaction.description;
+    }
+
+    // Check in external_response
     if (transaction.external_response?.data?.transaction?.narration) {
       return transaction.external_response.data.transaction.narration;
     }
     if (transaction.external_response?.narration) {
       return transaction.external_response.narration;
+    }
+    if (transaction.external_response?.withdrawal_details?.narration) {
+      return transaction.external_response.withdrawal_details.narration;
     }
 
     return null;
@@ -208,7 +220,15 @@ export default function TransactionDetailsPage() {
     return { title: "Transfer Failed", message: "Transaction could not be completed.", statusClass: "failed", color: "#ff3b30" };
   };
 
-  // Helper function to get real sender email and account number
+  // Helper functions to get sender/receiver data
+  const getSenderName = (transaction: any) => {
+    if (transaction.sender?.name) return transaction.sender.name;
+    if (transaction.from_name) return transaction.from_name;
+    if (transaction.external_response?.data?.sender?.name) return transaction.external_response.data.sender.name;
+    if (transaction.external_response?.sender?.name) return transaction.external_response.sender.name;
+    return null;
+  };
+
   const getSenderEmail = (transaction: any) => {
     if (transaction.sender?.email) return transaction.sender.email;
     if (transaction.from_email) return transaction.from_email;
@@ -223,6 +243,14 @@ export default function TransactionDetailsPage() {
     if (transaction.from_account) return transaction.from_account;
     if (transaction.external_response?.withdrawal_details?.account_number) return transaction.external_response.withdrawal_details.account_number;
     if (transaction.external_response?.data?.customer?.accountNumber) return transaction.external_response.data.customer.accountNumber;
+    return null;
+  };
+
+  const getReceiverName = (transaction: any) => {
+    if (transaction.receiver?.name) return transaction.receiver.name;
+    if (transaction.to_name) return transaction.to_name;
+    if (transaction.external_response?.data?.receiver?.name) return transaction.external_response.data.receiver.name;
+    if (transaction.external_response?.receiver?.name) return transaction.external_response.receiver.name;
     return null;
   };
 
@@ -249,7 +277,6 @@ export default function TransactionDetailsPage() {
     setDownloading(true);
 
     try {
-      // Get logo as base64
       let logoBase64 = base64Logo;
       if (!logoBase64) {
         logoBase64 = await getBase64Logo();
@@ -260,25 +287,21 @@ export default function TransactionDetailsPage() {
       const statusMeta = getStatusMeta(transaction.status);
       const transactionIdDisplay = transaction.reference || transaction.merchant_tx_ref || transaction.id;
       
-      // Format date
       const dateObj = new Date(transaction.created_at);
       const formattedDate = `${dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} • ${dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
       
-      // Get REAL sender and receiver data (only if available)
-      const senderName = transaction.sender?.name || transaction.from_name || null;
+      const senderName = getSenderName(transaction);
       const senderEmail = getSenderEmail(transaction);
       const senderAccount = getSenderAccount(transaction);
       
-      const receiverName = transaction.receiver?.name || transaction.to_name || null;
+      const receiverName = getReceiverName(transaction);
       const receiverEmail = getReceiverEmail(transaction);
       const receiverAccount = getReceiverAccount(transaction);
       
       const feeAmount = transaction.fee || 0;
 
-      // Logo HTML - use base64 if available, otherwise fallback to path
       const logoSrc = logoBase64 || "/logo.png";
 
-      // Get status icon HTML based on status class - using inline SVG for reliability in PDF
       let statusIconSvg = '';
       if (statusMeta.statusClass === 'success') {
         statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -299,7 +322,6 @@ export default function TransactionDetailsPage() {
         </svg>`;
       }
 
-      // RECEIPT HTML with SVG icons
       const receiptHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -432,7 +454,6 @@ export default function TransactionDetailsPage() {
     border-bottom: 1px solid #f0e0a3;
   }
   .detail-row-last {
- 
     border-bottom: none;
   }
   .left {
@@ -522,7 +543,7 @@ export default function TransactionDetailsPage() {
 
     <div class="amount">
       <div class="amount-label">Amount</div>
-      <div class="amount-value">₦${amountInfo.display}</div>
+      <div class="amount-value">${amountInfo.display}</div>
     </div>
 
     <div class="section-title">
@@ -557,11 +578,11 @@ export default function TransactionDetailsPage() {
         </div>
         <div>
           <div class="detail-title">From</div>
-          <div class="detail-value">${escapeHtml(senderName)}</div>
-          ${senderEmail ? `<div class="sub">${escapeHtml(senderEmail)}</div>` : ''}
+          <div class="detail-value">${senderName}</div>
+          ${senderEmail ? `<div class="sub">${senderEmail}</div>` : ''}
         </div>
       </div>
-      ${senderAccount ? `<div class="right">${escapeHtml(senderAccount)}</div>` : '<div class="right"></div>'}
+      ${senderAccount ? `<div class="right">${senderAccount}</div>` : '<div class="right"></div>'}
     </div>
     ` : ''}
 
@@ -576,11 +597,27 @@ export default function TransactionDetailsPage() {
         </div>
         <div>
           <div class="detail-title">To</div>
-          <div class="detail-value">${escapeHtml(receiverName)}</div>
-          ${receiverEmail ? `<div class="sub">${escapeHtml(receiverEmail)}</div>` : ''}
+          <div class="detail-value">${receiverName}</div>
+          ${receiverEmail ? `<div class="sub">${receiverEmail}</div>` : ''}
         </div>
       </div>
-      ${receiverAccount ? `<div class="right">${escapeHtml(receiverAccount)}</div>` : '<div class="right"></div>'}
+      ${receiverAccount ? `<div class="right">${receiverAccount}</div>` : '<div class="right"></div>'}
+    </div>
+    ` : ''}
+
+    ${narration ? `
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">Narration</div>
+          <div class="detail-value" style="font-weight: 400; font-size: 14px;">${narration}</div>
+        </div>
+      </div>
     </div>
     ` : ''}
 
@@ -615,10 +652,9 @@ export default function TransactionDetailsPage() {
         </div>
         <div>
           <div class="detail-title">Transaction ID</div>
-          <div class="detail-value">${escapeHtml(transactionIdDisplay)}</div>
+          <div class="detail-value">${transactionIdDisplay}</div>
         </div>
       </div>
-     
     </div>
   </div>
 
@@ -629,18 +665,6 @@ export default function TransactionDetailsPage() {
 
 </body>
 </html>`;
-
-      function escapeHtml(str: string): string {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-          if (m === '&') return '&amp;';
-          if (m === '<') return '&lt;';
-          if (m === '>') return '&gt;';
-          return m;
-        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
-          return c;
-        });
-      }
 
       const response = await fetch("/api/generate-pdf", {
         method: "POST",
@@ -724,31 +748,15 @@ export default function TransactionDetailsPage() {
   const amountInfo = formatAmount(transaction);
   const narration = getNarration(transaction);
 
-  // Get REAL data for display in the UI (only if available)
-  const realSenderEmail = getSenderEmail(transaction);
-  const realSenderAccount = getSenderAccount(transaction);
-  const realReceiverEmail = getReceiverEmail(transaction);
-  const realReceiverAccount = getReceiverAccount(transaction);
+  // Get REAL data for display in the UI
+  const senderName = getSenderName(transaction);
+  const senderEmail = getSenderEmail(transaction);
+  const senderAccount = getSenderAccount(transaction);
+  const receiverName = getReceiverName(transaction);
+  const receiverEmail = getReceiverEmail(transaction);
+  const receiverAccount = getReceiverAccount(transaction);
 
-  const senderData = transaction.sender || {};
-  const receiverData = transaction.receiver || {};
-  const externalData = transaction.external_response || {};
-
-  const displaySender = {
-    name: senderData.name || externalData?.withdrawal_details?.account_name || externalData?.data?.customer?.senderName || externalData?.metadata?.sender_name || null,
-    accountNumber: realSenderAccount || null,
-    bankName: senderData.bankName || externalData?.withdrawal_details?.bank_name || externalData?.data?.customer?.bankName || null,
-    email: realSenderEmail || null,
-  };
-
-  const displayReceiver = {
-    name: receiverData.name || externalData?.receiver_details?.account_name || externalData?.data?.customer?.recipientName || externalData?.data?.transaction?.aliasAccountName || externalData?.data?.meta?.recipientName || null,
-    accountNumber: realReceiverAccount || null,
-    bankName: receiverData.bankName || externalData?.receiver_details?.bank_name || externalData?.data?.customer?.bankName || null,
-    email: realReceiverEmail || null,
-  };
-
-  const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
+  const isP2P = transaction.type?.toLowerCase()?.includes('p2p');
 
   return (
     <div className="min-h-screen bg-(--bg-primary) fade-in relative">
@@ -836,7 +844,7 @@ export default function TransactionDetailsPage() {
                   </CardContent>
                 </Card>
 
-                {/* Narration Card - Only show if narration exists */}
+                {/* Narration Card - Show for all transactions with narration */}
                 {narration && (
                   <Card className="bg-(--bg-primary) border border-(--border-color)">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
@@ -855,53 +863,43 @@ export default function TransactionDetailsPage() {
                   </Card>
                 )}
 
-                {/* Sender Information - Only show if any data exists */}
-                {(displaySender.name || displaySender.accountNumber || displaySender.email || displaySender.bankName) && (
+                {/* Sender Information */}
+                {(senderName || senderAccount || senderEmail) && (
                   <Card className="bg-(--bg-primary) border border-(--border-color)">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <User className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-secondary)" />
                       <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
-                        {isWithdrawal ? "From (Zidwell)" : "Sender Information"}
+                        {isP2P ? "From (P2P)" : "Sender Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {displaySender.name && (
+                      {senderName && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-(--text-secondary) text-sm sm:text-base">
                             Name
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                            {displaySender.name}
+                            {senderName}
                           </span>
                         </div>
                       )}
-                      {displaySender.email && (
+                      {senderEmail && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-(--text-secondary) text-sm sm:text-base">
                             Email
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                            {displaySender.email}
+                            {senderEmail}
                           </span>
                         </div>
                       )}
-                      {displaySender.accountNumber && (
+                      {senderAccount && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-(--text-secondary) text-sm sm:text-base">
                             Account Number
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                            {displaySender.accountNumber}
-                          </span>
-                        </div>
-                      )}
-                      {displaySender.bankName && (
-                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-(--text-secondary) text-sm sm:text-base">
-                            Bank Name
-                          </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                            {displaySender.bankName}
+                            {senderAccount}
                           </span>
                         </div>
                       )}
@@ -909,53 +907,43 @@ export default function TransactionDetailsPage() {
                   </Card>
                 )}
 
-                {/* Receiver Information - Only show if any data exists */}
-                {(displayReceiver.name || displayReceiver.accountNumber || displayReceiver.email || displayReceiver.bankName) && (
+                {/* Receiver Information */}
+                {(receiverName || receiverAccount || receiverEmail) && (
                   <Card className="bg-(--bg-primary) border border-(--border-color)">
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <Building className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-secondary)" />
                       <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
-                        {isWithdrawal ? "To (Recipient)" : "Receiver Information"}
+                        {isP2P ? "To (P2P)" : "Receiver Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {displayReceiver.name && (
+                      {receiverName && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-(--text-secondary) text-sm sm:text-base">
-                            {isWithdrawal ? "Recipient Name" : "Account Name"}
+                            Name
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                            {displayReceiver.name}
+                            {receiverName}
                           </span>
                         </div>
                       )}
-                      {displayReceiver.email && (
+                      {receiverEmail && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-(--text-secondary) text-sm sm:text-base">
                             Email
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                            {displayReceiver.email}
+                            {receiverEmail}
                           </span>
                         </div>
                       )}
-                      {displayReceiver.accountNumber && (
+                      {receiverAccount && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-(--text-secondary) text-sm sm:text-base">
                             Account Number
                           </span>
                           <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                            {displayReceiver.accountNumber}
-                          </span>
-                        </div>
-                      )}
-                      {displayReceiver.bankName && (
-                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                          <span className="text-(--text-secondary) text-sm sm:text-base">
-                            Bank Name
-                          </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                            {displayReceiver.bankName}
+                            {receiverAccount}
                           </span>
                         </div>
                       )}
@@ -983,7 +971,7 @@ export default function TransactionDetailsPage() {
                         {transaction.type || "N/A"}
                       </span>
                     </div>
-                    {transaction.description && (
+                    {transaction.description && transaction.description !== narration && (
                       <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
                         <span className="text-(--text-secondary) text-sm sm:text-base">
                           Description

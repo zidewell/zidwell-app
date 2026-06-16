@@ -217,7 +217,7 @@ const CreatePaymentLink = () => {
 
   return (
     <div className="min-h-screen bg-[#0e0e0e]">
-      <nav className="sticky top-0 z-50 bg-[#0e0e0e]/80 backdrop-blur-lg border-b border-gray-800">
+      <nav className=" bg-[#0e0e0e]/80 backdrop-blur-lg border-b border-gray-800">
         <div className="container max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
           <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#e1bf46] transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back

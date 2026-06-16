@@ -1372,7 +1372,7 @@ const PageDetail = () => {
               >
                 {copiedEmbed ? (
                   <>
-                    <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                    <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" />
                     Copied!
                   </>
                 ) : (

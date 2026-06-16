@@ -60,6 +60,7 @@ const inflowTypes = [
   "virtual_account_deposit",
   "card_deposit",
   "p2p_received",
+  "p2p_credit",
   "referral",
   "referral_reward",
 ];
@@ -73,6 +74,7 @@ const outflowTypes = [
   "electricity",
   "cable",
   "p2p_transfer",
+  "p2p_debit",
 ];
 
 // Duration filter options
@@ -117,10 +119,10 @@ const MobileCard = ({
   const config = statusConfig[tx.status?.toLowerCase()] || statusConfig.pending;
 
   const description =
-    tx.description ||
     tx.narration ||
-    tx.external_response?.withdrawal_details?.narration ||
+    tx.description ||
     tx.external_response?.data?.transaction?.narration ||
+    tx.external_response?.withdrawal_details?.narration ||
     "Transaction";
 
   return (
@@ -441,10 +443,10 @@ export default function TransactionHistory() {
       tx.status?.toLowerCase() === filter.toLowerCase();
 
     const description =
-      tx.description ||
       tx.narration ||
-      tx.external_response?.withdrawal_details?.narration ||
+      tx.description ||
       tx.external_response?.data?.transaction?.narration ||
+      tx.external_response?.withdrawal_details?.narration ||
       "";
 
     const matchesSearch =
@@ -645,10 +647,10 @@ export default function TransactionHistory() {
 
   const getDescription = (transaction: any) => {
     return (
-      transaction.description ||
       transaction.narration ||
-      transaction.external_response?.withdrawal_details?.narration ||
+      transaction.description ||
       transaction.external_response?.data?.transaction?.narration ||
+      transaction.external_response?.withdrawal_details?.narration ||
       "Transaction"
     );
   };
@@ -657,12 +659,62 @@ export default function TransactionHistory() {
     router.push(`/dashboard/transactions/${transaction.id}`);
   };
 
+  // Helper functions for sender/receiver data
+  const getSenderName = (transaction: any) => {
+    if (transaction.sender?.name) return transaction.sender.name;
+    if (transaction.from_name) return transaction.from_name;
+    if (transaction.external_response?.data?.sender?.name) return transaction.external_response.data.sender.name;
+    if (transaction.external_response?.sender?.name) return transaction.external_response.sender.name;
+    return null;
+  };
+
+  const getSenderEmail = (transaction: any) => {
+    if (transaction.sender?.email) return transaction.sender.email;
+    if (transaction.from_email) return transaction.from_email;
+    if (transaction.external_response?.data?.customer?.senderEmail) return transaction.external_response.data.customer.senderEmail;
+    if (transaction.external_response?.metadata?.sender_email) return transaction.external_response.metadata.sender_email;
+    return null;
+  };
+
+  const getSenderAccount = (transaction: any) => {
+    if (transaction.sender?.accountNumber) return transaction.sender.accountNumber;
+    if (transaction.sender?.account_number) return transaction.sender.account_number;
+    if (transaction.from_account) return transaction.from_account;
+    if (transaction.external_response?.withdrawal_details?.account_number) return transaction.external_response.withdrawal_details.account_number;
+    if (transaction.external_response?.data?.customer?.accountNumber) return transaction.external_response.data.customer.accountNumber;
+    return null;
+  };
+
+  const getReceiverName = (transaction: any) => {
+    if (transaction.receiver?.name) return transaction.receiver.name;
+    if (transaction.to_name) return transaction.to_name;
+    if (transaction.external_response?.data?.receiver?.name) return transaction.external_response.data.receiver.name;
+    if (transaction.external_response?.receiver?.name) return transaction.external_response.receiver.name;
+    return null;
+  };
+
+  const getReceiverEmail = (transaction: any) => {
+    if (transaction.receiver?.email) return transaction.receiver.email;
+    if (transaction.to_email) return transaction.to_email;
+    if (transaction.external_response?.data?.customer?.recipientEmail) return transaction.external_response.data.customer.recipientEmail;
+    if (transaction.external_response?.metadata?.recipient_email) return transaction.external_response.metadata.recipient_email;
+    return null;
+  };
+
+  const getReceiverAccount = (transaction: any) => {
+    if (transaction.receiver?.accountNumber) return transaction.receiver.accountNumber;
+    if (transaction.receiver?.account_number) return transaction.receiver.account_number;
+    if (transaction.to_account) return transaction.to_account;
+    if (transaction.external_response?.receiver_details?.account_number) return transaction.external_response.receiver_details.account_number;
+    if (transaction.external_response?.data?.transaction?.aliasAccountNumber) return transaction.external_response.data.transaction.aliasAccountNumber;
+    return null;
+  };
+
   const handleDownloadReceipt = async (transaction: any) => {
     const transactionId = transaction.id;
     setDownloadingReceipts((prev) => new Set(prev).add(transactionId));
 
     try {
-      // Get logo as base64
       let logoBase64 = base64Logo;
       if (!logoBase64) {
         logoBase64 = await getBase64Logo();
@@ -686,59 +738,21 @@ export default function TransactionHistory() {
       const statusMeta = getStatusMeta(transaction.status);
       const transactionIdDisplay = transaction.reference || transaction.merchant_tx_ref || transaction.id;
       
-      // Format date
       const dateObj = new Date(transaction.created_at);
       const formattedDate = `${dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} • ${dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
       
-      // Get REAL sender and receiver data
-      const getSenderEmail = (tx: any) => {
-        if (tx.sender?.email) return tx.sender.email;
-        if (tx.from_email) return tx.from_email;
-        if (tx.external_response?.data?.customer?.senderEmail) return tx.external_response.data.customer.senderEmail;
-        if (tx.external_response?.metadata?.sender_email) return tx.external_response.metadata.sender_email;
-        return null;
-      };
-
-      const getSenderAccount = (tx: any) => {
-        if (tx.sender?.accountNumber) return tx.sender.accountNumber;
-        if (tx.sender?.account_number) return tx.sender.account_number;
-        if (tx.from_account) return tx.from_account;
-        if (tx.external_response?.withdrawal_details?.account_number) return tx.external_response.withdrawal_details.account_number;
-        if (tx.external_response?.data?.customer?.accountNumber) return tx.external_response.data.customer.accountNumber;
-        return null;
-      };
-
-      const getReceiverEmail = (tx: any) => {
-        if (tx.receiver?.email) return tx.receiver.email;
-        if (tx.to_email) return tx.to_email;
-        if (tx.external_response?.data?.customer?.recipientEmail) return tx.external_response.data.customer.recipientEmail;
-        if (tx.external_response?.metadata?.recipient_email) return tx.external_response.metadata.recipient_email;
-        return null;
-      };
-
-      const getReceiverAccount = (tx: any) => {
-        if (tx.receiver?.accountNumber) return tx.receiver.accountNumber;
-        if (tx.receiver?.account_number) return tx.receiver.account_number;
-        if (tx.to_account) return tx.to_account;
-        if (tx.external_response?.receiver_details?.account_number) return tx.external_response.receiver_details.account_number;
-        if (tx.external_response?.data?.transaction?.aliasAccountNumber) return tx.external_response.data.transaction.aliasAccountNumber;
-        return null;
-      };
-      
-      const senderName = transaction.sender?.name || transaction.from_name || null;
+      const senderName = getSenderName(transaction);
       const senderEmail = getSenderEmail(transaction);
       const senderAccount = getSenderAccount(transaction);
       
-      const receiverName = transaction.receiver?.name || transaction.to_name || null;
+      const receiverName = getReceiverName(transaction);
       const receiverEmail = getReceiverEmail(transaction);
       const receiverAccount = getReceiverAccount(transaction);
       
       const feeAmount = transaction.fee || 0;
 
-      // Logo HTML
       const logoSrc = logoBase64 || "/logo.png";
 
-      // Get status icon SVG
       let statusIconSvg = '';
       if (statusMeta.statusClass === 'success') {
         statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -771,7 +785,6 @@ export default function TransactionHistory() {
         });
       }
 
-      // RECEIPT HTML - Identical to TransactionDetailsPage
       const receiptHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1052,6 +1065,22 @@ export default function TransactionHistory() {
         </div>
       </div>
       ${receiverAccount ? `<div class="right">${escapeHtml(receiverAccount)}</div>` : '<div class="right"></div>'}
+    </div>
+    ` : ''}
+
+    ${narration ? `
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">Narration</div>
+          <div class="detail-value" style="font-weight: 400; font-size: 14px;">${escapeHtml(narration)}</div>
+        </div>
+      </div>
     </div>
     ` : ''}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Edit, Eye, Loader2, Users } from "lucide-react";
+import { Download, Edit, Eye, Loader2, Trash2, Users } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -33,16 +33,17 @@ type Props = {
   invoices: any[];
   loading: boolean;
   onRefresh?: () => void;
+  onDelete?: (invoiceId: string) => Promise<void>;
 };
 
-const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
+const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }) => {
   const statusColors: Record<string, string> = {
-    unpaid: "bg-yellow-100 text-yellow-800",
-    draft: "bg-gray-100 text-gray-800",
-    paid: "bg-green-100 text-green-800",
-    overdue: "bg-red-100 text-red-800",
-    cancelled: "bg-gray-100 text-gray-800",
-    partially_paid: "bg-blue-100 text-blue-800",
+    unpaid: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    draft: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400",
+    paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    overdue: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+    cancelled: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400",
+    partially_paid: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   };
 
   const formatNumber = (value: number) => {
@@ -57,11 +58,19 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
   const [processingInvoiceId, setProcessingInvoiceId] = useState<string | null>(
     null,
   );
+  const [localInvoices, setLocalInvoices] = useState<any[]>(invoices);
   const { userData } = useUserContextData();
   const router = useRouter();
   const [base64Logo, setBase64Logo] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Update local invoices when prop changes
+  useEffect(() => {
+    setLocalInvoices(invoices);
+  }, [invoices]);
 
   useEffect(() => {
+    setIsMounted(true);
     const loadLogo = async () => {
       const logo = await getBase64Logo();
       setBase64Logo(logo);
@@ -69,6 +78,72 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
     loadLogo();
   }, []);
+
+  const handleDeleteInvoice = async (invoice: any) => {
+    const result = await MySwal.fire({
+      title: 'Delete Invoice',
+      html: `
+        <p>Are you sure you want to delete invoice <strong>${invoice.invoice_id}</strong>?</p>
+        <p style="color: #ef4444; font-size: 14px; margin-top: 8px;">This action cannot be undone.</p>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'Cancel',
+      background: 'var(--bg-primary)',
+      color: 'var(--text-primary)',
+      customClass: {
+        popup: 'squircle-lg',
+      },
+    });
+
+    if (result.isConfirmed) {
+      try {
+        setProcessingInvoiceId(invoice.id);
+
+        // Call the delete API if provided
+        if (onDelete) {
+          await onDelete(invoice.id);
+        }
+
+        // Remove from local state
+        setLocalInvoices((prev) => prev.filter((inv) => inv.id !== invoice.id));
+
+        await MySwal.fire({
+          title: 'Deleted!',
+          text: `Invoice ${invoice.invoice_id} has been deleted.`,
+          icon: 'success',
+          confirmButtonColor: 'var(--color-accent-yellow)',
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)',
+          customClass: {
+            popup: 'squircle-lg',
+          },
+        });
+        
+        if (onRefresh) {
+          onRefresh();
+        }
+      } catch (error) {
+        console.error('Delete error:', error);
+        await MySwal.fire({
+          title: 'Error!',
+          text: error instanceof Error ? error.message : 'Failed to delete invoice. Please try again.',
+          icon: 'error',
+          confirmButtonColor: 'var(--color-accent-yellow)',
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)',
+          customClass: {
+            popup: 'squircle-lg',
+          },
+        });
+      } finally {
+        setProcessingInvoiceId(null);
+      }
+    }
+  };
 
   const transformInvoiceForPreview = (invoice: any) => {
     let invoiceItems: any[] = [];
@@ -165,21 +240,12 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
     return null;
   };
 
-  const [pageLoading, setPageLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPageLoading(false);
-    }, 2500);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (pageLoading) {
-    return <Loader />;
+  // Don't render anything until mounted to avoid hydration issues
+  if (!isMounted) {
+    return null;
   }
 
-  if (invoices.length === 0) {
+  if (localInvoices.length === 0 && !loading) {
     return (
       <div className="flex items-center justify-center text-semibold text-(--text-secondary)">
         No invoices records
@@ -189,7 +255,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
   return (
     <div className="space-y-4">
-      {invoices?.map((invoice) => {
+      {localInvoices?.map((invoice) => {
         const invoiceItems = Array.isArray(invoice.invoice_items)
           ? invoice.invoice_items
           : [];
@@ -205,6 +271,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
         const paymentProgress = getPaymentProgress(invoice);
         const paymentCountText = getPaymentCountText(invoice);
+        const isProcessing = processingInvoiceId === invoice.id;
 
         return (
           <Card
@@ -221,7 +288,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                     <Badge
                       className={
                         statusColors[invoice.status] ||
-                        "bg-gray-100 text-gray-800"
+                        "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400"
                       }
                     >
                       {invoice.status?.toUpperCase()}
@@ -237,8 +304,8 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                   {invoice.allow_multiple_payments &&
                     !paymentProgress &&
                     invoice.paid_amount > 0 && (
-                      <div className="mb-3 p-2 bg-green-50 rounded border border-green-200">
-                        <p className="text-sm text-green-700">
+                      <div className="mb-3 p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                        <p className="text-sm text-green-700 dark:text-green-400">
                           <strong>Paid:</strong> ₦
                           {formatNumber(invoice.paid_amount)} of ₦
                           {formatNumber(totalAmount)}
@@ -267,7 +334,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                       }}
                       variant="outline"
                       size="sm"
-                      className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+                      className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 dark:border-blue-800"
                     >
                       <Eye className="w-4 h-4 mr-1" />
                       View Draft
@@ -303,41 +370,61 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                     Edit
                   </Button>
 
-                 <InvoicePDFGenerator
-  invoice={{
-    invoice_id: invoice.invoice_id,
-    business_name: invoice.business_name,
-    business_logo: invoice.business_logo,
-    client_name: invoice.client_name,
-    client_email: invoice.client_email,
-    client_phone: invoice.client_phone,
-    from_email: invoice.from_email,
-    from_name: invoice.from_name,
-    issue_date: invoice.issue_date,
-    due_date: invoice.due_date,
-    status: invoice.status,
-    payment_type: invoice.payment_type,
-    fee_option: invoice.fee_option,
-    subtotal: invoice.subtotal,
-    fee_amount: invoice.fee_amount,
-    total_amount: invoice.total_amount,
-    paid_amount: invoice.paid_amount,
-    paid_quantity: invoice.paid_quantity,
-    target_quantity: invoice.target_quantity,
-    allow_multiple_payments: invoice.allow_multiple_payments,
-    message: invoice.message,
-    customer_note: invoice.customer_note,
-    invoice_items: invoice.invoice_items,
-    initiator_account_name: invoice.initiator_account_name,
-    initiator_account_number: invoice.initiator_account_number,
-    initiator_bank_name: invoice.initiator_bank_name,
-    verification_code: invoice.verification_code,
-  }}
-  buttonText="PDF"
-  buttonVariant="outline"
-  buttonSize="sm"
-  className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
-/>
+                  <InvoicePDFGenerator
+                    invoice={{
+                      invoice_id: invoice.invoice_id,
+                      business_name: invoice.business_name,
+                      business_logo: invoice.business_logo,
+                      client_name: invoice.client_name,
+                      client_email: invoice.client_email,
+                      client_phone: invoice.client_phone,
+                      from_email: invoice.from_email,
+                      from_name: invoice.from_name,
+                      issue_date: invoice.issue_date,
+                      due_date: invoice.due_date,
+                      status: invoice.status,
+                      payment_type: invoice.payment_type,
+                      fee_option: invoice.fee_option,
+                      subtotal: invoice.subtotal,
+                      fee_amount: invoice.fee_amount,
+                      total_amount: invoice.total_amount,
+                      paid_amount: invoice.paid_amount,
+                      paid_quantity: invoice.paid_quantity,
+                      target_quantity: invoice.target_quantity,
+                      allow_multiple_payments: invoice.allow_multiple_payments,
+                      message: invoice.message,
+                      customer_note: invoice.customer_note,
+                      invoice_items: invoice.invoice_items,
+                      initiator_account_name: invoice.initiator_account_name,
+                      initiator_account_number: invoice.initiator_account_number,
+                      initiator_bank_name: invoice.initiator_bank_name,
+                      verification_code: invoice.verification_code,
+                    }}
+                    buttonText="PDF"
+                    buttonVariant="outline"
+                    buttonSize="sm"
+                    className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
+                  />
+
+                  {/* Delete Button */}
+                  <Button
+                    onClick={() => handleDeleteInvoice(invoice)}
+                    variant="outline"
+                    size="sm"
+                    disabled={isProcessing || invoice.status === "paid"}
+                    className={`
+                      border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300
+                      dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:border-red-700
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                      transition-all duration-200
+                    `}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -346,7 +433,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
       })}
 
       {selectedInvoice && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-(--bg-primary) rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto squircle-lg shadow-pop">
             <div className="sticky top-0 bg-(--bg-primary) border-b border-(--border-color) p-4 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-(--text-primary)">
