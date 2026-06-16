@@ -864,78 +864,93 @@ const PreviewCard = ({
   logo: string | null;
   previewPrice: string;
   config: LinkConfig;
-}) => (
-  <motion.div
-    layout
-    className="rounded-3xl overflow-hidden shadow-2xl border border-gray-800 bg-[#1a1a1a]"
-    style={{ borderTop: `4px solid ${config.brandColor}` }}
-  >
-    <div className="p-6 space-y-4">
-      <div className="flex items-center gap-3">
-        {logo ? (
+}) => {
+  // Use logo as cover image if no cover exists
+  const coverImage = logo || null;
+
+  return (
+    <motion.div
+      layout
+      className="rounded-3xl overflow-hidden shadow-2xl border border-gray-800 bg-[#1a1a1a]"
+      style={{ borderTop: `4px solid ${config.brandColor}` }}
+    >
+      {/* Cover Image - uses logo as fallback */}
+      {coverImage && (
+        <div className="w-full h-32 overflow-hidden bg-gray-800">
           <img
-            src={logo}
-            alt="logo"
-            className="h-12 w-12 rounded-xl object-cover"
+            src={coverImage}
+            alt="Cover"
+            className="w-full h-full object-cover"
           />
-        ) : (
-          <div
-            className="h-12 w-12 rounded-xl flex items-center justify-center"
-            style={{ background: `${config.brandColor}15` }}
-          >
-            <Link2 className="h-5 w-5" style={{ color: config.brandColor }} />
+        </div>
+      )}
+      <div className="p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          {logo ? (
+            <img
+              src={logo}
+              alt="logo"
+              className="h-12 w-12 rounded-xl object-cover"
+            />
+          ) : (
+            <div
+              className="h-12 w-12 rounded-xl flex items-center justify-center"
+              style={{ background: `${config.brandColor}15` }}
+            >
+              <Link2 className="h-5 w-5" style={{ color: config.brandColor }} />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-base truncate text-white">{title}</h3>
+            {description && (
+              <p className="text-xs text-gray-400 line-clamp-2">{description}</p>
+            )}
           </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-base truncate text-white">{title}</h3>
-          {description && (
-            <p className="text-xs text-gray-400 line-clamp-2">{description}</p>
+        </div>
+        <div className="py-3 border-y border-gray-800">
+          <div className="text-xs text-gray-400">Amount</div>
+          <div
+            className="text-2xl font-bold"
+            style={{ color: config.brandColor }}
+          >
+            {previewPrice}
+          </div>
+        </div>
+        <div className="space-y-2">
+          {config.collectName && (
+            <FieldPreview label={`Full Name${config.nameRequired ? " *" : ""}`} />
+          )}
+          {config.collectEmail && (
+            <FieldPreview label={`Email${config.emailRequired ? " *" : ""}`} />
+          )}
+          {config.collectPhone && (
+            <FieldPreview label={`Phone${config.phoneRequired ? " *" : ""}`} />
+          )}
+          {config.customFields.slice(0, 3).map((f) => (
+            <FieldPreview
+              key={f.id}
+              label={`${f.label}${f.required ? " *" : ""}`}
+            />
+          ))}
+          {config.customFields.length > 3 && (
+            <p className="text-xs text-gray-500">
+              + {config.customFields.length - 3} more fields
+            </p>
           )}
         </div>
-      </div>
-      <div className="py-3 border-y border-gray-800">
-        <div className="text-xs text-gray-400">Amount</div>
-        <div
-          className="text-2xl font-bold"
-          style={{ color: config.brandColor }}
+        <button
+          className="w-full h-12 rounded-xl font-bold text-sm transition-transform hover:scale-[1.02]"
+          style={{ background: config.buttonColor, color: config.brandColor }}
         >
-          {previewPrice}
-        </div>
+          {config.buttonText}
+        </button>
+        <p className="text-[10px] text-center text-gray-500">
+          Secured by Zidwell
+        </p>
       </div>
-      <div className="space-y-2">
-        {config.collectName && (
-          <FieldPreview label={`Full Name${config.nameRequired ? " *" : ""}`} />
-        )}
-        {config.collectEmail && (
-          <FieldPreview label={`Email${config.emailRequired ? " *" : ""}`} />
-        )}
-        {config.collectPhone && (
-          <FieldPreview label={`Phone${config.phoneRequired ? " *" : ""}`} />
-        )}
-        {config.customFields.slice(0, 3).map((f) => (
-          <FieldPreview
-            key={f.id}
-            label={`${f.label}${f.required ? " *" : ""}`}
-          />
-        ))}
-        {config.customFields.length > 3 && (
-          <p className="text-xs text-gray-500">
-            + {config.customFields.length - 3} more fields
-          </p>
-        )}
-      </div>
-      <button
-        className="w-full h-12 rounded-xl font-bold text-sm transition-transform hover:scale-[1.02]"
-        style={{ background: config.buttonColor, color: config.brandColor }}
-      >
-        {config.buttonText}
-      </button>
-      <p className="text-[10px] text-center text-gray-500">
-        Secured by Zidwell
-      </p>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 const FieldPreview = ({ label }: { label: string }) => (
   <div>
