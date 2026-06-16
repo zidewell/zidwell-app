@@ -106,7 +106,9 @@ interface PaymentPageClientProps {
 type PaymentOption = "full" | "installment";
 type PaymentMethodType = "virtual_account" | "card";
 
-// Payment Link Component
+// ============================================================
+// PAYMENT LINK COMPONENT (For Payment Link page type)
+// ============================================================
 function PaymentLinkComponent({
   page,
   config,
@@ -131,6 +133,9 @@ function PaymentLinkComponent({
   const [cardPaymentAmount, setCardPaymentAmount] = useState(0);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [pendingReference, setPendingReference] = useState("");
+
+  // 🔑 KEY STATE: Controls whether bank details are shown
+  const [showBankDetails, setShowBankDetails] = useState(false);
 
   const amount =
     config.amountMode === "fixed" ? page.price : formData.customAmount;
@@ -166,7 +171,6 @@ function PaymentLinkComponent({
       });
 
       if (result.isConfirmed) {
-        // User confirmed they made the transfer
         const response = await fetch(
           "/api/payment-page/public/confirm-payment",
           {
@@ -210,7 +214,7 @@ function PaymentLinkComponent({
     }
   };
 
-  // Handle Virtual Account Payment
+  // Handle Virtual Account Payment - This is where the magic happens
   const handleVirtualAccountPayment = async () => {
     const virtualAccount = page.virtualAccount;
     if (!virtualAccount) {
@@ -225,11 +229,33 @@ function PaymentLinkComponent({
       return;
     }
 
-    // Generate unique reference
+    // ✅ STEP 1: Validate required fields
+    const newErrors: Record<string, string> = {};
+    if (config.collectName && config.nameRequired && !customerName) {
+      newErrors.name = "Name is required";
+    }
+    if (config.collectEmail && config.emailRequired && !customerEmail) {
+      newErrors.email = "Email is required";
+    }
+    if (config.collectPhone && config.phoneRequired && !customerPhone) {
+      newErrors.phone = "Phone number is required";
+    }
+    config.customFields.forEach((field) => {
+      if (field.required && !formData[field.id]) {
+        newErrors[field.id] = `${field.label} is required`;
+      }
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // ✅ STEP 2: Generate unique reference for tracking
     const transferReference = `PL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setPendingReference(transferReference);
 
-    // Build narration
+    // ✅ STEP 3: Build narration for identification
     let narration = page.title;
     if (customerName) narration += ` - ${customerName}`;
     const customFieldsText = Object.entries(formData)
@@ -238,7 +264,7 @@ function PaymentLinkComponent({
       .join(", ");
     if (customFieldsText) narration += ` (${customFieldsText})`;
 
-    // Create pending payment record
+    // ✅ STEP 4: Create pending payment record in database
     try {
       const response = await fetch(
         "/api/payment-page/public/transfer-payment",
@@ -267,6 +293,10 @@ function PaymentLinkComponent({
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
+      // ✅ STEP 5: REVEAL BANK DETAILS - This is the key step!
+      setShowBankDetails(true);
+
+      // ✅ STEP 6: Show account details modal
       const details = `Bank: ${virtualAccount.bankName}
 Account Number: ${virtualAccount.accountNumber}
 Account Name: ${virtualAccount.bankAccountName || virtualAccount.accountName}
@@ -588,7 +618,6 @@ Narration: ${narration}`;
                   )}
                 </div>
               )}
-
               {config.collectEmail && (
                 <div>
                   <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
@@ -605,7 +634,6 @@ Narration: ${narration}`;
                   )}
                 </div>
               )}
-
               {config.collectPhone && (
                 <div>
                   <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
@@ -622,7 +650,6 @@ Narration: ${narration}`;
                   )}
                 </div>
               )}
-
               {config.customFields.map(renderCustomField)}
             </div>
 
@@ -658,7 +685,6 @@ Narration: ${narration}`;
                     Pay via Virtual Account
                   </p>
                 </button>
-
                 <button
                   onClick={() => setSelectedPaymentMethod("card")}
                   className={`p-4 rounded-xl border-2 transition-all ${selectedPaymentMethod === "card" ? "border-[#e1bf46] bg-[#e1bf46]/10" : "border-gray-700 hover:border-[#e1bf46]/50"}`}
@@ -677,10 +703,11 @@ Narration: ${narration}`;
                 </button>
               </div>
 
-              {/* Virtual Account Section */}
-              {selectedPaymentMethod === "virtual_account" &&
-                page.virtualAccount && (
-                  <>
+              {/* 🔑 Virtual Account Section - Bank details are hidden initially */}
+              {selectedPaymentMethod === "virtual_account" && (
+                <>
+                  {/* Show bank details ONLY when showBankDetails is true */}
+                  {showBankDetails && page.virtualAccount ? (
                     <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800 mb-4">
                       <p className="text-sm font-medium text-blue-400 mb-2">
                         Transfer to this account:
@@ -720,29 +747,42 @@ Narration: ${narration}`;
                         </p>
                       </div>
                     </div>
-
-                    <div className="bg-[#0e0e0e] rounded-xl p-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Total Amount:</span>
-                        <span className="text-2xl font-bold text-[#e1bf46]">
-                          ₦
-                          {(config.amountMode === "fixed"
-                            ? page.price
-                            : formData.customAmount || 0
-                          ).toLocaleString()}
-                        </span>
-                      </div>
-                      <Button
-                        onClick={handleVirtualAccountPayment}
-                        disabled={!isValidAmount}
-                        className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
-                      >
-                        <Banknote className="h-4 w-4 mr-2" />
-                        Get Account Details
-                      </Button>
+                  ) : (
+                    // Placeholder when bank details are hidden
+                    <div className="bg-gray-800/30 rounded-xl p-4 text-center mb-4">
+                      <Banknote className="h-10 w-10 mx-auto text-gray-500 mb-2" />
+                      <p className="text-sm text-gray-400">
+                        Fill in your details above and click "Get Account
+                        Details"
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Bank details will be shown here
+                      </p>
                     </div>
-                  </>
-                )}
+                  )}
+
+                  <div className="bg-[#0e0e0e] rounded-xl p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Total Amount:</span>
+                      <span className="text-2xl font-bold text-[#e1bf46]">
+                        ₦
+                        {(config.amountMode === "fixed"
+                          ? page.price
+                          : formData.customAmount || 0
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                    <Button
+                      onClick={handleVirtualAccountPayment}
+                      disabled={!isValidAmount}
+                      className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
+                    >
+                      <Banknote className="h-4 w-4 mr-2" />
+                      Get Account Details
+                    </Button>
+                  </div>
+                </>
+              )}
 
               {/* Card Payment Section */}
               {selectedPaymentMethod === "card" && (
@@ -759,7 +799,6 @@ Narration: ${narration}`;
                       </span>
                     </div>
                   </div>
-
                   <Button
                     onClick={() => {
                       setCardPaymentAmount(
@@ -772,8 +811,7 @@ Narration: ${narration}`;
                     disabled={!isValidAmount}
                     className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold py-6 text-lg"
                   >
-                    <CreditCard className="h-5 w-5 mr-2" />
-                    Pay with Card
+                    <CreditCard className="h-5 w-5 mr-2" /> Pay with Card
                   </Button>
                 </>
               )}
@@ -859,8 +897,6 @@ Narration: ${narration}`;
                 )}
                 {copied ? "Copied!" : "Copy Details"}
               </Button>
-
-              {/* "I've Seen Payment" / "I've Made the Transfer" Button */}
               {pendingReference && (
                 <Button
                   onClick={() => confirmPayment(pendingReference)}
@@ -877,7 +913,6 @@ Narration: ${narration}`;
                     : "✅ I've Made the Transfer"}
                 </Button>
               )}
-
               <p className="text-xs text-gray-500 text-center">
                 After making the transfer, click the button above to confirm
                 your payment.
@@ -890,6 +925,9 @@ Narration: ${narration}`;
   );
 }
 
+// ============================================================
+// MAIN PAYMENT PAGE CLIENT COMPONENT
+// ============================================================
 export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const router = useRouter();
   const [page, setPage] = useState<PaymentPage | null>(null);
@@ -916,12 +954,17 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [pendingReference, setPendingReference] = useState("");
 
+  // 🔑 KEY STATE: Controls whether bank details are shown
+  const [showBankDetails, setShowBankDetails] = useState(false);
+
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedProductImage, setSelectedProductImage] = useState<
     string | null
   >(null);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  // ... (all the memoized functions remain the same)
 
   const students = useMemo(() => {
     const rawStudents = page?.metadata?.students || [];
@@ -1744,51 +1787,66 @@ Narration: ${narration}`;
             </button>
           </div>
 
-          {/* Virtual Account Section */}
+          {/* 🔑 Virtual Account Section - Bank details are hidden initially */}
           {selectedPaymentMethod === "virtual_account" &&
             page.virtualAccount && (
               <>
-                <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800 mb-4">
-                  <p className="text-sm font-medium text-blue-400 mb-2">
-                    Transfer to this account:
-                  </p>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400">Bank:</span>
-                      <span className="font-medium text-white">
-                        {page.virtualAccount.bankName}
-                      </span>
+                {/* Show bank details ONLY when showBankDetails is true */}
+                {showBankDetails ? (
+                  <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800 mb-4">
+                    <p className="text-sm font-medium text-blue-400 mb-2">
+                      Transfer to this account:
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Bank:</span>
+                        <span className="font-medium text-white">
+                          {page.virtualAccount.bankName}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">
+                          Account Number:
+                        </span>
+                        <span className="font-mono font-bold text-white">
+                          {page.virtualAccount.accountNumber}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">
+                          Account Name:
+                        </span>
+                        <span className="font-medium text-white truncate max-w-[200px]">
+                          {page.virtualAccount.bankAccountName ||
+                            page.virtualAccount.accountName}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400">
-                        Account Number:
-                      </span>
-                      <span className="font-mono font-bold text-white">
-                        {page.virtualAccount.accountNumber}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400">
-                        Account Name:
-                      </span>
-                      <span className="font-medium text-white truncate max-w-[200px]">
-                        {page.virtualAccount.bankAccountName ||
-                          page.virtualAccount.accountName}
-                      </span>
+                    <div className="mt-3 p-2 bg-yellow-900/20 rounded-lg border border-yellow-800">
+                      <p className="text-xs text-yellow-400">
+                        📝 Use{" "}
+                        <strong className="text-yellow-300">
+                          {page.pageType === "school"
+                            ? "student name(s)"
+                            : "product name"}
+                        </strong>{" "}
+                        as narration
+                      </p>
                     </div>
                   </div>
-                  <div className="mt-3 p-2 bg-yellow-900/20 rounded-lg border border-yellow-800">
-                    <p className="text-xs text-yellow-400">
-                      📝 Use{" "}
-                      <strong className="text-yellow-300">
-                        {page.pageType === "school"
-                          ? "student name(s)"
-                          : "product name"}
-                      </strong>{" "}
-                      as narration
+                ) : (
+                  // Placeholder when bank details are hidden
+                  <div className="bg-gray-800/30 rounded-xl p-4 text-center mb-4">
+                    <Banknote className="h-10 w-10 mx-auto text-gray-500 mb-2" />
+                    <p className="text-sm text-gray-400">
+                      Fill in your details above and click "Copy Account
+                      Details"
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Bank details will be shown here
                     </p>
                   </div>
-                </div>
+                )}
 
                 <div className="bg-[#0e0e0e] rounded-xl p-4">
                   <div className="flex justify-between items-center">
@@ -1798,7 +1856,11 @@ Narration: ${narration}`;
                     </span>
                   </div>
                   <Button
-                    onClick={handleVirtualAccountPayment}
+                    onClick={() => {
+                      // When clicked, show bank details and create pending payment
+                      setShowBankDetails(true);
+                      handleVirtualAccountPayment();
+                    }}
                     className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
                   >
                     <Banknote className="h-4 w-4 mr-2" /> Copy Account Details
