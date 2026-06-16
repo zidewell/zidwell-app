@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import Swal from "sweetalert2";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -105,7 +106,7 @@ interface PaymentPageClientProps {
 type PaymentOption = "full" | "installment";
 type PaymentMethodType = "virtual_account" | "card";
 
-// Payment Link Component - Works like other page types
+// Payment Link Component
 function PaymentLinkComponent({
   page,
   config,
@@ -123,13 +124,18 @@ function PaymentLinkComponent({
   const [copied, setCopied] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [accountDetails, setAccountDetails] = useState("");
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType>("virtual_account");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<PaymentMethodType>("virtual_account");
   const [processingCardPayment, setProcessingCardPayment] = useState(false);
   const [showCardModal, setShowCardModal] = useState(false);
   const [cardPaymentAmount, setCardPaymentAmount] = useState(0);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
+  const [pendingReference, setPendingReference] = useState("");
 
-  const amount = config.amountMode === "fixed" ? page.price : formData.customAmount;
-  const isValidAmount = config.amountMode === "variable" ? amount && amount > 0 : page.price > 0;
+  const amount =
+    config.amountMode === "fixed" ? page.price : formData.customAmount;
+  const isValidAmount =
+    config.amountMode === "variable" ? amount && amount > 0 : page.price > 0;
 
   const copyToClipboard = async (text: string) => {
     await navigator.clipboard.writeText(text);
@@ -137,45 +143,149 @@ function PaymentLinkComponent({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Handle Virtual Account Payment - Just show account details (NO API CALL)
-  const handleVirtualAccountPayment = () => {
+  // Confirm payment after transfer
+  const confirmPayment = async (reference: string) => {
+    setConfirmingPayment(true);
+
+    try {
+      const result = await Swal.fire({
+        title: "Confirm Transfer",
+        html: `
+          <div class="text-left">
+            <p class="mb-2">Have you completed the bank transfer?</p>
+            <p class="text-sm text-gray-600">Please confirm that you have transferred the money.</p>
+            <p class="text-sm text-gray-600 mt-2">Reference: <strong>${reference}</strong></p>
+          </div>
+        `,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "✅ Yes, I've Transferred",
+        cancelButtonText: "⏳ Not Yet",
+        confirmButtonColor: "#22c55e",
+        cancelButtonColor: "#6b7280",
+      });
+
+      if (result.isConfirmed) {
+        // User confirmed they made the transfer
+        const response = await fetch(
+          "/api/payment-page/public/confirm-payment",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ transferReference: reference }),
+          },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to confirm payment");
+        }
+
+        if (data.success) {
+          await Swal.fire({
+            icon: "success",
+            title: "Payment Confirmed!",
+            html: `
+              <div class="text-left">
+                <p>✅ Your payment has been confirmed.</p>
+                <p class="text-sm text-gray-600 mt-2">A receipt has been sent to your email.</p>
+              </div>
+            `,
+            confirmButtonColor: "#F5B81B",
+          });
+          window.location.reload();
+        }
+      }
+    } catch (error: any) {
+      console.error("Payment confirmation error:", error);
+      await Swal.fire({
+        icon: "error",
+        title: "Confirmation Failed",
+        text: error.message || "Could not confirm payment. Please try again.",
+        confirmButtonColor: "#F5B81B",
+      });
+    } finally {
+      setConfirmingPayment(false);
+    }
+  };
+
+  // Handle Virtual Account Payment
+  const handleVirtualAccountPayment = async () => {
     const virtualAccount = page.virtualAccount;
     if (!virtualAccount) {
       alert("Virtual account not available. Please try card payment.");
       return;
     }
 
-    const totalAmount = config.amountMode === "fixed" ? page.price : formData.customAmount;
+    const totalAmount =
+      config.amountMode === "fixed" ? page.price : formData.customAmount;
     if (!totalAmount || totalAmount <= 0) {
       alert("Please enter a valid amount");
       return;
     }
 
-    // Build narration from custom fields and customer info
+    // Generate unique reference
+    const transferReference = `PL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    setPendingReference(transferReference);
+
+    // Build narration
     let narration = page.title;
     if (customerName) narration += ` - ${customerName}`;
-    
-    // Add custom fields to narration
     const customFieldsText = Object.entries(formData)
       .filter(([key]) => key !== "customAmount")
       .map(([key, value]) => `${key}: ${value}`)
       .join(", ");
     if (customFieldsText) narration += ` (${customFieldsText})`;
 
-    const details = `Bank: ${virtualAccount.bankName}
+    // Create pending payment record
+    try {
+      const response = await fetch(
+        "/api/payment-page/public/transfer-payment",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pageSlug: page.slug,
+            customerName: customerName || "Customer",
+            customerEmail: customerEmail || "customer@example.com",
+            customerPhone: customerPhone || "",
+            amount: totalAmount,
+            transferReference: transferReference,
+            metadata: {
+              pageType: "link",
+              pageTitle: page.title,
+              paymentType: "link",
+              customFields: formData,
+              referenceCode: config.referenceCode,
+              narration: narration,
+            },
+          }),
+        },
+      );
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+
+      const details = `Bank: ${virtualAccount.bankName}
 Account Number: ${virtualAccount.accountNumber}
 Account Name: ${virtualAccount.bankAccountName || virtualAccount.accountName}
 Amount: ₦${totalAmount.toLocaleString()}
+Reference: ${transferReference}
 Narration: ${narration}`;
 
-    setAccountDetails(details);
-    setShowAccountModal(true);
+      setAccountDetails(details);
+      setShowAccountModal(true);
+    } catch (err: any) {
+      alert(err.message || "Failed to initiate payment. Please try again.");
+    }
   };
 
-  // Handle Card Payment - Creates checkout session
+  // Handle Card Payment
   const handleCardPayment = async () => {
-    const totalAmount = config.amountMode === "fixed" ? page.price : formData.customAmount;
-    
+    const totalAmount =
+      config.amountMode === "fixed" ? page.price : formData.customAmount;
+
     if (!totalAmount || totalAmount <= 0) {
       alert("Please enter a valid amount");
       return;
@@ -212,9 +322,9 @@ Narration: ${narration}`;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pageSlug: page.slug,
-          customerName: customerName || "Customer",
-          customerEmail: customerEmail || "customer@example.com",
-          customerPhone: customerPhone || "",
+          customerName: customerName,
+          customerEmail: customerEmail,
+          customerPhone: customerPhone,
           amount: totalAmount,
           metadata: {
             pageType: "link",
@@ -234,7 +344,7 @@ Narration: ${narration}`;
       // Poll for payment completion
       const checkInterval = setInterval(async () => {
         const statusResponse = await fetch(
-          `/api/payment-page/public/status?reference=${data.orderReference}`
+          `/api/payment-page/public/status?reference=${data.orderReference}`,
         );
         const statusData = await statusResponse.json();
         if (statusData.payment?.status === "completed") {
@@ -246,7 +356,9 @@ Narration: ${narration}`;
 
       setTimeout(() => clearInterval(checkInterval), 300000);
     } catch (err: any) {
-      alert(err.message || "Failed to initiate card payment. Please try again.");
+      alert(
+        err.message || "Failed to initiate card payment. Please try again.",
+      );
     } finally {
       setProcessingCardPayment(false);
     }
@@ -265,7 +377,9 @@ Narration: ${narration}`;
             </Label>
             <Input
               value={value}
-              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, [field.id]: e.target.value })
+              }
               className="bg-[#1a1a1a] border-gray-700 text-white"
             />
             {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -280,7 +394,12 @@ Narration: ${narration}`;
             <Input
               type="number"
               value={value}
-              onChange={(e) => setFormData({ ...formData, [field.id]: parseFloat(e.target.value) })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  [field.id]: parseFloat(e.target.value),
+                })
+              }
               className="bg-[#1a1a1a] border-gray-700 text-white"
             />
             {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -295,7 +414,9 @@ Narration: ${narration}`;
             <Input
               type="date"
               value={value}
-              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, [field.id]: e.target.value })
+              }
               className="bg-[#1a1a1a] border-gray-700 text-white"
             />
             {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -309,12 +430,16 @@ Narration: ${narration}`;
             </Label>
             <select
               value={value}
-              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, [field.id]: e.target.value })
+              }
               className="w-full h-12 rounded-lg border border-gray-700 bg-[#1a1a1a] px-3 text-white"
             >
               <option value="">Select...</option>
               {field.options?.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
               ))}
             </select>
             {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -326,7 +451,9 @@ Narration: ${narration}`;
             <input
               type="checkbox"
               checked={value}
-              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.checked })}
+              onChange={(e) =>
+                setFormData({ ...formData, [field.id]: e.target.checked })
+              }
               className="h-4 w-4 rounded border-gray-700 bg-[#1a1a1a]"
             />
             <Label className="text-sm text-gray-300">
@@ -343,7 +470,9 @@ Narration: ${narration}`;
             </Label>
             <Textarea
               value={value}
-              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, [field.id]: e.target.value })
+              }
               rows={3}
               className="bg-[#1a1a1a] border-gray-700 text-white resize-none"
             />
@@ -497,7 +626,6 @@ Narration: ${narration}`;
               {config.customFields.map(renderCustomField)}
             </div>
 
-            {/* Reference Code Display */}
             {config.referenceCode && (
               <div className="bg-gray-800/30 rounded-lg p-3 text-center">
                 <p className="text-xs text-gray-500">Reference Code</p>
@@ -507,9 +635,11 @@ Narration: ${narration}`;
               </div>
             )}
 
-            {/* PAYMENT METHOD SELECTOR - Just like other page types */}
+            {/* Payment Method Selector */}
             <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5">
-              <h3 className="font-bold text-lg mb-4 text-white">Payment Method</h3>
+              <h3 className="font-bold text-lg mb-4 text-white">
+                Payment Method
+              </h3>
 
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <button
@@ -547,58 +677,72 @@ Narration: ${narration}`;
                 </button>
               </div>
 
-              {/* Virtual Account Section - Just show account details (NO API CALL) */}
-              {selectedPaymentMethod === "virtual_account" && page.virtualAccount && (
-                <>
-                  <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800 mb-4">
-                    <p className="text-sm font-medium text-blue-400 mb-2">
-                      Transfer to this account:
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-400">Bank:</span>
-                        <span className="font-medium text-white">
-                          {page.virtualAccount.bankName}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-400">Account Number:</span>
-                        <span className="font-mono font-bold text-white">
-                          {page.virtualAccount.accountNumber}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-400">Account Name:</span>
-                        <span className="font-medium text-white truncate max-w-[200px]">
-                          {page.virtualAccount.bankAccountName || page.virtualAccount.accountName}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-3 p-2 bg-yellow-900/20 rounded-lg border border-yellow-800">
-                      <p className="text-xs text-yellow-400">
-                        📝 Use <strong className="text-yellow-300">{page.title}</strong> as narration
+              {/* Virtual Account Section */}
+              {selectedPaymentMethod === "virtual_account" &&
+                page.virtualAccount && (
+                  <>
+                    <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800 mb-4">
+                      <p className="text-sm font-medium text-blue-400 mb-2">
+                        Transfer to this account:
                       </p>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-400">Bank:</span>
+                          <span className="font-medium text-white">
+                            {page.virtualAccount.bankName}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-400">
+                            Account Number:
+                          </span>
+                          <span className="font-mono font-bold text-white">
+                            {page.virtualAccount.accountNumber}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-400">
+                            Account Name:
+                          </span>
+                          <span className="font-medium text-white truncate max-w-[200px]">
+                            {page.virtualAccount.bankAccountName ||
+                              page.virtualAccount.accountName}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-3 p-2 bg-yellow-900/20 rounded-lg border border-yellow-800">
+                        <p className="text-xs text-yellow-400">
+                          📝 Use{" "}
+                          <strong className="text-yellow-300">
+                            {page.title}
+                          </strong>{" "}
+                          as narration
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="bg-[#0e0e0e] rounded-xl p-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Total Amount:</span>
-                      <span className="text-2xl font-bold text-[#e1bf46]">
-                        ₦{(config.amountMode === "fixed" ? page.price : formData.customAmount || 0).toLocaleString()}
-                      </span>
+                    <div className="bg-[#0e0e0e] rounded-xl p-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Total Amount:</span>
+                        <span className="text-2xl font-bold text-[#e1bf46]">
+                          ₦
+                          {(config.amountMode === "fixed"
+                            ? page.price
+                            : formData.customAmount || 0
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                      <Button
+                        onClick={handleVirtualAccountPayment}
+                        disabled={!isValidAmount}
+                        className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
+                      >
+                        <Banknote className="h-4 w-4 mr-2" />
+                        Get Account Details
+                      </Button>
                     </div>
-                    <Button
-                      onClick={handleVirtualAccountPayment}
-                      disabled={!isValidAmount}
-                      className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
-                    >
-                      <Banknote className="h-4 w-4 mr-2" />
-                      Copy Account Details
-                    </Button>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
 
               {/* Card Payment Section */}
               {selectedPaymentMethod === "card" && (
@@ -607,14 +751,22 @@ Narration: ${narration}`;
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400">Total Amount:</span>
                       <span className="text-2xl font-bold text-[#e1bf46]">
-                        ₦{(config.amountMode === "fixed" ? page.price : formData.customAmount || 0).toLocaleString()}
+                        ₦
+                        {(config.amountMode === "fixed"
+                          ? page.price
+                          : formData.customAmount || 0
+                        ).toLocaleString()}
                       </span>
                     </div>
                   </div>
 
                   <Button
                     onClick={() => {
-                      setCardPaymentAmount(config.amountMode === "fixed" ? page.price : formData.customAmount || 0);
+                      setCardPaymentAmount(
+                        config.amountMode === "fixed"
+                          ? page.price
+                          : formData.customAmount || 0,
+                      );
                       setShowCardModal(true);
                     }}
                     disabled={!isValidAmount}
@@ -677,7 +829,7 @@ Narration: ${narration}`;
         </div>
       )}
 
-      {/* Virtual Account Details Modal */}
+      {/* Virtual Account Details Modal with Confirm Button */}
       {showAccountModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700">
@@ -695,17 +847,42 @@ Narration: ${narration}`;
             <div className="bg-[#0e0e0e] rounded-xl p-4 mb-4 whitespace-pre-wrap font-mono text-sm text-gray-300">
               {accountDetails}
             </div>
-            <Button
-              onClick={() => copyToClipboard(accountDetails)}
-              className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
-            >
-              {copied ? (
-                <CheckCircle className="h-4 w-4 mr-2" />
-              ) : (
-                <Copy className="h-4 w-4 mr-2" />
+            <div className="flex flex-col gap-3">
+              <Button
+                onClick={() => copyToClipboard(accountDetails)}
+                className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
+              >
+                {copied ? (
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                ) : (
+                  <Copy className="h-4 w-4 mr-2" />
+                )}
+                {copied ? "Copied!" : "Copy Details"}
+              </Button>
+
+              {/* "I've Seen Payment" / "I've Made the Transfer" Button */}
+              {pendingReference && (
+                <Button
+                  onClick={() => confirmPayment(pendingReference)}
+                  disabled={confirmingPayment}
+                  className="w-full bg-green-600 text-white hover:bg-green-700 font-semibold"
+                >
+                  {confirmingPayment ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                  )}
+                  {confirmingPayment
+                    ? "Confirming..."
+                    : "✅ I've Made the Transfer"}
+                </Button>
               )}
-              {copied ? "Copied!" : "Copy Details"}
-            </Button>
+
+              <p className="text-xs text-gray-500 text-center">
+                After making the transfer, click the button above to confirm
+                your payment.
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -736,6 +913,8 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [cardPaymentAmount, setCardPaymentAmount] = useState(0);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [accountDetails, setAccountDetails] = useState("");
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
+  const [pendingReference, setPendingReference] = useState("");
 
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -831,6 +1010,72 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Confirm payment after transfer
+  const confirmPayment = async (reference: string) => {
+    setConfirmingPayment(true);
+
+    try {
+      const result = await Swal.fire({
+        title: "Confirm Transfer",
+        html: `
+          <div class="text-left">
+            <p class="mb-2">Have you completed the bank transfer?</p>
+            <p class="text-sm text-gray-600">Please confirm that you have transferred the money.</p>
+            <p class="text-sm text-gray-600 mt-2">Reference: <strong>${reference}</strong></p>
+          </div>
+        `,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "✅ Yes, I've Transferred",
+        cancelButtonText: "⏳ Not Yet",
+        confirmButtonColor: "#22c55e",
+        cancelButtonColor: "#6b7280",
+      });
+
+      if (result.isConfirmed) {
+        const response = await fetch(
+          "/api/payment-page/public/confirm-payment",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ transferReference: reference }),
+          },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to confirm payment");
+        }
+
+        if (data.success) {
+          await Swal.fire({
+            icon: "success",
+            title: "Payment Confirmed!",
+            html: `
+              <div class="text-left">
+                <p>✅ Your payment has been confirmed.</p>
+                <p class="text-sm text-gray-600 mt-2">A receipt has been sent to your email.</p>
+              </div>
+            `,
+            confirmButtonColor: "#F5B81B",
+          });
+          window.location.reload();
+        }
+      }
+    } catch (error: any) {
+      console.error("Payment confirmation error:", error);
+      await Swal.fire({
+        icon: "error",
+        title: "Confirmation Failed",
+        text: error.message || "Could not confirm payment. Please try again.",
+        confirmButtonColor: "#F5B81B",
+      });
+    } finally {
+      setConfirmingPayment(false);
+    }
+  };
+
   useEffect(() => {
     const loadPage = async () => {
       try {
@@ -877,12 +1122,17 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     return page?.price || 0;
   };
 
-  // Virtual Account Payment - Just show account details
+  // Virtual Account Payment - Show details with confirm button
   const handleVirtualAccountPayment = () => {
     const virtualAccount = page?.virtualAccount;
     if (!virtualAccount) return;
 
     const totalAmount = getCurrentTotalAmount();
+
+    // Generate a unique reference for tracking
+    const transferReference = `TRF-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    setPendingReference(transferReference);
+
     const narration =
       page?.pageType === "school"
         ? Array.from(selectedStudents).join(", ")
@@ -892,10 +1142,52 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 Account Number: ${virtualAccount.accountNumber}
 Account Name: ${virtualAccount.bankAccountName || virtualAccount.accountName}
 Amount: ₦${totalAmount.toLocaleString()}
+Reference: ${transferReference}
 Narration: ${narration}`;
 
     setAccountDetails(details);
     setShowAccountModal(true);
+
+    // Create a pending payment record
+    createPendingPayment(transferReference, totalAmount);
+  };
+
+  // Create pending payment
+  const createPendingPayment = async (reference: string, amount: number) => {
+    try {
+      const response = await fetch(
+        "/api/payment-page/public/transfer-payment",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pageSlug: slug,
+            customerName: customerName || "Customer",
+            customerEmail: customerEmail || "customer@example.com",
+            customerPhone: customerPhone || "",
+            amount: amount,
+            transferReference: reference,
+            metadata: {
+              pageType: page?.pageType,
+              pageTitle: page?.title,
+              selectedStudents: Array.from(selectedStudents),
+              numberOfStudents: selectedStudents.size,
+              narration:
+                page?.pageType === "school"
+                  ? Array.from(selectedStudents).join(", ")
+                  : page?.title,
+            },
+          }),
+        },
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        console.error("Failed to create pending payment:", data);
+      }
+    } catch (error) {
+      console.error("Error creating pending payment:", error);
+    }
   };
 
   // Card Payment - Create checkout session
@@ -1169,11 +1461,7 @@ Narration: ${narration}`;
                     <button
                       key={idx}
                       onClick={() => setSelectedVariant(variant)}
-                      className={`p-3 rounded-xl border-2 text-center transition-all ${
-                        selectedVariant?.name === variant.name
-                          ? "border-[#e1bf46] bg-[#e1bf46]/10 text-[#e1bf46]"
-                          : "border-gray-700 hover:border-[#e1bf46]/50 text-gray-300"
-                      }`}
+                      className={`p-3 rounded-xl border-2 text-center transition-all ${selectedVariant?.name === variant.name ? "border-[#e1bf46] bg-[#e1bf46]/10 text-[#e1bf46]" : "border-gray-700 hover:border-[#e1bf46]/50 text-gray-300"}`}
                     >
                       <p className="font-semibold">{variant.name}</p>
                       <p className="text-sm mt-1">
@@ -1456,7 +1744,7 @@ Narration: ${narration}`;
             </button>
           </div>
 
-          {/* Virtual Account Section - Just show details, no API call */}
+          {/* Virtual Account Section */}
           {selectedPaymentMethod === "virtual_account" &&
             page.virtualAccount && (
               <>
@@ -1513,8 +1801,7 @@ Narration: ${narration}`;
                     onClick={handleVirtualAccountPayment}
                     className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
                   >
-                    <Banknote className="h-4 w-4 mr-2" />
-                    Copy Account Details
+                    <Banknote className="h-4 w-4 mr-2" /> Copy Account Details
                   </Button>
                 </div>
               </>
@@ -1580,8 +1867,8 @@ Narration: ${narration}`;
                   disabled={!customerName || !customerEmail}
                   className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold py-6 text-lg"
                 >
-                  <CreditCard className="h-5 w-5 mr-2" />
-                  Pay ₦{currentTotalAmount.toLocaleString()} with Card
+                  <CreditCard className="h-5 w-5 mr-2" /> Pay ₦
+                  {currentTotalAmount.toLocaleString()} with Card
                 </Button>
               ) : (
                 <div className="text-center p-4 bg-gray-800/30 rounded-xl">
@@ -1642,7 +1929,7 @@ Narration: ${narration}`;
         </div>
       )}
 
-      {/* Virtual Account Details Modal */}
+      {/* Virtual Account Details Modal with Confirm Button */}
       {showAccountModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700">
@@ -1660,17 +1947,42 @@ Narration: ${narration}`;
             <div className="bg-[#0e0e0e] rounded-xl p-4 mb-4 whitespace-pre-wrap font-mono text-sm text-gray-300">
               {accountDetails}
             </div>
-            <Button
-              onClick={() => copyToClipboard(accountDetails)}
-              className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
-            >
-              {copied ? (
-                <CheckCircle className="h-4 w-4 mr-2" />
-              ) : (
-                <Copy className="h-4 w-4 mr-2" />
+            <div className="flex flex-col gap-3">
+              <Button
+                onClick={() => copyToClipboard(accountDetails)}
+                className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
+              >
+                {copied ? (
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                ) : (
+                  <Copy className="h-4 w-4 mr-2" />
+                )}
+                {copied ? "Copied!" : "Copy Details"}
+              </Button>
+
+              {/* "I've Made the Transfer" Button */}
+              {pendingReference && (
+                <Button
+                  onClick={() => confirmPayment(pendingReference)}
+                  disabled={confirmingPayment}
+                  className="w-full bg-green-600 text-white hover:bg-green-700 font-semibold"
+                >
+                  {confirmingPayment ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                  )}
+                  {confirmingPayment
+                    ? "Confirming..."
+                    : "✅ I've Made the Transfer"}
+                </Button>
               )}
-              {copied ? "Copied!" : "Copy Details"}
-            </Button>
+
+              <p className="text-xs text-gray-500 text-center">
+                After making the transfer, click the button above to confirm
+                your payment.
+              </p>
+            </div>
           </div>
         </div>
       )}
