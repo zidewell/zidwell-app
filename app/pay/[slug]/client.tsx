@@ -107,7 +107,7 @@ type PaymentOption = "full" | "installment";
 type PaymentMethodType = "virtual_account" | "card";
 
 // ============================================================
-// GENERATE SHORT NARRATION CODE
+// GENERATE SHORT NARRATION CODE WITH UNDERSCORE
 // ============================================================
 const generateNarrationCode = (): string => {
   const prefix = "PL";
@@ -116,7 +116,7 @@ const generateNarrationCode = (): string => {
   for (let i = 0; i < 4; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return `${prefix}-${code}`; // e.g., PL-7X3K
+  return `${prefix}_${code}`; // e.g., PL_M438 (uses underscore)
 };
 
 // ============================================================
@@ -263,11 +263,11 @@ function PaymentLinkComponent({
       return;
     }
 
-    // Generate unique reference and narration code
+    // Generate unique reference
     const transferReference = `PL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setPendingReference(transferReference);
 
-    // Generate short narration code (5-6 characters)
+    // Generate short narration code with underscore (PL_M438)
     const narration = generateNarrationCode();
     setNarrationCode(narration);
 
@@ -739,7 +739,7 @@ Narration: ${narration}`;
                               page.virtualAccount.accountName}
                           </span>
                         </div>
-                        {/* NARRATION CODE - Short and simple */}
+                        {/* NARRATION CODE - With underscore */}
                         <div className="mt-3 p-3 bg-yellow-900/40 rounded-xl border border-yellow-700/50">
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
@@ -769,9 +769,9 @@ Narration: ${narration}`;
                               )}
                             </button>
                           </div>
-                          {/* Short narration code - easy to type */}
+                          {/* Short narration code with underscore */}
                           <p className="text-lg font-mono font-bold text-yellow-300 tracking-wider">
-                            {narrationCode || "PL-XXXX"}
+                            {narrationCode || "PL_XXXX"}
                           </p>
                           <div className="mt-1.5 flex items-center gap-2">
                             <span className="text-[10px] text-yellow-500/60">
@@ -900,7 +900,7 @@ Narration: ${narration}`;
         </div>
       )}
 
-      {/* Virtual Account Details Modal with Short Narration Code */}
+      {/* Virtual Account Details Modal with Short Narration Code (Underscore) */}
       {showAccountModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
@@ -1017,7 +1017,7 @@ Narration: ${narration}`;
                 </div>
               </div>
 
-              {/* NARRATION CODE - Short and prominent */}
+              {/* NARRATION CODE - With underscore */}
               <div className="bg-yellow-900/30 rounded-xl p-4 border border-yellow-800 mt-2">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -1042,7 +1042,7 @@ Narration: ${narration}`;
                   </button>
                 </div>
                 <p className="text-2xl font-mono font-bold text-yellow-300 tracking-wider text-center py-2">
-                  {narrationCode || "PL-XXXX"}
+                  {narrationCode || "PL_XXXX"}
                 </p>
                 <div className="mt-2 p-2 bg-yellow-800/30 rounded-lg">
                   <p className="text-[10px] text-yellow-400/80 text-center">
@@ -1344,7 +1344,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     const transferReference = `TRF-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setPendingReference(transferReference);
 
-    // Generate short narration code
+    // Generate short narration code with underscore
     const narration = generateNarrationCode();
     setNarrationCode(narration);
 
@@ -1986,7 +1986,7 @@ Narration: ${narration}`;
                             page.virtualAccount.accountName}
                         </span>
                       </div>
-                      {/* NARRATION CODE - Short and simple */}
+                      {/* NARRATION CODE - With underscore */}
                       <div className="mt-3 p-3 bg-yellow-900/40 rounded-xl border border-yellow-700/50">
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
@@ -2017,7 +2017,7 @@ Narration: ${narration}`;
                           </button>
                         </div>
                         <p className="text-lg font-mono font-bold text-yellow-300 tracking-wider">
-                          {narrationCode || "PL-XXXX"}
+                          {narrationCode || "PL_XXXX"}
                         </p>
                         <div className="mt-1.5 flex items-center gap-2">
                           <span className="text-[10px] text-yellow-500/60">
@@ -2182,7 +2182,7 @@ Narration: ${narration}`;
         </div>
       )}
 
-      {/* Virtual Account Details Modal with Short Narration Code */}
+      {/* Virtual Account Details Modal with Short Narration Code (Underscore) */}
       {showAccountModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
@@ -2302,7 +2302,7 @@ Narration: ${narration}`;
                 </div>
               </div>
 
-              {/* NARRATION CODE - Short and prominent */}
+              {/* NARRATION CODE - With underscore */}
               <div className="bg-yellow-900/30 rounded-xl p-4 border border-yellow-800 mt-2">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -2327,7 +2327,7 @@ Narration: ${narration}`;
                   </button>
                 </div>
                 <p className="text-2xl font-mono font-bold text-yellow-300 tracking-wider text-center py-2">
-                  {narrationCode || "PL-XXXX"}
+                  {narrationCode || "PL_XXXX"}
                 </p>
                 <div className="mt-2 p-2 bg-yellow-800/30 rounded-lg">
                   <p className="text-[10px] text-yellow-400/80 text-center">
