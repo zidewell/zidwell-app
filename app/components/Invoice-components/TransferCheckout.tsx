@@ -16,7 +16,6 @@ import {
 import { Button } from "@/app/components/ui/button";
 import { useToast } from "@/app/hooks/use-toast";
 
-// Types
 interface BankDetails {
   bankName: string | undefined;
   accountName: string;
@@ -54,20 +53,10 @@ interface PaymentCheckResponse {
 interface TransferCheckoutProps {
   bankDetails?: BankDetails;
   invoiceDetails?: InvoiceDetails;
-  onConfirmTransfer?: (payerInfo?: PayerInfo) => Promise<void>;
   payerInfo?: PayerInfo;
+  onPaymentVerified?: () => void;
 }
 
-interface DetailRowProps {
-  label: string;
-  value: string;
-  onCopy: () => void;
-  isCopied: boolean;
-  highlight?: boolean;
-  isValid?: boolean | "";
-}
-
-// Helper Component
 function DetailRow({
   label,
   value,
@@ -75,7 +64,7 @@ function DetailRow({
   isCopied,
   highlight,
   isValid = true,
-}: DetailRowProps) {
+}: any) {
   const isInvalidValue =
     !value || value === "Account details not provided" || value === "";
 
@@ -110,7 +99,6 @@ function DetailRow({
   );
 }
 
-// Utility functions
 const copyToClipboardUtil = async (
   text: string | undefined,
   fieldName: string,
@@ -156,24 +144,24 @@ const formatCurrency = (amount: number, currency: string) => {
 export function TransferCheckout({
   bankDetails,
   invoiceDetails,
-  onConfirmTransfer,
   payerInfo,
+  onPaymentVerified,
 }: TransferCheckoutProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<
-    "not_found" | "found" | "checking" | "error"
-  >("not_found");
+    "idle" | "not_found" | "found" | "checking" | "error"
+  >("idle");
   const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
   const [lastCheckResponse, setLastCheckResponse] =
     useState<PaymentCheckResponse | null>(null);
   const [checkCount, setCheckCount] = useState(0);
+  const [isPollingActive, setIsPollingActive] = useState(false);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
-  // Safe defaults
   const safeBankDetails = bankDetails || {
     bankName: "First Bank of Nigeria",
     accountName: "Account details not provided",
@@ -193,6 +181,7 @@ export function TransferCheckout({
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
         pollIntervalRef.current = null;
+        setIsPollingActive(false);
       }
     };
   }, []);
@@ -215,11 +204,10 @@ export function TransferCheckout({
       setCheckCount((prev) => prev + 1);
 
       try {
-        console.log("🔍 Checking payment with:", {
+        console.log(`🔍 Checking payment #${checkCount + 1}:`, {
           invoiceId: safeInvoiceDetails.invoiceId,
           amount: safeInvoiceDetails.amount,
           payerEmail: payerInfo.email,
-          checkCount: checkCount + 1,
         });
 
         const response = await fetch("/api/check-invoice-tranfer-payment", {
@@ -234,50 +222,48 @@ export function TransferCheckout({
           }),
         });
 
-        console.log("✅ Response status:", response.status);
-
         const data: PaymentCheckResponse = await response.json();
-        console.log("✅ Response data:", data);
+        console.log("✅ Check response:", data);
 
         setLastCheckTime(new Date());
         setLastCheckResponse(data);
 
         if (data.paymentExists) {
-          console.log("🎉 Payment found in:", data.foundIn);
+          console.log("🎉 Payment found!");
           setPaymentStatus("found");
           setIsConfirmed(true);
+          setIsPollingActive(false);
 
-          if (showMessages) {
-            let description =
-              "Your payment has been successfully verified and processed.";
-            if (data.foundIn) {
-              description = `Payment confirmed (found in ${data.foundIn}).`;
-            }
-
-            toast({
-              title: "🎉 Payment Verified!",
-              description,
-              duration: 5000,
-            });
-          }
-
-          // Stop polling
           if (pollIntervalRef.current) {
             clearInterval(pollIntervalRef.current);
             pollIntervalRef.current = null;
           }
 
+          if (showMessages) {
+            toast({
+              title: "🎉 Payment Verified!",
+              description:
+                data.message || "Your payment has been successfully verified.",
+              duration: 5000,
+            });
+          }
+
+          // Notify parent
+          if (onPaymentVerified) {
+            onPaymentVerified();
+          }
+
           return true;
         } else {
           setPaymentStatus("not_found");
-          console.log("⚠️ Payment not found, suggestions:", data.suggestions);
+          console.log("⚠️ Payment not found");
 
-          if (showMessages) {
+          if (showMessages && !isPollingActive) {
             toast({
               title: "Payment Not Found Yet",
               description:
                 data.message ||
-                "We haven't detected your payment yet. This is normal if you just completed the transfer.",
+                "We haven't detected your payment yet. The system will keep checking automatically.",
               variant: "default",
             });
           }
@@ -291,8 +277,7 @@ export function TransferCheckout({
         if (showMessages) {
           toast({
             title: "Check Failed",
-            description:
-              "Unable to check payment status. Please try again in a moment.",
+            description: "Unable to check payment status. Please try again.",
             variant: "destructive",
           });
         }
@@ -302,7 +287,7 @@ export function TransferCheckout({
         setIsCheckingPayment(false);
       }
     },
-    [safeInvoiceDetails, payerInfo?.email, toast, checkCount],
+    [safeInvoiceDetails, payerInfo?.email, toast, checkCount, onPaymentVerified, isPollingActive],
   );
 
   const startPaymentPolling = useCallback(() => {
@@ -310,13 +295,25 @@ export function TransferCheckout({
       clearInterval(pollIntervalRef.current);
     }
 
+    setIsPollingActive(true);
+    setPaymentStatus("checking");
+
+    // Do initial check immediately
+    checkPaymentStatus(true);
+
+    // Then set up interval
     pollIntervalRef.current = setInterval(() => {
+      if (paymentStatus === "found") {
+        clearInterval(pollIntervalRef.current!);
+        setIsPollingActive(false);
+        return;
+      }
       console.log("🔄 Auto-checking payment status...");
       checkPaymentStatus(false);
     }, 30000); // Check every 30 seconds
 
-    console.log("Started payment polling...");
-  }, [checkPaymentStatus]);
+    console.log("✅ Started payment polling");
+  }, [checkPaymentStatus, paymentStatus]);
 
   const handleConfirmTransfer = useCallback(async () => {
     if (!payerInfo?.email) {
@@ -329,22 +326,22 @@ export function TransferCheckout({
       return;
     }
 
-    // Start auto-polling when user confirms transfer
+    if (isConfirmed) {
+      toast({
+        title: "Already Verified",
+        description: "Your payment has already been verified.",
+      });
+      return;
+    }
+
+    // Start polling - this is the ONLY place polling starts
     startPaymentPolling();
 
-    // Show initial check
-    await checkPaymentStatus(true);
-
-    if (onConfirmTransfer) {
-      await onConfirmTransfer(payerInfo);
-    }
-  }, [
-    payerInfo,
-    onConfirmTransfer,
-    toast,
-    checkPaymentStatus,
-    startPaymentPolling,
-  ]);
+    toast({
+      title: "Transfer Confirmed",
+      description: "We're now checking for your payment automatically.",
+    });
+  }, [payerInfo, toast, startPaymentPolling, isConfirmed]);
 
   const copyToClipboard = useCallback(
     async (text: string | undefined, fieldName: string) => {
@@ -358,16 +355,25 @@ export function TransferCheckout({
   );
 
   const handleManualCheck = useCallback(async () => {
+    if (isPollingActive) {
+      toast({
+        title: "Auto-Check Active",
+        description: "The system is already checking for your payment automatically.",
+      });
+      return;
+    }
     await checkPaymentStatus(true);
-  }, [checkPaymentStatus]);
+  }, [checkPaymentStatus, isPollingActive, toast]);
 
   const handleStopPolling = useCallback(() => {
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
+      setIsPollingActive(false);
+      setPaymentStatus("idle");
       console.log("⏹️ Stopped payment polling");
       toast({
-        title: "Polling Stopped",
+        title: "Auto-Check Stopped",
         description: "Automatic payment checks have been stopped.",
       });
     }
@@ -380,7 +386,6 @@ export function TransferCheckout({
 
   return (
     <div className="w-full max-w-lg mx-auto">
-      {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold mb-2 text-[var(--color-accent-yellow)]">
           Bank Transfer Payment
@@ -405,7 +410,7 @@ export function TransferCheckout({
             )}
             {lastCheckTime && (
               <p className="text-xs text-[var(--color-lemon-green)] mt-1">
-                Last checked: {lastCheckTime.toLocaleTimeString()}
+                Verified at: {lastCheckTime.toLocaleTimeString()}
               </p>
             )}
           </div>
@@ -417,8 +422,8 @@ export function TransferCheckout({
               <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
               <p className="text-sm text-blue-700">Checking payment status...</p>
             </div>
-            <p className="text-xs text-blue-600 mt-2 text-center">
-              Check #{checkCount} • Please wait
+            <p className="text-xs text-blue-600 mt-2">
+              Check #{checkCount} • {isPollingActive ? "Auto-checking active" : "Manual check"}
             </p>
           </div>
         )}
@@ -439,13 +444,11 @@ export function TransferCheckout({
           </div>
         )}
 
-        {/* Warning if account details are not available */}
         {!hasValidAccountDetails && (
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl squircle-md">
             <p className="text-sm text-yellow-700">
               <strong>Note:</strong> Bank account details not specified in this
-              invoice. Please contact the invoice sender for payment
-              instructions.
+              invoice. Please contact the invoice sender for payment instructions.
             </p>
           </div>
         )}
@@ -609,7 +612,7 @@ export function TransferCheckout({
       <div className="mb-4">
         <Button
           onClick={handleManualCheck}
-          disabled={isCheckingPayment || !payerInfo?.email}
+          disabled={isCheckingPayment || !payerInfo?.email || paymentStatus === "found"}
           variant="outline"
           className="w-full border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 squircle-md"
           size="lg"
@@ -660,8 +663,8 @@ export function TransferCheckout({
         )}
       </Button>
 
-      {/* Stop Polling Button (if polling is active) */}
-      {pollIntervalRef.current && !isConfirmed && (
+      {/* Stop Polling Button */}
+      {isPollingActive && !isConfirmed && (
         <Button
           onClick={handleStopPolling}
           variant="outline"
@@ -690,7 +693,7 @@ export function TransferCheckout({
               narration
             </li>
             <li>• You can manually check status using the button above</li>
-            {pollIntervalRef.current && (
+            {isPollingActive && (
               <li>
                 • <strong>Auto-checking active</strong> (every 30 seconds)
               </li>
