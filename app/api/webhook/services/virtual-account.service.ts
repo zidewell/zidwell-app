@@ -41,7 +41,12 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
   const narration = tx.narration || "";
   const senderName = customer.senderName || customer.name || "Bank Transfer";
   const netAmount = transactionAmount - nombaFee;
-  const invoiceMatch = narration.match(/INV[-_][A-Z0-9]{4,}/i);
+  
+  // 🔥 FIXED: Supports BOTH formats:
+  // - INV_BDCF (with underscore or dash)
+  // - INVC675 (without separator)
+  // Matches INV followed by optional - or _, then at least 4 alphanumeric characters
+  const invoiceMatch = narration.match(/INV[-_]?[A-Z0-9]{4,}/i);
 
   // Check if this is an invoice payment
   if (invoiceMatch) {
@@ -74,7 +79,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
         return { success: true };
       }
 
-      // Create payment record - ADD payment_link (REQUIRED)
+      // Create payment record - WITH payment_link (REQUIRED)
       const { error: paymentError } = await supabase
         .from("invoice_payments")
         .insert({
@@ -82,6 +87,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
           user_id: invoice.user_id,
           order_reference: nombaTransactionId,
           payer_name: senderName,
+          payer_email: invoice.client_email || null,
           amount: transactionAmount,
           paid_amount: transactionAmount,
           fee_amount: nombaFee,
@@ -94,7 +100,6 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
           payment_method: "virtual_account",
           narration,
           paid_at: new Date().toISOString(),
-          // 🔥 FIX: Add payment_link (required NOT NULL)
           payment_link: `INV-${invoice.invoice_id}-${nombaTransactionId.substring(0, 8)}`,
           is_partial_payment: false,
           remaining_balance: 0,
@@ -102,7 +107,6 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
           is_reusable: false,
           bank_name: customer.bankName || null,
           bank_account: customer.accountNumber || null,
-          payer_email: invoice.client_email || null,
           payer_phone: null,
         });
 
@@ -153,6 +157,20 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
 
       if (creditError) {
         console.error("❌ Failed to credit invoice owner:", creditError);
+        // Fallback: Update wallet directly
+        const { data: user } = await supabase
+          .from("users")
+          .select("wallet_balance")
+          .eq("id", creditUserId)
+          .single();
+        
+        if (user) {
+          const newBalance = Number(user.wallet_balance) + netAmount;
+          await supabase
+            .from("users")
+            .update({ wallet_balance: newBalance })
+            .eq("id", creditUserId);
+        }
       } else {
         console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to invoice owner ${creditUserId}`);
       }
@@ -227,6 +245,8 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
         fee_deducted: nombaFee,
         net_credit: netAmount,
       };
+    } else {
+      console.log("⚠️ No invoice found for reference:", invoiceRef);
     }
   }
 
