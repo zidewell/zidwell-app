@@ -371,6 +371,16 @@ export async function POST(req: NextRequest) {
 
     console.log("Processing:", { eventType, amount: transactionAmount, aliasAccountReference });
 
+    function extractTransferReference(tx: any): string | null {
+  const narration = tx.narration || tx.reference || "";
+  const refMatch = narration.match(/TRF_[A-Za-z0-9]+/);
+  if (refMatch) {
+    return refMatch[0];
+  }
+  return null;
+}
+const transferReference = extractTransferReference(tx);
+
     // ========== PRIORITY 1: PAYMENT PAGE VIRTUAL ACCOUNT (PP- prefix) ==========
     const isPaymentPageVA = checkIfPaymentPageVirtualAccount(aliasAccountReference);
     if (isPaymentPageVA && (eventType === "payment_success" || txStatus === "success")) {
@@ -382,6 +392,7 @@ export async function POST(req: NextRequest) {
         transactionAmount,
         customer,
         tx,
+        transferReference,
       });
       return handleErrorResponse(result);
     }

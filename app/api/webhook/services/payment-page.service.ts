@@ -1,4 +1,5 @@
 // app/api/webhook/services/payment-page.service.ts
+
 import { createClient } from "@supabase/supabase-js";
 import { transporter } from "@/lib/node-mailer";
 import { sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf";
@@ -23,6 +24,7 @@ interface PaymentPageVirtualAccountParams {
   transactionAmount: number;
   customer: any;
   tx: any;
+  transferReference?: string; // Added
 }
 
 type ServiceResult =
@@ -37,6 +39,7 @@ type ServiceResult =
       app_fee?: number;
       total_fee?: number;
       net_credit?: number;
+      metadata?: any;
     }
   | { error: string; status?: number };
 
@@ -72,11 +75,9 @@ async function sendPaymentPageNotificationEmail(
           <p>You've received a bank transfer payment for <strong>${pageTitle}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-           
             <p><strong>Total Fees:</strong> - ₦${totalFee.toLocaleString()}</p>
             <p><strong>Amount Credited:</strong> ₦${netAmount.toLocaleString()}</p>
             <p><strong>Sender:</strong> ${customerName}</p>
-          
           </div>
           <p>Funds added to your page balance after fee deductions.</p>
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
@@ -160,6 +161,7 @@ export async function processPaymentPageVirtualAccount(
     transactionAmount,
     customer,
     tx,
+    transferReference, // Added
   } = params;
 
   console.log("🏦 ========== PROCESSING PAYMENT PAGE VIRTUAL ACCOUNT ==========");
@@ -178,6 +180,7 @@ export async function processPaymentPageVirtualAccount(
   console.log(`   Total Fees: ₦${totalFee.toLocaleString()}`);
   console.log(`   Net to Merchant: ₦${netAmount.toLocaleString()}`);
 
+  // Find payment page by account number
   const virtualAccountNumber = tx.aliasAccountNumber;
   let paymentPage = null;
 
@@ -194,6 +197,7 @@ export async function processPaymentPageVirtualAccount(
     }
   }
 
+  // Try by ID match if not found
   if (!paymentPage) {
     const shortPageId = extractPaymentPageId(aliasAccountReference);
     if (shortPageId) {
@@ -217,20 +221,55 @@ export async function processPaymentPageVirtualAccount(
 
   console.log("✅ Payment page found:", paymentPage.title);
 
-  const { data: existing } = await supabase
+  // ============================================================
+  // NEW: CHECK FOR EXISTING PENDING PAYMENT TO PRESERVE USER DATA
+  // ============================================================
+  let pendingPayment = null;
+  const narration = tx?.narration || tx?.senderName || "";
+  
+  // Try to find pending payment by transfer reference
+  let searchRef = transferReference;
+  
+  if (!searchRef) {
+    // Try to extract from narration
+    const refMatch = narration.match(/TRF_[A-Za-z0-9]+/);
+    if (refMatch) {
+      searchRef = refMatch[0];
+    }
+  }
+
+  if (searchRef) {
+    console.log(`🔍 Looking for pending payment with reference: ${searchRef}`);
+    
+    const { data: existing, error: findError } = await supabase
+      .from("payment_page_payments")
+      .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference")
+      .or(`transfer_reference.eq.${searchRef},metadata->narration.eq.${searchRef}`)
+      .eq("status", "pending")
+      .maybeSingle();
+    
+    if (existing) {
+      pendingPayment = existing;
+      console.log(`✅ Found pending payment: ${pendingPayment.id}`);
+      console.log(`📦 Existing metadata:`, JSON.stringify(pendingPayment.metadata, null, 2));
+    }
+  }
+
+  // Check for duplicate webhook
+  const { data: existingWebhook } = await supabase
     .from("payment_page_payments")
     .select("id")
     .eq("nomba_transaction_id", nombaTransactionId)
     .maybeSingle();
 
-  if (existing) {
+  if (existingWebhook) {
+    console.log(`⏭️ Webhook already processed for transaction: ${nombaTransactionId}`);
     return { success: true, message: "Already processed" };
   }
 
-  const narration = tx?.narration || tx?.senderName || "";
-  const senderName = tx?.senderName || customer?.name || "Bank Transfer Customer";
-  // FIX: Provide a default email if not available
-  const customerEmail = customer?.email || null;
+  // Prepare data
+  const senderName = tx?.senderName || customer?.name || pendingPayment?.customer_name || "Bank Transfer Customer";
+  const customerEmail = customer?.email || pendingPayment?.customer_email || null;
 
   let matchedStudentName = null;
   let matchedParentName = null;
@@ -248,56 +287,132 @@ export async function processPaymentPageVirtualAccount(
 
   const orderReference = `VA-${paymentPage.id.substring(0, 8)}-${Date.now()}`;
 
-  const { data: payment, error: insertError } = await supabase
-    .from("payment_page_payments")
-    .insert({
-      payment_page_id: paymentPage.id,
-      user_id: paymentPage.user_id,
-      amount: transactionAmount,
-      fee: totalFee,
-      net_amount: netAmount,
-      status: "pending",
-      customer_name: senderName,
-      customer_email: customerEmail,
-      payment_method: "virtual_account",
-      order_reference: orderReference,
-      metadata: {
-        narration: narration,
-        bank_transaction_id: nombaTransactionId,
-        matched_student: matchedStudentName,
-        matched_parent: matchedParentName,
-        gross_amount: transactionAmount,
-        nomba_fee: nombaFee,
-        app_fee: appFee,
-        total_fee: totalFee,
-        net_credit: netAmount,
-      },
-    })
-    .select()
-    .single();
+  // ============================================================
+  // BUILD MERGED METADATA - PRESERVES USER DATA
+  // ============================================================
+  let mergedMetadata: any = pendingPayment?.metadata || {};
 
-  if (insertError) {
-    console.error("Failed to create payment:", insertError);
-    return { error: "Failed to create payment", status: 500 };
+  // If no pending payment metadata, start with basic
+  if (!mergedMetadata || Object.keys(mergedMetadata).length === 0) {
+    mergedMetadata = {
+      narration: narration,
+    };
   }
 
-  await supabase
-    .from("payment_page_payments")
-    .update({
-      status: "completed",
-      nomba_transaction_id: nombaTransactionId,
-      paid_at: new Date().toISOString(),
-      net_amount: netAmount,
-    })
-    .eq("id", payment.id);
+  // Add webhook data (overwrites conflicting keys)
+  const webhookData = {
+    narration: narration,
+    bank_transaction_id: nombaTransactionId,
+    matched_student: matchedStudentName,
+    matched_parent: matchedParentName,
+    gross_amount: transactionAmount,
+    nomba_fee: nombaFee,
+    app_fee: appFee,
+    total_fee: totalFee,
+    net_credit: netAmount,
+  };
 
+  // Merge: webhook data takes precedence
+  mergedMetadata = {
+    ...mergedMetadata,
+    ...webhookData,
+  };
+
+  console.log(`📦 Final merged metadata:`, JSON.stringify(mergedMetadata, null, 2));
+
+  // ============================================================
+  // CREATE OR UPDATE PAYMENT
+  // ============================================================
+  let paymentResult;
+
+  if (pendingPayment) {
+    // UPDATE existing pending payment - PRESERVES ALL USER DATA
+    console.log(`🔄 Updating existing pending payment: ${pendingPayment.id}`);
+    
+    const { data: updated, error: updateError } = await supabase
+      .from("payment_page_payments")
+      .update({
+        status: "completed",
+        nomba_transaction_id: nombaTransactionId,
+        paid_at: new Date().toISOString(),
+        confirmed_at: new Date().toISOString(),
+        net_amount: netAmount,
+        amount: transactionAmount,
+        fee: totalFee,
+        customer_name: pendingPayment.customer_name || senderName,
+        customer_email: pendingPayment.customer_email || customerEmail,
+        metadata: mergedMetadata, // PRESERVES custom fields
+      })
+      .eq("id", pendingPayment.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error("Failed to update payment:", updateError);
+      return { error: "Failed to update payment", status: 500 };
+    }
+    
+    paymentResult = updated;
+    console.log(`✅ Updated pending payment: ${paymentResult.id}`);
+  } else {
+    // CREATE new payment record (fallback)
+    console.log(`📝 Creating new payment record (no pending payment found)`);
+    
+    const { data: payment, error: insertError } = await supabase
+      .from("payment_page_payments")
+      .insert({
+        payment_page_id: paymentPage.id,
+        user_id: paymentPage.user_id,
+        amount: transactionAmount,
+        fee: totalFee,
+        net_amount: netAmount,
+        status: "pending",
+        customer_name: senderName,
+        customer_email: customerEmail,
+        payment_method: "virtual_account",
+        order_reference: orderReference,
+        metadata: mergedMetadata,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Failed to create payment:", insertError);
+      return { error: "Failed to create payment", status: 500 };
+    }
+    
+    paymentResult = payment;
+    
+    // Update to completed
+    const { data: completed, error: completeError } = await supabase
+      .from("payment_page_payments")
+      .update({
+        status: "completed",
+        nomba_transaction_id: nombaTransactionId,
+        paid_at: new Date().toISOString(),
+        confirmed_at: new Date().toISOString(),
+        net_amount: netAmount,
+      })
+      .eq("id", payment.id)
+      .select()
+      .single();
+
+    if (completeError) {
+      console.error("Failed to complete payment:", completeError);
+    } else {
+      paymentResult = completed;
+    }
+  }
+
+  // ============================================================
+  // UPDATE PAGE BALANCE
+  // ============================================================
   const { data: newBalance, error: balanceError } = await supabase.rpc(
     "increment_page_balance",
     { p_page_id: paymentPage.id, p_amount: netAmount },
   );
 
-  const finalBalance = !balanceError && typeof newBalance === "number" ? newBalance : null;
-
+  let finalBalance = null;
   if (balanceError) {
     console.error("❌ Failed to increment balance:", balanceError);
     const { data: page } = await supabase
@@ -312,13 +427,18 @@ export async function processPaymentPageVirtualAccount(
         .from("payment_pages")
         .update({ page_balance: newBalanceValue })
         .eq("id", paymentPage.id);
+      finalBalance = newBalanceValue;
       console.log(`✅ Manually updated balance to ₦${newBalanceValue}`);
     }
   } else {
+    finalBalance = newBalance;
     console.log(`✅ Credited ₦${netAmount} to page balance. New balance: ₦${newBalance}`);
   }
 
-  await supabase.from("transactions").insert({
+  // ============================================================
+  // CREATE TRANSACTION RECORD
+  // ============================================================
+  const { error: txError } = await supabase.from("transactions").insert({
     user_id: paymentPage.user_id,
     type: "credit",
     amount: transactionAmount,
@@ -348,9 +468,15 @@ export async function processPaymentPageVirtualAccount(
       app_fee: appFee,
       gross_amount: transactionAmount,
       net_amount: netAmount,
+      metadata: mergedMetadata,
     },
   });
 
+  if (txError) {
+    console.error("Failed to create transaction:", txError);
+  }
+
+  // Update student paid status for school pages
   if (matchedStudentName && paymentPage.page_type === "school") {
     await updateStudentPaidStatus(
       paymentPage.id,
@@ -360,28 +486,36 @@ export async function processPaymentPageVirtualAccount(
     );
   }
 
+  // Send receipt to customer
   if (customerEmail) {
     await sendPaymentPageReceiptWithPDF(
       customerEmail,
       paymentPage,
-      payment,
+      paymentResult,
       senderName,
       transactionAmount,
       nombaTransactionId,
       "virtual_account",
       new Date().toISOString(),
-      { 
-        narration, 
+      {
+        narration,
         matched_student: matchedStudentName,
         gross_amount: transactionAmount,
         nomba_fee: nombaFee,
         app_fee: appFee,
         total_fee: totalFee,
         net_amount: netAmount,
+        custom_fields: mergedMetadata.customFields || null,
       },
-    );
+    ).catch(err => console.error("Failed to send receipt:", err));
+    
+    await supabase
+      .from("payment_page_payments")
+      .update({ receipt_sent: true })
+      .eq("id", paymentResult.id);
   }
 
+  // Send notification to page creator
   const { data: creator } = await supabase
     .from("users")
     .select("email")
@@ -401,6 +535,7 @@ export async function processPaymentPageVirtualAccount(
     );
   }
 
+  // Final log
   console.log("🎉 ========== PAYMENT PROCESSING COMPLETED ==========");
   console.log(`   Gross: ₦${transactionAmount.toLocaleString()}`);
   console.log(`   Nomba Fee: -₦${nombaFee.toLocaleString()}`);
@@ -408,18 +543,22 @@ export async function processPaymentPageVirtualAccount(
   console.log(`   Total Fees: -₦${totalFee.toLocaleString()}`);
   console.log(`   Net Credited: ₦${netAmount.toLocaleString()}`);
   console.log(`   Student: ${matchedStudentName || 'N/A'}`);
+  console.log(`   Customer: ${senderName} (${customerEmail || 'no email'})`);
+  console.log(`   Custom Fields:`, mergedMetadata.customFields || 'None');
+  console.log(`   Payment ID: ${paymentResult.id}`);
 
   return {
     success: true,
     message: "Virtual account payment processed",
     credited_amount: netAmount,
     new_balance: finalBalance,
-    payment_id: payment.id,
+    payment_id: paymentResult.id,
     gross_amount: transactionAmount,
     nomba_fee: nombaFee,
     app_fee: appFee,
     total_fee: totalFee,
     net_credit: netAmount,
+    metadata: mergedMetadata,
   };
 }
 
