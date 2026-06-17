@@ -609,7 +609,7 @@ export function TransferCheckout({
       </div>
 
       {/* Manual Check Button */}
-      <div className="mb-4">
+      {/* <div className="mb-4">
         <Button
           onClick={handleManualCheck}
           disabled={isCheckingPayment || !payerInfo?.email || paymentStatus === "found"}
@@ -634,10 +634,10 @@ export function TransferCheckout({
             Please provide your email in the payment form to check status
           </p>
         )}
-      </div>
+      </div> */}
 
       {/* Confirm Button */}
-      <Button
+      {/* <Button
         onClick={handleConfirmTransfer}
         disabled={isConfirmed || !hasValidAccountDetails || isCheckingPayment}
         className="w-full mb-4 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 disabled:bg-gray-400 disabled:cursor-not-allowed squircle-md"
@@ -661,10 +661,10 @@ export function TransferCheckout({
             <ArrowRight className="w-5 h-5 ml-2" />
           </>
         )}
-      </Button>
+      </Button> */}
 
       {/* Stop Polling Button */}
-      {isPollingActive && !isConfirmed && (
+      {/* {isPollingActive && !isConfirmed && (
         <Button
           onClick={handleStopPolling}
           variant="outline"
@@ -674,10 +674,10 @@ export function TransferCheckout({
           <Loader2 className="w-5 h-5 mr-2" />
           Stop Auto-Checking
         </Button>
-      )}
+      )} */}
 
       {/* Status Information */}
-      {!isConfirmed && (
+      {/* {!isConfirmed && (
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl squircle-lg">
           <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
             <Shield className="w-4 h-4" />
@@ -709,7 +709,7 @@ export function TransferCheckout({
             </div>
           )}
         </div>
-      )}
+      )} */}
 
       {/* Security Badge */}
       <div className="flex items-center justify-center gap-2 text-xs text-[var(--color-accent-yellow)] mt-6">
