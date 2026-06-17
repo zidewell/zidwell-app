@@ -68,7 +68,6 @@ const CreatePaymentLink = () => {
   const [price, setPrice] = useState("");
   const [config, setConfig] = useState<LinkConfig>(defaultConfig);
   const [isMounted, setIsMounted] = useState(false);
-  const [dynamicId, setDynamicId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdSlug, setCreatedSlug] = useState("");
@@ -79,11 +78,21 @@ const CreatePaymentLink = () => {
   const set = <K extends keyof LinkConfig>(k: K, v: LinkConfig[K]) =>
     setConfig((c) => ({ ...c, [k]: v }));
 
+  // Generate a unique 4-digit identifier
+  const generateIdentifier = (): string => {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  };
+
+  // Generate full slug with 4-digit identifier at the front
+  const generateFullSlug = (titleText: string): string => {
+    const baseSlug = slugify(titleText);
+    const identifier = generateIdentifier();
+    return `${identifier}-${baseSlug}`;
+  };
+
   useEffect(() => {
     setIsMounted(true);
-    const idPart = generatedId.replace(/[^0-9]/g, "").slice(-3);
-    setDynamicId(idPart || Math.floor(100 + Math.random() * 900).toString());
-  }, [generatedId]);
+  }, []);
 
   // Set default logo from profile picture (like other page types)
   useEffect(() => {
@@ -106,7 +115,14 @@ const CreatePaymentLink = () => {
 
   const onTitleChange = (t: string) => {
     setTitle(t);
-    if (!slug || slug === slugify(title)) setSlug(slugify(t));
+    // Auto-generate slug with 4-digit identifier at the front
+    if (t) {
+      const baseSlug = slugify(t);
+      const identifier = generateIdentifier();
+      setSlug(`${identifier}-${baseSlug}`);
+    } else {
+      setSlug("");
+    }
   };
 
   const addCustomField = () => {
@@ -133,15 +149,17 @@ const CreatePaymentLink = () => {
   const canCreate =
     title.trim() && (config.amountMode === "variable" || Number(price) > 0);
 
-  const generateSlug = () => {
-    const titleSlug = slugify(title);
-    const id = dynamicId || "000";
-    return `${titleSlug}-${id}`;
-  };
-
-  const regenerateId = () => {
-    const newId = Math.floor(100 + Math.random() * 900).toString();
-    setDynamicId(newId);
+  // Generate final slug - always with 4-digit identifier at the front
+  const generateFinalSlug = () => {
+    const baseSlug = slugify(title);
+    // Extract identifier from current slug if it exists and is 4 digits
+    const slugParts = slug?.split("-") || [];
+    let identifier = slugParts[0] || generateIdentifier();
+    // Ensure identifier is exactly 4 digits
+    if (!/^\d{4}$/.test(identifier)) {
+      identifier = generateIdentifier();
+    }
+    return `${identifier}-${baseSlug}`;
   };
 
   const pageUrl = `${window.location.origin}/pay/${createdSlug}`;
@@ -151,12 +169,18 @@ const CreatePaymentLink = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const regenerateSlug = () => {
+    const baseSlug = slugify(title);
+    const newIdentifier = generateIdentifier();
+    setSlug(`${newIdentifier}-${baseSlug}`);
+  };
+
   const handleCreate = async () => {
     if (!canCreate) return;
     setIsCreating(true);
 
     try {
-      const finalSlug = slug || generateSlug();
+      const finalSlug = generateFinalSlug();
 
       // Prepare metadata with link configuration
       const metadata = {
@@ -347,7 +371,7 @@ const CreatePaymentLink = () => {
             />
           </div>
 
-          {/* URL Preview */}
+          {/* URL Preview with 4-digit identifier */}
           {title && (
             <div className="bg-[#1a1a1a]/50 rounded-lg p-4 border border-gray-800">
               <div className="flex items-center justify-between mb-2">
@@ -355,8 +379,8 @@ const CreatePaymentLink = () => {
                   Your Payment Link URL:
                 </Label>
                 <button
-                  onClick={regenerateId}
-                  className="flex items-center gap-1 text-xs text-[#e1bf46] hover:text-[#e1bf46]/80"
+                  onClick={regenerateSlug}
+                  className="flex items-center gap-1 text-xs text-[#e1bf46] hover:text-[#e1bf46]/80 transition-colors"
                 >
                   <RefreshCw className="h-3 w-3" /> New ID
                 </button>
@@ -364,9 +388,12 @@ const CreatePaymentLink = () => {
               <div className="flex items-center gap-2 bg-[#0e0e0e] p-3 rounded-lg border border-gray-800">
                 <Link2 className="h-4 w-4 text-[#e1bf46] shrink-0" />
                 <code className="text-sm font-mono text-gray-300 break-all">
-                  {window.location.origin}/pay/{generateSlug()}
+                  {window.location.origin}/pay/{generateFinalSlug()}
                 </code>
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                💡 Your URL includes a unique 4-digit identifier (e.g., 2135-web-dev)
+              </p>
             </div>
           )}
 
