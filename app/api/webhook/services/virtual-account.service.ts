@@ -72,7 +72,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
         return { success: true };
       }
 
-      // Create payment record
+      // Create payment record - FIXED: using correct column names
       const { error: paymentError } = await supabase
         .from("invoice_payments")
         .insert({
@@ -82,8 +82,11 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
           payer_name: senderName,
           amount: transactionAmount,
           paid_amount: transactionAmount,
-          fee: nombaFee,
-          net_amount: netAmount,
+          fee_amount: nombaFee,           // ✅ Fixed: was 'fee', now 'fee_amount'
+          nomba_fee: nombaFee,            // ✅ Added: track Nomba fee separately
+          net_amount: netAmount,          // ✅ Added: amount after fees
+          user_received: netAmount,       // ✅ Added: what the user actually receives
+          platform_fee: 0,                // ✅ Added: if you're not charging platform fee
           status: "completed",
           nomba_transaction_id: nombaTransactionId,
           payment_method: "virtual_account",
@@ -177,7 +180,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
         ).catch(console.error);
       }
 
-      // FIXED: Send deposit email to depositor if cross-user
+      // Send deposit email to depositor if cross-user
       if (isCrossUser) {
         // Get the depositor's actual user record to ensure we have their email
         const { data: depositorUser, error: depositorError } = await supabase
@@ -282,8 +285,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
       console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to wallet ${userId}`);
     }
 
-    // FIXED: Send deposit email for regular wallet deposit
-    // Verify the user exists before sending email
+    // Send deposit email for regular wallet deposit
     const { data: userExists, error: userError } = await supabase
       .from("users")
       .select("id, email")
