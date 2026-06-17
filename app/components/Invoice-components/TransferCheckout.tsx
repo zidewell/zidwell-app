@@ -684,9 +684,6 @@ export function TransferCheckout({
             Payment Verification
           </h4>
           <ul className="text-sm text-blue-700 space-y-1">
-            <li>
-              • We'll automatically check for your payment after you confirm
-            </li>
             <li>• Payments typically verify within 1-5 minutes</li>
             <li>
               • Ensure <strong>{safeInvoiceDetails.invoiceId}</strong> is in the
