@@ -42,22 +42,86 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
   const senderName = customer.senderName || customer.name || "Bank Transfer";
   const netAmount = transactionAmount - nombaFee;
   
-  // 🔥 FIXED: Supports BOTH formats:
-  // - INV_BDCF (with underscore or dash)
-  // - INVC675 (without separator)
-  // Matches INV followed by optional - or _, then at least 4 alphanumeric characters
+  // Find invoice reference in narration (supports INV_xxx, INV-xxx, INVxxx)
   const invoiceMatch = narration.match(/INV[-_]?[A-Z0-9]{4,}/i);
 
   // Check if this is an invoice payment
   if (invoiceMatch) {
-    const invoiceRef = invoiceMatch[0].toUpperCase();
+    let invoiceRef = invoiceMatch[0].toUpperCase();
     console.log("🧾 Found invoice reference in narration:", invoiceRef);
 
-    const { data: invoice } = await supabase
+    // 🔥 NORMALIZE: Remove separators for comparison
+    const normalizedRef = invoiceRef.replace(/[_-]/g, '');
+    console.log("🔍 Normalized reference:", normalizedRef);
+
+    let invoice = null;
+
+    // METHOD 1: Try exact match first
+    const { data: exactMatch } = await supabase
       .from("invoices")
       .select("*")
       .eq("invoice_id", invoiceRef)
       .single();
+
+    if (exactMatch) {
+      invoice = exactMatch;
+      console.log("✅ Found invoice by exact match:", invoice.invoice_id);
+    }
+
+    // METHOD 2: If not found, try normalized match
+    if (!invoice) {
+      console.log("🔍 No exact match, trying normalized match...");
+      
+      // Get all invoices that start with INV
+      const { data: allInvoices } = await supabase
+        .from("invoices")
+        .select("*")
+        .ilike("invoice_id", "INV%");
+
+      if (allInvoices && allInvoices.length > 0) {
+        // Find invoice where normalized invoice_id matches normalized reference
+        invoice = allInvoices.find(inv => {
+          const normalizedInvoiceId = inv.invoice_id.replace(/[_-]/g, '').toUpperCase();
+          return normalizedInvoiceId === normalizedRef;
+        });
+
+        if (invoice) {
+          console.log("✅ Found invoice by normalized match:", invoice.invoice_id);
+          console.log(`   (${invoice.invoice_id} matched ${invoiceRef})`);
+        }
+      }
+    }
+
+    // METHOD 3: Try with underscore/dash variations
+    if (!invoice) {
+      console.log("🔍 Trying variations with underscores and dashes...");
+      
+      const variations = [
+        invoiceRef,                          // INVC675
+        invoiceRef.replace(/^INV/, 'INV_'),  // INV_C675
+        invoiceRef.replace(/^INV/, 'INV-'),  // INV-C675
+        invoiceRef.replace(/_/g, ''),        // Remove underscores
+        invoiceRef.replace(/-/g, ''),        // Remove dashes
+      ];
+
+      // Remove duplicates
+      const uniqueVariations = [...new Set(variations)];
+      console.log("🔍 Trying variations:", uniqueVariations);
+
+      for (const variation of uniqueVariations) {
+        const { data: found } = await supabase
+          .from("invoices")
+          .select("*")
+          .eq("invoice_id", variation)
+          .single();
+
+        if (found) {
+          invoice = found;
+          console.log("✅ Found invoice by variation:", variation);
+          break;
+        }
+      }
+    }
 
     if (invoice) {
       console.log("✅ Found invoice for VA payment:", {
@@ -79,7 +143,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
         return { success: true };
       }
 
-      // Create payment record - WITH payment_link (REQUIRED)
+      // Create payment record
       const { error: paymentError } = await supabase
         .from("invoice_payments")
         .insert({
@@ -247,6 +311,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
       };
     } else {
       console.log("⚠️ No invoice found for reference:", invoiceRef);
+      console.log("   Tried exact match, normalized match, and variations");
     }
   }
 
