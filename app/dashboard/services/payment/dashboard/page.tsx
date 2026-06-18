@@ -236,6 +236,7 @@ const PageGrid = ({ pages }: { pages: any[] }) => {
   if (!pages || pages.length === 0) {
     return null;
   }
+ 
 
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
@@ -250,10 +251,10 @@ const PageGrid = ({ pages }: { pages: any[] }) => {
           }
           className="cursor-pointer group p-4 sm:p-5 rounded-2xl bg-(--bg-primary) border border-(--border-color) hover:border-(--color-accent-yellow) hover:shadow-lg transition-all duration-300"
         >
-          {page.coverImage ? (
+          {page.coverImage || page.logo ? (
             <div className="h-28 sm:h-32 rounded-xl bg-gray-100 mb-4 overflow-hidden">
               <img
-                src={page.coverImage}
+                src={page.coverImage || page.logo}
                 alt={page.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 loading="lazy"
