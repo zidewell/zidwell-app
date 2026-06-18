@@ -72,16 +72,15 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
 
   const currencySymbol = config.currency === "NGN" ? "₦" : config.currency === "USD" ? "$" : config.currency === "GBP" ? "£" : "€";
 
-  // Generate narration code (PL_XXXX) - THIS IS THE KEY TRACKING CODE
-  const generateNarrationCode = (): string => {
-    const prefix = "PL";
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let code = "";
-    for (let i = 0; i < 4; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return `${prefix}_${code}`;
-  };
+ const generateNarrationCode = (): string => {
+  const prefix = "PL";
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `${prefix}_${code}`; // PL_XXXX with underscore
+};
 
   const copyToClipboard = async (text: string, field: string) => {
     await navigator.clipboard.writeText(text);

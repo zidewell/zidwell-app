@@ -40,6 +40,7 @@ type ServiceResult =
       total_fee?: number;
       net_credit?: number;
       metadata?: any;
+      students?: string[];
     }
   | { error: string; status?: number };
 
@@ -57,11 +58,43 @@ async function sendPaymentPageNotificationEmail(
   narration: string,
   nombaFee: number,
   appFee: number,
+  customFields?: any,
+  selectedStudents?: string[],
 ): Promise<void> {
   if (!creatorEmail || !creatorEmail.includes('@')) return;
   
   const totalFee = nombaFee + appFee;
   const netAmount = amount - totalFee;
+  
+  // Build student list HTML
+  let studentsHtml = '';
+  if (selectedStudents && selectedStudents.length > 0) {
+    studentsHtml = `
+      <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+        <p style="font-weight: 600; margin-bottom: 5px;">Students:</p>
+        <ul style="margin: 0; padding-left: 20px;">
+          ${selectedStudents.map(name => `<li>${name}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
+  
+  // Build custom fields HTML
+  let customFieldsHtml = '';
+  if (customFields && Object.keys(customFields).length > 0) {
+    customFieldsHtml = `
+      <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+        <p style="font-weight: 600; margin-bottom: 5px;">Additional Information:</p>
+        ${Object.entries(customFields)
+          .filter(([key]) => !['customAmount', 'name', 'email', 'phone'].includes(key))
+          .map(([key, value]) => `
+            <p style="margin: 2px 0; font-size: 14px;">
+              <strong>${key}:</strong> ${value || 'N/A'}
+            </p>
+          `).join('')}
+      </div>
+    `;
+  }
   
   try {
     await transporter.sendMail({
@@ -79,6 +112,8 @@ async function sendPaymentPageNotificationEmail(
             <p><strong>Amount Credited:</strong> ₦${netAmount.toLocaleString()}</p>
             <p><strong>Sender:</strong> ${customerName}</p>
             ${customerEmail ? `<p><strong>Email:</strong> ${customerEmail}</p>` : ''}
+            ${studentsHtml}
+            ${customFieldsHtml}
           </div>
           <p>Funds added to your page balance after fee deductions.</p>
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
@@ -92,7 +127,7 @@ async function sendPaymentPageNotificationEmail(
 
 async function updateStudentPaidStatus(
   paymentPageId: string,
-  studentName: string,
+  studentNames: string[],
   parentName: string,
   amount: number,
 ): Promise<void> {
@@ -108,8 +143,12 @@ async function updateStudentPaidStatus(
     }
 
     const updatedStudents = paymentPage.metadata.students.map((student: any) => {
-      const existingStudentName = student.name || student.childName || student.studentName;
-      if (existingStudentName?.toLowerCase().trim() === studentName?.toLowerCase().trim()) {
+      const studentName = student.name || student.childName || student.studentName;
+      const isSelected = studentNames.some(
+        name => name?.toLowerCase().trim() === studentName?.toLowerCase().trim()
+      );
+      
+      if (isSelected) {
         const currentPaidAmount = student.paidAmount || 0;
         const newPaidAmount = currentPaidAmount + amount;
         const totalAmount = student.totalAmount || paymentPage.metadata.totalAmountPerStudent || 0;
@@ -136,7 +175,7 @@ async function updateStudentPaidStatus(
       })
       .eq("id", paymentPageId);
     
-    console.log(`✅ Updated paid status for student: ${studentName}`);
+    console.log(`✅ Updated paid status for students: ${studentNames.join(', ')}`);
   } catch (error) {
     console.error("Error updating student paid status:", error);
   }
@@ -153,23 +192,65 @@ function extractPaymentPageId(aliasAccountReference: string): string | null {
 
 // ============================================================
 // HELPER: Extract narration code from transaction
+// Supports both PL_XXXX and PLXXXX formats
 // ============================================================
 function extractNarrationCode(narration: string): string | null {
   if (!narration) return null;
   
-  // Extract PL_XXXX pattern (e.g., PL_FJHA, PL_M438)
-  const match = narration.match(/PL_[A-Z0-9]{4}/);
-  if (match) {
-    return match[0];
+  console.log(`🔍 Extracting narration code from: ${narration.substring(0, 50)}...`);
+  
+  // Try multiple patterns in order of specificity
+  const patterns = [
+    /PL_[A-Z0-9]{4,6}/,    // PL_XXXX, PL_XXXXX, PL_XXXXXX
+    /PL[A-Z0-9]{4,6}/,     // PLXXXX, PLXXXXX, PLXXXXXX
+    /PL_[A-Z0-9]+/,        // PL_ followed by any alphanumeric
+    /PL[A-Z0-9_]+/,        // PL followed by alphanumeric or underscore
+  ];
+  
+  for (const pattern of patterns) {
+    const match = narration.match(pattern);
+    if (match) {
+      const code = match[0];
+      console.log(`✅ Extracted narration code: ${code}`);
+      return code;
+    }
   }
   
-  // Also try to find PL_XXXX in the narration
-  const altMatch = narration.match(/PL_[A-Z0-9]{4,}/);
-  if (altMatch) {
-    return altMatch[0];
+  // If no pattern matches, try to find any PL prefix
+  const fallbackMatch = narration.match(/PL[A-Z0-9_]{2,}/);
+  if (fallbackMatch) {
+    console.log(`✅ Extracted fallback narration code: ${fallbackMatch[0]}`);
+    return fallbackMatch[0];
   }
   
+  console.log(`⚠️ No narration code found in: ${narration.substring(0, 50)}...`);
   return null;
+}
+
+// ============================================================
+// HELPER: Normalize narration code (remove underscores for comparison)
+// ============================================================
+function normalizeNarrationCode(code: string): string {
+  if (!code) return '';
+  return code.replace(/_/g, '').toUpperCase();
+}
+
+// ============================================================
+// HELPER: Extract student names from narration
+// ============================================================
+function extractStudentNamesFromNarration(narration: string, students: any[]): string[] {
+  if (!narration || !students || students.length === 0) return [];
+  
+  const matchedStudents: string[] = [];
+  
+  for (const student of students) {
+    const studentName = student.name || student.childName || student.studentName;
+    if (studentName && narration.toLowerCase().includes(studentName.toLowerCase())) {
+      matchedStudents.push(studentName);
+    }
+  }
+  
+  return matchedStudents;
 }
 
 export async function processPaymentPageVirtualAccount(
@@ -242,6 +323,7 @@ export async function processPaymentPageVirtualAccount(
   }
 
   console.log("✅ Payment page found:", paymentPage.title);
+  console.log("📄 Page type:", paymentPage.page_type);
 
   // ============================================================
   // FIND PENDING PAYMENT BY NARRATION CODE
@@ -251,8 +333,10 @@ export async function processPaymentPageVirtualAccount(
   
   // Extract narration code from the transaction narration
   const narrationCode = extractNarrationCode(narration);
+  const normalizedNarrationCode = narrationCode ? normalizeNarrationCode(narrationCode) : null;
   
-  console.log(`🔍 Extracted narration code from webhook: ${narrationCode || 'none'}`);
+  console.log(`🔍 Extracted narration code: ${narrationCode || 'none'}`);
+  console.log(`🔍 Normalized narration code: ${normalizedNarrationCode || 'none'}`);
 
   // Check for duplicate webhook FIRST
   const { data: existingWebhook } = await supabase
@@ -266,14 +350,16 @@ export async function processPaymentPageVirtualAccount(
     return { success: true, message: "Already processed" };
   }
 
-  // Try to find pending payment by narration code in metadata
+  // ============================================================
+  // STRATEGY 1: Find pending payment by narration code
+  // ============================================================
   if (narrationCode) {
     console.log(`🔍 Looking for pending payment with narration code: ${narrationCode}`);
     
     // Get all pending payments for this page
     const { data: pendingPayments, error: findError } = await supabase
       .from("payment_page_payments")
-      .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference")
+      .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference, student_name, selected_students, parent_name")
       .eq("payment_page_id", paymentPage.id)
       .eq("status", "pending")
       .order("created_at", { ascending: false });
@@ -281,24 +367,49 @@ export async function processPaymentPageVirtualAccount(
     if (pendingPayments && pendingPayments.length > 0) {
       console.log(`📦 Found ${pendingPayments.length} pending payments for this page`);
       
-      // Find the one with matching narration code
       for (const payment of pendingPayments) {
         const paymentNarration = payment.metadata?.narration;
+        const normalizedPaymentNarration = paymentNarration ? normalizeNarrationCode(paymentNarration) : null;
+        
+        console.log(`📦 Checking payment ${payment.id.substring(0, 8)}: narration = ${paymentNarration}, normalized = ${normalizedPaymentNarration}`);
+        
+        // Check exact match
         if (paymentNarration === narrationCode) {
           pendingPayment = payment;
-          console.log(`✅ Found pending payment by narration code match: ${pendingPayment.id}`);
-          console.log(`📦 Customer: ${payment.customer_name}, Email: ${payment.customer_email}`);
+          console.log(`✅ Found pending payment by exact narration match: ${pendingPayment.id}`);
           break;
         }
-      }
-      
-      // If not found by exact match, try partial match
-      if (!pendingPayment && narrationCode) {
-        for (const payment of pendingPayments) {
-          const paymentNarration = payment.metadata?.narration;
-          if (paymentNarration && paymentNarration.includes(narrationCode)) {
+        
+        // Check normalized match (ignoring underscores)
+        if (normalizedPaymentNarration && normalizedNarrationCode && 
+            normalizedPaymentNarration === normalizedNarrationCode) {
+          pendingPayment = payment;
+          console.log(`✅ Found pending payment by normalized match (ignoring underscores): ${pendingPayment.id}`);
+          console.log(`   Payment: ${paymentNarration} -> Normalized: ${normalizedPaymentNarration}`);
+          console.log(`   Webhook: ${narrationCode} -> Normalized: ${normalizedNarrationCode}`);
+          break;
+        }
+        
+        // Check if narration code is contained in the payment narration
+        if (paymentNarration && narrationCode && paymentNarration.includes(narrationCode)) {
+          pendingPayment = payment;
+          console.log(`✅ Found pending payment by narration contains match: ${pendingPayment.id}`);
+          break;
+        }
+        
+        // Check if payment narration is contained in the narration code
+        if (paymentNarration && narrationCode && narrationCode.includes(paymentNarration)) {
+          pendingPayment = payment;
+          console.log(`✅ Found pending payment by reverse contains match: ${pendingPayment.id}`);
+          break;
+        }
+        
+        // Check if normalized versions contain each other
+        if (normalizedPaymentNarration && normalizedNarrationCode) {
+          if (normalizedPaymentNarration.includes(normalizedNarrationCode) ||
+              normalizedNarrationCode.includes(normalizedPaymentNarration)) {
             pendingPayment = payment;
-            console.log(`✅ Found pending payment by partial narration match: ${pendingPayment.id}`);
+            console.log(`✅ Found pending payment by normalized contains match: ${pendingPayment.id}`);
             break;
           }
         }
@@ -306,13 +417,15 @@ export async function processPaymentPageVirtualAccount(
     }
   }
 
-  // If not found by narration code, try by transfer reference
+  // ============================================================
+  // STRATEGY 2: Find by transfer reference
+  // ============================================================
   if (!pendingPayment && transferReference) {
     console.log(`🔍 Looking for pending payment by transfer reference: ${transferReference}`);
     
     const { data: existing, error: findError } = await supabase
       .from("payment_page_payments")
-      .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference")
+      .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference, student_name, selected_students, parent_name")
       .eq("transfer_reference", transferReference)
       .eq("status", "pending")
       .maybeSingle();
@@ -323,13 +436,15 @@ export async function processPaymentPageVirtualAccount(
     }
   }
 
-  // If still not found, try to find by narration text match
+  // ============================================================
+  // STRATEGY 3: Find by narration text fallback
+  // ============================================================
   if (!pendingPayment && narration.length > 5) {
-    console.log(`🔍 Looking for pending payment by narration text: ${narration.substring(0, 30)}...`);
+    console.log(`🔍 Looking for pending payment by narration text fallback: ${narration.substring(0, 30)}...`);
     
     const { data: pendingPayments, error: findError } = await supabase
       .from("payment_page_payments")
-      .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference")
+      .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference, student_name, selected_students, parent_name")
       .eq("payment_page_id", paymentPage.id)
       .eq("status", "pending")
       .order("created_at", { ascending: false });
@@ -342,26 +457,62 @@ export async function processPaymentPageVirtualAccount(
           console.log(`✅ Found pending payment by narration text match: ${pendingPayment.id}`);
           break;
         }
+        if (paymentNarration && paymentNarration.includes(narration.substring(0, 10))) {
+          pendingPayment = payment;
+          console.log(`✅ Found pending payment by partial narration text match: ${pendingPayment.id}`);
+          break;
+        }
       }
     }
   }
 
-  // Prepare data
+  // ============================================================
+  // PREPARE DATA FOR PAYMENT
+  // ============================================================
   const senderName = tx?.senderName || customer?.name || pendingPayment?.customer_name || "Bank Transfer Customer";
   const customerEmail = customer?.email || pendingPayment?.customer_email || null;
   const customerPhone = pendingPayment?.customer_phone || tx?.senderPhone || null;
 
-  let matchedStudentName = null;
+  // ============================================================
+  // HANDLE STUDENT MATCHING FOR SCHOOL PAGES
+  // ============================================================
+  let matchedStudentNames: string[] = [];
   let matchedParentName = null;
   const students = paymentPage.metadata?.students || [];
   
-  for (const student of students) {
-    const studentName = student.name || student.childName;
-    if (studentName && narration.toLowerCase().includes(studentName.toLowerCase())) {
-      matchedStudentName = studentName;
+  // First, check if the pending payment has selected students
+  if (pendingPayment) {
+    if (pendingPayment.selected_students && Array.isArray(pendingPayment.selected_students) && pendingPayment.selected_students.length > 0) {
+      matchedStudentNames = pendingPayment.selected_students;
+      matchedParentName = pendingPayment.parent_name || senderName;
+      console.log(`✅ Found ${matchedStudentNames.length} students from pending payment:`, matchedStudentNames);
+    } else if (pendingPayment.student_name) {
+      matchedStudentNames = [pendingPayment.student_name];
+      matchedParentName = pendingPayment.parent_name || senderName;
+      console.log(`✅ Found single student from pending payment: ${pendingPayment.student_name}`);
+    }
+  }
+  
+  // If no students from pending payment, try to extract from narration
+  if (matchedStudentNames.length === 0 && students.length > 0) {
+    matchedStudentNames = extractStudentNamesFromNarration(narration, students);
+    matchedParentName = senderName;
+    if (matchedStudentNames.length > 0) {
+      console.log(`✅ Matched ${matchedStudentNames.length} students from narration:`, matchedStudentNames);
+    }
+  }
+
+  // If still no students and it's a school page, try to find from narration
+  if (matchedStudentNames.length === 0 && paymentPage.page_type === "school") {
+    for (const student of students) {
+      const studentName = student.name || student.childName || student.studentName;
+      if (studentName && narration.toLowerCase().includes(studentName.toLowerCase())) {
+        matchedStudentNames.push(studentName);
+      }
+    }
+    if (matchedStudentNames.length > 0) {
       matchedParentName = senderName;
-      console.log(`✅ Matched student from narration: ${studentName}`);
-      break;
+      console.log(`✅ Matched ${matchedStudentNames.length} students from narration fallback:`, matchedStudentNames);
     }
   }
 
@@ -383,7 +534,7 @@ export async function processPaymentPageVirtualAccount(
   const webhookData = {
     narration: narrationCode || narration,
     bank_transaction_id: nombaTransactionId,
-    matched_student: matchedStudentName,
+    matched_students: matchedStudentNames,
     matched_parent: matchedParentName,
     gross_amount: transactionAmount,
     nomba_fee: nombaFee,
@@ -410,22 +561,35 @@ export async function processPaymentPageVirtualAccount(
     // UPDATE existing pending payment - PRESERVES ALL USER DATA
     console.log(`🔄 Updating existing pending payment: ${pendingPayment.id}`);
     
+    const updateData: any = {
+      status: "completed",
+      nomba_transaction_id: nombaTransactionId,
+      paid_at: new Date().toISOString(),
+      confirmed_at: new Date().toISOString(),
+      net_amount: netAmount,
+      amount: transactionAmount,
+      fee: totalFee,
+      customer_name: pendingPayment.customer_name || senderName,
+      customer_email: pendingPayment.customer_email || customerEmail,
+      customer_phone: pendingPayment.customer_phone || customerPhone,
+      metadata: mergedMetadata,
+      receipt_sent: false,
+    };
+    
+    // Preserve student data if it's a school page
+    if (paymentPage.page_type === "school") {
+      if (matchedStudentNames.length === 1) {
+        updateData.student_name = matchedStudentNames[0];
+        updateData.parent_name = matchedParentName || senderName;
+      } else if (matchedStudentNames.length > 1) {
+        updateData.selected_students = matchedStudentNames;
+        updateData.parent_name = matchedParentName || senderName;
+      }
+    }
+    
     const { data: updated, error: updateError } = await supabase
       .from("payment_page_payments")
-      .update({
-        status: "completed",
-        nomba_transaction_id: nombaTransactionId,
-        paid_at: new Date().toISOString(),
-        confirmed_at: new Date().toISOString(),
-        net_amount: netAmount,
-        amount: transactionAmount,
-        fee: totalFee,
-        customer_name: pendingPayment.customer_name || senderName,
-        customer_email: pendingPayment.customer_email || customerEmail,
-        customer_phone: pendingPayment.customer_phone || customerPhone,
-        metadata: mergedMetadata,
-        receipt_sent: false,
-      })
+      .update(updateData)
       .eq("id", pendingPayment.id)
       .select()
       .single();
@@ -438,28 +602,44 @@ export async function processPaymentPageVirtualAccount(
     paymentResult = updated;
     console.log(`✅ Updated pending payment: ${paymentResult.id}`);
     console.log(`✅ Customer: ${paymentResult.customer_name}, Email: ${paymentResult.customer_email}`);
+    if (matchedStudentNames.length > 0) {
+      console.log(`✅ Students: ${matchedStudentNames.join(', ')}`);
+    }
   } else {
     // CREATE new payment record (fallback)
     console.log(`📝 Creating new payment record (no pending payment found)`);
     console.log(`⚠️ This means user data (name, email, custom fields) will be missing!`);
     
+    const insertData: any = {
+      payment_page_id: paymentPage.id,
+      user_id: paymentPage.user_id,
+      amount: transactionAmount,
+      fee: totalFee,
+      net_amount: netAmount,
+      status: "pending",
+      customer_name: senderName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      payment_method: "virtual_account",
+      order_reference: orderReference,
+      metadata: mergedMetadata,
+      receipt_sent: false,
+    };
+    
+    // Add student data for school pages
+    if (paymentPage.page_type === "school") {
+      if (matchedStudentNames.length === 1) {
+        insertData.student_name = matchedStudentNames[0];
+        insertData.parent_name = matchedParentName || senderName;
+      } else if (matchedStudentNames.length > 1) {
+        insertData.selected_students = matchedStudentNames;
+        insertData.parent_name = matchedParentName || senderName;
+      }
+    }
+    
     const { data: payment, error: insertError } = await supabase
       .from("payment_page_payments")
-      .insert({
-        payment_page_id: paymentPage.id,
-        user_id: paymentPage.user_id,
-        amount: transactionAmount,
-        fee: totalFee,
-        net_amount: netAmount,
-        status: "pending",
-        customer_name: senderName,
-        customer_email: customerEmail,
-        customer_phone: customerPhone,
-        payment_method: "virtual_account",
-        order_reference: orderReference,
-        metadata: mergedMetadata,
-        receipt_sent: false,
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -471,15 +651,17 @@ export async function processPaymentPageVirtualAccount(
     paymentResult = payment;
     
     // Update to completed
+    const completeData: any = {
+      status: "completed",
+      nomba_transaction_id: nombaTransactionId,
+      paid_at: new Date().toISOString(),
+      confirmed_at: new Date().toISOString(),
+      net_amount: netAmount,
+    };
+    
     const { data: completed, error: completeError } = await supabase
       .from("payment_page_payments")
-      .update({
-        status: "completed",
-        nomba_transaction_id: nombaTransactionId,
-        paid_at: new Date().toISOString(),
-        confirmed_at: new Date().toISOString(),
-        net_amount: netAmount,
-      })
+      .update(completeData)
       .eq("id", payment.id)
       .select()
       .single();
@@ -523,6 +705,21 @@ export async function processPaymentPageVirtualAccount(
   }
 
   // ============================================================
+  // UPDATE STUDENT PAID STATUS FOR SCHOOL PAGES
+  // ============================================================
+  if (paymentPage.page_type === "school" && matchedStudentNames.length > 0) {
+    // Calculate amount per student
+    const amountPerStudent = transactionAmount / matchedStudentNames.length;
+    
+    await updateStudentPaidStatus(
+      paymentPage.id,
+      matchedStudentNames,
+      matchedParentName || senderName,
+      amountPerStudent,
+    );
+  }
+
+  // ============================================================
   // CREATE TRANSACTION RECORD
   // ============================================================
   const { error: txError } = await supabase.from("transactions").insert({
@@ -533,7 +730,7 @@ export async function processPaymentPageVirtualAccount(
     net_amount: netAmount,
     status: "success",
     reference: `VA-${paymentPage.id}-${nombaTransactionId}`,
-    description: `Bank transfer payment for "${paymentPage.title}" from ${senderName}`,
+    description: `Bank transfer payment for "${paymentPage.title}" from ${senderName}${matchedStudentNames.length > 0 ? ` for ${matchedStudentNames.join(', ')}` : ''}`,
     channel: "payment_page_virtual_account",
     sender: { 
       name: senderName, 
@@ -546,6 +743,7 @@ export async function processPaymentPageVirtualAccount(
       total_fee: totalFee,
       net_credit: netAmount,
       custom_fields: mergedMetadata.customFields || null,
+      students: matchedStudentNames.length > 0 ? matchedStudentNames : null,
     },
     receiver: {
       user_id: paymentPage.user_id,
@@ -565,17 +763,9 @@ export async function processPaymentPageVirtualAccount(
     console.error("Failed to create transaction:", txError);
   }
 
-  // Update student paid status for school pages
-  if (matchedStudentName && paymentPage.page_type === "school") {
-    await updateStudentPaidStatus(
-      paymentPage.id,
-      matchedStudentName,
-      matchedParentName || senderName,
-      transactionAmount,
-    );
-  }
-
-  // Send receipt to customer
+  // ============================================================
+  // SEND RECEIPT TO CUSTOMER
+  // ============================================================
   if (customerEmail) {
     console.log(`📧 Sending receipt to: ${customerEmail}`);
     await sendPaymentPageReceiptWithPDF(
@@ -589,7 +779,8 @@ export async function processPaymentPageVirtualAccount(
       new Date().toISOString(),
       {
         narration: narrationCode || narration,
-        matched_student: matchedStudentName,
+        matched_students: matchedStudentNames,
+        matched_parent: matchedParentName,
         gross_amount: transactionAmount,
         nomba_fee: nombaFee,
         app_fee: appFee,
@@ -597,6 +788,7 @@ export async function processPaymentPageVirtualAccount(
         net_amount: netAmount,
         custom_fields: mergedMetadata.customFields || null,
         reference_code: mergedMetadata.referenceCode || null,
+        selected_students: matchedStudentNames,
       },
     ).catch(err => console.error("Failed to send receipt:", err));
     
@@ -608,7 +800,9 @@ export async function processPaymentPageVirtualAccount(
     console.log(`⚠️ No customer email found, receipt not sent`);
   }
 
-  // Send notification to page creator
+  // ============================================================
+  // SEND NOTIFICATION TO PAGE CREATOR
+  // ============================================================
   const { data: creator } = await supabase
     .from("users")
     .select("email")
@@ -625,6 +819,8 @@ export async function processPaymentPageVirtualAccount(
       narrationCode || narration,
       nombaFee,
       appFee,
+      mergedMetadata.customFields || null,
+      matchedStudentNames.length > 0 ? matchedStudentNames : null,
     );
   }
 
@@ -639,20 +835,24 @@ export async function processPaymentPageVirtualAccount(
     })
     .eq("id", paymentPage.id);
 
-  // Final log
+  // ============================================================
+  // FINAL LOG
+  // ============================================================
   console.log("🎉 ========== PAYMENT PROCESSING COMPLETED ==========");
   console.log(`   Gross: ₦${transactionAmount.toLocaleString()}`);
   console.log(`   Nomba Fee: -₦${nombaFee.toLocaleString()}`);
   console.log(`   App Fee (2%): -₦${appFee.toLocaleString()}`);
   console.log(`   Total Fees: -₦${totalFee.toLocaleString()}`);
   console.log(`   Net Credited: ₦${netAmount.toLocaleString()}`);
-  console.log(`   Student: ${matchedStudentName || 'N/A'}`);
+  console.log(`   Page Type: ${paymentPage.page_type}`);
+  console.log(`   Students (${matchedStudentNames.length}): ${matchedStudentNames.join(', ') || 'N/A'}`);
   console.log(`   Customer: ${senderName} (${customerEmail || 'no email'})`);
   console.log(`   Customer Phone: ${customerPhone || 'no phone'}`);
   console.log(`   Custom Fields:`, mergedMetadata.customFields || 'None');
   console.log(`   Narration Code: ${narrationCode || 'none'}`);
   console.log(`   Payment ID: ${paymentResult.id}`);
   console.log(`   Receipt Sent: ${customerEmail ? 'Yes' : 'No'}`);
+  console.log(`   Pending Payment Found: ${pendingPayment ? 'Yes' : 'No'}`);
 
   return {
     success: true,
@@ -666,6 +866,7 @@ export async function processPaymentPageVirtualAccount(
     total_fee: totalFee,
     net_credit: netAmount,
     metadata: mergedMetadata,
+    students: matchedStudentNames,
   };
 }
 
