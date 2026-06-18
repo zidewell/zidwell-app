@@ -172,7 +172,7 @@ const CreatePaymentLink = () => {
   const regenerateSlug = () => {
     const baseSlug = slugify(title);
     const newIdentifier = generateIdentifier();
-    setSlug(`${newIdentifier}-${baseSlug}`);
+    setSlug(`${baseSlug}-${newIdentifier}`);
   };
 
   const handleCreate = async () => {
