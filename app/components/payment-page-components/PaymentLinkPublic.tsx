@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { 
   Shield, 
   CreditCard, 
@@ -72,7 +72,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
 
   const currencySymbol = config.currency === "NGN" ? "₦" : config.currency === "USD" ? "$" : config.currency === "GBP" ? "£" : "€";
 
-  // Generate narration code
+  // Generate narration code (PL_XXXX) - THIS IS THE KEY TRACKING CODE
   const generateNarrationCode = (): string => {
     const prefix = "PL";
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -81,13 +81,6 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return `${prefix}_${code}`;
-  };
-
-  // Generate transfer reference
-  const generateTransferReference = (): string => {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 10);
-    return `TRF2${random}${timestamp}`.toUpperCase();
   };
 
   const copyToClipboard = async (text: string, field: string) => {
@@ -204,13 +197,13 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
       return;
     }
 
-    // Generate unique reference
-    const transferReference = generateTransferReference();
-    setPendingReference(transferReference);
-
-    // Generate short narration code with underscore (PL_M438)
+    // Generate narration code - THIS IS THE TRACKING CODE
     const narration = generateNarrationCode();
     setNarrationCode(narration);
+
+    // Generate a simple reference for the pending payment
+    const transferReference = `PL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    setPendingReference(transferReference);
 
     // Create pending payment record
     try {
@@ -232,7 +225,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
               paymentType: "link",
               customFields: formData,
               referenceCode: config.referenceCode,
-              narration: narration,
+              narration: narration, // IMPORTANT: Store the narration code
             },
           }),
         }
@@ -243,7 +236,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
 
       setShowBankDetails(true);
 
-      // Build account details with short narration code
+      // Build account details with narration code
       const details = `Bank: ${virtualAccount.bankName}
 Account Number: ${virtualAccount.accountNumber}
 Account Name: ${virtualAccount.bankAccountName || virtualAccount.accountName}
@@ -635,12 +628,12 @@ Narration: ${narration}`;
                             {page.virtualAccount.bankAccountName || page.virtualAccount.accountName}
                           </span>
                         </div>
-                        {/* NARRATION CODE */}
+                        {/* NARRATION CODE - This is the tracking code */}
                         <div className="mt-3 p-3 bg-yellow-900/40 rounded-xl border border-yellow-700/50">
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-yellow-400 uppercase tracking-wider">📝 Narration</span>
-                              <span className="text-[10px] text-yellow-500/70">(Required)</span>
+                              <span className="text-xs font-bold text-yellow-400 uppercase tracking-wider">📝 Narration Code</span>
+                              <span className="text-[10px] text-yellow-500/70">(Required - Use this to track your payment)</span>
                             </div>
                             <button
                               onClick={() => copyToClipboard(narrationCode, "narrationMain")}
@@ -654,6 +647,7 @@ Narration: ${narration}`;
                             </button>
                           </div>
                           <p className="text-lg font-mono font-bold text-yellow-300 tracking-wider">{narrationCode || "PL_XXXX"}</p>
+                          <p className="text-[9px] text-yellow-500/60 mt-1">Use this exact code as narration when transferring</p>
                         </div>
                       </div>
                     </div>
@@ -750,7 +744,7 @@ Narration: ${narration}`;
         </div>
       )}
 
-      {/* Virtual Account Details Modal */}
+      {/* Virtual Account Details Modal with Narration Code */}
       {showAccountModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
@@ -819,12 +813,12 @@ Narration: ${narration}`;
                 </div>
               </div>
 
-              {/* NARRATION CODE */}
+              {/* NARRATION CODE - The tracking code */}
               <div className="bg-yellow-900/30 rounded-xl p-4 border border-yellow-800 mt-2">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-yellow-400 uppercase tracking-wider">📝 Narration Code</span>
-                    <span className="text-[10px] text-yellow-500/70">(Required)</span>
+                    <span className="text-[10px] text-yellow-500/70">(Required - Use this to track your payment)</span>
                   </div>
                   <button
                     onClick={() => copyToClipboard(narrationCode, "narration")}
@@ -836,6 +830,7 @@ Narration: ${narration}`;
                 <p className="text-2xl font-mono font-bold text-yellow-300 tracking-wider text-center py-2">{narrationCode || "PL_XXXX"}</p>
                 <div className="mt-2 p-2 bg-yellow-800/30 rounded-lg">
                   <p className="text-[10px] text-yellow-400/80 text-center">⚠️ Use this exact code as narration when making the transfer</p>
+                  <p className="text-[9px] text-yellow-500/60 text-center mt-1">This code helps us identify your payment</p>
                 </div>
               </div>
             </div>
