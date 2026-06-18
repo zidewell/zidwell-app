@@ -898,7 +898,7 @@ export async function processPaymentPageVirtualAccount(
   console.log(`   Narration Code: ${webhookNarrationCode || 'none'}`);
   console.log(`   Payment ID: ${paymentResult.id}`);
   console.log(`   Receipt Sent: ${customerEmail ? 'Yes' : 'No'}`);
-  console.log(`   Pending Payment Found: ${pendingPayment ? 'Yes' : 'No'}`);
+  console.log(`   Pending Payment Found: ${pendingPayment ? 'Yes' : 'No'}`)
 
   return {
     success: true,
