@@ -54,39 +54,39 @@ export async function GET(
       linkConfig = page.metadata.linkConfig;
     }
 
-    const formattedPage = {
-      id: page.id,
-      title: page.title,
-      slug: page.slug,
-      description: page.description,
-      coverImage: page.cover_image,
-      logo: page.logo,
-      productImages: page.product_images,
-      priceType: page.price_type,
-      price: page.price,
-      installmentCount: page.installment_count,
-      feeMode: page.fee_mode,
-      pageBalance: page.page_balance,
-      totalRevenue: page.total_revenue,
-      totalPayments: page.total_payments,
-      pageViews: page.page_views,
-      createdAt: page.created_at,
-      pageType: page.page_type,
-      metadata: page.metadata,
-      linkConfig: linkConfig, // Add this for link pages
-      recentPayments: payments?.slice(0, 10).map(p => ({
-        id: p.id,
-        customerName: p.customer_name,
-        customerEmail: p.customer_email,
-        amount: p.amount,
-        fee: p.fee,
-        createdAt: p.created_at,
-      })),
-      paymentStats: {
-        totalAmount,
-        totalCount: payments?.length || 0,
-      },
-    };
+   const formattedPage = {
+  id: page.id,
+  title: page.title,
+  slug: page.slug,
+  description: page.description,
+  coverImage: page.cover_image,
+  logo: page.logo,
+  productImages: page.product_images,
+  priceType: page.price_type,
+  price: page.price,
+  installmentCount: page.installment_count,
+  feeMode: page.fee_mode,
+  pageBalance: page.page_balance,
+  totalRevenue: page.total_revenue,
+  totalPayments: page.total_payments,
+  pageViews: page.page_views,
+  createdAt: page.created_at,
+  pageType: page.page_type,
+  metadata: page.metadata,  // Make sure this is included
+  linkConfig: linkConfig,   // Make sure this is set
+  recentPayments: payments?.slice(0, 10).map(p => ({
+    id: p.id,
+    customerName: p.customer_name,
+    customerEmail: p.customer_email,
+    amount: p.amount,
+    fee: p.fee,
+    createdAt: p.created_at,
+  })),
+  paymentStats: {
+    totalAmount,
+    totalCount: payments?.length || 0,
+  },
+};
 
     const responseData = {
       success: true,

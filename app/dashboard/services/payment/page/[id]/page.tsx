@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import {
@@ -28,6 +28,12 @@ import {
   Code2,
   Download,
   CreditCard,
+  Link2,
+  Users,
+  Mail,
+  Phone,
+  Calendar,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore } from "@/app/hooks/useStore";
@@ -81,6 +87,9 @@ const PageDetail = () => {
   const [selectedStudentForCard, setSelectedStudentForCard] =
     useState<any>(null);
 
+  // Customer search for payment links
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+
   useEffect(() => {
     const foundPage = pages.find((p) => p.id === id);
     if (foundPage) {
@@ -123,12 +132,16 @@ const PageDetail = () => {
       }
 
       if (data && data.length > 0) {
+        console.log("📊 Payments loaded:", data.length, "records");
+        console.log("📊 First payment:", data[0]);
         setPayments(data);
       } else {
+        console.log("📊 No payments found");
         setPayments([]);
       }
     } catch (error) {
       console.error("Error loading payments:", error);
+      setPayments([]);
     }
   };
 
@@ -315,7 +328,7 @@ const PageDetail = () => {
   const getEmbedCode = () => {
     const pageUrl = getPaymentPageUrl();
     return `<a
-  href=${pageUrl}
+  href="${pageUrl}"
   target="_blank"
   rel="noopener noreferrer"
   style="
@@ -446,6 +459,205 @@ const PageDetail = () => {
     }
   };
 
+  // ============================================================
+  // PAYMENT LINK CONFIG - Get redirect URL and success message
+  // ============================================================
+  const getPaymentLinkConfig = () => {
+    // Check multiple possible locations for link config
+    if (page?.metadata?.linkConfig) {
+      return page.metadata.linkConfig;
+    }
+    if (page?.linkConfig) {
+      return page.linkConfig;
+    }
+    // Check if it's stored as a string that needs parsing
+    if (page?.metadata?.linkConfigData) {
+      try {
+        return typeof page.metadata.linkConfigData === 'string' 
+          ? JSON.parse(page.metadata.linkConfigData) 
+          : page.metadata.linkConfigData;
+      } catch (e) {
+        console.error("Error parsing linkConfigData:", e);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const linkConfig = getPaymentLinkConfig();
+
+  // ============================================================
+  // PAYMENT LINK CUSTOMERS - Extract customer data from payments
+  // ============================================================
+  const customers = useMemo(() => {
+    console.log("📊 Computing customers from payments, count:", payments.length);
+    console.log("📊 Page type:", page?.page_type);
+    console.log("📊 Page metadata:", page?.metadata);
+    console.log("📊 Link config:", linkConfig);
+    
+    if (!payments || payments.length === 0) {
+      console.log("📊 No payments to process");
+      return [];
+    }
+
+    console.log("📊 Processing payments:", payments);
+    const customerMap = new Map();
+
+    // Build a map of field IDs to labels from the page config
+    const fieldIdToLabel: Record<string, string> = {};
+    if (linkConfig?.customFields) {
+      linkConfig.customFields.forEach((field: any) => {
+        fieldIdToLabel[field.id] = field.label || field.id;
+      });
+    }
+
+    payments.forEach((payment) => {
+      // Use email as the primary key, fallback to name, then use a unique ID
+      const email = payment.customer_email;
+      const name = payment.customer_name || "Anonymous";
+      
+      // Create a unique key - prefer email, then name, then payment ID
+      let key = email;
+      if (!key || key === "null" || key === "undefined") {
+        key = name;
+      }
+      if (!key || key === "Anonymous") {
+        key = `customer-${payment.id}`;
+      }
+      // Ensure key is a string
+      key = String(key);
+
+      console.log(`📊 Processing payment: ${payment.id}, customer: ${name}, email: ${email}, key: ${key}`);
+
+      if (!customerMap.has(key)) {
+        // Get custom fields from metadata
+        const customFields = payment.metadata?.customFields || {};
+        
+        // Format custom fields with proper labels
+        const formattedCustomFields: Record<string, any> = {};
+        
+        Object.entries(customFields).forEach(([fieldKey, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            // Get the label from the page config, or use the key as fallback
+            const label = fieldIdToLabel[fieldKey] || fieldKey;
+            formattedCustomFields[label] = value;
+          }
+        });
+
+        // Get narration and reference from multiple possible locations
+        const narration = payment.metadata?.narration || null;
+        const referenceCode = payment.metadata?.referenceCode || 
+                            payment.metadata?.transfer_reference || 
+                            payment.transfer_reference || 
+                            payment.order_reference || 
+                            null;
+
+        console.log(`📊 Creating customer: ${name}`, { 
+          customFields: formattedCustomFields,
+          narration: narration,
+          referenceCode: referenceCode,
+          paymentMethod: payment.payment_method
+        });
+
+        customerMap.set(key, {
+          name: name,
+          email: email,
+          phone: payment.customer_phone || null,
+          totalPaid: 0,
+          payments: [],
+          firstPayment: payment.paid_at || payment.created_at || new Date().toISOString(),
+          lastPayment: payment.paid_at || payment.created_at || new Date().toISOString(),
+          customFields: formattedCustomFields,
+          referenceCode: referenceCode,
+          narration: narration,
+          paymentMethod: payment.payment_method || null,
+          hasNarration: !!narration,
+        });
+      }
+
+      const customer = customerMap.get(key);
+      const amount = payment.total_amount || payment.amount || 0;
+      customer.totalPaid += amount;
+      customer.payments.push(payment);
+
+      // Update first/last payment dates
+      const paymentDate = payment.paid_at || payment.created_at || new Date().toISOString();
+      if (paymentDate > customer.lastPayment) {
+        customer.lastPayment = paymentDate;
+      }
+      if (paymentDate < customer.firstPayment) {
+        customer.firstPayment = paymentDate;
+      }
+    });
+
+    // Sort customers by total paid (highest first)
+    const result = Array.from(customerMap.values()).sort((a, b) => b.totalPaid - a.totalPaid);
+    console.log("📊 Final customers:", result);
+    console.log("📊 Customers count:", result.length);
+    
+    // If no customers were created but we have payments, create a fallback
+    if (result.length === 0 && payments.length > 0) {
+      console.error("⚠️ WARNING: No customers created despite having payments!");
+      console.log("📊 Payment data:", payments);
+      
+      // Create fallback customers from each payment
+      const fallbackMap = new Map();
+      payments.forEach((payment, index) => {
+        const fallbackKey = `fallback-${index}`;
+        const name = payment.customer_name || `Customer ${index + 1}`;
+        const amount = payment.total_amount || payment.amount || 0;
+        
+        fallbackMap.set(fallbackKey, {
+          name: name,
+          email: payment.customer_email || null,
+          phone: payment.customer_phone || null,
+          totalPaid: amount,
+          payments: [payment],
+          firstPayment: payment.paid_at || payment.created_at || new Date().toISOString(),
+          lastPayment: payment.paid_at || payment.created_at || new Date().toISOString(),
+          customFields: {},
+          referenceCode: payment.metadata?.transfer_reference || payment.transfer_reference || null,
+          narration: payment.metadata?.narration || null,
+          paymentMethod: payment.payment_method || null,
+          hasNarration: !!payment.metadata?.narration,
+        });
+      });
+      
+      const fallbackResult = Array.from(fallbackMap.values());
+      console.log("📊 Fallback customers created:", fallbackResult);
+      return fallbackResult;
+    }
+    
+    return result;
+  }, [payments, page, linkConfig]);
+
+  // Debug useEffect to log customer data
+  useEffect(() => {
+    console.log("🔍 Debug Info:");
+    console.log("  - Page type:", page?.page_type);
+    console.log("  - Link config:", linkConfig);
+    console.log("  - Payments count:", payments.length);
+    console.log("  - Customers count:", customers.length);
+    console.log("  - Customers:", customers);
+    console.log("  - Customer search query:", customerSearchQuery);
+    
+    if (payments.length > 0 && customers.length === 0) {
+      console.warn("⚠️ We have payments but no customers! Check the grouping logic.");
+      console.log("First payment:", payments[0]);
+      console.log("Page metadata:", page?.metadata);
+    }
+  }, [page, linkConfig, payments, customers, customerSearchQuery]);
+
+  const filteredCustomers = customers.filter((customer) => {
+    const query = customerSearchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      customer.name.toLowerCase().includes(query) ||
+      (customer.email && customer.email.toLowerCase().includes(query)) ||
+      (customer.phone && customer.phone.includes(query))
+    );
+  });
+
   if (!page) {
     return (
       <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
@@ -500,6 +712,15 @@ const PageDetail = () => {
   );
   const totalExpected = students.length * (page.price || 0);
 
+  // Total from payments
+  const totalPaymentsAmount = payments.reduce(
+    (sum, p) => sum + (p.amount || 0),
+    0,
+  );
+
+  // Check if we should show customers section (for link pages OR any page with payments)
+  const showCustomersSection = page.page_type === "link" || payments.length > 0;
+
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
       <DashboardSidebar
@@ -533,20 +754,56 @@ const PageDetail = () => {
             {/* Page Info */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-center gap-4">
-                {page.logo && (
+                {page.coverImage ? (
+                  <img
+                    src={page.coverImage}
+                    className="h-12 w-12 md:h-16 md:w-16 rounded-xl object-cover"
+                    alt={page.title}
+                  />
+                ) : page.logo ? (
                   <img
                     src={page.logo}
                     className="h-12 w-12 md:h-16 md:w-16 rounded-xl object-cover"
-                    alt="Logo"
+                    alt={page.title}
                   />
+                ) : (
+                  <div className="h-12 w-12 md:h-16 md:w-16 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center">
+                    <CreditCard className="h-6 w-6 text-[var(--text-secondary)]" />
+                  </div>
                 )}
                 <div>
                   <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">
                     {page.title}
                   </h1>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    {typeLabels[page.pageType]}
+                    {typeLabels[page.page_type] || page.page_type || "Payment Page"}
                   </p>
+                  {/* Show link config info if it's a payment link */}
+                  {(page.page_type === "link" || linkConfig) && (
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      {linkConfig && (
+                        <>
+                          <span className="text-xs bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] px-2 py-0.5 rounded-full">
+                            {linkConfig.amountMode === "fixed" ? "Fixed" : "Variable"} Amount
+                          </span>
+                          {linkConfig.redirectUrl && (
+                            <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Link2 className="h-3 w-3" />
+                              Redirect: {linkConfig.redirectUrl}
+                            </span>
+                          )}
+                        </>
+                      )}
+                      <span className="text-xs bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {customers.length} Customers
+                      </span>
+                      <span className="text-xs bg-purple-500/10 text-purple-500 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <DollarSign className="h-3 w-3" />
+                        {payments.length} Payments
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex gap-3">
@@ -583,7 +840,7 @@ const PageDetail = () => {
               <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
                 <DollarSign className="h-4 w-4 text-[var(--color-lemon-green)] mb-2" />
                 <p className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">
-                  ₦{totalCollected.toLocaleString()}
+                  ₦{(page.page_type === "link" ? totalPaymentsAmount : totalCollected).toLocaleString()}
                 </p>
                 <p className="text-xs text-[var(--text-secondary)]">
                   Collected
@@ -597,13 +854,65 @@ const PageDetail = () => {
                 <p className="text-xs text-[var(--text-secondary)]">Balance</p>
               </div>
               <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
-                <TrendingUp className="h-4 w-4 text-[var(--color-lemon-green)] mb-2" />
+                <Users className="h-4 w-4 text-[var(--color-accent-yellow)] mb-2" />
                 <p className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">
-                  {payments.length}
+                  {page.page_type === "link" ? customers.length : payments.length}
                 </p>
-                <p className="text-xs text-[var(--text-secondary)]">Payments</p>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {page.page_type === "link" ? "Customers" : "Payments"}
+                </p>
               </div>
             </div>
+
+            {/* Payment Link Config Details */}
+            {(page.page_type === "link" || linkConfig) && linkConfig && (
+              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-5">
+                <h3 className="font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
+                  <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                  Payment Link Configuration
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-[var(--text-secondary)]">Redirect URL</p>
+                    <p className="text-sm text-[var(--text-primary)] break-all">
+                      {linkConfig.redirectUrl || "Not set"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--text-secondary)]">Alternative Redirect</p>
+                    <p className="text-sm text-[var(--text-primary)] break-all">
+                      {linkConfig.altRedirectUrl || "Not set"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--text-secondary)]">Success Message</p>
+                    <p className="text-sm text-[var(--text-primary)]">
+                      {linkConfig.successMessage || "Payment successful!"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--text-secondary)]">Thank You Message</p>
+                    <p className="text-sm text-[var(--text-primary)]">
+                      {linkConfig.thankYouMessage || "Thank you for your payment!"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--text-secondary)]">Collect Customer Info</p>
+                    <div className="flex gap-3 text-sm text-[var(--text-primary)]">
+                      <span>{linkConfig.collectName !== false ? "✅ Name" : "❌ Name"}</span>
+                      <span>{linkConfig.collectEmail !== false ? "✅ Email" : "❌ Email"}</span>
+                      <span>{linkConfig.collectPhone !== false ? "✅ Phone" : "❌ Phone"}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--text-secondary)]">Custom Fields</p>
+                    <p className="text-sm text-[var(--text-primary)]">
+                      {linkConfig.customFields?.length || 0} field(s)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* QR Code & Embed Code - Compact Buttons */}
             <div className="flex flex-wrap gap-3">
@@ -679,7 +988,7 @@ const PageDetail = () => {
                     <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
                       💡 Ask customers to add{" "}
                       <strong className="text-blue-800 dark:text-blue-300">
-                        student name
+                        {page.page_type === "school" ? "student name" : "narration code"}
                       </strong>{" "}
                       as narration
                     </p>
@@ -688,55 +997,269 @@ const PageDetail = () => {
               </div>
             )}
 
-            {/* Progress Summary */}
-            <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-5">
-              <h3 className="font-semibold text-[var(--text-primary)] mb-3">
-                Payment Progress
-              </h3>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-[var(--text-secondary)]">
-                  Overall Progress
-                </span>
-                <span className="text-[var(--text-primary)]">
-                  ₦{totalCollected.toLocaleString()} of ₦
-                  {totalExpected.toLocaleString()}
-                </span>
-              </div>
-              <div className="w-full h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-300"
-                  style={{
-                    width: `${totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-3 mt-4 text-center">
-                <div>
-                  <p className="text-xl md:text-2xl font-bold text-[var(--color-lemon-green)]">
-                    {paidStudents.length}
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    Fully Paid
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xl md:text-2xl font-bold text-yellow-500">
-                    {partiallyPaidStudents.length}
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    Partially Paid
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xl md:text-2xl font-bold text-[var(--text-secondary)]">
-                    {unpaidStudents.length}
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)]">Unpaid</p>
-                </div>
-              </div>
-            </div>
+            {/* ============================================================ */}
+            {/* PAYMENT LINK - CUSTOMERS SECTION */}
+            {/* ============================================================ */}
+            {showCustomersSection && (
+              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+                <div className="p-4 border-b border-[var(--border-color)]">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                      <Users className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                      Customers ({customers.length})
+                      {payments.length > 0 && (
+                        <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
+                          from {payments.length} payment{payments.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </h3>
 
-            {/* Payment Method Selector - Card vs Transfer */}
+                    <div className="relative w-full sm:w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
+                      <input
+                        type="text"
+                        placeholder="Search customers..."
+                        value={customerSearchQuery}
+                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-8 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)]"
+                      />
+                      {customerSearchQuery && (
+                        <button
+                          onClick={() => setCustomerSearchQuery("")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2"
+                        >
+                          <XCircle className="h-4 w-4 text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)]" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Debug: Show raw data if no customers but payments exist */}
+                {customers.length === 0 && payments.length > 0 && (
+                  <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-400">
+                      ⚠️ Found {payments.length} payment(s) but no customers were created.
+                      Check console for debug logs.
+                    </p>
+                    <button
+                      onClick={() => {
+                        console.log("📊 Raw payments data:", payments);
+                        console.log("📊 Page data:", page);
+                        console.log("📊 Link config:", linkConfig);
+                      }}
+                      className="mt-2 text-xs bg-yellow-100 dark:bg-yellow-800 px-3 py-1 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-700 transition-colors"
+                    >
+                      Log Debug Info
+                    </button>
+                  </div>
+                )}
+
+                {customers.length === 0 ? (
+                  <div className="p-8 text-center text-[var(--text-secondary)]">
+                    {payments.length > 0 ? (
+                      <>
+                        <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                        <p>No customers could be extracted from payments</p>
+                        <p className="text-xs mt-1">Check the console for debug information</p>
+                      </>
+                    ) : (
+                      <>
+                        <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                        <p>No customers yet</p>
+                        <p className="text-xs mt-1">Share your payment link to start receiving payments</p>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--border-color)] max-h-[600px] overflow-y-auto custom-scrollbar">
+                    {filteredCustomers.map((customer, idx) => (
+                      <div key={idx} className="p-4 hover:bg-[var(--bg-secondary)]/50 transition-colors">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-[var(--text-primary)]">
+                                {customer.name}
+                              </p>
+                              {customer.email && (
+                                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  {customer.email}
+                                </span>
+                              )}
+                              {customer.phone && (
+                                <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {customer.phone}
+                                </span>
+                              )}
+                              {customer.paymentMethod && (
+                                <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <CreditCard className="h-3 w-3" />
+                                  {customer.paymentMethod}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-4 mt-2 text-sm">
+                              <span className="text-[var(--text-secondary)] flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                First: {new Date(customer.firstPayment).toLocaleDateString()}
+                              </span>
+                              <span className="text-[var(--text-secondary)] flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                Last: {new Date(customer.lastPayment).toLocaleDateString()}
+                              </span>
+                              <span className="text-[var(--text-secondary)] flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                {customer.payments.length} payment(s)
+                              </span>
+                            </div>
+
+                            {/* Reference Code & Narration */}
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              {customer.referenceCode && (
+                                <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  📋 Ref: {customer.referenceCode}
+                                </span>
+                              )}
+                              {customer.narration && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                                  customer.narration.includes('PL') || customer.narration.length === 6
+                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                    : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                }`}>
+                                  <FileText className="h-3 w-3" />
+                                  Narration: {customer.narration}
+                                </span>
+                              )}
+                              {!customer.narration && customer.paymentMethod === 'virtual_account' && (
+                                <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
+                                  No narration
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Custom Fields */}
+                            {customer.customFields && Object.keys(customer.customFields).length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {Object.entries(customer.customFields)
+                                  .filter(([key]) => !['customAmount', 'name', 'email', 'phone'].includes(key))
+                                  .map(([key, value]) => (
+                                    <span
+                                      key={key}
+                                      className="text-xs bg-[var(--bg-secondary)] px-2 py-1 rounded border border-[var(--border-color)]"
+                                    >
+                                      <strong>{key}:</strong> {String(value) || 'N/A'}
+                                    </span>
+                                  ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <p className="text-xl font-bold text-[var(--color-lemon-green)]">
+                              ₦{customer.totalPaid.toLocaleString()}
+                            </p>
+                            <p className="text-xs text-[var(--text-secondary)]">
+                              Total Paid
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Payment History - Expanded view */}
+                        {customer.payments.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
+                            <div className="flex flex-wrap gap-2">
+                              {customer.payments.slice(0, 3).map((payment: any, pIdx: number) => (
+                                <div
+                                  key={pIdx}
+                                  className="text-xs bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-color)]"
+                                >
+                                  <span className="font-medium text-[var(--color-accent-yellow)]">
+                                    ₦{payment.amount?.toLocaleString()}
+                                  </span>
+                                  <span className="text-[var(--text-secondary)] ml-1">
+                                    {new Date(payment.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              ))}
+                              {customer.payments.length > 3 && (
+                                <span className="text-xs text-[var(--text-secondary)] flex items-center">
+                                  +{customer.payments.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {filteredCustomers.length === 0 && customerSearchQuery && (
+                      <div className="p-8 text-center text-[var(--text-secondary)]">
+                        <p>No customers found matching "{customerSearchQuery}"</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ============================================================ */}
+            {/* SCHOOL - Progress Summary */}
+            {/* ============================================================ */}
+            {page.page_type === "school" && (
+              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-5">
+                <h3 className="font-semibold text-[var(--text-primary)] mb-3">
+                  Payment Progress
+                </h3>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-[var(--text-secondary)]">
+                    Overall Progress
+                  </span>
+                  <span className="text-[var(--text-primary)]">
+                    ₦{totalCollected.toLocaleString()} of ₦
+                    {totalExpected.toLocaleString()}
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-300"
+                    style={{
+                      width: `${totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3 mt-4 text-center">
+                  <div>
+                    <p className="text-xl md:text-2xl font-bold text-[var(--color-lemon-green)]">
+                      {paidStudents.length}
+                    </p>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Fully Paid
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xl md:text-2xl font-bold text-yellow-500">
+                      {partiallyPaidStudents.length}
+                    </p>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Partially Paid
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xl md:text-2xl font-bold text-[var(--text-secondary)]">
+                      {unpaidStudents.length}
+                    </p>
+                    <p className="text-xs text-[var(--text-secondary)]">Unpaid</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================ */}
+            {/* SCHOOL - Payment Method Selector */}
+            {/* ============================================================ */}
             {page.page_type === "school" && unpaidStudents.length > 0 && (
               <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-5">
                 <h3 className="font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
@@ -881,8 +1404,10 @@ const PageDetail = () => {
               </div>
             )}
 
-            {/* Unassigned Payments Section */}
-            {unassignedPayments.length > 0 && (
+            {/* ============================================================ */}
+            {/* SCHOOL - Unassigned Payments Section */}
+            {/* ============================================================ */}
+            {page.page_type === "school" && unassignedPayments.length > 0 && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 overflow-hidden">
                 <div className="p-4 border-b border-yellow-200 dark:border-yellow-800 bg-yellow-100 dark:bg-yellow-900/30">
                   <h3 className="font-semibold text-yellow-800 dark:text-yellow-400 flex items-center gap-2">
@@ -1036,7 +1561,7 @@ const PageDetail = () => {
               </div>
             )}
 
-            {unassignedPayments.length === 0 && payments.length > 0 && (
+            {page.page_type === "school" && unassignedPayments.length === 0 && payments.length > 0 && (
               <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 text-center border border-green-200 dark:border-green-800">
                 <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto mb-2" />
                 <p className="text-green-700 dark:text-green-400">
@@ -1045,7 +1570,7 @@ const PageDetail = () => {
               </div>
             )}
 
-            {payments.length === 0 && (
+            {page.page_type === "school" && payments.length === 0 && (
               <div className="bg-gray-50 dark:bg-gray-900/20 rounded-xl p-8 text-center border border-gray-200 dark:border-gray-800">
                 <Banknote className="h-12 w-12 mx-auto mb-3 text-gray-400 opacity-50" />
                 <p className="text-gray-600 dark:text-gray-400">
@@ -1057,201 +1582,205 @@ const PageDetail = () => {
               </div>
             )}
 
-            {/* Students & Assigned Payments */}
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* Student List */}
-              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
-                <div className="p-4 border-b border-[var(--border-color)]">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                      <GraduationCap className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                      All Students ({students.length})
-                    </h3>
+            {/* ============================================================ */}
+            {/* SCHOOL - Students & Assigned Payments */}
+            {/* ============================================================ */}
+            {page.page_type === "school" && (
+              <div className="grid lg:grid-cols-2 gap-6">
+                {/* Student List */}
+                <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+                  <div className="p-4 border-b border-[var(--border-color)]">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                        <GraduationCap className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                        All Students ({students.length})
+                      </h3>
 
-                    <div className="relative w-full sm:w-64">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
-                      <input
-                        type="text"
-                        placeholder="Search student..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-8 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)]"
-                      />
-                      {searchQuery && (
-                        <button
-                          onClick={() => setSearchQuery("")}
-                          className="absolute right-3 top-1/2 -translate-y-1/2"
-                        >
-                          <XCircle className="h-4 w-4 text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)]" />
-                        </button>
-                      )}
+                      <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
+                        <input
+                          type="text"
+                          placeholder="Search student..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-9 pr-8 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)]"
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery("")}
+                            className="absolute right-3 top-1/2 -translate-y-1/2"
+                          >
+                            <XCircle className="h-4 w-4 text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)]" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="divide-y divide-[var(--border-color)] max-h-[600px] overflow-y-auto custom-scrollbar">
-                  {filteredStudents.length === 0 ? (
-                    <div className="p-8 text-center text-[var(--text-secondary)]">
-                      {searchQuery ? (
-                        <>
-                          <Search className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                          <p>No students found matching "{searchQuery}"</p>
-                        </>
-                      ) : (
-                        <>
-                          <GraduationCap className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                          <p>No students added yet</p>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    filteredStudents.map((student: any, idx: number) => {
-                      const totalAmount = student.totalAmount;
-                      const paidAmount = student.paidAmount;
-                      const percentage =
-                        totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
+                  <div className="divide-y divide-[var(--border-color)] max-h-[600px] overflow-y-auto custom-scrollbar">
+                    {filteredStudents.length === 0 ? (
+                      <div className="p-8 text-center text-[var(--text-secondary)]">
+                        {searchQuery ? (
+                          <>
+                            <Search className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                            <p>No students found matching "{searchQuery}"</p>
+                          </>
+                        ) : (
+                          <>
+                            <GraduationCap className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                            <p>No students added yet</p>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      filteredStudents.map((student: any, idx: number) => {
+                        const totalAmount = student.totalAmount;
+                        const paidAmount = student.paidAmount;
+                        const percentage =
+                          totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
 
-                      return (
-                        <div key={idx} className="p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <p className="font-medium text-[var(--text-primary)]">
-                                {student.name}
-                              </p>
-                              {student.className && (
-                                <p className="text-xs text-[var(--text-secondary)]">
-                                  📚 Class: {student.className}
+                        return (
+                          <div key={idx} className="p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <p className="font-medium text-[var(--text-primary)]">
+                                  {student.name}
                                 </p>
-                              )}
-                              {student.regNumber && (
-                                <p className="text-xs text-[var(--text-secondary)]">
-                                  🔢 Reg: {student.regNumber}
-                                </p>
+                                {student.className && (
+                                  <p className="text-xs text-[var(--text-secondary)]">
+                                    📚 Class: {student.className}
+                                  </p>
+                                )}
+                                {student.regNumber && (
+                                  <p className="text-xs text-[var(--text-secondary)]">
+                                    🔢 Reg: {student.regNumber}
+                                  </p>
+                                )}
+                              </div>
+                              {student.isFullyPaid ? (
+                                <span className="text-xs bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap">
+                                  <CheckCircle2 className="h-3 w-3" /> PAID
+                                </span>
+                              ) : student.isPartiallyPaid ? (
+                                <span className="text-xs bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap">
+                                  <Clock className="h-3 w-3" /> PARTIAL
+                                </span>
+                              ) : (
+                                <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                  PENDING
+                                </span>
                               )}
                             </div>
-                            {student.isFullyPaid ? (
-                              <span className="text-xs bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap">
-                                <CheckCircle2 className="h-3 w-3" /> PAID
-                              </span>
-                            ) : student.isPartiallyPaid ? (
-                              <span className="text-xs bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap">
-                                <Clock className="h-3 w-3" /> PARTIAL
-                              </span>
-                            ) : (
-                              <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                PENDING
-                              </span>
+
+                            <div className="mt-3">
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-[var(--text-secondary)]">
+                                  Paid {paidAmount.toLocaleString()} of{" "}
+                                  {totalAmount.toLocaleString()}
+                                </span>
+                                <span className="text-[var(--color-accent-yellow)]">
+                                  {percentage.toFixed(0)}%
+                                </span>
+                              </div>
+                              <div className="w-full h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-300"
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {student.parentName && (
+                              <p className="text-xs text-[var(--text-secondary)] mt-2">
+                                Paid by: {student.parentName}
+                              </p>
+                            )}
+                            {student.paidAt && (
+                              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                                {new Date(student.paidAt).toLocaleDateString()}
+                              </p>
                             )}
                           </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
 
-                          <div className="mt-3">
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-[var(--text-secondary)]">
-                                Paid {paidAmount.toLocaleString()} of{" "}
-                                {totalAmount.toLocaleString()}
-                              </span>
-                              <span className="text-[var(--color-accent-yellow)]">
-                                {percentage.toFixed(0)}%
+                {/* Assigned Payments */}
+                <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+                  <div className="p-4 border-b border-[var(--border-color)]">
+                    <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-[var(--color-lemon-green)]" />
+                      Assigned Payments ({assignedPayments.length})
+                    </h3>
+                  </div>
+                  <div className="divide-y divide-[var(--border-color)] max-h-[600px] overflow-y-auto custom-scrollbar">
+                    {assignedPayments.length === 0 ? (
+                      <div className="p-8 text-center text-[var(--text-secondary)]">
+                        <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                        <p>No assigned payments yet</p>
+                      </div>
+                    ) : (
+                      assignedPayments.map((payment: any) => {
+                        const matchedStudent =
+                          payment.metadata?.matched_student ||
+                          payment.metadata?.assigned_student;
+                        const narration = payment.metadata?.narration || "";
+                        const totalFee =
+                          (payment.metadata?.app_fee || 0) +
+                          (payment.metadata?.nomba_fee || 0);
+                        const paymentDate = payment.paid_at || payment.created_at;
+
+                        return (
+                          <div key={payment.id} className="p-4">
+                            <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
+                              <div>
+                                <p className="font-bold text-[var(--color-lemon-green)] text-lg">
+                                  ₦{payment.amount?.toLocaleString()}
+                                </p>
+                                <p className="text-xs text-[var(--text-secondary)]">
+                                  {new Date(paymentDate).toLocaleDateString()} at{" "}
+                                  {new Date(paymentDate).toLocaleTimeString()}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() =>
+                                  copyToClipboard(payment.id, "Payment ID")
+                                }
+                                className="text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-sm">
+                              <User className="h-3 w-3 text-[var(--color-accent-yellow)]" />
+                              <span className="text-[var(--text-primary)]">
+                                {payment.customer_name || "Anonymous"}
                               </span>
                             </div>
-                            <div className="w-full h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-300"
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
+
+                            {matchedStudent && (
+                              <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                <p className="text-xs text-green-700 dark:text-green-400 break-words">
+                                  ✓ Assigned to: <strong>{matchedStudent}</strong>
+                                </p>
+                              </div>
+                            )}
+
+                            {totalFee > 0 && (
+                              <div className="mt-2 text-xs text-[var(--text-secondary)]">
+                                <span>Fee: ₦{totalFee.toLocaleString()}</span>
+                              </div>
+                            )}
                           </div>
-
-                          {student.parentName && (
-                            <p className="text-xs text-[var(--text-secondary)] mt-2">
-                              Paid by: {student.parentName}
-                            </p>
-                          )}
-                          {student.paidAt && (
-                            <p className="text-xs text-[var(--text-secondary)] mt-1">
-                              {new Date(student.paidAt).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
-
-              {/* Assigned Payments */}
-              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
-                <div className="p-4 border-b border-[var(--border-color)]">
-                  <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-[var(--color-lemon-green)]" />
-                    Assigned Payments ({assignedPayments.length})
-                  </h3>
-                </div>
-                <div className="divide-y divide-[var(--border-color)] max-h-[600px] overflow-y-auto custom-scrollbar">
-                  {assignedPayments.length === 0 ? (
-                    <div className="p-8 text-center text-[var(--text-secondary)]">
-                      <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                      <p>No assigned payments yet</p>
-                    </div>
-                  ) : (
-                    assignedPayments.map((payment: any) => {
-                      const matchedStudent =
-                        payment.metadata?.matched_student ||
-                        payment.metadata?.assigned_student;
-                      const narration = payment.metadata?.narration || "";
-                      const totalFee =
-                        (payment.metadata?.app_fee || 0) +
-                        (payment.metadata?.nomba_fee || 0);
-                      const paymentDate = payment.paid_at || payment.created_at;
-
-                      return (
-                        <div key={payment.id} className="p-4">
-                          <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
-                            <div>
-                              <p className="font-bold text-[var(--color-lemon-green)] text-lg">
-                                ₦{payment.amount?.toLocaleString()}
-                              </p>
-                              <p className="text-xs text-[var(--text-secondary)]">
-                                {new Date(paymentDate).toLocaleDateString()} at{" "}
-                                {new Date(paymentDate).toLocaleTimeString()}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() =>
-                                copyToClipboard(payment.id, "Payment ID")
-                              }
-                              className="text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </button>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-sm">
-                            <User className="h-3 w-3 text-[var(--color-accent-yellow)]" />
-                            <span className="text-[var(--text-primary)]">
-                              {payment.customer_name || "Anonymous"}
-                            </span>
-                          </div>
-
-                          {matchedStudent && (
-                            <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                              <p className="text-xs text-green-700 dark:text-green-400 break-words">
-                                ✓ Assigned to: <strong>{matchedStudent}</strong>
-                              </p>
-                            </div>
-                          )}
-
-                          {totalFee > 0 && (
-                            <div className="mt-2 text-xs text-[var(--text-secondary)]">
-                              <span>Fee: ₦{totalFee.toLocaleString()}</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* Withdraw Button */}
             {page.pageBalance > 0 && (

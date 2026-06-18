@@ -248,19 +248,28 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
-  const getPageDetails = async (id: string) => {
-    try {
-      const response = await fetch(`/api/payment-page/details/${id}`, {
-        cache: 'no-store'
-      });
-      if (!response.ok) throw new Error("Failed to fetch page details");
-      const data = await response.json();
-      return data.page;
-    } catch (error) {
-      console.error("Error fetching page details:", error);
-      throw error;
+ const getPageDetails = async (id: string) => {
+  try {
+    const response = await fetch(`/api/payment-page/details/${id}`, {
+      cache: 'no-store'
+    });
+    if (!response.ok) throw new Error("Failed to fetch page details");
+    const data = await response.json();
+  
+    const page = data.page;
+    
+    // Ensure linkConfig is properly set from metadata
+    if (page?.pageType === 'link' && page?.metadata?.linkConfig) {
+      page.linkConfig = page.metadata.linkConfig;
     }
-  };
+    
+    console.log("📊 getPageDetails - page:", page);
+    return page;
+  } catch (error) {
+    console.error("Error fetching page details:", error);
+    throw error;
+  }
+};
 
   const getPageStats = async (id: string) => {
     try {
