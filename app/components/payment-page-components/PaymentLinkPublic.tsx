@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion"; 
 import { 
   Shield, 
   CreditCard, 
