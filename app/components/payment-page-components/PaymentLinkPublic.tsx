@@ -95,72 +95,81 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
     return "";
   };
 
-  // Confirm payment after transfer
-  const confirmPayment = async (reference: string) => {
-    setConfirmingPayment(true);
+ const confirmPayment = async (reference: string) => {
+  setConfirmingPayment(true);
 
-    try {
-      const result = await Swal.fire({
-        title: "Confirm Transfer",
-        html: `
-          <div class="text-left">
-            <p class="mb-2">Have you completed the bank transfer?</p>
-            <p class="text-sm text-gray-600">Please confirm that you have transferred the money.</p>
-            <p class="text-sm text-gray-600 mt-2">Reference: <strong>${reference}</strong></p>
-          </div>
-        `,
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonText: "✅ Yes, I've Transferred",
-        cancelButtonText: "⏳ Not Yet",
-        confirmButtonColor: "#22c55e",
-        cancelButtonColor: "#6b7280",
+  try {
+    const result = await Swal.fire({
+      title: "Confirm Transfer",
+      html: `
+        <div class="text-left">
+          <p class="mb-2">Have you completed the bank transfer?</p>
+          <p class="text-sm text-gray-600">Please confirm that you have transferred the money.</p>
+          <p class="text-sm text-gray-600 mt-2">Reference: <strong>${reference}</strong></p>
+        </div>
+      `,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "✅ Yes, I've Transferred",
+      cancelButtonText: "⏳ Not Yet",
+      confirmButtonColor: "#22c55e",
+      cancelButtonColor: "#6b7280",
+    });
+
+    if (result.isConfirmed) {
+      const response = await fetch("/api/payment-page/public/confirm-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          transferReference: reference,
+        }),
       });
 
-      if (result.isConfirmed) {
-        const response = await fetch(
-          "/api/payment-page/public/confirm-payment",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ transferReference: reference }),
-          }
-        );
+      const data = await response.json();
 
-        const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to confirm payment");
+      }
 
-        if (!response.ok) {
-          throw new Error(data.error || "Failed to confirm payment");
-        }
+      if (data.success) {
+        // Use the success message from the API response
+        const successMessage = data.successMessage || "Payment successful! Thank you.";
+        const thankYouMessage = data.thankYouMessage || "We've received your payment and a receipt has been sent to your email.";
 
-        if (data.success) {
-          await Swal.fire({
-            icon: "success",
-            title: "Payment Confirmed!",
-            html: `
-              <div class="text-left">
-                <p>✅ Your payment has been confirmed.</p>
-                <p class="text-sm text-gray-600 mt-2">A receipt has been sent to your email.</p>
-              </div>
-            `,
-            confirmButtonColor: "#F5B81B",
-          });
+        // Show success message
+        await Swal.fire({
+          icon: "success",
+          title: "Payment Confirmed!",
+          html: `
+            <div class="text-left">
+              <p>✅ ${successMessage}</p>
+              <p class="text-sm text-gray-600 mt-2">${thankYouMessage}</p>
+              ${data.payment?.customer_email ? `<p class="text-sm text-gray-600 mt-2">Receipt sent to: ${data.payment.customer_email}</p>` : ''}
+            </div>
+          `,
+          confirmButtonColor: "#F5B81B",
+        });
+
+        // Redirect to the success page
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
           window.location.reload();
         }
       }
-    } catch (error: any) {
-      console.error("Payment confirmation error:", error);
-      await Swal.fire({
-        icon: "error",
-        title: "Confirmation Failed",
-        text: error.message || "Could not confirm payment. Please try again.",
-        confirmButtonColor: "#F5B81B",
-      });
-    } finally {
-      setConfirmingPayment(false);
     }
-  };
-
+  } catch (error: any) {
+    console.error("Payment confirmation error:", error);
+    await Swal.fire({
+      icon: "error",
+      title: "Confirmation Failed",
+      text: error.message || "Could not confirm payment. Please try again.",
+      confirmButtonColor: "#F5B81B",
+    });
+  } finally {
+    setConfirmingPayment(false);
+  }
+};
   // Handle Virtual Account Payment
   const handleVirtualAccountPayment = async () => {
     const virtualAccount = page.virtualAccount;

@@ -8,12 +8,19 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Helper to get base URL
+const getBaseUrl = () => {
+  return process.env.NODE_ENV === "development"
+    ? "http://localhost:3000"
+    : "https://zidwell.com";
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { transferReference } = body;
+    const { transferReference, redirectUrl: customRedirectUrl } = body;
 
-    console.log("📝 Confirm Payment Request:", { transferReference });
+    console.log("📝 Confirm Payment Request:", { transferReference, customRedirectUrl });
 
     if (!transferReference) {
       return NextResponse.json({ error: "Transfer reference required" }, { status: 400 });
@@ -39,7 +46,6 @@ export async function POST(request: NextRequest) {
       id: payment.id,
       customer_name: payment.customer_name,
       customer_email: payment.customer_email,
-      metadata: payment.metadata,
     });
 
     // Update payment status
@@ -103,9 +109,72 @@ export async function POST(request: NextRequest) {
       console.error("❌ Failed to create transaction:", txError);
     }
 
+    // ============================================================
+    // GET REDIRECT URL AND SUCCESS MESSAGE FROM PAYMENT PAGE
+    // ============================================================
+    let successRedirectUrl = customRedirectUrl;
+    let successMessage = null;
+    let thankYouMessage = null;
+
+    const page = payment.payment_pages;
+
+    if (page) {
+      // Check if it's a link page with linkConfig
+      if (page.page_type === "link" && page.metadata?.linkConfig) {
+        const linkConfig = page.metadata.linkConfig;
+        
+        // Get redirect URL (priority: custom > linkConfig.redirectUrl)
+        if (!successRedirectUrl && linkConfig.redirectUrl) {
+          successRedirectUrl = linkConfig.redirectUrl;
+          console.log(`✅ Using redirect URL from link config: ${successRedirectUrl}`);
+        }
+        
+        // Get success message
+        if (linkConfig.successMessage) {
+          successMessage = linkConfig.successMessage;
+          console.log(`✅ Using success message from link config: ${successMessage}`);
+        }
+        
+        // Get thank you message
+        if (linkConfig.thankYouMessage) {
+          thankYouMessage = linkConfig.thankYouMessage;
+          console.log(`✅ Using thank you message from link config: ${thankYouMessage}`);
+        }
+      }
+      
+      // Check for custom thank you page URL in metadata
+      if (!successRedirectUrl && page.metadata?.thankYouPageUrl) {
+        successRedirectUrl = page.metadata.thankYouPageUrl;
+        console.log(`✅ Using thank you page URL from metadata: ${successRedirectUrl}`);
+      }
+    }
+
+    // Default redirect to built-in success page
+    const baseUrl = getBaseUrl();
+    if (!successRedirectUrl) {
+      successRedirectUrl = `${baseUrl}/payment-success?reference=${transferReference}&status=success`;
+      console.log(`✅ Using default success URL: ${successRedirectUrl}`);
+    }
+
+    // Default success message if not set
+    if (!successMessage) {
+      successMessage = "Payment successful! Thank you.";
+    }
+
+    // Default thank you message if not set
+    if (!thankYouMessage) {
+      thankYouMessage = "We've received your payment and a receipt has been sent to your email.";
+    }
+
+    // ============================================================
+    // RETURN SUCCESS WITH REDIRECT URL AND MESSAGES
+    // ============================================================
     return NextResponse.json({
       success: true,
       message: "Payment confirmed successfully",
+      redirectUrl: successRedirectUrl,
+      successMessage: successMessage,
+      thankYouMessage: thankYouMessage,
       payment: {
         id: payment.id,
         amount: payment.amount,
@@ -115,6 +184,7 @@ export async function POST(request: NextRequest) {
         custom_fields: payment.metadata?.customFields || null,
       },
     });
+
   } catch (error: any) {
     console.error("❌ Confirm payment error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -125,6 +195,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const reference = searchParams.get("reference");
+    const redirect = searchParams.get("redirect") === "true";
 
     if (!reference) {
       return NextResponse.json({ error: "Reference required" }, { status: 400 });
@@ -145,6 +216,40 @@ export async function GET(request: NextRequest) {
         found: false, 
         status: "not_found" 
       });
+    }
+
+    // If redirect is requested and payment is completed, redirect to success page
+    if (redirect && payment.status === "completed") {
+      let redirectUrl = null;
+      let successMessage = null;
+      
+      const page = payment.payment_pages;
+      
+      if (page) {
+        if (page.page_type === "link" && page.metadata?.linkConfig) {
+          const linkConfig = page.metadata.linkConfig;
+          if (linkConfig.redirectUrl) {
+            redirectUrl = linkConfig.redirectUrl;
+          }
+          if (linkConfig.successMessage) {
+            successMessage = linkConfig.successMessage;
+          }
+        }
+      }
+      
+      // Build URL with query params
+      if (!redirectUrl) {
+        const baseUrl = getBaseUrl();
+        redirectUrl = `${baseUrl}/payment-success?reference=${reference}&status=success`;
+      }
+      
+      // Add message as query param if present
+      if (successMessage) {
+        const separator = redirectUrl.includes('?') ? '&' : '?';
+        redirectUrl = `${redirectUrl}${separator}message=${encodeURIComponent(successMessage)}`;
+      }
+      
+      return NextResponse.redirect(redirectUrl);
     }
 
     return NextResponse.json({
