@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useId } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Upload,
