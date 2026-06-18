@@ -159,7 +159,7 @@ const CreatePaymentLink = () => {
     if (!/^\d{4}$/.test(identifier)) {
       identifier = generateIdentifier();
     }
-    return `${identifier}-${baseSlug}`;
+    return `${baseSlug}-${identifier}`;
   };
 
   const pageUrl = `${window.location.origin}/pay/${createdSlug}`;
