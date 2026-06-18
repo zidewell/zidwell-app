@@ -1,3 +1,5 @@
+// app/api/payment-page/public/transfer-payment/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -9,7 +11,7 @@ const supabase = createClient(
 const generateTransferReference = (): string => {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 10);
-  return `TRF-${timestamp}-${random}`.toUpperCase();
+  return `TRF2${random}${timestamp}`.toUpperCase();
 };
 
 export async function POST(request: NextRequest) {
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest) {
     if (customFieldsText) narration += ` (${customFieldsText})`;
 
     console.log("📝 Creating pending payment with narration:", narration);
+    console.log("📝 Transfer Reference:", transferRef);
 
     // Prepare payment record (pending until webhook confirms)
     const paymentData: any = {
@@ -96,7 +99,7 @@ export async function POST(request: NextRequest) {
       customer_email: customerEmail,
       customer_phone: customerPhone || "",
       order_reference: orderReference,
-      transfer_reference: transferRef,
+      transfer_reference: transferRef, // <-- CRITICAL: This must be set!
       payment_type: metadata?.isInstallment ? "installment" : "full",
       total_amount: metadata?.totalAmount || finalAmount,
       payment_method: "virtual_account",
@@ -108,6 +111,8 @@ export async function POST(request: NextRequest) {
         payment_method: "virtual_account",
         expected_amount: totalForCustomer,
         transfer_reference: transferRef,
+        customFields: metadata?.customFields || null, // Preserve custom fields
+        referenceCode: metadata?.referenceCode || null,
       },
     };
 
@@ -139,7 +144,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
     }
 
-    console.log("✅ Pending payment created:", payment.id);
+    console.log("✅ Pending payment created:", {
+      id: payment.id,
+      transfer_reference: payment.transfer_reference,
+      customer_name: payment.customer_name,
+      customer_email: payment.customer_email,
+      metadata: payment.metadata,
+    });
 
     // Return virtual account details with transfer reference and narration
     return NextResponse.json({

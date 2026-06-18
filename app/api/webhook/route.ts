@@ -19,7 +19,7 @@
 // } from "./services/subscription-service";
 
 // // Define common response types
-// type WebhookResponse = 
+// type WebhookResponse =
 //   | { success: boolean; message?: string; subscription_id?: string; credited_amount?: number; new_balance?: number | null; payment_id?: string }
 //   | { error: string; status?: number; gross_amount?: number; fee_deducted?: number; net_credit?: number };
 
@@ -189,7 +189,7 @@
 //         customer,
 //         tx,
 //       }) as WebhookResponse;
-      
+
 //       if (result && "error" in result && result.error) {
 //         if (!result.error.includes("not found")) {
 //           const statusCode = result.status && typeof result.status === "number" ? result.status : 500;
@@ -268,9 +268,9 @@ import { verifyNombaSignature } from "./helpers/signature-verification";
 import { processInvoicePayment } from "./services/invoice-payment.service";
 import { processVirtualAccountDeposit } from "./services/virtual-account.service";
 import { processPayout } from "./services/payout.service";
-import { 
-  processPaymentPageVirtualAccount, 
-  checkIfPaymentPageVirtualAccount 
+import {
+  processPaymentPageVirtualAccount,
+  checkIfPaymentPageVirtualAccount,
 } from "./services/payment-page.service";
 import {
   processSubscriptionPayment,
@@ -279,17 +279,27 @@ import {
   checkIfSubscriptionBankTransfer,
 } from "./services/subscription-service";
 
-type WebhookResponse = 
-  | { success: boolean; message?: string; subscription_id?: string; credited_amount?: number; new_balance?: number | null; payment_id?: string }
+type WebhookResponse =
+  | {
+      success: boolean;
+      message?: string;
+      subscription_id?: string;
+      credited_amount?: number;
+      new_balance?: number | null;
+      payment_id?: string;
+    }
   | { error: string; status?: number };
 
-async function isRegularWalletDeposit(aliasAccountReference: string): Promise<boolean> {
+async function isRegularWalletDeposit(
+  aliasAccountReference: string,
+): Promise<boolean> {
   if (!aliasAccountReference) return false;
   if (aliasAccountReference.startsWith("PP-")) return false;
   if (aliasAccountReference.startsWith("VA-PP-")) return false;
   if (aliasAccountReference.startsWith("VA-SUB-")) return false;
 
-  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidPattern.test(aliasAccountReference)) return false;
 
   const { createClient } = await import("@supabase/supabase-js");
@@ -309,7 +319,8 @@ async function isRegularWalletDeposit(aliasAccountReference: string): Promise<bo
 
 function handleErrorResponse(result: any): NextResponse {
   if (result && "error" in result && result.error) {
-    const statusCode = result.status && typeof result.status === "number" ? result.status : 500;
+    const statusCode =
+      result.status && typeof result.status === "number" ? result.status : 500;
     return NextResponse.json({ error: result.error }, { status: statusCode });
   }
   return NextResponse.json(result);
@@ -321,13 +332,21 @@ function safeNum(v: any): number {
 }
 
 function checkIfInvoicePayment(orderReference: string, payload: any): boolean {
-  const hasInvoiceMetadata = payload.data?.order?.metadata?.invoiceId ||
+  const hasInvoiceMetadata =
+    payload.data?.order?.metadata?.invoiceId ||
     payload.data?.order?.metadata?.invoiceNumber;
-  const isInvoiceReference = orderReference?.startsWith("INV-") || orderReference?.startsWith("INVOICE-");
+  const isInvoiceReference =
+    orderReference?.startsWith("INV-") ||
+    orderReference?.startsWith("INVOICE-");
   const isSubscriptionRef = orderReference?.startsWith("SUB_");
-  const isPaymentPageRef = orderReference?.startsWith("PP-") || orderReference?.startsWith("P");
+  const isPaymentPageRef =
+    orderReference?.startsWith("PP-") || orderReference?.startsWith("P");
 
-  return (hasInvoiceMetadata || isInvoiceReference) && !isSubscriptionRef && !isPaymentPageRef;
+  return (
+    (hasInvoiceMetadata || isInvoiceReference) &&
+    !isSubscriptionRef &&
+    !isPaymentPageRef
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -346,7 +365,8 @@ export async function POST(req: NextRequest) {
 
     // Verify signature
     const timestamp = req.headers.get("nomba-timestamp");
-    const signature = req.headers.get("nomba-sig-value") || req.headers.get("nomba-signature");
+    const signature =
+      req.headers.get("nomba-sig-value") || req.headers.get("nomba-signature");
 
     if (!timestamp || !signature) {
       return NextResponse.json({ error: "Missing signature" }, { status: 401 });
@@ -364,26 +384,63 @@ export async function POST(req: NextRequest) {
 
     const nombaTransactionId = tx.transactionId || tx.id || tx.reference;
     const orderReference = order.orderReference;
-    const aliasAccountReference = tx.aliasAccountReference || tx.alias_account_reference;
-    const transactionAmount = safeNum(tx.transactionAmount ?? tx.amount ?? order.amount ?? 0);
+    const aliasAccountReference =
+      tx.aliasAccountReference || tx.alias_account_reference;
+    const transactionAmount = safeNum(
+      tx.transactionAmount ?? tx.amount ?? order.amount ?? 0,
+    );
     const nombaFee = safeNum(tx.fee ?? payload.data?.transaction?.fee ?? 0);
-    const txStatus = (tx.status || payload.data?.status || "").toString().toLowerCase();
+    const txStatus = (tx.status || payload.data?.status || "")
+      .toString()
+      .toLowerCase();
 
-    console.log("Processing:", { eventType, amount: transactionAmount, aliasAccountReference });
+    console.log("Processing:", {
+      eventType,
+      amount: transactionAmount,
+      aliasAccountReference,
+    });
 
     function extractTransferReference(tx: any): string | null {
-  const narration = tx.narration || tx.reference || "";
-  const refMatch = narration.match(/TRF_[A-Za-z0-9]+/);
-  if (refMatch) {
-    return refMatch[0];
-  }
-  return null;
-}
-const transferReference = extractTransferReference(tx);
+      const narration = tx.narration || tx.reference || "";
+
+      // Try multiple patterns to match the transfer reference
+      const patterns = [
+        /TRF2[A-Za-z0-9]+/, // TRF2... format (used in frontend)
+        /TRF_[A-Za-z0-9]+/, // TRF_... format
+        /TRF-[A-Za-z0-9]+/, // TRF-... format
+        /TRF[A-Za-z0-9]+/, // TRF... format
+      ];
+
+      for (const pattern of patterns) {
+        const match = narration.match(pattern);
+        if (match) {
+          console.log(
+            `✅ Extracted transfer reference: ${match[0]} from pattern ${pattern}`,
+          );
+          return match[0];
+        }
+      }
+
+      // Also check if the narration itself contains a reference
+      if (narration && narration.length > 20) {
+        console.log(
+          `⚠️ Using full narration as fallback reference: ${narration.substring(0, 30)}...`,
+        );
+        return narration;
+      }
+
+      return null;
+    }
+    const transferReference = extractTransferReference(tx);
 
     // ========== PRIORITY 1: PAYMENT PAGE VIRTUAL ACCOUNT (PP- prefix) ==========
-    const isPaymentPageVA = checkIfPaymentPageVirtualAccount(aliasAccountReference);
-    if (isPaymentPageVA && (eventType === "payment_success" || txStatus === "success")) {
+    const isPaymentPageVA = checkIfPaymentPageVirtualAccount(
+      aliasAccountReference,
+    );
+    if (
+      isPaymentPageVA &&
+      (eventType === "payment_success" || txStatus === "success")
+    ) {
       console.log("🏦 Processing payment page virtual account...");
       const result = await processPaymentPageVirtualAccount(payload, {
         nombaTransactionId,
@@ -398,8 +455,14 @@ const transferReference = extractTransferReference(tx);
     }
 
     // ========== PRIORITY 2: SUBSCRIPTION BANK TRANSFERS ==========
-    const isSubscriptionBankTransfer = checkIfSubscriptionBankTransfer(aliasAccountReference, payload);
-    if (isSubscriptionBankTransfer && (eventType === "payment_success" || txStatus === "success")) {
+    const isSubscriptionBankTransfer = checkIfSubscriptionBankTransfer(
+      aliasAccountReference,
+      payload,
+    );
+    if (
+      isSubscriptionBankTransfer &&
+      (eventType === "payment_success" || txStatus === "success")
+    ) {
       console.log("🏦 Processing subscription bank transfer...");
       const result = await processSubscriptionBankTransfer(payload, {
         nombaTransactionId,
@@ -412,8 +475,14 @@ const transferReference = extractTransferReference(tx);
     }
 
     // ========== PRIORITY 3: SUBSCRIPTION CARD PAYMENTS ==========
-    const isSubscriptionCard = checkIfSubscriptionPayment(orderReference, payload);
-    if (isSubscriptionCard && (eventType === "payment_success" || txStatus === "success")) {
+    const isSubscriptionCard = checkIfSubscriptionPayment(
+      orderReference,
+      payload,
+    );
+    if (
+      isSubscriptionCard &&
+      (eventType === "payment_success" || txStatus === "success")
+    ) {
       console.log("💳 Processing subscription card payment...");
       const result = await processSubscriptionPayment(payload, {
         nombaTransactionId,
@@ -423,8 +492,13 @@ const transferReference = extractTransferReference(tx);
     }
 
     // ========== PRIORITY 4: REGULAR WALLET DEPOSITS ==========
-    const isRegularDeposit = await isRegularWalletDeposit(aliasAccountReference);
-    if (isRegularDeposit && (eventType === "payment_success" || txStatus === "success")) {
+    const isRegularDeposit = await isRegularWalletDeposit(
+      aliasAccountReference,
+    );
+    if (
+      isRegularDeposit &&
+      (eventType === "payment_success" || txStatus === "success")
+    ) {
       console.log("💰 Processing wallet deposit...");
       const result = await processVirtualAccountDeposit(payload, {
         aliasAccountReference,
@@ -439,21 +513,27 @@ const transferReference = extractTransferReference(tx);
 
     // ========== PRIORITY 5: INVOICE PAYMENTS ==========
     const isInvoicePayment = checkIfInvoicePayment(orderReference, payload);
-    if (isInvoicePayment && (eventType === "payment_success" || txStatus === "success")) {
+    if (
+      isInvoicePayment &&
+      (eventType === "payment_success" || txStatus === "success")
+    ) {
       console.log("📄 Processing invoice payment...");
-      const result = await processInvoicePayment(payload, {
+      const result = (await processInvoicePayment(payload, {
         nombaTransactionId,
         transactionAmount,
         nombaFee,
         orderReference,
         customer,
         tx,
-      }) as WebhookResponse;
-      
+      })) as WebhookResponse;
+
       if (result && "error" in result && result.error) {
         if (!result.error.includes("not found")) {
           const statusCode = result.status || 500;
-          return NextResponse.json({ error: result.error }, { status: statusCode });
+          return NextResponse.json(
+            { error: result.error },
+            { status: statusCode },
+          );
         }
       } else if (result && "success" in result) {
         return NextResponse.json(result);
@@ -461,7 +541,10 @@ const transferReference = extractTransferReference(tx);
     }
 
     // ========== PRIORITY 6: FALLBACK VIRTUAL ACCOUNT DEPOSIT ==========
-    if (aliasAccountReference && (eventType === "payment_success" || txStatus === "success")) {
+    if (
+      aliasAccountReference &&
+      (eventType === "payment_success" || txStatus === "success")
+    ) {
       console.log("🏦 Processing fallback virtual account deposit...");
       const result = await processVirtualAccountDeposit(payload, {
         aliasAccountReference,
@@ -476,7 +559,8 @@ const transferReference = extractTransferReference(tx);
 
     // ========== WITHDRAWALS/TRANSFERS (PAYOUTS) ==========
     const transactionType = (tx.type || "").toLowerCase();
-    const isPayout = eventType?.toLowerCase().includes("payout") ||
+    const isPayout =
+      eventType?.toLowerCase().includes("payout") ||
       transactionType.includes("transfer") ||
       transactionType.includes("payout");
 
@@ -493,12 +577,11 @@ const transferReference = extractTransferReference(tx);
 
     console.log("ℹ️ Unhandled event type:", eventType);
     return NextResponse.json({ message: "Event ignored" }, { status: 200 });
-
   } catch (error: any) {
     console.error("🔥 Webhook error:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

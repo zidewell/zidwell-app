@@ -1,3 +1,5 @@
+// app/api/payment-page/public/confirm-payment/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -33,7 +35,12 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    console.log("✅ Found pending payment:", payment.id);
+    console.log("✅ Found pending payment:", {
+      id: payment.id,
+      customer_name: payment.customer_name,
+      customer_email: payment.customer_email,
+      metadata: payment.metadata,
+    });
 
     // Update payment status
     const { error: updateError } = await supabase
@@ -84,6 +91,7 @@ export async function POST(request: NextRequest) {
         phone: payment.customer_phone,
         transfer_reference: transferReference,
         narration: payment.metadata?.narration,
+        custom_fields: payment.metadata?.customFields || null,
       },
       receiver: {
         user_id: payment.user_id,
@@ -102,6 +110,9 @@ export async function POST(request: NextRequest) {
         id: payment.id,
         amount: payment.amount,
         status: "completed",
+        customer_name: payment.customer_name,
+        customer_email: payment.customer_email,
+        custom_fields: payment.metadata?.customFields || null,
       },
     });
   } catch (error: any) {
@@ -143,8 +154,10 @@ export async function GET(request: NextRequest) {
         id: payment.id,
         amount: payment.amount,
         customer_name: payment.customer_name,
+        customer_email: payment.customer_email,
         created_at: payment.created_at,
         confirmed_at: payment.confirmed_at,
+        custom_fields: payment.metadata?.customFields || null,
       },
     });
   } catch (error: any) {
