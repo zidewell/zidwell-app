@@ -405,10 +405,10 @@ export async function POST(req: NextRequest) {
 
       // Try multiple patterns to match the transfer reference
       const patterns = [
-        /TRF2[A-Za-z0-9]+/, // TRF2... format (used in frontend)
-        /TRF_[A-Za-z0-9]+/, // TRF_... format
-        /TRF-[A-Za-z0-9]+/, // TRF-... format
-        /TRF[A-Za-z0-9]+/, // TRF... format
+        /PPL[A-Za-z0-9]+/, // PPL... format (used in frontend)
+        /PPL_[A-Za-z0-9]+/, // PPL_... format
+        /PPL-[A-Za-z0-9]+/, // PPL-... format
+        /PPL[A-Za-z0-9]+/, // PPL... format
       ];
 
       for (const pattern of patterns) {

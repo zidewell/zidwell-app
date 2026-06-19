@@ -26,169 +26,184 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Transfer reference required" }, { status: 400 });
     }
 
-    // Find the pending payment by transfer reference
-    const { data: payment, error: paymentError } = await supabase
+    // FIRST: Try to find by transfer_reference (any status)
+    let { data: payment, error: paymentError } = await supabase
       .from("payment_page_payments")
       .select("*, payment_pages(*)")
       .eq("transfer_reference", transferReference)
-      .eq("status", "pending")
       .maybeSingle();
 
     if (paymentError || !payment) {
       console.error("❌ Payment not found:", paymentError);
-      return NextResponse.json({ 
-        error: "Payment not found or already processed",
-        found: false 
-      }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: "Payment not found. Please make sure you've made the transfer.",
+          found: false,
+        },
+        { status: 404 }
+      );
     }
 
-    console.log("✅ Found pending payment:", {
+    console.log("✅ Found payment:", {
       id: payment.id,
+      status: payment.status,
       customer_name: payment.customer_name,
       customer_email: payment.customer_email,
     });
 
-    // Update payment status
-    const { error: updateError } = await supabase
-      .from("payment_page_payments")
-      .update({
-        status: "completed",
-        confirmed_at: new Date().toISOString(),
-        paid_at: new Date().toISOString(),
-      })
-      .eq("id", payment.id);
-
-    if (updateError) {
-      console.error("❌ Failed to update payment:", updateError);
-      return NextResponse.json({ error: "Failed to confirm payment" }, { status: 500 });
-    }
-
-    console.log("✅ Payment confirmed:", payment.id);
-
-    // Credit the page balance
-    const { error: balanceError } = await supabase.rpc(
-      "increment_page_balance",
-      {
-        p_page_id: payment.payment_page_id,
-        p_amount: payment.net_amount,
-      }
-    );
-
-    if (balanceError) {
-      console.error("❌ Failed to increment balance:", balanceError);
-    } else {
-      console.log(`✅ Balance incremented by ₦${payment.net_amount}`);
-    }
-
-    // Create transaction record
-    const { error: txError } = await supabase.from("transactions").insert({
-      user_id: payment.user_id,
-      type: "credit",
-      amount: payment.amount,
-      fee: payment.fee,
-      net_amount: payment.net_amount,
-      status: "success",
-      reference: `VA-${payment.payment_page_id}-${transferReference}`,
-      description: `Payment confirmed for "${payment.payment_pages?.title}" from ${payment.customer_name}`,
-      channel: "payment_page_virtual_account",
-      sender: {
-        name: payment.customer_name,
-        email: payment.customer_email,
-        phone: payment.customer_phone,
-        transfer_reference: transferReference,
-        narration: payment.metadata?.narration,
-        custom_fields: payment.metadata?.customFields || null,
-      },
-      receiver: {
-        user_id: payment.user_id,
-        payment_page_id: payment.payment_page_id,
-      },
-    });
-
-    if (txError) {
-      console.error("❌ Failed to create transaction:", txError);
-    }
-
-    // ============================================================
-    // GET REDIRECT URL AND SUCCESS MESSAGE FROM PAYMENT PAGE
-    // ============================================================
-    let successRedirectUrl = customRedirectUrl;
-    let successMessage = null;
-    let thankYouMessage = null;
-
-    const page = payment.payment_pages;
-
-    if (page) {
-      // Check if it's a link page with linkConfig
-      if (page.page_type === "link" && page.metadata?.linkConfig) {
-        const linkConfig = page.metadata.linkConfig;
-        
-        // Get redirect URL (priority: custom > linkConfig.redirectUrl)
-        if (!successRedirectUrl && linkConfig.redirectUrl) {
-          successRedirectUrl = linkConfig.redirectUrl;
-          console.log(`✅ Using redirect URL from link config: ${successRedirectUrl}`);
-        }
-        
-        // Get success message
-        if (linkConfig.successMessage) {
-          successMessage = linkConfig.successMessage;
-          console.log(`✅ Using success message from link config: ${successMessage}`);
-        }
-        
-        // Get thank you message
-        if (linkConfig.thankYouMessage) {
-          thankYouMessage = linkConfig.thankYouMessage;
-          console.log(`✅ Using thank you message from link config: ${thankYouMessage}`);
-        }
-      }
+    // If payment is already completed, just return success with redirect
+    if (payment.status === "completed") {
+      console.log("✅ Payment already completed:", payment.id);
       
-      // Check for custom thank you page URL in metadata
-      if (!successRedirectUrl && page.metadata?.thankYouPageUrl) {
-        successRedirectUrl = page.metadata.thankYouPageUrl;
-        console.log(`✅ Using thank you page URL from metadata: ${successRedirectUrl}`);
+      const redirectUrl = getRedirectUrl(payment, customRedirectUrl);
+      const { successMessage, thankYouMessage } = getMessages(payment);
+      
+      return NextResponse.json({
+        success: true,
+        alreadyConfirmed: true,
+        message: "Payment already confirmed",
+        redirectUrl: redirectUrl,
+        successMessage: successMessage,
+        thankYouMessage: thankYouMessage,
+        payment: {
+          id: payment.id,
+          amount: payment.amount,
+          status: "completed",
+          customer_name: payment.customer_name,
+          customer_email: payment.customer_email,
+          custom_fields: payment.metadata?.customFields || null,
+          students: payment.metadata?.matched_students || payment.selected_students || [],
+        },
+      });
+    }
+
+    // If payment is pending, update it to completed
+    if (payment.status === "pending") {
+      console.log("🔄 Updating pending payment to completed:", payment.id);
+
+      // Update payment status
+      const { error: updateError } = await supabase
+        .from("payment_page_payments")
+        .update({
+          status: "completed",
+          confirmed_at: new Date().toISOString(),
+          paid_at: new Date().toISOString(),
+        })
+        .eq("id", payment.id);
+
+      if (updateError) {
+        console.error("❌ Failed to update payment:", updateError);
+        return NextResponse.json({ error: "Failed to confirm payment" }, { status: 500 });
+      }
+
+      console.log("✅ Payment confirmed:", payment.id);
+
+      // Credit the page balance
+      const { error: balanceError } = await supabase.rpc(
+        "increment_page_balance",
+        {
+          p_page_id: payment.payment_page_id,
+          p_amount: payment.net_amount,
+        }
+      );
+
+      if (balanceError) {
+        console.error("❌ Failed to increment balance:", balanceError);
+      } else {
+        console.log(`✅ Balance incremented by ₦${payment.net_amount}`);
+      }
+
+      // Create transaction record
+      const { error: txError } = await supabase.from("transactions").insert({
+        user_id: payment.user_id,
+        type: "credit",
+        amount: payment.amount,
+        fee: payment.fee,
+        net_amount: payment.net_amount,
+        status: "success",
+        reference: `VA-${payment.payment_page_id}-${transferReference}`,
+        description: `Payment confirmed for "${payment.payment_pages?.title}" from ${payment.customer_name}`,
+        channel: "payment_page_virtual_account",
+        sender: {
+          name: payment.customer_name,
+          email: payment.customer_email,
+          phone: payment.customer_phone,
+          transfer_reference: transferReference,
+          narration: payment.metadata?.narration,
+          custom_fields: payment.metadata?.customFields || null,
+          students: payment.metadata?.matched_students || payment.selected_students || [],
+        },
+        receiver: {
+          user_id: payment.user_id,
+          payment_page_id: payment.payment_page_id,
+        },
+      });
+
+      if (txError) {
+        console.error("❌ Failed to create transaction:", txError);
       }
     }
 
-    // Default redirect to built-in success page
-    const baseUrl = getBaseUrl();
-    if (!successRedirectUrl) {
-      successRedirectUrl = `${baseUrl}/payment-success?reference=${transferReference}&status=success`;
-      console.log(`✅ Using default success URL: ${successRedirectUrl}`);
-    }
+    // Get redirect URL and messages
+    const redirectUrl = getRedirectUrl(payment, customRedirectUrl);
+    const { successMessage, thankYouMessage } = getMessages(payment);
 
-    // Default success message if not set
-    if (!successMessage) {
-      successMessage = "Payment successful! Thank you.";
-    }
+    // Get students for display
+    const students = payment.metadata?.matched_students || 
+                     payment.selected_students || 
+                     (payment.student_name ? [payment.student_name] : []);
 
-    // Default thank you message if not set
-    if (!thankYouMessage) {
-      thankYouMessage = "We've received your payment and a receipt has been sent to your email.";
-    }
-
-    // ============================================================
-    // RETURN SUCCESS WITH REDIRECT URL AND MESSAGES
-    // ============================================================
     return NextResponse.json({
       success: true,
-      message: "Payment confirmed successfully",
-      redirectUrl: successRedirectUrl,
+      message: payment.status === "completed" ? "Payment already confirmed" : "Payment confirmed successfully",
+      alreadyConfirmed: payment.status === "completed",
+      redirectUrl: redirectUrl,
       successMessage: successMessage,
       thankYouMessage: thankYouMessage,
       payment: {
         id: payment.id,
         amount: payment.amount,
-        status: "completed",
+        status: payment.status,
         customer_name: payment.customer_name,
         customer_email: payment.customer_email,
         custom_fields: payment.metadata?.customFields || null,
+        students: students,
       },
     });
-
   } catch (error: any) {
     console.error("❌ Confirm payment error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+// Helper functions
+function getRedirectUrl(payment: any, customRedirectUrl?: string): string {
+  const baseUrl = getBaseUrl();
+  
+  // Priority: custom > linkConfig.redirectUrl > default
+  if (customRedirectUrl) return customRedirectUrl;
+  
+  const page = payment.payment_pages;
+  if (page?.page_type === "link" && page.metadata?.linkConfig?.redirectUrl) {
+    return page.metadata.linkConfig.redirectUrl;
+  }
+  
+  // For school pages or if no redirect URL, use default success page
+  return `${baseUrl}/payment-success?reference=${payment.transfer_reference || payment.id}&status=success`;
+}
+
+function getMessages(payment: any): { successMessage: string; thankYouMessage: string } {
+  const page = payment.payment_pages;
+  let successMessage = "Payment successful! Thank you.";
+  let thankYouMessage = "We've received your payment and a receipt has been sent to your email.";
+  
+  if (page?.page_type === "link" && page.metadata?.linkConfig) {
+    const linkConfig = page.metadata.linkConfig;
+    if (linkConfig.successMessage) successMessage = linkConfig.successMessage;
+    if (linkConfig.thankYouMessage) thankYouMessage = linkConfig.thankYouMessage;
+  }
+  
+  return { successMessage, thankYouMessage };
 }
 
 export async function GET(request: NextRequest) {
@@ -212,43 +227,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (!payment) {
-      return NextResponse.json({ 
-        found: false, 
-        status: "not_found" 
+      return NextResponse.json({
+        found: false,
+        status: "not_found",
       });
     }
 
-    // If redirect is requested and payment is completed, redirect to success page
     if (redirect && payment.status === "completed") {
-      let redirectUrl = null;
-      let successMessage = null;
-      
-      const page = payment.payment_pages;
-      
-      if (page) {
-        if (page.page_type === "link" && page.metadata?.linkConfig) {
-          const linkConfig = page.metadata.linkConfig;
-          if (linkConfig.redirectUrl) {
-            redirectUrl = linkConfig.redirectUrl;
-          }
-          if (linkConfig.successMessage) {
-            successMessage = linkConfig.successMessage;
-          }
-        }
-      }
-      
-      // Build URL with query params
-      if (!redirectUrl) {
-        const baseUrl = getBaseUrl();
-        redirectUrl = `${baseUrl}/payment-success?reference=${reference}&status=success`;
-      }
-      
-      // Add message as query param if present
-      if (successMessage) {
-        const separator = redirectUrl.includes('?') ? '&' : '?';
-        redirectUrl = `${redirectUrl}${separator}message=${encodeURIComponent(successMessage)}`;
-      }
-      
+      const redirectUrl = getRedirectUrl(payment);
       return NextResponse.redirect(redirectUrl);
     }
 
@@ -263,6 +249,7 @@ export async function GET(request: NextRequest) {
         created_at: payment.created_at,
         confirmed_at: payment.confirmed_at,
         custom_fields: payment.metadata?.customFields || null,
+        students: payment.metadata?.matched_students || payment.selected_students || [],
       },
     });
   } catch (error: any) {

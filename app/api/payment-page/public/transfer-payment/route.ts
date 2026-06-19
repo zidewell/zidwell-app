@@ -11,7 +11,7 @@ const supabase = createClient(
 const generateTransferReference = (): string => {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 10);
-  return `TRF2${random}${timestamp}`.toUpperCase();
+  return `PPL${random}${timestamp}`.toUpperCase();
 };
 
 export async function POST(request: NextRequest) {

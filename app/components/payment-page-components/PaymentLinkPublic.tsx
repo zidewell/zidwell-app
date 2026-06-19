@@ -95,7 +95,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
     return "";
   };
 
- const confirmPayment = async (reference: string) => {
+const confirmPayment = async (reference: string) => {
   setConfirmingPayment(true);
 
   try {
@@ -117,21 +117,69 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
     });
 
     if (result.isConfirmed) {
+      // Show loading state
+      Swal.fire({
+        title: "Verifying Payment...",
+        text: "Please wait while we confirm your transfer.",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
       const response = await fetch("/api/payment-page/public/confirm-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           transferReference: reference,
         }),
       });
 
       const data = await response.json();
 
+      // Close loading
+      Swal.close();
+
       if (!response.ok) {
+        // Check if it's a "not found" error
+        if (response.status === 404) {
+          await Swal.fire({
+            icon: "warning",
+            title: "Payment Not Found",
+            html: `
+              <div class="text-left">
+                <p>We couldn't find a pending payment with this reference.</p>
+                <p class="text-sm text-gray-600 mt-2">Possible reasons:</p>
+                <ul class="text-sm text-gray-600 mt-1 text-left list-disc pl-4">
+                  <li>You haven't initiated a transfer yet</li>
+                  <li>The payment has already been confirmed</li>
+                  <li>The reference is incorrect</li>
+                </ul>
+                <p class="text-sm text-gray-600 mt-2">Please check and try again.</p>
+              </div>
+            `,
+            confirmButtonColor: "#F5B81B",
+          });
+          return;
+        }
         throw new Error(data.error || "Failed to confirm payment");
       }
 
       if (data.success) {
+        // Check if already confirmed
+        if (data.alreadyConfirmed) {
+          await Swal.fire({
+            icon: "info",
+            title: "Already Confirmed",
+            text: "This payment has already been confirmed.",
+            confirmButtonColor: "#F5B81B",
+          });
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+          }
+          return;
+        }
+
         // Use the success message from the API response
         const successMessage = data.successMessage || "Payment successful! Thank you.";
         const thankYouMessage = data.thankYouMessage || "We've received your payment and a receipt has been sent to your email.";
@@ -139,15 +187,17 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
         // Show success message
         await Swal.fire({
           icon: "success",
-          title: "Payment Confirmed!",
+          title: "🎉 Payment Confirmed!",
           html: `
             <div class="text-left">
-              <p>✅ ${successMessage}</p>
+              <p class="font-semibold text-green-600">✅ ${successMessage}</p>
               <p class="text-sm text-gray-600 mt-2">${thankYouMessage}</p>
-              ${data.payment?.customer_email ? `<p class="text-sm text-gray-600 mt-2">Receipt sent to: ${data.payment.customer_email}</p>` : ''}
+              ${data.payment?.customer_email ? `<p class="text-sm text-gray-600 mt-2">📧 Receipt sent to: <strong>${data.payment.customer_email}</strong></p>` : ''}
+              <p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>₦${data.payment?.amount?.toLocaleString() || '0'}</strong></p>
             </div>
           `,
           confirmButtonColor: "#F5B81B",
+          confirmButtonText: "Continue",
         });
 
         // Redirect to the success page
@@ -210,7 +260,7 @@ export default function PaymentLinkPublic({ page, config }: PaymentLinkPublicPro
     setNarrationCode(narration);
 
     // Generate a simple reference for the pending payment
-    const transferReference = `PL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+   const transferReference = `PL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setPendingReference(transferReference);
 
     // Create pending payment record
