@@ -67,28 +67,14 @@ const Hero = () => {
         <div className="max-w-5xl mx-auto flex flex-col items-center justify-center text-center">
           {/* Main Heading */}
           <h1 className="animate-fade-up-delay-1 text-3xl md:text-5xl lg:text-6xl font-black leading-tight mb-6 text-balance text-white">
-            For those who make the{" "}
-            <span className="relative inline-block">
-              <span className="relative z-10 text-[var(--color-accent-yellow)]">
-                impossible
-              </span>
-            </span>{" "}
-            seem normal.
+            From Financial Chaos to Clarity
+            <br />
+            in Your Business
           </h1>
 
           {/* Subheading */}
           <p className="animate-fade-up-delay-2 text-lg md:text-xl text-gray-200 mb-6 text-balance max-w-3xl">
-            Use Zidwell daily for Instant transfers, automatic bookkeeping,
-            payment pages, invoices. So your business records are clean and
-            ready whenever you need it.
-          </p>
-
-          {/* Main Text */}
-          <p className="animate-fade-up-delay-2 text-base md:text-lg text-gray-300 mb-8 text-balance leading-relaxed max-w-3xl">
-            Entrepreneurs are the heroes of our society. We built Zidwell so
-            heroes can handle their entire financial operations on one platform.
-            You already run a business in a tough environment, why add to your
-            stress by using 5 finance apps when you can use just one - Zidwell.
+            We give Freelancers, Solopreneurs, and SMEs access to business banking and bookkeeping tools to collect payments and keep their finances organized and ready for tax filing, bank loans, and investor opportunities.
           </p>
 
           {/* CTA Buttons */}
