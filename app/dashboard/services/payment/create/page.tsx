@@ -50,7 +50,7 @@ interface CreatePageProps {
   onPageTypeSelect?: (type: PageType) => void;
 }
 
-export function CreatePage({ onPageTypeSelect }: CreatePageProps) {
+export function page({ onPageTypeSelect }: CreatePageProps) {
   const router = useRouter();
   const [pageType, setPageType] = useState<PageType | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -663,4 +663,4 @@ export function CreatePage({ onPageTypeSelect }: CreatePageProps) {
   );
 }
 
-export default CreatePage;
+export default page;
