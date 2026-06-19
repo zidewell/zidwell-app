@@ -42,6 +42,7 @@ const types: {
     label: "Physical Product",
     icon: Package,
     description: "Sell items with variants, quantity & shipping",
+    disabled: true,
   },
   {
     value: "digital",
