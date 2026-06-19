@@ -183,6 +183,16 @@ function PaymentLinkComponent({
       });
 
       if (result.isConfirmed) {
+        // Show loading
+        Swal.fire({
+          title: "Verifying Payment...",
+          text: "Please wait while we confirm your transfer.",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+        });
+
         const response = await fetch(
           "/api/payment-page/public/confirm-payment",
           {
@@ -193,24 +203,55 @@ function PaymentLinkComponent({
         );
 
         const data = await response.json();
+        Swal.close();
 
         if (!response.ok) {
+          if (response.status === 404) {
+            await Swal.fire({
+              icon: "warning",
+              title: "Payment Not Found",
+              html: `
+                <div class="text-left">
+                  <p>We couldn't find a pending payment with this reference.</p>
+                  <p class="text-sm text-gray-600 mt-2">Possible reasons:</p>
+                  <ul class="text-sm text-gray-600 mt-1 text-left list-disc pl-4">
+                    <li>You haven't initiated a transfer yet</li>
+                    <li>The payment has already been confirmed</li>
+                    <li>The reference is incorrect</li>
+                  </ul>
+                </div>
+              `,
+              confirmButtonColor: "#F5B81B",
+            });
+            return;
+          }
           throw new Error(data.error || "Failed to confirm payment");
         }
 
         if (data.success) {
+          const successMessage = data.successMessage || "Payment successful! Thank you.";
+          const thankYouMessage = data.thankYouMessage || "We've received your payment and a receipt has been sent to your email.";
+
           await Swal.fire({
             icon: "success",
-            title: "Payment Confirmed!",
+            title: "🎉 Payment Confirmed!",
             html: `
               <div class="text-left">
-                <p>✅ Your payment has been confirmed.</p>
-                <p class="text-sm text-gray-600 mt-2">A receipt has been sent to your email.</p>
+                <p class="font-semibold text-green-600">✅ ${successMessage}</p>
+                <p class="text-sm text-gray-600 mt-2">${thankYouMessage}</p>
+                ${data.payment?.customer_email ? `<p class="text-sm text-gray-600 mt-2">📧 Receipt sent to: <strong>${data.payment.customer_email}</strong></p>` : ''}
+                ${data.payment?.amount ? `<p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>₦${data.payment.amount.toLocaleString()}</strong></p>` : ''}
               </div>
             `,
             confirmButtonColor: "#F5B81B",
+            confirmButtonText: "Continue",
           });
-          window.location.reload();
+
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+          } else {
+            window.location.reload();
+          }
         }
       }
     } catch (error: any) {
@@ -241,13 +282,13 @@ function PaymentLinkComponent({
       return;
     }
 
-    // Validate required fields
+    // Validate required fields - Name and Email are ALWAYS required
     const newErrors: Record<string, string> = {};
-    if (config.collectName && config.nameRequired && !customerName) {
+    if (!customerName || !customerName.trim()) {
       newErrors.name = "Name is required";
     }
-    if (config.collectEmail && config.emailRequired && !customerEmail) {
-      newErrors.email = "Email is required";
+    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@")) {
+      newErrors.email = "Valid email is required";
     }
     if (config.collectPhone && config.phoneRequired && !customerPhone) {
       newErrors.phone = "Phone number is required";
@@ -327,12 +368,13 @@ Narration: ${narration}`;
       return;
     }
 
+    // Validate required fields - Name and Email are ALWAYS required
     const newErrors: Record<string, string> = {};
-    if (config.collectName && config.nameRequired && !customerName) {
+    if (!customerName || !customerName.trim()) {
       newErrors.name = "Name is required";
     }
-    if (config.collectEmail && config.emailRequired && !customerEmail) {
-      newErrors.email = "Email is required";
+    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@")) {
+      newErrors.email = "Valid email is required";
     }
     if (config.collectPhone && config.phoneRequired && !customerPhone) {
       newErrors.phone = "Phone number is required";
@@ -605,39 +647,42 @@ Narration: ${narration}`;
               )}
             </div>
 
-            {/* Customer Info Fields */}
+            {/* Customer Info Fields - Name & Email are ALWAYS required */}
             <div className="space-y-4">
-              {config.collectName && (
-                <div>
-                  <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
-                    Full Name {config.nameRequired && "*"}
-                  </Label>
-                  <Input
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="bg-[#1a1a1a] border-gray-700 text-white"
-                  />
-                  {errors.name && (
-                    <p className="text-xs text-red-500 mt-1">{errors.name}</p>
-                  )}
-                </div>
-              )}
-              {config.collectEmail && (
-                <div>
-                  <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
-                    Email Address {config.emailRequired && "*"}
-                  </Label>
-                  <Input
-                    type="email"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    className="bg-[#1a1a1a] border-gray-700 text-white"
-                  />
-                  {errors.email && (
-                    <p className="text-xs text-red-500 mt-1">{errors.email}</p>
-                  )}
-                </div>
-              )}
+              {/* Name - ALWAYS shown and required */}
+              <div>
+                <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
+                  Full Name *
+                </Label>
+                <Input
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="bg-[#1a1a1a] border-gray-700 text-white"
+                  placeholder="Enter your full name"
+                />
+                {errors.name && (
+                  <p className="text-xs text-red-500 mt-1">{errors.name}</p>
+                )}
+              </div>
+
+              {/* Email - ALWAYS shown and required */}
+              <div>
+                <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
+                  Email Address *
+                </Label>
+                <Input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  className="bg-[#1a1a1a] border-gray-700 text-white"
+                  placeholder="you@example.com"
+                />
+                {errors.email && (
+                  <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+                )}
+              </div>
+
+              {/* Phone - Optional, based on config */}
               {config.collectPhone && (
                 <div>
                   <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
@@ -648,12 +693,14 @@ Narration: ${narration}`;
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     className="bg-[#1a1a1a] border-gray-700 text-white"
+                    placeholder="08012345678"
                   />
                   {errors.phone && (
                     <p className="text-xs text-red-500 mt-1">{errors.phone}</p>
                   )}
                 </div>
               )}
+
               {config.customFields.map(renderCustomField)}
             </div>
 
@@ -1245,6 +1292,16 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
       });
 
       if (result.isConfirmed) {
+        // Show loading
+        Swal.fire({
+          title: "Verifying Payment...",
+          text: "Please wait while we confirm your transfer.",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+        });
+
         const response = await fetch(
           "/api/payment-page/public/confirm-payment",
           {
@@ -1255,24 +1312,55 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         );
 
         const data = await response.json();
+        Swal.close();
 
         if (!response.ok) {
+          if (response.status === 404) {
+            await Swal.fire({
+              icon: "warning",
+              title: "Payment Not Found",
+              html: `
+                <div class="text-left">
+                  <p>We couldn't find a pending payment with this reference.</p>
+                  <p class="text-sm text-gray-600 mt-2">Possible reasons:</p>
+                  <ul class="text-sm text-gray-600 mt-1 text-left list-disc pl-4">
+                    <li>You haven't initiated a transfer yet</li>
+                    <li>The payment has already been confirmed</li>
+                    <li>The reference is incorrect</li>
+                  </ul>
+                </div>
+              `,
+              confirmButtonColor: "#F5B81B",
+            });
+            return;
+          }
           throw new Error(data.error || "Failed to confirm payment");
         }
 
         if (data.success) {
+          const successMessage = data.successMessage || "Payment successful! Thank you.";
+          const thankYouMessage = data.thankYouMessage || "We've received your payment and a receipt has been sent to your email.";
+
           await Swal.fire({
             icon: "success",
-            title: "Payment Confirmed!",
+            title: "🎉 Payment Confirmed!",
             html: `
               <div class="text-left">
-                <p>✅ Your payment has been confirmed.</p>
-                <p class="text-sm text-gray-600 mt-2">A receipt has been sent to your email.</p>
+                <p class="font-semibold text-green-600">✅ ${successMessage}</p>
+                <p class="text-sm text-gray-600 mt-2">${thankYouMessage}</p>
+                ${data.payment?.customer_email ? `<p class="text-sm text-gray-600 mt-2">📧 Receipt sent to: <strong>${data.payment.customer_email}</strong></p>` : ''}
+                ${data.payment?.amount ? `<p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>₦${data.payment.amount.toLocaleString()}</strong></p>` : ''}
               </div>
             `,
             confirmButtonColor: "#F5B81B",
+            confirmButtonText: "Continue",
           });
-          window.location.reload();
+
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+          } else {
+            window.location.reload();
+          }
         }
       }
     } catch (error: any) {
@@ -1341,7 +1429,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
     const totalAmount = getCurrentTotalAmount();
 
-    const transferReference = `PPL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const transferReference = `TRF-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setPendingReference(transferReference);
 
     // Generate short narration code with underscore
@@ -1409,12 +1497,13 @@ Narration: ${narration}`;
       return;
     }
 
-    if (
-      !customerName.trim() ||
-      !customerEmail.trim() ||
-      !customerEmail.includes("@")
-    ) {
-      alert("Please enter valid name and email");
+    // Validate required fields - Name and Email are ALWAYS required
+    if (!customerName || !customerName.trim()) {
+      alert("Please enter your full name");
+      return;
+    }
+    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@")) {
+      alert("Please enter a valid email address");
       return;
     }
 
@@ -1491,6 +1580,17 @@ Narration: ${narration}`;
       alert("Please select items to continue");
       return;
     }
+
+    // Validate name and email before opening card modal
+    if (!customerName || !customerName.trim()) {
+      alert("Please enter your full name");
+      return;
+    }
+    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@")) {
+      alert("Please enter a valid email address");
+      return;
+    }
+
     setCardPaymentAmount(totalAmount);
     setShowCardModal(true);
   };
@@ -2060,7 +2160,7 @@ Narration: ${narration}`;
               </>
             )}
 
-          {/* Card Payment Section */}
+          {/* Card Payment Section - Name and Email ALWAYS required */}
           {selectedPaymentMethod === "card" && (
             <>
               <div className="space-y-3 mb-4">
@@ -2075,6 +2175,9 @@ Narration: ${narration}`;
                     onChange={(e) => setCustomerName(e.target.value)}
                     className="bg-[#0e0e0e] border-gray-700 text-white"
                   />
+                  {!customerName && (
+                    <p className="text-xs text-red-500 mt-1">Name is required</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-sm font-semibold mb-1 block text-white">
@@ -2090,6 +2193,9 @@ Narration: ${narration}`;
                   <p className="text-xs text-gray-500 mt-1">
                     Receipt will be sent to this email
                   </p>
+                  {!customerEmail && (
+                    <p className="text-xs text-red-500 mt-1">Email is required</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-sm font-semibold mb-1 block text-white">
