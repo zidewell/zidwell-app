@@ -32,12 +32,11 @@ import ServicesFields from "@/app/components/payment-page-components/ServicesFie
 import InvestmentFields from "@/app/components/payment-page-components/InvestmentFields";
 import TrustSignals from "@/app/components/payment-page-components/TrustSignals";
 
-
-import { CoverImageUpload } from "@/app/components/payment-page-components/CoverImageUpload"; 
-import { LogoUpload } from "@/app/components/payment-page-components/LogoUpload"; 
-import { PricingSection } from "@/app/components/payment-page-components/PricingSection"; 
-import { SuccessModal } from "@/app/components/payment-page-components/SuccessModal"; 
-import { usePageCreation } from "@/app/components/payment-page-components/hooks/usePageCreation"; 
+import { CoverImageUpload } from "@/app/components/payment-page-components/CoverImageUpload";
+import { LogoUpload } from "@/app/components/payment-page-components/LogoUpload";
+import { PricingSection } from "@/app/components/payment-page-components/PricingSection";
+import { SuccessModal } from "@/app/components/payment-page-components/SuccessModal";
+import { usePageCreation } from "@/app/components/payment-page-components/hooks/usePageCreation";
 import {
   typeLabels,
   IMAGE_SPECS,
@@ -50,7 +49,7 @@ interface CreatePageProps {
   onPageTypeSelect?: (type: PageType) => void;
 }
 
-export function page({ onPageTypeSelect }: CreatePageProps) {
+export function CreatePage({ onPageTypeSelect }: CreatePageProps) {
   const router = useRouter();
   const [pageType, setPageType] = useState<PageType | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -663,4 +662,4 @@ export function page({ onPageTypeSelect }: CreatePageProps) {
   );
 }
 
-export default page;
+export default CreatePage;
