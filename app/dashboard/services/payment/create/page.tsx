@@ -1088,7 +1088,7 @@ export default function CreatePage() {
                 {/* Title */}
                 <div>
                   <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                    Page Title *
+                    Link Title *
                   </Label>
                   <Input
                     placeholder={getPlaceholderText(pageType, "title")}
