@@ -176,27 +176,67 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper functions
+// ============================================================
+// UPDATED: Get redirect URL with accessLink support
+// ============================================================
 function getRedirectUrl(payment: any, customRedirectUrl?: string): string {
   const baseUrl = getBaseUrl();
   
-  // Priority: custom > linkConfig.redirectUrl > default
+  // Priority 1: Custom redirect URL passed in request
   if (customRedirectUrl) return customRedirectUrl;
   
   const page = payment.payment_pages;
+  const metadata = payment.metadata || {};
+  
+  // Priority 2: Check for accessLink in metadata (for digital products)
+  if (metadata.accessLink && metadata.accessLink.trim() !== '') {
+    console.log(`✅ Using accessLink from metadata: ${metadata.accessLink}`);
+    return metadata.accessLink;
+  }
+  
+  // Priority 3: Check for downloadUrl in metadata (for digital products)
+  if (metadata.downloadUrl && metadata.downloadUrl.trim() !== '') {
+    console.log(`✅ Using downloadUrl from metadata: ${metadata.downloadUrl}`);
+    return metadata.downloadUrl;
+  }
+  
+  // Priority 4: Check for linkConfig.redirectUrl (for payment links)
   if (page?.page_type === "link" && page.metadata?.linkConfig?.redirectUrl) {
     return page.metadata.linkConfig.redirectUrl;
   }
   
-  // For school pages or if no redirect URL, use default success page
+  // Priority 5: Check for redirectUrl in page metadata
+  if (page?.metadata?.redirectUrl) {
+    return page.metadata.redirectUrl;
+  }
+  
+  // Priority 6: Check for thankYouPageUrl in metadata
+  if (page?.metadata?.thankYouPageUrl) {
+    return page.metadata.thankYouPageUrl;
+  }
+  
+  // Priority 7: Default success page
+  console.log(`✅ Using default success URL`);
   return `${baseUrl}/payment-success?reference=${payment.transfer_reference || payment.id}&status=success`;
 }
 
 function getMessages(payment: any): { successMessage: string; thankYouMessage: string } {
   const page = payment.payment_pages;
+  const metadata = payment.metadata || {};
+  
   let successMessage = "Payment successful! Thank you.";
   let thankYouMessage = "We've received your payment and a receipt has been sent to your email.";
   
+  // Check for custom messages in metadata
+  if (metadata.successMessage) {
+    successMessage = metadata.successMessage;
+  }
+  
+  if (metadata.thankYouMessage) {
+    thankYouMessage = metadata.thankYouMessage;
+  }
+  
+  // Check linkConfig for payment links
   if (page?.page_type === "link" && page.metadata?.linkConfig) {
     const linkConfig = page.metadata.linkConfig;
     if (linkConfig.successMessage) successMessage = linkConfig.successMessage;
