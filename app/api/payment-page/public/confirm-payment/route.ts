@@ -217,7 +217,7 @@ function getRedirectUrl(payment: any, customRedirectUrl?: string): string {
   
   // Priority 7: Default success page
   console.log(`✅ Using default success URL`);
-  return `${baseUrl}/payment-success?reference=${payment.transfer_reference || payment.id}&status=success`;
+  return `${baseUrl}/payment-page-success?reference=${payment.transfer_reference || payment.id}&status=success`;
 }
 
 function getMessages(payment: any): { successMessage: string; thankYouMessage: string } {
