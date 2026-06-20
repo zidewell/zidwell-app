@@ -177,13 +177,16 @@ export async function POST(request: NextRequest) {
 }
 
 // ============================================================
-// UPDATED: Get redirect URL with accessLink support
+// UPDATED: Get redirect URL - checks accessLink first, then falls back to payment-success
 // ============================================================
 function getRedirectUrl(payment: any, customRedirectUrl?: string): string {
   const baseUrl = getBaseUrl();
   
   // Priority 1: Custom redirect URL passed in request
-  if (customRedirectUrl) return customRedirectUrl;
+  if (customRedirectUrl) {
+    console.log(`✅ Using custom redirect URL: ${customRedirectUrl}`);
+    return customRedirectUrl;
+  }
   
   const page = payment.payment_pages;
   const metadata = payment.metadata || {};
@@ -202,22 +205,32 @@ function getRedirectUrl(payment: any, customRedirectUrl?: string): string {
   
   // Priority 4: Check for linkConfig.redirectUrl (for payment links)
   if (page?.page_type === "link" && page.metadata?.linkConfig?.redirectUrl) {
+    console.log(`✅ Using linkConfig.redirectUrl: ${page.metadata.linkConfig.redirectUrl}`);
     return page.metadata.linkConfig.redirectUrl;
   }
   
   // Priority 5: Check for redirectUrl in page metadata
   if (page?.metadata?.redirectUrl) {
+    console.log(`✅ Using page metadata redirectUrl: ${page.metadata.redirectUrl}`);
     return page.metadata.redirectUrl;
   }
   
   // Priority 6: Check for thankYouPageUrl in metadata
   if (page?.metadata?.thankYouPageUrl) {
+    console.log(`✅ Using thankYouPageUrl: ${page.metadata.thankYouPageUrl}`);
     return page.metadata.thankYouPageUrl;
   }
   
-  // Priority 7: Default success page
-  console.log(`✅ Using default success URL`);
-  return `${baseUrl}/payment-page-success?reference=${payment.transfer_reference || payment.id}&status=success`;
+  // Priority 7: Check for linkConfig.altRedirectUrl (for payment links)
+  if (page?.page_type === "link" && page.metadata?.linkConfig?.altRedirectUrl) {
+    console.log(`✅ Using linkConfig.altRedirectUrl: ${page.metadata.linkConfig.altRedirectUrl}`);
+    return page.metadata.linkConfig.altRedirectUrl;
+  }
+  
+  // Priority 8: Default to payment-success page
+  const defaultUrl = `${baseUrl}/payment-page-success?reference=${payment.transfer_reference || payment.id}&status=success`;
+  console.log(`✅ Using default payment-success URL: ${defaultUrl}`);
+  return defaultUrl;
 }
 
 function getMessages(payment: any): { successMessage: string; thankYouMessage: string } {
