@@ -273,7 +273,7 @@ export async function POST(request: Request) {
     const updatedVirtualAccount = {
       ...finalMetadata.virtual_account,
       paymentPageId: page.id,
-      accountRef: `PP-${page.id.replace(/-/g, '').substring(0, 20)}`,
+      accountRef: `PPL-${page.id.replace(/-/g, '').substring(0, 20)}`,
     };
     
     await supabase
