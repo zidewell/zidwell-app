@@ -1006,7 +1006,7 @@ export default function TransactionHistory() {
 
     <div class="amount">
       <div class="amount-label">Amount</div>
-      <div class="amount-value">${amountInfo.signedDisplay}</div>
+      <div class="amount-value">₦${amountInfo.signedDisplay}</div>
     </div>
 
     <div class="section-title">

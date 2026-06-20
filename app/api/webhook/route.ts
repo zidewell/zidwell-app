@@ -290,16 +290,16 @@ type WebhookResponse =
     }
   | { error: string; status?: number };
 
-async function isRegularWalletDeposit(
-  aliasAccountReference: string,
-): Promise<boolean> {
+async function isRegularWalletDeposit(aliasAccountReference: string): Promise<boolean> {
   if (!aliasAccountReference) return false;
-  if (aliasAccountReference.startsWith("PP-")) return false;
+  
+  // Skip special prefixes - PPL is for payment pages
+  if (aliasAccountReference.startsWith("PPL")) return false;
   if (aliasAccountReference.startsWith("VA-PP-")) return false;
   if (aliasAccountReference.startsWith("VA-SUB-")) return false;
 
-  const uuidPattern =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // Check if it's a valid UUID (regular wallet deposit)
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidPattern.test(aliasAccountReference)) return false;
 
   const { createClient } = await import("@supabase/supabase-js");

@@ -1,9 +1,7 @@
 // app/api/webhook/services/virtual-account.service.ts
 
 import { createClient } from "@supabase/supabase-js";
-import { sendVirtualAccountDepositEmail, sendInvoiceCreatorNotificationEmail } from "../helpers/email-helpers";
-import { updateInvoiceTotals } from "../helpers/invoice-helpers";
-import { sendTransactionReceipt } from "../helpers/receipt-helpers";
+import { sendVirtualAccountDepositEmail } from "../helpers/email-helpers";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -17,6 +15,28 @@ interface VirtualAccountParams {
   nombaFee: number;
   customer: any;
   tx: any;
+}
+
+function extractInvoiceReference(narration: string): string | null {
+  // Try multiple patterns to match the invoice reference
+  const patterns = [
+    /INV[A-Za-z0-9]+/,        // INV... format
+    /INV_[A-Za-z0-9]+/,       // INV_... format
+    /INV-[A-Za-z0-9]+/,       // INV-... format
+    /INVOICE[A-Za-z0-9]+/,    // INVOICE... format
+    /INVOICE_[A-Za-z0-9]+/,   // INVOICE_... format
+    /INVOICE-[A-Za-z0-9]+/,   // INVOICE-... format
+  ];
+
+  for (const pattern of patterns) {
+    const match = narration.match(pattern);
+    if (match) {
+      console.log(`✅ Extracted invoice reference: ${match[0]} from pattern ${pattern}`);
+      return match[0];
+    }
+  }
+
+  return null;
 }
 
 export async function processVirtualAccountDeposit(payload: any, params: VirtualAccountParams) {
@@ -42,277 +62,23 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
   const senderName = customer.senderName || customer.name || "Bank Transfer";
   const netAmount = transactionAmount - nombaFee;
   
-  // Find invoice reference in narration (supports INV_xxx, INV-xxx, INVxxx)
-  const invoiceMatch = narration.match(/INV[-_]?[A-Z0-9]{4,}/i);
-
-  // Check if this is an invoice payment
+  // Check if this is an invoice payment by looking for invoice reference in narration
+  const invoiceMatch = extractInvoiceReference(narration);
+  
+  // If it's an invoice payment, delegate to invoice service
   if (invoiceMatch) {
-    let invoiceRef = invoiceMatch[0].toUpperCase();
-    console.log("🧾 Found invoice reference in narration:", invoiceRef);
-
-    // 🔥 NORMALIZE: Remove separators for comparison
-    const normalizedRef = invoiceRef.replace(/[_-]/g, '');
-    console.log("🔍 Normalized reference:", normalizedRef);
-
-    let invoice = null;
-
-    // METHOD 1: Try exact match first
-    const { data: exactMatch } = await supabase
-      .from("invoices")
-      .select("*")
-      .eq("invoice_id", invoiceRef)
-      .single();
-
-    if (exactMatch) {
-      invoice = exactMatch;
-      console.log("✅ Found invoice by exact match:", invoice.invoice_id);
-    }
-
-    // METHOD 2: If not found, try normalized match
-    if (!invoice) {
-      console.log("🔍 No exact match, trying normalized match...");
-      
-      // Get all invoices that start with INV
-      const { data: allInvoices } = await supabase
-        .from("invoices")
-        .select("*")
-        .ilike("invoice_id", "INV%");
-
-      if (allInvoices && allInvoices.length > 0) {
-        // Find invoice where normalized invoice_id matches normalized reference
-        invoice = allInvoices.find(inv => {
-          const normalizedInvoiceId = inv.invoice_id.replace(/[_-]/g, '').toUpperCase();
-          return normalizedInvoiceId === normalizedRef;
-        });
-
-        if (invoice) {
-          console.log("✅ Found invoice by normalized match:", invoice.invoice_id);
-          console.log(`   (${invoice.invoice_id} matched ${invoiceRef})`);
-        }
-      }
-    }
-
-    // METHOD 3: Try with underscore/dash variations
-    if (!invoice) {
-      console.log("🔍 Trying variations with underscores and dashes...");
-      
-      const variations = [
-        invoiceRef,                          // INVC675
-        invoiceRef.replace(/^INV/, 'INV_'),  // INV_C675
-        invoiceRef.replace(/^INV/, 'INV-'),  // INV-C675
-        invoiceRef.replace(/_/g, ''),        // Remove underscores
-        invoiceRef.replace(/-/g, ''),        // Remove dashes
-      ];
-
-      // Remove duplicates
-      const uniqueVariations = [...new Set(variations)];
-      console.log("🔍 Trying variations:", uniqueVariations);
-
-      for (const variation of uniqueVariations) {
-        const { data: found } = await supabase
-          .from("invoices")
-          .select("*")
-          .eq("invoice_id", variation)
-          .single();
-
-        if (found) {
-          invoice = found;
-          console.log("✅ Found invoice by variation:", variation);
-          break;
-        }
-      }
-    }
-
-    if (invoice) {
-      console.log("✅ Found invoice for VA payment:", {
-        invoice_id: invoice.invoice_id,
-        owner_id: invoice.user_id,
-        depositor_id: userId,
-      });
-
-      // Check for duplicate payment
-      const { data: existingPayment } = await supabase
-        .from("invoice_payments")
-        .select("*")
-        .eq("nomba_transaction_id", nombaTransactionId)
-        .maybeSingle();
-
-      if (existingPayment) {
-        console.log("⚠️ Duplicate VA invoice payment, updating totals only");
-        await updateInvoiceTotals(invoice, transactionAmount);
-        return { success: true };
-      }
-
-      // Create payment record
-      const { error: paymentError } = await supabase
-        .from("invoice_payments")
-        .insert({
-          invoice_id: invoice.id,
-          user_id: invoice.user_id,
-          order_reference: nombaTransactionId,
-          payer_name: senderName,
-          payer_email: invoice.client_email || null,
-          amount: transactionAmount,
-          paid_amount: transactionAmount,
-          fee_amount: nombaFee,
-          nomba_fee: nombaFee,
-          net_amount: netAmount,
-          user_received: netAmount,
-          platform_fee: 0,
-          status: "completed",
-          nomba_transaction_id: nombaTransactionId,
-          payment_method: "virtual_account",
-          narration,
-          paid_at: new Date().toISOString(),
-          payment_link: `INV-${invoice.invoice_id}-${nombaTransactionId.substring(0, 8)}`,
-          is_partial_payment: false,
-          remaining_balance: 0,
-          payment_attempts: 0,
-          is_reusable: false,
-          bank_name: customer.bankName || null,
-          bank_account: customer.accountNumber || null,
-          payer_phone: null,
-        });
-
-      if (paymentError) {
-        console.error("❌ Failed to create VA invoice payment:", paymentError);
-        return { error: "Payment record failed" };
-      }
-
-      console.log("✅ VA invoice payment created successfully");
-
-      const creditUserId = invoice.user_id;
-      const isCrossUser = invoice.user_id !== userId;
-
-      // Create transaction record
-      await supabase.from("transactions").insert({
-        user_id: creditUserId,
-        type: "credit",
-        amount: transactionAmount,
-        fee: nombaFee,
-        net_amount: netAmount,
-        status: "success",
-        reference: `VA-INV-${invoice.invoice_id}-${nombaTransactionId}`,
-        description: `Payment received for invoice ${invoice.invoice_id} via virtual account from ${senderName}`,
-        channel: "virtual_account",
-        sender: {
-          name: senderName,
-          bank: customer.bankName,
-          user_id: isCrossUser ? userId : null
-        },
-        receiver: {
-          name: invoice.from_name,
-          email: invoice.from_email
-        },
-        external_response: {
-          nomba_transaction_id: nombaTransactionId,
-          nomba_fee: nombaFee,
-          gross_amount: transactionAmount,
-          net_amount: netAmount,
-          is_cross_user: isCrossUser
-        },
-      });
-
-      // Credit wallet
-      const { error: creditError } = await supabase.rpc("increment_wallet_balance", {
-        user_id: creditUserId,
-        amt: netAmount,
-      });
-
-      if (creditError) {
-        console.error("❌ Failed to credit invoice owner:", creditError);
-        // Fallback: Update wallet directly
-        const { data: user } = await supabase
-          .from("users")
-          .select("wallet_balance")
-          .eq("id", creditUserId)
-          .single();
-        
-        if (user) {
-          const newBalance = Number(user.wallet_balance) + netAmount;
-          await supabase
-            .from("users")
-            .update({ wallet_balance: newBalance })
-            .eq("id", creditUserId);
-        }
-      } else {
-        console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to invoice owner ${creditUserId}`);
-      }
-
-      // Update invoice totals
-      await updateInvoiceTotals(invoice, transactionAmount);
-
-      // Send TRANSACTION RECEIPT to payer
-      await sendTransactionReceipt(
-        invoice.client_email,
-        senderName,
-        invoice,
-        {
-          amount: transactionAmount,
-          nombaFee,
-          netAmount,
-          transactionId: nombaTransactionId,
-          paymentMethod: "virtual_account",
-          paidAt: new Date().toISOString(),
-          narration,
-        }
-      );
-
-      // Send notification to invoice creator
-      const { data: creator } = await supabase
-        .from("users")
-        .select("email")
-        .eq("id", invoice.user_id)
-        .single();
-
-      if (creator?.email) {
-        sendInvoiceCreatorNotificationEmail(
-          creator.email,
-          invoice.invoice_id,
-          netAmount,
-          senderName,
-          invoice,
-          nombaFee,
-        ).catch(console.error);
-      }
-
-      // Send deposit email to depositor if cross-user
-      if (isCrossUser) {
-        const { data: depositorUser, error: depositorError } = await supabase
-          .from("users")
-          .select("id, email")
-          .eq("id", userId)
-          .single();
-
-        if (depositorError || !depositorUser) {
-          console.error("❌ Cannot find depositor user for ID:", userId, depositorError);
-        } else {
-          console.log("✅ Found depositor user, sending email to:", depositorUser.email);
-          await sendVirtualAccountDepositEmail(
-            depositorUser.id,
-            transactionAmount,
-            nombaTransactionId,
-            customer.bankName || "N/A",
-            tx.aliasAccountNumber || "N/A",
-            tx.aliasAccountName || "N/A",
-            senderName,
-            narration,
-            nombaFee,
-          ).catch(console.error);
-        }
-      }
-
-      return {
-        success: true,
-        message: "Invoice payment via virtual account processed",
-        gross_amount: transactionAmount,
-        fee_deducted: nombaFee,
-        net_credit: netAmount,
-      };
-    } else {
-      console.log("⚠️ No invoice found for reference:", invoiceRef);
-      console.log("   Tried exact match, normalized match, and variations");
-    }
+    console.log("🧾 Invoice payment detected, delegating to invoice service...");
+    // Import dynamically to avoid circular dependency
+    const { processVirtualAccountInvoicePayment } = await import('./invoice-payment.service');
+    return processVirtualAccountInvoicePayment(payload, {
+      aliasAccountReference,
+      nombaTransactionId,
+      transactionAmount,
+      nombaFee,
+      customer,
+      tx,
+      invoiceRef: invoiceMatch
+    });
   }
 
   // Regular wallet deposit (no invoice)

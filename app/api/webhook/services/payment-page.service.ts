@@ -917,5 +917,7 @@ export async function processPaymentPageVirtualAccount(
 }
 
 export function checkIfPaymentPageVirtualAccount(aliasAccountReference: string): boolean {
-  return aliasAccountReference?.startsWith("PP") ?? false;
+  if (!aliasAccountReference) return false;
+
+  return aliasAccountReference.startsWith("PPL");
 }
