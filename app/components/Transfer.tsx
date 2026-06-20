@@ -1608,13 +1608,7 @@ export default function Transfer() {
               </>
             )}
 
-            {/* Narration */}
-            <div className="space-y-1">
-              <Label className="text-(--text-primary)">Narration <span className="text-sm text-(--text-secondary)">(purpose of transaction)</span></Label>
-              <Input type="text" value={narration} onChange={(e) => setNarration(e.target.value)} placeholder="e.g. Food" maxLength={100} className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)" />
-            </div>
-            {errors.narration && <p className="text-red-600 text-sm">{errors.narration}</p>}
-
+            
             {/* Expense Category Dropdown */}
             <div className="space-y-1">
               <Label className="text-(--text-primary)">Expense Category <span className="text-sm text-red-500">*</span></Label>
@@ -1679,6 +1673,14 @@ export default function Transfer() {
               {errors.expenseCategory && <p className="text-red-600 text-sm">{errors.expenseCategory}</p>}
               <p className="text-xs text-(--text-secondary) mt-1">⭐ Click the star to favorite a category - favorites appear at the top for quick access</p>
             </div>
+
+
+            {/* Narration */}
+            <div className="space-y-1">
+              <Label className="text-(--text-primary)">Narration <span className="text-sm text-(--text-secondary)">(purpose of transaction)</span></Label>
+              <Input type="text" value={narration} onChange={(e) => setNarration(e.target.value)} placeholder="e.g. Food" maxLength={100} className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)" />
+            </div>
+            {errors.narration && <p className="text-red-600 text-sm">{errors.narration}</p>}
 
             <Button type="submit" disabled={isDisabled} className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 md:w-[200px]">
               {loading ? "Processing..." : "Transfer Now"}
