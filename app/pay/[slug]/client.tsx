@@ -967,7 +967,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
       return;
     }
 
-    const transferReference = `TRF-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const transferReference = `PPL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setPendingReference(transferReference);
     const narration = generateNarrationCode();
     setNarrationCode(narration);
