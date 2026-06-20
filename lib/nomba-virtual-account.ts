@@ -217,7 +217,7 @@ export async function createPaymentPageVirtualAccount(
     
     // Create account reference - must be 16-64 characters, alphanumeric
     const cleanId = paymentPageId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
-    const accountRef = `PP${cleanId}${Date.now().toString().slice(-6)}`;
+    const accountRef = `PPL${cleanId}${Date.now().toString().slice(-6)}`;
 
     console.log(`🏦 Creating NEW virtual account for payment page`);
     console.log(`   Original Title: ${paymentPageTitle}`);
