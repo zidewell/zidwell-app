@@ -1,5 +1,6 @@
 // app/api/payment-page/status/route.ts
-import { NextResponse } from "next/server";
+
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -7,10 +8,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const url = new URL(request.url);
-    const reference = url.searchParams.get("reference");
+    const searchParams = request.nextUrl.searchParams;
+    const reference = searchParams.get("reference");
 
     if (!reference) {
       return NextResponse.json({ error: "Reference required" }, { status: 400 });
@@ -18,25 +19,63 @@ export async function GET(request: Request) {
 
     console.log(`🔍 Checking payment status for reference: ${reference}`);
 
-    const { data: payment, error } = await supabase
+    // Try by order_reference first (for card payments)
+    let { data: payment, error } = await supabase
       .from("payment_page_payments")
-      .select("*")
+      .select("*, payment_pages(*)")
       .eq("order_reference", reference)
       .maybeSingle();
 
-    if (error) {
-      console.error("Error fetching payment:", error);
-      return NextResponse.json({ error: "Failed to fetch payment" }, { status: 500 });
+    // If not found, try by transfer_reference (for bank transfers)
+    if (!payment) {
+      const { data: byTransfer, error: transferError } = await supabase
+        .from("payment_page_payments")
+        .select("*, payment_pages(*)")
+        .eq("transfer_reference", reference)
+        .maybeSingle();
+      
+      if (!transferError && byTransfer) {
+        payment = byTransfer;
+        console.log(`✅ Found payment by transfer_reference: ${reference}`);
+      }
     }
 
     if (!payment) {
-      return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+      console.log(`❌ Payment not found for reference: ${reference}`);
+      return NextResponse.json({ 
+        found: false,
+        error: "Payment not found" 
+      }, { status: 404 });
     }
 
     console.log(`✅ Payment status: ${payment.status}`);
 
+    // Build redirect URL if payment is completed
+    let redirectUrl = null;
+    if (payment.status === "completed") {
+      const page = payment.payment_pages;
+      const metadata = payment.metadata || {};
+      
+      // Priority: accessLink > downloadUrl > linkConfig.redirectUrl > page.redirectUrl > default
+      if (metadata.accessLink && metadata.accessLink.trim() !== '') {
+        redirectUrl = metadata.accessLink;
+      } else if (metadata.downloadUrl && metadata.downloadUrl.trim() !== '') {
+        redirectUrl = metadata.downloadUrl;
+      } else if (page?.page_type === "link" && page.metadata?.linkConfig?.redirectUrl) {
+        redirectUrl = page.metadata.linkConfig.redirectUrl;
+      } else if (page?.metadata?.redirectUrl) {
+        redirectUrl = page.metadata.redirectUrl;
+      } else {
+        const baseUrl = process.env.NODE_ENV === "development"
+          ? "http://localhost:3000"
+          : "https://zidwell.com";
+        redirectUrl = `${baseUrl}/payment-success?reference=${reference}&status=success`;
+      }
+    }
+
     return NextResponse.json({
       success: true,
+      found: true,
       payment: {
         id: payment.id,
         amount: payment.amount,
@@ -47,6 +86,7 @@ export async function GET(request: Request) {
         payment_method: payment.payment_method,
         paid_at: payment.paid_at,
         created_at: payment.created_at,
+        redirectUrl: redirectUrl,
       },
     });
   } catch (error: any) {

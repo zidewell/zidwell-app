@@ -321,7 +321,7 @@ Narration: ${narration}`);
   };
 
   // ============================================================
-  // UPDATED: CARD PAYMENT WITH REDIRECT TO ACCESS LINK
+  // FULL CARD PAYMENT WITH REDIRECTION - PAYMENT LINK
   // ============================================================
   const handleCardPayment = async () => {
     const totalAmount = config.amountMode === "fixed" ? page.price : formData.customAmount;
@@ -371,41 +371,52 @@ Narration: ${narration}`);
 
       const checkoutWindow = window.open(data.checkoutLink, "_blank", "width=500,height=700");
 
+      // If popup was blocked, redirect instead
+      if (!checkoutWindow) {
+        window.location.href = data.checkoutLink;
+        return;
+      }
+
       const checkInterval = setInterval(async () => {
-        const statusResponse = await fetch(
-          `/api/payment-page/status?reference=${data.orderReference}`
-        );
-        const statusData = await statusResponse.json();
+        try {
+          const statusResponse = await fetch(
+            `/api/payment-page/status?reference=${data.orderReference}`
+          );
+          const statusData = await statusResponse.json();
 
-        if (statusData.payment?.status === "completed") {
-          clearInterval(checkInterval);
+          if (statusData.payment?.status === "completed") {
+            clearInterval(checkInterval);
 
-          if (checkoutWindow && !checkoutWindow.closed) {
-            checkoutWindow.close();
+            if (checkoutWindow && !checkoutWindow.closed) {
+              checkoutWindow.close();
+            }
+
+            // Get redirect URL - priority: statusData.redirectUrl > config.redirectUrl > config.altRedirectUrl > default
+            const redirectUrl = statusData.payment?.redirectUrl ||
+              config.redirectUrl ||
+              config.altRedirectUrl ||
+              `/payment-success?reference=${data.orderReference}&status=success`;
+
+            await Swal.fire({
+              icon: "success",
+              title: "Payment Successful! 🎉",
+              html: `
+                <div class="text-left">
+                  <p class="font-semibold text-green-600">✅ ${config.successMessage || "Payment successful! Thank you."}</p>
+                  <p class="text-sm text-gray-600 mt-2">${config.thankYouMessage || "We've received your payment and a receipt has been sent to your email."}</p>
+                  <p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>${currencySymbol}${totalAmount.toLocaleString()}</strong></p>
+                </div>
+              `,
+              confirmButtonColor: "#F5B81B",
+              confirmButtonText: "Continue",
+            });
+
+            window.location.href = redirectUrl;
           }
-
-          // Get redirect URL from config or use default
-          const redirectUrl = config.redirectUrl ||
-            config.altRedirectUrl ||
-            `/payment-success?reference=${data.orderReference}&status=success`;
-
-          await Swal.fire({
-            icon: "success",
-            title: "Payment Successful! 🎉",
-            html: `
-              <div class="text-left">
-                <p class="font-semibold text-green-600">✅ ${config.successMessage || "Payment successful! Thank you."}</p>
-                <p class="text-sm text-gray-600 mt-2">${config.thankYouMessage || "We've received your payment and a receipt has been sent to your email."}</p>
-                <p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>${currencySymbol}${totalAmount.toLocaleString()}</strong></p>
-              </div>
-            `,
-            confirmButtonColor: "#F5B81B",
-            confirmButtonText: "Continue",
-          });
-
-          window.location.href = redirectUrl;
+        } catch (err) {
+          console.error("Error polling status:", err);
         }
-      }, 5000);
+      }, 3000);
 
       setTimeout(() => clearInterval(checkInterval), 300000);
     } catch (err: any) {
@@ -676,6 +687,7 @@ Narration: ${narration}`);
         </motion.div>
       </div>
 
+      {/* Card Payment Modal */}
       {showCardModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700">
@@ -700,6 +712,7 @@ Narration: ${narration}`);
         </div>
       )}
 
+      {/* Virtual Account Details Modal */}
       {showAccountModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
@@ -1046,10 +1059,11 @@ Narration: ${narration}`);
   };
 
   // ============================================================
-  // UPDATED: CARD PAYMENT WITH REDIRECT TO ACCESS LINK
+  // FULL CARD PAYMENT WITH REDIRECTION - MAIN PAYMENT PAGE
   // ============================================================
   const handleCardPayment = async () => {
     const totalAmount = getCurrentTotalAmount();
+
     if (totalAmount <= 0) {
       alert("Please select items to continue");
       return;
@@ -1105,41 +1119,52 @@ Narration: ${narration}`);
 
       const checkoutWindow = window.open(data.checkoutLink, "_blank", "width=500,height=700");
 
+      // If popup was blocked, redirect instead
+      if (!checkoutWindow) {
+        window.location.href = data.checkoutLink;
+        return;
+      }
+
       const checkInterval = setInterval(async () => {
-        const statusResponse = await fetch(
-          `/api/payment-page/status?reference=${data.orderReference}`
-        );
-        const statusData = await statusResponse.json();
+        try {
+          const statusResponse = await fetch(
+            `/api/payment-page/status?reference=${data.orderReference}`
+          );
+          const statusData = await statusResponse.json();
 
-        if (statusData.payment?.status === "completed") {
-          clearInterval(checkInterval);
+          if (statusData.payment?.status === "completed") {
+            clearInterval(checkInterval);
 
-          if (checkoutWindow && !checkoutWindow.closed) {
-            checkoutWindow.close();
+            if (checkoutWindow && !checkoutWindow.closed) {
+              checkoutWindow.close();
+            }
+
+            // Get redirect URL - priority: statusData.redirectUrl > metadata.accessLink > metadata.downloadUrl > default
+            const redirectUrl = statusData.payment?.redirectUrl ||
+              page?.metadata?.accessLink ||
+              page?.metadata?.downloadUrl ||
+              `/payment-success?reference=${data.orderReference}&status=success`;
+
+            await Swal.fire({
+              icon: "success",
+              title: "Payment Successful! 🎉",
+              html: `
+                <div class="text-left">
+                  <p class="font-semibold text-green-600">✅ Payment successful! Thank you.</p>
+                  <p class="text-sm text-gray-600 mt-2">A receipt has been sent to your email.</p>
+                  <p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>₦${totalAmount.toLocaleString()}</strong></p>
+                </div>
+              `,
+              confirmButtonColor: "#F5B81B",
+              confirmButtonText: "Continue",
+            });
+
+            window.location.href = redirectUrl;
           }
-
-          // Get redirect URL from metadata or use default
-          const redirectUrl = page?.metadata?.accessLink ||
-            page?.metadata?.downloadUrl ||
-            `/payment-success?reference=${data.orderReference}&status=success`;
-
-          await Swal.fire({
-            icon: "success",
-            title: "Payment Successful! 🎉",
-            html: `
-              <div class="text-left">
-                <p class="font-semibold text-green-600">✅ Payment successful! Thank you.</p>
-                <p class="text-sm text-gray-600 mt-2">A receipt has been sent to your email.</p>
-                <p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>₦${totalAmount.toLocaleString()}</strong></p>
-              </div>
-            `,
-            confirmButtonColor: "#F5B81B",
-            confirmButtonText: "Continue",
-          });
-
-          window.location.href = redirectUrl;
+        } catch (err) {
+          console.error("Error polling status:", err);
         }
-      }, 5000);
+      }, 3000);
 
       setTimeout(() => clearInterval(checkInterval), 300000);
     } catch (err: any) {

@@ -309,84 +309,125 @@ Narration: ${narration}`;
     }
   };
 
-  // Handle Card Payment
-  const handleCardPayment = async () => {
-    const totalAmount = config.amountMode === "fixed" ? page.price : formData.customAmount;
+ const handleCardPayment = async () => {
+  const totalAmount = config.amountMode === "fixed" ? page.price : formData.customAmount;
+  
+  if (!totalAmount || totalAmount <= 0) {
+    alert("Please enter a valid amount");
+    return;
+  }
 
-    if (!totalAmount || totalAmount <= 0) {
-      alert("Please enter a valid amount");
-      return;
+  // Validate required fields
+  const newErrors: Record<string, string> = {};
+  if (!customerName || !customerName.trim()) {
+    newErrors.name = "Name is required";
+  }
+  if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@")) {
+    newErrors.email = "Valid email is required";
+  }
+  if (config.collectPhone && config.phoneRequired && !customerPhone) {
+    newErrors.phone = "Phone number is required";
+  }
+  config.customFields.forEach((field) => {
+    if (field.required && !formData[field.id]) {
+      newErrors[field.id] = `${field.label} is required`;
     }
+  });
 
-    const newErrors: Record<string, string> = {};
-    if (config.collectName && config.nameRequired && !customerName) {
-      newErrors.name = "Name is required";
-    }
-    if (config.collectEmail && config.emailRequired && !customerEmail) {
-      newErrors.email = "Email is required";
-    }
-    if (config.collectPhone && config.phoneRequired && !customerPhone) {
-      newErrors.phone = "Phone number is required";
-    }
-    config.customFields.forEach((field) => {
-      const error = validateField(field, formData[field.id]);
-      if (error) newErrors[field.id] = error;
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    return;
+  }
+
+  setProcessingCardPayment(true);
+  setShowCardModal(false);
+
+  try {
+    // 1. Create card payment
+    const response = await fetch("/api/payment-page/public/card-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pageSlug: page.slug,
+        customerName,
+        customerEmail,
+        customerPhone,
+        amount: totalAmount,
+        metadata: {
+          pageType: "link",
+          pageTitle: page.title,
+          paymentType: "link",
+          customFields: formData,
+          referenceCode: config.referenceCode,
+        },
+      }),
     });
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+
+    // 2. Open checkout in new window
+    const checkoutWindow = window.open(data.checkoutLink, "_blank", "width=500,height=700");
+
+    // If popup was blocked, redirect instead
+    if (!checkoutWindow) {
+      window.location.href = data.checkoutLink;
       return;
     }
 
-    setProcessingCardPayment(true);
-    setShowCardModal(false);
-
-    try {
-      const response = await fetch("/api/payment-page/public/card-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pageSlug: page.slug,
-          customerName: customerName,
-          customerEmail: customerEmail,
-          customerPhone: customerPhone,
-          amount: totalAmount,
-          metadata: {
-            pageType: "link",
-            pageTitle: page.title,
-            paymentType: "link",
-            customFields: formData,
-            referenceCode: config.referenceCode,
-          },
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-
-      window.open(data.checkoutLink, "_blank", "width=500,height=700");
-
-      const checkInterval = setInterval(async () => {
+    // 3. Poll for payment status
+    const checkInterval = setInterval(async () => {
+      try {
         const statusResponse = await fetch(
-          `/api/payment-page/public/status?reference=${data.orderReference}`
+          `/api/payment-page/status?reference=${data.orderReference}`
         );
         const statusData = await statusResponse.json();
+
         if (statusData.payment?.status === "completed") {
           clearInterval(checkInterval);
-          alert("Payment successful!");
-          window.location.reload();
-        }
-      }, 5000);
 
-      setTimeout(() => clearInterval(checkInterval), 300000);
-    } catch (err: any) {
-      alert(
-        err.message || "Failed to initiate card payment. Please try again."
-      );
-    } finally {
-      setProcessingCardPayment(false);
-    }
-  };
+          // Close the checkout window
+          if (checkoutWindow && !checkoutWindow.closed) {
+            checkoutWindow.close();
+          }
+
+          // Get redirect URL
+          const redirectUrl = statusData.payment?.redirectUrl ||
+            config.redirectUrl ||
+            config.altRedirectUrl ||
+            `/payment-success?reference=${data.orderReference}&status=success`;
+
+          // Show success modal
+          await Swal.fire({
+            icon: "success",
+            title: "Payment Successful! 🎉",
+            html: `
+              <div class="text-left">
+                <p class="font-semibold text-green-600">✅ ${config.successMessage || "Payment successful! Thank you."}</p>
+                <p class="text-sm text-gray-600 mt-2">${config.thankYouMessage || "We've received your payment and a receipt has been sent to your email."}</p>
+                <p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>${currencySymbol}${totalAmount.toLocaleString()}</strong></p>
+              </div>
+            `,
+            confirmButtonColor: "#F5B81B",
+            confirmButtonText: "Continue",
+          });
+
+          // Redirect
+          window.location.href = redirectUrl;
+        }
+      } catch (err) {
+        console.error("Error polling status:", err);
+      }
+    }, 3000);
+
+    // 4. Stop polling after 5 minutes
+    setTimeout(() => clearInterval(checkInterval), 300000);
+  } catch (err: any) {
+    alert(err.message || "Failed to initiate card payment. Please try again.");
+  } finally {
+    setProcessingCardPayment(false);
+  }
+};
 
   const renderCustomField = (field: CustomField) => {
     const value = formData[field.id] || "";
