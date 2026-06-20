@@ -373,7 +373,7 @@ Narration: ${narration}`);
 
       const checkInterval = setInterval(async () => {
         const statusResponse = await fetch(
-          `/api/payment-page/public/status?reference=${data.orderReference}`
+          `/api/payment-page/status?reference=${data.orderReference}`
         );
         const statusData = await statusResponse.json();
 
@@ -1107,7 +1107,7 @@ Narration: ${narration}`);
 
       const checkInterval = setInterval(async () => {
         const statusResponse = await fetch(
-          `/api/payment-page/public/status?reference=${data.orderReference}`
+          `/api/payment-page/status?reference=${data.orderReference}`
         );
         const statusData = await statusResponse.json();
 

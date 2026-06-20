@@ -1,4 +1,4 @@
-// app/api/payment-page/public/status/route.ts
+// app/api/payment-page/status/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
