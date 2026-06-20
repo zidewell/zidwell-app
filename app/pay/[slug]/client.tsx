@@ -116,6 +116,9 @@ const generateNarrationCode = (): string => {
   return `${prefix}_${code}`;
 };
 
+// ============================================================
+// PAYMENT LINK COMPONENT (For Payment Link page type)
+// ============================================================
 function PaymentLinkComponent({
   page,
   config,
@@ -317,6 +320,9 @@ Narration: ${narration}`);
     }
   };
 
+  // ============================================================
+  // UPDATED: CARD PAYMENT WITH REDIRECT TO ACCESS LINK
+  // ============================================================
   const handleCardPayment = async () => {
     const totalAmount = config.amountMode === "fixed" ? page.price : formData.customAmount;
     if (!totalAmount || totalAmount <= 0) {
@@ -363,15 +369,41 @@ Narration: ${narration}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
-      window.open(data.checkoutLink, "_blank", "width=500,height=700");
+      const checkoutWindow = window.open(data.checkoutLink, "_blank", "width=500,height=700");
 
       const checkInterval = setInterval(async () => {
-        const statusResponse = await fetch(`/api/payment-page/public/status?reference=${data.orderReference}`);
+        const statusResponse = await fetch(
+          `/api/payment-page/public/status?reference=${data.orderReference}`
+        );
         const statusData = await statusResponse.json();
+
         if (statusData.payment?.status === "completed") {
           clearInterval(checkInterval);
-          alert("Payment successful!");
-          window.location.reload();
+
+          if (checkoutWindow && !checkoutWindow.closed) {
+            checkoutWindow.close();
+          }
+
+          // Get redirect URL from config or use default
+          const redirectUrl = config.redirectUrl ||
+            config.altRedirectUrl ||
+            `/payment-success?reference=${data.orderReference}&status=success`;
+
+          await Swal.fire({
+            icon: "success",
+            title: "Payment Successful! 🎉",
+            html: `
+              <div class="text-left">
+                <p class="font-semibold text-green-600">✅ ${config.successMessage || "Payment successful! Thank you."}</p>
+                <p class="text-sm text-gray-600 mt-2">${config.thankYouMessage || "We've received your payment and a receipt has been sent to your email."}</p>
+                <p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>${currencySymbol}${totalAmount.toLocaleString()}</strong></p>
+              </div>
+            `,
+            confirmButtonColor: "#F5B81B",
+            confirmButtonText: "Continue",
+          });
+
+          window.location.href = redirectUrl;
         }
       }, 5000);
 
@@ -754,6 +786,9 @@ Narration: ${narration}`);
   );
 }
 
+// ============================================================
+// MAIN PAYMENT PAGE CLIENT COMPONENT
+// ============================================================
 export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const router = useRouter();
   const [page, setPage] = useState<PaymentPage | null>(null);
@@ -967,7 +1002,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
       return;
     }
 
-    const transferReference = `PPL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const transferReference = `TRF-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setPendingReference(transferReference);
     const narration = generateNarrationCode();
     setNarrationCode(narration);
@@ -1010,6 +1045,9 @@ Narration: ${narration}`);
     }
   };
 
+  // ============================================================
+  // UPDATED: CARD PAYMENT WITH REDIRECT TO ACCESS LINK
+  // ============================================================
   const handleCardPayment = async () => {
     const totalAmount = getCurrentTotalAmount();
     if (totalAmount <= 0) {
@@ -1065,15 +1103,41 @@ Narration: ${narration}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
-      window.open(data.checkoutLink, "_blank", "width=500,height=700");
+      const checkoutWindow = window.open(data.checkoutLink, "_blank", "width=500,height=700");
 
       const checkInterval = setInterval(async () => {
-        const statusResponse = await fetch(`/api/payment-page/public/status?reference=${data.orderReference}`);
+        const statusResponse = await fetch(
+          `/api/payment-page/public/status?reference=${data.orderReference}`
+        );
         const statusData = await statusResponse.json();
+
         if (statusData.payment?.status === "completed") {
           clearInterval(checkInterval);
-          alert("Payment successful!");
-          window.location.reload();
+
+          if (checkoutWindow && !checkoutWindow.closed) {
+            checkoutWindow.close();
+          }
+
+          // Get redirect URL from metadata or use default
+          const redirectUrl = page?.metadata?.accessLink ||
+            page?.metadata?.downloadUrl ||
+            `/payment-success?reference=${data.orderReference}&status=success`;
+
+          await Swal.fire({
+            icon: "success",
+            title: "Payment Successful! 🎉",
+            html: `
+              <div class="text-left">
+                <p class="font-semibold text-green-600">✅ Payment successful! Thank you.</p>
+                <p class="text-sm text-gray-600 mt-2">A receipt has been sent to your email.</p>
+                <p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>₦${totalAmount.toLocaleString()}</strong></p>
+              </div>
+            `,
+            confirmButtonColor: "#F5B81B",
+            confirmButtonText: "Continue",
+          });
+
+          window.location.href = redirectUrl;
         }
       }, 5000);
 
