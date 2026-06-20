@@ -106,9 +106,6 @@ interface PaymentPageClientProps {
 type PaymentOption = "full" | "installment";
 type PaymentMethodType = "virtual_account" | "card";
 
-// ============================================================
-// GENERATE SHORT NARRATION CODE WITH UNDERSCORE
-// ============================================================
 const generateNarrationCode = (): string => {
   const prefix = "PL";
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -116,12 +113,9 @@ const generateNarrationCode = (): string => {
   for (let i = 0; i < 4; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return `${prefix}_${code}`; // e.g., PL_M438 (uses underscore)
+  return `${prefix}_${code}`;
 };
 
-// ============================================================
-// PAYMENT LINK COMPONENT (For Payment Link page type)
-// ============================================================
 function PaymentLinkComponent({
   page,
   config,
@@ -160,10 +154,8 @@ function PaymentLinkComponent({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  // Confirm payment after transfer
   const confirmPayment = async (reference: string) => {
     setConfirmingPayment(true);
-
     try {
       const result = await Swal.fire({
         title: "Confirm Transfer",
@@ -183,14 +175,11 @@ function PaymentLinkComponent({
       });
 
       if (result.isConfirmed) {
-        // Show loading
         Swal.fire({
           title: "Verifying Payment...",
           text: "Please wait while we confirm your transfer.",
           allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          },
+          didOpen: () => Swal.showLoading(),
         });
 
         const response = await fetch(
@@ -199,7 +188,7 @@ function PaymentLinkComponent({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ transferReference: reference }),
-          }
+          },
         );
 
         const data = await response.json();
@@ -229,18 +218,14 @@ function PaymentLinkComponent({
         }
 
         if (data.success) {
-          const successMessage = data.successMessage || "Payment successful! Thank you.";
-          const thankYouMessage = data.thankYouMessage || "We've received your payment and a receipt has been sent to your email.";
-
           await Swal.fire({
             icon: "success",
             title: "🎉 Payment Confirmed!",
             html: `
               <div class="text-left">
-                <p class="font-semibold text-green-600">✅ ${successMessage}</p>
-                <p class="text-sm text-gray-600 mt-2">${thankYouMessage}</p>
-                ${data.payment?.customer_email ? `<p class="text-sm text-gray-600 mt-2">📧 Receipt sent to: <strong>${data.payment.customer_email}</strong></p>` : ''}
-                ${data.payment?.amount ? `<p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>₦${data.payment.amount.toLocaleString()}</strong></p>` : ''}
+                <p class="font-semibold text-green-600">✅ ${data.successMessage || "Payment successful! Thank you."}</p>
+                <p class="text-sm text-gray-600 mt-2">${data.thankYouMessage || "We've received your payment and a receipt has been sent to your email."}</p>
+                ${data.payment?.customer_email ? `<p class="text-sm text-gray-600 mt-2">📧 Receipt sent to: <strong>${data.payment.customer_email}</strong></p>` : ""}
               </div>
             `,
             confirmButtonColor: "#F5B81B",
@@ -267,7 +252,6 @@ function PaymentLinkComponent({
     }
   };
 
-  // Handle Virtual Account Payment
   const handleVirtualAccountPayment = async () => {
     const virtualAccount = page.virtualAccount;
     if (!virtualAccount) {
@@ -282,21 +266,16 @@ function PaymentLinkComponent({
       return;
     }
 
-    // Validate required fields - Name and Email are ALWAYS required
     const newErrors: Record<string, string> = {};
-    if (!customerName || !customerName.trim()) {
+    if (!customerName || !customerName.trim())
       newErrors.name = "Name is required";
-    }
-    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@")) {
+    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@"))
       newErrors.email = "Valid email is required";
-    }
-    if (config.collectPhone && config.phoneRequired && !customerPhone) {
+    if (config.collectPhone && config.phoneRequired && !customerPhone)
       newErrors.phone = "Phone number is required";
-    }
     config.customFields.forEach((field) => {
-      if (field.required && !formData[field.id]) {
+      if (field.required && !formData[field.id])
         newErrors[field.id] = `${field.label} is required`;
-      }
     });
 
     if (Object.keys(newErrors).length > 0) {
@@ -304,15 +283,11 @@ function PaymentLinkComponent({
       return;
     }
 
-    // Generate unique reference
     const transferReference = `PL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setPendingReference(transferReference);
-
-    // Generate short narration code with underscore (PL_M438)
     const narration = generateNarrationCode();
     setNarrationCode(narration);
 
-    // Create pending payment record
     try {
       const response = await fetch(
         "/api/payment-page/public/transfer-payment",
@@ -325,64 +300,53 @@ function PaymentLinkComponent({
             customerEmail: customerEmail || "customer@example.com",
             customerPhone: customerPhone || "",
             amount: totalAmount,
-            transferReference: transferReference,
+            transferReference,
             metadata: {
               pageType: "link",
               pageTitle: page.title,
               paymentType: "link",
               customFields: formData,
               referenceCode: config.referenceCode,
-              narration: narration,
+              narration,
             },
           }),
-        }
+        },
       );
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
       setShowBankDetails(true);
-
-      // Build account details with short narration code
-      const details = `Bank: ${virtualAccount.bankName}
+      setAccountDetails(`Bank: ${virtualAccount.bankName}
 Account Number: ${virtualAccount.accountNumber}
 Account Name: ${virtualAccount.bankAccountName || virtualAccount.accountName}
 Amount: ₦${totalAmount.toLocaleString()}
 Reference: ${transferReference}
-Narration: ${narration}`;
-
-      setAccountDetails(details);
+Narration: ${narration}`);
       setShowAccountModal(true);
     } catch (err: any) {
       alert(err.message || "Failed to initiate payment. Please try again.");
     }
   };
 
-  // Handle Card Payment
   const handleCardPayment = async () => {
     const totalAmount =
       config.amountMode === "fixed" ? page.price : formData.customAmount;
-
     if (!totalAmount || totalAmount <= 0) {
       alert("Please enter a valid amount");
       return;
     }
 
-    // Validate required fields - Name and Email are ALWAYS required
     const newErrors: Record<string, string> = {};
-    if (!customerName || !customerName.trim()) {
+    if (!customerName || !customerName.trim())
       newErrors.name = "Name is required";
-    }
-    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@")) {
+    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@"))
       newErrors.email = "Valid email is required";
-    }
-    if (config.collectPhone && config.phoneRequired && !customerPhone) {
+    if (config.collectPhone && config.phoneRequired && !customerPhone)
       newErrors.phone = "Phone number is required";
-    }
     config.customFields.forEach((field) => {
-      if (field.required && !formData[field.id]) {
+      if (field.required && !formData[field.id])
         newErrors[field.id] = `${field.label} is required`;
-      }
     });
 
     if (Object.keys(newErrors).length > 0) {
@@ -399,9 +363,9 @@ Narration: ${narration}`;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pageSlug: page.slug,
-          customerName: customerName,
-          customerEmail: customerEmail,
-          customerPhone: customerPhone,
+          customerName,
+          customerEmail,
+          customerPhone,
           amount: totalAmount,
           metadata: {
             pageType: "link",
@@ -420,7 +384,7 @@ Narration: ${narration}`;
 
       const checkInterval = setInterval(async () => {
         const statusResponse = await fetch(
-          `/api/payment-page/public/status?reference=${data.orderReference}`
+          `/api/payment-page/public/status?reference=${data.orderReference}`,
         );
         const statusData = await statusResponse.json();
         if (statusData.payment?.status === "completed") {
@@ -433,7 +397,7 @@ Narration: ${narration}`;
       setTimeout(() => clearInterval(checkInterval), 300000);
     } catch (err: any) {
       alert(
-        err.message || "Failed to initiate card payment. Please try again."
+        err.message || "Failed to initiate card payment. Please try again.",
       );
     } finally {
       setProcessingCardPayment(false);
@@ -560,12 +524,42 @@ Narration: ${narration}`;
     }
   };
 
+  if (!config.active) {
+    return (
+      <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center p-4">
+        <div className="bg-[#1a1a1a] rounded-2xl p-8 text-center max-w-md">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Link Not Available
+          </h2>
+          <p className="text-gray-400">
+            This payment link is currently inactive.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const currencySymbol =
+    config.currency === "NGN"
+      ? "₦"
+      : config.currency === "USD"
+        ? "$"
+        : config.currency === "GBP"
+          ? "£"
+          : "€";
+
   return (
     <div className="min-h-screen bg-[#0e0e0e]">
-      {/* Header */}
-      <div className="bg-[#023528] text-white sticky top-0 z-10">
+      <div
+        className="sticky top-0 z-10"
+        style={{ backgroundColor: config.brandColor }}
+      >
         <div className="container py-4 flex items-center gap-3">
-          <button onClick={() => router.back()} className="hover:opacity-80">
+          <button
+            onClick={() => router.back()}
+            className="hover:opacity-80 text-white"
+          >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-3">
@@ -577,8 +571,10 @@ Narration: ${narration}`;
               />
             )}
             <div>
-              <h1 className="font-bold text-lg leading-tight">{page.title}</h1>
-              <p className="text-white/60 text-xs">Secure Payment Link</p>
+              <h1 className="font-bold text-lg leading-tight text-white">
+                {page.title}
+              </h1>
+              <p className="text-white/70 text-xs">Secure Payment Link</p>
             </div>
           </div>
         </div>
@@ -600,7 +596,6 @@ Narration: ${narration}`;
           )}
 
           <div className="p-6 space-y-6">
-            {/* Title & Description */}
             <div className="text-center">
               <h2 className="text-2xl font-bold text-white">{page.title}</h2>
               {page.description && (
@@ -608,7 +603,6 @@ Narration: ${narration}`;
               )}
             </div>
 
-            {/* Amount Display */}
             <div className="bg-[#0e0e0e] rounded-xl p-4 text-center">
               {config.amountMode === "fixed" ? (
                 <>
@@ -617,7 +611,7 @@ Narration: ${narration}`;
                     className="text-3xl font-bold"
                     style={{ color: config.brandColor }}
                   >
-                    {config.currency === "NGN" ? "₦" : config.currency + " "}
+                    {currencySymbol}
                     {page.price.toLocaleString()}
                   </p>
                 </>
@@ -628,7 +622,7 @@ Narration: ${narration}`;
                   </Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      {config.currency === "NGN" ? "₦" : config.currency}
+                      {currencySymbol}
                     </span>
                     <Input
                       type="number"
@@ -647,9 +641,7 @@ Narration: ${narration}`;
               )}
             </div>
 
-            {/* Customer Info Fields - Name & Email are ALWAYS required */}
             <div className="space-y-4">
-              {/* Name - ALWAYS shown and required */}
               <div>
                 <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
                   Full Name *
@@ -664,8 +656,6 @@ Narration: ${narration}`;
                   <p className="text-xs text-red-500 mt-1">{errors.name}</p>
                 )}
               </div>
-
-              {/* Email - ALWAYS shown and required */}
               <div>
                 <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
                   Email Address *
@@ -681,8 +671,6 @@ Narration: ${narration}`;
                   <p className="text-xs text-red-500 mt-1">{errors.email}</p>
                 )}
               </div>
-
-              {/* Phone - Optional, based on config */}
               {config.collectPhone && (
                 <div>
                   <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
@@ -700,25 +688,25 @@ Narration: ${narration}`;
                   )}
                 </div>
               )}
-
               {config.customFields.map(renderCustomField)}
             </div>
 
             {config.referenceCode && (
               <div className="bg-gray-800/30 rounded-lg p-3 text-center">
                 <p className="text-xs text-gray-500">Reference Code</p>
-                <p className="text-sm font-mono text-[#e1bf46]">
+                <p
+                  className="text-sm font-mono"
+                  style={{ color: config.brandColor }}
+                >
                   {config.referenceCode}
                 </p>
               </div>
             )}
 
-            {/* Payment Method Selector */}
             <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5">
               <h3 className="font-bold text-lg mb-4 text-white">
                 Payment Method
               </h3>
-
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <button
                   onClick={() => setSelectedPaymentMethod("virtual_account")}
@@ -754,124 +742,118 @@ Narration: ${narration}`;
                 </button>
               </div>
 
-              {/* Virtual Account Section */}
-              {selectedPaymentMethod === "virtual_account" && (
-                <>
-                  {showBankDetails && page.virtualAccount ? (
-                    <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800 mb-4">
-                      <p className="text-sm font-medium text-blue-400 mb-2">
-                        Transfer to this account:
-                      </p>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-gray-400">Bank:</span>
-                          <span className="font-medium text-white">
-                            {page.virtualAccount.bankName}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-gray-400">
-                            Account Number:
-                          </span>
-                          <span className="font-mono font-bold text-white">
-                            {page.virtualAccount.accountNumber}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-gray-400">
-                            Account Name:
-                          </span>
-                          <span className="font-medium text-white truncate max-w-[200px]">
-                            {page.virtualAccount.bankAccountName ||
-                              page.virtualAccount.accountName}
-                          </span>
-                        </div>
-                        {/* NARRATION CODE - With underscore */}
-                        <div className="mt-3 p-3 bg-yellow-900/40 rounded-xl border border-yellow-700/50">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-yellow-400 uppercase tracking-wider">
-                                📝 Narration
-                              </span>
-                              <span className="text-[10px] text-yellow-500/70">
-                                (Required)
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => {
-                                copyToClipboard(narrationCode, "narrationMain");
-                              }}
-                              className="text-[10px] text-yellow-400 hover:text-yellow-300 flex items-center gap-1 transition-colors"
-                            >
-                              {copiedField === "narrationMain" ? (
-                                <>
-                                  <CheckCircle className="h-3 w-3 text-green-500" />
-                                  <span className="text-green-500">Copied!</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="h-3 w-3" />
-                                  <span>Copy</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                          {/* Short narration code with underscore */}
-                          <p className="text-lg font-mono font-bold text-yellow-300 tracking-wider">
-                            {narrationCode || "PL_XXXX"}
-                          </p>
-                          <div className="mt-1.5 flex items-center gap-2">
-                            <span className="text-[10px] text-yellow-500/60">
-                              ⚠️ Use this exact code as narration
+              {selectedPaymentMethod === "virtual_account" &&
+                page.virtualAccount && (
+                  <>
+                    {showBankDetails ? (
+                      <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800 mb-4">
+                        <p className="text-sm font-medium text-blue-400 mb-2">
+                          Transfer to this account:
+                        </p>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-400">Bank:</span>
+                            <span className="font-medium text-white">
+                              {page.virtualAccount.bankName}
                             </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-400">
+                              Account Number:
+                            </span>
+                            <span className="font-mono font-bold text-white">
+                              {page.virtualAccount.accountNumber}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-400">
+                              Account Name:
+                            </span>
+                            <span className="font-medium text-white truncate max-w-[200px]">
+                              {page.virtualAccount.bankAccountName ||
+                                page.virtualAccount.accountName}
+                            </span>
+                          </div>
+                          <div className="mt-3 p-3 bg-yellow-900/40 rounded-xl border border-yellow-700/50">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-yellow-400 uppercase tracking-wider">
+                                  📝 Narration
+                                </span>
+                                <span className="text-[10px] text-yellow-500/70">
+                                  (Required)
+                                </span>
+                              </div>
+                              <button
+                                onClick={() =>
+                                  copyToClipboard(
+                                    narrationCode,
+                                    "narrationMain",
+                                  )
+                                }
+                                className="text-[10px] text-yellow-400 hover:text-yellow-300 flex items-center gap-1"
+                              >
+                                {copiedField === "narrationMain" ? (
+                                  <>
+                                    <CheckCircle className="h-3 w-3 text-green-500" />
+                                    <span className="text-green-500">
+                                      Copied!
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="h-3 w-3" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                            <p className="text-lg font-mono font-bold text-yellow-300 tracking-wider">
+                              {narrationCode || "PL_XXXX"}
+                            </p>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-800/30 rounded-xl p-4 text-center mb-4">
-                      <Banknote className="h-10 w-10 mx-auto text-gray-500 mb-2" />
-                      <p className="text-sm text-gray-400">
-                        Fill in your details above and click "Get Account
-                        Details"
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Bank details will be shown here
-                      </p>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="bg-gray-800/30 rounded-xl p-4 text-center mb-4">
+                        <Banknote className="h-10 w-10 mx-auto text-gray-500 mb-2" />
+                        <p className="text-sm text-gray-400">
+                          Fill in your details above and click "Get Account
+                          Details"
+                        </p>
+                      </div>
+                    )}
 
-                  <div className="bg-[#0e0e0e] rounded-xl p-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Total Amount:</span>
-                      <span className="text-2xl font-bold text-[#e1bf46]">
-                        ₦
-                        {(config.amountMode === "fixed"
-                          ? page.price
-                          : formData.customAmount || 0
-                        ).toLocaleString()}
-                      </span>
+                    <div className="bg-[#0e0e0e] rounded-xl p-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Total Amount:</span>
+                        <span className="text-2xl font-bold text-[#e1bf46]">
+                          {currencySymbol}
+                          {(config.amountMode === "fixed"
+                            ? page.price
+                            : formData.customAmount || 0
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                      <Button
+                        onClick={handleVirtualAccountPayment}
+                        disabled={!isValidAmount}
+                        className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
+                      >
+                        <Banknote className="h-4 w-4 mr-2" /> Get Account
+                        Details
+                      </Button>
                     </div>
-                    <Button
-                      onClick={handleVirtualAccountPayment}
-                      disabled={!isValidAmount}
-                      className="w-full mt-4 bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
-                    >
-                      <Banknote className="h-4 w-4 mr-2" />
-                      Get Account Details
-                    </Button>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
 
-              {/* Card Payment Section */}
               {selectedPaymentMethod === "card" && (
                 <>
                   <div className="bg-[#0e0e0e] rounded-xl p-4 mb-4">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400">Total Amount:</span>
                       <span className="text-2xl font-bold text-[#e1bf46]">
-                        ₦
+                        {currencySymbol}
                         {(config.amountMode === "fixed"
                           ? page.price
                           : formData.customAmount || 0
@@ -884,7 +866,7 @@ Narration: ${narration}`;
                       setCardPaymentAmount(
                         config.amountMode === "fixed"
                           ? page.price
-                          : formData.customAmount || 0
+                          : formData.customAmount || 0,
                       );
                       setShowCardModal(true);
                     }}
@@ -904,7 +886,6 @@ Narration: ${narration}`;
         </motion.div>
       </div>
 
-      {/* Card Payment Modal */}
       {showCardModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700">
@@ -921,7 +902,8 @@ Narration: ${narration}`;
               <div className="flex justify-between">
                 <span className="text-gray-400">Amount:</span>
                 <span className="text-xl font-bold text-[#e1bf46]">
-                  ₦{cardPaymentAmount.toLocaleString()}
+                  {currencySymbol}
+                  {cardPaymentAmount.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -947,7 +929,6 @@ Narration: ${narration}`;
         </div>
       )}
 
-      {/* Virtual Account Details Modal with Short Narration Code (Underscore) */}
       {showAccountModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
@@ -970,7 +951,6 @@ Narration: ${narration}`;
                   {page.virtualAccount?.bankName}
                 </span>
               </div>
-
               <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                 <span className="text-xs text-gray-500">Account Number</span>
                 <div className="flex items-center gap-2">
@@ -981,10 +961,10 @@ Narration: ${narration}`;
                     onClick={() =>
                       copyToClipboard(
                         page.virtualAccount?.accountNumber || "",
-                        "account"
+                        "account",
                       )
                     }
-                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20 transition-colors"
+                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20"
                   >
                     {copiedField === "account" ? (
                       <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -994,7 +974,6 @@ Narration: ${narration}`;
                   </button>
                 </div>
               </div>
-
               <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                 <span className="text-xs text-gray-500">Account Name</span>
                 <div className="flex items-center gap-2">
@@ -1008,10 +987,10 @@ Narration: ${narration}`;
                         page.virtualAccount?.bankAccountName ||
                           page.virtualAccount?.accountName ||
                           "",
-                        "accountName"
+                        "accountName",
                       )
                     }
-                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20 transition-colors"
+                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20"
                   >
                     {copiedField === "accountName" ? (
                       <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -1021,18 +1000,21 @@ Narration: ${narration}`;
                   </button>
                 </div>
               </div>
-
               <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                 <span className="text-xs text-gray-500">Amount</span>
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-lg text-[#e1bf46]">
-                    ₦{amount.toLocaleString()}
+                    {currencySymbol}
+                    {amount.toLocaleString()}
                   </span>
                   <button
                     onClick={() =>
-                      copyToClipboard(`₦${amount.toLocaleString()}`, "amount")
+                      copyToClipboard(
+                        `${currencySymbol}${amount.toLocaleString()}`,
+                        "amount",
+                      )
                     }
-                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20 transition-colors"
+                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20"
                   >
                     {copiedField === "amount" ? (
                       <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -1042,7 +1024,6 @@ Narration: ${narration}`;
                   </button>
                 </div>
               </div>
-
               <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                 <span className="text-xs text-gray-500">Reference</span>
                 <div className="flex items-center gap-2">
@@ -1053,7 +1034,7 @@ Narration: ${narration}`;
                     onClick={() =>
                       copyToClipboard(pendingReference || "", "reference")
                     }
-                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20 transition-colors"
+                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20"
                   >
                     {copiedField === "reference" ? (
                       <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -1063,8 +1044,6 @@ Narration: ${narration}`;
                   </button>
                 </div>
               </div>
-
-              {/* NARRATION CODE - With underscore */}
               <div className="bg-yellow-900/30 rounded-xl p-4 border border-yellow-800 mt-2">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -1076,10 +1055,8 @@ Narration: ${narration}`;
                     </span>
                   </div>
                   <button
-                    onClick={() => {
-                      copyToClipboard(narrationCode, "narration");
-                    }}
-                    className="p-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 transition-colors"
+                    onClick={() => copyToClipboard(narrationCode, "narration")}
+                    className="p-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30"
                   >
                     {copiedField === "narration" ? (
                       <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -1094,9 +1071,6 @@ Narration: ${narration}`;
                 <div className="mt-2 p-2 bg-yellow-800/30 rounded-lg">
                   <p className="text-[10px] text-yellow-400/80 text-center">
                     ⚠️ Use this exact code as narration when making the transfer
-                  </p>
-                  <p className="text-[9px] text-yellow-500/60 text-center mt-1">
-                    This helps us identify your payment quickly
                   </p>
                 </div>
               </div>
@@ -1114,7 +1088,6 @@ Narration: ${narration}`;
                 )}
                 {copiedField === "all" ? "Copied!" : "Copy All Details"}
               </Button>
-
               {pendingReference && (
                 <Button
                   onClick={() => confirmPayment(pendingReference)}
@@ -1131,7 +1104,6 @@ Narration: ${narration}`;
                     : "✅ I've Made the Transfer"}
                 </Button>
               )}
-
               <p className="text-xs text-gray-500 text-center">
                 After making the transfer, click the button above to confirm
                 your payment.
@@ -1144,9 +1116,6 @@ Narration: ${narration}`;
   );
 }
 
-// ============================================================
-// MAIN PAYMENT PAGE CLIENT COMPONENT
-// ============================================================
 export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const router = useRouter();
   const [page, setPage] = useState<PaymentPage | null>(null);
@@ -1154,7 +1123,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [error, setError] = useState<string | null>(null);
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [selectedPaymentOption, setSelectedPaymentOption] =
     useState<PaymentOption>("full");
@@ -1167,6 +1136,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [cardPaymentAmount, setCardPaymentAmount] = useState(0);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [accountDetails, setAccountDetails] = useState("");
@@ -1185,12 +1155,10 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
   const students = useMemo(() => {
     const rawStudents = page?.metadata?.students || [];
     const totalAmount = page?.price || 0;
-
     return rawStudents.map((student: Student) => {
       const paidAmount = student.paidAmount || 0;
       const remainingBalance = totalAmount - paidAmount;
       const isFullyPaid = paidAmount >= totalAmount;
-
       return {
         ...student,
         paidAmount,
@@ -1204,24 +1172,23 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
 
   const feeBreakdown = useMemo(
     () => page?.metadata?.feeBreakdown || [],
-    [page?.metadata?.feeBreakdown]
+    [page?.metadata?.feeBreakdown],
   );
   const className = useMemo(
     () => page?.metadata?.className || "",
-    [page?.metadata?.className]
+    [page?.metadata?.className],
   );
   const variants = useMemo(
     () => page?.metadata?.variants || [],
-    [page?.metadata?.variants]
+    [page?.metadata?.variants],
   );
 
   const getBasePrice = () => selectedVariant?.price || page?.price || 0;
   const getTotalProductPrice = () => getBasePrice() * quantity;
 
   const getTotalAmount = () => {
-    if (feeBreakdown.length > 0) {
+    if (feeBreakdown.length > 0)
       return feeBreakdown.reduce((sum, item) => sum + item.amount, 0);
-    }
     return page?.price || 0;
   };
 
@@ -1269,10 +1236,8 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  // Confirm payment after transfer
   const confirmPayment = async (reference: string) => {
     setConfirmingPayment(true);
-
     try {
       const result = await Swal.fire({
         title: "Confirm Transfer",
@@ -1292,14 +1257,11 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
       });
 
       if (result.isConfirmed) {
-        // Show loading
         Swal.fire({
           title: "Verifying Payment...",
           text: "Please wait while we confirm your transfer.",
           allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          },
+          didOpen: () => Swal.showLoading(),
         });
 
         const response = await fetch(
@@ -1308,7 +1270,7 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ transferReference: reference }),
-          }
+          },
         );
 
         const data = await response.json();
@@ -1338,18 +1300,14 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
         }
 
         if (data.success) {
-          const successMessage = data.successMessage || "Payment successful! Thank you.";
-          const thankYouMessage = data.thankYouMessage || "We've received your payment and a receipt has been sent to your email.";
-
           await Swal.fire({
             icon: "success",
             title: "🎉 Payment Confirmed!",
             html: `
               <div class="text-left">
-                <p class="font-semibold text-green-600">✅ ${successMessage}</p>
-                <p class="text-sm text-gray-600 mt-2">${thankYouMessage}</p>
-                ${data.payment?.customer_email ? `<p class="text-sm text-gray-600 mt-2">📧 Receipt sent to: <strong>${data.payment.customer_email}</strong></p>` : ''}
-                ${data.payment?.amount ? `<p class="text-sm text-gray-600 mt-2">💰 Amount: <strong>₦${data.payment.amount.toLocaleString()}</strong></p>` : ''}
+                <p class="font-semibold text-green-600">✅ ${data.successMessage || "Payment successful! Thank you."}</p>
+                <p class="text-sm text-gray-600 mt-2">${data.thankYouMessage || "We've received your payment and a receipt has been sent to your email."}</p>
+                ${data.payment?.customer_email ? `<p class="text-sm text-gray-600 mt-2">📧 Receipt sent to: <strong>${data.payment.customer_email}</strong></p>` : ""}
               </div>
             `,
             confirmButtonColor: "#F5B81B",
@@ -1376,84 +1334,49 @@ export default function PaymentPageClient({ slug }: PaymentPageClientProps) {
     }
   };
 
-  useEffect(() => {
-    const loadPage = async () => {
-      try {
-        const response = await fetch(`/api/payment-page/public/${slug}`);
-        if (!response.ok) {
-          setError(
-            response.status === 404 ? "Page not found" : "Failed to load page"
-          );
-          return;
-        }
-        const data = await response.json();
-        setPage(data.page);
-        if (data.page?.metadata?.variants?.length > 0) {
-          setSelectedVariant(data.page.metadata.variants[0]);
-        }
-      } catch (err) {
-        setError("Failed to load page");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadPage();
-  }, [slug]);
-
-  // If it's a link page, render the PaymentLinkComponent
-  if (page?.pageType === "link" && page.linkConfig) {
-    return <PaymentLinkComponent page={page} config={page.linkConfig} />;
-  }
-
-  const handleStudentClick = (student: Student) => {
-    if (student.paid || student.remainingBalance <= 0) return;
-    setSelectedStudents((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(student.name)) newSet.delete(student.name);
-      else newSet.add(student.name);
-      return newSet;
-    });
-  };
-
-  const getCurrentTotalAmount = () => {
-    if (page?.pageType === "school") return getTotalForSelectedStudents();
-    if (page?.pageType === "physical" || page?.pageType === "digital")
-      return getTotalProductPrice();
-    return page?.price || 0;
-  };
-
-  // Virtual Account Payment
   const handleVirtualAccountPayment = () => {
     const virtualAccount = page?.virtualAccount;
-    if (!virtualAccount) return;
+    if (!virtualAccount) {
+      alert("Virtual account not available. Please try card payment.");
+      return;
+    }
 
     const totalAmount = getCurrentTotalAmount();
+    if (totalAmount <= 0) {
+      alert("Please select items to continue");
+      return;
+    }
+
+    const newErrors: Record<string, string> = {};
+    if (!customerName || !customerName.trim())
+      newErrors.name = "Name is required";
+    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@"))
+      newErrors.email = "Valid email is required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
 
     const transferReference = `TRF-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setPendingReference(transferReference);
-
-    // Generate short narration code with underscore
     const narration = generateNarrationCode();
     setNarrationCode(narration);
 
-    const details = `Bank: ${virtualAccount.bankName}
+    setAccountDetails(`Bank: ${virtualAccount.bankName}
 Account Number: ${virtualAccount.accountNumber}
 Account Name: ${virtualAccount.bankAccountName || virtualAccount.accountName}
 Amount: ₦${totalAmount.toLocaleString()}
 Reference: ${transferReference}
-Narration: ${narration}`;
-
-    setAccountDetails(details);
+Narration: ${narration}`);
     setShowAccountModal(true);
-
     createPendingPayment(transferReference, totalAmount, narration);
   };
 
-  // Create pending payment
   const createPendingPayment = async (
     reference: string,
     amount: number,
-    narration: string
+    narration: string,
   ) => {
     try {
       const response = await fetch(
@@ -1466,44 +1389,41 @@ Narration: ${narration}`;
             customerName: customerName || "Customer",
             customerEmail: customerEmail || "customer@example.com",
             customerPhone: customerPhone || "",
-            amount: amount,
+            amount,
             transferReference: reference,
             metadata: {
               pageType: page?.pageType,
               pageTitle: page?.title,
               selectedStudents: Array.from(selectedStudents),
               numberOfStudents: selectedStudents.size,
-              narration: narration,
+              narration,
             },
           }),
-        }
+        },
       );
-
       const data = await response.json();
-      if (!response.ok) {
+      if (!response.ok)
         console.error("Failed to create pending payment:", data);
-      }
     } catch (error) {
       console.error("Error creating pending payment:", error);
     }
   };
 
-  // Card Payment
   const handleCardPayment = async () => {
     const totalAmount = getCurrentTotalAmount();
-
     if (totalAmount <= 0) {
       alert("Please select items to continue");
       return;
     }
 
-    // Validate required fields - Name and Email are ALWAYS required
-    if (!customerName || !customerName.trim()) {
-      alert("Please enter your full name");
-      return;
-    }
-    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@")) {
-      alert("Please enter a valid email address");
+    const newErrors: Record<string, string> = {};
+    if (!customerName || !customerName.trim())
+      newErrors.name = "Name is required";
+    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@"))
+      newErrors.email = "Valid email is required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
@@ -1511,7 +1431,6 @@ Narration: ${narration}`;
       selectedPaymentOption === "installment" &&
       page?.installmentCount &&
       page.installmentCount > 1;
-
     const metadata: any = {
       pageType: page?.pageType,
       pageTitle: page?.title,
@@ -1519,7 +1438,7 @@ Narration: ${narration}`;
       isInstallment: isInstallmentPayment,
       selectedStudents: Array.from(selectedStudents),
       numberOfStudents: selectedStudents.size,
-      totalAmount: totalAmount,
+      totalAmount,
     };
 
     if (isInstallmentPayment) {
@@ -1539,11 +1458,11 @@ Narration: ${narration}`;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pageSlug: slug,
-          customerName: customerName,
-          customerEmail: customerEmail,
-          customerPhone: customerPhone,
+          customerName,
+          customerEmail,
+          customerPhone,
           amount: totalAmount,
-          metadata: metadata,
+          metadata,
         }),
       });
 
@@ -1554,7 +1473,7 @@ Narration: ${narration}`;
 
       const checkInterval = setInterval(async () => {
         const statusResponse = await fetch(
-          `/api/payment-page/public/status?reference=${data.orderReference}`
+          `/api/payment-page/public/status?reference=${data.orderReference}`,
         );
         const statusData = await statusResponse.json();
         if (statusData.payment?.status === "completed") {
@@ -1567,7 +1486,7 @@ Narration: ${narration}`;
       setTimeout(() => clearInterval(checkInterval), 300000);
     } catch (err: any) {
       alert(
-        err.message || "Failed to initiate card payment. Please try again."
+        err.message || "Failed to initiate card payment. Please try again.",
       );
     } finally {
       setProcessingCardPayment(false);
@@ -1580,20 +1499,66 @@ Narration: ${narration}`;
       alert("Please select items to continue");
       return;
     }
-
-    // Validate name and email before opening card modal
     if (!customerName || !customerName.trim()) {
-      alert("Please enter your full name");
+      setErrors({ name: "Name is required" });
       return;
     }
-    if (!customerEmail || !customerEmail.trim() || !customerEmail.includes("@")) {
-      alert("Please enter a valid email address");
+    if (
+      !customerEmail ||
+      !customerEmail.trim() ||
+      !customerEmail.includes("@")
+    ) {
+      setErrors({ email: "Valid email is required" });
       return;
     }
-
     setCardPaymentAmount(totalAmount);
     setShowCardModal(true);
   };
+
+  const getCurrentTotalAmount = () => {
+    if (page?.pageType === "school") return getTotalForSelectedStudents();
+    if (page?.pageType === "physical" || page?.pageType === "digital")
+      return getTotalProductPrice();
+    return page?.price || 0;
+  };
+
+  const handleStudentClick = (student: Student) => {
+    if (student.paid || student.remainingBalance <= 0) return;
+    setSelectedStudents((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(student.name)) newSet.delete(student.name);
+      else newSet.add(student.name);
+      return newSet;
+    });
+  };
+
+  useEffect(() => {
+    const loadPage = async () => {
+      try {
+        const response = await fetch(`/api/payment-page/public/${slug}`);
+        if (!response.ok) {
+          setError(
+            response.status === 404 ? "Page not found" : "Failed to load page",
+          );
+          return;
+        }
+        const data = await response.json();
+        setPage(data.page);
+        if (data.page?.metadata?.variants?.length > 0) {
+          setSelectedVariant(data.page.metadata.variants[0]);
+        }
+      } catch (err) {
+        setError("Failed to load page");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadPage();
+  }, [slug]);
+
+  if (page?.pageType === "link" && page.linkConfig) {
+    return <PaymentLinkComponent page={page} config={page.linkConfig} />;
+  }
 
   const totalAmount = getTotalAmount();
   const installmentInfo = getInstallmentInfo();
@@ -1670,7 +1635,7 @@ Narration: ${narration}`;
               <button
                 onClick={() =>
                   setCurrentImage((c) =>
-                    c === 0 ? allImages.length - 1 : c - 1
+                    c === 0 ? allImages.length - 1 : c - 1,
                   )
                 }
                 className="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40"
@@ -1680,7 +1645,7 @@ Narration: ${narration}`;
               <button
                 onClick={() =>
                   setCurrentImage((c) =>
-                    c === allImages.length - 1 ? 0 : c + 1
+                    c === allImages.length - 1 ? 0 : c + 1,
                   )
                 }
                 className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40"
@@ -1759,7 +1724,6 @@ Narration: ${narration}`;
               <PackageIcon className="h-5 w-5 text-[#e1bf46]" />
               <h3 className="font-bold text-lg text-white">Product Details</h3>
             </div>
-
             {variants.length > 0 && (
               <div>
                 <Label className="text-sm font-semibold mb-2 block text-white">
@@ -1781,7 +1745,6 @@ Narration: ${narration}`;
                 </div>
               </div>
             )}
-
             <div>
               <Label className="text-sm font-semibold mb-2 block text-white">
                 Quantity
@@ -1810,7 +1773,6 @@ Narration: ${narration}`;
                 </button>
               </div>
             </div>
-
             {page.metadata?.requiresShipping && (
               <div className="flex items-center gap-2 p-3 bg-blue-900/20 rounded-xl border border-blue-800">
                 <Truck className="h-4 w-4 text-blue-400" />
@@ -1819,7 +1781,6 @@ Narration: ${narration}`;
                 </p>
               </div>
             )}
-
             <div className="pt-4 border-t border-gray-800">
               <div className="flex justify-between mb-2">
                 <span className="text-gray-400">Unit Price:</span>
@@ -1991,7 +1952,6 @@ Narration: ${narration}`;
                 );
               })}
             </div>
-
             {selectedStudents.size > 0 && (
               <div className="p-4 bg-[#e1bf46]/10 rounded-xl border border-[#e1bf46]/20">
                 <div className="flex justify-between mb-2">
@@ -2012,6 +1972,68 @@ Narration: ${narration}`;
             )}
           </div>
         )}
+
+        {/* CUSTOMER INFO FIELDS - ALWAYS SHOWN FOR ALL PAYMENT TYPES */}
+        <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5">
+          <h3 className="font-bold text-lg mb-4 text-white">
+            Your Information
+          </h3>
+          <p className="text-xs text-gray-400 mb-4">
+            Please provide your details so we can send you a receipt.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
+                Full Name *
+              </Label>
+              <Input
+                value={customerName}
+                onChange={(e) => {
+                  setCustomerName(e.target.value);
+                  if (errors.name) setErrors({ ...errors, name: "" });
+                }}
+                className="bg-[#1a1a1a] border-gray-700 text-white"
+                placeholder="Enter your full name"
+              />
+              {errors.name && (
+                <p className="text-xs text-red-500 mt-1">{errors.name}</p>
+              )}
+            </div>
+            <div>
+              <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
+                Email Address *
+              </Label>
+              <Input
+                type="email"
+                value={customerEmail}
+                onChange={(e) => {
+                  setCustomerEmail(e.target.value);
+                  if (errors.email) setErrors({ ...errors, email: "" });
+                }}
+                className="bg-[#1a1a1a] border-gray-700 text-white"
+                placeholder="you@example.com"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Receipt will be sent to this email
+              </p>
+              {errors.email && (
+                <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+              )}
+            </div>
+            <div>
+              <Label className="text-sm font-semibold mb-1.5 block text-gray-300">
+                Phone Number (Optional)
+              </Label>
+              <Input
+                type="tel"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                className="bg-[#1a1a1a] border-gray-700 text-white"
+                placeholder="08012345678"
+              />
+            </div>
+          </div>
+        </div>
 
         {/* PAYMENT METHOD SELECTOR */}
         <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-5">
@@ -2034,7 +2056,6 @@ Narration: ${narration}`;
                 Pay via Virtual Account
               </p>
             </button>
-
             <button
               onClick={() => setSelectedPaymentMethod("card")}
               className={`p-4 rounded-xl border-2 transition-all ${selectedPaymentMethod === "card" ? "border-[#e1bf46] bg-[#e1bf46]/10" : "border-gray-700 hover:border-[#e1bf46]/50"}`}
@@ -2086,7 +2107,6 @@ Narration: ${narration}`;
                             page.virtualAccount.accountName}
                         </span>
                       </div>
-                      {/* NARRATION CODE - With underscore */}
                       <div className="mt-3 p-3 bg-yellow-900/40 rounded-xl border border-yellow-700/50">
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
@@ -2098,10 +2118,10 @@ Narration: ${narration}`;
                             </span>
                           </div>
                           <button
-                            onClick={() => {
-                              copyToClipboard(narrationCode, "narrationMain");
-                            }}
-                            className="text-[10px] text-yellow-400 hover:text-yellow-300 flex items-center gap-1 transition-colors"
+                            onClick={() =>
+                              copyToClipboard(narrationCode, "narrationMain")
+                            }
+                            className="text-[10px] text-yellow-400 hover:text-yellow-300 flex items-center gap-1"
                           >
                             {copiedField === "narrationMain" ? (
                               <>
@@ -2119,11 +2139,6 @@ Narration: ${narration}`;
                         <p className="text-lg font-mono font-bold text-yellow-300 tracking-wider">
                           {narrationCode || "PL_XXXX"}
                         </p>
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <span className="text-[10px] text-yellow-500/60">
-                            ⚠️ Use this exact code as narration
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -2134,12 +2149,8 @@ Narration: ${narration}`;
                       Fill in your details above and click "Copy Account
                       Details"
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Bank details will be shown here
-                    </p>
                   </div>
                 )}
-
                 <div className="bg-[#0e0e0e] rounded-xl p-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">Total Amount:</span>
@@ -2149,6 +2160,19 @@ Narration: ${narration}`;
                   </div>
                   <Button
                     onClick={() => {
+                      const newErrors: Record<string, string> = {};
+                      if (!customerName || !customerName.trim())
+                        newErrors.name = "Name is required";
+                      if (
+                        !customerEmail ||
+                        !customerEmail.trim() ||
+                        !customerEmail.includes("@")
+                      )
+                        newErrors.email = "Valid email is required";
+                      if (Object.keys(newErrors).length > 0) {
+                        setErrors(newErrors);
+                        return;
+                      }
                       setShowBankDetails(true);
                       handleVirtualAccountPayment();
                     }}
@@ -2160,57 +2184,9 @@ Narration: ${narration}`;
               </>
             )}
 
-          {/* Card Payment Section - Name and Email ALWAYS required */}
+          {/* Card Payment Section */}
           {selectedPaymentMethod === "card" && (
             <>
-              <div className="space-y-3 mb-4">
-                <div>
-                  <Label className="text-sm font-semibold mb-1 block text-white">
-                    Your Name *
-                  </Label>
-                  <Input
-                    type="text"
-                    placeholder="Enter your full name"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="bg-[#0e0e0e] border-gray-700 text-white"
-                  />
-                  {!customerName && (
-                    <p className="text-xs text-red-500 mt-1">Name is required</p>
-                  )}
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold mb-1 block text-white">
-                    Email Address *
-                  </Label>
-                  <Input
-                    type="email"
-                    placeholder="you@example.com"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    className="bg-[#0e0e0e] border-gray-700 text-white"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Receipt will be sent to this email
-                  </p>
-                  {!customerEmail && (
-                    <p className="text-xs text-red-500 mt-1">Email is required</p>
-                  )}
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold mb-1 block text-white">
-                    Phone Number (Optional)
-                  </Label>
-                  <Input
-                    type="tel"
-                    placeholder="08012345678"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="bg-[#0e0e0e] border-gray-700 text-white"
-                  />
-                </div>
-              </div>
-
               <div className="bg-[#0e0e0e] rounded-xl p-4 mb-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Total Amount:</span>
@@ -2219,11 +2195,9 @@ Narration: ${narration}`;
                   </span>
                 </div>
               </div>
-
               {hasValidAmount ? (
                 <Button
                   onClick={openCardModal}
-                  disabled={!customerName || !customerEmail}
                   className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold py-6 text-lg"
                 >
                   <CreditCard className="h-5 w-5 mr-2" /> Pay ₦
@@ -2288,7 +2262,7 @@ Narration: ${narration}`;
         </div>
       )}
 
-      {/* Virtual Account Details Modal with Short Narration Code (Underscore) */}
+      {/* Virtual Account Details Modal */}
       {showAccountModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-md w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
@@ -2311,7 +2285,6 @@ Narration: ${narration}`;
                   {page?.virtualAccount?.bankName}
                 </span>
               </div>
-
               <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                 <span className="text-xs text-gray-500">Account Number</span>
                 <div className="flex items-center gap-2">
@@ -2322,10 +2295,10 @@ Narration: ${narration}`;
                     onClick={() =>
                       copyToClipboard(
                         page?.virtualAccount?.accountNumber || "",
-                        "account"
+                        "account",
                       )
                     }
-                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20 transition-colors"
+                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20"
                   >
                     {copiedField === "account" ? (
                       <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -2335,7 +2308,6 @@ Narration: ${narration}`;
                   </button>
                 </div>
               </div>
-
               <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                 <span className="text-xs text-gray-500">Account Name</span>
                 <div className="flex items-center gap-2">
@@ -2349,10 +2321,10 @@ Narration: ${narration}`;
                         page?.virtualAccount?.bankAccountName ||
                           page?.virtualAccount?.accountName ||
                           "",
-                        "accountName"
+                        "accountName",
                       )
                     }
-                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20 transition-colors"
+                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20"
                   >
                     {copiedField === "accountName" ? (
                       <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -2362,7 +2334,6 @@ Narration: ${narration}`;
                   </button>
                 </div>
               </div>
-
               <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                 <span className="text-xs text-gray-500">Amount</span>
                 <div className="flex items-center gap-2">
@@ -2373,10 +2344,10 @@ Narration: ${narration}`;
                     onClick={() =>
                       copyToClipboard(
                         `₦${currentTotalAmount.toLocaleString()}`,
-                        "amount"
+                        "amount",
                       )
                     }
-                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20 transition-colors"
+                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20"
                   >
                     {copiedField === "amount" ? (
                       <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -2386,7 +2357,6 @@ Narration: ${narration}`;
                   </button>
                 </div>
               </div>
-
               <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                 <span className="text-xs text-gray-500">Reference</span>
                 <div className="flex items-center gap-2">
@@ -2397,7 +2367,7 @@ Narration: ${narration}`;
                     onClick={() =>
                       copyToClipboard(pendingReference || "", "reference")
                     }
-                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20 transition-colors"
+                    className="p-1.5 rounded-lg bg-[#e1bf46]/10 hover:bg-[#e1bf46]/20"
                   >
                     {copiedField === "reference" ? (
                       <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -2407,8 +2377,6 @@ Narration: ${narration}`;
                   </button>
                 </div>
               </div>
-
-              {/* NARRATION CODE - With underscore */}
               <div className="bg-yellow-900/30 rounded-xl p-4 border border-yellow-800 mt-2">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -2420,10 +2388,8 @@ Narration: ${narration}`;
                     </span>
                   </div>
                   <button
-                    onClick={() => {
-                      copyToClipboard(narrationCode, "narration");
-                    }}
-                    className="p-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 transition-colors"
+                    onClick={() => copyToClipboard(narrationCode, "narration")}
+                    className="p-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30"
                   >
                     {copiedField === "narration" ? (
                       <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -2438,9 +2404,6 @@ Narration: ${narration}`;
                 <div className="mt-2 p-2 bg-yellow-800/30 rounded-lg">
                   <p className="text-[10px] text-yellow-400/80 text-center">
                     ⚠️ Use this exact code as narration when making the transfer
-                  </p>
-                  <p className="text-[9px] text-yellow-500/60 text-center mt-1">
-                    This helps us identify your payment quickly
                   </p>
                 </div>
               </div>
@@ -2458,7 +2421,6 @@ Narration: ${narration}`;
                 )}
                 {copiedField === "all" ? "Copied!" : "Copy All Details"}
               </Button>
-
               {pendingReference && (
                 <Button
                   onClick={() => confirmPayment(pendingReference)}
@@ -2475,7 +2437,6 @@ Narration: ${narration}`;
                     : "✅ I've Made the Transfer"}
                 </Button>
               )}
-
               <p className="text-xs text-gray-500 text-center">
                 After making the transfer, click the button above to confirm
                 your payment.
