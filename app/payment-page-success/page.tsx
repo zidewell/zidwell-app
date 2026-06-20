@@ -60,6 +60,8 @@ export default function PaymentSuccessPage() {
       const response = await fetch(`/api/payment-page/public/confirm-payment?reference=${reference}`);
       const data = await response.json();
 
+      console.log(data, "data from confirm-payment API");
+
       if (data.found && data.payment) {
         setPayment({
           id: data.payment.id,
@@ -337,31 +339,7 @@ export default function PaymentSuccessPage() {
                   Return Home
                 </Button>
               </Link>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => window.print()}
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-gray-700 text-gray-400 hover:text-white hover:border-[#e1bf46] transition-colors text-sm"
-                >
-                  <Download className="h-4 w-4" />
-                  Download Receipt
-                </button>
-                <button
-                  onClick={() => copyToClipboard(window.location.href)}
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-gray-700 text-gray-400 hover:text-white hover:border-[#e1bf46] transition-colors text-sm"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4 text-green-500" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      Copy Link
-                    </>
-                  )}
-                </button>
-              </div>
+             
             </div>
 
             {/* Footer */}
