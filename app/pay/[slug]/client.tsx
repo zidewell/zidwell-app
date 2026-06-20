@@ -395,7 +395,7 @@ Narration: ${narration}`);
             const redirectUrl = statusData.payment?.redirectUrl ||
               config.redirectUrl ||
               config.altRedirectUrl ||
-              `/payment-success?reference=${data.orderReference}&status=success`;
+              `/payment-page-success?reference=${data.orderReference}&status=success`;
 
             await Swal.fire({
               icon: "success",
@@ -1143,7 +1143,7 @@ Narration: ${narration}`);
             const redirectUrl = statusData.payment?.redirectUrl ||
               page?.metadata?.accessLink ||
               page?.metadata?.downloadUrl ||
-              `/payment-success?reference=${data.orderReference}&status=success`;
+              `/payment-page-success?reference=${data.orderReference}&status=success`;
 
             await Swal.fire({
               icon: "success",

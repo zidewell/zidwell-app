@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
         const baseUrl = process.env.NODE_ENV === "development"
           ? "http://localhost:3000"
           : "https://zidwell.com";
-        redirectUrl = `${baseUrl}/payment-success?reference=${reference}&status=success`;
+        redirectUrl = `${baseUrl}/payment-page-success?reference=${reference}&status=success`;
       }
     }
 
