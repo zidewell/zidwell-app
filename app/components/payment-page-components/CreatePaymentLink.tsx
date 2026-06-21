@@ -16,6 +16,7 @@ import {
   CheckCircle,
   Copy,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -26,6 +27,45 @@ import { useStore, CustomField, LinkConfig } from "@/app/hooks/useStore";
 import { useUserContextData } from "@/app/context/userData";
 import confetti from "canvas-confetti";
 import { useTheme } from "@/app/components/ThemeProvider";
+
+// Function to validate title for virtual account naming (matches backend logic)
+const validateTitleForVirtualAccount = (
+  title: string,
+  className?: string,
+): { isValid: boolean; message: string; cleanedName: string } => {
+  let fullName = title;
+  if (className && className.trim()) {
+    fullName = `${className} ${title}`;
+  }
+
+  let cleaned = fullName.toUpperCase();
+  cleaned = cleaned.replace(/[^A-Z0-9\s]/g, "");
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+  const length = cleaned.length;
+
+  if (length < 8) {
+    return {
+      isValid: false,
+      message: `Account name will be "${cleaned}" (${length} chars). Minimum 8 characters required. Please make your title longer.`,
+      cleanedName: cleaned,
+    };
+  }
+
+  if (length > 64) {
+    return {
+      isValid: false,
+      message: `Account name will be "${cleaned.substring(0, 50)}..." (${length} chars). Maximum 64 characters allowed. Please shorten your title.`,
+      cleanedName: cleaned.substring(0, 64),
+    };
+  }
+
+  return {
+    isValid: true,
+    message: `✓ Account name will be "${cleaned}" (${length} chars)`,
+    cleanedName: cleaned,
+  };
+};
 
 const slugify = (text: string) =>
   text
@@ -74,6 +114,10 @@ const CreatePaymentLink = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdSlug, setCreatedSlug] = useState("");
   const [copied, setCopied] = useState(false);
+  const [titleValidation, setTitleValidation] = useState<{
+    isValid: boolean;
+    message: string;
+  }>({ isValid: true, message: "" });
 
   const logoRef = useRef<HTMLInputElement>(null);
 
@@ -99,6 +143,16 @@ const CreatePaymentLink = () => {
       setLogoPreview(userData.profilePicture);
     }
   }, [userData?.profilePicture]);
+
+  // Validate title for virtual account naming
+  useEffect(() => {
+    if (title) {
+      const validation = validateTitleForVirtualAccount(title);
+      setTitleValidation(validation);
+    } else {
+      setTitleValidation({ isValid: true, message: "" });
+    }
+  }, [title]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -145,7 +199,7 @@ const CreatePaymentLink = () => {
     );
 
   const canCreate =
-    title.trim() && (config.amountMode === "variable" || Number(price) > 0);
+    title.trim() && titleValidation.isValid && (config.amountMode === "variable" || Number(price) > 0);
 
   const generateFinalSlug = () => {
     const baseSlug = slugify(title);
@@ -353,9 +407,27 @@ const CreatePaymentLink = () => {
               value={title}
               onChange={(e) => onTitleChange(e.target.value)}
               placeholder="e.g. Premium Coaching Session"
-              className="h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md"
+              className={`h-12 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md ${
+                !titleValidation.isValid && title ? "border-red-500" : ""
+              }`}
               style={{ outline: "none", boxShadow: "none" }}
             />
+            {title && (
+              <div
+                className={`mt-2 text-xs flex items-start gap-2 p-2 rounded-lg ${
+                  titleValidation.isValid
+                    ? "bg-green-50 text-green-700 border border-green-200"
+                    : "bg-red-50 text-red-700 border border-red-200"
+                }`}
+              >
+                {titleValidation.isValid ? (
+                  <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                ) : (
+                  <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                )}
+                <span className="flex-1">{titleValidation.message}</span>
+              </div>
+            )}
           </div>
 
           {/* URL Preview */}
