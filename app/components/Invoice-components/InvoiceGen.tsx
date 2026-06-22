@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 import { useUserContextData } from "@/app/context/userData";
 import InvoiceList from "./InvoiceList";
 import Loader from "../Loader";
-
+import { generateInvoiceId } from "./utils/invoiceUtils";
+import Swal from "sweetalert2";
 
 export interface InvoiceItem {
   id: string;
@@ -34,6 +35,7 @@ export interface Invoice {
   client_phone?: string;
   bill_to?: string;
   issue_date: string;
+  target_quantity: number;
   status:
     | "draft"
     | "unpaid"
@@ -59,6 +61,9 @@ export interface Invoice {
   updated_at: string;
   paid_at?: string;
   invoice_items: InvoiceItem[];
+  initiator_account_name?: string;
+  initiator_account_number?: string;
+  initiator_bank_name?: string;
 }
 
 export default function InvoiceGen() {
@@ -109,14 +114,12 @@ export default function InvoiceGen() {
     }
   };
 
-  // Refresh function to pass to InvoiceList
   const refreshInvoices = async () => {
     if (userData?.email) {
       await fetchInvoice(userData.email);
     }
   };
 
-  // Delete function with API call to delete-invoice
   const handleDeleteInvoice = async (invoiceId: string) => {
     try {
       const response = await fetch("/api/delete-invoice", {
@@ -132,10 +135,110 @@ export default function InvoiceGen() {
         throw new Error(errorData.error || "Failed to delete invoice");
       }
 
-      // Refresh the list after successful deletion
       await refreshInvoices();
     } catch (error) {
       console.error("Delete error:", error);
+      throw error;
+    }
+  };
+
+  const handleMarkAsPaid = async (invoiceId: string) => {
+    try {
+      const response = await fetch("/api/invoice/mark-as-paid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to mark as paid");
+      }
+
+      await refreshInvoices();
+    } catch (error) {
+      console.error("Mark as paid error:", error);
+      throw error;
+    }
+  };
+
+  const handleDuplicateInvoice = async (invoice: Invoice) => {
+    try {
+      // Get the full invoice data including items
+      const fullInvoice = invoices.find(inv => inv.id === invoice.id);
+      
+      if (!fullInvoice) {
+        throw new Error("Invoice not found");
+      }
+
+      // Map invoice items to the correct format for the API
+      const invoiceItems = (fullInvoice.invoice_items || []).map((item: any) => ({
+        description: item.item_description || item.description || "",
+        quantity: Number(item.quantity) || 1,
+        unitPrice: Number(item.unit_price || item.unitPrice || 0),
+        total: Number(item.total_amount || item.total || 0),
+      }));
+
+      // Calculate totals from items
+      const subtotal = invoiceItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+      const feeAmount = fullInvoice.fee_option === "customer" ? fullInvoice.fee_amount || 0 : 0;
+      const totalAmount = subtotal + feeAmount;
+
+      const duplicatedData = {
+        userId: userData?.id,
+        initiator_email: userData?.email || '',
+        initiator_name: userData?.fullName || userData?.email || '',
+        invoice_id: generateInvoiceId(),
+        signee_name: fullInvoice.client_name || '',
+        signee_email: fullInvoice.client_email || '',
+        message: fullInvoice.message || '',
+        bill_to: fullInvoice.bill_to || '',
+        issue_date: new Date().toISOString().slice(0, 10),
+        customer_note: fullInvoice.customer_note || '',
+        invoice_items: invoiceItems,
+        total_amount: totalAmount,
+        payment_type: fullInvoice.payment_type || 'single',
+        fee_option: fullInvoice.fee_option || 'customer',
+        status: 'draft',
+        business_logo: fullInvoice.business_logo || '',
+        redirect_url: fullInvoice.redirect_url || '',
+        business_name: fullInvoice.business_name || '',
+        target_quantity: fullInvoice.target_quantity || 1,
+        is_draft: true,
+        clientPhone: fullInvoice.client_phone || '',
+        send_email_automatically: true,
+        initiator_account_number: fullInvoice.initiator_account_number || '',
+        initiator_account_name: fullInvoice.initiator_account_name || '',
+        initiator_bank_name: fullInvoice.initiator_bank_name || '',
+      };
+
+      const response = await fetch('/api/save-invoice-draft', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(duplicatedData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to duplicate invoice');
+      }
+
+      await refreshInvoices();
+      
+      // Show success message
+      await Swal.fire({
+        icon: 'success',
+        title: 'Duplicate Created!',
+        text: 'Invoice has been duplicated as a draft. You can find it in your drafts.',
+        confirmButtonColor: 'var(--color-accent-yellow)',
+        background: 'var(--bg-primary)',
+        color: 'var(--text-primary)',
+        customClass: {
+          popup: 'squircle-lg',
+        },
+      });
+    } catch (error) {
+      console.error('Duplicate error:', error);
       throw error;
     }
   };
@@ -146,7 +249,6 @@ export default function InvoiceGen() {
     }
   }, [userData?.email]);
 
-  // totals
   const totalAmount = invoices?.reduce((sum, invoice) => {
     return sum + (invoice.total_amount || 0);
   }, 0);
@@ -171,10 +273,6 @@ export default function InvoiceGen() {
 
   const unpaidInvoice = invoices.filter(
     (inv) => inv.status?.toLowerCase() === "unpaid",
-  ).length;
-
-  const draftInvoice = invoices.filter(
-    (inv) => inv.status?.toLowerCase() === "draft",
   ).length;
 
   const partiallyPaidInvoice = invoices.filter(
@@ -203,7 +301,6 @@ export default function InvoiceGen() {
     return statusMatch && searchMatch;
   });
 
-  // Don't render anything until mounted to avoid hydration issues
   if (!isMounted) {
     return null;
   }
@@ -318,7 +415,6 @@ export default function InvoiceGen() {
         </TabsList>
 
         <TabsContent value="invoices" className="space-y-6">
-          {/* Error Message */}
           {error && (
             <Card className="border-(--destructive)/30 bg-destructive/10 squircle-lg">
               <CardContent className="p-4">
@@ -337,12 +433,10 @@ export default function InvoiceGen() {
             </Card>
           )}
 
-          {/* Search + Filter */}
           <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardContent className="pt-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-col sm:flex-row gap-4 flex-1">
-                  {/* Search Input */}
                   <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) w-4 h-4" />
                     <Input
@@ -354,9 +448,7 @@ export default function InvoiceGen() {
                     />
                   </div>
 
-                  {/* Status filter */}
                   <div className="flex flex-wrap gap-2">
-                    {/* Desktop buttons */}
                     <div className="hidden sm:flex gap-2">
                       {statusOptions.map((status) => {
                         const lowercase = status.toLowerCase();
@@ -394,7 +486,6 @@ export default function InvoiceGen() {
                       })}
                     </div>
 
-                    {/* Mobile dropdown */}
                     <div className="sm:hidden relative">
                       <Button
                         onClick={() => setIsMenuOpen((prev) => !prev)}
@@ -435,7 +526,6 @@ export default function InvoiceGen() {
                   </div>
                 </div>
 
-                {/* New Invoice button */}
                 <div className="w-full sm:w-auto">
                   <Button
                     className="w-full sm:w-auto bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 transition-all duration-300 squircle-md"
@@ -451,12 +541,13 @@ export default function InvoiceGen() {
             </CardContent>
           </Card>
 
-          {/* Invoice list */}
           <InvoiceList
             invoices={filteredInvoices}
             loading={loading}
             onRefresh={refreshInvoices}
             onDelete={handleDeleteInvoice}
+            onMarkAsPaid={handleMarkAsPaid}
+            onDuplicate={handleDuplicateInvoice}
           />
         </TabsContent>
       </Tabs>

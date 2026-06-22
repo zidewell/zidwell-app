@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Button } from "../ui/button";
-import { Link, Copy, Check, Download, FileText, Loader2 } from "lucide-react";
+import { Copy, Check, FileText } from "lucide-react";
 import { toast } from "sonner";
 import InvoicePDFGenerator from "./InvoicePDFGenerator";
 
@@ -36,6 +36,9 @@ interface SuccessModalProps {
       quantity: number;
       unitPrice: number;
     }>;
+    initiator_account_name?: string;
+    initiator_account_number?: string;
+    initiator_bank_name?: string;
   };
 }
 
@@ -140,6 +143,9 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
                           unit_price: item.unitPrice,
                           total_amount: item.quantity * item.unitPrice,
                         })),
+                        initiator_account_name: invoiceData.initiator_account_name,
+                        initiator_account_number: invoiceData.initiator_account_number,
+                        initiator_bank_name: invoiceData.initiator_bank_name,
                       }}
                       buttonText="Download PDF"
                       buttonVariant="default"

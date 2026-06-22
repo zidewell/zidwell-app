@@ -1,4 +1,3 @@
-// components/InvoicePDFGenerator.tsx
 "use client";
 
 import { useState } from "react";
@@ -120,24 +119,8 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
     }
   };
 
-  const getPaymentProgress = () => {
-    if (invoice.allow_multiple_payments && invoice.target_quantity && invoice.target_quantity > 0) {
-      const paidCount = invoice.paid_quantity || 0;
-      const progress = (paidCount / invoice.target_quantity) * 100;
-      return { paidCount, targetQuantity: invoice.target_quantity, progress, isComplete: paidCount >= invoice.target_quantity };
-    }
-    if (invoice.paid_amount && invoice.total_amount) {
-      return { progress: (invoice.paid_amount / invoice.total_amount) * 100 };
-    }
-    return null;
-  };
-
   const generateInvoiceHTML = (logoBase64: string): string => {
-    const paymentProgress = getPaymentProgress();
     const statusColor = getStatusBadgeColor(invoice.status);
-    const paidAmount = invoice.paid_amount || 0;
-    const remainingAmount = invoice.total_amount - paidAmount;
-    
     const invoiceItems = Array.isArray(invoice.invoice_items) ? invoice.invoice_items : [];
 
     return `<!DOCTYPE html>
@@ -170,7 +153,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       padding: 48px 56px;
     }
     
-    /* Header */
     .header {
       display: flex;
       align-items: flex-start;
@@ -221,7 +203,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       margin-left: auto;
     }
     
-    /* Meta Section */
     .meta-section {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -306,7 +287,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       color: ${statusColor};
     }
     
-    /* Info Banner */
     .info-banner {
       display: flex;
       align-items: flex-start;
@@ -340,7 +320,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       font-weight: 700;
     }
     
-    /* Parties */
     .parties-section {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -383,7 +362,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       margin-top: 2px;
     }
     
-    /* Items Table */
     .items-section {
       position: relative;
       margin-top: 48px;
@@ -493,7 +471,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       color: #FDC020;
     }
     
-    /* Footer Divider */
     .footer-divider {
       height: 2px;
       background: #FDC020;
@@ -501,7 +478,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       border: none;
     }
     
-    /* Footer */
     .footer {
       display: flex;
       align-items: flex-start;
@@ -587,7 +563,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
 </head>
 <body>
   <div class="invoice-container">
-    <!-- Header -->
     <header class="header">
       <div class="brand">
         ${logoBase64 ? `
@@ -603,7 +578,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       </div>
     </header>
 
-    <!-- Meta + From -->
     <section class="meta-section">
       <div class="from-block">
         <div class="icon-circle">
@@ -635,7 +609,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       </div>
     </section>
 
-    <!-- Info Banner -->
     <div class="info-banner">
       <div class="info-icon">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -649,7 +622,6 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       </p>
     </div>
 
-    <!-- Bill To + Account Details -->
     <section class="parties-section">
       <div class="party-block">
         <div class="icon-circle">
@@ -662,6 +634,7 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
           <span class="party-label-badge">Bill To:</span>
           <div class="party-name">${invoice.client_name || "Client"}</div>
           <div class="party-detail">${invoice.client_email}</div>
+          ${invoice.client_phone ? `<div class="party-detail">${invoice.client_phone}</div>` : ""}
         </div>
       </div>
       ${invoice.initiator_account_name && invoice.initiator_account_number ? `
@@ -679,10 +652,22 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
             ${invoice.initiator_bank_name ? `<div class="party-detail">${invoice.initiator_bank_name}</div>` : ""}
           </div>
         </div>
-      ` : ""}
+      ` : `
+        <div class="party-block">
+          <div class="icon-circle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div>
+            <span class="party-label-badge">Account Details</span>
+            <div class="party-detail" style="color: #6b7280; font-style: italic;">No account details provided</div>
+          </div>
+        </div>
+      `}
     </section>
 
-    <!-- Items -->
     <section class="items-section">
       <h2 class="items-title">Invoice Items</h2>
       
@@ -732,10 +717,8 @@ export const InvoicePDFGenerator: React.FC<InvoicePDFGeneratorProps> = ({
       </div>
     </section>
 
-    <!-- Footer Divider -->
     <hr class="footer-divider">
 
-    <!-- Thank you -->
     <footer class="footer">
       <div class="icon-circle" style="background: #FEF3C7; color: #FDC020;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

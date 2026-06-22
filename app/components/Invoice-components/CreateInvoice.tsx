@@ -327,7 +327,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       loadDraftFromParam();
     }
   }, [searchParams, userData?.id, hasLoadedFromUrl]);
-
   const loadDraftIntoForm = (draft: any) => {
     if (showDraftsModal) {
       setShowDraftsModal(false);
@@ -335,22 +334,64 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
     let transformedItems: any[] = [];
 
-    if (draft.items && Array.isArray(draft.items)) {
-      transformedItems = draft.items.map((item: any) => ({
-        id: generateItemId(),
-        description: item.description || item.item_description || "",
-        quantity: Number(item.quantity) || 1,
-        unitPrice: Number(item.unitPrice) || Number(item.unit_price) || 0,
-        total: Number(item.total) || Number(item.total_amount) || 0,
-      }));
-    } else if (draft.invoice_items && Array.isArray(draft.invoice_items)) {
-      transformedItems = draft.invoice_items.map((item: any) => ({
-        id: generateItemId(),
-        description: item.description || item.item_description || "",
-        quantity: Number(item.quantity) || 1,
-        unitPrice: Number(item.unitPrice) || Number(item.unit_price) || 0,
-        total: Number(item.total) || Number(item.total_amount) || 0,
-      }));
+    // Check if draft has items in the correct format from the API
+    if (draft.invoice_items && Array.isArray(draft.invoice_items)) {
+      transformedItems = draft.invoice_items.map((item: any) => {
+        // Handle both field naming conventions
+        const description = item.item_description || item.description || "";
+        const quantity = Number(item.quantity) || 1;
+        const unitPrice = Number(item.unit_price || item.unitPrice || 0);
+        const total = Number(
+          item.total_amount || item.total || quantity * unitPrice,
+        );
+
+        return {
+          id: generateItemId(),
+          description: description,
+          quantity: quantity,
+          unitPrice: unitPrice,
+          total: total,
+        };
+      });
+    } else if (draft.items && Array.isArray(draft.items)) {
+      transformedItems = draft.items.map((item: any) => {
+        const description = item.description || item.item_description || "";
+        const quantity = Number(item.quantity) || 1;
+        const unitPrice = Number(item.unitPrice || item.unit_price || 0);
+        const total = Number(
+          item.total || item.total_amount || quantity * unitPrice,
+        );
+
+        return {
+          id: generateItemId(),
+          description: description,
+          quantity: quantity,
+          unitPrice: unitPrice,
+          total: total,
+        };
+      });
+    }
+
+    // If no items found, try to parse from string
+    if (
+      transformedItems.length === 0 &&
+      draft.invoice_items &&
+      typeof draft.invoice_items === "string"
+    ) {
+      try {
+        const parsed = JSON.parse(draft.invoice_items);
+        if (Array.isArray(parsed)) {
+          transformedItems = parsed.map((item: any) => ({
+            id: generateItemId(),
+            description: item.item_description || item.description || "",
+            quantity: Number(item.quantity) || 1,
+            unitPrice: Number(item.unit_price || item.unitPrice || 0),
+            total: Number(item.total_amount || item.total || 0),
+          }));
+        }
+      } catch (e) {
+        console.error("Error parsing invoice items:", e);
+      }
     }
 
     let businessName = "";
@@ -1012,7 +1053,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     if (hasUnlimitedInvoices) {
       return {
         text: "Generate Invoice",
-        color: "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90",
+        color:
+          "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90",
         icon: null,
         disabled: false,
       };
@@ -1023,7 +1065,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     ) {
       return {
         text: `Generate Invoice (${invoiceUsage.remaining} free left)`,
-        color: "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90",
+        color:
+          "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90",
         icon: null,
         disabled: false,
       };
@@ -1072,25 +1115,29 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     return true;
   };
 
- const invoiceDataForModal = {
-  invoice_id: form.invoice_id,
-  business_name: form.business_name,
-  business_logo: form.business_logo,
-  client_name: form.name,
-  client_email: form.email,
-  client_phone: form.clientPhone,
-  from_email: userData?.email || "",
-  from_name: form.business_name,
-  issue_date: form.issue_date,
-  payment_type: form.payment_type as "single" | "multiple",  // Add type assertion
-  fee_option: form.fee_option as "absorbed" | "customer",     // Add type assertion
-  subtotal: totals.subtotal,
-  fee_amount: totals.feeAmount,
-  total_amount: totals.totalAmount,
-  message: form.message,
-  customer_note: form.customer_note,
-  invoice_items: form.invoice_items,
-};
+  const invoiceDataForModal = {
+    invoice_id: form.invoice_id,
+    business_name: form.business_name,
+    business_logo: form.business_logo,
+    client_name: form.name,
+    client_email: form.email,
+    client_phone: form.clientPhone,
+    from_email: userData?.email || "",
+    from_name: form.business_name,
+    issue_date: form.issue_date,
+    payment_type: form.payment_type as "single" | "multiple",
+    fee_option: form.fee_option as "absorbed" | "customer",
+    subtotal: totals.subtotal,
+    fee_amount: totals.feeAmount,
+    total_amount: totals.totalAmount,
+    message: form.message,
+    customer_note: form.customer_note,
+    invoice_items: form.invoice_items,
+    // Add account details
+    initiator_account_name: details?.bank_details?.bank_account_name || "",
+    initiator_account_number: details?.bank_details?.bank_account_number || "",
+    initiator_bank_name: details?.bank_details?.bank_name || "",
+  };
 
   return (
     <>

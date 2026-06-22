@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Edit, Eye, Loader2, Trash2 } from "lucide-react"; 
+import { Download, Edit, Eye, Loader2, Trash2, CheckCircle, Copy } from "lucide-react"; 
 import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -34,9 +34,18 @@ type Props = {
   loading: boolean;
   onRefresh?: () => void;
   onDelete?: (invoiceId: string) => Promise<void>;
+  onMarkAsPaid?: (invoiceId: string) => Promise<void>;
+  onDuplicate?: (invoice: any) => Promise<void>;
 };
 
-const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }) => {
+const InvoiceList: React.FC<Props> = ({ 
+  invoices, 
+  loading, 
+  onRefresh, 
+  onDelete,
+  onMarkAsPaid,
+  onDuplicate 
+}) => {
   const statusColors: Record<string, string> = {
     unpaid: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
     draft: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400",
@@ -55,16 +64,16 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
   };
 
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
-  const [processingInvoiceId, setProcessingInvoiceId] = useState<string | null>(
-    null,
-  );
+  // Separate loading states for different actions
+  const [markPaidLoadingId, setMarkPaidLoadingId] = useState<string | null>(null);
+  const [duplicateLoadingId, setDuplicateLoadingId] = useState<string | null>(null);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
   const [localInvoices, setLocalInvoices] = useState<any[]>(invoices);
   const { userData } = useUserContextData();
   const router = useRouter();
   const [base64Logo, setBase64Logo] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Update local invoices when prop changes
   useEffect(() => {
     setLocalInvoices(invoices);
   }, [invoices]);
@@ -78,6 +87,141 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
 
     loadLogo();
   }, []);
+
+  const handleMarkAsPaid = async (invoice: any) => {
+    const result = await MySwal.fire({
+      title: 'Mark as Paid?',
+      html: `
+        <p>Are you sure you want to mark invoice <strong>${invoice.invoice_id}</strong> as paid?</p>
+        <p style="color: #6b7280; font-size: 14px; margin-top: 8px;">This will update the invoice status and create a transaction record.</p>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: 'var(--color-accent-yellow)',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, mark as paid',
+      cancelButtonText: 'Cancel',
+      background: 'var(--bg-primary)',
+      color: 'var(--text-primary)',
+      customClass: {
+        popup: 'squircle-lg',
+      },
+    });
+
+    if (result.isConfirmed) {
+      try {
+        // Set only the mark paid loading state for this invoice
+        setMarkPaidLoadingId(invoice.id);
+
+        if (onMarkAsPaid) {
+          await onMarkAsPaid(invoice.id);
+        }
+
+        // Update local state
+        setLocalInvoices((prev) => 
+          prev.map((inv) => 
+            inv.id === invoice.id 
+              ? { ...inv, status: 'paid', paid_amount: inv.total_amount }
+              : inv
+          )
+        );
+
+        await MySwal.fire({
+          title: 'Success!',
+          text: `Invoice ${invoice.invoice_id} has been marked as paid. A transaction record has been created.`,
+          icon: 'success',
+          confirmButtonColor: 'var(--color-accent-yellow)',
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)',
+          customClass: {
+            popup: 'squircle-lg',
+          },
+        });
+        
+        if (onRefresh) {
+          onRefresh();
+        }
+      } catch (error) {
+        console.error('Mark as paid error:', error);
+        await MySwal.fire({
+          title: 'Error!',
+          text: error instanceof Error ? error.message : 'Failed to mark invoice as paid. Please try again.',
+          icon: 'error',
+          confirmButtonColor: 'var(--color-accent-yellow)',
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)',
+          customClass: {
+            popup: 'squircle-lg',
+          },
+        });
+      } finally {
+        setMarkPaidLoadingId(null);
+      }
+    }
+  };
+
+  const handleDuplicateInvoice = async (invoice: any) => {
+    const result = await MySwal.fire({
+      title: 'Duplicate Invoice?',
+      html: `
+        <p>This will create a new draft invoice with the same details as <strong>${invoice.invoice_id}</strong>.</p>
+        <p style="color: #6b7280; font-size: 14px; margin-top: 8px;">You can edit the draft before sending.</p>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: 'var(--color-accent-yellow)',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, duplicate',
+      cancelButtonText: 'Cancel',
+      background: 'var(--bg-primary)',
+      color: 'var(--text-primary)',
+      customClass: {
+        popup: 'squircle-lg',
+      },
+    });
+
+    if (result.isConfirmed) {
+      try {
+        // Set only the duplicate loading state for this invoice
+        setDuplicateLoadingId(invoice.id);
+
+        if (onDuplicate) {
+          await onDuplicate(invoice);
+        }
+
+        await MySwal.fire({
+          title: 'Success!',
+          text: `Invoice ${invoice.invoice_id} has been duplicated. You can find it in your drafts.`,
+          icon: 'success',
+          confirmButtonColor: 'var(--color-accent-yellow)',
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)',
+          customClass: {
+            popup: 'squircle-lg',
+          },
+        });
+        
+        if (onRefresh) {
+          onRefresh();
+        }
+      } catch (error) {
+        console.error('Duplicate error:', error);
+        await MySwal.fire({
+          title: 'Error!',
+          text: error instanceof Error ? error.message : 'Failed to duplicate invoice. Please try again.',
+          icon: 'error',
+          confirmButtonColor: 'var(--color-accent-yellow)',
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)',
+          customClass: {
+            popup: 'squircle-lg',
+          },
+        });
+      } finally {
+        setDuplicateLoadingId(null);
+      }
+    }
+  };
 
   const handleDeleteInvoice = async (invoice: any) => {
     const result = await MySwal.fire({
@@ -101,14 +245,12 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
 
     if (result.isConfirmed) {
       try {
-        setProcessingInvoiceId(invoice.id);
+        setDeleteLoadingId(invoice.id);
 
-        // Call the delete API if provided
         if (onDelete) {
           await onDelete(invoice.id);
         }
 
-        // Remove from local state
         setLocalInvoices((prev) => prev.filter((inv) => inv.id !== invoice.id));
 
         await MySwal.fire({
@@ -140,7 +282,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
           },
         });
       } finally {
-        setProcessingInvoiceId(null);
+        setDeleteLoadingId(null);
       }
     }
   };
@@ -177,7 +319,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
 
     const total = invoice.total_amount || subtotal + (invoice.fee_amount || 0);
 
-    const transformedData = {
+    return {
       id: invoice.id || `invoice-${Math.random()}`,
       invoiceNumber: invoice.invoice_id || "N/A",
       businessName: invoice.business_name || "Business Name",
@@ -198,49 +340,8 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
       status: invoice.status || "unpaid",
       redirectUrl: invoice.redirect_url || "",
     };
-
-    return transformedData;
   };
 
-  const getPaymentProgress = (invoice: any) => {
-    if (
-      invoice.allow_multiple_payments &&
-      invoice.target_quantity &&
-      invoice.target_quantity > 0
-    ) {
-      const paidCount = invoice.paid_quantity || 0;
-      const progress = (paidCount / invoice.target_quantity) * 100;
-      return {
-        paidCount,
-        targetQuantity: invoice.target_quantity,
-        progress,
-        isComplete: paidCount >= invoice.target_quantity,
-      };
-    }
-    return null;
-  };
-
-  const getPaymentCountText = (invoice: any) => {
-    if (invoice.allow_multiple_payments) {
-      if (invoice.target_quantity && invoice.target_quantity > 0) {
-        const paidCount = invoice.paid_quantity || 0;
-        return `${paidCount}/${invoice.target_quantity} payments`;
-      } else {
-        const paidAmount = invoice.paid_amount || 0;
-        const totalAmount = invoice.total_amount || 0;
-        if (paidAmount > 0) {
-          if (paidAmount >= totalAmount) {
-            return "Fully paid";
-          } else {
-            return "Partially paid";
-          }
-        }
-      }
-    }
-    return null;
-  };
-
-  // Don't render anything until mounted to avoid hydration issues
   if (!isMounted) {
     return null;
   }
@@ -269,9 +370,11 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
             0,
           );
 
-        const paymentProgress = getPaymentProgress(invoice);
-        const paymentCountText = getPaymentCountText(invoice);
-        const isProcessing = processingInvoiceId === invoice.id;
+        // Check which loading state is active for this invoice
+        const isMarkPaidLoading = markPaidLoadingId === invoice.id;
+        const isDuplicateLoading = duplicateLoadingId === invoice.id;
+        const isDeleteLoading = deleteLoadingId === invoice.id;
+        const isAnyLoading = isMarkPaidLoading || isDuplicateLoading || isDeleteLoading;
 
         return (
           <Card
@@ -301,23 +404,10 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
                     {invoice.client_email}
                   </p>
 
-                  {invoice.allow_multiple_payments &&
-                    !paymentProgress &&
-                    invoice.paid_amount > 0 && (
-                      <div className="mb-3 p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
-                        <p className="text-sm text-green-700 dark:text-green-400">
-                          <strong>Paid:</strong> ₦
-                          {formatNumber(invoice.paid_amount)} of ₦
-                          {formatNumber(totalAmount)}
-                        </p>
-                      </div>
-                    )}
-
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-(--text-secondary)">
                     <span>
                       Date: {new Date(invoice.issue_date).toLocaleDateString()}
                     </span>
-
                     <span className="font-semibold text-(--text-primary)">
                       ₦{formatNumber(totalAmount)}
                     </span>
@@ -334,10 +424,45 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
                       }}
                       variant="outline"
                       size="sm"
+                      disabled={isAnyLoading}
                       className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 dark:border-blue-800"
                     >
                       <Eye className="w-4 h-4 mr-1" />
                       View Draft
+                    </Button>
+                  )}
+
+                  {(invoice.status === "unpaid" || invoice.status === "partially_paid") && (
+                    <Button
+                      onClick={() => handleMarkAsPaid(invoice)}
+                      variant="outline"
+                      size="sm"
+                      disabled={isAnyLoading}
+                      className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30 dark:border-green-800"
+                    >
+                      {isMarkPaidLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                      )}
+                      Mark Paid
+                    </Button>
+                  )}
+
+                  {invoice.status !== "draft" && (
+                    <Button
+                      onClick={() => handleDuplicateInvoice(invoice)}
+                      variant="outline"
+                      size="sm"
+                      disabled={isAnyLoading}
+                      className="border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-300 dark:border-purple-800/50 dark:text-purple-400 dark:hover:bg-purple-900/20 dark:hover:border-purple-700"
+                    >
+                      {isDuplicateLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                      ) : (
+                        <Copy className="w-4 h-4 mr-1" />
+                      )}
+                      Duplicate
                     </Button>
                   )}
 
@@ -347,6 +472,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
                     }
                     variant="outline"
                     size="sm"
+                    disabled={isAnyLoading}
                     className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                   >
                     <Eye className="w-4 h-4 mr-1" />
@@ -362,7 +488,9 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
                     variant="outline"
                     size="sm"
                     disabled={
-                      invoice.status === "paid" || invoice.status === "draft"
+                      invoice.status === "paid" || 
+                      invoice.status === "draft" ||
+                      isAnyLoading
                     }
                     className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                   >
@@ -404,14 +532,14 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
                     buttonVariant="outline"
                     buttonSize="sm"
                     className="border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
+                    // disabled={isAnyLoading}
                   />
 
-                  {/* Delete Button */}
                   <Button
                     onClick={() => handleDeleteInvoice(invoice)}
                     variant="outline"
                     size="sm"
-                    disabled={isProcessing || invoice.status === "paid"}
+                    disabled={isAnyLoading || invoice.status === "paid"}
                     className={`
                       border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300
                       dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:border-red-700
@@ -419,7 +547,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh, onDelete }
                       transition-all duration-200
                     `}
                   >
-                    {isProcessing ? (
+                    {isDeleteLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <Trash2 className="w-4 h-4" />

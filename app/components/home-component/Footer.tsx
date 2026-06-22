@@ -46,28 +46,35 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="bg-(--bg-secondary) py-16">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
-          <div className="col-span-2 md:col-span-4 lg:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
+    <footer className="bg-(--bg-secondary) py-8 sm:py-12 md:py-16">
+      <div className="container mx-auto px-4 sm:px-6">
+        {/* Grid Layout */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12 mb-8 sm:mb-12">
+          {/* Brand Section - Full width on mobile, spans 2 cols on desktop */}
+          <div className="sm:col-span-2 lg:col-span-2">
+            {/* Logo */}
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
               <Link href="/dashboard" className="flex items-center gap-2 group">
                 <Image
                   src="/logo.png"
                   alt="Zidwell Logo"
                   width={49}
                   height={40}
-                  className="w-10 object-contain transition-transform group-hover:scale-105"
+                  className="w-8 sm:w-10 object-contain transition-transform group-hover:scale-105"
                 />
-                <span className="text-xl font-bold tracking-tight text-(--text-primary) uppercase">
+                <span className="text-lg sm:text-xl font-bold tracking-tight text-(--text-primary) uppercase">
                   Zidwell
                 </span>
               </Link>
             </div>
-            <p className="text-(--text-secondary) text-sm mb-6">
-              Financial wellness for businesses with a vision to grow.
+
+            {/* Paragraph */}
+            <p className="text-xs sm:text-sm text-(--text-secondary) mb-4 sm:mb-6 leading-relaxed max-w-2xl">
+              Zidwell operates as a financial technology company and does not provide banking services or hold depositor funds. All financial transactions facilitated by Zidwell are conducted in partnership with licensed financial institutions. Zidwell does not engage in traditional banking activities. By accessing or using Zidwell's website and services, you acknowledge and agree that Zidwell is not a bank, and all financial services are provided through third-party partners.
             </p>
-            <div className="flex gap-3">
+
+            {/* Social Links */}
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               {socialLinks.map((social) => (
                 <a
                   key={social.label}
@@ -75,21 +82,25 @@ const Footer = () => {
                   aria-label={social.label}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 bg-(--bg-primary) border border-(--border-color) flex items-center justify-center hover:bg-(--color-accent-yellow) hover:border-(--color-accent-yellow) transition-colors squircle-md"
+                  className="w-8 h-8 sm:w-10 sm:h-10 bg-(--bg-primary) border border-(--border-color) flex items-center justify-center hover:bg-(--color-accent-yellow) hover:border-(--color-accent-yellow) transition-all duration-300 squircle-md hover:scale-105"
                 >
-                  <social.icon className="w-5 h-5 text-(--text-primary)" />
+                  <social.icon className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-primary)" />
                 </a>
               ))}
             </div>
           </div>
+
+          {/* Product Links */}
           <div>
-            <h4 className="font-bold mb-4 text-(--text-primary)">Product</h4>
-            <ul className="space-y-2">
+            <h4 className="font-bold text-base sm:text-lg mb-3 sm:mb-4 text-(--text-primary)">
+              Product
+            </h4>
+            <ul className="space-y-2 sm:space-y-2.5">
               {footerLinks.product.map((link) => (
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors text-sm"
+                    className="text-xs sm:text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors"
                   >
                     {link.label}
                   </a>
@@ -97,29 +108,18 @@ const Footer = () => {
               ))}
             </ul>
           </div>
+
+          {/* Legal Links */}
           <div>
-            <h4 className="font-bold mb-4 text-(--text-primary)">Company</h4>
-            <ul className="space-y-2">
-              {footerLinks.company.map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors text-sm"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold mb-4 text-(--text-primary)">Legal</h4>
-            <ul className="space-y-2">
+            <h4 className="font-bold text-base sm:text-lg mb-3 sm:mb-4 text-(--text-primary)">
+              Legal
+            </h4>
+            <ul className="space-y-2 sm:space-y-2.5">
               {footerLinks.legal.map((link) => (
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors text-sm"
+                    className="text-xs sm:text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors"
                   >
                     {link.label}
                   </a>
@@ -127,22 +127,40 @@ const Footer = () => {
               ))}
             </ul>
           </div>
+
+          {/* Contact */}
           <div>
-            <h4 className="font-bold mb-4 text-(--text-primary)">Contact</h4>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-2 text-sm text-(--text-secondary)">
+            <h4 className="font-bold text-base sm:text-lg mb-3 sm:mb-4 text-(--text-primary)">
+              Contact
+            </h4>
+            <ul className="space-y-2 sm:space-y-3">
+              <li className="flex items-start gap-2 text-xs sm:text-sm text-(--text-secondary)">
                 <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
                 <span>Lagos, Nigeria</span>
+              </li>
+              <li className="flex items-start gap-2 text-xs sm:text-sm text-(--text-secondary)">
+                <Mail className="w-4 h-4 mt-0.5 shrink-0" />
+                <a href="mailto:support@zidwell.com" className="hover:text-(--color-accent-yellow) transition-colors">
+                  support@zidwell.com
+                </a>
+              </li>
+              <li className="flex items-start gap-2 text-xs sm:text-sm text-(--text-secondary)">
+                <Phone className="w-4 h-4 mt-0.5 shrink-0" />
+                <a href="tel:+2348000000000" className="hover:text-(--color-accent-yellow) transition-colors">
+                  +234 706 917 5399
+                </a>
               </li>
             </ul>
           </div>
         </div>
-        <div className="pt-8 border-t border-(--border-color)">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-(--text-secondary)">
+
+        {/* Bottom Bar */}
+        <div className="pt-6 sm:pt-8 border-t border-(--border-color)">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+            <p className="text-xs sm:text-sm text-(--text-secondary) text-center sm:text-left">
               © {currentYear} Zidwell. All rights reserved.
             </p>
-            <p className="text-sm text-(--text-secondary)">
+            <p className="text-xs sm:text-sm text-(--text-secondary) text-center sm:text-right">
               Built with ❤️ for Nigerian businesses
             </p>
           </div>
