@@ -1,7 +1,8 @@
+// app/admin/users/page.tsx
 "use client";
 
 import useSWR from "swr";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import AdminTable from "@/app/components/admin-components/AdminTable";
@@ -31,8 +32,16 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/app/components/ui/tabs";
-import { Checkbox } from "@/app/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/components/ui/dialog";
 import { Label } from "@/app/components/ui/label";
+import { Textarea } from "@/app/components/ui/textarea";
 import {
   Sheet,
   SheetContent,
@@ -42,10 +51,413 @@ import {
   SheetFooter,
   SheetDescription,
 } from "@/app/components/ui/sheet";
-import { Download, ChevronDown } from "lucide-react";
+import { Checkbox } from "@/app/components/ui/checkbox";
+import { 
+  Download, 
+  ChevronDown, 
+  RefreshCw,
+  UserX,
+  UserCheck,
+  Shield,
+  Wallet,
+  Flag,
+  CheckCircle,
+  XCircle,
+  FileText,
+  Search,
+  X,
+  Loader2
+} from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+// ============================================
+// DEBOUNCE HOOK
+// ============================================
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// ============================================
+// SEARCH INPUT COMPONENT
+// ============================================
+function SearchInput({ 
+  value, 
+  onChange, 
+  placeholder, 
+  isLoading,
+  className = ""
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  placeholder: string;
+  isLoading?: boolean;
+  className?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleClear = () => {
+    onChange("");
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div className={`relative ${className}`}>
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]">
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Search className="w-4 h-4" />
+        )}
+      </div>
+      <Input
+        ref={inputRef}
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="pl-9 pr-9 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md"
+        style={{ outline: "none", boxShadow: "none" }}
+      />
+      {value && (
+        <button
+          onClick={handleClear}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          aria-label="Clear search"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// SUSPEND USER MODAL
+// ============================================
+function SuspendUserModal({ user, isOpen, onClose, onConfirm }: any) {
+  const [reason, setReason] = useState("");
+  const [duration, setDuration] = useState("7");
+
+  const handleConfirm = () => {
+    onConfirm({ reason, duration: parseInt(duration) });
+    setReason("");
+    setDuration("7");
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
+            <UserX className="w-5 h-5 text-[var(--destructive)]" />
+            Suspend User
+          </DialogTitle>
+          <DialogDescription className="text-[var(--text-secondary)]">
+            Temporarily suspend {user?.email}'s account access.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-[var(--text-primary)]">Suspension Duration</Label>
+            <Select value={duration} onValueChange={setDuration}>
+              <SelectTrigger className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
+                <SelectItem value="1" className="text-[var(--text-primary)]">1 Day</SelectItem>
+                <SelectItem value="3" className="text-[var(--text-primary)]">3 Days</SelectItem>
+                <SelectItem value="7" className="text-[var(--text-primary)]">7 Days</SelectItem>
+                <SelectItem value="14" className="text-[var(--text-primary)]">14 Days</SelectItem>
+                <SelectItem value="30" className="text-[var(--text-primary)]">30 Days</SelectItem>
+                <SelectItem value="permanent" className="text-[var(--destructive)]">Permanent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-[var(--text-primary)]">Reason (Optional)</Label>
+            <Textarea
+              placeholder="Enter reason for suspension..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md min-h-[80px]"
+              style={{ outline: "none", boxShadow: "none" }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} className="bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 squircle-md">
+            Suspend User
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================
+// FLAG USER MODAL
+// ============================================
+function FlagUserModal({ user, isOpen, onClose, onConfirm }: any) {
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const handleConfirm = () => {
+    onConfirm({ reason, notes });
+    setReason("");
+    setNotes("");
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
+            <Flag className="w-5 h-5 text-[var(--color-accent-yellow)]" />
+            Flag User
+          </DialogTitle>
+          <DialogDescription className="text-[var(--text-secondary)]">
+            Flag {user?.email}'s account as suspicious or high-risk.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-[var(--text-primary)]">Flag Reason</Label>
+            <Select value={reason} onValueChange={setReason}>
+              <SelectTrigger className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
+                <SelectValue placeholder="Select reason..." />
+              </SelectTrigger>
+              <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
+                <SelectItem value="suspicious_activity" className="text-[var(--text-primary)]">Suspicious Activity</SelectItem>
+                <SelectItem value="multiple_failures" className="text-[var(--text-primary)]">Multiple Login Failures</SelectItem>
+                <SelectItem value="unusual_transactions" className="text-[var(--text-primary)]">Unusual Transactions</SelectItem>
+                <SelectItem value="identity_verification" className="text-[var(--text-primary)]">Identity Verification Issue</SelectItem>
+                <SelectItem value="policy_violation" className="text-[var(--text-primary)]">Policy Violation</SelectItem>
+                <SelectItem value="other" className="text-[var(--text-primary)]">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-[var(--text-primary)]">Internal Notes</Label>
+            <Textarea
+              placeholder="Add internal notes about this flag..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md min-h-[80px]"
+              style={{ outline: "none", boxShadow: "none" }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
+            Flag User
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================
+// FREEZE WALLET MODAL
+// ============================================
+function FreezeWalletModal({ user, isOpen, onClose, onConfirm }: any) {
+  const [reason, setReason] = useState("");
+
+  const handleConfirm = () => {
+    onConfirm({ reason });
+    setReason("");
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-[var(--color-accent-yellow)]" />
+            Freeze Wallet
+          </DialogTitle>
+          <DialogDescription className="text-[var(--text-secondary)]">
+            Temporarily freeze {user?.email}'s wallet to prevent transactions.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-[var(--text-primary)]">Reason for Freezing</Label>
+            <Textarea
+              placeholder="Enter reason for freezing wallet..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md min-h-[80px]"
+              style={{ outline: "none", boxShadow: "none" }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
+            Freeze Wallet
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================
+// SET TRANSACTION LIMIT MODAL
+// ============================================
+function SetTransactionLimitModal({ user, isOpen, onClose, onConfirm }: any) {
+  const [dailyLimit, setDailyLimit] = useState("");
+  const [monthlyLimit, setMonthlyLimit] = useState("");
+
+  const handleConfirm = () => {
+    onConfirm({ 
+      dailyLimit: parseFloat(dailyLimit), 
+      monthlyLimit: parseFloat(monthlyLimit) 
+    });
+    setDailyLimit("");
+    setMonthlyLimit("");
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
+            <Shield className="w-5 h-5 text-[var(--color-accent-yellow)]" />
+            Set Transaction Limits
+          </DialogTitle>
+          <DialogDescription className="text-[var(--text-secondary)]">
+            Set daily and monthly transaction limits for {user?.email}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-[var(--text-primary)]">Daily Transaction Limit (₦)</Label>
+            <Input
+              type="number"
+              placeholder="Enter daily limit..."
+              value={dailyLimit}
+              onChange={(e) => setDailyLimit(e.target.value)}
+              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md"
+              style={{ outline: "none", boxShadow: "none" }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-[var(--text-primary)]">Monthly Transaction Limit (₦)</Label>
+            <Input
+              type="number"
+              placeholder="Enter monthly limit..."
+              value={monthlyLimit}
+              onChange={(e) => setMonthlyLimit(e.target.value)}
+              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md"
+              style={{ outline: "none", boxShadow: "none" }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
+            Set Limits
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================
+// REQUEST DOCUMENTS MODAL
+// ============================================
+function RequestDocumentsModal({ user, isOpen, onClose, onConfirm }: any) {
+  const [documentType, setDocumentType] = useState("");
+  const [message, setMessage] = useState("");
+
+  const handleConfirm = () => {
+    onConfirm({ documentType, message });
+    setDocumentType("");
+    setMessage("");
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
+            <FileText className="w-5 h-5 text-[var(--color-accent-yellow)]" />
+            Request Additional Documents
+          </DialogTitle>
+          <DialogDescription className="text-[var(--text-secondary)]">
+            Request additional verification documents from {user?.email}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-[var(--text-primary)]">Document Type</Label>
+            <Select value={documentType} onValueChange={setDocumentType}>
+              <SelectTrigger className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
+                <SelectValue placeholder="Select document type..." />
+              </SelectTrigger>
+              <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
+                <SelectItem value="id_verification" className="text-[var(--text-primary)]">ID Verification</SelectItem>
+                <SelectItem value="proof_of_address" className="text-[var(--text-primary)]">Proof of Address</SelectItem>
+                <SelectItem value="bank_statement" className="text-[var(--text-primary)]">Bank Statement</SelectItem>
+                <SelectItem value="business_registration" className="text-[var(--text-primary)]">Business Registration</SelectItem>
+                <SelectItem value="tax_clearance" className="text-[var(--text-primary)]">Tax Clearance</SelectItem>
+                <SelectItem value="other" className="text-[var(--text-primary)]">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-[var(--text-primary)]">Message to User</Label>
+            <Textarea
+              placeholder="Enter message explaining what documents are needed..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md min-h-[80px]"
+              style={{ outline: "none", boxShadow: "none" }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
+            Request Documents
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================
+// MAIN USERS PAGE COMPONENT
+// ============================================
 export default function UsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -53,15 +465,27 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState("all");
   const [balanceFilter, setBalanceFilter] = useState("all");
-  const [isClient, setIsClient] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("verified");
   const [exportLoading, setExportLoading] = useState(false);
-  const [totalCounts, setTotalCounts] = useState({
-    verified: 0,
-    pending: 0,
-  });
+  
+  // Store both counts separately
+  const [verifiedCount, setVerifiedCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Modal states
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
+  const [showFlagModal, setShowFlagModal] = useState(false);
+  const [showFreezeModal, setShowFreezeModal] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+
   const [exportOptions, setExportOptions] = useState({
     exportType: "current" as "current" | "all",
     userType: "both" as "verified" | "pending" | "both",
@@ -86,6 +510,8 @@ export default function UsersPage() {
   const LOW_BALANCE_THRESHOLD = 1000;
   const HIGH_BALANCE_THRESHOLD = 100000;
 
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -95,6 +521,67 @@ export default function UsersPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    debouncedSearchTerm, 
+    statusFilter, 
+    roleFilter, 
+    activityFilter, 
+    activeTab, 
+    balanceFilter
+  ]);
+
+  useEffect(() => {
+    if (searchTerm) {
+      setIsSearching(true);
+      const timer = setTimeout(() => {
+        setIsSearching(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setIsSearching(false);
+    }
+  }, [searchTerm]);
+
+  // Build API URL with all filters
+  const buildApiUrl = useCallback((tab: string, page: number) => {
+    let url = `/api/admin-apis/users?status=${tab === "verified" ? "verified" : "pending"}&page=${page}&limit=${itemsPerPage}`;
+    
+    if (debouncedSearchTerm) {
+      url += `&q=${encodeURIComponent(debouncedSearchTerm)}`;
+    }
+    
+    if (statusFilter !== "all") {
+      url += `&filter_status=${statusFilter}`;
+    }
+    
+    if (roleFilter !== "all") {
+      url += `&role=${roleFilter}`;
+    }
+    
+    if (activityFilter !== "all") {
+      url += `&activity=${activityFilter}`;
+    }
+    
+    if (balanceFilter !== "all") {
+      url += `&balance=${balanceFilter}`;
+      url += `&low_threshold=${LOW_BALANCE_THRESHOLD}`;
+      url += `&high_threshold=${HIGH_BALANCE_THRESHOLD}`;
+    }
+    
+    return url;
+  }, [
+    debouncedSearchTerm, 
+    statusFilter, 
+    roleFilter, 
+    activityFilter, 
+    balanceFilter,
+    itemsPerPage,
+    LOW_BALANCE_THRESHOLD,
+    HIGH_BALANCE_THRESHOLD
+  ]);
+
   // Fetch verified users
   const {
     data: verifiedData,
@@ -102,19 +589,31 @@ export default function UsersPage() {
     isLoading: verifiedLoading,
     mutate: mutateVerified,
   } = useSWR(
-    activeTab === "verified" ? "/api/admin-apis/users?status=verified" : null,
+    activeTab === "verified" ? buildApiUrl("verified", currentPage) : null,
     fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 2000,
+      keepPreviousData: true,
+    }
   );
 
-  // Fetch pending KYC users
+  // Fetch pending users
   const {
     data: pendingData,
     error: pendingError,
     isLoading: pendingLoading,
     mutate: mutatePending,
   } = useSWR(
-    activeTab === "pending" ? "/api/admin-apis/users?status=pending" : null,
+    activeTab === "pending" ? buildApiUrl("pending", currentPage) : null,
     fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 2000,
+      keepPreviousData: true,
+    }
   );
 
   const data = activeTab === "verified" ? verifiedData : pendingData;
@@ -122,215 +621,403 @@ export default function UsersPage() {
   const error = activeTab === "verified" ? verifiedError : pendingError;
   const mutate = activeTab === "verified" ? mutateVerified : mutatePending;
 
+  // Fetch BOTH counts on page load and when filters change
   useEffect(() => {
-    const fetchTotalCounts = async () => {
+    const fetchCounts = async () => {
       try {
-        const allUsersRes = await fetch("/api/admin-apis/users?limit=1");
-        const allUsersData = await allUsersRes.json();
-
-        setTotalCounts({
-          verified: allUsersData.stats?.verified || 0,
-          pending: allUsersData.stats?.pending_kyc || 0,
-        });
+        // Build URL without KYC status filter to get both counts
+        const params = new URLSearchParams();
+        
+        if (debouncedSearchTerm) {
+          params.append("q", debouncedSearchTerm);
+        }
+        
+        if (statusFilter !== "all") {
+          params.append("filter_status", statusFilter);
+        }
+        
+        if (roleFilter !== "all") {
+          params.append("role", roleFilter);
+        }
+        
+        if (activityFilter !== "all") {
+          params.append("activity", activityFilter);
+        }
+        
+        if (balanceFilter !== "all") {
+          params.append("balance", balanceFilter);
+          params.append("low_threshold", LOW_BALANCE_THRESHOLD.toString());
+          params.append("high_threshold", HIGH_BALANCE_THRESHOLD.toString());
+        }
+        
+        // Set limit=1 to just get stats
+        params.append("limit", "1");
+        
+        const url = `/api/admin-apis/users?${params.toString()}`;
+        console.log("📊 Fetching counts from:", url);
+        
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        console.log("📊 Counts response:", result);
+        
+        setVerifiedCount(result.stats?.verified || 0);
+        setPendingCount(result.stats?.pending_kyc || 0);
+        
       } catch (error) {
-        console.error("Failed to fetch total counts:", error);
+        console.error("Failed to fetch counts:", error);
       }
     };
-
-    fetchTotalCounts();
-  }, []);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    searchTerm,
-    statusFilter,
-    roleFilter,
-    activityFilter,
-    activeTab,
-    balanceFilter,
-  ]);
+    
+    const timer = setTimeout(fetchCounts, 300);
+    return () => clearTimeout(timer);
+  }, [debouncedSearchTerm, statusFilter, roleFilter, activityFilter, balanceFilter]);
 
   const getUsers = () => {
     if (!data) return [];
     return data.users || [];
   };
 
-  const filteredUsers = React.useMemo(() => {
-    let users = getUsers();
+  const total = data?.total || 0;
+  const totalPages = Math.ceil(total / itemsPerPage);
 
-    if (searchTerm) {
-      users = users.filter(
-        (user: any) =>
-          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.phone?.toLowerCase().includes(searchTerm.toLowerCase()),
-      );
-    }
+  // ============================================
+  // HANDLER FUNCTIONS
+  // ============================================
 
-    if (activeTab === "verified" && statusFilter !== "all") {
-      users = users.filter((user: any) =>
-        statusFilter === "active" ? !user.is_blocked : user.is_blocked,
-      );
-    }
-
-    if (activeTab === "verified" && roleFilter !== "all") {
-      users = users.filter((user: any) => {
-        if (roleFilter === "user")
-          return !user.admin_role || user.admin_role === "user";
-        return user.admin_role === roleFilter;
-      });
-    }
-
-    if (activeTab === "verified" && activityFilter !== "all") {
-      const now = new Date();
-      users = users.filter((user: any) => {
-        if (!user.last_login) return activityFilter === "inactive";
-        const lastLogin = new Date(user.last_login);
-        const daysSinceLogin =
-          (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24);
-
-        if (activityFilter === "active") return daysSinceLogin <= 30;
-        if (activityFilter === "today")
-          return lastLogin.toDateString() === now.toDateString();
-        if (activityFilter === "week") return daysSinceLogin <= 7;
-        if (activityFilter === "inactive") return daysSinceLogin > 30;
-        return true;
-      });
-    }
-
-    if (activeTab === "verified" && balanceFilter !== "all") {
-      users = users.filter((user: any) => {
-        const balance = Number(user.wallet_balance) || 0;
-        if (balanceFilter === "high") return balance >= HIGH_BALANCE_THRESHOLD;
-        if (balanceFilter === "low")
-          return balance <= LOW_BALANCE_THRESHOLD && balance >= 0;
-        if (balanceFilter === "negative") return balance < 0;
-        if (balanceFilter === "zero") return balance === 0;
-        return true;
-      });
-    }
-
-    return users;
-  }, [
-    getUsers(),
-    searchTerm,
-    statusFilter,
-    roleFilter,
-    activityFilter,
-    activeTab,
-    balanceFilter,
-  ]);
-
-  const currentUsers = filteredUsers;
-  const totalPages = Math.ceil(currentUsers.length / itemsPerPage);
-  const paginatedUsers = currentUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
-
-  const handleUserClick = (user: any) => {
-    setSelectedUserId(user.id);
+  const handleSuspendUser = async (user: any) => {
+    setSelectedUser(user);
+    setShowSuspendModal(true);
   };
 
-  const handleBackToUsers = () => {
-    setSelectedUserId(null);
+  const handleConfirmSuspend = async ({ reason, duration }: any) => {
+    try {
+      const response = await fetch(`/api/admin-apis/users?id=${selectedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          is_blocked: true,
+          block_reason: reason || "Suspended by admin",
+          blocked_at: new Date().toISOString(),
+          suspension_duration: duration === "permanent" ? -1 : duration,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to suspend user");
+
+      Swal.fire({
+        icon: "success",
+        title: "User Suspended",
+        text: `${selectedUser.email} has been suspended successfully.`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      mutate();
+      setShowSuspendModal(false);
+      setSelectedUser(null);
+    } catch (error) {
+      Swal.fire("Error", "Failed to suspend user", "error");
+    }
   };
 
-  const handleExport = async () => {
-    setExportLoading(true);
-    setIsFilterSheetOpen(false);
+  const handleReactivateUser = async (user: any) => {
+    const result = await Swal.fire({
+      title: "Reactivate User?",
+      text: `This will restore ${user.email}'s account access.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, reactivate",
+      confirmButtonColor: "#00B64F",
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
-      if (exportOptions.exportType === "current") {
-        // Export current view
-        const params = new URLSearchParams();
-        if (searchTerm) params.append("search", searchTerm);
-        if (statusFilter !== "all") params.append("status", statusFilter);
-        if (roleFilter !== "all") params.append("role", roleFilter);
-        if (activityFilter !== "all") params.append("activity", activityFilter);
-        if (balanceFilter !== "all") params.append("balance", balanceFilter);
-
-        params.append("type", activeTab === "verified" ? "active" : "pending");
-        params.append("low_threshold", LOW_BALANCE_THRESHOLD.toString());
-        params.append("high_threshold", HIGH_BALANCE_THRESHOLD.toString());
-        params.append("fields", JSON.stringify(exportOptions.selectedFields));
-
-        const response = await fetch(
-          `/api/admin-apis/users/export?${params.toString()}`,
-        );
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Export failed");
-        }
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        const fileName = `${activeTab}_users_${new Date().toISOString().split("T")[0]}.csv`;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-
-        Swal.fire({
-          icon: "success",
-          title: "Export Successful",
-          timer: 2000,
-          showConfirmButton: false,
-        });
-      } else {
-        // Export all users
-        const params = new URLSearchParams();
-
-        if (exportOptions.userType === "verified") {
-          params.append("type", "active");
-        } else if (exportOptions.userType === "pending") {
-          params.append("type", "pending");
-        } else {
-          params.append("type", "all");
-        }
-
-        params.append("fields", JSON.stringify(exportOptions.selectedFields));
-
-        const response = await fetch(
-          `/api/admin-apis/users/export-all?${params.toString()}`,
-        );
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Export failed");
-        }
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        const userTypeLabel =
-          exportOptions.userType === "both" ? "all" : exportOptions.userType;
-        const fileName = `${userTypeLabel}_users_${new Date().toISOString().split("T")[0]}.csv`;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-
-        Swal.fire({
-          icon: "success",
-          title: "Export Successful",
-          timer: 2000,
-          showConfirmButton: false,
-        });
-      }
-    } catch (error: any) {
-      Swal.fire({
-        icon: "error",
-        title: "Export Failed",
-        text: error.message || "An error occurred during export",
+      const response = await fetch(`/api/admin-apis/users?id=${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          is_blocked: false,
+          block_reason: null,
+          blocked_at: null,
+          suspension_duration: null,
+        }),
       });
-    } finally {
-      setExportLoading(false);
+
+      if (!response.ok) throw new Error("Failed to reactivate user");
+
+      Swal.fire({
+        icon: "success",
+        title: "User Reactivated",
+        text: `${user.email} has been reactivated.`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      mutate();
+    } catch (error) {
+      Swal.fire("Error", "Failed to reactivate user", "error");
+    }
+  };
+
+  const handleFlagUser = async (user: any) => {
+    setSelectedUser(user);
+    setShowFlagModal(true);
+  };
+
+  const handleConfirmFlag = async ({ reason, notes }: any) => {
+    try {
+      const response = await fetch(`/api/admin-apis/users?id=${selectedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          is_flagged: true,
+          flag_reason: reason,
+          flag_notes: notes,
+          flagged_at: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to flag user");
+
+      Swal.fire({
+        icon: "success",
+        title: "User Flagged",
+        text: `${selectedUser.email} has been flagged for review.`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      mutate();
+      setShowFlagModal(false);
+      setSelectedUser(null);
+    } catch (error) {
+      Swal.fire("Error", "Failed to flag user", "error");
+    }
+  };
+
+  const handleFreezeWallet = async (user: any) => {
+    setSelectedUser(user);
+    setShowFreezeModal(true);
+  };
+
+  const handleConfirmFreeze = async ({ reason }: any) => {
+    try {
+      const response = await fetch(`/api/admin-apis/users?id=${selectedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet_frozen: true,
+          wallet_freeze_reason: reason,
+          wallet_frozen_at: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to freeze wallet");
+
+      Swal.fire({
+        icon: "success",
+        title: "Wallet Frozen",
+        text: `${selectedUser.email}'s wallet has been frozen.`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      mutate();
+      setShowFreezeModal(false);
+      setSelectedUser(null);
+    } catch (error) {
+      Swal.fire("Error", "Failed to freeze wallet", "error");
+    }
+  };
+
+  const handleUnfreezeWallet = async (user: any) => {
+    const result = await Swal.fire({
+      title: "Unfreeze Wallet?",
+      text: `This will unfreeze ${user.email}'s wallet.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, unfreeze",
+      confirmButtonColor: "#00B64F",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await fetch(`/api/admin-apis/users?id=${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet_frozen: false,
+          wallet_freeze_reason: null,
+          wallet_frozen_at: null,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to unfreeze wallet");
+
+      Swal.fire({
+        icon: "success",
+        title: "Wallet Unfrozen",
+        text: `${user.email}'s wallet has been unfrozen.`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      mutate();
+    } catch (error) {
+      Swal.fire("Error", "Failed to unfreeze wallet", "error");
+    }
+  };
+
+  const handleSetTransactionLimit = async (user: any) => {
+    setSelectedUser(user);
+    setShowLimitModal(true);
+  };
+
+  const handleConfirmLimit = async ({ dailyLimit, monthlyLimit }: any) => {
+    try {
+      const response = await fetch(`/api/admin-apis/users?id=${selectedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          daily_transaction_limit: dailyLimit,
+          monthly_transaction_limit: monthlyLimit,
+          limit_updated_at: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to set transaction limits");
+
+      Swal.fire({
+        icon: "success",
+        title: "Transaction Limits Set",
+        text: `Daily: ₦${dailyLimit.toLocaleString()}, Monthly: ₦${monthlyLimit.toLocaleString()}`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      mutate();
+      setShowLimitModal(false);
+      setSelectedUser(null);
+    } catch (error) {
+      Swal.fire("Error", "Failed to set transaction limits", "error");
+    }
+  };
+
+  const handleRequestDocuments = async (user: any) => {
+    setSelectedUser(user);
+    setShowDocumentsModal(true);
+  };
+
+  const handleConfirmDocuments = async ({ documentType, message }: any) => {
+    try {
+      const response = await fetch(`/api/admin-apis/users/${selectedUser.id}/request-documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documentType,
+          message,
+          requested_at: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to request documents");
+
+      Swal.fire({
+        icon: "success",
+        title: "Documents Requested",
+        text: `Document request sent to ${selectedUser.email}.`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      setShowDocumentsModal(false);
+      setSelectedUser(null);
+    } catch (error) {
+      Swal.fire("Error", "Failed to request documents", "error");
+    }
+  };
+
+  const handleApproveKYC = async (user: any) => {
+    const result = await Swal.fire({
+      title: "Approve KYC?",
+      text: `This will approve ${user.email}'s KYC verification.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, approve",
+      confirmButtonColor: "#00B64F",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await fetch(`/api/admin-apis/users?id=${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bvn_verification: "verified",
+          kyc_approved_at: new Date().toISOString(),
+          kyc_approved_by: "admin",
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to approve KYC");
+
+      Swal.fire({
+        icon: "success",
+        title: "KYC Approved",
+        text: `${user.email}'s KYC has been approved.`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      mutate();
+    } catch (error) {
+      Swal.fire("Error", "Failed to approve KYC", "error");
+    }
+  };
+
+  const handleRejectKYC = async (user: any) => {
+    setSelectedUser(user);
+    setShowRejectModal(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectReason.trim()) {
+      Swal.fire("Error", "Please provide a reason for rejection", "error");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin-apis/users?id=${selectedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bvn_verification: "rejected",
+          kyc_rejected_at: new Date().toISOString(),
+          kyc_rejection_reason: rejectReason,
+          kyc_rejected_by: "admin",
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to reject KYC");
+
+      Swal.fire({
+        icon: "success",
+        title: "KYC Rejected",
+        text: `${selectedUser.email}'s KYC has been rejected.`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      mutate();
+      setShowRejectModal(false);
+      setSelectedUser(null);
+      setRejectReason("");
+    } catch (error) {
+      Swal.fire("Error", "Failed to reject KYC", "error");
     }
   };
 
@@ -341,7 +1028,7 @@ export default function UsersPage() {
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Yes, delete",
-      confirmButtonColor: "#d33",
+      confirmButtonColor: "#ef4444",
     });
 
     if (!res.isConfirmed) return;
@@ -354,52 +1041,40 @@ export default function UsersPage() {
 
       Swal.fire("Deleted", `${user.email} has been deleted.`, "success");
       mutate();
-
-      const allUsersRes = await fetch("/api/admin-apis/users?limit=1");
-      const allUsersData = await allUsersRes.json();
-      setTotalCounts({
-        verified: allUsersData.stats?.verified || 0,
-        pending: allUsersData.stats?.pending_kyc || 0,
-      });
     } catch (err) {
       Swal.fire("Error", "Failed to delete user", "error");
     }
   };
 
-  const handleUpdateKYC = async (user: any, status: string) => {
-    try {
-      const response = await fetch(`/api/admin-apis/users?id=${user.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bvn_verification: status }),
-      });
-
-      if (!response.ok) throw new Error("Update failed");
-
-      Swal.fire("Success", `KYC status updated to ${status}`, "success");
-      mutate();
-
-      const allUsersRes = await fetch("/api/admin-apis/users?limit=1");
-      const allUsersData = await allUsersRes.json();
-      setTotalCounts({
-        verified: allUsersData.stats?.verified || 0,
-        pending: allUsersData.stats?.pending_kyc || 0,
-      });
-    } catch (error) {
-      Swal.fire("Error", "Failed to update KYC status", "error");
-    }
+  const handleUserClick = (user: any) => {
+    setSelectedUserId(user.id);
   };
+
+  const handleBackToUsers = () => {
+    setSelectedUserId(null);
+  };
+
+  // ============================================
+  // RENDER FUNCTIONS
+  // ============================================
 
   const renderStatusCell = (value: string, row: any) => {
     if (row.is_blocked) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          ⛔ Blocked
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--destructive)]/20 text-[var(--destructive)]">
+          ⛔ Suspended
+        </span>
+      );
+    }
+    if (row.is_flagged) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)]">
+          🚩 Flagged
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+      <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--color-lemon-green)]/20 text-[var(--color-lemon-green)]">
         ● Active
       </span>
     );
@@ -408,31 +1083,31 @@ export default function UsersPage() {
   const renderKycCell = (value: string) => {
     if (value === "verified" || value === "approved") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--color-lemon-green)]/20 text-[var(--color-lemon-green)]">
           ✓ Verified
         </span>
       );
     } else if (value === "pending") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--color-accent-yellow)]/20 text-[var(--color-accent-yellow)]">
           ⏳ Pending
         </span>
       );
     } else if (value === "not_submitted") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
           ○ Not Started
         </span>
       );
     } else if (value === "rejected") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--destructive)]/20 text-[var(--destructive)]">
           ✗ Rejected
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+      <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
         {value || "Unknown"}
       </span>
     );
@@ -441,49 +1116,43 @@ export default function UsersPage() {
   const renderBalanceCell = (value: number) => {
     const amount = Number(value) || 0;
     let balanceClass = "";
-    if (amount > HIGH_BALANCE_THRESHOLD)
-      balanceClass = "font-bold text-purple-600";
-    else if (amount <= LOW_BALANCE_THRESHOLD && amount >= 0)
-      balanceClass = "text-(--color-accent-yellow)";
-    else if (amount < 0) balanceClass = "font-medium text-red-600";
-    else if (amount === 0) balanceClass = "text-gray-500";
-    else balanceClass = "text-green-600";
+    if (amount > HIGH_BALANCE_THRESHOLD) balanceClass = "font-bold text-purple-600";
+    else if (amount <= LOW_BALANCE_THRESHOLD && amount >= 0) balanceClass = "text-[var(--color-accent-yellow)]";
+    else if (amount < 0) balanceClass = "font-medium text-[var(--destructive)]";
+    else if (amount === 0) balanceClass = "text-[var(--text-secondary)]";
+    else balanceClass = "text-[var(--color-lemon-green)]";
 
-    return (
-      <span className={`font-medium ${balanceClass}`}>
-        ₦{amount.toLocaleString()}
-      </span>
-    );
+    return <span className={`font-medium ${balanceClass}`}>₦{amount.toLocaleString()}</span>;
   };
 
   const renderRoleCell = (value: string) => {
     if (!value || value === "user") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
           User
         </span>
       );
     } else if (value === "super_admin") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-purple-100 text-purple-800">
           Super Admin
         </span>
       );
     } else if (value === "operations_admin") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-blue-100 text-blue-800">
           Operations Admin
         </span>
       );
     } else if (value === "support_admin") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-green-100 text-green-800">
           Support Admin
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+      <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
         {value || "User"}
       </span>
     );
@@ -523,12 +1192,77 @@ export default function UsersPage() {
         { key: "bvn_verification", label: "KYC Status", render: renderKycCell },
       ];
 
+  const getUserControlsActions = (isVerified: boolean) => {
+    const actions = [];
+
+    actions.push({
+      label: "Suspend User",
+      onClick: handleSuspendUser,
+      icon: <UserX className="w-4 h-4" />,
+      className: "text-[var(--destructive)]"
+    });
+
+    actions.push({
+      label: "Reactivate User",
+      onClick: handleReactivateUser,
+      icon: <UserCheck className="w-4 h-4" />,
+      className: "text-[var(--color-lemon-green)]"
+    });
+
+    if (!isVerified) {
+      actions.push({
+        label: "Approve KYC",
+        onClick: handleApproveKYC,
+        icon: <CheckCircle className="w-4 h-4" />,
+        className: "text-[var(--color-lemon-green)]"
+      });
+      actions.push({
+        label: "Reject KYC",
+        onClick: handleRejectKYC,
+        icon: <XCircle className="w-4 h-4" />,
+        className: "text-[var(--destructive)]"
+      });
+      actions.push({
+        label: "Request Documents",
+        onClick: handleRequestDocuments,
+        icon: <FileText className="w-4 h-4" />,
+        className: "text-[var(--color-accent-yellow)]"
+      });
+    }
+
+    actions.push({
+      label: "Set Transaction Limit",
+      onClick: handleSetTransactionLimit,
+      icon: <Shield className="w-4 h-4" />,
+      className: "text-blue-600"
+    });
+
+    actions.push({
+      label: "Freeze Wallet",
+      onClick: handleFreezeWallet,
+      icon: <Wallet className="w-4 h-4" />,
+      className: "text-[var(--color-accent-yellow)]"
+    });
+
+    actions.push({
+      label: "Flag User",
+      onClick: handleFlagUser,
+      icon: <Flag className="w-4 h-4" />,
+      className: "text-[var(--color-accent-yellow)]"
+    });
+
+    return actions;
+  };
+
+  // ============================================
+  // EXPORT OPTIONS SHEET
+  // ============================================
   const ExportOptionsSheet = () => (
     <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
       <SheetTrigger asChild>
         <Button
           variant="outline"
-          className="bg-blue-50 hover:bg-blue-100 border-blue-200"
+          className="border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10 squircle-md font-[var(--font-be-vietnam)]"
         >
           <Download className="w-4 h-4 mr-2" />
           Export
@@ -537,38 +1271,30 @@ export default function UsersPage() {
       </SheetTrigger>
       <SheetContent
         side="right"
-        className="w-full sm:w-[500px] overflow-y-auto"
+        className="w-full sm:w-[500px] overflow-y-auto bg-[var(--bg-primary)] border-l border-[var(--border-color)]"
       >
         <SheetHeader>
-          <SheetTitle>Export Options</SheetTitle>
-          <SheetDescription>
+          <SheetTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)]">
+            Export Options
+          </SheetTitle>
+          <SheetDescription className="text-[var(--text-secondary)]">
             Choose what data to export and which fields to include
           </SheetDescription>
         </SheetHeader>
         <div className="mt-6 space-y-6">
-          {/* Export Type Selection */}
           <div className="space-y-3">
-            <Label className="text-sm font-semibold">Export Type</Label>
+            <Label className="text-sm font-semibold text-[var(--text-primary)]">Export Type</Label>
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <input
                   type="radio"
                   id="exportCurrent"
                   checked={exportOptions.exportType === "current"}
-                  onChange={() =>
-                    setExportOptions({
-                      ...exportOptions,
-                      exportType: "current",
-                    })
-                  }
-                  className="w-4 h-4"
+                  onChange={() => setExportOptions({ ...exportOptions, exportType: "current" })}
+                  className="w-4 h-4 accent-[var(--color-accent-yellow)]"
                 />
-                <Label htmlFor="exportCurrent">
-                  Current View (
-                  {activeTab === "verified"
-                    ? "Verified Users"
-                    : "Pending KYC Users"}
-                  )
+                <Label htmlFor="exportCurrent" className="text-[var(--text-secondary)]">
+                  Current View ({activeTab === "verified" ? "Verified Users" : "Pending KYC Users"})
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
@@ -576,288 +1302,199 @@ export default function UsersPage() {
                   type="radio"
                   id="exportAll"
                   checked={exportOptions.exportType === "all"}
-                  onChange={() =>
-                    setExportOptions({ ...exportOptions, exportType: "all" })
-                  }
-                  className="w-4 h-4"
+                  onChange={() => setExportOptions({ ...exportOptions, exportType: "all" })}
+                  className="w-4 h-4 accent-[var(--color-accent-yellow)]"
                 />
-                <Label htmlFor="exportAll">
+                <Label htmlFor="exportAll" className="text-[var(--text-secondary)]">
                   All Users (All Users in System)
                 </Label>
               </div>
             </div>
           </div>
 
-          {/* User Type Selection (for All Users export) */}
           {exportOptions.exportType === "all" && (
             <div className="space-y-3">
-              <Label className="text-sm font-semibold">User Type</Label>
+              <Label className="text-sm font-semibold text-[var(--text-primary)]">User Type</Label>
               <Select
                 value={exportOptions.userType}
                 onValueChange={(value: "verified" | "pending" | "both") =>
                   setExportOptions({ ...exportOptions, userType: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="both">
-                    All Users (Both Verified & Pending)
-                  </SelectItem>
-                  <SelectItem value="verified">Verified Users Only</SelectItem>
-                  <SelectItem value="pending">
-                    Pending KYC Users Only
-                  </SelectItem>
+                <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
+                  <SelectItem value="both" className="text-[var(--text-primary)]">All Users (Both Verified & Pending)</SelectItem>
+                  <SelectItem value="verified" className="text-[var(--text-primary)]">Verified Users Only</SelectItem>
+                  <SelectItem value="pending" className="text-[var(--text-primary)]">Pending KYC Users Only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           )}
 
-          {/* Field Selection */}
           <div className="space-y-3">
-            <Label className="text-sm font-semibold">
+            <Label className="text-sm font-semibold text-[var(--text-primary)]">
               Select Fields to Export
             </Label>
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldId"
-                  checked={exportOptions.selectedFields.id}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        id: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldId">User ID</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldEmail"
-                  checked={exportOptions.selectedFields.email}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        email: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldEmail">Email</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldFullName"
-                  checked={exportOptions.selectedFields.fullName}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        fullName: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldFullName">Full Name</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldPhone"
-                  checked={exportOptions.selectedFields.phone}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        phone: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldPhone">Phone Number</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldStatus"
-                  checked={exportOptions.selectedFields.status}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        status: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldStatus">Status</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldBalance"
-                  checked={exportOptions.selectedFields.balance}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        balance: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldBalance">Wallet Balance</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldKycStatus"
-                  checked={exportOptions.selectedFields.kycStatus}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        kycStatus: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldKycStatus">KYC Status</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldRegistrationDate"
-                  checked={exportOptions.selectedFields.registrationDate}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        registrationDate: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldRegistrationDate">Registration Date</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldLastLogin"
-                  checked={exportOptions.selectedFields.lastLogin}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        lastLogin: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldLastLogin">Last Login</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldRole"
-                  checked={exportOptions.selectedFields.role}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        role: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldRole">Admin Role</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldReferralCode"
-                  checked={exportOptions.selectedFields.referralCode}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        referralCode: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldReferralCode">Referral Code</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fieldReferredBy"
-                  checked={exportOptions.selectedFields.referredBy}
-                  onCheckedChange={(checked) =>
-                    setExportOptions({
-                      ...exportOptions,
-                      selectedFields: {
-                        ...exportOptions.selectedFields,
-                        referredBy: checked === true,
-                      },
-                    })
-                  }
-                />
-                <Label htmlFor="fieldReferredBy">Referred By</Label>
-              </div>
+              {Object.entries(exportOptions.selectedFields).map(([key, value]) => (
+                <div key={key} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`field${key}`}
+                    checked={value}
+                    onCheckedChange={(checked) =>
+                      setExportOptions({
+                        ...exportOptions,
+                        selectedFields: {
+                          ...exportOptions.selectedFields,
+                          [key]: checked === true,
+                        },
+                      })
+                    }
+                    className="data-[state=checked]:bg-[var(--color-accent-yellow)] data-[state=checked]:border-[var(--color-accent-yellow)]"
+                  />
+                  <Label htmlFor={`field${key}`} className="text-[var(--text-secondary)] text-sm">
+                    {key === "fullName" ? "Full Name" :
+                     key === "kycStatus" ? "KYC Status" :
+                     key === "registrationDate" ? "Registration Date" :
+                     key === "lastLogin" ? "Last Login" :
+                     key === "referralCode" ? "Referral Code" :
+                     key === "referredBy" ? "Referred By" :
+                     key.charAt(0).toUpperCase() + key.slice(1)}
+                  </Label>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Preview */}
-          {exportOptions.exportType === "current" && (
-            <div className="bg-blue-50 p-3 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Preview:</strong> Will export {filteredUsers.length}{" "}
-                users from the current view
-              </p>
-            </div>
-          )}
-
-          {exportOptions.exportType === "all" && (
-            <div className="bg-green-50 p-3 rounded-lg">
-              <p className="text-sm text-green-800">
-                <strong>Preview:</strong> Will export{" "}
-                {exportOptions.userType === "verified"
-                  ? totalCounts.verified
-                  : exportOptions.userType === "pending"
-                    ? totalCounts.pending
-                    : totalCounts.verified + totalCounts.pending}{" "}
-                users
-              </p>
-            </div>
-          )}
+          <div className={`p-3 squircle-lg ${
+            exportOptions.exportType === "current" 
+              ? "bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)]" 
+              : "bg-[var(--color-lemon-green)]/10 text-[var(--color-lemon-green)]"
+          }`}>
+            <p className="text-sm">
+              <strong>Preview:</strong> Will export{" "}
+              {exportOptions.exportType === "current"
+                ? `${getUsers().length} users from the current view`
+                : `${exportOptions.userType === "verified" ? verifiedCount : exportOptions.userType === "pending" ? pendingCount : verifiedCount + pendingCount} users`
+              }
+            </p>
+          </div>
         </div>
         <SheetFooter className="mt-6">
           <Button
             onClick={handleExport}
             disabled={exportLoading}
-            className="w-full"
+            className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md font-[var(--font-be-vietnam)]"
           >
-            {exportLoading
-              ? "Exporting..."
-              : `Export ${exportOptions.exportType === "current" ? "Current View" : "All Users"}`}
+            {exportLoading ? "Exporting..." : `Export ${exportOptions.exportType === "current" ? "Current View" : "All Users"}`}
           </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>
   );
 
+  // ============================================
+  // EXPORT HANDLER
+  // ============================================
+  const handleExport = async () => {
+    setExportLoading(true);
+    setIsFilterSheetOpen(false);
+
+    try {
+      if (exportOptions.exportType === "current") {
+        const params = new URLSearchParams();
+        if (debouncedSearchTerm) params.append("q", debouncedSearchTerm);
+        if (statusFilter !== "all") params.append("filter_status", statusFilter);
+        if (roleFilter !== "all") params.append("role", roleFilter);
+        if (activityFilter !== "all") params.append("activity", activityFilter);
+        if (balanceFilter !== "all") {
+          params.append("balance", balanceFilter);
+          params.append("low_threshold", LOW_BALANCE_THRESHOLD.toString());
+          params.append("high_threshold", HIGH_BALANCE_THRESHOLD.toString());
+        }
+        params.append("status", activeTab === "verified" ? "verified" : "pending");
+        params.append("fields", JSON.stringify(exportOptions.selectedFields));
+        params.append("page", "1");
+        params.append("limit", total.toString());
+
+        const response = await fetch(`/api/admin-apis/users/export?${params.toString()}`);
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Export failed");
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const fileName = `${activeTab}_users_${new Date().toISOString().split("T")[0]}.csv`;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        Swal.fire({
+          icon: "success",
+          title: "Export Successful",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        const params = new URLSearchParams();
+        if (exportOptions.userType === "verified") {
+          params.append("type", "verified");
+        } else if (exportOptions.userType === "pending") {
+          params.append("type", "pending");
+        } else {
+          params.append("type", "all");
+        }
+        params.append("fields", JSON.stringify(exportOptions.selectedFields));
+
+        const response = await fetch(`/api/admin-apis/users/export-all?${params.toString()}`);
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Export failed");
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const userTypeLabel = exportOptions.userType === "both" ? "all" : exportOptions.userType;
+        const fileName = `${userTypeLabel}_users_${new Date().toISOString().split("T")[0]}.csv`;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        Swal.fire({
+          icon: "success",
+          title: "Export Successful",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      }
+    } catch (error: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Export Failed",
+        text: error.message || "An error occurred during export",
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  // ============================================
+  // MAIN RENDER
+  // ============================================
+
   if (selectedUserId) {
-    return (
-      <UserProfilePage userId={selectedUserId} onBack={handleBackToUsers} />
-    );
+    return <UserProfilePage userId={selectedUserId} onBack={handleBackToUsers} />;
   }
 
   if (isLoading) {
@@ -874,169 +1511,323 @@ export default function UsersPage() {
     return (
       <AdminLayout>
         <div className="p-6">
-          <p className="text-red-600">Failed to load users ❌</p>
+          <p className="text-[var(--destructive)]">Failed to load users ❌</p>
         </div>
       </AdminLayout>
     );
   }
 
+  const users = getUsers();
+
   return (
     <AdminLayout>
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+        {/* Modals */}
+        <SuspendUserModal
+          user={selectedUser}
+          isOpen={showSuspendModal}
+          onClose={() => setShowSuspendModal(false)}
+          onConfirm={handleConfirmSuspend}
+        />
+
+        <FlagUserModal
+          user={selectedUser}
+          isOpen={showFlagModal}
+          onClose={() => setShowFlagModal(false)}
+          onConfirm={handleConfirmFlag}
+        />
+
+        <FreezeWalletModal
+          user={selectedUser}
+          isOpen={showFreezeModal}
+          onClose={() => setShowFreezeModal(false)}
+          onConfirm={handleConfirmFreeze}
+        />
+
+        <SetTransactionLimitModal
+          user={selectedUser}
+          isOpen={showLimitModal}
+          onClose={() => setShowLimitModal(false)}
+          onConfirm={handleConfirmLimit}
+        />
+
+        <RequestDocumentsModal
+          user={selectedUser}
+          isOpen={showDocumentsModal}
+          onClose={() => setShowDocumentsModal(false)}
+          onConfirm={handleConfirmDocuments}
+        />
+
+        <Dialog open={showRejectModal} onOpenChange={setShowRejectModal}>
+          <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-[var(--destructive)]" />
+                Reject KYC
+              </DialogTitle>
+              <DialogDescription className="text-[var(--text-secondary)]">
+                Please provide a reason for rejecting {selectedUser?.email}'s KYC.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label className="text-[var(--text-primary)]">Rejection Reason</Label>
+                <Textarea
+                  placeholder="Enter reason for KYC rejection..."
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md min-h-[100px]"
+                  style={{ outline: "none", boxShadow: "none" }}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowRejectModal(false)} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+                Cancel
+              </Button>
+              <Button onClick={handleConfirmReject} className="bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 squircle-md">
+                Reject KYC
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="text-xl md:text-2xl font-semibold">
+          <h2 className="text-xl md:text-2xl font-semibold font-[var(--font-space-grotesk)] text-[var(--text-primary)]">
             Users Management
           </h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <ExportOptionsSheet />
-            <Button variant="outline" onClick={() => mutate()}>
-              🔄 Refresh
+            <Button 
+              variant="outline" 
+              onClick={() => mutate()}
+              className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
             </Button>
           </div>
         </div>
 
+        {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-3 md:gap-4">
-          <div className="bg-white p-3 md:p-4 rounded-lg border shadow-sm">
-            <h3 className="text-xs md:text-sm font-medium text-gray-500">
+          <div className="bg-[var(--bg-primary)] p-3 md:p-4 border border-[var(--border-color)] shadow-soft squircle-lg">
+            <h3 className="text-xs md:text-sm font-medium text-[var(--text-secondary)]">
               Verified Users
             </h3>
-            <p className="text-xl md:text-2xl font-semibold text-green-600">
-              {totalCounts.verified}
+            <p className="text-xl md:text-2xl font-semibold text-[var(--color-lemon-green)] font-[var(--font-space-grotesk)]">
+              {verifiedCount}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Completed KYC</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">Completed KYC</p>
           </div>
-          <div className="bg-white p-3 md:p-4 rounded-lg border shadow-sm">
-            <h3 className="text-xs md:text-sm font-medium text-gray-500">
+          <div className="bg-[var(--bg-primary)] p-3 md:p-4 border border-[var(--border-color)] shadow-soft squircle-lg">
+            <h3 className="text-xs md:text-sm font-medium text-[var(--text-secondary)]">
               Pending KYC
             </h3>
-            <p className="text-xl md:text-2xl font-semibold text-yellow-600">
-              {totalCounts.pending}
+            <p className="text-xl md:text-2xl font-semibold text-[var(--color-accent-yellow)] font-[var(--font-space-grotesk)]">
+              {pendingCount}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Awaiting verification</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">Awaiting verification</p>
           </div>
         </div>
 
+        {/* Tabs with counts */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="verified" className="text-xs md:text-sm">
-              Verified ({totalCounts.verified})
+          <TabsList className="grid w-full max-w-md grid-cols-2 bg-[var(--bg-secondary)] p-1 squircle-md">
+            <TabsTrigger 
+              value="verified" 
+              className="text-xs md:text-sm data-[state=active]:bg-[var(--color-accent-yellow)] data-[state=active]:text-[var(--color-ink)] text-[var(--text-secondary)] squircle-sm transition-all"
+            >
+              Verified ({verifiedCount})
             </TabsTrigger>
-            <TabsTrigger value="pending" className="text-xs md:text-sm">
-              Pending KYC ({totalCounts.pending})
+            <TabsTrigger 
+              value="pending" 
+              className="text-xs md:text-sm data-[state=active]:bg-[var(--color-accent-yellow)] data-[state=active]:text-[var(--color-ink)] text-[var(--text-secondary)] squircle-sm transition-all"
+            >
+              Pending KYC ({pendingCount})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="verified" className="space-y-4">
             <div className="flex flex-col gap-3">
               <div className="flex flex-col sm:flex-row gap-3">
-                <Input
-                  placeholder="Search by email, name, or phone..."
+                <SearchInput
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={setSearchTerm}
+                  placeholder="Search by email, name, or phone..."
+                  isLoading={isSearching}
                   className="w-full sm:w-1/3"
                 />
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-1/6">
+                <Select 
+                  value={statusFilter} 
+                  onValueChange={(value) => {
+                    setStatusFilter(value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-1/6 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
+                  <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
+                    <SelectItem value="all" className="text-[var(--text-primary)]">All</SelectItem>
+                    <SelectItem value="active" className="text-[var(--text-primary)]">Active</SelectItem>
+                    <SelectItem value="blocked" className="text-[var(--text-primary)]">Suspended</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger className="w-full sm:w-1/6">
+                <Select 
+                  value={roleFilter} 
+                  onValueChange={(value) => {
+                    setRoleFilter(value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-1/6 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
                     <SelectValue placeholder="Role" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Roles</SelectItem>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
-                    <SelectItem value="operations_admin">
-                      Operations Admin
-                    </SelectItem>
-                    <SelectItem value="support_admin">Support Admin</SelectItem>
+                  <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
+                    <SelectItem value="all" className="text-[var(--text-primary)]">All Roles</SelectItem>
+                    <SelectItem value="user" className="text-[var(--text-primary)]">User</SelectItem>
+                    <SelectItem value="super_admin" className="text-[var(--text-primary)]">Super Admin</SelectItem>
+                    <SelectItem value="operations_admin" className="text-[var(--text-primary)]">Operations Admin</SelectItem>
+                    <SelectItem value="support_admin" className="text-[var(--text-primary)]">Support Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
-                <Select
-                  value={activityFilter}
-                  onValueChange={setActivityFilter}
+                <Select 
+                  value={activityFilter} 
+                  onValueChange={(value) => {
+                    setActivityFilter(value);
+                    setCurrentPage(1);
+                  }}
                 >
-                  <SelectTrigger className="w-full sm:w-1/6">
+                  <SelectTrigger className="w-full sm:w-1/6 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
                     <SelectValue placeholder="Activity" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Activity</SelectItem>
-                    <SelectItem value="active">Active (30 days)</SelectItem>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="week">This Week</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
+                    <SelectItem value="all" className="text-[var(--text-primary)]">All Activity</SelectItem>
+                    <SelectItem value="active" className="text-[var(--text-primary)]">Active (30 days)</SelectItem>
+                    <SelectItem value="today" className="text-[var(--text-primary)]">Today</SelectItem>
+                    <SelectItem value="week" className="text-[var(--text-primary)]">This Week</SelectItem>
+                    <SelectItem value="inactive" className="text-[var(--text-primary)]">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={balanceFilter} onValueChange={setBalanceFilter}>
-                  <SelectTrigger className="w-full sm:w-1/6">
+                <Select 
+                  value={balanceFilter} 
+                  onValueChange={(value) => {
+                    setBalanceFilter(value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-1/6 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
                     <SelectValue placeholder="Balance" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Balances</SelectItem>
-                    <SelectItem value="high">High Balance</SelectItem>
-                    <SelectItem value="low">Low Balance</SelectItem>
-                    <SelectItem value="negative">Negative</SelectItem>
-                    <SelectItem value="zero">Zero</SelectItem>
+                  <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
+                    <SelectItem value="all" className="text-[var(--text-primary)]">All Balances</SelectItem>
+                    <SelectItem value="high" className="text-[var(--text-primary)]">High Balance</SelectItem>
+                    <SelectItem value="low" className="text-[var(--text-primary)]">Low Balance</SelectItem>
+                    <SelectItem value="negative" className="text-[var(--text-primary)]">Negative</SelectItem>
+                    <SelectItem value="zero" className="text-[var(--text-primary)]">Zero</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              
+              {debouncedSearchTerm && (
+                <div className="text-sm text-[var(--text-secondary)]">
+                  Found <span className="font-medium text-[var(--text-primary)]">{total}</span> results for "{debouncedSearchTerm}"
+                </div>
+              )}
+              
+              {(statusFilter !== "all" || roleFilter !== "all" || activityFilter !== "all" || balanceFilter !== "all") && (
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-sm text-[var(--text-secondary)]">Active filters:</span>
+                  {statusFilter !== "all" && (
+                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                      Status: {statusFilter === "active" ? "Active" : "Suspended"}
+                      <button 
+                        onClick={() => setStatusFilter("all")}
+                        className="ml-1 hover:text-[var(--destructive)]"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {roleFilter !== "all" && (
+                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                      Role: {roleFilter}
+                      <button 
+                        onClick={() => setRoleFilter("all")}
+                        className="ml-1 hover:text-[var(--destructive)]"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {activityFilter !== "all" && (
+                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                      Activity: {activityFilter}
+                      <button 
+                        onClick={() => setActivityFilter("all")}
+                        className="ml-1 hover:text-[var(--destructive)]"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {balanceFilter !== "all" && (
+                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                      Balance: {balanceFilter}
+                      <button 
+                        onClick={() => setBalanceFilter("all")}
+                        className="ml-1 hover:text-[var(--destructive)]"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <div className="overflow-x-auto">
               <AdminTable
                 columns={verifiedColumns}
-                rows={paginatedUsers}
+                rows={users}
                 onDelete={handleDelete}
                 onRowClick={handleUserClick}
-                customActions={[
-                  {
-                    label: "Verify KYC",
-                    onClick: (user) => handleUpdateKYC(user, "verified"),
-                    variant: "secondary",
-                  },
-                ]}
+                customActions={getUserControlsActions(true)}
               />
             </div>
           </TabsContent>
 
           <TabsContent value="pending" className="space-y-4">
-            <Input
-              placeholder="Search pending users..."
+            <SearchInput
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={setSearchTerm}
+              placeholder="Search pending users..."
+              isLoading={isSearching}
               className="w-full sm:w-1/3"
             />
+            
+            {debouncedSearchTerm && (
+              <div className="text-sm text-[var(--text-secondary)]">
+                Found <span className="font-medium text-[var(--text-primary)]">{total}</span> results for "{debouncedSearchTerm}"
+              </div>
+            )}
+            
             <div className="overflow-x-auto">
               <AdminTable
                 columns={pendingColumns}
-                rows={paginatedUsers}
+                rows={users}
                 onDelete={handleDelete}
                 onRowClick={handleUserClick}
-                customActions={[
-                  {
-                    label: "Approve KYC",
-                    onClick: (user) => handleUpdateKYC(user, "verified"),
-                    variant: "secondary",
-                  },
-                  {
-                    label: "Reject KYC",
-                    onClick: (user) => handleUpdateKYC(user, "rejected"),
-                    variant: "destructive",
-                  },
-                ]}
+                customActions={getUserControlsActions(false)}
               />
             </div>
           </TabsContent>
         </Tabs>
 
+        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex justify-center overflow-x-auto">
             <Pagination>
@@ -1044,42 +1835,47 @@ export default function UsersPage() {
                 <PaginationItem>
                   <PaginationPrevious
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className={
-                      currentPage === 1
-                        ? "pointer-events-none opacity-50"
-                        : "cursor-pointer"
-                    }
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"}
                   />
                 </PaginationItem>
-                {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => (
-                  <PaginationItem key={i}>
-                    <PaginationLink
-                      isActive={i + 1 === currentPage}
-                      onClick={() => setCurrentPage(i + 1)}
-                      className={
-                        isMobile ? "hidden sm:inline-flex" : "inline-flex"
-                      }
-                    >
-                      {i + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
+                {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
+                  let pageNum = i + 1;
+                  if (totalPages > 5) {
+                    if (currentPage > 3 && i < 2) pageNum = i + 1;
+                    else if (currentPage > 3 && i === 2) pageNum = currentPage;
+                    else if (currentPage > 3 && i > 2) pageNum = totalPages - (4 - i);
+                  }
+                  return (
+                    <PaginationItem key={i}>
+                      <PaginationLink
+                        isActive={pageNum === currentPage}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`${isMobile ? "hidden sm:inline-flex" : "inline-flex"} ${
+                          pageNum === currentPage
+                            ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                            : "text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                        } squircle-md transition-all`}
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
                 <PaginationItem>
                   <PaginationNext
-                    onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
-                    }
-                    className={
-                      currentPage === totalPages
-                        ? "pointer-events-none opacity-50"
-                        : "cursor-pointer"
-                    }
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"}
                   />
                 </PaginationItem>
               </PaginationContent>
             </Pagination>
           </div>
         )}
+
+        <div className="text-sm text-[var(--text-secondary)] text-center">
+          Showing {users.length} of {total} users
+          {debouncedSearchTerm && ` matching "${debouncedSearchTerm}"`}
+        </div>
       </div>
     </AdminLayout>
   );

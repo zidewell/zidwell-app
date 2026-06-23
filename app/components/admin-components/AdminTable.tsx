@@ -1,3 +1,4 @@
+// app/components/admin-components/AdminTable.tsx
 "use client";
 
 import {
@@ -18,11 +19,9 @@ import { MoreHorizontal } from "lucide-react";
 import { Button } from "../ui/button";
 import { useEffect, useState } from "react";
 
-// 🧭 Helper to detect and format date-like values (client-side only)
 function formatValue(key: string, value: any) {
   if (!value) return "-";
 
-  // If key looks like a date field and value is valid date
   if (/(date|created_at|updated_at|timestamp|blocked_at|last_login|last_logout)/i.test(key)) {
     try {
       const date = new Date(value);
@@ -41,18 +40,15 @@ function formatValue(key: string, value: any) {
     }
   }
 
-  // Default
   return String(value);
 }
 
-// Updated Column type with optional render function
 type Column = { 
   key: string; 
   label: string; 
   render?: (value: any, row: any) => React.ReactNode;
 };
 
-// Custom action type
 type CustomAction = {
   label: string;
   onClick: (row: any) => void;
@@ -72,7 +68,7 @@ type AdminTableProps = {
   onViewLoginHistory?: (row: any) => void;
   onViewDetails?: (row: any) => void;
   onRetryTransaction?: (row: any) => void;
-  onRowClick?: (row: any) => void; // NEW: Add row click handler
+  onRowClick?: (row: any) => void;
   customActions?: CustomAction[];
   emptyMessage?: string;
   searchPlaceholder?: string;
@@ -89,7 +85,7 @@ export default function AdminTable({
   onViewLoginHistory,
   onViewDetails,
   onRetryTransaction,
-  onRowClick, // NEW: Add row click handler
+  onRowClick,
   customActions = [],
   emptyMessage = "No records found",
 }: AdminTableProps) {
@@ -99,40 +95,34 @@ export default function AdminTable({
     setIsClient(true);
   }, []);
 
-  // Helper function to render cell content
   const renderCellContent = (column: Column, row: any) => {
     const value = row[column.key];
-    
-    // Use custom render function if provided
     if (column.render) {
       return column.render(value, row);
     }
-    
-    // Otherwise use default formatting (only on client to avoid hydration mismatch)
     if (isClient) {
       return formatValue(column.key, value);
     }
-    
-    // Server-side fallback - return simple string without formatting
     return value || "-";
   };
 
-  // Check if there are any actions to show
   const hasActions = onEdit || onDelete || onDownload || onBlockToggle || 
                     onForceLogout || onViewLoginHistory || onViewDetails || 
                     onRetryTransaction || customActions.length > 0;
 
   return (
-    <div className="overflow-x-auto rounded-md border">
+    <div className="overflow-x-auto border border-[var(--border-color)] squircle-lg shadow-soft">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-10 text-center">S/N</TableHead>
+          <TableRow className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
+            <TableHead className="w-10 text-center text-[var(--text-secondary)] font-medium">S/N</TableHead>
             {columns.map((col) => (
-              <TableHead key={col.key}>{col.label}</TableHead>
+              <TableHead key={col.key} className="text-[var(--text-secondary)] font-medium">
+                {col.label}
+              </TableHead>
             ))}
             {hasActions && (
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right text-[var(--text-secondary)] font-medium">Actions</TableHead>
             )}
           </TableRow>
         </TableHeader>
@@ -142,13 +132,15 @@ export default function AdminTable({
             rows.map((row, index) => (
               <TableRow 
                 key={row.id || index}
-                className={onRowClick ? "cursor-pointer hover:bg-gray-50 transition-colors" : ""}
+                className={`border-b border-[var(--border-color)] ${
+                  onRowClick ? "cursor-pointer hover:bg-[var(--bg-secondary)] transition-colors" : ""
+                }`}
                 onClick={() => onRowClick?.(row)}
               >
-                <TableCell className="text-center">{index + 1}</TableCell>
+                <TableCell className="text-center text-[var(--text-secondary)]">{index + 1}</TableCell>
 
                 {columns.map((col) => (
-                  <TableCell key={col.key}>
+                  <TableCell key={col.key} className="text-[var(--text-primary)]">
                     {renderCellContent(col, row)}
                   </TableCell>
                 ))}
@@ -157,85 +149,70 @@ export default function AdminTable({
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-8 w-8 p-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-sm">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {/* Custom Actions */}
+                      <DropdownMenuContent align="end" className="bg-[var(--bg-primary)] border-[var(--border-color)] shadow-pop squircle-md">
                         {customActions.map((action, actionIndex) => (
                           <DropdownMenuItem
                             key={actionIndex}
                             onClick={() => action.onClick(row)}
-                            className={action.className}
+                            className={`${action.className || ""} hover:bg-[var(--bg-secondary)] cursor-pointer text-[var(--text-primary)]`}
                           >
                             {action.icon && <span className="mr-2">{action.icon}</span>}
                             {action.label}
                           </DropdownMenuItem>
                         ))}
 
-                        {/* Transaction Actions */}
                         {onViewDetails && (
-                          <DropdownMenuItem onClick={() => onViewDetails(row)}>
+                          <DropdownMenuItem onClick={() => onViewDetails(row)} className="hover:bg-[var(--bg-secondary)] cursor-pointer text-[var(--text-primary)]">
                             View Details
                           </DropdownMenuItem>
                         )}
                         {onRetryTransaction && (
                           <DropdownMenuItem 
                             onClick={() => onRetryTransaction(row)}
-                            className={row.status === "failed" ? "text-orange-600" : "text-gray-400"}
+                            className={row.status === "failed" ? "text-[var(--color-accent-yellow)]" : "text-[var(--text-secondary)] opacity-50"}
                             disabled={row.status !== "failed"}
                           >
                             Retry Transaction
                           </DropdownMenuItem>
                         )}
-
-                        {/* User Actions */}
                         {onDownload && (
-                          <DropdownMenuItem onClick={() => onDownload(row)}>
+                          <DropdownMenuItem onClick={() => onDownload(row)} className="hover:bg-[var(--bg-secondary)] cursor-pointer text-[var(--text-primary)]">
                             Download Documents
                           </DropdownMenuItem>
                         )}
                         {onEdit && (
-                          <DropdownMenuItem onClick={() => onEdit(row)}>
+                          <DropdownMenuItem onClick={() => onEdit(row)} className="hover:bg-[var(--bg-secondary)] cursor-pointer text-[var(--text-primary)]">
                             Edit
                           </DropdownMenuItem>
                         )}
                         {onBlockToggle && (
                           <DropdownMenuItem
                             onClick={() => onBlockToggle(row)}
-                            className={
+                            className={`${
                               row.is_blocked || row.status === 'inactive'
-                                ? "text-green-600 font-medium"
-                                : "text-red-600 font-medium"
-                            }
+                                ? "text-[var(--color-lemon-green)]"
+                                : "text-[var(--destructive)]"
+                            } hover:bg-[var(--bg-secondary)] cursor-pointer font-medium`}
                           >
-                            {row.is_blocked || row.status === 'inactive'
-                              ? "🔄 Activate"
-                              : "⛔ Deactivate"}
+                            {row.is_blocked || row.status === 'inactive' ? "🔄 Activate" : "⛔ Deactivate"}
                           </DropdownMenuItem>
                         )}
                         {onForceLogout && (
-                          <DropdownMenuItem
-                            onClick={() => onForceLogout(row)}
-                            className="text-orange-600"
-                          >
+                          <DropdownMenuItem onClick={() => onForceLogout(row)} className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)] cursor-pointer">
                             🚪 Force Logout
                           </DropdownMenuItem>
                         )}
                         {onViewLoginHistory && (
-                          <DropdownMenuItem
-                            onClick={() => onViewLoginHistory(row)}
-                            className="text-blue-600"
-                          >
+                          <DropdownMenuItem onClick={() => onViewLoginHistory(row)} className="text-blue-600 hover:bg-[var(--bg-secondary)] cursor-pointer">
                             📊 View Login History
                           </DropdownMenuItem>
                         )}
                         {onDelete && (
-                          <DropdownMenuItem
-                            onClick={() => onDelete(row)}
-                            className="text-red-600"
-                          >
+                          <DropdownMenuItem onClick={() => onDelete(row)} className="text-[var(--destructive)] hover:bg-[var(--bg-secondary)] cursor-pointer">
                             🗑️ Delete
                           </DropdownMenuItem>
                         )}
@@ -249,7 +226,7 @@ export default function AdminTable({
             <TableRow>
               <TableCell 
                 colSpan={columns.length + (hasActions ? 2 : 1)} 
-                className="text-center"
+                className="text-center text-[var(--text-secondary)] py-8"
               >
                 {emptyMessage}
               </TableCell>
