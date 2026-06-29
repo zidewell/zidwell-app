@@ -79,7 +79,7 @@ interface RecentBeneficiary {
   account_number: string;
   account_name: string;
   bank_name?: string;
-  type: 'bank' | 'p2p';
+  type: "bank" | "p2p";
   last_used: string;
 }
 
@@ -113,7 +113,7 @@ const DAILY_ESSENTIALS_LIST = [
   "Hospital Bills",
   "Medication",
   "Digital Subscriptions",
-  "Vehicle Maintenance"
+  "Vehicle Maintenance",
 ];
 
 export default function Transfer() {
@@ -147,17 +147,24 @@ export default function Transfer() {
   const [pinError, setPinError] = useState<string | null>(null);
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
   const [saveAccount, setSaveAccount] = useState(false);
-  const [selectedSavedAccount, setSelectedSavedAccount] = useState<SavedAccount | null>(null);
+  const [selectedSavedAccount, setSelectedSavedAccount] =
+    useState<SavedAccount | null>(null);
   const [showSavedAccounts, setShowSavedAccounts] = useState(false);
-  const [savedP2PBeneficiaries, setSavedP2PBeneficiaries] = useState<SavedP2PBeneficiary[]>([]);
+  const [savedP2PBeneficiaries, setSavedP2PBeneficiaries] = useState<
+    SavedP2PBeneficiary[]
+  >([]);
   const [saveP2PBeneficiary, setSaveP2PBeneficiary] = useState(false);
-  const [selectedSavedP2PBeneficiary, setSelectedSavedP2PBeneficiary] = useState<SavedP2PBeneficiary | null>(null);
-  const [showSavedP2PBeneficiaries, setShowSavedP2PBeneficiaries] = useState(false);
+  const [selectedSavedP2PBeneficiary, setSelectedSavedP2PBeneficiary] =
+    useState<SavedP2PBeneficiary | null>(null);
+  const [showSavedP2PBeneficiaries, setShowSavedP2PBeneficiaries] =
+    useState(false);
   const [showAlltime, setShowAlltime] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
 
   // State for expense categories
-  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(
+    [],
+  );
   const [expenseCategory, setExpenseCategory] = useState<string>("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
@@ -165,10 +172,15 @@ export default function Transfer() {
   const pendingFavoritesRef = useRef<Set<string>>(new Set());
 
   // State for beneficiary suggestions
-  const [recentBeneficiaries, setRecentBeneficiaries] = useState<RecentBeneficiary[]>([]);
-  const [showBeneficiarySuggestions, setShowBeneficiarySuggestions] = useState(false);
+  const [recentBeneficiaries, setRecentBeneficiaries] = useState<
+    RecentBeneficiary[]
+  >([]);
+  const [showBeneficiarySuggestions, setShowBeneficiarySuggestions] =
+    useState(false);
   const [beneficiarySearch, setBeneficiarySearch] = useState("");
-  const [matchingBeneficiaries, setMatchingBeneficiaries] = useState<RecentBeneficiary[]>([]);
+  const [matchingBeneficiaries, setMatchingBeneficiaries] = useState<
+    RecentBeneficiary[]
+  >([]);
   const [isInputFocused, setIsInputFocused] = useState(false);
 
   // Polling refs
@@ -223,7 +235,13 @@ export default function Transfer() {
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["var(--color-accent-yellow)", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+      colors: [
+        "var(--color-accent-yellow)",
+        "#ffd700",
+        "#ffed4e",
+        "#ffffff",
+        "#fbbf24",
+      ],
     });
     setTimeout(() => {
       confetti({
@@ -291,9 +309,13 @@ export default function Transfer() {
       attempts++;
 
       try {
-        console.log(`Polling attempt ${attempts} for transaction ${transactionId}`);
+        console.log(
+          `Polling attempt ${attempts} for transaction ${transactionId}`,
+        );
 
-        const res = await fetch(`/api/transaction/status?transactionId=${transactionId}`);
+        const res = await fetch(
+          `/api/transaction/status?transactionId=${transactionId}`,
+        );
 
         if (!res.ok) {
           console.error(`Polling failed with status: ${res.status}`);
@@ -301,7 +323,10 @@ export default function Transfer() {
         }
 
         const data = await res.json();
-        console.log("Polling response:", { status: data.status, transactionId });
+        console.log("Polling response:", {
+          status: data.status,
+          transactionId,
+        });
 
         if (alertShownRef.current) return;
 
@@ -337,7 +362,9 @@ export default function Transfer() {
           await Swal.fire({
             icon: "error",
             title: "Transfer Failed",
-            text: data.message || "Your transfer could not be completed. Your wallet was not charged.",
+            text:
+              data.message ||
+              "Your transfer could not be completed. Your wallet was not charged.",
             confirmButtonColor: "var(--color-accent-yellow)",
           });
 
@@ -369,7 +396,9 @@ export default function Transfer() {
   // Load recent beneficiaries from localStorage
   useEffect(() => {
     const loadRecentBeneficiaries = () => {
-      const cached = localStorage.getItem(`recent_beneficiaries_${userData?.id}`);
+      const cached = localStorage.getItem(
+        `recent_beneficiaries_${userData?.id}`,
+      );
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
@@ -379,7 +408,7 @@ export default function Transfer() {
         }
       }
     };
-    
+
     if (userData?.id) {
       loadRecentBeneficiaries();
     }
@@ -390,7 +419,7 @@ export default function Transfer() {
     accountNumber: string,
     accountName: string,
     bankName: string | undefined,
-    type: 'bank' | 'p2p'
+    type: "bank" | "p2p",
   ) => {
     const newRecent: RecentBeneficiary = {
       id: `${type}_${accountNumber}`,
@@ -401,13 +430,16 @@ export default function Transfer() {
       last_used: new Date().toISOString(),
     };
 
-    setRecentBeneficiaries(prev => {
+    setRecentBeneficiaries((prev) => {
       // Remove existing entry with same account number
-      const filtered = prev.filter(b => b.account_number !== accountNumber);
+      const filtered = prev.filter((b) => b.account_number !== accountNumber);
       // Add new entry at the beginning
       const updated = [newRecent, ...filtered].slice(0, 10);
       // Save to localStorage
-      localStorage.setItem(`recent_beneficiaries_${userData?.id}`, JSON.stringify(updated));
+      localStorage.setItem(
+        `recent_beneficiaries_${userData?.id}`,
+        JSON.stringify(updated),
+      );
       return updated;
     });
   };
@@ -416,41 +448,44 @@ export default function Transfer() {
   const getAllBeneficiaries = () => {
     const allBeneficiaries: RecentBeneficiary[] = [
       ...recentBeneficiaries,
-      ...savedAccounts.map(acc => ({
+      ...savedAccounts.map((acc) => ({
         id: `bank_${acc.account_number}`,
         account_number: acc.account_number,
         account_name: acc.account_name,
         bank_name: acc.bank_name,
-        type: 'bank' as const,
+        type: "bank" as const,
         last_used: acc.last_used || new Date().toISOString(),
       })),
-      ...savedP2PBeneficiaries.map(b => ({
+      ...savedP2PBeneficiaries.map((b) => ({
         id: `p2p_${b.account_number}`,
         account_number: b.account_number,
         account_name: b.account_name,
-        bank_name: 'Zidwell',
-        type: 'p2p' as const,
+        bank_name: "Zidwell",
+        type: "p2p" as const,
         last_used: b.last_used || b.created_at,
       })),
     ];
 
     // Remove duplicates by account_number
     const unique = Array.from(
-      new Map(allBeneficiaries.map(b => [b.account_number, b])).values()
+      new Map(allBeneficiaries.map((b) => [b.account_number, b])).values(),
     );
 
     // Sort by last_used (most recent first)
-    unique.sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime());
+    unique.sort(
+      (a, b) =>
+        new Date(b.last_used).getTime() - new Date(a.last_used).getTime(),
+    );
 
     return unique;
   };
 
   const handleSelectBeneficiary = (beneficiary: RecentBeneficiary) => {
-    if (beneficiary.type === 'bank') {
+    if (beneficiary.type === "bank") {
       setAccountNumber(beneficiary.account_number);
       setAccountName(beneficiary.account_name);
       setBankName(beneficiary.bank_name || "");
-      const foundBank = banks.find(b => b.name === beneficiary.bank_name);
+      const foundBank = banks.find((b) => b.name === beneficiary.bank_name);
       if (foundBank) {
         setBankCode(foundBank.code);
       }
@@ -474,23 +509,26 @@ export default function Transfer() {
     }
   };
 
-  const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAccountNumberChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const rawValue = e.target.value;
-    const numericValue = rawValue.replace(/\D/g, '');
+    const numericValue = rawValue.replace(/\D/g, "");
     const limitedValue = numericValue.slice(0, 10);
-    
+
     setAccountNumber(limitedValue);
     setBeneficiarySearch(limitedValue);
-    
+
     // Only show suggestions if there's input and we're not selecting a saved account
     if (limitedValue.length > 0 && !selectedSavedAccount) {
       // Find matching beneficiaries
       const allBeneficiaries = getAllBeneficiaries();
-      const matches = allBeneficiaries.filter(b => 
-        b.account_number.includes(limitedValue) || 
-        b.account_name.toLowerCase().includes(limitedValue.toLowerCase())
+      const matches = allBeneficiaries.filter(
+        (b) =>
+          b.account_number.includes(limitedValue) ||
+          b.account_name.toLowerCase().includes(limitedValue.toLowerCase()),
       );
-      
+
       if (matches.length > 0) {
         setMatchingBeneficiaries(matches);
         setShowBeneficiarySuggestions(true);
@@ -502,8 +540,11 @@ export default function Transfer() {
       setShowBeneficiarySuggestions(false);
       setMatchingBeneficiaries([]);
     }
-    
-    if (selectedSavedAccount && limitedValue !== selectedSavedAccount.account_number) {
+
+    if (
+      selectedSavedAccount &&
+      limitedValue !== selectedSavedAccount.account_number
+    ) {
       setSelectedSavedAccount(null);
       setAccountName("");
       setBankCode("");
@@ -511,19 +552,22 @@ export default function Transfer() {
     }
   };
 
-  const handleP2PAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleP2PAccountNumberChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const newValue = e.target.value;
     setRecepientAcc(newValue);
     setBeneficiarySearch(newValue);
-    
+
     if (newValue.length > 0 && !selectedSavedP2PBeneficiary) {
       // Find matching beneficiaries
       const allBeneficiaries = getAllBeneficiaries();
-      const matches = allBeneficiaries.filter(b => 
-        b.account_number.includes(newValue) || 
-        b.account_name.toLowerCase().includes(newValue.toLowerCase())
+      const matches = allBeneficiaries.filter(
+        (b) =>
+          b.account_number.includes(newValue) ||
+          b.account_name.toLowerCase().includes(newValue.toLowerCase()),
       );
-      
+
       if (matches.length > 0) {
         setMatchingBeneficiaries(matches);
         setShowBeneficiarySuggestions(true);
@@ -535,8 +579,11 @@ export default function Transfer() {
       setShowBeneficiarySuggestions(false);
       setMatchingBeneficiaries([]);
     }
-    
-    if (selectedSavedP2PBeneficiary && newValue !== selectedSavedP2PBeneficiary.account_number) {
+
+    if (
+      selectedSavedP2PBeneficiary &&
+      newValue !== selectedSavedP2PBeneficiary.account_number
+    ) {
       setSelectedSavedP2PBeneficiary(null);
       setP2pDetails(null);
     }
@@ -548,19 +595,26 @@ export default function Transfer() {
 
     setLoadingCategories(true);
     try {
-      const response = await fetch(`/api/journal/categories?userId=${userData.id}`);
+      const response = await fetch(
+        `/api/journal/categories?userId=${userData.id}`,
+      );
       const data = await response.json();
 
-      const expenseCats = data.filter((cat: ExpenseCategory) => cat.type === "expense");
-      
-      const uniqueCategories = expenseCats.reduce((acc: ExpenseCategory[], current: ExpenseCategory) => {
-        const exists = acc.find(cat => cat.name === current.name);
-        if (!exists) {
-          acc.push(current);
-        }
-        return acc;
-      }, []);
-      
+      const expenseCats = data.filter(
+        (cat: ExpenseCategory) => cat.type === "expense",
+      );
+
+      const uniqueCategories = expenseCats.reduce(
+        (acc: ExpenseCategory[], current: ExpenseCategory) => {
+          const exists = acc.find((cat) => cat.name === current.name);
+          if (!exists) {
+            acc.push(current);
+          }
+          return acc;
+        },
+        [],
+      );
+
       setExpenseCategories(uniqueCategories);
     } catch (error) {
       console.error("Failed to fetch expense categories:", error);
@@ -569,7 +623,10 @@ export default function Transfer() {
     }
   };
 
-  const toggleFavoriteCategory = async (category: ExpenseCategory, e: React.MouseEvent) => {
+  const toggleFavoriteCategory = async (
+    category: ExpenseCategory,
+    e: React.MouseEvent,
+  ) => {
     e.stopPropagation();
 
     if (pendingFavoritesRef.current.has(category.id)) {
@@ -581,9 +638,13 @@ export default function Transfer() {
     setExpenseCategories((prev) =>
       prev.map((cat) =>
         cat.id === category.id
-          ? { ...cat, is_favorite: newFavoriteStatus, favorite_order: newFavoriteStatus ? Date.now() : 0 }
-          : cat
-      )
+          ? {
+              ...cat,
+              is_favorite: newFavoriteStatus,
+              favorite_order: newFavoriteStatus ? Date.now() : 0,
+            }
+          : cat,
+      ),
     );
 
     pendingFavoritesRef.current.add(category.id);
@@ -606,9 +667,15 @@ export default function Transfer() {
         setExpenseCategories((prev) =>
           prev.map((cat) =>
             cat.id === category.id
-              ? { ...cat, is_favorite: !newFavoriteStatus, favorite_order: !newFavoriteStatus ? 0 : category.favorite_order }
-              : cat
-          )
+              ? {
+                  ...cat,
+                  is_favorite: !newFavoriteStatus,
+                  favorite_order: !newFavoriteStatus
+                    ? 0
+                    : category.favorite_order,
+                }
+              : cat,
+          ),
         );
         console.error("Failed to update favorite status");
       }
@@ -616,9 +683,15 @@ export default function Transfer() {
       setExpenseCategories((prev) =>
         prev.map((cat) =>
           cat.id === category.id
-            ? { ...cat, is_favorite: !newFavoriteStatus, favorite_order: !newFavoriteStatus ? 0 : category.favorite_order }
-            : cat
-        )
+            ? {
+                ...cat,
+                is_favorite: !newFavoriteStatus,
+                favorite_order: !newFavoriteStatus
+                  ? 0
+                  : category.favorite_order,
+              }
+            : cat,
+        ),
       );
       console.error("Failed to update favorite:", error);
     } finally {
@@ -631,7 +704,7 @@ export default function Transfer() {
     const dailyEssentials: ExpenseCategory[] = [];
     const otherCategories: ExpenseCategory[] = [];
 
-    expenseCategories.forEach(cat => {
+    expenseCategories.forEach((cat) => {
       if (cat.is_favorite) {
         favorites.push(cat);
       } else if (DAILY_ESSENTIALS_LIST.includes(cat.name)) {
@@ -643,29 +716,37 @@ export default function Transfer() {
 
     favorites.sort((a, b) => (a.favorite_order || 0) - (b.favorite_order || 0));
     dailyEssentials.sort((a, b) => {
-      return DAILY_ESSENTIALS_LIST.indexOf(a.name) - DAILY_ESSENTIALS_LIST.indexOf(b.name);
+      return (
+        DAILY_ESSENTIALS_LIST.indexOf(a.name) -
+        DAILY_ESSENTIALS_LIST.indexOf(b.name)
+      );
     });
     otherCategories.sort((a, b) => a.name.localeCompare(b.name));
 
-    const result: (ExpenseCategory | { isGroupHeader: boolean; groupName: string })[] = [];
-    
+    const result: (
+      | ExpenseCategory
+      | { isGroupHeader: boolean; groupName: string }
+    )[] = [];
+
     if (favorites.length > 0) {
       result.push({ isGroupHeader: true, groupName: "FAVOURITES" });
       result.push(...favorites);
     }
-    
+
     result.push({ isGroupHeader: true, groupName: "DAILY ESSENTIALS" });
     result.push(...dailyEssentials);
-    
+
     result.push({ isGroupHeader: true, groupName: "OTHER CATEGORIES" });
     result.push(...otherCategories);
-    
+
     return result;
   };
 
-  const filteredCategories = getSortedCategories().filter(item => {
-    if (typeof item === 'object' && 'isGroupHeader' in item) return true;
-    return (item as ExpenseCategory).name.toLowerCase().includes(categorySearch.toLowerCase());
+  const filteredCategories = getSortedCategories().filter((item) => {
+    if (typeof item === "object" && "isGroupHeader" in item) return true;
+    return (item as ExpenseCategory).name
+      .toLowerCase()
+      .includes(categorySearch.toLowerCase());
   });
 
   const handleSelectCategory = (category: ExpenseCategory) => {
@@ -700,9 +781,12 @@ export default function Transfer() {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       // Check if click is outside the beneficiary suggestions container and input
-      if (beneficiaryContainerRef.current && !beneficiaryContainerRef.current.contains(target)) {
+      if (
+        beneficiaryContainerRef.current &&
+        !beneficiaryContainerRef.current.contains(target)
+      ) {
         // Check if click is on an input field that should keep the dropdown open
-        const isInputTrigger = target.closest('.beneficiary-input-trigger');
+        const isInputTrigger = target.closest(".beneficiary-input-trigger");
         if (!isInputTrigger) {
           setShowBeneficiarySuggestions(false);
           setMatchingBeneficiaries([]);
@@ -712,11 +796,11 @@ export default function Transfer() {
     };
 
     if (showBeneficiarySuggestions) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showBeneficiarySuggestions]);
 
@@ -726,20 +810,23 @@ export default function Transfer() {
     const fetchDetails = async () => {
       setLoading2(true);
       try {
-        const [accountRes, banksRes, savedAccountsRes, savedP2PRes] = await Promise.all([
-          fetch("/api/get-wallet-account-details", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: userData.id }),
-          }),
-          fetch("/api/banks"),
-          fetch(`/api/saved-accounts?userId=${userData.id}`),
-          fetch(`/api/save-p2p-beneficiary?userId=${userData.id}`),
-        ]);
+        const [accountRes, banksRes, savedAccountsRes, savedP2PRes] =
+          await Promise.all([
+            fetch("/api/get-wallet-account-details", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId: userData.id }),
+            }),
+            fetch("/api/banks"),
+            fetch(`/api/saved-accounts?userId=${userData.id}`),
+            fetch(`/api/save-p2p-beneficiary?userId=${userData.id}`),
+          ]);
 
         const accountData = accountRes.ok ? await accountRes.json() : {};
         const banksData = banksRes.ok ? await banksRes.json() : {};
-        const savedAccountsData = savedAccountsRes.ok ? await savedAccountsRes.json() : {};
+        const savedAccountsData = savedAccountsRes.ok
+          ? await savedAccountsRes.json()
+          : {};
         const savedP2PData = savedP2PRes.ok ? await savedP2PRes.json() : {};
 
         setUserDetails(accountData || {});
@@ -808,55 +895,57 @@ export default function Transfer() {
     return () => clearTimeout(timeout);
   }, [accountNumber, bankCode, transferType, userDetails]);
 
-  useEffect(() => {
-    if (transferType !== "p2p") return;
-    if (!recepientAcc || recepientAcc.length < 6) return;
+ useEffect(() => {
+  if (transferType !== "p2p") return;
+  if (!recepientAcc || recepientAcc.length < 6) return;
 
-    if (recepientAcc === userDetails?.bank_details.bank_account_number) {
-      setP2pDetails(null);
-      setErrors((prev) => ({
-        ...prev,
-        recepientAcc: "You cannot transfer to your own account.",
-      }));
-      return;
-    }
+  if (recepientAcc === userDetails?.bank_details?.bank_account_number) {
+    setP2pDetails(null);
+    setErrors((prev) => ({
+      ...prev,
+      recepientAcc: "You cannot transfer to your own account.",
+    }));
+    return;
+  }
 
-    const timeout = setTimeout(async () => {
-      setLookupLoading(true);
-      try {
-        const res = await fetch("/api/find-user-wallet-id", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accNumber: recepientAcc }),
+  const timeout = setTimeout(async () => {
+    setLookupLoading(true);
+    try {
+      const res = await fetch("/api/find-user-wallet-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accNumber: recepientAcc }),
+      });
+      const data = res.ok ? await res.json() : null;
+
+      if (data?.receiverName || data?.full_name) {
+        // Use receiverName or full_name from response
+        const displayName = data.receiverName || data.full_name || 'Zidwell User';
+        setP2pDetails({
+          name: displayName,
+          id: data.walletId,
         });
-        const data = res.ok ? await res.json() : null;
-
-        if (data?.receiverName || data?.full_name) {
-          setP2pDetails({
-            name: data.receiverName || data.full_name,
-            id: data.walletId,
-          });
-          setErrors((prev) => ({ ...prev, recepientAcc: "" }));
-        } else {
-          setP2pDetails(null);
-          setErrors((prev) => ({
-            ...prev,
-            recepientAcc: data?.message || "User not found.",
-          }));
-        }
-      } catch (err: any) {
+        setErrors((prev) => ({ ...prev, recepientAcc: "" }));
+      } else {
         setP2pDetails(null);
         setErrors((prev) => ({
           ...prev,
-          recepientAcc: err?.message || "Could not verify account.",
+          recepientAcc: data?.error || "User not found.",
         }));
-      } finally {
-        setLookupLoading(false);
       }
-    }, 400);
+    } catch (err: any) {
+      setP2pDetails(null);
+      setErrors((prev) => ({
+        ...prev,
+        recepientAcc: err?.message || "Could not verify account.",
+      }));
+    } finally {
+      setLookupLoading(false);
+    }
+  }, 400);
 
-    return () => clearTimeout(timeout);
-  }, [recepientAcc, transferType, userDetails]);
+  return () => clearTimeout(timeout);
+}, [recepientAcc, transferType, userDetails]);
 
   const handleSelectSavedAccount = (account: SavedAccount) => {
     setSelectedSavedAccount(account);
@@ -871,7 +960,9 @@ export default function Transfer() {
     setIsInputFocused(false);
   };
 
-  const handleSelectSavedP2PBeneficiary = (beneficiary: SavedP2PBeneficiary) => {
+  const handleSelectSavedP2PBeneficiary = (
+    beneficiary: SavedP2PBeneficiary,
+  ) => {
     setSelectedSavedP2PBeneficiary(beneficiary);
     setRecepientAcc(beneficiary.account_number);
     setP2pDetails({
@@ -886,7 +977,14 @@ export default function Transfer() {
   };
 
   const saveAccountToProfile = async () => {
-    if (!userData?.id || !accountNumber || !accountName || !bankCode || !bankName) return;
+    if (
+      !userData?.id ||
+      !accountNumber ||
+      !accountName ||
+      !bankCode ||
+      !bankName
+    )
+      return;
     try {
       const response = await fetch("/api/saved-accounts", {
         method: "POST",
@@ -928,7 +1026,8 @@ export default function Transfer() {
   };
 
   const saveP2PBeneficiaryToProfile = async () => {
-    if (!userData?.id || !recepientAcc || !p2pDetails?.name || !p2pDetails?.id) return;
+    if (!userData?.id || !recepientAcc || !p2pDetails?.name || !p2pDetails?.id)
+      return;
     try {
       const response = await fetch("/api/save-p2p-beneficiary", {
         method: "POST",
@@ -972,7 +1071,9 @@ export default function Transfer() {
     setLoading(true);
 
     try {
-      const selectedCategory = expenseCategories.find((c) => c.id === expenseCategory);
+      const selectedCategory = expenseCategories.find(
+        (c) => c.id === expenseCategory,
+      );
 
       const payload: any = {
         userId: userData?.id,
@@ -1001,21 +1102,27 @@ export default function Transfer() {
         payload.bankName = bankName;
         payload.accountNumber = accountNumber;
         payload.accountName = accountName;
-        
+
         if (accountNumber && accountName && bankName) {
-          saveRecentBeneficiary(accountNumber, accountName, bankName, 'bank');
+          saveRecentBeneficiary(accountNumber, accountName, bankName, "bank");
         }
       }
 
       if (transferType === "p2p") {
         payload.receiverAccountId = p2pDetails?.id;
-        
+
         if (recepientAcc && p2pDetails?.name) {
-          saveRecentBeneficiary(recepientAcc, p2pDetails.name, 'Zidwell', 'p2p');
+          saveRecentBeneficiary(
+            recepientAcc,
+            p2pDetails.name,
+            "Zidwell",
+            "p2p",
+          );
         }
       }
 
-      const endpoint = transferType === "p2p" ? "/api/p2p-transfer" : "/api/transfer-balance";
+      const endpoint =
+        transferType === "p2p" ? "/api/p2p-transfer" : "/api/transfer-balance";
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -1034,7 +1141,9 @@ export default function Transfer() {
           text: "Your transfer is being processed. Please wait...",
           allowOutsideClick: false,
           showConfirmButton: false,
-          willOpen: () => { Swal.showLoading(); },
+          willOpen: () => {
+            Swal.showLoading();
+          },
         });
 
         if (data.transactionId) startPolling(data.transactionId);
@@ -1042,10 +1151,18 @@ export default function Transfer() {
         setLoading(false);
         return { success: true };
       } else if (res.ok) {
-        if (saveAccount && !selectedSavedAccount && transferType === "other-bank") {
+        if (
+          saveAccount &&
+          !selectedSavedAccount &&
+          transferType === "other-bank"
+        ) {
           await saveAccountToProfile();
         }
-        if (saveP2PBeneficiary && !selectedSavedP2PBeneficiary && transferType === "p2p") {
+        if (
+          saveP2PBeneficiary &&
+          !selectedSavedP2PBeneficiary &&
+          transferType === "p2p"
+        ) {
           await saveP2PBeneficiaryToProfile();
         }
 
@@ -1067,9 +1184,13 @@ export default function Transfer() {
         setIsOpen(false);
         return { success: true };
       } else {
-        const errorMessage = data?.reason || data?.message || "Transfer failed.";
+        const errorMessage =
+          data?.reason || data?.message || "Transfer failed.";
 
-        if (errorMessage.toLowerCase().includes("pin") || errorMessage.toLowerCase().includes("transaction pin")) {
+        if (
+          errorMessage.toLowerCase().includes("pin") ||
+          errorMessage.toLowerCase().includes("transaction pin")
+        ) {
           throw new Error(errorMessage);
         }
 
@@ -1086,7 +1207,11 @@ export default function Transfer() {
       setLoading(false);
       setPin(Array(inputCount).fill(""));
 
-      if (err?.message?.toLowerCase().includes("pin") || err?.message?.toLowerCase().includes("transaction pin")) throw err;
+      if (
+        err?.message?.toLowerCase().includes("pin") ||
+        err?.message?.toLowerCase().includes("transaction pin")
+      )
+        throw err;
 
       await Swal.fire({
         icon: "error",
@@ -1106,12 +1231,18 @@ export default function Transfer() {
 
     const newErrors: { [key: string]: string } = {};
 
-    if (!amount || Number(amount) < 100) newErrors.amount = "Amount must be at least ₦100.";
+    if (!amount || Number(amount) < 100)
+      newErrors.amount = "Amount must be at least ₦100.";
     if (!narration) newErrors.narration = "Narration is required.";
     if (narration.length > 100) newErrors.narration = "Narration too long.";
-    if (!expenseCategory) newErrors.expenseCategory = "Please select an expense category.";
+    if (!expenseCategory)
+      newErrors.expenseCategory = "Please select an expense category.";
 
-    if (transferType === "my-account" && (!userDetails?.payment_details?.p_account_number || !userDetails?.payment_details?.p_account_name)) {
+    if (
+      transferType === "my-account" &&
+      (!userDetails?.payment_details?.p_account_number ||
+        !userDetails?.payment_details?.p_account_name)
+    ) {
       newErrors.myAccount = "Your bank details are incomplete.";
     }
 
@@ -1119,7 +1250,10 @@ export default function Transfer() {
       if (!bankCode || !accountNumber || !accountName) {
         newErrors.otherBank = "Please complete all bank fields.";
       }
-      if (accountNumber && (accountNumber.length !== 10 || !/^\d+$/.test(accountNumber))) {
+      if (
+        accountNumber &&
+        (accountNumber.length !== 10 || !/^\d+$/.test(accountNumber))
+      ) {
         newErrors.accountNumber = "Account number must be 10 digits.";
       }
     }
@@ -1147,8 +1281,10 @@ export default function Transfer() {
     !narration ||
     !expenseCategory ||
     Number(amount) <= 0 ||
-    (transferType === "my-account" && !userDetails?.payment_details?.p_account_number) ||
-    (transferType === "other-bank" && (!bankCode || !accountNumber || !accountName)) ||
+    (transferType === "my-account" &&
+      !userDetails?.payment_details?.p_account_number) ||
+    (transferType === "other-bank" &&
+      (!bankCode || !accountNumber || !accountName)) ||
     (transferType === "p2p" && (!recepientAcc || !p2pDetails?.id));
 
   const getPaymentMethod = (): PaymentMethod => {
@@ -1157,7 +1293,10 @@ export default function Transfer() {
   };
 
   // Use matchingBeneficiaries for display - only show when there are matches and input is focused
-  const showSuggestions = showBeneficiarySuggestions && matchingBeneficiaries.length > 0 && isInputFocused;
+  const showSuggestions =
+    showBeneficiarySuggestions &&
+    matchingBeneficiaries.length > 0 &&
+    isInputFocused;
 
   return (
     <>
@@ -1203,8 +1342,15 @@ export default function Transfer() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <button onClick={() => setShowAlltime((prev) => !prev)} className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition">
-              {showAlltime ? <EyeOff className="text-(--color-ink) md:text-2xl" /> : <Eye className="text-(--color-ink) md:text-2xl" />}
+            <button
+              onClick={() => setShowAlltime((prev) => !prev)}
+              className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
+            >
+              {showAlltime ? (
+                <EyeOff className="text-(--color-ink) md:text-2xl" />
+              ) : (
+                <Eye className="text-(--color-ink) md:text-2xl" />
+              )}
             </button>
           </CardContent>
         </Card>
@@ -1219,8 +1365,15 @@ export default function Transfer() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <button onClick={() => setShowCurrent((prev) => !prev)} className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition">
-              {showCurrent ? <EyeOff className="text-white md:text-2xl" /> : <Eye className="text-white md:text-2xl" />}
+            <button
+              onClick={() => setShowCurrent((prev) => !prev)}
+              className="bg-white/20 p-3 rounded-full hover:bg-white/30 transition"
+            >
+              {showCurrent ? (
+                <EyeOff className="text-white md:text-2xl" />
+              ) : (
+                <Eye className="text-white md:text-2xl" />
+              )}
             </button>
           </CardContent>
         </Card>
@@ -1231,16 +1384,29 @@ export default function Transfer() {
               Your Account Number
               <div className="font-semibold flex items-center gap-4 mt-1 text-(--text-primary)">
                 {userDetails?.bank_details?.bank_account_number || "N/A"}
-                <button className="text-sm border border-(--border-color) px-3 py-2 rounded-md cursor-pointer hover:bg-(--bg-secondary) transition" onClick={async () => {
-                  if (userDetails?.bank_details?.bank_account_number) {
-                    await navigator.clipboard.writeText(userDetails.bank_details.bank_account_number);
-                    Swal.fire({ icon: "success", title: "Copied!", text: "Account number copied to clipboard", timer: 1500, showConfirmButton: false });
-                  }
-                }}>
+                <button
+                  className="text-sm border border-(--border-color) px-3 py-2 rounded-md cursor-pointer hover:bg-(--bg-secondary) transition"
+                  onClick={async () => {
+                    if (userDetails?.bank_details?.bank_account_number) {
+                      await navigator.clipboard.writeText(
+                        userDetails.bank_details.bank_account_number,
+                      );
+                      Swal.fire({
+                        icon: "success",
+                        title: "Copied!",
+                        text: "Account number copied to clipboard",
+                        timer: 1500,
+                        showConfirmButton: false,
+                      });
+                    }
+                  }}
+                >
                   <CopyIcon className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-sm text-(--text-secondary)">{userDetails?.bank_details?.bank_name || "Loading..."}</p>
+              <p className="text-sm text-(--text-secondary)">
+                {userDetails?.bank_details?.bank_name || "Loading..."}
+              </p>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -1253,8 +1419,12 @@ export default function Transfer() {
 
       <Card className="shadow-xl border rounded-2xl bg-(--bg-primary) border-(--border-color)">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-(--text-primary)">Transfer Funds</CardTitle>
-          <p className="text-sm text-(--text-secondary)">Choose how you want to transfer funds from your wallet.</p>
+          <CardTitle className="text-2xl font-bold text-(--text-primary)">
+            Transfer Funds
+          </CardTitle>
+          <p className="text-sm text-(--text-secondary)">
+            Choose how you want to transfer funds from your wallet.
+          </p>
         </CardHeader>
 
         <CardContent>
@@ -1262,24 +1432,39 @@ export default function Transfer() {
             {/* Transfer Type */}
             <div className="space-y-2">
               <Label className="text-(--text-primary)">Transfer Type</Label>
-              <Select value={transferType} onValueChange={(value) => {
-                setTransferType(value as "my-account" | "other-bank" | "p2p");
-                setSelectedSavedAccount(null);
-                setSelectedSavedP2PBeneficiary(null);
-                setSaveAccount(false);
-                setSaveP2PBeneficiary(false);
-                setShowBeneficiarySuggestions(false);
-                setBeneficiarySearch("");
-                setMatchingBeneficiaries([]);
-                setIsInputFocused(false);
-              }}>
+              <Select
+                value={transferType}
+                onValueChange={(value) => {
+                  setTransferType(value as "my-account" | "other-bank" | "p2p");
+                  setSelectedSavedAccount(null);
+                  setSelectedSavedP2PBeneficiary(null);
+                  setSaveAccount(false);
+                  setSaveP2PBeneficiary(false);
+                  setShowBeneficiarySuggestions(false);
+                  setBeneficiarySearch("");
+                  setMatchingBeneficiaries([]);
+                  setIsInputFocused(false);
+                }}
+              >
                 <SelectTrigger className="bg-(--bg-primary) border-(--border-color) text-(--text-primary)">
                   <SelectValue placeholder="Select transfer type" />
                 </SelectTrigger>
                 <SelectContent className="bg-(--bg-primary) border-(--border-color)">
-                  <SelectItem value="my-account" className="text-(--text-primary)">My Bank Account</SelectItem>
-                  <SelectItem value="other-bank" className="text-(--text-primary)">Other Bank Account</SelectItem>
-                  <SelectItem value="p2p" className="text-(--text-primary)">Zidwell User (P2P)</SelectItem>
+                  <SelectItem
+                    value="my-account"
+                    className="text-(--text-primary)"
+                  >
+                    My Bank Account
+                  </SelectItem>
+                  <SelectItem
+                    value="other-bank"
+                    className="text-(--text-primary)"
+                  >
+                    Other Bank Account
+                  </SelectItem>
+                  <SelectItem value="p2p" className="text-(--text-primary)">
+                    Zidwell User (P2P)
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1287,26 +1472,67 @@ export default function Transfer() {
             {/* Amount */}
             <div className="space-y-1">
               <Label className="text-(--text-primary)">Amount (₦)</Label>
-              <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 5000" className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)" />
-              {transferType !== "p2p" && (<FeeDisplay type="transfer" amount={Number(amount)} paymentMethod="bank_transfer" onFeeCalculated={(fee, total) => { setCalculatedFee(fee); setTotalDebit(total); }} />)}
-              {errors.amount && <p className="text-red-600 text-sm">{errors.amount}</p>}
+              <Input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="e.g. 5000"
+                className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)"
+              />
+              {transferType !== "p2p" && (
+                <FeeDisplay
+                  type="transfer"
+                  amount={Number(amount)}
+                  paymentMethod="bank_transfer"
+                  onFeeCalculated={(fee, total) => {
+                    setCalculatedFee(fee);
+                    setTotalDebit(total);
+                  }}
+                />
+              )}
+              {errors.amount && (
+                <p className="text-red-600 text-sm">{errors.amount}</p>
+              )}
             </div>
 
             {/* My Account */}
             {transferType === "my-account" && (
               <>
                 {loading2 ? (
-                  <div className="bg-(--bg-secondary) p-3 rounded-lg border border-(--border-color) text-sm text-(--text-secondary) animate-pulse">Loading your bank details...</div>
-                ) : userDetails?.payment_details?.p_account_number && userDetails?.payment_details?.p_account_name ? (
+                  <div className="bg-(--bg-secondary) p-3 rounded-lg border border-(--border-color) text-sm text-(--text-secondary) animate-pulse">
+                    Loading your bank details...
+                  </div>
+                ) : userDetails?.payment_details?.p_account_number &&
+                  userDetails?.payment_details?.p_account_name ? (
                   <div className="bg-(--bg-secondary) p-3 rounded-lg border border-(--border-color) space-y-1 text-sm">
-                    <p className="text-(--text-primary)"><strong>Bank:</strong> {userDetails.payment_details.p_bank_name}</p>
-                    <p className="text-(--text-primary)"><strong>Account Number:</strong> {userDetails.payment_details.p_account_number}</p>
-                    <p className="text-(--text-primary)"><strong>Account Name:</strong> {userDetails.payment_details.p_account_name}</p>
+                    <p className="text-(--text-primary)">
+                      <strong>Bank:</strong>{" "}
+                      {userDetails.payment_details.p_bank_name}
+                    </p>
+                    <p className="text-(--text-primary)">
+                      <strong>Account Number:</strong>{" "}
+                      {userDetails.payment_details.p_account_number}
+                    </p>
+                    <p className="text-(--text-primary)">
+                      <strong>Account Name:</strong>{" "}
+                      {userDetails.payment_details.p_account_name}
+                    </p>
                   </div>
                 ) : (
                   <div className="bg-red-50 p-3 rounded-lg border text-sm text-red-600 dark:bg-red-900/20 dark:border-red-800">
-                    You have not set your bank account details yet. <Link href="/dashboard/profile" className="text-blue-500 hover:underline">Click here</Link> to add them.
-                    {errors.myAccount && <p className="text-red-600 text-sm mt-1">{errors.myAccount}</p>}
+                    You have not set your bank account details yet.{" "}
+                    <Link
+                      href="/dashboard/profile"
+                      className="text-blue-500 hover:underline"
+                    >
+                      Click here
+                    </Link>{" "}
+                    to add them.
+                    {errors.myAccount && (
+                      <p className="text-red-600 text-sm mt-1">
+                        {errors.myAccount}
+                      </p>
+                    )}
                   </div>
                 )}
               </>
@@ -1317,20 +1543,26 @@ export default function Transfer() {
               <>
                 {/* Beneficiary Suggestions Dropdown - Positioned below with proper spacing */}
                 {showSuggestions && (
-                  <div ref={beneficiaryContainerRef} className="beneficiary-suggestions-container relative z-50 mt-1">
+                  <div
+                    ref={beneficiaryContainerRef}
+                    className="beneficiary-suggestions-container relative z-50 mt-1"
+                  >
                     <div className="absolute w-full bg-(--bg-primary) border border-(--border-color) rounded-lg shadow-lg max-h-48 overflow-y-auto">
                       <div className="p-2 border-b border-(--border-color) sticky top-0 bg-(--bg-primary) z-10">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-(--text-secondary)">MATCHING BENEFICIARIES ({matchingBeneficiaries.length})</span>
-                          <button 
-                            type="button" 
+                          <span className="text-xs font-medium text-(--text-secondary)">
+                            MATCHING BENEFICIARIES (
+                            {matchingBeneficiaries.length})
+                          </span>
+                          <button
+                            type="button"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               setShowBeneficiarySuggestions(false);
                               setMatchingBeneficiaries([]);
                               setIsInputFocused(false);
-                            }} 
+                            }}
                             className="p-1 hover:bg-(--bg-secondary) rounded"
                           >
                             <X className="h-3 w-3 text-(--text-secondary)" />
@@ -1349,11 +1581,18 @@ export default function Transfer() {
                                 <User className="h-4 w-4 text-(--text-secondary)" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-(--text-primary) truncate">{beneficiary.account_name}</p>
-                                <p className="text-xs text-(--text-secondary) truncate">{beneficiary.account_number} • {beneficiary.bank_name || 'Zidwell'}</p>
+                                <p className="text-sm font-medium text-(--text-primary) truncate">
+                                  {beneficiary.account_name}
+                                </p>
+                                <p className="text-xs text-(--text-secondary) truncate">
+                                  {beneficiary.account_number} •{" "}
+                                  {beneficiary.bank_name || "Zidwell"}
+                                </p>
                               </div>
-                              {beneficiary.type === 'p2p' && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 flex-shrink-0">P2P</span>
+                              {beneficiary.type === "p2p" && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 flex-shrink-0">
+                                  P2P
+                                </span>
                               )}
                             </div>
                           </div>
@@ -1367,8 +1606,16 @@ export default function Transfer() {
                 {savedAccounts.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium text-(--text-primary)">Saved Accounts</Label>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setShowSavedAccounts(!showSavedAccounts)} className="flex items-center gap-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)">
+                      <Label className="text-sm font-medium text-(--text-primary)">
+                        Saved Accounts
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSavedAccounts(!showSavedAccounts)}
+                        className="flex items-center gap-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
+                      >
                         <Bookmark className="h-4 w-4" />
                         {showSavedAccounts ? "Hide" : "Show"} Saved
                       </Button>
@@ -1376,13 +1623,25 @@ export default function Transfer() {
                     {showSavedAccounts && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto dark:bg-blue-900/20 dark:border-blue-800">
                         {savedAccounts.map((account) => (
-                          <div key={account.id} onClick={() => handleSelectSavedAccount(account)} className={`p-2 rounded cursor-pointer transition-colors ${selectedSavedAccount?.id === account.id ? "bg-blue-100 border border-blue-300 dark:bg-blue-900/40 dark:border-blue-700" : "bg-white hover:bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"}`}>
+                          <div
+                            key={account.id}
+                            onClick={() => handleSelectSavedAccount(account)}
+                            className={`p-2 rounded cursor-pointer transition-colors ${selectedSavedAccount?.id === account.id ? "bg-blue-100 border border-blue-300 dark:bg-blue-900/40 dark:border-blue-700" : "bg-white hover:bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"}`}
+                          >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <p className="font-medium text-gray-900 text-sm dark:text-gray-100">{account.account_name}</p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400">{account.account_number} • {account.bank_name}</p>
+                                <p className="font-medium text-gray-900 text-sm dark:text-gray-100">
+                                  {account.account_name}
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  {account.account_number} • {account.bank_name}
+                                </p>
                               </div>
-                              {account.is_default && <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2 dark:bg-green-900/30 dark:text-green-400">Default</span>}
+                              {account.is_default && (
+                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2 dark:bg-green-900/30 dark:text-green-400">
+                                  Default
+                                </span>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1392,23 +1651,48 @@ export default function Transfer() {
                 )}
 
                 <div className="space-y-1">
-                  <Label className="text-(--text-primary)">Select Bank Name</Label>
+                  <Label className="text-(--text-primary)">
+                    Select Bank Name
+                  </Label>
                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
-                      <button type="button" className="w-full flex justify-between items-center border border-(--border-color) rounded px-3 py-2 text-sm bg-(--bg-primary) text-(--text-primary)" aria-expanded={open}>
+                      <button
+                        type="button"
+                        className="w-full flex justify-between items-center border border-(--border-color) rounded px-3 py-2 text-sm bg-(--bg-primary) text-(--text-primary)"
+                        aria-expanded={open}
+                      >
                         {bankName || "Search bank..."}
                         <ChevronsUpDown className="h-4 w-4 opacity-50" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0 bg-(--bg-primary) border-(--border-color)">
                       <Command className="bg-(--bg-primary)">
-                        <CommandInput placeholder="Search bank..." value={search} onValueChange={setSearch} autoFocus className="bg-(--bg-primary) border-(--border-color) text-(--text-primary)" />
+                        <CommandInput
+                          placeholder="Search bank..."
+                          value={search}
+                          onValueChange={setSearch}
+                          autoFocus
+                          className="bg-(--bg-primary) border-(--border-color) text-(--text-primary)"
+                        />
                         <CommandList>
-                          <CommandEmpty className="text-(--text-secondary)">No bank found.</CommandEmpty>
+                          <CommandEmpty className="text-(--text-secondary)">
+                            No bank found.
+                          </CommandEmpty>
                           <CommandGroup>
                             {filteredBanks.map((bank) => (
-                              <CommandItem key={bank.code} onSelect={() => handleSelectBank(bank)} className="text-(--text-primary) hover:bg-(--bg-secondary)">
-                                <Check className={cn("mr-2 h-4 w-4", bankCode === bank.code ? "opacity-100" : "opacity-0")} />
+                              <CommandItem
+                                key={bank.code}
+                                onSelect={() => handleSelectBank(bank)}
+                                className="text-(--text-primary) hover:bg-(--bg-secondary)"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    bankCode === bank.code
+                                      ? "opacity-100"
+                                      : "opacity-0",
+                                  )}
+                                />
                                 {bank.name}
                               </CommandItem>
                             ))}
@@ -1417,11 +1701,15 @@ export default function Transfer() {
                       </Command>
                     </PopoverContent>
                   </Popover>
-                  {errors.otherBank && <p className="text-red-600 text-sm">{errors.otherBank}</p>}
+                  {errors.otherBank && (
+                    <p className="text-red-600 text-sm">{errors.otherBank}</p>
+                  )}
                 </div>
 
                 <div className="space-y-1 relative beneficiary-input-trigger">
-                  <Label className="text-(--text-primary)">Account Number</Label>
+                  <Label className="text-(--text-primary)">
+                    Account Number
+                  </Label>
                   <Input
                     ref={accountInputRef}
                     type="text"
@@ -1435,9 +1723,12 @@ export default function Transfer() {
                       // Only show suggestions on focus if there's a matching beneficiary
                       if (accountNumber.length > 0) {
                         const allBeneficiaries = getAllBeneficiaries();
-                        const matches = allBeneficiaries.filter(b => 
-                          b.account_number.includes(accountNumber) || 
-                          b.account_name.toLowerCase().includes(accountNumber.toLowerCase())
+                        const matches = allBeneficiaries.filter(
+                          (b) =>
+                            b.account_number.includes(accountNumber) ||
+                            b.account_name
+                              .toLowerCase()
+                              .includes(accountNumber.toLowerCase()),
                         );
                         if (matches.length > 0) {
                           setMatchingBeneficiaries(matches);
@@ -1448,7 +1739,11 @@ export default function Transfer() {
                     onBlur={() => {
                       // Delay hiding to allow click on suggestion
                       setTimeout(() => {
-                        if (!document.activeElement?.closest('.beneficiary-suggestions-container')) {
+                        if (
+                          !document.activeElement?.closest(
+                            ".beneficiary-suggestions-container",
+                          )
+                        ) {
                           setIsInputFocused(false);
                         }
                       }, 200);
@@ -1456,22 +1751,41 @@ export default function Transfer() {
                     placeholder="10-digit account number"
                     className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary) [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
-                  {errors.accountNumber && <p className="text-red-600 text-sm">{errors.accountNumber}</p>}
+                  {errors.accountNumber && (
+                    <p className="text-red-600 text-sm">
+                      {errors.accountNumber}
+                    </p>
+                  )}
                 </div>
 
-                {lookupLoading && <p className="text-(--color-accent-yellow) text-sm flex items-center gap-2"><Loader2 className="animate-spin" /> Verifying account...</p>}
+                {lookupLoading && (
+                  <p className="text-(--color-accent-yellow) text-sm flex items-center gap-2">
+                    <Loader2 className="animate-spin" /> Verifying account...
+                  </p>
+                )}
                 {accountName && !errors.accountNumber && (
                   <div className="space-y-2">
-                    <p className="text-(--color-accent-yellow) text-sm font-semibold">Account Name: {accountName}</p>
-                    {!selectedSavedAccount && accountNumber.length === 10 && accountName && (
-                      <div className="flex items-center justify-between p-3 bg-(--bg-secondary) rounded-lg border border-(--border-color)">
-                        <span className="text-sm font-medium text-(--text-primary)">Save to beneficiaries</span>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" checked={saveAccount} onChange={(e) => setSaveAccount(e.target.checked)} className="sr-only peer" />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--color-accent-yellow) dark:bg-gray-600"></div>
-                        </label>
-                      </div>
-                    )}
+                    <p className="text-(--color-accent-yellow) text-sm font-semibold">
+                      Account Name: {accountName}
+                    </p>
+                    {!selectedSavedAccount &&
+                      accountNumber.length === 10 &&
+                      accountName && (
+                        <div className="flex items-center justify-between p-3 bg-(--bg-secondary) rounded-lg border border-(--border-color)">
+                          <span className="text-sm font-medium text-(--text-primary)">
+                            Save to beneficiaries
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={saveAccount}
+                              onChange={(e) => setSaveAccount(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--color-accent-yellow) dark:bg-gray-600"></div>
+                          </label>
+                        </div>
+                      )}
                   </div>
                 )}
               </>
@@ -1482,20 +1796,26 @@ export default function Transfer() {
               <>
                 {/* Beneficiary Suggestions Dropdown for P2P - Positioned below with proper spacing */}
                 {showSuggestions && (
-                  <div ref={beneficiaryContainerRef} className="beneficiary-suggestions-container relative z-50 mt-1">
+                  <div
+                    ref={beneficiaryContainerRef}
+                    className="beneficiary-suggestions-container relative z-50 mt-1"
+                  >
                     <div className="absolute w-full bg-(--bg-primary) border border-(--border-color) rounded-lg shadow-lg max-h-48 overflow-y-auto">
                       <div className="p-2 border-b border-(--border-color) sticky top-0 bg-(--bg-primary) z-10">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-(--text-secondary)">MATCHING BENEFICIARIES ({matchingBeneficiaries.length})</span>
-                          <button 
-                            type="button" 
+                          <span className="text-xs font-medium text-(--text-secondary)">
+                            MATCHING BENEFICIARIES (
+                            {matchingBeneficiaries.length})
+                          </span>
+                          <button
+                            type="button"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               setShowBeneficiarySuggestions(false);
                               setMatchingBeneficiaries([]);
                               setIsInputFocused(false);
-                            }} 
+                            }}
                             className="p-1 hover:bg-(--bg-secondary) rounded"
                           >
                             <X className="h-3 w-3 text-(--text-secondary)" />
@@ -1514,11 +1834,18 @@ export default function Transfer() {
                                 <User className="h-4 w-4 text-(--text-secondary)" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-(--text-primary) truncate">{beneficiary.account_name}</p>
-                                <p className="text-xs text-(--text-secondary) truncate">{beneficiary.account_number} • {beneficiary.bank_name || 'Zidwell'}</p>
+                                <p className="text-sm font-medium text-(--text-primary) truncate">
+                                  {beneficiary.account_name}
+                                </p>
+                                <p className="text-xs text-(--text-secondary) truncate">
+                                  {beneficiary.account_number} •{" "}
+                                  {beneficiary.bank_name || "Zidwell"}
+                                </p>
                               </div>
-                              {beneficiary.type === 'p2p' && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 flex-shrink-0">P2P</span>
+                              {beneficiary.type === "p2p" && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 flex-shrink-0">
+                                  P2P
+                                </span>
                               )}
                             </div>
                           </div>
@@ -1532,8 +1859,20 @@ export default function Transfer() {
                 {savedP2PBeneficiaries.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium text-(--text-primary)">Saved Beneficiaries</Label>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setShowSavedP2PBeneficiaries(!showSavedP2PBeneficiaries)} className="flex items-center gap-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)">
+                      <Label className="text-sm font-medium text-(--text-primary)">
+                        Saved Beneficiaries
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setShowSavedP2PBeneficiaries(
+                            !showSavedP2PBeneficiaries,
+                          )
+                        }
+                        className="flex items-center gap-1 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
+                      >
                         <User className="h-4 w-4" />
                         {showSavedP2PBeneficiaries ? "Hide" : "Show"} Saved
                       </Button>
@@ -1541,13 +1880,27 @@ export default function Transfer() {
                     {showSavedP2PBeneficiaries && (
                       <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto dark:bg-purple-900/20 dark:border-purple-800">
                         {savedP2PBeneficiaries.map((beneficiary) => (
-                          <div key={beneficiary.id} onClick={() => handleSelectSavedP2PBeneficiary(beneficiary)} className={`p-2 rounded cursor-pointer transition-colors ${selectedSavedP2PBeneficiary?.id === beneficiary.id ? "bg-purple-100 border border-purple-300 dark:bg-purple-900/40 dark:border-purple-700" : "bg-white hover:bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"}`}>
+                          <div
+                            key={beneficiary.id}
+                            onClick={() =>
+                              handleSelectSavedP2PBeneficiary(beneficiary)
+                            }
+                            className={`p-2 rounded cursor-pointer transition-colors ${selectedSavedP2PBeneficiary?.id === beneficiary.id ? "bg-purple-100 border border-purple-300 dark:bg-purple-900/40 dark:border-purple-700" : "bg-white hover:bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"}`}
+                          >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <p className="font-medium text-gray-900 text-sm dark:text-gray-100">{beneficiary.account_name}</p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400">{beneficiary.account_number} • Zidwell User</p>
+                                <p className="font-medium text-gray-900 text-sm dark:text-gray-100">
+                                  {beneficiary.account_name}
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  {beneficiary.account_number} • Zidwell User
+                                </p>
                               </div>
-                              {beneficiary.is_default && <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2 dark:bg-green-900/30 dark:text-green-400">Default</span>}
+                              {beneficiary.is_default && (
+                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2 dark:bg-green-900/30 dark:text-green-400">
+                                  Default
+                                </span>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1557,7 +1910,9 @@ export default function Transfer() {
                 )}
 
                 <div className="space-y-1 relative beneficiary-input-trigger">
-                  <Label className="text-(--text-primary)">Account Number (Zidwell User)</Label>
+                  <Label className="text-(--text-primary)">
+                    Account Number (Zidwell User)
+                  </Label>
                   <Input
                     ref={p2pInputRef}
                     type="text"
@@ -1567,9 +1922,12 @@ export default function Transfer() {
                       setIsInputFocused(true);
                       if (recepientAcc.length > 0) {
                         const allBeneficiaries = getAllBeneficiaries();
-                        const matches = allBeneficiaries.filter(b => 
-                          b.account_number.includes(recepientAcc) || 
-                          b.account_name.toLowerCase().includes(recepientAcc.toLowerCase())
+                        const matches = allBeneficiaries.filter(
+                          (b) =>
+                            b.account_number.includes(recepientAcc) ||
+                            b.account_name
+                              .toLowerCase()
+                              .includes(recepientAcc.toLowerCase()),
                         );
                         if (matches.length > 0) {
                           setMatchingBeneficiaries(matches);
@@ -1579,7 +1937,11 @@ export default function Transfer() {
                     }}
                     onBlur={() => {
                       setTimeout(() => {
-                        if (!document.activeElement?.closest('.beneficiary-suggestions-container')) {
+                        if (
+                          !document.activeElement?.closest(
+                            ".beneficiary-suggestions-container",
+                          )
+                        ) {
                           setIsInputFocused(false);
                         }
                       }, 200);
@@ -1587,79 +1949,158 @@ export default function Transfer() {
                     placeholder="Enter account number"
                     className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)"
                   />
-                  {errors.recepientAcc && <p className="text-red-600 text-sm">{errors.recepientAcc}</p>}
+                  {errors.recepientAcc && (
+                    <p className="text-red-600 text-sm">
+                      {errors.recepientAcc}
+                    </p>
+                  )}
                 </div>
 
-                {lookupLoading && <p className="text-(--color-accent-yellow) text-sm flex items-center gap-2"><Loader2 className="animate-spin" /> Verifying account...</p>}
+                {lookupLoading && (
+                  <p className="text-(--color-accent-yellow) text-sm flex items-center gap-2">
+                    <Loader2 className="animate-spin" /> Verifying account...
+                  </p>
+                )}
                 {p2pDetails?.name && !errors.recepientAcc && (
                   <div className="space-y-2">
-                    <p className="text-(--color-accent-yellow) text-sm font-semibold">Account Name: {p2pDetails.name}</p>
-                    {!selectedSavedP2PBeneficiary && recepientAcc.length >= 6 && p2pDetails?.name && (
-                      <div className="flex items-center justify-between p-3 bg-(--bg-secondary) rounded-lg border border-(--border-color)">
-                        <span className="text-sm font-medium text-(--text-primary)">Save to beneficiaries</span>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" checked={saveP2PBeneficiary} onChange={(e) => setSaveP2PBeneficiary(e.target.checked)} className="sr-only peer" />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--color-accent-yellow) dark:bg-gray-600"></div>
-                        </label>
-                      </div>
-                    )}
+                    <p className="text-(--color-accent-yellow) text-sm font-semibold">
+                      Account Name: {p2pDetails.name}
+                    </p>
+                    {!selectedSavedP2PBeneficiary &&
+                      recepientAcc.length >= 6 &&
+                      p2pDetails?.name && (
+                        <div className="flex items-center justify-between p-3 bg-(--bg-secondary) rounded-lg border border-(--border-color)">
+                          <span className="text-sm font-medium text-(--text-primary)">
+                            Save to beneficiaries
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={saveP2PBeneficiary}
+                              onChange={(e) =>
+                                setSaveP2PBeneficiary(e.target.checked)
+                              }
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--color-accent-yellow) dark:bg-gray-600"></div>
+                          </label>
+                        </div>
+                      )}
                   </div>
                 )}
               </>
             )}
 
-            
             {/* Expense Category Dropdown */}
             <div className="space-y-1">
-              <Label className="text-(--text-primary)">Expense Category <span className="text-sm text-red-500">*</span></Label>
+              <Label className="text-(--text-primary)">
+                Expense Category <span className="text-sm text-red-500">*</span>
+              </Label>
 
               {loadingCategories ? (
                 <div className="flex items-center justify-center p-4 border border-(--border-color) rounded-lg">
                   <Loader2 className="h-5 w-5 animate-spin text-(--color-accent-yellow)" />
-                  <span className="ml-2 text-(--text-secondary)">Loading categories...</span>
+                  <span className="ml-2 text-(--text-secondary)">
+                    Loading categories...
+                  </span>
                 </div>
               ) : (
-                <Popover open={showCategoryDropdown} onOpenChange={setShowCategoryDropdown}>
+                <Popover
+                  open={showCategoryDropdown}
+                  onOpenChange={setShowCategoryDropdown}
+                >
                   <PopoverTrigger asChild>
-                    <button type="button" className="w-full flex justify-between items-center border border-(--border-color) rounded-lg px-4 py-2.5 text-sm bg-(--bg-primary) text-(--text-primary) hover:bg-(--bg-secondary) transition-colors">
+                    <button
+                      type="button"
+                      className="w-full flex justify-between items-center border border-(--border-color) rounded-lg px-4 py-2.5 text-sm bg-(--bg-primary) text-(--text-primary) hover:bg-(--bg-secondary) transition-colors"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-xl">{getSelectedCategoryIcon()}</span>
+                        <span className="text-xl">
+                          {getSelectedCategoryIcon()}
+                        </span>
                         <span>{getSelectedCategoryName()}</span>
                       </span>
                       <ChevronsUpDown className="h-4 w-4 opacity-50" />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0 bg-(--bg-primary) border-(--border-color) max-h-[400px] overflow-y-auto" align="start">
+                  <PopoverContent
+                    className="w-[400px] p-0 bg-(--bg-primary) border-(--border-color) max-h-[400px] overflow-y-auto"
+                    align="start"
+                  >
                     <Command className="bg-(--bg-primary)">
-                      <CommandInput placeholder="Search category..." value={categorySearch} onValueChange={setCategorySearch} className="bg-(--bg-primary) border-(--border-color) text-(--text-primary)" />
+                      <CommandInput
+                        placeholder="Search category..."
+                        value={categorySearch}
+                        onValueChange={setCategorySearch}
+                        className="bg-(--bg-primary) border-(--border-color) text-(--text-primary)"
+                      />
                       <CommandList>
-                        <CommandEmpty className="text-(--text-secondary) p-4 text-center">No category found.</CommandEmpty>
+                        <CommandEmpty className="text-(--text-secondary) p-4 text-center">
+                          No category found.
+                        </CommandEmpty>
                         <CommandGroup>
                           {filteredCategories.map((item) => {
-                            if (typeof item === 'object' && 'isGroupHeader' in item && item.isGroupHeader) {
-                              const hasFavorites = expenseCategories.some(cat => cat.is_favorite);
-                              const isDailyEssentials = item.groupName === "DAILY ESSENTIALS";
+                            if (
+                              typeof item === "object" &&
+                              "isGroupHeader" in item &&
+                              item.isGroupHeader
+                            ) {
+                              const hasFavorites = expenseCategories.some(
+                                (cat) => cat.is_favorite,
+                              );
+                              const isDailyEssentials =
+                                item.groupName === "DAILY ESSENTIALS";
                               return (
-                                <div key={`header-${item.groupName}`} className="px-2 py-2 mt-2 first:mt-0">
-                                  <div className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider">{item.groupName}</div>
+                                <div
+                                  key={`header-${item.groupName}`}
+                                  className="px-2 py-2 mt-2 first:mt-0"
+                                >
+                                  <div className="text-xs font-semibold text-(--text-secondary) uppercase tracking-wider">
+                                    {item.groupName}
+                                  </div>
                                   {isDailyEssentials && !hasFavorites && (
-                                    <div className="text-xs text-(--text-secondary) mt-0.5">Empty till you add favourites</div>
+                                    <div className="text-xs text-(--text-secondary) mt-0.5">
+                                      Empty till you add favourites
+                                    </div>
                                   )}
                                 </div>
                               );
                             }
                             const category = item as ExpenseCategory;
                             return (
-                              <CommandItem key={category.id} onSelect={() => handleSelectCategory(category)} className="flex items-center justify-between cursor-pointer hover:bg-(--bg-secondary)">
+                              <CommandItem
+                                key={category.id}
+                                onSelect={() => handleSelectCategory(category)}
+                                className="flex items-center justify-between cursor-pointer hover:bg-(--bg-secondary)"
+                              >
                                 <div className="flex items-center gap-3">
-                                  <span className="text-xl">{category.icon}</span>
-                                  <span className="text-(--text-primary)">{category.name}</span>
+                                  <span className="text-xl">
+                                    {category.icon}
+                                  </span>
+                                  <span className="text-(--text-primary)">
+                                    {category.name}
+                                  </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <button type="button" onClick={(e) => toggleFavoriteCategory(category, e)} className="p-1 hover:scale-110 transition-transform">
-                                    <Star className={cn("h-4 w-4", category.is_favorite ? "fill-[#f59e0b] text-[#f59e0b]" : "text-(--text-secondary)")} />
+                                  <button
+                                    type="button"
+                                    onClick={(e) =>
+                                      toggleFavoriteCategory(category, e)
+                                    }
+                                    className="p-1 hover:scale-110 transition-transform"
+                                  >
+                                    <Star
+                                      className={cn(
+                                        "h-4 w-4",
+                                        category.is_favorite
+                                          ? "fill-[#f59e0b] text-[#f59e0b]"
+                                          : "text-(--text-secondary)",
+                                      )}
+                                    />
                                   </button>
-                                  {expenseCategory === category.id && <Check className="h-4 w-4 text-(--color-accent-yellow)" />}
+                                  {expenseCategory === category.id && (
+                                    <Check className="h-4 w-4 text-(--color-accent-yellow)" />
+                                  )}
                                 </div>
                               </CommandItem>
                             );
@@ -1670,19 +2111,41 @@ export default function Transfer() {
                   </PopoverContent>
                 </Popover>
               )}
-              {errors.expenseCategory && <p className="text-red-600 text-sm">{errors.expenseCategory}</p>}
-              <p className="text-xs text-(--text-secondary) mt-1">⭐ Click the star to favorite a category - favorites appear at the top for quick access</p>
+              {errors.expenseCategory && (
+                <p className="text-red-600 text-sm">{errors.expenseCategory}</p>
+              )}
+              <p className="text-xs text-(--text-secondary) mt-1">
+                ⭐ Click the star to favorite a category - favorites appear at
+                the top for quick access
+              </p>
             </div>
-
 
             {/* Narration */}
             <div className="space-y-1">
-              <Label className="text-(--text-primary)">Narration <span className="text-sm text-(--text-secondary)">(purpose of transaction)</span></Label>
-              <Input type="text" value={narration} onChange={(e) => setNarration(e.target.value)} placeholder="e.g. Food" maxLength={100} className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)" />
+              <Label className="text-(--text-primary)">
+                Narration{" "}
+                <span className="text-sm text-(--text-secondary)">
+                  (purpose of transaction)
+                </span>
+              </Label>
+              <Input
+                type="text"
+                value={narration}
+                onChange={(e) => setNarration(e.target.value)}
+                placeholder="e.g. Food"
+                maxLength={100}
+                className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)"
+              />
             </div>
-            {errors.narration && <p className="text-red-600 text-sm">{errors.narration}</p>}
+            {errors.narration && (
+              <p className="text-red-600 text-sm">{errors.narration}</p>
+            )}
 
-            <Button type="submit" disabled={isDisabled} className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 md:w-[200px]">
+            <Button
+              type="submit"
+              disabled={isDisabled}
+              className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 md:w-[200px]"
+            >
               {loading ? "Processing..." : "Transfer Now"}
             </Button>
           </form>
@@ -1691,14 +2154,35 @@ export default function Transfer() {
       <TransactionSummary
         senderName={`${userData?.fullName}`}
         senderAccount={userDetails?.bank_details?.bank_account_number || "N/A"}
-        recipientName={transferType === "p2p" ? p2pDetails?.name : transferType === "other-bank" ? accountName : userDetails?.payment_details?.p_account_name}
-        recipientAccount={transferType === "p2p" ? recepientAcc : transferType === "other-bank" ? accountNumber : userDetails?.payment_details?.p_account_number}
-        recipientBank={transferType === "p2p" ? "Zidwell" : transferType === "other-bank" ? bankName : userDetails?.payment_details?.p_bank_name}
+        recipientName={
+          transferType === "p2p"
+            ? p2pDetails?.name
+            : transferType === "other-bank"
+              ? accountName
+              : userDetails?.payment_details?.p_account_name
+        }
+        recipientAccount={
+          transferType === "p2p"
+            ? recepientAcc
+            : transferType === "other-bank"
+              ? accountNumber
+              : userDetails?.payment_details?.p_account_number
+        }
+        recipientBank={
+          transferType === "p2p"
+            ? "Zidwell"
+            : transferType === "other-bank"
+              ? bankName
+              : userDetails?.payment_details?.p_bank_name
+        }
         purpose={narration}
         amount={amount}
         confirmTransaction={confirmTransaction}
         onBack={() => setConfirmTransaction(false)}
-        onConfirm={() => { setConfirmTransaction(false); setIsOpen(true); }}
+        onConfirm={() => {
+          setConfirmTransaction(false);
+          setIsOpen(true);
+        }}
         paymentMethod={getPaymentMethod()}
         isP2P={transferType === "p2p"}
       />
