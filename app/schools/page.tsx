@@ -39,7 +39,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import Footer from "../components/home-component/Footer";
+import Footer from "../components/home/Footer";
 import Link from "next/link";
 import { useUserContextData } from "../context/userData";
 

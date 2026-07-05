@@ -15,9 +15,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSubscription } from "../hooks/useSubscripion";
 import { useUserContextData } from "../context/userData";
 import { SubscriptionBadge } from "../components/subscription-components/subscriptionBadges";
-import Footer from "../components/home-component/Footer";
+import Footer from "../components/home/Footer";
 import { Button } from "../components/ui/button";
-import Header from "../components/home-component/Header";
+import Header from "../components/home/Header";
 
 const plans = [
   {

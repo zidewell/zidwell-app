@@ -1,19 +1,10 @@
 "use client";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import CTA from "./components/home-component/CTA";
-import Features from "./components/home-component/Features";
-import Footer from "./components/home-component/Footer";
-import Hero from "./components/home-component/Hero";
-import Testimonials from "./components/home-component/Testimonials";
+
 import { useEffect, useMemo, useState } from "react";
-import Pricing from "./components/home-component/Pricing";
-import WhyDifferent from "./components/home-component/WhyDifferent";
-import HowItWorks from "./components/home-component/HowItWork";
-import WhyChoose from "./components/home-component/WhyChoose";
-import ZidCoin from "./components/home-component/Zidcoin";
-import FAQ from "./components/home-component/FAQ";
-import Header from "./components/home-component/Header";
+import Homepage from "./components/home/home";
+
 
 const animations = [
   "fade-up",
@@ -64,8 +55,8 @@ function HomeContent() {
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-50 overflow-x-hidden">
-      <Header />
-
+      {/* <Header />
+        <
       {componentSettings.map((component) => (
         <div
           key={component.id}
@@ -81,12 +72,15 @@ function HomeContent() {
           {component.id === "testimonials" && <Testimonials />}
           {component.id === "pricing" && <Pricing />}
           {/* {component.id === "zidCoin" && <ZidCoin />} */}
-          {component.id === "faq" && <FAQ />}
-          {component.id === "cta" && <CTA />}
-        </div>
+          {/* {component.id === "faq" && <FAQ />}
+          {component.id === "cta" && <CTA />} */}
+        {/* </div>
       ))}
 
-      <Footer />
+      <Footer /> */} 
+
+
+      <Homepage />
     </main>
   );
 }
