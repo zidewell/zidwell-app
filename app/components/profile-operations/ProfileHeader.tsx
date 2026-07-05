@@ -1,10 +1,9 @@
-// app/components/new-profile/ProfileHeader.tsx
 import React, { useRef, useState } from "react";
 import { Camera } from "lucide-react";
 import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 
-type SubscriptionTier = "free" | "zidlite" | "growth" | "premium" | "elite";
+type SubscriptionTier = "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
 
 interface ProfileHeaderProps {
   name: string;
@@ -16,10 +15,18 @@ interface ProfileHeaderProps {
 
 const tierLabels: Record<SubscriptionTier, string> = {
   free: "Free",
-  zidlite: "ZidLite",
-  growth: "Growth",
-  premium: "Premium",
-  elite: "Elite",
+  solopreneur: "Solopreneur",
+  sme: "SME",
+  enterprise: "Enterprise",
+  corporation: "Corporation",
+};
+
+const tierColors: Record<SubscriptionTier, string> = {
+  free: "border-gray-400 text-gray-400",
+  solopreneur: "border-blue-400 text-blue-400",
+  sme: "border-(--color-accent-yellow) text-(--color-accent-yellow)",
+  enterprise: "border-amber-400 text-amber-400",
+  corporation: "border-purple-400 text-purple-400",
 };
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -123,8 +130,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <p className="text-sm font-body text-(--text-secondary) truncate">
             {email}
           </p>
-          <div className="flex items-center gap-3 mt-2">
-            <span className="text-xs text-(--color-accent-yellow) border-2 border-(--color-accent-yellow) px-2 py-0.5 rounded">
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <span className={`text-xs border-2 px-2 py-0.5 rounded ${tierColors[subscription]}`}>
               {tierLabels[subscription]}
             </span>
             {walletActivated && (

@@ -1,4 +1,4 @@
-// app/components/journal/types.ts
+// app/types/journal.ts
 
 export type JournalType = 'personal' | 'business';
 export type EntryType = 'income' | 'expense';
@@ -9,8 +9,8 @@ export interface Category {
   icon: string;
   type: EntryType | 'both';
   isCustom: boolean;
-  isFavorite?: boolean; 
-  favoriteOrder?: number; 
+  isFavorite?: boolean;
+  favoriteOrder?: number;
 }
 
 export interface JournalEntry {
@@ -22,6 +22,23 @@ export interface JournalEntry {
   note?: string;
   journalType: JournalType;
   createdAt: string;
+  source?: 'manual' | 'wallet';
+  originalTransactionId?: string;
+  walletTransactionType?: string;
+  transactionDescription?: string;
+  reference?: string;
+  status?: string;
+  categoryName?: string;
+}
+
+export interface UnifiedTransaction extends JournalEntry {
+  source: 'wallet' | 'manual';
+  originalTransactionId?: string;
+  walletTransactionType?: string;
+  transactionDescription?: string;
+  reference?: string;
+  status?: string;
+  categoryName?: string;
 }
 
 export interface DailySummary {

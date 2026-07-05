@@ -1,10 +1,17 @@
-// app/components/subscription-components/subscriptionBadges.tsx
 "use client";
 
 import { useSubscription } from "@/app/hooks/useSubscripion";
-import { Crown, Zap, Sparkles, Star, AlertCircle, Clock } from "lucide-react";
+import { Crown, Zap, Sparkles, Star, AlertCircle, Clock, Building2, Briefcase, Gem } from "lucide-react";
 import { useEffect, useState } from "react";
-import { TIER_DISPLAY_NAMES } from "@/lib/subscription-features";
+
+// Tier display names mapping
+const TIER_DISPLAY_NAMES = {
+  free: "Free",
+  solopreneur: "Solopreneur",
+  sme: "SME",
+  enterprise: "Enterprise",
+  corporation: "Corporation",
+};
 
 const tierConfig = {
   free: {
@@ -15,38 +22,46 @@ const tierConfig = {
     darkColor: "dark:text-gray-300",
     label: TIER_DISPLAY_NAMES.free,
   },
-  zidlite: {
-    icon: Zap,
+  solopreneur: {
+    icon: Briefcase,
     color: "text-blue-600",
     bg: "bg-blue-100",
     darkBg: "dark:bg-blue-900/30",
     darkColor: "dark:text-blue-300",
-    label: TIER_DISPLAY_NAMES.zidlite,
+    label: TIER_DISPLAY_NAMES.solopreneur,
   },
-  growth: {
-    icon: Zap,
+  sme: {
+    icon: Building2,
     color: "text-green-600",
     bg: "bg-green-100",
     darkBg: "dark:bg-green-900/30",
     darkColor: "dark:text-green-300",
-    label: TIER_DISPLAY_NAMES.growth,
+    label: TIER_DISPLAY_NAMES.sme,
   },
-  premium: {
+  enterprise: {
     icon: Crown,
-    color: "text-(--color-accent-yellow)",
-    bg: "bg-(--color-accent-yellow)/10",
-    darkBg: "dark:bg-(--color-accent-yellow)/20",
-    darkColor: "dark:text-(--color-accent-yellow)",
-    label: TIER_DISPLAY_NAMES.premium,
+    color: "text-amber-600",
+    bg: "bg-amber-100",
+    darkBg: "dark:bg-amber-900/30",
+    darkColor: "dark:text-amber-300",
+    label: TIER_DISPLAY_NAMES.enterprise,
   },
-  elite: {
-    icon: Sparkles,
+  corporation: {
+    icon: Gem,
     color: "text-purple-600",
     bg: "bg-purple-100",
     darkBg: "dark:bg-purple-900/30",
     darkColor: "dark:text-purple-300",
-    label: TIER_DISPLAY_NAMES.elite,
+    label: TIER_DISPLAY_NAMES.corporation,
   },
+};
+
+// Legacy aliases for backward compatibility
+const LEGACY_TIER_MAP: Record<string, string> = {
+  zidlite: "solopreneur",
+  growth: "sme",
+  premium: "enterprise",
+  elite: "corporation",
 };
 
 interface SubscriptionBadgeProps {
@@ -64,18 +79,20 @@ export function SubscriptionBadge({
   showTrial = false,
   featureKey = "bookkeeping_access",
 }: SubscriptionBadgeProps) {
-  const { subscription, isActive, checkTrialStatus } = useSubscription();
+  const { subscription, isActive } = useSubscription();
   const [trialInfo, setTrialInfo] = useState<any>(null);
-  const tier = subscription?.tier || "free";
+  
+  let tier = subscription?.tier || "free";
+  
+  // Map legacy tiers to new tiers
+  if (tier in LEGACY_TIER_MAP) {
+    tier = LEGACY_TIER_MAP[tier];
+  }
+  
   const config = tierConfig[tier as keyof typeof tierConfig];
-  const Icon = config.icon;
+  const Icon = config?.icon || Star;
 
-  useEffect(() => {
-    if (showTrial && tier === "free") {
-      checkTrialStatus(featureKey).then(setTrialInfo);
-    }
-  }, [showTrial, tier, featureKey, checkTrialStatus]);
-
+ 
   const sizeClasses = {
     sm: "text-xs px-2 py-0.5",
     md: "text-sm px-3 py-1",
@@ -112,6 +129,18 @@ export function SubscriptionBadge({
           }
         />
         <span>Expired</span>
+      </div>
+    );
+  }
+
+  if (!config) {
+    return (
+      <div
+        className={`inline-flex items-center gap-1 rounded-full font-medium 
+        bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300
+        ${sizeClasses[size]} ${className}`}
+      >
+        <span>{tier}</span>
       </div>
     );
   }

@@ -1,72 +1,52 @@
-import { useMemo, useState } from "react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
+// app/components/journal/InsightsCharts.tsx
+
+import { useMemo, useState } from 'react';
+import { 
+  PieChart, 
+  Pie, 
+  Cell, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
   ResponsiveContainer,
   LineChart,
   Line,
-  Legend,
-} from "recharts";
-import {
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  startOfYear,
-  endOfYear,
-  format,
-  eachDayOfInterval,
-  eachWeekOfInterval,
-  eachMonthOfInterval,
-  parseISO,
-  startOfDay,
-  endOfDay,
-} from "date-fns";
-import { cn } from "@/lib/utils";
-import { useJournal } from "@/app/context/JournalContext";
+  Legend
+} from 'recharts';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { useJournal } from '@/app/context/JournalContext'; 
 
 const CHART_COLORS = [
-  "var(--color-accent-yellow)",
-  "#f59e0b",
-  "var(--color-lemon-green)",
-  "#3b82f6",
-  "#8b5cf6",
-  "var(--destructive)",
-  "#06b6d4",
-  "#eab308",
+  'hsl(43, 74%, 49%)',
+  'hsl(35, 80%, 55%)',
+  'hsl(142, 76%, 36%)',
+  'hsl(200, 80%, 50%)',
+  'hsl(280, 70%, 55%)',
+  'hsl(0, 72%, 51%)',
+  'hsl(180, 60%, 45%)',
+  'hsl(60, 70%, 50%)',
 ];
 
-type TimeFilter = "daily" | "weekly" | "monthly" | "yearly";
+type TimeFilter = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export function InsightsCharts() {
-  const {
-    activeJournalType,
-    getCategoryBreakdown,
-    getEntriesForPeriod,
-    calculateSummary,
-  } = useJournal();
-  const [filter, setFilter] = useState<TimeFilter>("weekly");
+  const { activeJournalType, getCategoryBreakdown, getEntriesForPeriod, calculateSummary } = useJournal();
+  const [filter, setFilter] = useState<TimeFilter>('weekly');
 
   const getDateRange = (filterType: TimeFilter) => {
     const today = new Date();
     switch (filterType) {
-      case "daily":
+      case 'daily':
         return { start: startOfDay(today), end: endOfDay(today) };
-      case "weekly":
-        return {
-          start: startOfWeek(today, { weekStartsOn: 1 }),
-          end: endOfWeek(today, { weekStartsOn: 1 }),
-        };
-      case "monthly":
+      case 'weekly':
+        return { start: startOfWeek(today, { weekStartsOn: 1 }), end: endOfWeek(today, { weekStartsOn: 1 }) };
+      case 'monthly':
         return { start: startOfMonth(today), end: endOfMonth(today) };
-      case "yearly":
+      case 'yearly':
         return { start: startOfYear(today), end: endOfYear(today) };
     }
   };
@@ -79,93 +59,75 @@ export function InsightsCharts() {
 
   const incomeVsExpenseData = useMemo(() => {
     const entries = getEntriesForPeriod(activeJournalType, start, end);
-
+    
     let intervals: Date[];
     let formatStr: string;
-
+    
     switch (filter) {
-      case "daily":
-        return [
-          {
-            name: "Today",
-            income: entries
-              .filter((e) => e.type === "income")
-              .reduce((s, e) => s + e.amount, 0),
-            expenses: entries
-              .filter((e) => e.type === "expense")
-              .reduce((s, e) => s + e.amount, 0),
-          },
-        ];
-      case "weekly":
+      case 'daily':
+        return [{
+          name: 'Today',
+          income: entries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0),
+          expenses: entries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0),
+        }];
+      case 'weekly':
         intervals = eachDayOfInterval({ start, end });
-        formatStr = "EEE";
+        formatStr = 'EEE';
         break;
-      case "monthly":
+      case 'monthly':
         intervals = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
         formatStr = "'W'w";
         break;
-      case "yearly":
+      case 'yearly':
         intervals = eachMonthOfInterval({ start, end });
-        formatStr = "MMM";
+        formatStr = 'MMM';
         break;
     }
 
-    return intervals.map((date) => {
-      const periodStart =
-        filter === "monthly"
-          ? startOfWeek(date, { weekStartsOn: 1 })
-          : filter === "yearly"
-            ? startOfMonth(date)
-            : startOfDay(date);
-      const periodEnd =
-        filter === "monthly"
-          ? endOfWeek(date, { weekStartsOn: 1 })
-          : filter === "yearly"
-            ? endOfMonth(date)
-            : endOfDay(date);
-
-      const periodEntries = entries.filter((e) => {
+    return intervals.map(date => {
+      const periodStart = filter === 'monthly' 
+        ? startOfWeek(date, { weekStartsOn: 1 })
+        : filter === 'yearly'
+          ? startOfMonth(date)
+          : startOfDay(date);
+      const periodEnd = filter === 'monthly'
+        ? endOfWeek(date, { weekStartsOn: 1 })
+        : filter === 'yearly'
+          ? endOfMonth(date)
+          : endOfDay(date);
+      
+      const periodEntries = entries.filter(e => {
         const entryDate = parseISO(e.date);
         return entryDate >= periodStart && entryDate <= periodEnd;
       });
 
       return {
         name: format(date, formatStr),
-        income: periodEntries
-          .filter((e) => e.type === "income")
-          .reduce((s, e) => s + e.amount, 0),
-        expenses: periodEntries
-          .filter((e) => e.type === "expense")
-          .reduce((s, e) => s + e.amount, 0),
+        income: periodEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0),
+        expenses: periodEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0),
       };
     });
   }, [activeJournalType, start, end, filter, getEntriesForPeriod]);
 
   const trendData = useMemo(() => {
-    const entries = getEntriesForPeriod(
-      activeJournalType,
-      startOfYear(new Date()),
-      endOfYear(new Date()),
-    );
-    const months = eachMonthOfInterval({
-      start: startOfYear(new Date()),
-      end: endOfYear(new Date()),
+    const entries = getEntriesForPeriod(activeJournalType, startOfYear(new Date()), endOfYear(new Date()));
+    const months = eachMonthOfInterval({ 
+      start: startOfYear(new Date()), 
+      end: endOfYear(new Date()) 
     });
 
     let runningBalance = 0;
-    return months.map((month) => {
-      const monthEntries = entries.filter((e) => {
+    return months.map(month => {
+      const monthEntries = entries.filter(e => {
         const entryDate = parseISO(e.date);
-        return (
-          entryDate >= startOfMonth(month) && entryDate <= endOfMonth(month)
-        );
+        return entryDate >= startOfMonth(month) && entryDate <= endOfMonth(month);
       });
-
+      
       const summary = calculateSummary(monthEntries);
       runningBalance += summary.net;
 
       return {
-        name: format(month, "MMM"),
+        name: format(month, 'MMM'),
         balance: runningBalance,
         net: summary.net,
       };
@@ -181,10 +143,8 @@ export function InsightsCharts() {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="rounded-lg p-3 shadow-pop bg-(--bg-primary) border border-(--border-color) squircle-sm">
-          <p className="font-medium text-sm mb-2 text-(--text-primary)">
-            {label}
-          </p>
+        <div className="bg-card border border-border rounded-lg p-3 shadow-elevated">
+          <p className="font-medium text-sm mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
               {entry.name}: {formatCurrency(entry.value)}
@@ -196,23 +156,28 @@ export function InsightsCharts() {
     return null;
   };
 
+  // Custom label formatter for Pie chart - handles recharts PieLabelRenderProps
+  const renderPieLabel = (props: any) => {
+    const { name, percent } = props;
+    // Safely handle percent - default to 0 if undefined
+    const safePercent = typeof percent === 'number' ? percent : 0;
+    return `${name} ${(safePercent * 100).toFixed(0)}%`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Filter Tabs */}
-      <div className="flex gap-2 p-1 rounded-xl w-fit bg-(--bg-secondary)">
-        {(["daily", "weekly", "monthly", "yearly"] as TimeFilter[]).map((f) => (
+      <div className="flex gap-2 p-1 bg-secondary rounded-xl w-fit">
+        {(['daily', 'weekly', 'monthly', 'yearly'] as TimeFilter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={cn(
-              "px-4 py-2 rounded-lg font-medium text-sm capitalize transition-all",
+              'px-4 py-2 rounded-lg font-medium text-sm capitalize transition-all',
+              filter === f
+                ? 'bg-card shadow-soft text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             )}
-            style={{
-              backgroundColor:
-                filter === f ? "var(--bg-primary)" : "transparent",
-              color:
-                filter === f ? "var(--text-primary)" : "var(--text-secondary)",
-            }}
           >
             {f}
           </button>
@@ -222,13 +187,8 @@ export function InsightsCharts() {
       {/* Charts Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Expense Breakdown Pie Chart */}
-        <div className="p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
-          <h3
-            className="text-lg mb-4 text-(--text-primary)"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            Expense Breakdown
-          </h3>
+        <div className="p-6 rounded-2xl bg-card border border-border shadow-soft">
+          <h3 className="font-display text-lg mb-4">Expense Breakdown</h3>
           {categoryData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
@@ -240,126 +200,76 @@ export function InsightsCharts() {
                   outerRadius={90}
                   paddingAngle={2}
                   dataKey="value"
-                  label={(props) => {
-                    const name = props.name || "";
-                    const percent =
-                      typeof props.percent === "number" ? props.percent : 0;
-                    return `${name} ${(percent * 100).toFixed(0)}%`;
-                  }}
+                  label={renderPieLabel}
                   labelLine={false}
                 >
                   {categoryData.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS[index % CHART_COLORS.length]}
-                    />
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[250px] flex items-center justify-center text-(--text-secondary)">
+            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
               No expense data for this period
             </div>
           )}
         </div>
 
         {/* Income vs Expenses Bar Chart */}
-        <div className="p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
-          <h3
-            className="text-lg mb-4 text-(--text-primary)"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            Income vs Expenses
-          </h3>
-          {incomeVsExpenseData.some((d) => d.income > 0 || d.expenses > 0) ? (
+        <div className="p-6 rounded-2xl bg-card border border-border shadow-soft">
+          <h3 className="font-display text-lg mb-4">Income vs Expenses</h3>
+          {incomeVsExpenseData.some(d => d.income > 0 || d.expenses > 0) ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={incomeVsExpenseData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border-color)"
-                />
-                <XAxis
-                  dataKey="name"
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                />
-                <YAxis
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                  tickFormatter={formatCurrency}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={formatCurrency} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Bar
-                  dataKey="income"
-                  name="Income"
-                  fill="var(--color-lemon-green)"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="expenses"
-                  name="Expenses"
-                  fill="var(--destructive)"
-                  radius={[4, 4, 0, 0]}
-                />
+                <Bar dataKey="income" name="Income" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expenses" name="Expenses" fill="hsl(0, 72%, 51%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[250px] flex items-center justify-center text-(--text-secondary)">
+            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
               No data for this period
             </div>
           )}
         </div>
 
         {/* Financial Trend Line Chart */}
-        <div className="p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg lg:col-span-2">
-          <h3
-            className="text-lg mb-4 text-(--text-primary)"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            Financial Trend (Year)
-          </h3>
-          {trendData.some((d) => d.balance !== 0) ? (
+        <div className="p-6 rounded-2xl bg-card border border-border shadow-soft lg:col-span-2">
+          <h3 className="font-display text-lg mb-4">Financial Trend (Year)</h3>
+          {trendData.some(d => d.balance !== 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={trendData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border-color)"
-                />
-                <XAxis
-                  dataKey="name"
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                />
-                <YAxis
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                  tickFormatter={formatCurrency}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={formatCurrency} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="balance"
+                <Line 
+                  type="monotone" 
+                  dataKey="balance" 
                   name="Running Balance"
-                  stroke="var(--color-accent-yellow)"
+                  stroke="hsl(43, 74%, 49%)" 
                   strokeWidth={3}
-                  dot={{ fill: "var(--color-accent-yellow)", strokeWidth: 2 }}
+                  dot={{ fill: 'hsl(43, 74%, 49%)', strokeWidth: 2 }}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="net"
+                <Line 
+                  type="monotone" 
+                  dataKey="net" 
                   name="Monthly Net"
-                  stroke="#3b82f6"
+                  stroke="hsl(200, 80%, 50%)" 
                   strokeWidth={2}
                   strokeDasharray="5 5"
                 />
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-(--text-secondary)">
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
               Start logging entries to see your financial trend
             </div>
           )}

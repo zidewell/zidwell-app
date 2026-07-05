@@ -1,5 +1,3 @@
-// app/api/webhook/services/subscription-service.ts
-
 import { createClient } from "@supabase/supabase-js";
 import { 
   sendSubscriptionReceiptWithPDF, 
@@ -15,6 +13,9 @@ const baseUrl = process.env.NODE_ENV === "development"
   ? "http://localhost:3000"
   : "https://zidwell.com";
 
+// Valid paid tiers
+const PAID_TIERS = ['solopreneur', 'sme', 'enterprise', 'corporation'];
+
 function calculateExpiration(billingPeriod: 'monthly' | 'yearly'): Date {
   const expiresAt = new Date();
   if (billingPeriod === 'yearly') {
@@ -25,9 +26,6 @@ function calculateExpiration(billingPeriod: 'monthly' | 'yearly'): Date {
   return expiresAt;
 }
 
-// ============================================================
-// PROCESS CARD SUBSCRIPTION PAYMENT
-// ============================================================
 export async function processSubscriptionPayment(
   payload: any,
   params: { nombaTransactionId: string; orderReference: string }
@@ -70,6 +68,12 @@ export async function processSubscriptionPayment(
   if (!userId || !planTier) {
     console.error("❌ Missing required metadata!");
     return { success: false, message: "Missing subscription metadata" };
+  }
+
+  // Validate tier
+  if (!PAID_TIERS.includes(planTier)) {
+    console.error("❌ Invalid plan tier:", planTier);
+    return { success: false, message: "Invalid plan tier" };
   }
 
   // Check if already processed
@@ -226,9 +230,6 @@ export async function processSubscriptionPayment(
   };
 }
 
-// ============================================================
-// PROCESS BANK TRANSFER SUBSCRIPTION PAYMENT
-// ============================================================
 export async function processSubscriptionBankTransfer(
   payload: any,
   params: {
@@ -274,6 +275,12 @@ export async function processSubscriptionBankTransfer(
   if (!userId || !planTier) {
     console.error("❌ Missing subscription metadata");
     return { success: false, message: "Missing subscription metadata" };
+  }
+
+  // Validate tier
+  if (!PAID_TIERS.includes(planTier)) {
+    console.error("❌ Invalid plan tier:", planTier);
+    return { success: false, message: "Invalid plan tier" };
   }
 
   // Get user data
@@ -362,10 +369,6 @@ export async function processSubscriptionBankTransfer(
     subscription_id: subscription.id
   };
 }
-
-// ============================================================
-// HELPER FUNCTIONS - ALL MUST BE EXPORTED
-// ============================================================
 
 export function checkIfSubscriptionPayment(orderReference: string, payload: any): boolean {
   if (orderReference?.startsWith("SUB_")) return true;

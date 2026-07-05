@@ -1,7 +1,7 @@
-// app/api/subscription/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { isAuthenticatedWithRefresh, createAuthResponse } from '@/lib/auth-check-api';
+
 
 const SUBSCRIPTION_FEATURES = {
   free: {
@@ -9,70 +9,120 @@ const SUBSCRIPTION_FEATURES = {
     price: 0,
     invoices: 5,
     receipts: 5,
-    contracts: 1,
+    contracts: 0,
+    teamMembers: 0,
+    bankAccounts: 0,
     bookkeeping: false,
     taxCalculator: false,
     financialStatements: false,
-    taxFiling: false,
-    vatFiling: false,
-    payeFiling: false,
-    cfoGuidance: false,
+    brandedInvoices: false,
+    expenseTracking: false,
+    vault: false,
+    multiUser: false,
+    rolePermissions: false,
+    approvalSystem: false,
+    downloadableReports: false,
+    payrollSystem: false,
+    advancedReporting: false,
+    customStructure: false,
+    dedicatedSupport: false,
+    accountManager: false,
   },
-  zidlite: {
-    name: "ZidLite",
-    price: 2500,
-    invoices: 20,
-    receipts: 20,
-    contracts: 2,
-    bookkeeping: false,
+  solopreneur: {
+    name: "Solopreneur",
+    price: 4900,
+    invoices: 10,
+    receipts: "unlimited",
+    contracts: 0,
+    teamMembers: 0,
+    bankAccounts: 0,
+    bookkeeping: true,
     taxCalculator: false,
     financialStatements: false,
-    taxFiling: false,
-    vatFiling: false,
-    payeFiling: false,
-    cfoGuidance: false,
+    brandedInvoices: true,
+    expenseTracking: true,
+    vault: false,
+    multiUser: false,
+    rolePermissions: false,
+    approvalSystem: false,
+    downloadableReports: false,
+    payrollSystem: false,
+    advancedReporting: false,
+    customStructure: false,
+    dedicatedSupport: false,
+    accountManager: false,
   },
-  growth: {
-    name: "Growth",
-    price: 10000,
+  sme: {
+    name: "SME",
+    price: 29900,
     invoices: "unlimited",
     receipts: "unlimited",
-    contracts: 5,
+    contracts: 0,
+    teamMembers: 1,
+    bankAccounts: 3,
     bookkeeping: true,
     taxCalculator: true,
-    financialStatements: false,
-    taxFiling: false,
-    vatFiling: false,
-    payeFiling: false,
-    cfoGuidance: false,
+    financialStatements: true,
+    brandedInvoices: true,
+    expenseTracking: true,
+    vault: true,
+    multiUser: false,
+    rolePermissions: false,
+    approvalSystem: false,
+    downloadableReports: false,
+    payrollSystem: false,
+    advancedReporting: false,
+    customStructure: false,
+    dedicatedSupport: false,
+    accountManager: false,
   },
-  premium: {
-    name: "Premium",
-    price: 25000,
+  enterprise: {
+    name: "Enterprise",
+    price: 100000,
     invoices: "unlimited",
     receipts: "unlimited",
     contracts: 10,
+    teamMembers: "unlimited",
+    bankAccounts: 5,
     bookkeeping: true,
     taxCalculator: true,
     financialStatements: true,
-    taxFiling: true,
-    vatFiling: false,
-    payeFiling: false,
-    cfoGuidance: false,
+    brandedInvoices: true,
+    expenseTracking: true,
+    vault: true,
+    multiUser: true,
+    rolePermissions: true,
+    approvalSystem: true,
+    downloadableReports: true,
+    payrollSystem: false,
+    advancedReporting: false,
+    customStructure: false,
+    dedicatedSupport: true,
+    accountManager: false,
   },
-  elite: {
-    name: "Elite",
-    price: 50000,
+  corporation: {
+    name: "Corporation",
+    price: 300000,
     invoices: "unlimited",
     receipts: "unlimited",
     contracts: "unlimited",
+    teamMembers: "unlimited",
+    bankAccounts: "unlimited",
     bookkeeping: true,
     taxCalculator: true,
     financialStatements: true,
-    taxFiling: true,
-    vatFiling: true,
-    payeFiling: true,
-    cfoGuidance: true,
+    brandedInvoices: true,
+    expenseTracking: true,
+    vault: true,
+    multiUser: true,
+    rolePermissions: true,
+    approvalSystem: true,
+    downloadableReports: true,
+    payrollSystem: true,
+    advancedReporting: true,
+    customStructure: true,
+    dedicatedSupport: true,
+    accountManager: true,
   },
 };
 
@@ -80,6 +130,10 @@ const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+// Valid tiers for subscription
+const VALID_TIERS = ['solopreneur', 'sme', 'enterprise', 'corporation'];
+const ALL_TIERS = ['free', ...VALID_TIERS];
 
 export async function GET(req: NextRequest) {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
@@ -110,6 +164,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch user data' }, { status: 500 });
     }
 
+    // Check if user is on free tier or no subscription
     if (!subscription && (!userData.subscription_tier || userData.subscription_tier === 'free')) {
       const responseData = {
         success: true,
@@ -124,6 +179,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(responseData);
     }
 
+    // Check if subscription expired
     if (subscription && subscription.expires_at && new Date(subscription.expires_at) < new Date()) {
       if (subscription.status === 'active') {
         await supabase
@@ -216,7 +272,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
       }
 
-      if (!['zidlite', 'growth', 'premium', 'elite'].includes(tier)) {
+      if (!VALID_TIERS.includes(tier)) {
         return NextResponse.json({ error: 'Invalid subscription tier' }, { status: 400 });
       }
 
@@ -227,12 +283,14 @@ export async function POST(req: NextRequest) {
         expiresAt.setMonth(expiresAt.getMonth() + 1);
       }
 
+      // Cancel any existing active subscriptions
       await supabase
         .from('subscriptions')
         .update({ status: 'cancelled' })
         .eq('user_id', user.id)
         .eq('status', 'active');
 
+      // Create new subscription
       const { data: subscription, error: subError } = await supabase
         .from('subscriptions')
         .insert({
@@ -248,6 +306,7 @@ export async function POST(req: NextRequest) {
 
       if (subError) throw new Error(`Failed to create subscription: ${subError.message}`);
 
+      // Update user
       const { error: userError } = await supabase
         .from('users')
         .update({
@@ -258,6 +317,7 @@ export async function POST(req: NextRequest) {
 
       if (userError) throw new Error(`Failed to update user: ${userError.message}`);
 
+      // Record payment
       const { error: paymentError } = await supabase
         .from('subscription_payments')
         .insert({

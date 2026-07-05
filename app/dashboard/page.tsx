@@ -22,12 +22,24 @@ import { CheckCircle, Loader2, X } from "lucide-react";
 // Define the Usage interface
 interface UsageData {
   invoices_used: number;
-  invoices_limit: number;
+  invoices_limit: number | string;
   receipts_used: number;
-  receipts_limit: number;
+  receipts_limit: number | string;
   contracts_used: number;
-  contracts_limit: number;
-  // Add other usage fields as needed
+  contracts_limit: number | string;
+  tier: string;
+  limits: {
+    invoices: number | string;
+    receipts: number | string;
+    contracts: number | string;
+    teamMembers: number | string;
+    bankAccounts: number | string;
+  };
+  summary: {
+    invoices: { used: number; limit: number | string; remaining: number | string };
+    receipts: { used: number; limit: number | string; remaining: number | string };
+    contracts: { used: number; limit: number | string; remaining: number | string };
+  };
 }
 
 function DashboardPage() {
@@ -69,7 +81,8 @@ function DashboardPage() {
   // Check if we should show subscription modal (when user hits limits)
   useEffect(() => {
     if (userTier === "free" && usage) {
-      const invoiceUsage = (usage.invoices_used / 5) * 100; // 5 is free tier limit
+      const invoiceLimit = typeof usage.limits.invoices === 'number' ? usage.limits.invoices : 5;
+      const invoiceUsage = (usage.summary.invoices.used / invoiceLimit) * 100;
       if (invoiceUsage >= 80) {
         setShowSubscriptionModal(true);
       }
@@ -100,6 +113,8 @@ function DashboardPage() {
   useEffect(() => {
     if (userTier === "free") {
       fetchUsage();
+    } else {
+      setLoading(false);
     }
   }, [userTier, refreshKey]);
 
@@ -119,10 +134,16 @@ function DashboardPage() {
   const formatPlanName = (plan: string) => {
     if (!plan) return "";
     const planMap: Record<string, string> = {
-      zidlite: "ZidLite",
-      growth: "Growth",
-      premium: "Premium",
-      elite: "Elite",
+      free: "Free",
+      solopreneur: "Solopreneur",
+      sme: "SME",
+      enterprise: "Enterprise",
+      corporation: "Corporation",
+      // Legacy aliases for backward compatibility
+      zidlite: "Solopreneur",
+      growth: "SME",
+      premium: "Enterprise",
+      elite: "Corporation",
     };
     return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
@@ -132,7 +153,7 @@ function DashboardPage() {
     return {
       invoices: 5,
       receipts: 5,
-      contracts: 1,
+      contracts: 0,
     };
   };
 
@@ -141,10 +162,27 @@ function DashboardPage() {
     if (!usage || userTier !== "free") return false;
     const limits = getFreeTierLimits();
     return (
-      usage.invoices_used / limits.invoices >= 0.8 ||
-      usage.receipts_used / limits.receipts >= 0.8 ||
-      usage.contracts_used / limits.contracts >= 0.8
+      (usage.summary.invoices.used / limits.invoices) >= 0.8 ||
+      (usage.summary.receipts.used / limits.receipts) >= 0.8
     );
+  };
+
+  // Get the appropriate upgrade suggestion based on usage
+  const getUpgradeSuggestion = () => {
+    if (!usage) return "solopreneur";
+    
+    const invoiceUsage = usage.summary.invoices.used;
+    const receiptUsage = usage.summary.receipts.used;
+    
+    // If they need more than 10 invoices or unlimited receipts
+    if (invoiceUsage >= 10 || receiptUsage >= 10) {
+      return "sme";
+    }
+    // If they need more than 5 invoices or 5 receipts
+    if (invoiceUsage >= 5 || receiptUsage >= 5) {
+      return "solopreneur";
+    }
+    return "solopreneur";
   };
 
   return (
@@ -153,6 +191,7 @@ function DashboardPage() {
       <SubscriptionModal
         isOpen={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
+        suggestedTier={getUpgradeSuggestion()}
       />
 
       {/* Success Toast/Notification */}
@@ -240,7 +279,7 @@ function DashboardPage() {
               <BalanceCard />
             </section> */}
 
-            {/* Usage Summary for Free Tier
+            {/* Usage Summary for Free Tier */}
             {userTier === 'free' && !loading && usage && (
               <section>
                 <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
@@ -248,7 +287,6 @@ function DashboardPage() {
                 </h3>
                 <UsageSummary usage={usage} onRefresh={refreshUsage} />
                 
-          
                 {isNearLimit() && (
                   <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                     <p className="text-sm text-yellow-800 dark:text-yellow-200">
@@ -263,7 +301,7 @@ function DashboardPage() {
                   </div>
                 )}
               </section>
-            )} */}
+            )}
 
             {/* Announcement Slider */}
             <section>

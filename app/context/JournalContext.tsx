@@ -1,39 +1,17 @@
-"use client"
+// app/contexts/JournalContext.tsx
 
-import { createContext, useContext, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { useJournalStore } from '../hooks/useJournalStore';
 
-const JournalContext = createContext<ReturnType<typeof useJournalStore> | undefined>(undefined);
+type JournalContextType = ReturnType<typeof useJournalStore>;
+
+const JournalContext = createContext<JournalContextType | null>(null);
 
 export function JournalProvider({ children }: { children: ReactNode }) {
-  const journalStore = useJournalStore();
-  
-  const value = useMemo(() => journalStore, [
-    journalStore.entries, 
-    journalStore.categories, 
-    journalStore.activeJournalType,
-    journalStore.loading,
-    journalStore.error,
-    journalStore.updateTrigger,
-    journalStore.unifiedEntries,
-    journalStore.getAllTimeSummary,
-    journalStore.getTodaySummary,
-    journalStore.getWeekSummary,
-    journalStore.getMonthSummary,
-    journalStore.getYearSummary,
-    journalStore.getCategoryBreakdown,
-    journalStore.calculateSummary,
-    journalStore.addEntry,
-    journalStore.updateEntry,
-    journalStore.deleteEntry,
-    journalStore.addCategory,
-    journalStore.updateCategory,
-    journalStore.deleteCategory,
-    journalStore.refetch
-  ]);
+  const store = useJournalStore();
   
   return (
-    <JournalContext.Provider value={value}>
+    <JournalContext.Provider value={store}>
       {children}
     </JournalContext.Provider>
   );
@@ -41,7 +19,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
 
 export function useJournal() {
   const context = useContext(JournalContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useJournal must be used within a JournalProvider');
   }
   return context;

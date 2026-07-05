@@ -26,13 +26,13 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    // Transform database fields to match frontend naming
+  
     const transformedEntries = entries?.map(entry => ({
       id: entry.id,
       date: entry.date,
       type: entry.type,
       amount: entry.amount,
-      categoryId: entry.category_id, // Transform category_id → categoryId
+      categoryId: entry.category_id, 
       note: entry.note,
       journalType: entry.journal_type, // Transform journal_type → journalType
       createdAt: entry.created_at, // Transform created_at → createdAt

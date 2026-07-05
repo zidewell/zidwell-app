@@ -13,6 +13,8 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+export type SubscriptionTier = 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+
 export interface SupabaseUser {
   id: string;
   fullName: string;
@@ -28,12 +30,12 @@ export interface SupabaseUser {
   address: string | null;
   dateOfBirth: string;
   profilePicture: string | null;
-  subscription_tier?: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite' | null;
+  subscription_tier?: SubscriptionTier | null;
   subscription_expires_at?: string | null;
 }
 
 export interface SubscriptionInfo {
-  tier: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite';
+  tier: SubscriptionTier;
   status: 'active' | 'expired' | 'cancelled' | 'pending';
   expiresAt: Date | null;
   features: Record<string, any>;
@@ -78,11 +80,11 @@ interface UserContextType {
     hasAccess: boolean;
     limit?: number;
     message?: string;
-    requiredTier?: string;
+    requiredTier?: SubscriptionTier;
   }>;
-  subscribe: (tier: 'zidlite' | 'growth' | 'premium' | 'elite', paymentMethod: string, amount: number, paymentReference: string, isYearly?: boolean) => Promise<any>;
+  subscribe: (tier: SubscriptionTier, paymentMethod: string, amount: number, paymentReference: string, isYearly?: boolean) => Promise<any>;
   cancelSubscription: () => Promise<any>;
-  getUpgradeBenefits: (targetTier: string) => string[];
+  getUpgradeBenefits: (targetTier: SubscriptionTier) => string[];
   canAccessFeature: (featureKey: string, currentCount?: number) => boolean;
 }
 
@@ -211,40 +213,229 @@ class SubscriptionCache {
 
 const subscriptionCache = new SubscriptionCache();
 
-const FEATURE_TIER_MAP: Record<string, string> = {
-  'invoices_total': 'free', 
-  'receipts_total': 'free',  
-  'contracts_total': 'free',
-  'transfer_fee': 'free',
-  'bookkeeping_trial_days': 'free',
-  'tax_calculator_trial_days': 'free',
-  'support_type': 'free',
+// Feature to tier mapping
+const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
+  // Free features
+  'manual_bookkeeping': 'free',
+  'auto_bookkeeping': 'free',
+  'payment_links': 'free',
+  'business_bank_account': 'free',
+  'basic_financial_overview': 'free',
+  'invoices_5': 'free',
+  'receipts_5': 'free',
   
-  'zidlite_invoices_total': 'zidlite',
-  'zidlite_receipts_total': 'zidlite',
-  'zidlite_contracts_total': 'zidlite',
-  'whatsapp_community': 'zidlite',
+  // Solopreneur features
+  'invoices_10': 'solopreneur',
+  'unlimited_receipts': 'solopreneur',
+  'branded_invoices': 'solopreneur',
+  'expense_tracking': 'solopreneur',
+  'financial_insights': 'solopreneur',
   
-  'bookkeeping_access': 'growth',
-  'tax_calculator': 'growth',
-  'growth_contracts': 'growth',
+  // SME features
+  'bank_statement_upload': 'sme',
+  'connect_3_bank_accounts': 'sme',
+  'unlimited_invoices': 'sme',
+  'unlimited_receipts_sme': 'sme',
+  'vault': 'sme',
+  'tax_calculator': 'sme',
+  'financial_statements': 'sme',
+  'team_member_1': 'sme',
   
-  'payment_reminders': 'premium',
-  'financial_statements': 'premium',
-  'tax_support': 'premium',
-  'priority_support': 'premium',
+  // Enterprise features
+  'multi_user_access': 'enterprise',
+  'role_permissions': 'enterprise',
+  'approval_system': 'enterprise',
+  'connect_5_bank_accounts': 'enterprise',
+  'downloadable_reports': 'enterprise',
+  'contracts_10': 'enterprise',
+  'dedicated_onboarding': 'enterprise',
   
-  'full_tax_filing': 'elite',
-  'vat_filing': 'elite',
-  'paye_filing': 'elite',
-  'wht_filing': 'elite',
-  'cit_audit': 'elite',
-  'cfo_guidance': 'elite',
-  'direct_whatsapp_support': 'elite',
-  'audit_coordination': 'elite',
+  // Corporation features
+  'unlimited_contracts': 'corporation',
+  'department_access': 'corporation',
+  'unlimited_bank_accounts': 'corporation',
+  'payroll_system': 'corporation',
+  'advanced_reporting': 'corporation',
+  'custom_financial_structure': 'corporation',
+  'priority_onboarding': 'corporation',
+  'dedicated_account_manager': 'corporation',
 };
 
-const TIER_HIERARCHY = ['free', 'zidlite', 'growth', 'premium', 'elite'];
+// Tier hierarchy (lowest to highest)
+const TIER_HIERARCHY: SubscriptionTier[] = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
+
+// Plan limits configuration
+const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
+  free: {
+    invoices: 5,
+    receipts: 5,
+    contracts: 0,
+    teamMembers: 0,
+    bankAccounts: 0,
+    transferFee: 50,
+    manualBookkeeping: true,
+    autoBookkeeping: true,
+    paymentLinks: true,
+    businessBankAccount: true,
+    basicFinancialOverview: true,
+  },
+  solopreneur: {
+    invoices: 10,
+    receipts: 'unlimited',
+    contracts: 0,
+    teamMembers: 0,
+    bankAccounts: 0,
+    transferFee: 50,
+    manualBookkeeping: true,
+    autoBookkeeping: true,
+    brandedInvoices: true,
+    expenseTracking: true,
+    financialInsights: true,
+  },
+  sme: {
+    invoices: 'unlimited',
+    receipts: 'unlimited',
+    contracts: 0,
+    teamMembers: 1,
+    bankAccounts: 3,
+    transferFee: 50,
+    manualBookkeeping: true,
+    autoBookkeeping: true,
+    bankStatementUpload: true,
+    vault: true,
+    taxCalculator: true,
+    financialStatements: true,
+  },
+  enterprise: {
+    invoices: 'unlimited',
+    receipts: 'unlimited',
+    contracts: 10,
+    teamMembers: 'unlimited',
+    bankAccounts: 5,
+    transferFee: 50,
+    manualBookkeeping: true,
+    autoBookkeeping: true,
+    multiUserAccess: true,
+    rolePermissions: true,
+    approvalSystem: true,
+    downloadableReports: true,
+    dedicatedOnboarding: true,
+  },
+  corporation: {
+    invoices: 'unlimited',
+    receipts: 'unlimited',
+    contracts: 'unlimited',
+    teamMembers: 'unlimited',
+    bankAccounts: 'unlimited',
+    transferFee: 50,
+    manualBookkeeping: true,
+    autoBookkeeping: true,
+    departmentAccess: true,
+    payrollSystem: true,
+    advancedReporting: true,
+    customFinancialStructure: true,
+    priorityOnboarding: true,
+    dedicatedAccountManager: true,
+  },
+};
+
+// Upgrade benefits mapping
+const UPGRADE_BENEFITS: Record<string, string[]> = {
+  free_to_solopreneur: [
+    "Up to 10 invoices (up from 5)",
+    "Unlimited receipts (up from 5)",
+    "Branded invoices",
+    "Better expense tracking",
+    "Basic financial insights",
+  ],
+  free_to_sme: [
+    "Upload bank statements (PDF/Excel/CSV)",
+    "Connect up to 3 bank accounts",
+    "Unlimited invoices",
+    "Unlimited receipts",
+    "Vault for financial documents",
+    "Tax calculator",
+    "Financial statements (P&L, Cash Flow, Balance Sheet)",
+    "1 extra team member access",
+  ],
+  free_to_enterprise: [
+    "Multi-user access (full team)",
+    "Role-based permissions",
+    "Request & approval system",
+    "Connect 5 bank accounts",
+    "Downloadable financial reports",
+    "10 contracts",
+    "Dedicated onboarding support",
+  ],
+  free_to_corporation: [
+    "Unlimited contracts",
+    "Department-based access",
+    "Connect unlimited bank accounts",
+    "Simple payroll system",
+    "Advanced financial reporting",
+    "Custom financial structure setup",
+    "Priority onboarding support",
+    "Dedicated account manager",
+  ],
+  solopreneur_to_sme: [
+    "Upload bank statements (PDF/Excel/CSV)",
+    "Connect up to 3 bank accounts",
+    "Unlimited invoices (up from 10)",
+    "Unlimited receipts",
+    "Vault for financial documents",
+    "Tax calculator",
+    "Financial statements (P&L, Cash Flow, Balance Sheet)",
+    "1 extra team member access",
+  ],
+  solopreneur_to_enterprise: [
+    "Multi-user access (full team)",
+    "Role-based permissions",
+    "Request & approval system",
+    "Connect 5 bank accounts",
+    "Downloadable financial reports",
+    "10 contracts",
+    "Dedicated onboarding support",
+  ],
+  solopreneur_to_corporation: [
+    "Unlimited contracts",
+    "Department-based access",
+    "Connect unlimited bank accounts",
+    "Simple payroll system",
+    "Advanced financial reporting",
+    "Custom financial structure setup",
+    "Priority onboarding support",
+    "Dedicated account manager",
+  ],
+  sme_to_enterprise: [
+    "Multi-user access (full team) - unlimited team members",
+    "Role-based permissions (owner, staff, finance, viewer)",
+    "Request & approval system",
+    "Connect 5 bank accounts (up from 3)",
+    "Downloadable financial reports",
+    "10 contracts",
+    "Dedicated onboarding support",
+  ],
+  sme_to_corporation: [
+    "Unlimited contracts",
+    "Department-based access - HR, Finance, Operations, etc",
+    "Connect unlimited bank accounts (up from 3)",
+    "Simple payroll system",
+    "Advanced financial reporting",
+    "Custom financial structure setup",
+    "Priority onboarding support",
+    "Dedicated account manager",
+  ],
+  enterprise_to_corporation: [
+    "Unlimited contracts (up from 10)",
+    "Department-based access - HR, Finance, Operations, etc",
+    "Connect unlimited bank accounts (up from 5)",
+    "Simple payroll system",
+    "Advanced financial reporting",
+    "Custom financial structure setup",
+    "Priority onboarding support (up from dedicated)",
+    "Dedicated account manager",
+  ],
+};
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -417,157 +608,23 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   // ⚠️ NOTIFICATIONS API CALLS COMMENTED OUT ⚠️
   const fetchNotifications = useCallback(async (filter: string = 'all', limit: number = 50) => {
-    // COMMENTED OUT - Notifications API temporarily disabled
     console.log('📢 Notifications API disabled - fetchNotifications called but skipped');
     return;
-    
-    /* ORIGINAL CODE COMMENTED OUT
-    if (!shouldFetchData || !userData?.id) {
-      return;
-    }
+  }, []);
 
-    const cacheKey = `notifications_${userData.id}_${filter}_${limit}`;
-    
-    const cached = notificationCache.get(cacheKey);
-    if (cached && filter === 'all') {
-      setNotifications(cached);
-      const newUnreadCount = cached.filter((n: Notification) => !n.read_at).length;
-      setUnreadCount(newUnreadCount);
-      return;
-    }
-
-    setNotificationsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        userId: userData.id,
-        limit: limit.toString(),
-        filter: filter
-      });
-      const response = await fetch(`/api/notifications?${params.toString()}`);
-
-      if (response.ok) {
-        const data = await response.json();
-
-        if (data && Array.isArray(data)) {
-          setNotifications(data);
-          const newUnreadCount = data.filter((n: Notification) => !n.read_at).length;
-          setUnreadCount(newUnreadCount);
-          if (filter === 'all') {
-            notificationCache.set(cacheKey, data);
-          }
-        } else {
-          setNotifications([]);
-        }
-      } else {
-        const cached = notificationCache.get(cacheKey);
-        if (cached) {
-          setNotifications(cached);
-        } else {
-          setNotifications([]);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error fetching notifications:', error);
-      const cached = notificationCache.get(cacheKey);
-      if (cached) {
-        setNotifications(cached);
-      } else {
-        setNotifications([]);
-      }
-    } finally {
-      setNotificationsLoading(false);
-    }
-    */
-  }, []); // Empty dependency array since function is disabled
-
-  // ⚠️ FETCH UNREAD COUNT COMMENTED OUT ⚠️
   const fetchUnreadCount = useCallback(async () => {
-    // COMMENTED OUT - Notifications API temporarily disabled
     console.log('📢 Notifications API disabled - fetchUnreadCount called but skipped');
     return;
-    
-    /* ORIGINAL CODE COMMENTED OUT
-    if (!shouldFetchData || !userData?.id) return;
-
-    const cacheKey = `unread_count_${userData.id}`;
-    const cached = notificationCache.get(cacheKey);
-    
-    if (cached !== undefined) {
-      setUnreadCount(cached);
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/notifications/unread-count?userId=${userData.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        const count = data.unreadCount || 0;
-        setUnreadCount(count);
-        notificationCache.set(cacheKey, count, 60 * 1000);
-      }
-    } catch (error) {
-      console.error('❌ Error fetching unread count:', error);
-    }
-    */
   }, []);
 
-  // ⚠️ MARK AS READ COMMENTED OUT ⚠️
   const markAsRead = useCallback(async (notificationId: string) => {
-    // COMMENTED OUT - Notifications API temporarily disabled
     console.log('📢 Notifications API disabled - markAsRead called but skipped');
     return;
-    
-    /* ORIGINAL CODE COMMENTED OUT
-    if (!shouldFetchData || !userData?.id) return;
-
-    try {
-      setNotifications(prev => 
-        prev.map(n => 
-          n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n
-        )
-      );
-      
-      setUnreadCount(prev => Math.max(0, prev - 1));
-
-      notificationCache.delete(`notifications_${userData.id}_all_50`);
-      notificationCache.delete(`notifications_${userData.id}_unread_50`);
-      notificationCache.delete(`unread_count_${userData.id}`);
-
-      await fetch(`/api/notifications/${notificationId}/read?userId=${userData.id}`, {
-        method: 'POST'
-      });
-    } catch (error) {
-      console.error('❌ Error marking notification as read:', error);
-      fetchNotifications();
-      fetchUnreadCount();
-    }
-    */
   }, []);
 
-  // ⚠️ MARK ALL AS READ COMMENTED OUT ⚠️
   const markAllAsRead = useCallback(async () => {
-    // COMMENTED OUT - Notifications API temporarily disabled
     console.log('📢 Notifications API disabled - markAllAsRead called but skipped');
     return;
-    
-    /* ORIGINAL CODE COMMENTED OUT
-    if (!shouldFetchData || !userData?.id) return;
-
-    try {
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, read_at: new Date().toISOString() }))
-      );
-      setUnreadCount(0);
-      clearNotificationCache();
-      await fetch(`/api/notifications/read-all?userId=${userData.id}`, {
-        method: 'POST'
-      });
-    } catch (error) {
-      console.error('❌ Error marking all as read:', error);
-      fetchNotifications();
-      fetchUnreadCount();
-    }
-    */
   }, []);
 
   // Fetch subscription data
@@ -643,19 +700,19 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const checkFeatureAccess = useCallback(async (
     featureKey: string, 
     currentCount?: number
-  ): Promise<{ hasAccess: boolean; limit?: number; message?: string; requiredTier?: string }> => {
+  ): Promise<{ hasAccess: boolean; limit?: number; message?: string; requiredTier?: SubscriptionTier }> => {
     if (!subscription) {
       return { 
         hasAccess: false, 
         message: "Unable to verify subscription",
-        requiredTier: FEATURE_TIER_MAP[featureKey] || 'premium'
+        requiredTier: FEATURE_TIER_MAP[featureKey] || 'free'
       };
     }
 
     const feature = subscription.features[featureKey];
-    const requiredTier = FEATURE_TIER_MAP[featureKey] || 'premium';
+    const requiredTier = FEATURE_TIER_MAP[featureKey] || 'free';
     const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
-    const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier as any);
+    const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
 
     if (userTierIndex < requiredTierIndex) {
       return {
@@ -702,9 +759,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (!subscription) return false;
 
     const feature = subscription.features[featureKey];
-    const requiredTier = FEATURE_TIER_MAP[featureKey] || 'premium';
+    const requiredTier = FEATURE_TIER_MAP[featureKey] || 'free';
     const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
-    const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier as any);
+    const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
 
     if (userTierIndex < requiredTierIndex) {
       return false;
@@ -727,7 +784,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   // Subscribe to a paid tier
   const subscribe = useCallback(async (
-    tier: 'zidlite' | 'growth' | 'premium' | 'elite',
+    tier: SubscriptionTier,
     paymentMethod: string,
     amount: number,
     paymentReference: string,
@@ -805,104 +862,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, [userData?.id, fetchSubscription]);
 
   // Get upgrade benefits
-  const getUpgradeBenefits = useCallback((targetTier: string): string[] => {
-    const benefitsMap: Record<string, Record<string, string[]>> = {
-      free: {
-        zidlite: [
-          "20 invoices total",
-          "20 receipts total",
-          "2 contracts total",
-          "Access to WhatsApp Business Community",
-          "WhatsApp support",
-        ],
-        growth: [
-          "Unlimited invoices",
-          "Unlimited receipts",
-          "5 contracts total",
-          "Bookkeeping tool access",
-          "Tax calculator",
-          "Access to WhatsApp Business Community",
-          "WhatsApp support",
-        ],
-        premium: [
-          "Everything in Growth, plus:",
-          "Unlimited contracts",
-          "Invoice Payment Reminders",
-          "Financial statement preparation",
-          "Tax calculation support",
-          "Tax filing support",
-          "Priority support",
-        ],
-        elite: [
-          "Everything in Premium, plus:",
-          "Full tax filing support (VAT, PAYE, WHT)",
-          "CIT audit",
-          "Monthly & yearly tax filing",
-          "CFO-level guidance",
-          "Direct WhatsApp support",
-          "Annual audit coordination",
-        ],
-      },
-      zidlite: {
-        growth: [
-          "Unlimited invoices (up from 10)",
-          "Unlimited receipts (up from 10)",
-          "5 contracts total (up from 2)",
-          "Bookkeeping tool",
-          "Tax calculator",
-        ],
-        premium: [
-          "Unlimited invoices & receipts",
-          "Unlimited contracts (up from 2)",
-          "Invoice Payment Reminders",
-          "Financial statement preparation",
-          "Tax calculation support",
-          "Tax filing support",
-          "Priority support",
-        ],
-        elite: [
-          "Everything in Premium, plus:",
-          "Full tax filing support (VAT, PAYE, WHT)",
-          "CIT audit",
-          "Monthly & yearly tax filing",
-          "CFO-level guidance",
-          "Direct WhatsApp support",
-          "Annual audit coordination",
-        ],
-      },
-      growth: {
-        premium: [
-          "Unlimited contracts (up from 5)",
-          "Invoice Payment Reminders",
-          "Financial statement preparation",
-          "Tax calculation support",
-          "Tax filing support",
-          "Priority support",
-        ],
-        elite: [
-          "Everything in Premium, plus:",
-          "Full tax filing support (VAT, PAYE, WHT)",
-          "CIT audit",
-          "Monthly & yearly tax filing",
-          "CFO-level guidance",
-          "Direct WhatsApp support",
-          "Annual audit coordination",
-        ],
-      },
-      premium: {
-        elite: [
-          "Full tax filing support (VAT, PAYE, WHT)",
-          "CIT audit",
-          "Monthly & yearly tax filing",
-          "CFO-level guidance",
-          "Direct WhatsApp support",
-          "Annual audit coordination",
-        ],
-      },
-    };
-
+  const getUpgradeBenefits = useCallback((targetTier: SubscriptionTier): string[] => {
     const currentTier = subscription?.tier || 'free';
-    return benefitsMap[currentTier]?.[targetTier] || [];
+    const key = `${currentTier}_to_${targetTier}`;
+    return UPGRADE_BENEFITS[key] || [];
+  }, [subscription?.tier]);
+
+  // Get plan limits
+  const getPlanLimits = useCallback(() => {
+    const tier = subscription?.tier || 'free';
+    return PLAN_LIMITS[tier];
   }, [subscription?.tier]);
 
   // Fetch balance
@@ -989,7 +958,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, shouldFetchData, fetchSubscription]);
 
-  // Cache cleanup and refresh intervals (removed notification refresh)
+  // Cache cleanup and refresh intervals
   useEffect(() => {
     if (!shouldFetchData || !userData?.id) return;
 
@@ -997,7 +966,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       notificationCache.cleanup();
     }, 5 * 60 * 1000);
 
-    // Only refresh subscription, not notifications
     const refreshInterval = setInterval(() => {
       fetchSubscription();
     }, 5 * 60 * 1000);

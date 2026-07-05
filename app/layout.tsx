@@ -15,6 +15,9 @@ import AuthChecker from "./components/AuthChecker";
 import { StoreProvider } from "./hooks/useStore";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { ThemeWrapper } from "./components/ThemeWrapper";
+import { RegionProvider } from "./context/RegionContext";
+import { TierProvider } from "./context/TierContext";
+import { SWRProvider } from "./providers/SWRProvider";
 
 // Initialize fonts with Next.js font optimization
 const spaceGrotesk = Space_Grotesk({
@@ -486,10 +489,12 @@ export default function RootLayout({
         <ThemeProvider>
           <ThemeWrapper>
             <UserProvider>
-              {/* ✅ Add SessionRestore here - it should be inside UserProvider but before other components */}
+              <SWRProvider>
               <SessionRestore>
                 <SessionWatcher>
                   <AuthChecker>
+                      <RegionProvider>
+                            <TierProvider>
                     <VerificationModalProvider>
                       <StoreProvider>
                         {children}
@@ -501,9 +506,12 @@ export default function RootLayout({
                         <NotificationToast />
                       </StoreProvider>
                     </VerificationModalProvider>
+                    </TierProvider>
+                    </RegionProvider>
                   </AuthChecker>
                 </SessionWatcher>
               </SessionRestore>
+              </SWRProvider>
             </UserProvider>
           </ThemeWrapper>
         </ThemeProvider>

@@ -1,4 +1,3 @@
-// components/Pricing.tsx
 "use client";
 
 import { Check, Sparkles } from "lucide-react";
@@ -11,137 +10,121 @@ import { useUserContextData } from "@/app/context/userData";
 
 const plans = [
   {
-    name: "Free Trial",
+    name: "Free",
+    tier: "free",
     price: "₦0",
     period: "/month",
-    description: "To Test if Zidwell is Right for You",
+    description: "Start managing your money",
     features: [
-      "Unlimited money transfers at N50 per transfer",
-      "1 month free trial of Bookkeeping",
-      "1 month free trial of Tax Calculator",
-      "10 Invoices total",
-      "10 Receipts total",
-      "1 Contract total",
-      "Basic support",
+      "Manual bookkeeping - Global",
+      "Auto-bookkeeping (Wallet users in Nigeria only)",
+      "Payment Links & Sales pages (Nigeria)",
+      "Free business bank account (Nigeria)",
+      "Up to 5 invoices - Global",
+      "Up to 5 receipts - Global",
+      "Basic financial overview - Global",
     ],
-    cta: "Start Free",
+    cta: "Get Started",
     highlight: false,
-    tier: "free",
-    priceId: "free",
     amount: 0,
   },
   {
-    name: "ZidLite",
+    name: "Solopreneur",
+    tier: "solopreneur",
     price: "₦4,900",
     period: "/month",
     yearlyPrice: "₦49,000/year (save ₦9,800)",
-    description:
-      "For businesses that want to test what finance automation looks like",
+    description: "Get organized as a freelancer or solo business owner",
     features: [
       "Everything in Free, plus:",
-      "Transfers fee at N50",
-      "Bookkeeping free trial",
-      "Tax Calculator free trial",
-      "20 Invoices",
-      "20 Receipts",
-      "2 Contracts",
-      "WhatsApp Business Community",
-      "WhatsApp support",
+      "Up to 10 invoices - Global",
+      "Unlimited receipts - Global",
+      "Branded invoices - Global",
+      "Better expense tracking - Global",
+      "Basic financial insights - Global",
     ],
-    cta: "Go ZidLite",
+    cta: "Go Solopreneur",
     highlight: false,
-    tier: "zidlite",
-    priceId: "price_zidlite_monthly",
-    yearlyPriceId: "price_zidlite_yearly",
     amount: 4900,
     yearlyAmount: 49000,
   },
   {
-    name: "Growth",
-    price: "₦9,900",
+    name: "SME",
+    tier: "sme",
+    price: "₦29,900",
     period: "/month",
-    yearlyPrice: "₦99,000/year (save ₦19,800)",
-    description: "For growing businesses that want structure without stress",
+    yearlyPrice: "₦299,000/year (save ₦59,800)",
+    description: "Run your growing business properly",
     features: [
-      "Everything in Free, plus:",
-      "Unlimited Invoices",
-      "Unlimited Receipts",
-      "5 Contracts total",
-      "Bookkeeping tool",
-      "Tax Calculator",
-      "Access to WhatsApp Business Community",
-      "WhatsApp support",
+      "Everything in Solopreneur, plus:",
+      "Upload bank statements (PDF / Excel / CSV) - Global",
+      "Connect up to 3 bank accounts - Nigeria",
+      "Auto-bookkeeping from connected bank accounts - Nigeria",
+      "Unlimited invoices - Global",
+      "Unlimited receipts - Global",
+      "Vault (store financial documents safely) - Global",
+      "Tax calculator - Global",
+      "Financial statements (view only): Profit & Loss, Cash Flow, Balance Sheet",
+      "1 extra team member access (besides owner) - Global",
     ],
-    cta: "Go Growth",
+    cta: "Go SME",
     highlight: true,
-    tier: "growth",
-    priceId: "price_growth_monthly",
-    yearlyPriceId: "price_growth_yearly",
-    amount: 9900,
-    yearlyAmount: 99000,
+    amount: 29900,
+    yearlyAmount: 299000,
   },
   {
-    name: "Premium",
-    price: "₦99,900",
+    name: "Enterprise",
+    tier: "enterprise",
+    price: "₦100,000",
     period: "/month",
-    yearlyPrice: "₦499,000/year (save ₦99,800)",
-    description: "Best for: founders and CEOs who want hands-on help",
+    yearlyPrice: "₦1,000,000/year (save ₦200,000)",
+    description: "Control team operations with structure",
     features: [
-      "Everything in Growth, plus:",
-      "Invoice Payment Reminders",
-      "Unlimited contracts",
-      "Financial Statement Preparation",
-      "Tax Calculation Support",
-      "Tax filing support",
-      "Priority support",
+      "Everything in SME, plus:",
+      "Multi-user access (full team) - Global",
+      "Role-based permissions (owner, staff, finance, viewer) - Global",
+      "Request & approval system for: Payments, Invoices, Receipts, Money transfers",
+      "Connect 5 bank accounts - Nigeria",
+      "Auto-bookkeeping from connected bank accounts - Nigeria",
+      "Downloadable financial reports - Global",
+      "10 Contracts - Global",
+      "Dedicated onboarding support - Global",
     ],
-    cta: "Upgrade to Premium",
+    cta: "Go Enterprise",
     highlight: false,
-    tier: "premium",
-    priceId: "price_premium_monthly",
-    yearlyPriceId: "price_premium_yearly",
-    amount: 99900,
-    yearlyAmount: 999000,
+    amount: 100000,
+    yearlyAmount: 1000000,
   },
   {
-    name: "Elite",
-    price: "₦250,000+",
+    name: "Corporation",
+    tier: "corporation",
+    price: "₦300,000",
     period: "/month",
-    yearlyPrice: "Customized price",
-    description: "For established businesses & founders that need tax support",
+    yearlyPrice: "₦3,000,000/year (save ₦600,000)",
+    description: "Run a full company finance system",
     features: [
-      "Everything in Premium, plus:",
-      "Full Tax Filing Support",
-      "VAT Filing",
-      "PAYE Filing",
-      "WHT Filing",
-      "CIT Audit",
-      "Monthly Tax Filing",
-      "Yearly Tax Filing",
-      "CFO-Level Financial Guidance",
-      "Direct WhatsApp Support",
-      "Annual Audit Coordination",
+      "Everything in Enterprise, plus:",
+      "Unlimited contracts - Global",
+      "Department-based access - HR, Finance, Operations, etc",
+      "Connect unlimited bank accounts - Nigeria",
+      "Auto-bookkeeping from connected bank accounts - Nigeria",
+      "Simple payroll system - Global",
+      "Advanced financial reporting - Global",
+      "Custom financial structure setup - Global",
+      "Priority onboarding support - Global",
+      "Dedicated account manager - Global",
     ],
-    cta: "Contact Us",
+    cta: "Contact Sales",
     highlight: false,
-    tier: "elite",
-    priceId: "elite",
-    amount: 250000,
+    amount: 300000,
+    yearlyAmount: 3000000,
   },
 ];
 
 export default function Pricing() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const {
-    subscription,
-    subscribe,
-    loading,
-    userTier,
-    canAccessFeature,
-    checkTrialStatus,
-    activateTrial,
-  } = useSubscription();
+  const { subscription, loading } = useSubscription();
   const { userData } = useUserContextData();
   const [selectedBilling, setSelectedBilling] = useState<"monthly" | "yearly">(
     "monthly",
@@ -149,8 +132,6 @@ export default function Pricing() {
   const [processingTier, setProcessingTier] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
-  const [taxCalculatorTrial, setTaxCalculatorTrial] = useState<any>(null);
 
   const upgradeParam = searchParams?.get("upgrade");
 
@@ -166,13 +147,6 @@ export default function Pricing() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (subscription?.tier === "free") {
-      checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
-      checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
-    }
-  }, [subscription?.tier, checkTrialStatus]);
-
-  useEffect(() => {
     if (upgradeParam && plans.some((p) => p.tier === upgradeParam)) {
       const element = document.getElementById("pricing");
       if (element) element.scrollIntoView({ behavior: "smooth" });
@@ -185,67 +159,18 @@ export default function Pricing() {
     const billingParam = searchParams?.get("billing");
 
     if (upgradePlan && userData?.id) {
-      // Set the billing period if specified
       if (billingParam === "yearly") {
         setSelectedBilling("yearly");
       }
 
-      // Find and trigger subscription for the plan
       const plan = plans.find((p) => p.tier === upgradePlan);
-      if (plan && plan.tier !== "free" && plan.tier !== "elite") {
-        // Clear the URL parameters
+      if (plan && plan.tier !== "free" && plan.tier !== "corporation") {
         const newUrl = window.location.pathname;
         window.history.replaceState({}, "", newUrl);
-        // Trigger subscription
         handleSubscribe(plan);
       }
     }
   }, [searchParams, userData?.id]);
-
-  const createNombaCheckout = async (
-    plan: (typeof plans)[0],
-    amount: number,
-  ) => {
-    try {
-      if (!userData?.id) {
-        router.push("/auth/login");
-        return;
-      }
-      const orderReference = `SUB_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      const response = await fetch("/api/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          planTier: plan.tier,
-          amount,
-          billingPeriod: selectedBilling,
-          userEmail: userData.email,
-          userId: userData.id,
-          orderReference,
-        }),
-      });
-      const data = await response.json();
-      if (!data.success)
-        throw new Error(data.error || "Failed to create checkout");
-      sessionStorage.setItem(
-        "pendingOrder",
-        JSON.stringify({
-          orderReference: data.orderReference,
-          planTier: plan.tier,
-          amount,
-          billingPeriod: selectedBilling,
-          timestamp: Date.now(),
-        }),
-      );
-      window.location.href = data.checkoutLink;
-    } catch (error: any) {
-      console.error("Checkout error:", error);
-      setError(
-        error.message || "Failed to initialize payment. Please try again.",
-      );
-      setProcessingTier(null);
-    }
-  };
 
   const handleSubscribe = async (plan: (typeof plans)[0]) => {
     if (plan.tier === "free") {
@@ -253,13 +178,12 @@ export default function Pricing() {
       return;
     }
 
-    if (plan.tier === "elite") {
+    if (plan.tier === "corporation") {
       window.location.href =
-        "mailto:sales@zidwell.com?subject=Elite%20Plan%20Inquiry";
+        "mailto:sales@zidwell.com?subject=Corporation%20Plan%20Inquiry";
       return;
     }
 
-    // If not logged in, redirect to login with callback URL
     if (!userData?.id) {
       const callbackUrl = `/pricing?upgrade=${plan.tier}&billing=${selectedBilling}`;
       router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
@@ -275,7 +199,6 @@ export default function Pricing() {
           ? plan.yearlyAmount
           : plan.amount;
 
-      // Call the subscription checkout API
       const response = await fetch("/api/subscription/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -294,7 +217,6 @@ export default function Pricing() {
         throw new Error(data.error || "Failed to create checkout");
       }
 
-      // Redirect to Nomba checkout
       window.location.href = data.checkoutLink;
     } catch (error: any) {
       console.error("Subscription error:", error);
@@ -306,44 +228,13 @@ export default function Pricing() {
   const isCurrentPlan = (tier: string) =>
     subscription?.tier === tier && subscription?.status === "active";
 
-  const handleActivateTrial = async (
-    trialType: "bookkeeping" | "tax_calculator",
-  ) => {
-    try {
-      const featureKey =
-        trialType === "bookkeeping"
-          ? "bookkeeping_access"
-          : "tax_calculator_access";
-      const result = await activateTrial(featureKey, 14);
-      if (result.success) {
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 5000);
-        if (trialType === "bookkeeping")
-          checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
-        else
-          checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
-      } else setError(result.error || "Failed to activate trial");
-    } catch (error: any) {
-      setError(error.message);
-    }
-  };
-
   return (
     <section id="pricing" className="py-20 md:py-32 bg-(--bg-primary)">
       <div className="container mx-auto px-4">
         {showSuccess && (
           <div className="fixed top-4 right-4 z-50 bg-(--color-accent-yellow) text-(--color-ink) px-6 py-3 rounded-xl shadow-pop animate-slideIn">
-            <p className="font-bold">
-              ✓{" "}
-              {subscription?.tier === "free"
-                ? "Trial activated!"
-                : "Payment successful!"}
-            </p>
-            <p className="text-sm">
-              {subscription?.tier === "free"
-                ? "Your 14-day trial has started."
-                : "Your subscription has been activated."}
-            </p>
+            <p className="font-bold">✓ Payment successful!</p>
+            <p className="text-sm">Your subscription has been activated.</p>
           </div>
         )}
         {error && (
@@ -359,9 +250,8 @@ export default function Pricing() {
             <span className="text-(--color-accent-yellow)">grow</span> with you
           </h2>
           <p className="text-lg text-(--text-secondary)">
-            We've worked hard to make our pricing as affordable as possible so
-            you can get the best value. Choose the plan that matches your
-            business goals.
+            Choose the plan that matches your business goals. Each plan is a
+            clear upgrade in capability, not just more limits.
           </p>
           {subscription && subscription.tier !== "free" && (
             <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-(--color-accent-yellow)/10 rounded-full">
@@ -369,26 +259,6 @@ export default function Pricing() {
                 Current Plan:
               </span>
               <SubscriptionBadge />
-            </div>
-          )}
-          {subscription?.tier === "free" && (
-            <div className="mt-6 space-y-2">
-              {bookkeepingTrial?.isActive && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-(--color-accent-yellow)/10 rounded-full mr-2">
-                  <span className="text-sm text-(--color-accent-yellow)">
-                    Bookkeeping Trial: {bookkeepingTrial.daysRemaining} days
-                    remaining
-                  </span>
-                </div>
-              )}
-              {taxCalculatorTrial?.isActive && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-(--color-accent-yellow)/10 rounded-full">
-                  <span className="text-sm text-(--color-accent-yellow)">
-                    Tax Calculator Trial: {taxCalculatorTrial.daysRemaining}{" "}
-                    days remaining
-                  </span>
-                </div>
-              )}
             </div>
           )}
 
@@ -412,7 +282,7 @@ export default function Pricing() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-6">
           {plans.map((plan, index) => {
             const currentPlan = isCurrentPlan(plan.tier);
             const isUpgrade = upgradeParam === plan.tier;
@@ -447,14 +317,8 @@ export default function Pricing() {
                     <span
                       className={`text-3xl font-black ${plan.highlight ? "text-(--color-ink)" : "text-(--text-primary)"}`}
                     >
-                      {selectedBilling === "yearly" && plan.yearlyPrice
-                        ? plan.tier === "zidlite"
-                          ? "₦49,000"
-                          : plan.tier === "growth"
-                            ? "₦99,000"
-                            : plan.tier === "premium"
-                              ? "₦499,000"
-                              : plan.price
+                      {selectedBilling === "yearly" && plan.yearlyAmount
+                        ? `₦${plan.yearlyAmount.toLocaleString()}`
                         : plan.price}
                     </span>
                     <span
@@ -508,97 +372,11 @@ export default function Pricing() {
                       ? "Current Plan"
                       : plan.cta}
                 </Button>
-                {plan.tier === "free" && subscription?.tier === "free" && (
-                  <div className="mt-3 space-y-2">
-                    {!bookkeepingTrial?.isActive && (
-                      <button
-                        onClick={() => handleActivateTrial("bookkeeping")}
-                        className="block w-full text-sm text-(--color-accent-yellow) hover:underline"
-                      >
-                        Activate 14-day bookkeeping trial
-                      </button>
-                    )}
-                    {!taxCalculatorTrial?.isActive && (
-                      <button
-                        onClick={() => handleActivateTrial("tax_calculator")}
-                        className="block w-full text-sm text-(--color-accent-yellow) hover:underline"
-                      >
-                        Activate 14-day tax calculator trial
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
 
-        {/* <div className="mt-20 max-w-4xl mx-auto">
-          <div className="bg-(--bg-primary) border-2 border-(--border-color) shadow-[6px_6px_0px_var(--border-color)] p-8 rounded-2xl">
-            <h3 className="text-2xl md:text-3xl font-black mb-4 text-(--text-primary)">
-              The ZidCoin Economy:{" "}
-              <span className="text-(--color-accent-yellow)">
-                Our Cashback & Reward System
-              </span>
-            </h3>
-            <div className="space-y-6">
-              <div>
-                <h4 className="text-lg font-bold mb-2 text-(--text-primary)">
-                  What is ZidCoin?
-                </h4>
-                <p className="text-(--text-secondary)">
-                  Zidcoin is the currency inside Zidwell. It's what we pay you
-                  for using our app. Every time you load data, airtime, cable
-                  subscription and electricity on Zidwell, you earn Zidcoins
-                  (ZC).
-                </p>
-                <p className="text-(--text-secondary) mt-2 font-semibold">
-                  Value: 1 Zidcoin = ₦1.
-                </p>
-              </div>
-              <div>
-                <h4 className="text-lg font-bold mb-2 text-(--text-primary)">
-                  How It Works
-                </h4>
-                <ul className="space-y-2 text-(--text-secondary)">
-                  <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-(--color-accent-yellow)" />
-                    <span>
-                      Get 20 Zidcoins rewards anytime you spend N2500 and above
-                      on Zidwell.
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-(--color-accent-yellow)" />
-                    <span>
-                      Your Zidcoins accumulate in your wallet as cashback.
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 shrink-0 mt-0.5 text-(--color-accent-yellow)" />
-                    <span>
-                      Once your Zidcoin balance hits 3,000 ZC, you can cash it
-                      out.
-                    </span>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-lg font-bold mb-2 text-(--text-primary)">
-                  Why It Matters
-                </h4>
-                <p className="text-(--text-secondary)">
-                  Zidcoin turns every business transaction into an opportunity
-                  to earn. The more you use Zidwell, the more value you unlock —
-                  it's structure, savings, and growth all in one.
-                </p>
-                <p className="text-(--text-secondary) mt-2 font-semibold">
-                  Zidwell. Structure your hustle. Earn as you grow.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div> */}
       </div>
     </section>
   );

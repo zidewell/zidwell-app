@@ -1,4 +1,3 @@
-// app/api/user/usage/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api"; 
@@ -8,8 +7,49 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Define tier types
+type Tier = 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+
+// Plan limits configuration
+const PLAN_LIMITS: Record<Tier, { invoices: number | string; receipts: number | string; contracts: number | string; teamMembers: number | string; bankAccounts: number | string }> = {
+  free: {
+    invoices: 5,
+    receipts: 5,
+    contracts: 0,
+    teamMembers: 0,
+    bankAccounts: 0,
+  },
+  solopreneur: {
+    invoices: 10,
+    receipts: 'unlimited',
+    contracts: 0,
+    teamMembers: 0,
+    bankAccounts: 0,
+  },
+  sme: {
+    invoices: 'unlimited',
+    receipts: 'unlimited',
+    contracts: 0,
+    teamMembers: 1,
+    bankAccounts: 3,
+  },
+  enterprise: {
+    invoices: 'unlimited',
+    receipts: 'unlimited',
+    contracts: 10,
+    teamMembers: 'unlimited',
+    bankAccounts: 5,
+  },
+  corporation: {
+    invoices: 'unlimited',
+    receipts: 'unlimited',
+    contracts: 'unlimited',
+    teamMembers: 'unlimited',
+    bankAccounts: 'unlimited',
+  },
+};
+
 export async function GET(req: NextRequest) {
-  // ✅ Updated to use enhanced auth with refresh
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
   
   if (!user) {
@@ -55,48 +95,24 @@ export async function GET(req: NextRequest) {
       return response;
     }
 
-    const tier = userData.subscription_tier || 'free';
-    
-    // Define tier types
-    const isFree = tier === 'free';
-    const isZidLite = tier === 'zidlite';
-    const isGrowth = tier === 'growth';
-    const isPremium = tier === 'premium';
-    const isElite = tier === 'elite';
-    const hasUnlimitedInvoices = isGrowth || isPremium || isElite;
+    const tier = (userData.subscription_tier || 'free') as Tier;
+    const limits = PLAN_LIMITS[tier] || PLAN_LIMITS.free;
 
-    // Calculate invoice usage based on tier
+    // Calculate invoice usage
     let invoiceData;
-    if (isFree || isZidLite) {
-      const used = userData.invoices_used_lifetime || 0;
-      const limit = isFree ? 5 : 20; // Free: 5, ZidLite: 20
+    if (limits.invoices === 'unlimited') {
       invoiceData = {
-        used,
-        limit,
-        remaining: Math.max(0, limit - used),
-        type: 'lifetime',
-        requiresUpgrade: used >= limit,
-        canCreate: used < limit
-      };
-    } else {
-      // Growth, Premium, Elite: unlimited
-      const used = userData.invoices_used_lifetime || 0;
-      invoiceData = {
-        used,
+        used: userData.invoices_used_lifetime || 0,
         limit: 'unlimited',
         remaining: 'unlimited',
         type: 'unlimited',
         requiresUpgrade: false,
         canCreate: true
       };
-    }
-
-    // Calculate receipt usage
-    let receiptData;
-    if (isFree || isZidLite) {
-      const used = userData.receipts_used_lifetime || 0;
-      const limit = isFree ? 5 : 20;
-      receiptData = {
+    } else {
+      const used = userData.invoices_used_lifetime || 0;
+      const limit = limits.invoices as number;
+      invoiceData = {
         used,
         limit,
         remaining: Math.max(0, limit - used),
@@ -104,7 +120,11 @@ export async function GET(req: NextRequest) {
         requiresUpgrade: used >= limit,
         canCreate: used < limit
       };
-    } else {
+    }
+
+    // Calculate receipt usage
+    let receiptData;
+    if (limits.receipts === 'unlimited') {
       receiptData = {
         used: userData.receipts_used_lifetime || 0,
         limit: 'unlimited',
@@ -113,44 +133,22 @@ export async function GET(req: NextRequest) {
         requiresUpgrade: false,
         canCreate: true
       };
+    } else {
+      const used = userData.receipts_used_lifetime || 0;
+      const limit = limits.receipts as number;
+      receiptData = {
+        used,
+        limit,
+        remaining: Math.max(0, limit - used),
+        type: 'lifetime',
+        requiresUpgrade: used >= limit,
+        canCreate: used < limit
+      };
     }
 
     // Calculate contract usage
     let contractData;
-    if (isFree) {
-      const used = userData.contracts_used_lifetime || 0;
-      const limit = 1;
-      contractData = {
-        used,
-        limit,
-        remaining: Math.max(0, limit - used),
-        type: 'lifetime',
-        requiresUpgrade: used >= limit,
-        canCreate: used < limit
-      };
-    } else if (isZidLite) {
-      const used = userData.contracts_used_lifetime || 0;
-      const limit = 2;
-      contractData = {
-        used,
-        limit,
-        remaining: Math.max(0, limit - used),
-        type: 'lifetime',
-        requiresUpgrade: used >= limit,
-        canCreate: used < limit
-      };
-    } else if (isGrowth) {
-      const used = userData.contracts_used_lifetime || 0;
-      const limit = 5;
-      contractData = {
-        used,
-        limit,
-        remaining: Math.max(0, limit - used),
-        type: 'lifetime',
-        requiresUpgrade: used >= limit,
-        canCreate: used < limit
-      };
-    } else {
+    if (limits.contracts === 'unlimited') {
       contractData = {
         used: userData.contracts_used_lifetime || 0,
         limit: 'unlimited',
@@ -159,50 +157,55 @@ export async function GET(req: NextRequest) {
         requiresUpgrade: false,
         canCreate: true
       };
+    } else {
+      const used = userData.contracts_used_lifetime || 0;
+      const limit = limits.contracts as number;
+      contractData = {
+        used,
+        limit,
+        remaining: Math.max(0, limit - used),
+        type: 'lifetime',
+        requiresUpgrade: used >= limit,
+        canCreate: used < limit
+      };
     }
 
-    // Get active trials
-    const { data: trials } = await supabase
-      .from("user_trials")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("status", "active");
-
-    const activeTrials: Record<string, any> = {};
-    if (trials) {
-      for (const trial of trials) {
-        const endsAt = new Date(trial.ends_at);
-        if (endsAt > new Date()) {
-          activeTrials[trial.feature_key] = {
-            isActive: true,
-            endsAt,
-            daysRemaining: Math.ceil((endsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
-          };
-        }
-      }
-    }
+    // Check if user has unlimited invoices
+    const hasUnlimitedInvoices = limits.invoices === 'unlimited';
 
     const responseData = {
       invoices: invoiceData,
       receipts: receiptData,
       contracts: contractData,
-      trials: activeTrials,
+      trials: {}, // Removed trials
       tier,
       hasUnlimitedInvoices,
+      limits: {
+        invoices: limits.invoices,
+        receipts: limits.receipts,
+        contracts: limits.contracts,
+        teamMembers: limits.teamMembers,
+        bankAccounts: limits.bankAccounts,
+      },
       summary: {
         invoices: {
           used: userData.invoices_used_lifetime || 0,
-          limit: isFree ? 5 : isZidLite ? 20 : 'unlimited',
-          remaining: isFree 
-            ? Math.max(0, 5 - (userData.invoices_used_lifetime || 0))
-            : isZidLite
-            ? Math.max(0, 20 - (userData.invoices_used_lifetime || 0))
-            : 'unlimited'
+          limit: limits.invoices,
+          remaining: limits.invoices === 'unlimited' ? 'unlimited' : Math.max(0, (limits.invoices as number) - (userData.invoices_used_lifetime || 0))
+        },
+        receipts: {
+          used: userData.receipts_used_lifetime || 0,
+          limit: limits.receipts,
+          remaining: limits.receipts === 'unlimited' ? 'unlimited' : Math.max(0, (limits.receipts as number) - (userData.receipts_used_lifetime || 0))
+        },
+        contracts: {
+          used: userData.contracts_used_lifetime || 0,
+          limit: limits.contracts,
+          remaining: limits.contracts === 'unlimited' ? 'unlimited' : Math.max(0, (limits.contracts as number) - (userData.contracts_used_lifetime || 0))
         }
       }
     };
 
-    // Include new tokens if available
     if (newTokens) {
       return createAuthResponse(responseData, newTokens);
     }

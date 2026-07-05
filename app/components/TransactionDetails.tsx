@@ -1,4 +1,6 @@
-"use client";
+// app/components/TransactionDetails.tsx
+'use client';
+
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
@@ -20,6 +22,7 @@ import { useEffect, useState } from "react";
 import Loader from "./Loader";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
+import { useCachedTransactions } from "../hooks/useCachedTransactions"; 
 
 // Define transaction types that should show as positive amounts (incoming money)
 const inflowTypes = [
@@ -54,6 +57,16 @@ export default function TransactionDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [base64Logo, setBase64Logo] = useState<string>("");
+  const [searchAttempted, setSearchAttempted] = useState(false);
+
+  // Use cached hook - fetch first 50 transactions
+  const { transactions: cachedTransactions, isLoading: cachedLoading } = useCachedTransactions(
+    userData?.id,
+    {
+      page: 1,
+      limit: 50,
+    }
+  );
 
   // Load logo as base64 for PDF generation
   const getBase64Logo = async (): Promise<string> => {
@@ -82,85 +95,79 @@ export default function TransactionDetailsPage() {
     loadLogo();
   }, []);
 
+  // Find transaction in cached data
   useEffect(() => {
-    const fetchTransactionDetails = async () => {
-      if (!params.id || !userData?.id) return;
+    if (!params.id || !userData?.id) return;
 
+    const transactionId = params.id;
+
+    if (cachedTransactions.length > 0) {
+      // First try to find in cached transactions
+      const found = cachedTransactions.find((tx: any) => tx.id === transactionId);
+      
+      if (found) {
+        setTransaction(found);
+        setLoading(false);
+        setSearchAttempted(true);
+        return;
+      }
+    }
+
+    // If not found in cache, search by reference or ID
+    const searchByReference = async () => {
       setLoading(true);
       try {
-        const transactionId = params.id;
+        const searchResponse = await fetch(
+          `/api/bill-transactions?userId=${userData.id}&search=${transactionId}&page=1&limit=10`,
+        );
 
-        let foundTransaction: any = null;
-        let page = 1;
-        const limit = 50;
-        let hasMore = true;
-
-        while (hasMore && !foundTransaction) {
-          const response = await fetch(
-            `/api/bill-transactions?userId=${userData.id}&page=${page}&limit=${limit}`,
-          );
-
-          if (!response.ok) {
-            throw new Error(`Failed to fetch transactions: ${response.status}`);
-          }
-
-          const data = await response.json();
-
-          if (data.transactions && Array.isArray(data.transactions)) {
-            foundTransaction = data.transactions.find(
-              (tx: any) => tx.id === transactionId,
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          if (searchData.transactions && searchData.transactions.length > 0) {
+            const foundByReference = searchData.transactions.find(
+              (tx: any) =>
+                tx.reference === transactionId ||
+                tx.merchant_tx_ref === transactionId ||
+                tx.id === transactionId,
             );
-          }
 
-          hasMore = data.hasMore || false;
-          page++;
-
-          if (page > 10) {
-            console.warn(
-              "Exceeded maximum page limit while searching for transaction",
-            );
-            break;
-          }
-        }
-
-        if (foundTransaction) {
-          setTransaction(foundTransaction);
-        } else {
-          const searchResponse = await fetch(
-            `/api/bill-transactions?userId=${userData.id}&search=${transactionId}&page=1&limit=10`,
-          );
-
-          if (searchResponse.ok) {
-            const searchData = await searchResponse.json();
-            if (searchData.transactions && searchData.transactions.length > 0) {
-              const foundByReference = searchData.transactions.find(
-                (tx: any) =>
-                  tx.reference === transactionId ||
-                  tx.merchant_tx_ref === transactionId,
-              );
-
-              if (foundByReference) {
-                setTransaction(foundByReference);
-              } else {
-                setTransaction(null);
-              }
+            if (foundByReference) {
+              setTransaction(foundByReference);
             } else {
               setTransaction(null);
             }
           } else {
             setTransaction(null);
           }
+        } else {
+          setTransaction(null);
         }
       } catch (error) {
-        console.error("Error fetching transaction details:", error);
+        console.error("Error searching for transaction:", error);
         setTransaction(null);
       } finally {
         setLoading(false);
+        setSearchAttempted(true);
       }
     };
 
-    fetchTransactionDetails();
-  }, [params.id, userData?.id]);
+    // Only search if we've loaded cached transactions and didn't find it
+    if (!cachedLoading && cachedTransactions.length > 0) {
+      searchByReference();
+    } else if (!cachedLoading && cachedTransactions.length === 0) {
+      // No transactions in cache, search directly
+      searchByReference();
+    }
+  }, [params.id, userData?.id, cachedTransactions, cachedLoading]);
+
+  // Update loading state based on cache loading
+  useEffect(() => {
+    if (cachedLoading) {
+      setLoading(true);
+    } else if (searchAttempted) {
+      setLoading(false);
+    }
+  }, [cachedLoading, searchAttempted]);
 
   const isOutflow = (transactionType: string) => {
     return outflowTypes.includes(transactionType?.toLowerCase());
@@ -543,7 +550,7 @@ export default function TransactionDetailsPage() {
 
     <div class="amount">
       <div class="amount-label">Amount</div>
-      <div class="amount-value">₦${amountInfo.display}</div>
+      <div class="amount-value">${amountInfo.display}</div>
     </div>
 
     <div class="section-title">

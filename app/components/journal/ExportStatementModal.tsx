@@ -1,10 +1,9 @@
-"use client";
-import { useState } from "react";
-import { X, Download, Calendar, Loader2 } from "lucide-react";
-import { Button } from "../ui/button";
-import { format } from "date-fns";
-import { useJournal } from "@/app/context/JournalContext";
-import { useUserContextData } from "@/app/context/userData";
+// app/components/journal/ExportStatementModal.tsx
+
+import { useState } from 'react';
+import { X, Calendar, Loader2 } from 'lucide-react';
+import { Button } from '../ui/button';
+import { format } from 'date-fns';
 
 interface ExportStatementModalProps {
   isOpen: boolean;
@@ -19,66 +18,47 @@ export function ExportStatementModal({
   onExport,
   journalType,
 }: ExportStatementModalProps) {
-  const { entries, categories, activeJournalType } = useJournal();
-  const { userData } = useUserContextData();
   const [statementDateRange, setStatementDateRange] = useState<{
     from: string;
     to: string;
   }>({
     from: new Date(new Date().setDate(new Date().getDate() - 30))
       .toISOString()
-      .split("T")[0],
-    to: new Date().toISOString().split("T")[0],
+      .split('T')[0],
+    to: new Date().toISOString().split('T')[0],
   });
   const [downloadingStatement, setDownloadingStatement] = useState(false);
 
   if (!isOpen) return null;
 
-  const getToday = () => {
-    return new Date().toISOString().split("T")[0];
-  };
+  const getToday = () => new Date().toISOString().split('T')[0];
 
   const formatDateDisplay = (dateString: string) => {
-    if (!dateString) return "Select date";
-    const date = new Date(dateString);
-    return format(date, "MMM dd, yyyy");
+    if (!dateString) return 'Select date';
+    return format(new Date(dateString), 'MMM dd, yyyy');
   };
 
   const handleDownloadStatement = async () => {
     if (!statementDateRange.from || !statementDateRange.to) {
-      alert("Please select a date range for the statement");
+      alert('Please select a date range for the statement');
       return;
     }
 
-    if (!userData?.id) {
-      alert("User data not found");
-      return;
-    }
-
-    // Validate date range
     const fromDate = new Date(statementDateRange.from);
     const toDate = new Date(statementDateRange.to);
 
     if (fromDate > toDate) {
-      alert("From date cannot be later than To date");
+      alert('From date cannot be later than To date');
       return;
     }
 
     setDownloadingStatement(true);
-
     try {
-      // Use the onExport prop from parent
       await onExport(statementDateRange);
-
-      // Close modal
       onClose();
     } catch (error: any) {
-      console.error("Error downloading statement:", error);
-      alert(
-        `Error: ${
-          error.message || "Failed to download statement. Please try again."
-        }`,
-      );
+      console.error('Error downloading statement:', error);
+      alert(error.message || 'Failed to download statement. Please try again.');
     } finally {
       setDownloadingStatement(false);
     }
@@ -105,9 +85,7 @@ export function ExportStatementModal({
 
           <div className="space-y-4">
             <p className="text-(--text-secondary) text-sm">
-              Select a date range to download your journal entries as a
-              professional PDF statement. The statement will include ALL journal
-              entries from the selected period.
+              Select a date range to download your journal entries as a professional PDF statement.
             </p>
 
             <div className="space-y-3">
@@ -127,7 +105,6 @@ export function ExportStatementModal({
                       }))
                     }
                     className="w-full border border-(--border-color) rounded-md px-3 py-2 pl-10 bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
-                    style={{ outline: "none", boxShadow: "none" }}
                     max={statementDateRange.to || getToday()}
                   />
                 </div>
@@ -149,7 +126,6 @@ export function ExportStatementModal({
                       }))
                     }
                     className="w-full border border-(--border-color) rounded-md px-3 py-2 pl-10 bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
-                    style={{ outline: "none", boxShadow: "none" }}
                     min={statementDateRange.from}
                     max={getToday()}
                   />
@@ -159,87 +135,38 @@ export function ExportStatementModal({
 
             {/* Quick Range Buttons */}
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const to = getToday();
-                  const fromDate = new Date();
-                  fromDate.setDate(fromDate.getDate() - 7);
-                  const from = fromDate.toISOString().split("T")[0];
-                  setStatementDateRange({ from, to });
-                }}
-                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
-              >
-                Last 7 days
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const to = getToday();
-                  const fromDate = new Date();
-                  fromDate.setDate(fromDate.getDate() - 30);
-                  const from = fromDate.toISOString().split("T")[0];
-                  setStatementDateRange({ from, to });
-                }}
-                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
-              >
-                Last 30 days
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const to = getToday();
-                  const fromDate = new Date();
-                  fromDate.setMonth(fromDate.getMonth() - 3);
-                  const from = fromDate.toISOString().split("T")[0];
-                  setStatementDateRange({ from, to });
-                }}
-                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
-              >
-                Last 3 months
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const to = getToday();
-                  const fromDate = new Date();
-                  fromDate.setMonth(fromDate.getMonth() - 6);
-                  const from = fromDate.toISOString().split("T")[0];
-                  setStatementDateRange({ from, to });
-                }}
-                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
-              >
-                Last 6 months
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const to = getToday();
-                  const fromDate = new Date();
-                  fromDate.setMonth(fromDate.getMonth() - 12);
-                  const from = fromDate.toISOString().split("T")[0];
-                  setStatementDateRange({ from, to });
-                }}
-                className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
-              >
-                Last 12 months
-              </Button>
+              {[
+                { label: 'Last 7 days', days: 7 },
+                { label: 'Last 30 days', days: 30 },
+                { label: 'Last 3 months', days: 90 },
+                { label: 'Last 6 months', days: 180 },
+                { label: 'Last 12 months', days: 365 },
+              ].map(({ label, days }) => (
+                <Button
+                  key={label}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const to = getToday();
+                    const fromDate = new Date();
+                    fromDate.setDate(fromDate.getDate() - days);
+                    const from = fromDate.toISOString().split('T')[0];
+                    setStatementDateRange({ from, to });
+                  }}
+                  className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary)"
+                >
+                  {label}
+                </Button>
+              ))}
             </div>
 
             {statementDateRange.from && statementDateRange.to && (
               <div className="p-3 bg-(--bg-secondary) rounded-md border border-(--border-color)">
                 <p className="text-sm text-(--text-primary)">
-                  Selected range: {formatDateDisplay(statementDateRange.from)}{" "}
-                  to {formatDateDisplay(statementDateRange.to)}
+                  Selected range: {formatDateDisplay(statementDateRange.from)} to {formatDateDisplay(statementDateRange.to)}
                 </p>
                 <p className="text-xs text-(--text-secondary) mt-1">
-                  Journal Type:{" "}
-                  {journalType.charAt(0).toUpperCase() + journalType.slice(1)}
+                  Journal Type: {journalType.charAt(0).toUpperCase() + journalType.slice(1)}
                 </p>
               </div>
             )}
@@ -247,11 +174,7 @@ export function ExportStatementModal({
             <div className="pt-4 border-t border-(--border-color)">
               <Button
                 onClick={handleDownloadStatement}
-                disabled={
-                  !statementDateRange.from ||
-                  !statementDateRange.to ||
-                  downloadingStatement
-                }
+                disabled={!statementDateRange.from || !statementDateRange.to || downloadingStatement}
                 className="w-full font-semibold h-11 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
               >
                 {downloadingStatement ? (
@@ -260,10 +183,7 @@ export function ExportStatementModal({
                     Generating Statement...
                   </>
                 ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
-                    Download Statement as PDF
-                  </>
+                  'Download Statement as PDF'
                 )}
               </Button>
               <p className="text-xs text-(--text-secondary) mt-2 text-center">

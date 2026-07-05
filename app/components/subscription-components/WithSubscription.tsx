@@ -1,8 +1,7 @@
-// components/withSubscription.tsx
 import { SubscriptionPageGuard } from "./SubscriptionGuard";
 
 interface WithSubscriptionProps {
-  requiredTier: 'free' | 'growth' | 'premium' | 'elite';
+  requiredTier: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
   featureKey: string;
   title?: string;
   description?: string;

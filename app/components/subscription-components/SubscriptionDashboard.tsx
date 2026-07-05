@@ -1,4 +1,3 @@
-// app/components/subscription-components/SubscriptionDashboard.tsx
 "use client";
 
 import { useSubscription } from "@/app/hooks/useSubscripion";
@@ -13,10 +12,30 @@ import {
   Sparkles,
   Clock,
   Star,
+  Building2,
+  Briefcase,
+  Gem,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
 import { SubscriptionBadge } from "./subscriptionBadges";
+
+// Tier display names
+const TIER_DISPLAY_NAMES: Record<string, string> = {
+  free: "Free",
+  solopreneur: "Solopreneur",
+  sme: "SME",
+  enterprise: "Enterprise",
+  corporation: "Corporation",
+};
+
+// Legacy aliases
+const LEGACY_TIER_MAP: Record<string, string> = {
+  zidlite: "solopreneur",
+  growth: "sme",
+  premium: "enterprise",
+  elite: "corporation",
+};
 
 export function SubscriptionDashboard() {
   const {
@@ -26,13 +45,8 @@ export function SubscriptionDashboard() {
     getUpgradeBenefits,
     userTier,
     isActive,
-    checkTrialStatus,
     getPlanLimits,
     isFree,
-    isZidLite,
-    isGrowth,
-    isPremium,
-    isElite,
   } = useSubscription();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -41,11 +55,16 @@ export function SubscriptionDashboard() {
 
   // Check for active trials
   useEffect(() => {
-    if (isFree || isZidLite) {
+    if (isFree) {
       checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
       checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
     }
-  }, [isFree, isZidLite, checkTrialStatus]);
+  }, [isFree, checkTrialStatus]);
+
+  // Map legacy tier to new tier for display
+  const getDisplayTier = (tier: string): string => {
+    return LEGACY_TIER_MAP[tier] || tier;
+  };
 
   if (loading) {
     return (
@@ -100,45 +119,35 @@ export function SubscriptionDashboard() {
   };
 
   const getTierIcon = (tier: string) => {
-    switch (tier) {
+    const displayTier = getDisplayTier(tier);
+    switch (displayTier) {
       case "free":
         return <Star className="w-5 h-5 text-gray-600" />;
-      case "zidlite":
-        return <Zap className="w-5 h-5 text-blue-600" />;
-      case "growth":
-        return <Zap className="w-5 h-5 text-green-600" />;
-      case "premium":
-        return <Crown className="w-5 h-5 text-(--color-accent-yellow)" />;
-      case "elite":
-        return <Sparkles className="w-5 h-5 text-purple-600" />;
+      case "solopreneur":
+        return <Briefcase className="w-5 h-5 text-blue-600" />;
+      case "sme":
+        return <Building2 className="w-5 h-5 text-green-600" />;
+      case "enterprise":
+        return <Crown className="w-5 h-5 text-amber-600" />;
+      case "corporation":
+        return <Gem className="w-5 h-5 text-purple-600" />;
       default:
         return null;
     }
   };
 
   const getPlanDisplayName = (tier: string) => {
-    switch (tier) {
-      case "free":
-        return "Free Trial";
-      case "zidlite":
-        return "ZidLite";
-      case "growth":
-        return "Growth";
-      case "premium":
-        return "Premium";
-      case "elite":
-        return "Elite";
-      default:
-        return tier;
-    }
+    const displayTier = getDisplayTier(tier);
+    return TIER_DISPLAY_NAMES[displayTier] || displayTier;
   };
 
   const limits = getPlanLimits();
 
-  // Helper function to safely check if a feature is included
   const isFeatureIncluded = (featureName: string): boolean => {
     return (limits as any)[featureName] === true;
   };
+
+  const displayTier = getDisplayTier(subscription.tier);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -162,7 +171,7 @@ export function SubscriptionDashboard() {
               </span>
             </div>
 
-            {subscription.expiresAt && !isFree && !isZidLite && (
+            {subscription.expiresAt && !isFree && (
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-4">
                 <Calendar className="w-4 h-4" />
                 <span>
@@ -173,56 +182,12 @@ export function SubscriptionDashboard() {
               </div>
             )}
 
-            {(isFree || isZidLite) && (
+            {isFree && (
               <div className="space-y-2">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {isFree
-                    ? "You're on the Free Trial plan. Upgrade to access more features and higher limits."
-                    : "You're on the ZidLite plan. Upgrade to Growth or higher for unlimited features."}
+                  You're on the Free plan. Upgrade to access more features and
+                  higher limits.
                 </p>
-
-                {/* Show trial information if active */}
-                <div className="space-y-2 mt-3">
-                  {bookkeepingTrial?.isActive && (
-                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                      <div className="flex items-center gap-2 text-green-700 dark:text-green-300 mb-2">
-                        <Clock className="w-4 h-4" />
-                        <span className="font-semibold">
-                          Bookkeeping Trial Active
-                        </span>
-                      </div>
-                      <p className="text-sm text-green-600 dark:text-green-400">
-                        You have {bookkeepingTrial.daysRemaining} days remaining
-                        in your free trial.
-                        {bookkeepingTrial.daysRemaining <= 3 && (
-                          <span className="block mt-1 font-medium">
-                            ⚠️ Your trial ends soon! Upgrade to keep access.
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  )}
-
-                  {taxCalculatorTrial?.isActive && (
-                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                      <div className="flex items-center gap-2 text-green-700 dark:text-green-300 mb-2">
-                        <Clock className="w-4 h-4" />
-                        <span className="font-semibold">
-                          Tax Calculator Trial Active
-                        </span>
-                      </div>
-                      <p className="text-sm text-green-600 dark:text-green-400">
-                        You have {taxCalculatorTrial.daysRemaining} days
-                        remaining in your free trial.
-                        {taxCalculatorTrial.daysRemaining <= 3 && (
-                          <span className="block mt-1 font-medium">
-                            ⚠️ Your trial ends soon! Upgrade to keep access.
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  )}
-                </div>
 
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <div className="text-sm">
@@ -255,91 +220,37 @@ export function SubscriptionDashboard() {
                         : limits.contracts}
                     </span>
                   </div>
-                  <div className="text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Transfer fee:
-                    </span>
-                    <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
-                      ₦{limits.transferFee} per transfer
-                    </span>
-                  </div>
                 </div>
+              </div>
+            )}
 
-                {/* Feature Access Section */}
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Feature Access
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Bookkeeping:
-                      </span>
-                      <span className="ml-2 font-semibold">
-                        {bookkeepingTrial?.isActive ? (
-                          <span className="text-green-600 dark:text-green-400">
-                            Trial ({bookkeepingTrial.daysRemaining} days)
-                          </span>
-                        ) : isFeatureIncluded("bookkeepingAccess") ? (
-                          <span className="text-green-600 dark:text-green-400">
-                            Included
-                          </span>
-                        ) : (
-                          <span className="text-gray-500 dark:text-gray-500">
-                            Not Available
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Tax Calculator:
-                      </span>
-                      <span className="ml-2 font-semibold">
-                        {taxCalculatorTrial?.isActive ? (
-                          <span className="text-green-600 dark:text-green-400">
-                            Trial ({taxCalculatorTrial.daysRemaining} days)
-                          </span>
-                        ) : isFeatureIncluded("taxCalculator") ? (
-                          <span className="text-green-600 dark:text-green-400">
-                            Included
-                          </span>
-                        ) : (
-                          <span className="text-gray-500 dark:text-gray-500">
-                            Not Available
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    {isFeatureIncluded("whatsappCommunity") && (
-                      <div className="text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          WhatsApp Community:
-                        </span>
-                        <span className="ml-2 font-semibold text-green-600 dark:text-green-400">
-                          ✓ Included
-                        </span>
-                      </div>
-                    )}
-                    {isFeatureIncluded("prioritySupport") && (
-                      <div className="text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          Priority Support:
-                        </span>
-                        <span className="ml-2 font-semibold text-green-600 dark:text-green-400">
-                          ✓ Included
-                        </span>
-                      </div>
-                    )}
+            {/* Plan-specific benefits */}
+            {displayTier === "solopreneur" && (
+              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
+                  Solopreneur Plan Benefits
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Invoices:</span> 10 total
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Receipts:</span> Unlimited
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Branded Invoices:</span> ✓
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Expense Tracking:</span> ✓
                   </div>
                 </div>
               </div>
             )}
 
-            {isGrowth && (
+            {displayTier === "sme" && (
               <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
-                  Growth Plan Benefits
+                  SME Plan Benefits
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -349,89 +260,83 @@ export function SubscriptionDashboard() {
                     <span className="font-medium">Receipts:</span> Unlimited
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Contracts:</span> 5 total
+                    <span className="font-medium">Bank Accounts:</span> 3
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Bookkeeping:</span> Included
+                    <span className="font-medium">Team Members:</span> 1 extra
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Tax Calculator:</span>{" "}
-                    Included
+                    <span className="font-medium">Vault:</span> ✓
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Support:</span> WhatsApp
+                    <span className="font-medium">Tax Calculator:</span> ✓
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Financial Statements:</span> ✓
                   </div>
                 </div>
               </div>
             )}
 
-            {isPremium && (
+            {displayTier === "enterprise" && (
               <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
-                  Premium Plan Benefits
+                  Enterprise Plan Benefits
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Invoices:</span> Unlimited
+                    <span className="font-medium">Team:</span> Unlimited
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Receipts:</span> Unlimited
+                    <span className="font-medium">Bank Accounts:</span> 5
                   </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Contracts:</span> 10
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Role Permissions:</span> ✓
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Approval System:</span> ✓
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Dedicated Onboarding:</span> ✓
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {displayTier === "corporation" && (
+              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
+                  Corporation Plan Benefits
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Contracts:</span> Unlimited
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Payment Reminders:</span>{" "}
-                    Included
+                    <span className="font-medium">Bank Accounts:</span>{" "}
+                    Unlimited
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Financial Statements:</span>{" "}
-                    Included
+                    <span className="font-medium">Payroll System:</span> ✓
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Tax Support:</span> Included
+                    <span className="font-medium">Department Access:</span> ✓
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Support:</span> Priority
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {isElite && (
-              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
-                  Elite Plan Benefits
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">
-                      Everything in Premium, plus:
-                    </span>
+                    <span className="font-medium">Advanced Reporting:</span> ✓
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Transfer Fee:</span> ₦0
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Full Tax Filing:</span> VAT,
-                    PAYE, WHT
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">CIT Audit:</span> Included
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">CFO Guidance:</span> Included
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Support:</span> Direct
-                    WhatsApp
+                    <span className="font-medium">Dedicated Account Manager:</span> ✓
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {!isFree && !isZidLite && subscription.status === "active" && (
+          {!isFree && subscription.status === "active" && (
             <div className="mt-4 md:mt-0 md:ml-6">
               {!showCancelConfirm ? (
                 <Button2
@@ -471,45 +376,42 @@ export function SubscriptionDashboard() {
         </div>
       </div>
 
-      {/* Features List - Only for paid tiers */}
-      {!isFree &&
-        !isZidLite &&
-        subscription.features &&
-        Object.keys(subscription.features).length > 0 && (
-          <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
-            <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
-              All Features Included
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(subscription.features || {}).map(
-                ([key, feature]: [string, any]) => (
-                  <div key={key} className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-(--color-accent-yellow) shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-sm text-gray-900 dark:text-gray-50">
-                        {key
-                          .replace(/_/g, " ")
-                          .replace(/\b\w/g, (l) => l.toUpperCase())}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 block">
-                        {feature.value === "true"
-                          ? "Included"
-                          : feature.value === "unlimited"
-                            ? "Unlimited"
-                            : feature.limit
-                              ? `${feature.limit} total`
-                              : feature.value}
-                      </span>
-                    </div>
+      {/* Features List */}
+      {!isFree && subscription.features && Object.keys(subscription.features).length > 0 && (
+        <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
+          <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
+            All Features Included
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries(subscription.features || {}).map(
+              ([key, feature]: [string, any]) => (
+                <div key={key} className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-(--color-accent-yellow) shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-sm text-gray-900 dark:text-gray-50">
+                      {key
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (l) => l.toUpperCase())}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                      {feature.value === "true"
+                        ? "Included"
+                        : feature.value === "unlimited"
+                          ? "Unlimited"
+                          : feature.limit
+                            ? `${feature.limit} total`
+                            : feature.value}
+                    </span>
                   </div>
-                ),
-              )}
-            </div>
+                </div>
+              ),
+            )}
           </div>
-        )}
+        </div>
+      )}
 
-      {/* Payment History - Placeholder for now */}
-      {!isFree && !isZidLite && (
+      {/* Payment History */}
+      {!isFree && (
         <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
           <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
             Payment History
@@ -523,16 +425,16 @@ export function SubscriptionDashboard() {
       )}
 
       {/* Upgrade Options */}
-      {!isElite && (
+      {displayTier !== "corporation" && (
         <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6">
           <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
             Upgrade Your Plan
           </h3>
           <div className="space-y-4">
-            {["zidlite", "growth", "premium", "elite"]
+            {["solopreneur", "sme", "enterprise", "corporation"]
               .filter((tier) => {
-                const tiers = ["free", "zidlite", "growth", "premium", "elite"];
-                const currentIndex = tiers.indexOf(subscription.tier);
+                const tiers = ["free", "solopreneur", "sme", "enterprise", "corporation"];
+                const currentIndex = tiers.indexOf(displayTier);
                 const targetIndex = tiers.indexOf(tier);
                 return targetIndex > currentIndex;
               })

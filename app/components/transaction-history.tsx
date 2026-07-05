@@ -1,5 +1,7 @@
-"use client";
-import { useEffect, useState, useRef, useCallback } from "react";
+// app/components/TransactionHistory.tsx
+'use client';
+
+import { useEffect, useState, useCallback } from "react";
 import {
   Search,
   Download,
@@ -26,6 +28,7 @@ import Loader from "./Loader";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { useIsMobile } from "../hooks/use-mobile";
+import { useCachedTransactions } from "../hooks/useCachedTransactions"; 
 
 const statusConfig: any = {
   success: {
@@ -223,15 +226,25 @@ export default function TransactionHistory() {
   }>({ from: "", to: "" });
   const [showStatementModal, setShowStatementModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [base64Logo, setBase64Logo] = useState<string>("");
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
 
   const router = useRouter();
+
+  // Use cached hook for transactions
+  const {
+    transactions: cachedTransactions,
+    total,
+    hasMore: cachedHasMore,
+    isLoading: cachedLoading,
+    refresh,
+  } = useCachedTransactions(userData?.id, {
+    page: currentPage,
+    limit: TRANSACTIONS_PER_PAGE,
+    search: searchTerm,
+  });
 
   // Load logo as base64 for PDF generation
   const getBase64Logo = async (): Promise<string> => {
@@ -272,6 +285,17 @@ export default function TransactionHistory() {
     }
   }, []);
 
+  // Update allTransactions when cached data changes
+  useEffect(() => {
+    if (cachedTransactions.length > 0) {
+      if (currentPage === 1) {
+        setAllTransactions(cachedTransactions);
+      } else {
+        setAllTransactions(prev => [...prev, ...cachedTransactions]);
+      }
+    }
+  }, [cachedTransactions, currentPage]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setPageLoading(false);
@@ -279,80 +303,10 @@ export default function TransactionHistory() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Reset pagination when search changes
   useEffect(() => {
-    if (!userData?.id) return;
-
-    const fetchInitialTransactions = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({
-          userId: userData.id,
-          page: "1",
-          limit: TRANSACTIONS_PER_PAGE.toString(),
-        });
-
-        const response = await fetch(
-          `/api/bill-transactions?${params.toString()}`,
-        );
-        const data = await response.json();
-
-        if (data.transactions && data.transactions.length > 0) {
-          setAllTransactions(data.transactions);
-          setHasMore(data.hasMore || false);
-          setCurrentPage(1);
-        } else {
-          setAllTransactions([]);
-          setHasMore(false);
-        }
-      } catch (error) {
-        console.error("Error fetching transactions:", error);
-        setAllTransactions([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInitialTransactions();
-  }, [userData]);
-
-  useEffect(() => {
-    if (!userData?.id) return;
-
-    const searchTimeout = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({
-          userId: userData.id,
-          page: "1",
-          limit: TRANSACTIONS_PER_PAGE.toString(),
-        });
-
-        if (searchTerm) {
-          params.set("search", searchTerm);
-        }
-
-        const response = await fetch(
-          `/api/bill-transactions?${params.toString()}`,
-        );
-        const data = await response.json();
-
-        if (data.transactions && data.transactions.length > 0) {
-          setAllTransactions(data.transactions);
-          setHasMore(data.hasMore || false);
-          setCurrentPage(1);
-        } else {
-          setAllTransactions([]);
-          setHasMore(false);
-        }
-      } catch (error) {
-        console.error("Error searching transactions:", error);
-      } finally {
-        setLoading(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(searchTimeout);
-  }, [searchTerm, userData]);
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const applyDurationFilter = useCallback(
     (txs: any[]) => {
@@ -463,39 +417,8 @@ export default function TransactionHistory() {
     applyDurationFilter(filteredTransactions);
 
   const handleLoadMore = async () => {
-    if (!hasMore || isLoadingMore || !userData?.id) return;
-
-    setIsLoadingMore(true);
-    try {
-      const nextPage = currentPage + 1;
-
-      const params = new URLSearchParams({
-        userId: userData.id,
-        page: nextPage.toString(),
-        limit: TRANSACTIONS_PER_PAGE.toString(),
-      });
-
-      if (searchTerm) {
-        params.set("search", searchTerm);
-      }
-
-      const response = await fetch(
-        `/api/bill-transactions?${params.toString()}`,
-      );
-      const data = await response.json();
-
-      if (data.transactions && data.transactions.length > 0) {
-        setAllTransactions((prev) => [...prev, ...data.transactions]);
-        setCurrentPage(nextPage);
-        setHasMore(data.hasMore || false);
-      } else {
-        setHasMore(false);
-      }
-    } catch (error) {
-      console.error("Error loading more transactions:", error);
-    } finally {
-      setIsLoadingMore(false);
-    }
+    if (!cachedHasMore || currentPage === 1) return;
+    setCurrentPage(prev => prev + 1);
   };
 
   const handleResetFilters = () => {
@@ -505,20 +428,7 @@ export default function TransactionHistory() {
     setSearchTerm("");
     setCurrentPage(1);
     setShowFilters(false);
-
-    if (userData?.id) {
-      setLoading(true);
-      fetch(
-        `/api/bill-transactions?userId=${userData.id}&page=1&limit=${TRANSACTIONS_PER_PAGE}`,
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          setAllTransactions(data.transactions || []);
-          setHasMore(data.hasMore || false);
-        })
-        .catch((err) => console.error("Error resetting transactions:", err))
-        .finally(() => setLoading(false));
-    }
+    refresh();
   };
 
   const handleDownloadStatement = async () => {
@@ -1006,7 +916,7 @@ export default function TransactionHistory() {
 
     <div class="amount">
       <div class="amount-label">Amount</div>
-      <div class="amount-value">₦${amountInfo.signedDisplay}</div>
+      <div class="amount-value">${amountInfo.signedDisplay}</div>
     </div>
 
     <div class="section-title">
@@ -1235,7 +1145,7 @@ export default function TransactionHistory() {
                 <span className="hidden xs:inline">Filters</span>
               </Button>
 
-              <Button
+              {/* <Button
                 variant="outline"
                 onClick={() => {
                   setShowStatementModal(true);
@@ -1248,7 +1158,7 @@ export default function TransactionHistory() {
               >
                 <Download className="w-4 h-4" />
                 <span className="xs:hidden">Statement</span>
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>
@@ -1375,7 +1285,7 @@ export default function TransactionHistory() {
       </CardHeader>
 
       <CardContent className="p-0">
-        {loading ? (
+        {cachedLoading && currentPage === 1 ? (
           <div className="flex justify-center items-center py-12">
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="w-8 h-8 animate-spin text-(--color-accent-yellow)" />
@@ -1503,15 +1413,15 @@ export default function TransactionHistory() {
               </TableBody>
             </Table>
 
-            {hasMore && durationFilteredTransactions.length > 0 && (
+            {cachedHasMore && durationFilteredTransactions.length > 0 && currentPage === 1 && (
               <div className="text-center py-6 border-t border-(--border-color)">
                 <Button
                   variant="outline"
                   onClick={handleLoadMore}
-                  disabled={isLoadingMore}
+                  disabled={cachedLoading}
                   className="px-8 border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
                 >
-                  {isLoadingMore ? (
+                  {cachedLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Loading More...
@@ -1526,7 +1436,7 @@ export default function TransactionHistory() {
               </div>
             )}
 
-            {!hasMore && durationFilteredTransactions.length > 0 && (
+            {!cachedHasMore && durationFilteredTransactions.length > 0 && (
               <div className="text-center py-6 border-t border-(--border-color)">
                 <p className="text-(--text-secondary) text-sm">
                   You've reached the end of your transaction history

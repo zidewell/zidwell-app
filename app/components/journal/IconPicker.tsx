@@ -1,178 +1,23 @@
-"use client";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Button } from "../ui/button";
+// app/components/journal/IconPicker.tsx
 
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Button } from '../ui/button'; 
 const EMOJI_CATEGORIES = {
-  Money: [
-    "💰",
-    "💵",
-    "💴",
-    "💶",
-    "💷",
-    "🪙",
-    "💳",
-    "🏦",
-    "💎",
-    "📈",
-    "📉",
-    "💹",
-  ],
-  Transport: [
-    "🚗",
-    "🚕",
-    "🚙",
-    "🚌",
-    "✈️",
-    "🚂",
-    "🛵",
-    "🚲",
-    "⛽",
-    "🛞",
-    "🚁",
-    "🛳️",
-  ],
-  Transfer: [
-    "💸",
-    "🔄",
-    "↗️",
-    "↘️",
-    "➡️",
-    "💱",
-    "🏧",
-    "💳",
-    "📤",
-    "📥",
-    "💹",
-    "🪙",
-  ],
-  Withdrawal: [
-    "🏧",
-    "💸",
-    "💰",
-    "💵",
-    "🏦",
-    "📉",
-    "⬇️",
-    "📤",
-    "💳",
-    "🪙",
-    "💱",
-    "💷",
-  ],
-  Home: [
-    "🏠",
-    "🏡",
-    "🏢",
-    "🛋️",
-    "🛏️",
-    "🪑",
-    "🚿",
-    "🔑",
-    "🏗️",
-    "🧹",
-    "🪴",
-    "💡",
-  ],
-  Tech: [
-    "📱",
-    "💻",
-    "🖥️",
-    "⌨️",
-    "🖱️",
-    "📡",
-    "🔋",
-    "💿",
-    "🎮",
-    "🕹️",
-    "📺",
-    "📷",
-  ],
-  Health: [
-    "🏥",
-    "💊",
-    "🩺",
-    "🩹",
-    "💉",
-    "🏃",
-    "🧘",
-    "🧴",
-    "🦷",
-    "👁️",
-    "❤️",
-    "🩻",
-  ],
-  Education: [
-    "📚",
-    "📖",
-    "📝",
-    "✏️",
-    "🎓",
-    "🎒",
-    "📐",
-    "🔬",
-    "🔭",
-    "🧪",
-    "📓",
-    "🏫",
-  ],
-  Work: [
-    "💼",
-    "📋",
-    "📊",
-    "📁",
-    "🗂️",
-    "📌",
-    "✂️",
-    "📎",
-    "🖊️",
-    "📤",
-    "📥",
-    "🗃️",
-  ],
-  Shopping: [
-    "🛒",
-    "🛍️",
-    "🏬",
-    "🎁",
-    "👔",
-    "👗",
-    "👟",
-    "👜",
-    "💄",
-    "🧥",
-    "👕",
-    "🩳",
-  ],
-  Family: [
-    "👨‍👩‍👧‍👦",
-    "👨‍👩‍👧",
-    "👨‍👩‍👦",
-    "👩‍👧",
-    "👨‍👦",
-    "👶",
-    "🧒",
-    "👵",
-    "👴",
-    "🧑‍🤝‍🧑",
-    "💑",
-    "💏",
-  ],
-  Other: [
-    "📦",
-    "🏷️",
-    "🎯",
-    "⭐",
-    "🌟",
-    "🔥",
-    "❄️",
-    "🌈",
-    "🎨",
-    "🎭",
-    "🎪",
-    "🎉",
-  ],
+  Money: ['💰', '💵', '💴', '💶', '💷', '🪙', '💳', '🏦', '💎', '📈', '📉', '💹'],
+  Food: ['🍽️', '🍔', '🍕', '🍜', '🍣', '🥗', '☕', '🍺', '🍷', '🧁', '🍰', '🥡'],
+  Transport: ['🚗', '🚕', '🚙', '🚌', '✈️', '🚂', '🛵', '🚲', '⛽', '🛞', '🚁', '🛳️'],
+  Transfer: ['💸', '🔄', '↗️', '↘️', '➡️', '💱', '🏧', '💳', '📤', '📥', '💹', '🪙'],
+  Withdrawal: ['🏧', '💸', '💰', '💵', '🏦', '📉', '⬇️', '📤', '💳', '🪙', '💱', '💷'],
+  Home: ['🏠', '🏡', '🏢', '🛋️', '🛏️', '🪑', '🚿', '🔑', '🏗️', '🧹', '🪴', '💡'],
+  Tech: ['📱', '💻', '🖥️', '⌨️', '🖱️', '📡', '🔋', '💿', '🎮', '🕹️', '📺', '📷'],
+  Health: ['🏥', '💊', '🩺', '🩹', '💉', '🏃', '🧘', '🧴', '🦷', '👁️', '❤️', '🩻'],
+  Education: ['📚', '📖', '📝', '✏️', '🎓', '🎒', '📐', '🔬', '🔭', '🧪', '📓', '🏫'],
+  Work: ['💼', '📋', '📊', '📁', '🗂️', '📌', '✂️', '📎', '🖊️', '📤', '📥', '🗃️'],
+  Shopping: ['🛒', '🛍️', '🏬', '🎁', '👔', '👗', '👟', '👜', '💄', '🧥', '👕', '🩳'],
+  Family: ['👨‍👩‍👧‍👦', '👨‍👩‍👧', '👨‍👩‍👦', '👩‍👧', '👨‍👦', '👶', '🧒', '👵', '👴', '🧑‍🤝‍🧑', '💑', '💏'],
+  Other: ['📦', '🏷️', '🎯', '⭐', '🌟', '🔥', '❄️', '🌈', '🎨', '🎭', '🎪', '🎉'],
 };
 
 interface IconPickerProps {
@@ -183,7 +28,7 @@ interface IconPickerProps {
 
 export function IconPicker({ value, onChange, className }: IconPickerProps) {
   const [open, setOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string>("Money");
+  const [activeCategory, setActiveCategory] = useState<string>('Money');
 
   const handleSelect = (icon: string) => {
     onChange(icon);
@@ -195,13 +40,10 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className={cn(
-            "w-16 text-xl p-0 dark:bg-gray-700 dark:border-gray-600",
-            className,
-          )}
+          className={cn('w-16 text-xl p-0 dark:bg-gray-700 dark:border-gray-600', className)}
           style={{
-            backgroundColor: "#fcfbf9",
-            borderColor: "#e6dfd6",
+            backgroundColor: '#fcfbf9',
+            borderColor: '#e6dfd6',
           }}
         >
           {value}
@@ -211,8 +53,8 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
         className="w-80 p-0 z-50 dark:bg-gray-800 dark:border-gray-700"
         align="start"
         style={{
-          backgroundColor: "#fcfbf9",
-          borderColor: "#e6dfd6",
+          backgroundColor: '#fcfbf9',
+          borderColor: '#e6dfd6',
         }}
       >
         <div className="p-3 space-y-3">
@@ -223,11 +65,10 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
                 key={category}
                 type="button"
                 onClick={() => setActiveCategory(category)}
-                className={cn("px-2 py-1 text-xs rounded-md transition-colors")}
+                className={cn('px-2 py-1 text-xs rounded-md transition-colors')}
                 style={{
-                  backgroundColor:
-                    activeCategory === category ? "#FDC020" : "#f5f1ea",
-                  color: activeCategory === category ? "#ffffff" : "#80746e",
+                  backgroundColor: activeCategory === category ? '#FDC020' : '#f5f1ea',
+                  color: activeCategory === category ? '#ffffff' : '#80746e',
                 }}
               >
                 {category}
@@ -237,20 +78,17 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
 
           {/* Icons grid */}
           <div className="grid grid-cols-6 gap-1.5">
-            {EMOJI_CATEGORIES[
-              activeCategory as keyof typeof EMOJI_CATEGORIES
-            ]?.map((icon) => (
+            {EMOJI_CATEGORIES[activeCategory as keyof typeof EMOJI_CATEGORIES]?.map((icon) => (
               <button
                 key={icon}
                 type="button"
                 onClick={() => handleSelect(icon)}
                 className={cn(
-                  "w-10 h-10 text-xl rounded-lg flex items-center justify-center transition-all",
+                  'w-10 h-10 text-xl rounded-lg flex items-center justify-center transition-all'
                 )}
                 style={{
-                  backgroundColor:
-                    value === icon ? "rgba(43, 130, 91, 0.2)" : "transparent",
-                  border: value === icon ? "2px solid #FDC020" : "none",
+                  backgroundColor: value === icon ? 'rgba(43, 130, 91, 0.2)' : 'transparent',
+                  border: value === icon ? '2px solid #FDC020' : 'none',
                 }}
               >
                 {icon}

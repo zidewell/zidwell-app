@@ -12,6 +12,8 @@ import {
   Rocket,
   Target,
   Gem,
+  Building2,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
@@ -20,16 +22,31 @@ import { useSubscription } from "@/app/hooks/useSubscripion";
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  suggestedTier?: string;
 }
 
-export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
+export function SubscriptionModal({ isOpen, onClose, suggestedTier }: SubscriptionModalProps) {
   const navigate = useRouter();
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">(
     "monthly",
   );
   const { userTier } = useSubscription();
 
-  if (userTier === "elite") return null;
+  // Map legacy tiers to new tiers
+  const LEGACY_TIER_MAP: Record<string, string> = {
+    zidlite: "solopreneur",
+    growth: "sme",
+    premium: "enterprise",
+    elite: "corporation",
+  };
+
+  const getDisplayTier = (tier: string): string => {
+    return LEGACY_TIER_MAP[tier] || tier;
+  };
+
+  const displayTier = getDisplayTier(userTier || "free");
+
+  if (displayTier === "corporation") return null;
 
   const handleViewPricing = () => {
     onClose();
@@ -37,122 +54,103 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   };
 
   const getNextTier = () => {
-    switch (userTier) {
-      case "free":
-        return "zidlite";
-      case "zidlite":
-        return "growth";
-      case "growth":
-        return "premium";
-      case "premium":
-        return "elite";
-      default:
-        return "zidlite";
-    }
+    const tierOrder = ["free", "solopreneur", "sme", "enterprise", "corporation"];
+    const currentIndex = tierOrder.indexOf(displayTier);
+    return tierOrder[Math.min(currentIndex + 1, tierOrder.length - 1)];
   };
 
   const getNextTierInfo = () => {
-    switch (userTier) {
-      case "free":
-        return {
-          currentTier: "Free Trial",
-          nextTier: "ZidLite",
-          title: "Upgrade to ZidLite",
-          description: "Test what finance automation looks like",
-          icon: <Zap className="h-6 w-6 text-white" />,
-          badge: "UPGRADE NOW",
-          primaryCta: "Go ZidLite",
-          monthlyPrice: "₦4,900",
-          annualPrice: "₦49,000",
-          annualSavings: "save ₦9,800",
-          features: [
-            "10 Invoices • 10 Receipts • 2 Contracts",
-            "Bookkeeping & Tax Calculator trials",
-            "WhatsApp Business Community",
-            "Unlimited transfers at ₦50 each",
-          ],
-        };
-      case "zidlite":
-        return {
-          currentTier: "ZidLite",
-          nextTier: "Growth",
-          title: "Upgrade to Growth",
-          description: "Structure without stress",
-          icon: <Rocket className="h-6 w-6 text-white" />,
-          badge: "GROW FASTER",
-          primaryCta: "Go Growth",
-          monthlyPrice: "₦9,900",
-          annualPrice: "₦99,000",
-          annualSavings: "save ₦19,800",
-          features: [
-            "Unlimited Invoices & Receipts",
-            "5 Contracts • Bookkeeping Tool",
-            "Tax Calculator Included",
-            "WhatsApp Community + Support",
-          ],
-        };
-      case "growth":
-        return {
-          currentTier: "Growth",
-          nextTier: "Premium",
-          title: "Upgrade to Premium",
-          description: "For founders who want hands-on help",
-          icon: <Crown className="h-6 w-6 text-white" />,
-          badge: "GO PREMIUM",
-          primaryCta: "Upgrade to Premium",
-          monthlyPrice: "₦99,900",
-          annualPrice: "₦499,000",
-          annualSavings: "save ₦99,800",
-          features: [
-            "Unlimited Contracts",
-            "Payment Reminders",
-            "Financial Statements",
-            "Tax Filing Support • Priority Support",
-          ],
-        };
-      case "premium":
-        return {
-          currentTier: "Premium",
-          nextTier: "Elite",
-          title: "Upgrade to Elite",
-          description: "For businesses that need tax support",
-          icon: <Gem className="h-6 w-6 text-white" />,
-          badge: "GO ELITE",
-          primaryCta: "Contact Us",
-          monthlyPrice: "₦250,000+",
-          annualPrice: "Custom",
-          annualSavings: "",
-          features: [
-            "Full Tax Filing (VAT, PAYE, WHT)",
-            "CIT Audit • CFO Guidance",
-            "Direct WhatsApp Support",
-            "Annual Audit Coordination",
-          ],
-        };
-      default:
-        return {
-          currentTier: "Free Trial",
-          nextTier: "ZidLite",
-          title: "Upgrade to ZidLite",
-          description: "Test what finance automation looks like",
-          icon: <Zap className="h-6 w-6 text-white" />,
-          badge: "UPGRADE NOW",
-          primaryCta: "Go ZidLite",
-          monthlyPrice: "₦4,900",
-          annualPrice: "₦49,000",
-          annualSavings: "save ₦9,800",
-          features: [
-            "10 Invoices • 10 Receipts • 2 Contracts",
-            "Bookkeeping & Tax Calculator trials",
-            "WhatsApp Business Community",
-            "Unlimited transfers at ₦50 each",
-          ],
-        };
-    }
+    const tierOrder = ["free", "solopreneur", "sme", "enterprise", "corporation"];
+    const currentIndex = tierOrder.indexOf(displayTier);
+    const nextTier = tierOrder[Math.min(currentIndex + 1, tierOrder.length - 1)];
+
+    const tierInfoMap: Record<string, any> = {
+      free: {
+        currentTier: "Free",
+        nextTier: "Solopreneur",
+        title: "Upgrade to Solopreneur",
+        description: "Get organized as a freelancer or solo business owner",
+        icon: <Briefcase className="h-6 w-6 text-white" />,
+        badge: "GET ORGANIZED",
+        primaryCta: "Go Solopreneur",
+        monthlyPrice: "₦4,900",
+        annualPrice: "₦49,000",
+        annualSavings: "save ₦9,800",
+        features: [
+          "10 Invoices",
+          "Unlimited Receipts",
+          "Branded Invoices",
+          "Better Expense Tracking",
+        ],
+      },
+      solopreneur: {
+        currentTier: "Solopreneur",
+        nextTier: "SME",
+        title: "Upgrade to SME",
+        description: "Run your growing business properly",
+        icon: <Building2 className="h-6 w-6 text-white" />,
+        badge: "GROW YOUR BUSINESS",
+        primaryCta: "Go SME",
+        monthlyPrice: "₦29,900",
+        annualPrice: "₦299,000",
+        annualSavings: "save ₦59,800",
+        features: [
+          "Unlimited Invoices & Receipts",
+          "Bank Statement Upload",
+          "Vault for Documents",
+          "Tax Calculator",
+          "Financial Statements",
+          "1 Team Member",
+        ],
+      },
+      sme: {
+        currentTier: "SME",
+        nextTier: "Enterprise",
+        title: "Upgrade to Enterprise",
+        description: "Control team operations with structure",
+        icon: <Crown className="h-6 w-6 text-white" />,
+        badge: "TEAM CONTROL",
+        primaryCta: "Go Enterprise",
+        monthlyPrice: "₦100,000",
+        annualPrice: "₦1,000,000",
+        annualSavings: "save ₦200,000",
+        features: [
+          "Multi-User Access",
+          "Role-Based Permissions",
+          "Approval System",
+          "5 Bank Accounts",
+          "10 Contracts",
+          "Dedicated Onboarding",
+        ],
+      },
+      enterprise: {
+        currentTier: "Enterprise",
+        nextTier: "Corporation",
+        title: "Upgrade to Corporation",
+        description: "Run a full company finance system",
+        icon: <Gem className="h-6 w-6 text-white" />,
+        badge: "FULL CONTROL",
+        primaryCta: "Contact Sales",
+        monthlyPrice: "₦300,000+",
+        annualPrice: "Custom",
+        annualSavings: "",
+        features: [
+          "Unlimited Contracts",
+          "Department-Based Access",
+          "Unlimited Bank Accounts",
+          "Payroll System",
+          "Advanced Reporting",
+          "Dedicated Account Manager",
+        ],
+      },
+    };
+
+    // Use suggested tier if provided, otherwise use the next tier
+    const tierKey = suggestedTier && tierInfoMap[suggestedTier] ? suggestedTier : nextTier;
+    return tierInfoMap[tierKey] || tierInfoMap.free;
   };
 
   const tierInfo = getNextTierInfo();
-  const nextTier = getNextTier();
 
   return (
     <AnimatePresence>
@@ -216,7 +214,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   Key benefits:
                 </p>
                 <ul className="space-y-2">
-                  {tierInfo.features.slice(0, 4).map((benefit, index) => (
+                  {tierInfo.features.slice(0, 4).map((benefit: string, index: number) => (
                     <li key={index} className="flex items-center gap-2 text-xs">
                       <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/20">
                         <Check className="h-2.5 w-2.5 text-(--color-ink)" />
@@ -245,7 +243,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 </span>
               </div>
 
-              {userTier !== "premium" && (
+              {displayTier !== "enterprise" && (
                 <div className="mb-4">
                   <div className="flex items-center justify-center gap-2">
                     <button
@@ -277,12 +275,12 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
               <div
                 className={`relative rounded-xl ${
-                  userTier === "premium"
+                  displayTier === "enterprise"
                     ? "bg-linear-to-br from-purple-50 to-transparent border-2 border-purple-500"
                     : "bg-linear-to-br from-(--color-accent-yellow)/5 to-transparent border-2 border-(--color-accent-yellow)"
                 } p-4 shadow-lg mb-4`}
               >
-                {userTier !== "premium" && (
+                {displayTier !== "enterprise" && (
                   <div className="absolute -top-2 left-4 bg-(--color-accent-yellow) text-(--color-ink) text-[10px] font-bold px-2 py-0.5 rounded-full">
                     RECOMMENDED
                   </div>
@@ -297,20 +295,20 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
                 <div className="mb-2">
                   <span className="text-2xl font-bold">
-                    {userTier === "premium"
+                    {displayTier === "enterprise"
                       ? tierInfo.monthlyPrice
                       : selectedPlan === "annual"
                         ? tierInfo.annualPrice
                         : tierInfo.monthlyPrice}
                   </span>
                   <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">
-                    {userTier === "premium"
+                    {displayTier === "enterprise"
                       ? "/mo"
                       : selectedPlan === "annual"
                         ? "/yr"
                         : "/mo"}
                   </span>
-                  {selectedPlan === "annual" && userTier !== "premium" && (
+                  {selectedPlan === "annual" && displayTier !== "enterprise" && (
                     <p className="text-[10px] text-(--color-accent-yellow)">
                       {tierInfo.annualSavings}
                     </p>
@@ -318,14 +316,14 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 </div>
 
                 <ul className="space-y-1 mb-3">
-                  {tierInfo.features.map((feature, index) => (
+                  {tierInfo.features.map((feature: string, index: number) => (
                     <li
                       key={index}
                       className="flex items-start gap-1.5 text-xs"
                     >
                       <Check
                         className={`h-3 w-3 shrink-0 mt-0.5 ${
-                          userTier === "premium"
+                          displayTier === "enterprise"
                             ? "text-purple-500"
                             : "text-(--color-accent-yellow)"
                         }`}
@@ -335,7 +333,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   ))}
                 </ul>
 
-                {userTier !== "free" && userTier !== "premium" && (
+                {displayTier !== "free" && displayTier !== "enterprise" && (
                   <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <p className="text-[10px] text-gray-500 dark:text-gray-400">
                       vs {tierInfo.currentTier}:{" "}
@@ -351,7 +349,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 <Button
                   onClick={handleViewPricing}
                   className={`w-full rounded-lg py-3 text-sm font-semibold shadow-lg transition-all hover:scale-[1.02] ${
-                    userTier === "premium"
+                    displayTier === "enterprise"
                       ? "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/25"
                       : "bg-(--color-accent-yellow) hover:bg-[#e0a800] text-(--color-ink) shadow-(--color-accent-yellow)/25"
                   }`}
@@ -366,9 +364,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   Maybe later
                 </button>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500">
-                  {userTier === "premium"
+                  {displayTier === "enterprise"
                     ? "Contact sales for custom pricing"
-                    : "14-day trials available on select features"}
+                    : "Upgrade anytime to unlock more features"}
                 </p>
               </div>
             </div>

@@ -1,122 +1,24 @@
-"use client";
-import { format, parseISO } from "date-fns";
-import {
-  Trash2,
-  Pencil,
-  Wallet as WalletIcon,
-  Edit2,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Send,
-  CreditCard,
-  Smartphone,
-  Zap,
-  Wifi,
-  Tv,
-  Droplet,
-  Home,
-  ShoppingBag,
-  Car,
-  Film,
-  Heart,
-  Book,
-  Briefcase,
-  Gift,
-  RefreshCw,
-  DollarSign,
-  ChevronDown,
-  Loader2,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "../ui/button";
-import { useJournal } from "@/app/context/JournalContext";
-import { useState, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import Swal from "sweetalert2";
+// app/components/journal/RecentEntries.tsx
+
+import { useState, useMemo } from 'react';
+import { format, parseISO } from 'date-fns';
+import { Trash2, Pencil, Edit2, Loader2, ChevronDown, Wallet as WalletIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '../ui/button'; 
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { useJournal } from '@/app/context/JournalContext'; 
+import { JournalEntry, UnifiedTransaction  } from './types'; 
+import Swal from 'sweetalert2';
 
 interface RecentEntriesProps {
-  onEdit?: (entry: any) => void;
+  onEdit?: (entry: JournalEntry) => void;
   limit?: number;
 }
 
-// Map transaction types to display names (fallback when category is missing)
-const getDisplayCategoryNameFromType = (
-  walletTransactionType: string | undefined,
-  entryType: string,
-): string => {
-  const type = walletTransactionType?.toLowerCase() || "";
-
-  // Income types
-  if (entryType === "income") {
-    if (type === "salary") return "Salary";
-    if (type === "referral" || type === "referral_reward") return "Referral Bonus";
-    if (type === "refund" || type === "reversal") return "Refund";
-    if (type === "cashback") return "Cashback";
-    if (type === "deposit" || type === "virtual_account_deposit" || type === "card_deposit") return "Bank Deposit";
-    if (type === "p2p_received") return "P2P Transfer Received";
-    return "Income";
-  }
-
-  // Expense/Outflow types
-  if (type === "withdrawal") return "Withdrawal";
-  if (type === "transfer") return "Transfer";
-  if (type === "p2p_transfer") return "Transfer";
-  if (type === "debit") return "Debit";
-  if (type === "airtime") return "Data & Airtime";
-  if (type === "data") return "Data & Airtime";
-  if (type === "electricity") return "Utilities";
-  if (type === "cable") return "Utilities";
-  if (type === "bill_payment") return "Bills";
-  if (type === "purchase") return "Shopping";
-  if (type === "subscription") return "Subscriptions";
-  if (type === "fee" || type === "charge") return "Fees & Charges";
-
-  return "Expense";
-};
-
-// Get fallback emoji icon as string
-const getFallbackEmojiIcon = (walletTransactionType: string | undefined, entryType: string): string => {
-  const type = walletTransactionType?.toLowerCase() || "";
-
-  if (entryType === "income") {
-    if (type === "salary") return "💼";
-    if (type === "referral" || type === "referral_reward") return "🎁";
-    if (type === "refund" || type === "reversal") return "↩️";
-    if (type === "deposit" || type === "virtual_account_deposit" || type === "card_deposit") return "💰";
-    return "📥";
-  }
-
-  if (type === "withdrawal") return "🏧";
-  if (type === "transfer" || type === "p2p_transfer") return "💸";
-  if (type === "debit") return "💳";
-  if (type === "airtime") return "📱";
-  if (type === "data") return "📶";
-  if (type === "electricity") return "⚡";
-  if (type === "cable") return "📺";
-  if (type === "bill_payment") return "🏠";
-  if (type === "purchase") return "🛍️";
-  if (type === "subscription") return "💳";
-  if (type === "fee" || type === "charge") return "⚠️";
-
-  return "📦";
-};
-
-// Get icon color based on transaction type
-const getIconColor = (type: string) => {
-  if (type === "income") return "var(--color-lemon-green)";
-  return "var(--destructive)";
-};
-
 export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
-  const {
-    unifiedEntries,
-    categories,
-    deleteEntry,
-    refetch,
-    updateWalletEntry,
-  } = useJournal();
-  const [editingEntry, setEditingEntry] = useState<any>(null);
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const { unifiedEntries, categories, deleteEntry, refetch, updateWalletEntry } = useJournal();
+  const [editingEntry, setEditingEntry] = useState<UnifiedTransaction | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [visibleCount, setVisibleCount] = useState(limit || 5);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -137,60 +39,48 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   const hasMore = visibleCount < unifiedEntries.length;
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
       minimumFractionDigits: 0,
     }).format(value);
   };
 
-  const handleDelete = async (entry: any) => {
+  const handleDelete = async (entry: UnifiedTransaction) => {
     const result = await Swal.fire({
-      title: "Are you sure?",
+      title: 'Are you sure?',
       html: `You are about to delete this transaction:<br/><strong>${getDisplayText(entry)}</strong><br/>Amount: ${formatCurrency(entry.amount)}`,
-      icon: "warning",
+      icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: "var(--destructive)",
-      cancelButtonColor: "var(--text-secondary)",
-      confirmButtonText: "Yes, delete it!",
-      cancelButtonText: "Cancel",
-      background: "var(--bg-primary)",
+      confirmButtonColor: 'var(--destructive)',
+      cancelButtonColor: 'var(--text-secondary)',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+      background: 'var(--bg-primary)',
       customClass: {
-        popup: "squircle-lg",
+        popup: 'squircle-lg',
       },
     });
 
     if (result.isConfirmed) {
-      if (entry.source === "wallet") {
-        await deleteEntry(entry.id);
-        await Swal.fire({
-          title: "Hidden!",
-          text: "Transaction has been hidden from your journal.",
-          icon: "success",
-          confirmButtonColor: "var(--color-accent-yellow)",
-          background: "var(--bg-primary)",
-          timer: 2000,
-          showConfirmButton: true,
-          customClass: { popup: "squircle-lg" },
-        });
-      } else {
-        await deleteEntry(entry.id);
-        await Swal.fire({
-          title: "Deleted!",
-          text: "Transaction has been deleted successfully.",
-          icon: "success",
-          confirmButtonColor: "var(--color-accent-yellow)",
-          background: "var(--bg-primary)",
-          timer: 2000,
-          showConfirmButton: true,
-          customClass: { popup: "squircle-lg" },
-        });
-      }
+      await deleteEntry(entry.id);
+      await Swal.fire({
+        title: entry.source === 'wallet' ? 'Hidden!' : 'Deleted!',
+        text: entry.source === 'wallet' 
+          ? 'Transaction has been hidden from your journal.' 
+          : 'Transaction has been deleted successfully.',
+        icon: 'success',
+        confirmButtonColor: 'var(--color-accent-yellow)',
+        background: 'var(--bg-primary)',
+        timer: 2000,
+        showConfirmButton: true,
+        customClass: { popup: 'squircle-lg' },
+      });
       await refetch();
     }
   };
 
-  const handleEditCategory = (entry: any) => {
+  const handleEditCategory = (entry: UnifiedTransaction) => {
     setEditingEntry(entry);
     setSelectedCategory(entry.categoryId);
     setShowEditDialog(true);
@@ -199,27 +89,28 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
   const handleUpdateCategory = async () => {
     if (!editingEntry || !selectedCategory) return;
 
-    if (editingEntry.source === "wallet") {
-      await updateWalletEntry(
-        editingEntry.originalTransactionId,
-        selectedCategory,
-      );
+    if (editingEntry.source === 'wallet' && editingEntry.originalTransactionId) {
+      await updateWalletEntry(editingEntry.originalTransactionId, selectedCategory);
     } else if (onEdit) {
-      onEdit(editingEntry);
+      const manualEntry = {
+        ...editingEntry,
+        id: editingEntry.id.replace('manual_', ''),
+      };
+      onEdit(manualEntry as JournalEntry);
     }
 
     setShowEditDialog(false);
     setEditingEntry(null);
 
     await Swal.fire({
-      title: "Updated!",
-      text: "Category has been updated successfully.",
-      icon: "success",
-      confirmButtonColor: "var(--color-accent-yellow)",
-      background: "var(--bg-primary)",
+      title: 'Updated!',
+      text: 'Category has been updated successfully.',
+      icon: 'success',
+      confirmButtonColor: 'var(--color-accent-yellow)',
+      background: 'var(--bg-primary)',
       timer: 1500,
       showConfirmButton: true,
-      customClass: { popup: "squircle-lg" },
+      customClass: { popup: 'squircle-lg' },
     });
 
     await refetch();
@@ -232,19 +123,17 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
     setIsLoadingMore(false);
   };
 
-  // Get the primary display text - prioritize narration/description
-  const getDisplayText = (entry: any) => {
+  // Get the primary display text
+  const getDisplayText = (entry: UnifiedTransaction) => {
     if (entry.note) return entry.note;
     if (entry.transactionDescription) return entry.transactionDescription;
-    return entry.type === "income" ? "Income" : "Expense";
+    return entry.type === 'income' ? 'Income' : 'Expense';
   };
 
-  // Get category name - with proper fallback
-  const getCategoryName = (entry: any) => {
-    // Priority 1: Use categoryName from entry (from transactions.category)
+  // Get category name with proper fallback
+  const getCategoryName = (entry: UnifiedTransaction) => {
     if (entry.categoryName && typeof entry.categoryName === 'string' && entry.categoryName.trim()) {
       const catName = entry.categoryName.trim();
-      // Try to find matching category in journal_categories for exact display
       const matched = categoryMap.byName.get(catName.toLowerCase());
       if (matched && matched.name) {
         return matched.name;
@@ -252,7 +141,6 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
       return catName;
     }
     
-    // Priority 2: Try to get from categoryId
     if (entry.categoryId) {
       const matched = categoryMap.byId.get(entry.categoryId);
       if (matched && matched.name) {
@@ -260,13 +148,11 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
       }
     }
     
-    // Fallback: use transaction type logic
-    return getDisplayCategoryNameFromType(entry.walletTransactionType, entry.type);
+    return entry.type === 'income' ? 'Income' : 'Expense';
   };
 
-  // Get category icon - based on category name or type
-  const getCategoryIconValue = (entry: any): string => {
-    // Priority 1: Use categoryName to find icon from journal_categories
+  // Get category icon
+  const getCategoryIcon = (entry: UnifiedTransaction): string => {
     if (entry.categoryName && typeof entry.categoryName === 'string' && entry.categoryName.trim()) {
       const categoryName = entry.categoryName.trim();
       const matched = categoryMap.byName.get(categoryName.toLowerCase());
@@ -275,7 +161,6 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
       }
     }
     
-    // Priority 2: Try to get icon from categoryId
     if (entry.categoryId) {
       const matched = categoryMap.byId.get(entry.categoryId);
       if (matched && matched.icon) {
@@ -283,8 +168,11 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
       }
     }
     
-    // Fallback: use transaction type emoji icon
-    return getFallbackEmojiIcon(entry.walletTransactionType, entry.type);
+    return '📦';
+  };
+
+  const getIconColor = (type: string) => {
+    return type === 'income' ? 'var(--color-lemon-green)' : 'var(--destructive)';
   };
 
   if (unifiedEntries.length === 0) {
@@ -299,12 +187,12 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
 
   return (
     <>
-      <div className="space-y-3">
+      <div className="space-y-3  p-2 rounded-xl">
         {visibleEntries.map((entry) => {
-          const isWalletEntry = entry.source === "wallet";
+          const isWalletEntry = entry.source === 'wallet';
           const displayText = getDisplayText(entry);
           const categoryName = getCategoryName(entry);
-          const categoryIcon = getCategoryIconValue(entry);
+          const categoryIcon = getCategoryIcon(entry);
           const iconColor = getIconColor(entry.type);
 
           return (
@@ -312,7 +200,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
               key={entry.id}
               className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border shadow-soft hover:shadow-pop transition-all bg-(--bg-primary) border-(--border-color) squircle-lg"
             >
-              {/* Icon - Left side */}
+              {/* Icon */}
               <div
                 className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center self-start sm:self-center"
                 style={{ backgroundColor: `${iconColor}10` }}
@@ -322,15 +210,12 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                 </span>
               </div>
 
-              {/* Content - Middle */}
+              {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* Category Name Badge */}
                   <span className="text-xs px-2 py-0.5 rounded-full bg-(--bg-secondary) text-(--text-secondary) font-medium">
                     {categoryName}
                   </span>
-                  
-                  {/* Auto-synced Badge */}
                   {isWalletEntry && (
                     <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1">
                       <WalletIcon className="h-3 w-3" />
@@ -339,17 +224,15 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                   )}
                 </div>
                 
-                {/* Transaction Description/Narration */}
                 <p className="text-sm font-medium text-(--text-primary) mt-1 line-clamp-2">
                   {displayText}
                 </p>
                 
-                {/* Date and Additional Info */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1 text-(--text-secondary)">
-                  <span>{format(parseISO(entry.date), "MMM d, yyyy")}</span>
+                  <span>{format(parseISO(entry.date), 'MMM d, yyyy')}</span>
                   {isWalletEntry && entry.walletTransactionType && (
                     <span className="opacity-70 capitalize">
-                      • {entry.walletTransactionType.replace(/_/g, " ")}
+                      • {entry.walletTransactionType.replace(/_/g, ' ')}
                     </span>
                   )}
                   {entry.reference && (
@@ -360,21 +243,20 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                 </div>
               </div>
 
-              {/* Amount - Right side */}
+              {/* Amount and Actions */}
               <div className="flex items-center justify-between sm:justify-end gap-4 mt-2 sm:mt-0">
                 <p
-                  className={cn("font-semibold tabular-nums text-base sm:text-lg")}
+                  className={cn('font-semibold tabular-nums text-base sm:text-lg')}
                   style={{
-                    color: entry.type === "income"
-                      ? "var(--color-lemon-green)"
-                      : "var(--destructive)",
+                    color: entry.type === 'income'
+                      ? 'var(--color-lemon-green)'
+                      : 'var(--destructive)',
                   }}
                 >
-                  {entry.type === "income" ? "+" : "-"}
+                  {entry.type === 'income' ? '+' : '-'}
                   {formatCurrency(entry.amount)}
                 </p>
 
-                {/* Action Buttons */}
                 <div className="flex gap-1">
                   <Button
                     variant="ghost"
@@ -400,7 +282,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
           );
         })}
 
-        {/* Load More Button */}
+        {/* Load More */}
         {hasMore && (
           <div className="text-center flex flex-col items-center justify-center pt-4">
             <button
@@ -422,14 +304,6 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
             </button>
             <p className="text-xs mt-2 text-(--text-secondary)">
               Showing {visibleCount} of {unifiedEntries.length} entries
-            </p>
-          </div>
-        )}
-
-        {!hasMore && unifiedEntries.length > (limit || 5) && (
-          <div className="text-center pt-4">
-            <p className="text-xs text-(--text-secondary)">
-              All {unifiedEntries.length} entries loaded
             </p>
           </div>
         )}
@@ -457,12 +331,12 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                 <p
                   className="text-lg sm:text-xl font-semibold mt-1"
                   style={{
-                    color: editingEntry.type === "income"
-                      ? "var(--color-lemon-green)"
-                      : "var(--destructive)",
+                    color: editingEntry.type === 'income'
+                      ? 'var(--color-lemon-green)'
+                      : 'var(--destructive)',
                   }}
                 >
-                  {editingEntry.type === "income" ? "+" : "-"}
+                  {editingEntry.type === 'income' ? '+' : '-'}
                   {formatCurrency(editingEntry.amount)}
                 </p>
               </div>
@@ -474,8 +348,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                 <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
                   {categories
                     .filter(
-                      (cat) =>
-                        cat.type === editingEntry.type || cat.type === "both",
+                      (cat) => cat.type === editingEntry.type || cat.type === 'both',
                     )
                     .map((cat) => (
                       <button
@@ -483,10 +356,10 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
                         type="button"
                         onClick={() => setSelectedCategory(cat.id)}
                         className={cn(
-                          "flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center",
+                          'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center',
                           selectedCategory === cat.id
-                            ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10"
-                            : "border-(--border-color) hover:border-(--color-accent-yellow)/50"
+                            ? 'border-(--color-accent-yellow) bg-(--color-accent-yellow)/10'
+                            : 'border-(--border-color) hover:border-(--color-accent-yellow)/50'
                         )}
                       >
                         <span className="text-2xl">{cat.icon}</span>
