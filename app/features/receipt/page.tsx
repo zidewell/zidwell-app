@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   FileText,
   ArrowRight,
+  ArrowLeft,
   Zap,
   Mail,
   CreditCard,
@@ -24,6 +26,8 @@ import Header from "@/app/components/home-component/Header";
 import Footer from "@/app/components/home-component/Footer";
 
 export default function ReceiptsPage() {
+  const router = useRouter();
+
   return (
     <div className="min-h-screen bg-(--bg-primary) fade-in">
       <Header />
@@ -34,6 +38,17 @@ export default function ReceiptsPage() {
           <div className="absolute inset-0 bg-linear-to-br from-(--color-accent-yellow)/5 via-transparent to-(--color-accent-yellow)/5" />
           <div className="py-16 sm:py-20 lg:py-32">
             <div className="max-w-3xl mx-auto text-center px-4">
+              {/* Back Button */}
+              <div className="flex justify-start mb-6">
+                <button
+                  onClick={() => router.back()}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-(--color-accent-yellow) hover:bg-(--bg-secondary) rounded-lg transition-colors duration-200 text-sm sm:text-base"
+                >
+                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="font-medium">Back</span>
+                </button>
+              </div>
+
               <div className="inline-flex items-center gap-2 rounded-none px-4 py-1.5 text-sm font-semibold mb-8 bg-(--color-accent-yellow) text-(--color-ink) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)] mx-auto squircle-sm">
                 <Zap className="h-4 w-4" />
                 Automated Receipt System
@@ -289,7 +304,7 @@ export default function ReceiptsPage() {
           </div>
         </section>
 
-        {/* 7. CTA SECTION - Replaces Pricing */}
+        {/* 7. CTA SECTION */}
         <section className="py-16 sm:py-24">
           <div className="max-w-3xl mx-auto px-4 text-center">
             <div className="bg-(--bg-primary) border-2 border-(--color-accent-yellow) shadow-[6px_6px_0px_var(--color-accent-yellow)] p-8 sm:p-12 squircle-lg">
