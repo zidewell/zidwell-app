@@ -25,7 +25,7 @@ import Footer from "@/app/components/home/Footer";
 
 export default function ReceiptsPage() {
   return (
-    <div className="min-h-screen bg-(--bg-primary) fade-in">
+    <div className="min-h-screen bg-background text-foreground fade-in">
       <Header />
 
       <main>

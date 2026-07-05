@@ -22,7 +22,7 @@ export default function InvoicePage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-(--bg-primary) fade-in">
+    <div className="min-h-screen bg-background text-foreground fade-in">
       <Header />
 
       {/* Back Button */}
