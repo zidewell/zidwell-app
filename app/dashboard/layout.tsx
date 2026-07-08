@@ -1,4 +1,5 @@
 import { BlogProvider } from "@/app/context/BlogContext";
+import { SWRProvider } from "../providers/SWRProvider";
 
 export default function DashboardLayout({
   children,
@@ -7,7 +8,10 @@ export default function DashboardLayout({
 }) {
   return (
     <BlogProvider>
+      <SWRProvider>
       {children}
+
+      </SWRProvider>
     </BlogProvider>
   );
 }

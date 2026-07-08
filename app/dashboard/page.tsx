@@ -1,32 +1,63 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import DashboardSidebar from "../components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "../components/dashboard-component/DashboardHeader";
 import AnnouncementSlider from "../components/dashboard-component/AnnouncementSlider";
 import FeatureCards from "../components/dashboard-component/FeatureCards";
-import DataOverviewCards from "../components/dashboard-component/DataOverviewCards";
-import DashboardCharts from "../components/dashboard-component/DashboardCharts";
 import RecentArticles from "../components/dashboard-component/RecentArticles";
 import MobileBottomNav from "../components/dashboard-component/MobileBottomNav";
 import BVNVerificationBadge from "../components/BVNVerificationBadge";
-import BalanceCard from "../components/Balance-card";
-import TransactionHistory from "../components/transaction-history";
 import UsageSummary from "../components/UsageSummary";
 import { useSubscription } from "../hooks/useSubscripion";
 import { UpgradeBanner } from "../components/subscription-components/UpgradeBanner";
-import { SubscriptionModal } from "../components/dashboard-component/SubscriptionModal";
 import { CheckCircle, Loader2, X } from "lucide-react";
 
-// Define the Usage interface
-interface UsageData {
+// Define the raw API response interface
+interface ApiUsageData {
   invoices_used: number;
   invoices_limit: number | string;
   receipts_used: number;
   receipts_limit: number | string;
   contracts_used: number;
   contracts_limit: number | string;
+  tier?: string;
+  limits?: {
+    invoices: number | string;
+    receipts: number | string;
+    contracts: number | string;
+    teamMembers: number | string;
+    bankAccounts: number | string;
+  };
+}
+
+// Define the transformed data structure that UsageSummary expects
+interface TransformedUsageData {
+  invoices: {
+    used: number;
+    limit: number | string;
+    remaining: number | string;
+    type: string;
+    requiresUpgrade: boolean;
+    canCreate: boolean;
+  };
+  receipts: {
+    used: number;
+    limit: number | string;
+    remaining: number | string;
+    type: string;
+    requiresUpgrade: boolean;
+    canCreate: boolean;
+  };
+  contracts: {
+    used: number;
+    limit: number | string;
+    remaining: number | string;
+    type: string;
+    requiresUpgrade: boolean;
+    canCreate: boolean;
+  };
   tier: string;
   limits: {
     invoices: number | string;
@@ -35,24 +66,115 @@ interface UsageData {
     teamMembers: number | string;
     bankAccounts: number | string;
   };
-  summary: {
-    invoices: { used: number; limit: number | string; remaining: number | string };
-    receipts: { used: number; limit: number | string; remaining: number | string };
-    contracts: { used: number; limit: number | string; remaining: number | string };
-  };
 }
 
 function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successPlan, setSuccessPlan] = useState("");
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const { userTier, userId, loading: subscriptionLoading } = useSubscription();
-  const [usage, setUsage] = useState<UsageData | null>(null);
+  const [rawUsage, setRawUsage] = useState<ApiUsageData | null>(null);
+  const [transformedUsage, setTransformedUsage] = useState<TransformedUsageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Refs to prevent duplicate calls
+  const isFetching = useRef<boolean>(false);
+  const initialFetchDone = useRef<boolean>(false);
+  const focusTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const searchParams = useSearchParams();
+
+  // Transform API data to the format UsageSummary expects
+  const transformUsageData = (data: ApiUsageData): TransformedUsageData => {
+    const invoicesLimit = typeof data.invoices_limit === 'string' ? data.invoices_limit : data.invoices_limit || 0;
+    const receiptsLimit = typeof data.receipts_limit === 'string' ? data.receipts_limit : data.receipts_limit || 0;
+    const contractsLimit = typeof data.contracts_limit === 'string' ? data.contracts_limit : data.contracts_limit || 0;
+
+    const invoicesUsed = data.invoices_used || 0;
+    const receiptsUsed = data.receipts_used || 0;
+    const contractsUsed = data.contracts_used || 0;
+
+    const isUnlimited = (limit: string | number) => limit === "unlimited";
+    
+    const getRemaining = (used: number, limit: string | number) => {
+      if (isUnlimited(limit)) return "unlimited";
+      const numLimit = typeof limit === 'string' ? parseInt(limit) : limit;
+      return Math.max(0, numLimit - used);
+    };
+
+    const requiresUpgrade = (used: number, limit: string | number) => {
+      if (isUnlimited(limit)) return false;
+      const numLimit = typeof limit === 'string' ? parseInt(limit) : limit;
+      return used >= numLimit;
+    };
+
+    const canCreate = (used: number, limit: string | number) => {
+      if (isUnlimited(limit)) return true;
+      const numLimit = typeof limit === 'string' ? parseInt(limit) : limit;
+      return used < numLimit;
+    };
+
+    return {
+      invoices: {
+        used: invoicesUsed,
+        limit: invoicesLimit,
+        remaining: getRemaining(invoicesUsed, invoicesLimit),
+        type: "invoice",
+        requiresUpgrade: requiresUpgrade(invoicesUsed, invoicesLimit),
+        canCreate: canCreate(invoicesUsed, invoicesLimit),
+      },
+      receipts: {
+        used: receiptsUsed,
+        limit: receiptsLimit,
+        remaining: getRemaining(receiptsUsed, receiptsLimit),
+        type: "receipt",
+        requiresUpgrade: requiresUpgrade(receiptsUsed, receiptsLimit),
+        canCreate: canCreate(receiptsUsed, receiptsLimit),
+      },
+      contracts: {
+        used: contractsUsed,
+        limit: contractsLimit,
+        remaining: getRemaining(contractsUsed, contractsLimit),
+        type: "contract",
+        requiresUpgrade: requiresUpgrade(contractsUsed, contractsLimit),
+        canCreate: canCreate(contractsUsed, contractsLimit),
+      },
+      tier: data.tier || "free",
+      limits: data.limits || {
+        invoices: invoicesLimit,
+        receipts: receiptsLimit,
+        contracts: contractsLimit,
+        teamMembers: 0,
+        bankAccounts: 0,
+      },
+    };
+  };
+
+  // Memoize fetchUsage to prevent recreation
+  const fetchUsage = useCallback(async () => {
+    // Prevent concurrent fetches
+    if (isFetching.current) return;
+    
+    isFetching.current = true;
+    setLoading(true);
+    
+    try {
+      const res = await fetch("/api/user/usage");
+      if (res.ok) {
+        const data = await res.json();
+        setRawUsage(data);
+        // Transform the data for UsageSummary
+        const transformed = transformUsageData(data);
+        setTransformedUsage(transformed);
+      }
+    } catch (error) {
+      console.error("Failed to fetch usage:", error);
+    } finally {
+      setLoading(false);
+      isFetching.current = false;
+    }
+  }, []);
 
   // Check for subscription success on mount
   useEffect(() => {
@@ -63,12 +185,10 @@ function DashboardPage() {
       setSuccessPlan(plan || userTier || "");
       setShowSuccess(true);
 
-      // Auto-hide after 5 seconds
       const timer = setTimeout(() => {
         setShowSuccess(false);
       }, 5000);
 
-      // Clean up URL without refreshing
       const url = new URL(window.location.href);
       url.searchParams.delete("subscription");
       url.searchParams.delete("plan");
@@ -78,57 +198,47 @@ function DashboardPage() {
     }
   }, [searchParams, userTier]);
 
-  // Check if we should show subscription modal (when user hits limits)
+  // Fetch usage on mount - ONLY ONCE
   useEffect(() => {
-    if (userTier === "free" && usage) {
-      const invoiceLimit = typeof usage.limits.invoices === 'number' ? usage.limits.invoices : 5;
-      const invoiceUsage = (usage.summary.invoices.used / invoiceLimit) * 100;
-      if (invoiceUsage >= 80) {
-        setShowSubscriptionModal(true);
-      }
-    }
-  }, [userTier, usage]);
-
-  // Fetch usage data
-  const fetchUsage = async () => {
-    try {
-      const res = await fetch("/api/user/usage");
-      if (res.ok) {
-        const data = await res.json();
-        setUsage(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch usage:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Refresh usage after actions
-  const refreshUsage = () => {
-    setRefreshKey((prev) => prev + 1);
-  };
-
-  // Fetch usage on mount and when refreshKey changes
-  useEffect(() => {
-    if (userTier === "free") {
+    if (userTier === "free" && !initialFetchDone.current) {
       fetchUsage();
-    } else {
+      initialFetchDone.current = true;
+    } else if (userTier !== "free") {
       setLoading(false);
     }
-  }, [userTier, refreshKey]);
+  }, [userTier, fetchUsage]);
 
-  // Listen for focus events to refresh data when returning to dashboard
+  // Handle refresh key changes (manual refresh)
+  useEffect(() => {
+    if (refreshKey > 0 && userTier === "free") {
+      fetchUsage();
+    }
+  }, [refreshKey, userTier, fetchUsage]);
+
+  // Listen for focus events - with debounce
   useEffect(() => {
     const handleFocus = () => {
       if (userTier === "free") {
-        fetchUsage();
+        // Clear existing timeout
+        if (focusTimeout.current) {
+          clearTimeout(focusTimeout.current);
+        }
+        // Debounce focus events
+        focusTimeout.current = setTimeout(() => {
+          fetchUsage();
+        }, 1000);
       }
     };
 
     window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [userTier]);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      if (focusTimeout.current) {
+        clearTimeout(focusTimeout.current);
+        focusTimeout.current = null;
+      }
+    };
+  }, [userTier, fetchUsage]);
 
   // Format plan name for display
   const formatPlanName = (plan: string) => {
@@ -139,7 +249,6 @@ function DashboardPage() {
       sme: "SME",
       enterprise: "Enterprise",
       corporation: "Corporation",
-      // Legacy aliases for backward compatibility
       zidlite: "Solopreneur",
       growth: "SME",
       premium: "Enterprise",
@@ -148,52 +257,13 @@ function DashboardPage() {
     return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
 
-  // Get free tier limits
-  const getFreeTierLimits = () => {
-    return {
-      invoices: 5,
-      receipts: 5,
-      contracts: 0,
-    };
-  };
-
-  // Check if user is near limits
-  const isNearLimit = () => {
-    if (!usage || userTier !== "free") return false;
-    const limits = getFreeTierLimits();
-    return (
-      (usage.summary.invoices.used / limits.invoices) >= 0.8 ||
-      (usage.summary.receipts.used / limits.receipts) >= 0.8
-    );
-  };
-
-  // Get the appropriate upgrade suggestion based on usage
-  const getUpgradeSuggestion = () => {
-    if (!usage) return "solopreneur";
-    
-    const invoiceUsage = usage.summary.invoices.used;
-    const receiptUsage = usage.summary.receipts.used;
-    
-    // If they need more than 10 invoices or unlimited receipts
-    if (invoiceUsage >= 10 || receiptUsage >= 10) {
-      return "sme";
-    }
-    // If they need more than 5 invoices or 5 receipts
-    if (invoiceUsage >= 5 || receiptUsage >= 5) {
-      return "solopreneur";
-    }
-    return "solopreneur";
+  // Refresh usage function
+  const refreshUsage = () => {
+    setRefreshKey((prev) => prev + 1);
   };
 
   return (
     <div className="flex min-h-screen w-full bg-[#f7f7f7] dark:bg-[#0e0e0e]">
-      {/* Subscription Modal */}
-      <SubscriptionModal
-        isOpen={showSubscriptionModal}
-        onClose={() => setShowSubscriptionModal(false)}
-        suggestedTier={getUpgradeSuggestion()}
-      />
-
       {/* Success Toast/Notification */}
       {showSuccess && (
         <div className="fixed top-20 right-4 z-50 animate-slideIn">
@@ -274,35 +344,14 @@ function DashboardPage() {
               </p>
             </div>
 
-            {/* Balance Card */}
-            {/* <section>
-              <BalanceCard />
-            </section> */}
-
             {/* Usage Summary for Free Tier */}
-            {userTier === 'free' && !loading && usage && (
+            {/* {userTier === 'free' && !loading && transformedUsage && (
               <section>
-                <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
-                  Your Usage {isNearLimit() && <span className="ml-2 text-yellow-600">⚠️ Near limit</span>}
-                </h3>
-                <UsageSummary usage={usage} onRefresh={refreshUsage} />
-                
-                {isNearLimit() && (
-                  <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                      You're approaching your free tier limits. 
-                      <button 
-                        onClick={() => setShowSubscriptionModal(true)}
-                        className="ml-2 font-semibold text-(--color-accent-yellow) hover:underline"
-                      >
-                        Upgrade now →
-                      </button>
-                    </p>
-                  </div>
-                )}
+                <UsageSummary usage={transformedUsage} onRefresh={refreshUsage} />
               </section>
-            )}
+            )} */}
 
+           
             {/* Announcement Slider */}
             <section>
               <AnnouncementSlider />
@@ -313,27 +362,11 @@ function DashboardPage() {
               <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
                 Quick Actions
               </h3>
-              <FeatureCards onActionComplete={refreshUsage} usage={usage} />
+              <FeatureCards onActionComplete={refreshUsage} usage={rawUsage} />
             </section>
 
-            {/* Analytics Charts */}
-            {/* <section>
-              <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
-                Analytics
-              </h3>
-              <DashboardCharts />
-            </section> */}
-
-            {/* Transaction History */}
-            {/* <section>
-              <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
-                Recent Transactions
-              </h3>
-              <TransactionHistory />
-            </section> */}
-
             {/* Articles */}
-            <section className="mt-6">
+            <section>
               <RecentArticles />
             </section>
           </div>
@@ -341,17 +374,7 @@ function DashboardPage() {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      {/* <MobileBottomNav /> */}
-
-      {/* Manual trigger button for testing - remove in production */}
-      {process.env.NODE_ENV === "development" && (
-        <button
-          onClick={() => setShowSubscriptionModal(true)}
-          className="fixed bottom-4 left-4 z-50 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg"
-        >
-          Test Modal
-        </button>
-      )}
+      <MobileBottomNav />
     </div>
   );
 }

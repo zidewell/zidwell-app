@@ -17,7 +17,6 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import { ThemeWrapper } from "./components/ThemeWrapper";
 import { RegionProvider } from "./context/RegionContext";
 import { TierProvider } from "./context/TierContext";
-import { SWRProvider } from "./providers/SWRProvider";
 
 // Initialize fonts with Next.js font optimization
 const spaceGrotesk = Space_Grotesk({
@@ -489,7 +488,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ThemeWrapper>
             <UserProvider>
-              <SWRProvider>
+            
               <SessionRestore>
                 <SessionWatcher>
                   <AuthChecker>
@@ -511,7 +510,7 @@ export default function RootLayout({
                   </AuthChecker>
                 </SessionWatcher>
               </SessionRestore>
-              </SWRProvider>
+          
             </UserProvider>
           </ThemeWrapper>
         </ThemeProvider>
