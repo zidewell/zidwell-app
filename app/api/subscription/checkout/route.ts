@@ -1,5 +1,3 @@
-// app/api/subscription/checkout/route.ts
-
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
@@ -19,12 +17,14 @@ const generateOrderReference = (userId: string): string => {
   return `SUB_${userId.slice(-8)}_${timestamp}_${random}`;
 };
 
+// Valid tiers for checkout (paid plans only)
+const VALID_TIERS = ['solopreneur', 'sme', 'enterprise', 'corporation'];
+
 export async function POST(request: Request) {
   try {
     const { planTier, amount, billingPeriod, userEmail, userId } = await request.json();
 
-    const validTiers = ['zidlite', 'growth', 'premium'];
-    if (!validTiers.includes(planTier)) {
+    if (!VALID_TIERS.includes(planTier)) {
       return NextResponse.json(
         { success: false, error: "Invalid plan tier" },
         { status: 400 }
@@ -91,7 +91,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ FIX: Put metadata as direct properties AND in metadata object
     const checkoutPayload = {
       order: {
         callbackUrl: `${baseUrl}/api/subscription/callback`,
@@ -102,12 +101,10 @@ export async function POST(request: Request) {
         customerId: userId,
         accountId: process.env.NOMBA_ACCOUNT_ID,
         allowedPaymentMethods: ["Card", "Transfer"],
-        // ✅ Direct properties (some gateways require this)
         planTier: planTier,
         billingPeriod: billingPeriod,
         userId: userId,
         type: "subscription",
-        // ✅ Also in metadata (for redundancy)
         metadata: {
           planTier: planTier,
           billingPeriod: billingPeriod,
