@@ -1,6 +1,12 @@
 // components/CTA.tsx
 import { useRouter } from "next/navigation";
-import { ArrowRight, Sparkles, ChevronRight, Newspaper, TrendingUp } from "lucide-react";
+import {
+  ArrowRight,
+  Sparkles,
+  ChevronRight,
+  Newspaper,
+  TrendingUp,
+} from "lucide-react";
 import { Button } from "../ui/button";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -22,7 +28,7 @@ interface BlogPost {
 }
 
 // Cache key for localStorage
-const CACHE_KEY = 'zidwell_recent_posts_cta';
+const CACHE_KEY = "zidwell_recent_posts_cta";
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const CTA = () => {
@@ -49,14 +55,14 @@ const CTA = () => {
               return;
             }
           } catch (e) {
-            console.warn('Error parsing cached data:', e);
+            console.warn("Error parsing cached data:", e);
           }
         }
 
         // No valid cache, fetch fresh
         await fetchFreshPosts(false);
       } catch (error) {
-        console.error('Error fetching recent posts:', error);
+        console.error("Error fetching recent posts:", error);
         setLoading(false);
       }
     };
@@ -67,46 +73,53 @@ const CTA = () => {
           setLoading(true);
         }
 
-        const response = await fetch('/api/blog/posts?limit=6&published=true');
+        const response = await fetch("/api/blog/posts?limit=6&published=true");
         if (response.ok) {
           const data = await response.json();
           const posts = data.posts || [];
-          
+
           // Transform posts to ensure categories are in the right format
           const transformedPosts = posts.map((post: any) => ({
             ...post,
-            categories: Array.isArray(post.categories) 
+            categories: Array.isArray(post.categories)
               ? post.categories.map((cat: any) => {
-                  if (typeof cat === 'string') {
+                  if (typeof cat === "string") {
                     return { id: `cat-${cat}`, name: cat };
                   }
                   return cat;
                 })
               : [],
-            featuredImage: post.featured_image || post.featuredImage || '/default-blog-image.png',
-            createdAt: post.created_at || post.createdAt || new Date().toISOString(),
+            featuredImage:
+              post.featured_image ||
+              post.featuredImage ||
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10",
+            createdAt:
+              post.created_at || post.createdAt || new Date().toISOString(),
             readTime: post.read_time || post.readTime || 5,
             author: {
-              name: post.author?.name || post.author_name || 'Unknown Author',
+              name: post.author?.name || post.author_name || "Unknown Author",
               avatar: post.author?.avatar || post.author_avatar || null,
-            }
+            },
           }));
-          
+
           // Update state
           setRecentPosts(transformedPosts);
-          
+
           // Cache the data
           try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify({
-              data: transformedPosts,
-              timestamp: Date.now()
-            }));
+            localStorage.setItem(
+              CACHE_KEY,
+              JSON.stringify({
+                data: transformedPosts,
+                timestamp: Date.now(),
+              }),
+            );
           } catch (e) {
-            console.warn('Error caching data:', e);
+            console.warn("Error caching data:", e);
           }
         }
       } catch (error) {
-        console.error('Error fetching fresh posts:', error);
+        console.error("Error fetching fresh posts:", error);
       } finally {
         if (!isBackground) {
           setLoading(false);
@@ -120,14 +133,14 @@ const CTA = () => {
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'Recent';
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
+      if (isNaN(date.getTime())) return "Recent";
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
       });
     } catch {
-      return 'Recent';
+      return "Recent";
     }
   };
 
@@ -140,8 +153,14 @@ const CTA = () => {
 
   const getAvatarColor = (name: string): string => {
     const colors = [
-      "#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", 
-      "#EF4444", "#06B6D4", "#EC4899", "#8B4513"
+      "#3B82F6",
+      "#10B981",
+      "#8B5CF6",
+      "#F59E0B",
+      "#EF4444",
+      "#06B6D4",
+      "#EC4899",
+      "#8B4513",
     ];
     const hash = name.split("").reduce((acc, char) => {
       return char.charCodeAt(0) + ((acc << 5) - acc);
@@ -151,18 +170,19 @@ const CTA = () => {
 
   // Helper to get image URL with fallback
   const getImageUrl = (imageUrl: string | undefined): string => {
-    if (!imageUrl) return '/default-blog-image.png';
-    if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) {
+    if (!imageUrl)
+      return "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10";
+    if (imageUrl.startsWith("http") || imageUrl.startsWith("data:")) {
       return imageUrl;
     }
-    if (imageUrl.startsWith('/')) {
+    if (imageUrl.startsWith("/")) {
       return imageUrl;
     }
     return `/${imageUrl}`;
   };
 
   const handleImageError = (postId: string) => {
-    setImageErrors(prev => ({ ...prev, [postId]: true }));
+    setImageErrors((prev) => ({ ...prev, [postId]: true }));
   };
 
   return (
@@ -217,10 +237,13 @@ const CTA = () => {
               </span>
             </div>
             <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-(--text-primary)">
-              Explore <span className="text-(--color-accent-yellow)">Insights</span> & <span className="text-(--color-accent-yellow)">News</span>
+              Explore{" "}
+              <span className="text-(--color-accent-yellow)">Insights</span> &{" "}
+              <span className="text-(--color-accent-yellow)">News</span>
             </h3>
             <p className="text-(--text-secondary) text-sm md:text-base mt-2 max-w-2xl mx-auto">
-              Discover expert insights, financial tips, and the latest updates from Zidwell
+              Discover expert insights, financial tips, and the latest updates
+              from Zidwell
             </p>
           </div>
 
@@ -228,7 +251,10 @@ const CTA = () => {
             // Loading skeleton
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="bg-(--bg-primary) rounded-lg overflow-hidden border border-(--border-color) animate-pulse">
+                <div
+                  key={i}
+                  className="bg-(--bg-primary) rounded-lg overflow-hidden border border-(--border-color) animate-pulse"
+                >
                   <div className="h-48 bg-(--bg-secondary)" />
                   <div className="p-4">
                     <div className="h-4 bg-(--bg-secondary) rounded w-1/4 mb-2" />
@@ -245,21 +271,26 @@ const CTA = () => {
                 {recentPosts.slice(0, 6).map((post) => {
                   const imageUrl = getImageUrl(post.featuredImage);
                   const hasError = imageErrors[post.id];
-                  const categoryName = post.categories && post.categories.length > 0 
-                    ? (typeof post.categories[0] === 'string' 
-                        ? post.categories[0] 
-                        : post.categories[0]?.name || "Uncategorized")
-                    : "Uncategorized";
-                  
+                  const categoryName =
+                    post.categories && post.categories.length > 0
+                      ? typeof post.categories[0] === "string"
+                        ? post.categories[0]
+                        : post.categories[0]?.name || "Uncategorized"
+                      : "Uncategorized";
+
                   return (
-                    <Link 
-                      key={post.id} 
+                    <Link
+                      key={post.id}
                       href={`/blog/post-blog/${post.slug}`}
                       className="group block bg-(--bg-primary) rounded-lg overflow-hidden border border-(--border-color) hover:border-(--color-accent-yellow) transition-all duration-300 hover:shadow-lg"
                     >
                       <div className="aspect-16/10 overflow-hidden bg-(--bg-secondary) relative">
                         <Image
-                          src={hasError ? '/default-blog-image.png' : imageUrl}
+                          src={
+                            hasError
+                              ? "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10"
+                              : imageUrl
+                          }
                           alt={post.title || "Blog post"}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -289,25 +320,38 @@ const CTA = () => {
                                 className="w-full h-full object-cover"
                                 loading="lazy"
                                 onError={(e) => {
-                                  const target = e.currentTarget as HTMLImageElement;
-                                  target.style.display = 'none';
+                                  const target =
+                                    e.currentTarget as HTMLImageElement;
+                                  target.style.display = "none";
                                   const parent = target.parentElement;
                                   if (parent) {
-                                    const initialsDiv = document.createElement('div');
-                                    initialsDiv.className = 'w-full h-full flex items-center justify-center';
-                                    initialsDiv.style.backgroundColor = getAvatarColor(post.author?.name || "Unknown");
-                                    const span = document.createElement('span');
-                                    span.className = 'text-white text-[8px] font-semibold';
-                                    span.textContent = getInitials(post.author?.name || "Unknown");
+                                    const initialsDiv =
+                                      document.createElement("div");
+                                    initialsDiv.className =
+                                      "w-full h-full flex items-center justify-center";
+                                    initialsDiv.style.backgroundColor =
+                                      getAvatarColor(
+                                        post.author?.name || "Unknown",
+                                      );
+                                    const span = document.createElement("span");
+                                    span.className =
+                                      "text-white text-[8px] font-semibold";
+                                    span.textContent = getInitials(
+                                      post.author?.name || "Unknown",
+                                    );
                                     initialsDiv.appendChild(span);
                                     parent.appendChild(initialsDiv);
                                   }
                                 }}
                               />
                             ) : (
-                              <div 
+                              <div
                                 className="w-full h-full flex items-center justify-center"
-                                style={{ backgroundColor: getAvatarColor(post.author?.name || "Unknown") }}
+                                style={{
+                                  backgroundColor: getAvatarColor(
+                                    post.author?.name || "Unknown",
+                                  ),
+                                }}
                               >
                                 <span className="text-white text-[8px] font-semibold">
                                   {getInitials(post.author?.name || "Unknown")}
@@ -315,7 +359,9 @@ const CTA = () => {
                               </div>
                             )}
                           </div>
-                          <span className="truncate max-w-[60px]">{post.author?.name || "Unknown"}</span>
+                          <span className="truncate max-w-[60px]">
+                            {post.author?.name || "Unknown"}
+                          </span>
                           <span>·</span>
                           <span>{formatDate(post.createdAt)}</span>
                           {post.readTime && (
@@ -334,8 +380,8 @@ const CTA = () => {
               {/* See All Button - Bottom */}
               <div className="text-center mt-10">
                 <Link href="/blog">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="lg"
                     className="border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10 hover:border-(--color-accent-yellow) transition-all duration-300 group"
                   >
@@ -348,8 +394,12 @@ const CTA = () => {
             </>
           ) : (
             <div className="text-center py-12 bg-(--bg-primary) rounded-lg border border-(--border-color)">
-              <p className="text-(--text-secondary)">No blog posts available yet.</p>
-              <p className="text-sm text-(--text-secondary) mt-1">Check back soon for updates!</p>
+              <p className="text-(--text-secondary)">
+                No blog posts available yet.
+              </p>
+              <p className="text-sm text-(--text-secondary) mt-1">
+                Check back soon for updates!
+              </p>
             </div>
           )}
         </div>

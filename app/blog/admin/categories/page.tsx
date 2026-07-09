@@ -1,3 +1,4 @@
+// app/blog/admin/categories/page.tsx
 "use client";
 import { useState, useEffect } from "react";
 import AdminLayout from "@/app/components/blog-components/admin/AdminLayout";
@@ -54,7 +55,13 @@ export interface BlogCategory {
 }
 
 const AdminCategories = () => {
-  const { posts, refreshPosts } = useBlog();
+  const { 
+    posts, 
+    refreshPosts, 
+    forceRefresh,
+    isLoading: blogLoading,
+    cooldownRemaining 
+  } = useBlog();
   const [searchQuery, setSearchQuery] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [categories, setCategories] = useState<BlogCategory[]>([]);
@@ -71,6 +78,7 @@ const AdminCategories = () => {
   const [categoryToEdit, setCategoryToEdit] = useState<BlogCategory | null>(
     null,
   );
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Helper function to generate slug
   const generateSlug = (name: string): string => {
@@ -110,11 +118,14 @@ const AdminCategories = () => {
   };
 
   // Fetch categories from posts
-  const fetchCategories = async () => {
+  const fetchCategories = async (force: boolean = false) => {
     setIsLoading(true);
     try {
-      // Refresh posts to get latest data
-      await refreshPosts();
+      if (force) {
+        await forceRefresh();
+      } else {
+        await refreshPosts();
+      }
 
       // Extract categories from posts
       const extractedCategories = extractCategoriesFromPosts();
@@ -132,8 +143,28 @@ const AdminCategories = () => {
     }
   };
 
+  // Handle refresh with cooldown
+  const handleRefresh = async () => {
+    if (cooldownRemaining > 0) {
+      toast.info(`Please wait ${Math.ceil(cooldownRemaining / 60000)} minutes before refreshing again.`);
+      return;
+    }
+    
+    setIsRefreshing(true);
+    await fetchCategories(false);
+    setIsRefreshing(false);
+  };
+
+  // Handle force refresh
+  const handleForceRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchCategories(true);
+    setIsRefreshing(false);
+    toast.success("Categories force refreshed successfully!");
+  };
+
   useEffect(() => {
-    fetchCategories();
+    fetchCategories(false);
   }, []);
 
   // Update categories when posts change
@@ -291,6 +322,17 @@ const AdminCategories = () => {
     );
   };
 
+  // Format cooldown for display
+  const formatCooldown = (ms: number) => {
+    if (ms <= 0) return '';
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -302,18 +344,35 @@ const AdminCategories = () => {
             </p>
           </div>
           <div className="flex gap-2">
+            {cooldownRemaining > 0 && (
+              <span className="text-sm text-gray-400 flex items-center">
+                ⏳ {formatCooldown(cooldownRemaining)}
+              </span>
+            )}
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchCategories}
-              disabled={isLoading}
+              onClick={handleRefresh}
+              disabled={isRefreshing || cooldownRemaining > 0}
+              title={cooldownRemaining > 0 ? `Wait ${formatCooldown(cooldownRemaining)}` : 'Refresh'}
             >
-              {isLoading ? (
+              {isRefreshing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <RefreshCw className="w-4 h-4" />
               )}
               <span className="ml-2">Refresh</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleForceRefresh}
+              disabled={isRefreshing}
+              className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
+              title="Force refresh (bypass cooldown)"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="ml-2">Force Refresh</span>
             </Button>
             <Dialog>
               <DialogTrigger asChild>

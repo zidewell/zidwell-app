@@ -72,7 +72,9 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
     return colors[Math.abs(hash) % colors.length];
   };
 
-  const featuredImage = post.featuredImage || "/default-blog-image.png";
+  const featuredImage =
+    post.featuredImage ||
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10";
   const authorAvatar = post.author?.avatar;
   const authorName = post.author?.name || "Unknown Author";
   const readTime = post.readTime || "5";

@@ -1,3 +1,4 @@
+// app/blog/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -26,7 +27,15 @@ function debounce<T extends (...args: any[]) => any>(
 }
 
 const BlogPage = () => {
-  const { posts, isLoading, refreshPosts, isInitialized } = useBlog();
+  const { 
+    posts, 
+    isLoading, 
+    refreshPosts, 
+    isInitialized,
+    cooldownRemaining,
+    forceRefresh 
+  } = useBlog();
+  
   const [displayedPosts, setDisplayedPosts] = useState<BlogPostType[]>([]);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -76,7 +85,7 @@ const BlogPage = () => {
         featuredImage:
           apiPost.featured_image ||
           apiPost.featuredImage ||
-          "/default-blog-image.png",
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10",
         author: {
           id: apiPost.author_id || apiPost.author?.id || "default-author-id",
           name: apiPost.author_name || apiPost.author?.name || "Author",
@@ -221,10 +230,11 @@ const BlogPage = () => {
     }, 300);
   }, [page, loadingMore, hasMore, filteredPosts, isSearching, isClient]);
 
-  // Handle refresh
+  // Handle refresh - respects cooldown
   const handleRefresh = useCallback(() => {
     if (!isClient) return;
 
+    // Check if we can refresh (respects cooldown)
     refreshPosts();
     setDisplayedPosts([]);
     setPage(1);
@@ -275,6 +285,17 @@ const BlogPage = () => {
       hasInitializedRef.current = true;
     }
   }, [isClient, isInitialized, publishedPosts]);
+
+  // Format cooldown time for display
+  const formatCooldown = (ms: number) => {
+    if (ms <= 0) return 'Ready';
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+  };
 
   // Loading skeleton - show during SSR and initial client load
   if (isLoading || !isClient || !isInitialized) {
@@ -369,14 +390,22 @@ const BlogPage = () => {
                     {filteredPosts.length !== 1 ? "s" : ""}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSearch("")}
-                  className="text-(--text-primary) hover:bg-(--bg-secondary)"
-                  style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
-                >
-                  Clear Search
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Show cooldown status */}
+                  {cooldownRemaining > 0 && (
+                    <span className="text-xs text-gray-400">
+                      ⏳ {formatCooldown(cooldownRemaining)}
+                    </span>
+                  )}
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSearch("")}
+                    className="text-(--text-primary) hover:bg-(--bg-secondary)"
+                    style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
+                  >
+                    Clear Search
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -459,10 +488,17 @@ const BlogPage = () => {
                     </p>
                     <Button
                       onClick={handleRefresh}
-                      className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
+                      disabled={cooldownRemaining > 0}
+                      className={`${
+                        cooldownRemaining > 0
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90'
+                      } text-(--color-ink)`}
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
-                      Refresh
+                      {cooldownRemaining > 0 
+                        ? `Wait ${formatCooldown(cooldownRemaining)}` 
+                        : 'Refresh'}
                     </Button>
                   </div>
                 </div>

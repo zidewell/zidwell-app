@@ -1,4 +1,4 @@
-// BlogHeader.tsx
+// app/components/blog-components/blog/BlogHeader.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -21,7 +21,7 @@ interface BlogHeaderProps {
 }
 
 const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
-  const { posts, refreshPosts, isLoading } = useBlog();
+  const { posts, refreshPosts, isLoading, cooldownRemaining } = useBlog();
   const { userData } = useUserContextData();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -52,8 +52,22 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
   }, [posts, categories]);
 
   const handleRefresh = () => {
+    // This will respect the cooldown
     refreshPosts();
   };
+
+  // Format cooldown for display
+  const formatCooldown = (ms: number) => {
+    if (ms <= 0) return '';
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    if (minutes > 0) {
+      return `${minutes}m`;
+    }
+    return `${seconds}s`;
+  };
+
+  const isRefreshDisabled = cooldownRemaining > 0 || isLoading;
 
   return (
     <header className="border-b border-(--border-color) bg-(--bg-primary) sticky top-0 z-50">
@@ -107,13 +121,20 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
               variant="ghost"
               size="icon"
               onClick={handleRefresh}
-              disabled={isLoading}
-              className="h-8 w-8 text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary)"
-              title="Refresh posts"
+              disabled={isRefreshDisabled}
+              className={`h-8 w-8 text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary) relative ${
+                isRefreshDisabled ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title={cooldownRemaining > 0 ? `Wait ${formatCooldown(cooldownRemaining)}` : 'Refresh posts'}
             >
               <RefreshCw
                 className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
               />
+              {cooldownRemaining > 0 && (
+                <span className="absolute -top-1 -right-1 text-[8px] bg-gray-500 text-white rounded-full px-1">
+                  {formatCooldown(cooldownRemaining)}
+                </span>
+              )}
             </Button>
           </nav>
 
@@ -162,13 +183,15 @@ const BlogHeader = ({ onSearch, categories }: BlogHeaderProps) => {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleRefresh}
-                  disabled={isLoading}
-                  className="text-(--text-primary)"
+                  disabled={isRefreshDisabled}
+                  className={`text-(--text-primary) ${
+                    isRefreshDisabled ? 'opacity-50' : ''
+                  }`}
                 >
                   <RefreshCw
                     className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
                   />
-                  Refresh
+                  Refresh {cooldownRemaining > 0 && `(${formatCooldown(cooldownRemaining)})`}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

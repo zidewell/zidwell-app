@@ -1,3 +1,4 @@
+// app/blog/admin/posts/page.tsx
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -41,7 +42,15 @@ type FilterType = "all" | "published" | "draft";
 const AdminPosts = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const { posts, isLoading, error, refreshPosts } = useBlog();
+  const { 
+    posts, 
+    isLoading, 
+    error, 
+    refreshPosts, 
+    forceRefresh,
+    cooldownRemaining 
+  } = useBlog();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filter posts based on search and active filter
   const filteredPosts = useMemo(() => {
@@ -75,6 +84,50 @@ const AdminPosts = () => {
 
     return { publishedCount, draftCount, totalCount };
   }, [posts]);
+
+  // Handle refresh with cooldown
+  const handleRefresh = async () => {
+    if (cooldownRemaining > 0) {
+      Swal.fire({
+        title: "Cooldown Active",
+        text: `Please wait ${Math.ceil(cooldownRemaining / 60000)} minutes before refreshing again.`,
+        icon: "info",
+        timer: 3000,
+        showConfirmButton: false,
+      });
+      return;
+    }
+    
+    setIsRefreshing(true);
+    await refreshPosts();
+    setIsRefreshing(false);
+  };
+
+  // Force refresh (bypass cooldown)
+  const handleForceRefresh = async () => {
+    const result = await Swal.fire({
+      title: "Force Refresh?",
+      text: "This will bypass the cooldown and fetch fresh data.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, force refresh",
+      cancelButtonText: "Cancel",
+    });
+
+    if (result.isConfirmed) {
+      setIsRefreshing(true);
+      await forceRefresh();
+      setIsRefreshing(false);
+      
+      Swal.fire({
+        title: "Refreshed!",
+        text: "Data has been force refreshed.",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    }
+  };
 
   // Function to handle post deletion
   const handleDeletePost = async (postId: string, postTitle: string) => {
@@ -178,6 +231,17 @@ const AdminPosts = () => {
     setActiveFilter("all");
   };
 
+  // Format cooldown for display
+  const formatCooldown = (ms: number) => {
+    if (ms <= 0) return '';
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+  };
+
   // Loading state
   if (isLoading && posts.length === 0) {
     return (
@@ -219,16 +283,33 @@ const AdminPosts = () => {
             </p>
           </div>
           <div className="flex gap-2">
+            {/* Cooldown indicator */}
+            {cooldownRemaining > 0 && (
+              <span className="text-sm text-gray-400 flex items-center">
+                ⏳ {formatCooldown(cooldownRemaining)}
+              </span>
+            )}
             <Button
               variant="outline"
-              onClick={refreshPosts}
-              disabled={isLoading}
+              onClick={handleRefresh}
+              disabled={isRefreshing || cooldownRemaining > 0}
               className="flex items-center gap-2"
+              title={cooldownRemaining > 0 ? `Wait ${formatCooldown(cooldownRemaining)}` : 'Refresh'}
             >
               <RefreshCw
-                className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
-              {isLoading ? "Refreshing..." : "Refresh"}
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleForceRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 text-yellow-600 border-yellow-600 hover:bg-yellow-50"
+              title="Force refresh (bypass cooldown)"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              Force Refresh
             </Button>
             <Link href="/blog/admin/posts/new">
               <Button className="bg-(--color-accent-yellow) text-accent-foreground hover:bg-(--color-accent-yellow)/90">
@@ -345,7 +426,6 @@ const AdminPosts = () => {
                     <TableHead>Categories</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
-                    {/* <TableHead className="w-[100px]">Views</TableHead> */}
                     <TableHead className="w-[80px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -442,14 +522,6 @@ const AdminPosts = () => {
                       <TableCell className="text-muted-foreground">
                         {format(new Date(post.created_at), "MMM d, yyyy")}
                       </TableCell>
-                      {/* <TableCell>
-                        <Badge variant="outline">
-                          {post.view_count || 0} views
-                        </Badge>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {post.comments_count || 0} comments
-                        </div>
-                      </TableCell> */}
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

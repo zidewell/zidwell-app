@@ -22,8 +22,8 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import Header from "@/app/components/home-component/Header";
-import Footer from "@/app/components/home-component/Footer";
+import Header from "@/app/components/home-component-old/Header";
+import Footer from "@/app/components/home-component-old/Footer";
 
 export default function ReceiptsPage() {
   const router = useRouter();

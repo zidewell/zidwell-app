@@ -1,130 +1,86 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowRight, Users } from "lucide-react";
-import { useUserContextData } from "@/app/context/userData";
+import { ArrowRight, CheckCircle2, Globe2, Instagram } from "lucide-react";
 import { Button } from "../ui/button";
+import { PhoneMock } from "./PhoneMock"; 
+import { FloatingCard } from "./FloatingCard"; 
 
-const Hero = () => {
-  const { user } = useUserContextData();
-  const router = useRouter();
-
-  // Array of background images
-  const backgroundImages = [
-    "https://images.unsplash.com/photo-1758519288814-bb9f97e4df95?q=80&w=1331&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    "https://images.unsplash.com/photo-1732067606788-6b0661b7cdef?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    "https://images.unsplash.com/photo-1621569978145-08c89eb010fe?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    "https://images.unsplash.com/photo-1687422808565-929533931584?w=1600&auto=format&fit=crop&q=80",
-  ];
-
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-  // Cycle through background images every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImageIndex(
-        (prevIndex) => (prevIndex + 1) % backgroundImages.length,
-      );
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [backgroundImages.length]);
-
+export function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
-      {/* Background Image with opacity and transition */}
-      <div className="absolute inset-0 z-0">
-        {backgroundImages.map((image, index) => (
-          <div
-            key={image}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              index === currentImageIndex ? "opacity-100" : "opacity-0"
-            }`}
-            style={{
-              backgroundImage: `url(${image})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-            }}
-          />
-        ))}
-        {/* Dark overlay to ensure text readability */}
-        <div className="absolute inset-0 bg-black/60" />
-      </div>
-
-      {/* Subtle grid overlay */}
-      <div
-        className="absolute inset-0 opacity-[0.03] z-0"
-        style={{
-          backgroundImage:
-            "linear-gradient(var(--border-color) 1px, transparent 1px), linear-gradient(90deg, var(--border-color) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-        }}
-      />
-
-      <div className="container mx-auto px-6 py-12 relative z-10">
-        <div className="max-w-5xl mx-auto flex flex-col items-center justify-center text-center">
-          {/* Main Heading */}
-          <h1 className="animate-fade-up-delay-1 text-3xl md:text-5xl lg:text-6xl font-black leading-tight mb-6 text-balance text-white">
-            From Financial Chaos to Clarity
-            <br />
-            in Your Business
-          </h1>
-
-          {/* Subheading */}
-          <p className="animate-fade-up-delay-2 text-lg md:text-xl text-gray-200 mb-6 text-balance max-w-3xl">
-            We give Freelancers, Solopreneurs, and SMEs access to business banking and bookkeeping tools to collect payments and keep their finances organized and ready for tax filing, bank loans, and investor opportunities.
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="animate-fade-up-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-            {user ? (
-              <Button
-                onClick={() => router.push("/dashboard")}
-                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 px-8 py-6 text-lg font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
-              >
-                Go to Dashboard
-                <ArrowRight className="ml-2 h-5 w-5" />
+    <section className="relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-accent-yellow)]/5 via-transparent to-[var(--color-lemon-green)]/5 pointer-events-none" />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-16 sm:pt-24 pb-20">
+        <div className="grid lg:grid-cols-12 gap-8 lg:gap-16 items-center">
+          <div className="lg:col-span-7 animate-fade-up">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--bg-secondary)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] border border-[var(--border-color)]">
+              <Globe2 className="h-3.5 w-3.5 text-[var(--color-lemon-green)]" />
+              Automatic financial records · for businesses worldwide
+            </span>
+            <h1 className="mt-6 font-display text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-semibold tracking-tight text-[var(--text-primary)] leading-[1.1]">
+              Your Financial Records,{" "}
+              <span className="relative inline-block">
+                Done For You.
+                <span className="absolute -bottom-2 left-0 right-0 h-2 bg-[var(--color-accent-yellow)]/60 -z-10 rounded-full" />
+              </span>
+            </h1>
+            <p className="mt-6 max-w-xl text-base sm:text-lg text-[var(--text-secondary)] leading-relaxed">
+              No matter the size of your business, Zidwell gives you easy, automatic, and clearly organized financial records.
+            </p>
+            <p className="mt-4 max-w-xl text-sm text-[var(--text-primary)]">
+              So you're always ready for:
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {["Taxes", "Loans", "Investors", "Business decisions"].map((t) => (
+                <span key={t} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] px-3 py-1 text-xs font-medium text-[var(--text-primary)]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-lemon-green)]" />
+                  {t}
+                </span>
+              ))}
+            </div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button variant="zidwell-primary" asChild>
+                <a href="/auth/signup" className="flex items-center gap-2">
+                  Start Free <ArrowRight className="h-4 w-4" />
+                </a>
               </Button>
-            ) : (
-              <>
-                <Button
-                  onClick={() => router.push("/auth/signup")}
-                  className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 px-8 py-6 text-lg font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
-                >
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    window.open(
-                      "https://www.instagram.com/zidwellfinance/",
-                      "_blank",
-                      "noopener,noreferrer",
-                    )
-                  }
-                  className="border-2 bg-transparent border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)] hover:text-[var(--color-ink)] px-8 py-6 text-lg font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-pop"
-                >
-                  <Users className="mr-2 h-5 w-5" />
-                  Follow on Instagram
-                </Button>
-              </>
-            )}
+              <Button variant="zidwell-outline" asChild>
+                <a href="https://instagram.com/zidwell" target="_blank" rel="noreferrer" className="flex items-center gap-2">
+                  <Instagram className="h-4 w-4" /> Follow on Instagram
+                </a>
+              </Button>
+            </div>
+            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[var(--text-secondary)]">
+              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-[var(--color-lemon-green)]" /> Manual, upload or auto-sync</span>
+              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-[var(--color-lemon-green)]" /> Tax-ready reports</span>
+              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-[var(--color-lemon-green)]" /> Invoices & receipts included</span>
+            </div>
           </div>
 
-          {/* Trust Indicators */}
-          <div className="animate-fade-up-delay-3 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-200">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-[var(--color-accent-yellow)] rounded-full" />
-              <span>Trusted by 1000+ businesses</span>
+          <div className="lg:col-span-5 relative mt-10 lg:mt-0">
+            <div className="relative h-[480px] sm:h-[520px]">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <PhoneMock />
+              </div>
+              <FloatingCard
+                className="absolute top-2 -left-2 sm:-left-6 animate-float"
+                title="Money in · recorded"
+                amount="$4,500"
+                tone="leaf"
+              />
+              <FloatingCard
+                className="absolute bottom-10 -right-2 sm:-right-6 animate-float-slow"
+                title="Money out · categorized"
+                amount="- ₦ 12,400"
+                tone="gold"
+              />
+              <FloatingCard
+                className="absolute top-1/2 -right-4 sm:right-2 hidden sm:flex animate-float"
+                title="Financial health"
+                amount="82 · Healthy"
+                tone="ink"
+              />
             </div>
           </div>
         </div>
       </div>
     </section>
   );
-};
-
-export default Hero;
+}

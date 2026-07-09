@@ -1,4 +1,4 @@
-// BlogSidebar.tsx
+// app/components/blog-components/blog/BlogSidebar.tsx
 "use client";
 
 import { useState, useMemo } from "react";
@@ -21,7 +21,14 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
   const [email, setEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
 
-  const { recentPosts, popularPosts, categories, isLoading } = useBlog();
+  const { 
+    recentPosts, 
+    popularPosts, 
+    categories, 
+    isLoading,
+    isInitialized,
+    cooldownRemaining 
+  } = useBlog();
 
   const showAlert = Swal.mixin({
     customClass: {
@@ -155,7 +162,8 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
     }
   };
 
-  if (isLoading) {
+  // Show loading state
+  if (isLoading || !isInitialized) {
     return (
       <aside className="space-y-8">
         <div className="space-y-3">
@@ -432,6 +440,13 @@ const BlogSidebar = ({ onSearch, isSearching = false }: BlogSidebarProps) => {
           </p>
         )}
       </div>
+
+      {/* Cooldown Status */}
+      {cooldownRemaining > 0 && (
+        <div className="text-xs text-gray-400 text-center border-t border-(--border-color) pt-4">
+          ⏳ Next update in {Math.ceil(cooldownRemaining / 1000)}s
+        </div>
+      )}
 
       {/* Ad Placeholder */}
       <div className="bg-(--bg-secondary) rounded-lg p-6 text-center border border-(--border-color)">
