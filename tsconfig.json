@@ -68,6 +68,6 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
-  ],
+, "app/bookkeeping/page.tsx"  ],
   "exclude": ["node_modules"]
 }
