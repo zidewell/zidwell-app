@@ -6,12 +6,12 @@ import { useState } from "react";
 interface PremiumModalProps {
   open: boolean;
   onClose: () => void;
-  currentTier?: "free" | "zidlite" | "growth" | "premium" | "elite";
+  currentTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
   feature?: string;
 }
 
 // Define a type for the tier details
-type TierType = "free" | "zidlite" | "growth" | "premium" | "elite";
+type TierType = "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
 
 interface TierDetail {
   nextTier: TierType | null;
@@ -27,7 +27,7 @@ interface TierDetail {
 
 const tierDetails: Record<TierType, TierDetail> = {
   free: {
-    nextTier: "zidlite",
+    nextTier: "solopreneur",
     icon: Star,
     color: "gray",
     bgColor: "bg-gray-50 dark:bg-gray-800/50",
@@ -35,15 +35,15 @@ const tierDetails: Record<TierType, TierDetail> = {
     textColor: "text-gray-600 dark:text-gray-400",
     price: "₦0",
     features: [
-      "10 invoices total",
-      "10 receipts total",
-      "1 contract total",
+      "5 invoices total",
+      "5 receipts total",
+      "0 contracts",
       "Basic support",
-      "1 month bookkeeping trial",
+      "Manual bookkeeping",
     ],
   },
-  zidlite: {
-    nextTier: "growth",
+  solopreneur: {
+    nextTier: "sme",
     icon: Zap,
     color: "blue",
     bgColor: "bg-blue-50 dark:bg-blue-900/20",
@@ -53,66 +53,69 @@ const tierDetails: Record<TierType, TierDetail> = {
     yearlyPrice: "₦49,000/year",
     features: [
       "10 invoices total",
-      "10 receipts total",
-      "2 contracts total",
-      "WhatsApp Community access",
-      "WhatsApp support",
-      "14-day bookkeeping trial",
-      "14-day tax calculator trial",
+      "Unlimited receipts",
+      "0 contracts",
+      "Branded invoices",
+      "Basic financial insights",
     ],
   },
-  growth: {
-    nextTier: "premium",
-    icon: Zap,
-    color: "green",
+  sme: {
+    nextTier: "enterprise",
+    icon: Star,
+    color: "yellow",
     bgColor: "bg-(--color-accent-yellow)/10",
     borderColor: "border-(--color-accent-yellow)/30",
     textColor: "text-(--color-accent-yellow)",
-    price: "₦9,900/month",
-    yearlyPrice: "₦99,000/year",
+    price: "₦29,900/month",
+    yearlyPrice: "₦299,000/year",
     features: [
       "Tax calculator access",
       "Unlimited invoices",
       "Unlimited receipts",
-      "5 contracts total",
-      "Bookkeeping access",
-      "WhatsApp support",
-      "WhatsApp Community",
+      "1 contract",
+      "Bank statement uploads",
+      "Connect 3 bank accounts",
+      "Financial statements",
     ],
   },
-  premium: {
-    nextTier: "elite",
+  enterprise: {
+    nextTier: "corporation",
     icon: Crown,
     color: "amber",
-    bgColor: "bg-(--color-accent-yellow)/10",
-    borderColor: "border-(--color-accent-yellow)",
-    textColor: "text-(--color-accent-yellow)",
-    price: "₦99,900/month",
-    yearlyPrice: "₦499,000/year",
+    bgColor: "bg-amber-100 dark:bg-amber-900/20",
+    borderColor: "border-amber-200 dark:border-amber-800",
+    textColor: "text-amber-600 dark:text-amber-400",
+    price: "₦100,000/month",
+    yearlyPrice: "₦1,000,000/year",
     features: [
       "Full tax calculator",
       "Tax filing support",
       "Financial statements",
-      "Payment reminders",
-      "Priority support",
-      "Unlimited contracts",
+      "Role-based permissions",
+      "Request & approval system",
+      "Connect 5 bank accounts",
+      "10 contracts",
+      "Dedicated onboarding support",
     ],
   },
-  elite: {
+  corporation: {
     nextTier: null,
     icon: Sparkles,
     color: "purple",
     bgColor: "bg-purple-50 dark:bg-purple-900/20",
     borderColor: "border-purple-200 dark:border-purple-800",
     textColor: "text-purple-600 dark:text-purple-400",
-    price: "₦250,000+/month",
+    price: "₦300,000+/month",
+    yearlyPrice: "₦3,000,000/year",
     features: [
       "Full tax filing (VAT, PAYE, WHT)",
-      "CFO-level guidance",
-      "Audit coordination",
+      "Unlimited contracts",
+      "Department-based access",
+      "Unlimited bank accounts",
+      "Payroll system",
+      "Advanced financial reporting",
+      "Priority onboarding support",
       "Dedicated account manager",
-      "Direct WhatsApp support",
-      "Annual audit coordination",
     ],
   },
 };
@@ -137,29 +140,25 @@ export function PremiumModal({
 
   const getUpgradeMessage = () => {
     if (currentTier === "free") {
-      return `Upgrade to ZidLite to get more invoices and receipts, or go straight to Growth for tax calculator access.`;
+      return `Upgrade to Solopreneur to get more invoices and receipts, or go straight to SME for tax calculator access and unlimited features.`;
     }
-    if (currentTier === "zidlite") {
-      return `Upgrade to Growth to unlock tax calculator, unlimited invoices, and more business tools.`;
+    if (currentTier === "solopreneur") {
+      return `Upgrade to SME to unlock tax calculator, unlimited invoices, bank statement uploads, and more business tools.`;
     }
-    if (currentTier === "growth") {
-      return `Take your business to the next level with Premium. Get full tax filing support and financial statements.`;
+    if (currentTier === "sme") {
+      return `Take your business to the next level with Enterprise. Get full tax filing support, financial statements, and team management.`;
     }
-    if (currentTier === "premium") {
-      return `Go Elite for comprehensive tax filing (VAT, PAYE, WHT) and CFO-level guidance.`;
+    if (currentTier === "enterprise") {
+      return `Go Corporation for comprehensive tax filing (VAT, PAYE, WHT), unlimited contracts, and dedicated account manager.`;
     }
-    if (currentTier === "elite") {
-      return `You're on the Elite plan. Contact us for custom enterprise solutions.`;
+    if (currentTier === "corporation") {
+      return `You're on the Corporation plan. Contact us for custom enterprise solutions.`;
     }
     return `Upgrade to access ${feature}`;
   };
 
   const getDisplayPrice = () => {
     if (!nextTierData) return "";
-
-    if (nextTier === "elite") {
-      return nextTierData.price;
-    }
 
     if (selectedBilling === "yearly" && nextTierData.yearlyPrice) {
       return nextTierData.yearlyPrice;
@@ -169,9 +168,10 @@ export function PremiumModal({
   };
 
   const getYearlySavings = () => {
-    if (nextTier === "zidlite") return "Save ₦9,800";
-    if (nextTier === "growth") return "Save ₦19,800";
-    if (nextTier === "premium") return "Save ₦99,800";
+    if (nextTier === "solopreneur") return "Save ₦9,800";
+    if (nextTier === "sme") return "Save ₦59,800";
+    if (nextTier === "enterprise") return "Save ₦200,000";
+    if (nextTier === "corporation") return "Save ₦600,000";
     return "";
   };
 
@@ -212,20 +212,20 @@ export function PremiumModal({
             <div>
               <p className="text-sm text-(--text-secondary)">Current Plan</p>
               <p className="text-lg font-bold text-(--text-primary) capitalize">
-                {currentTier === "zidlite"
-                  ? "ZidLite"
+                {currentTier === "solopreneur"
+                  ? "Solopreneur"
                   : currentTier === "free"
                     ? "Free Trial"
                     : currentTier}
               </p>
             </div>
-            {currentTier !== "elite" && nextTierData && (
+            {currentTier !== "corporation" && nextTierData && (
               <div className="text-right">
                 <p className="text-sm text-(--text-secondary)">Upgrade to</p>
                 <p
                   className={`text-lg font-bold capitalize ${nextTierData.textColor}`}
                 >
-                  {nextTier === "zidlite" ? "ZidLite" : nextTier}
+                  {nextTier === "solopreneur" ? "Solopreneur" : nextTier}
                 </p>
               </div>
             )}
@@ -255,7 +255,7 @@ export function PremiumModal({
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-(--text-primary) capitalize">
-                    {nextTier === "zidlite" ? "ZidLite" : nextTier} Plan
+                    {nextTier === "solopreneur" ? "Solopreneur" : nextTier} Plan
                   </h3>
                   <p
                     className={`text-sm font-semibold ${nextTierData.textColor}`}
@@ -265,8 +265,8 @@ export function PremiumModal({
                 </div>
               </div>
 
-              {/* Billing Toggle - Only for non-Elite plans */}
-              {nextTier !== "elite" && nextTier !== "free" && (
+              {/* Billing Toggle - Only for non-Corporation plans */}
+              {nextTier !== "corporation" && nextTier !== "free" && (
                 <div className="flex items-center gap-2 mb-6">
                   <button
                     onClick={() => setSelectedBilling("monthly")}
@@ -306,7 +306,7 @@ export function PremiumModal({
               </ul>
 
               {/* Price Details */}
-              {nextTier !== "elite" && (
+              {nextTier !== "corporation" && (
                 <div className="mb-6 p-4 bg-(--bg-secondary) rounded-lg">
                   <p className="text-sm text-(--text-secondary) mb-1">
                     {selectedBilling === "yearly"
@@ -335,7 +335,7 @@ export function PremiumModal({
                 >
                   Cancel
                 </button>
-                {nextTier === "elite" ? (
+                {nextTier === "corporation" ? (
                   <Link href="/contact" className="flex-1">
                     <button className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2">
                       Contact Sales
@@ -350,16 +350,16 @@ export function PremiumModal({
                     <button
                       className={`w-full px-4 py-3 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2
                       ${
-                        nextTier === "zidlite"
+                        nextTier === "solopreneur"
                           ? "bg-blue-600 hover:bg-blue-700"
-                          : nextTier === "growth"
+                          : nextTier === "sme"
                             ? "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
-                            : nextTier === "premium"
-                              ? "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
+                            : nextTier === "enterprise"
+                              ? "bg-amber-600 hover:bg-amber-700 text-white"
                               : "bg-purple-600 hover:bg-purple-700"
                       }`}
                     >
-                      Upgrade to {nextTier === "zidlite" ? "ZidLite" : nextTier}
+                      Upgrade to {nextTier === "solopreneur" ? "Solopreneur" : nextTier}
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </Link>
@@ -368,19 +368,19 @@ export function PremiumModal({
             </div>
           )}
 
-          {/* No Upgrade Path (Elite) */}
-          {currentTier === "elite" && (
+          {/* No Upgrade Path (Corporation) */}
+          {currentTier === "corporation" && (
             <div className="text-center py-8">
-              <Crown className="w-16 h-16 text-(--color-accent-yellow) mx-auto mb-4" />
+              <Sparkles className="w-16 h-16 text-purple-600 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-(--text-primary) mb-2">
-                You're on Elite!
+                You're on Corporation!
               </h3>
               <p className="text-(--text-secondary) mb-6">
                 Contact our enterprise team for custom solutions and dedicated
                 support.
               </p>
               <Link href="/contact">
-                <button className="px-6 py-3 bg-(--color-accent-yellow) text-(--color-ink) rounded-lg hover:bg-(--color-accent-yellow)/90 transition-colors font-medium">
+                <button className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">
                   Contact Account Manager
                 </button>
               </Link>

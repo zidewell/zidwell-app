@@ -1,3 +1,4 @@
+// app/components/tax-filling-components/CurrencyInput.tsx
 import React, { useRef } from "react";
 
 interface CurrencyInputProps {

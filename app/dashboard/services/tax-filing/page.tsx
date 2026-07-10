@@ -1,4 +1,3 @@
-// app/dashboard/services/tax-filling/page.tsx
 "use client";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
@@ -14,49 +13,58 @@ import Link from "next/link";
 function TaxFilingPage() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { subscription, userTier, isPremium, isGrowth, isElite, isZidLite } =
-    useSubscription();
+  const { 
+    subscription, 
+    userTier, 
+    isSME, 
+    isEnterprise, 
+    isCorporation, 
+    isSolopreneur 
+  } = useSubscription();
 
   // Define tier variables
   const isFree = userTier === "free";
-  const isZidLiteUser = userTier === "zidlite";
-  const isGrowthUser = userTier === "growth";
-  const isPremiumUser = userTier === "premium";
-  const isEliteUser = userTier === "elite";
+  const isSolopreneurUser = userTier === "solopreneur";
+  const isSMEUser = userTier === "sme";
+  const isEnterpriseUser = userTier === "enterprise";
+  const isCorporationUser = userTier === "corporation";
 
-  const hasTaxCalculatorAccess = isGrowthUser || isPremiumUser || isEliteUser;
-  const hasTaxSupport = isPremiumUser || isEliteUser;
-  const hasFullTaxFiling = isEliteUser;
+  // Tax calculator access: SME, Enterprise, Corporation have access
+  const hasTaxCalculatorAccess = isSMEUser || isEnterpriseUser || isCorporationUser;
+  // Tax support: Enterprise and Corporation
+  const hasTaxSupport = isEnterpriseUser || isCorporationUser;
+  // Full tax filing: Corporation only
+  const hasFullTaxFiling = isCorporationUser;
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isEliteUser)
+    if (isCorporationUser)
       return {
         icon: Sparkles,
         color: "text-purple-600",
         bg: "bg-purple-100 dark:bg-purple-900/20",
-        label: "Elite",
+        label: "Corporation",
       };
-    if (isPremiumUser)
+    if (isEnterpriseUser)
       return {
         icon: Crown,
-        color: "text-(--color-accent-yellow)",
-        bg: "bg-(--color-accent-yellow)/10",
-        label: "Premium",
+        color: "text-amber-600",
+        bg: "bg-amber-100 dark:bg-amber-900/20",
+        label: "Enterprise",
       };
-    if (isGrowthUser)
+    if (isSMEUser)
       return {
-        icon: Zap,
+        icon: Star,
         color: "text-(--color-accent-yellow)",
         bg: "bg-(--color-accent-yellow)/10",
-        label: "Growth",
+        label: "SME",
       };
-    if (isZidLiteUser)
+    if (isSolopreneurUser)
       return {
         icon: Zap,
         color: "text-blue-600",
         bg: "bg-blue-100 dark:bg-blue-900/20",
-        label: "ZidLite",
+        label: "Solopreneur",
       };
     return {
       icon: Star,
@@ -71,7 +79,7 @@ function TaxFilingPage() {
 
   return (
     <SubscriptionPageGuard
-      requiredTier="growth"
+      requiredTier="sme"
       featureKey="tax_support"
       title="Tax Manager Services"
       description="Professional tax filing, calculations, and compliance tools for your business"
@@ -124,10 +132,10 @@ function TaxFilingPage() {
                 </div>
               </div>
 
-              {/* Tax Calculator - Available to Growth and above */}
+              {/* Tax Calculator - Available to SME and above */}
               <TaxCalculator userTier={userTier} />
 
-              {/* Premium Features */}
+              {/* Premium Features - Enterprise and Corporation */}
               {hasTaxSupport && (
                 <div className="mt-8 grid md:grid-cols-2 gap-6">
                   <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-6 shadow-soft hover:shadow-pop transition-all">
@@ -159,7 +167,7 @@ function TaxFilingPage() {
                 </div>
               )}
 
-              {/* Elite Features */}
+              {/* Corporation Features - Only Corporation has full tax filing */}
               {hasFullTaxFiling && (
                 <div className="mt-8 grid md:grid-cols-3 gap-6">
                   <div className="bg-(--bg-primary) border-2 border-purple-200 dark:border-purple-800 rounded-md p-6 shadow-soft hover:shadow-pop transition-all">

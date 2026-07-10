@@ -111,8 +111,14 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
   currentTier: propTier,
 }) => {
   const { subscribe, refreshSubscription } = useUserContextData();
-  const { userTier, isPremium, isGrowth, isElite, isZidLite, isFree } =
-    useSubscription();
+  const { 
+    userTier, 
+    isSME, 
+    isEnterprise, 
+    isCorporation, 
+    isSolopreneur, 
+    isFree 
+  } = useSubscription();
 
   const router = useRouter();
 
@@ -250,6 +256,12 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
               <Sparkles className="w-4 h-4" />
               Upgrade to Corporation
             </button>
+          )}
+
+          {currentTier === "corporation" && (
+            <div className="text-sm font-medium text-purple-600 dark:text-purple-400">
+              🎉 You're on the highest plan!
+            </div>
           )}
         </div>
       </div>

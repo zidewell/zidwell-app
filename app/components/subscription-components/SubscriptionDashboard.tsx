@@ -50,17 +50,7 @@ export function SubscriptionDashboard() {
   } = useSubscription();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
-  const [taxCalculatorTrial, setTaxCalculatorTrial] = useState<any>(null);
-
-  // Check for active trials
-  useEffect(() => {
-    if (isFree) {
-      checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
-      checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
-    }
-  }, [isFree, checkTrialStatus]);
-
+  
   // Map legacy tier to new tier for display
   const getDisplayTier = (tier: string): string => {
     return LEGACY_TIER_MAP[tier] || tier;

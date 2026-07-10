@@ -25,8 +25,14 @@ import { useUserContextData } from "@/app/context/userData";
 export default function InvoicePage() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { subscription, userTier, isPremium, isGrowth, isElite, isZidLite } =
-    useSubscription();
+  const { 
+    subscription, 
+    userTier, 
+    isSME, 
+    isEnterprise, 
+    isCorporation, 
+    isSolopreneur 
+  } = useSubscription();
   const { userData } = useUserContextData();
   const [usage, setUsage] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -53,45 +59,45 @@ export default function InvoicePage() {
   }, [userData]);
 
   const isFree = userTier === "free";
-  const isZidLiteUser = userTier === "zidlite";
-  const isGrowthUser = userTier === "growth";
-  const isPremiumUser = userTier === "premium";
-  const isEliteUser = userTier === "elite";
-  const hasUnlimitedInvoices = isPremiumUser || isGrowthUser || isEliteUser;
+  const isSolopreneurUser = userTier === "solopreneur";
+  const isSMEUser = userTier === "sme";
+  const isEnterpriseUser = userTier === "enterprise";
+  const isCorporationUser = userTier === "corporation";
+  const hasUnlimitedInvoices = isSMEUser || isEnterpriseUser || isCorporationUser;
 
   const usedInvoices = usage?.invoices?.used || 0;
-  const limit = hasUnlimitedInvoices ? "unlimited" : isZidLiteUser ? 10 : 5;
+  const limit = hasUnlimitedInvoices ? "unlimited" : isSolopreneurUser ? 10 : 5;
   const remaining = usage?.invoices?.remaining || 0;
   const hasReachedLimit = !hasUnlimitedInvoices && remaining <= 0;
 
   const getTierInfo = () => {
-    if (isEliteUser)
+    if (isCorporationUser)
       return {
         icon: Sparkles,
         color: "text-purple-600 dark:text-purple-400",
         bg: "bg-purple-100 dark:bg-purple-900/30",
-        label: "Elite",
+        label: "Corporation",
       };
-    if (isPremiumUser)
+    if (isEnterpriseUser)
       return {
         icon: Crown,
+        color: "text-amber-600 dark:text-amber-400",
+        bg: "bg-amber-100 dark:bg-amber-900/30",
+        label: "Enterprise",
+      };
+    if (isSMEUser)
+      return {
+        icon: Star,
         color: "text-(--color-accent-yellow)",
         bg: "bg-(--color-accent-yellow)/10",
-        label: "Premium",
+        label: "SME",
       };
-    if (isGrowthUser)
-      return {
-        icon: Zap,
-        color: "text-green-600 dark:text-green-400",
-        bg: "bg-green-100 dark:bg-green-900/30",
-        label: "Growth",
-      };
-    if (isZidLiteUser)
+    if (isSolopreneurUser)
       return {
         icon: Zap,
         color: "text-blue-600 dark:text-blue-400",
         bg: "bg-blue-100 dark:bg-blue-900/30",
-        label: "ZidLite",
+        label: "Solopreneur",
       };
     return {
       icon: Star,
@@ -105,16 +111,16 @@ export default function InvoicePage() {
   const TierIcon = tierInfo.icon;
 
   const getTierMessage = () => {
-    if (isEliteUser) {
+    if (isCorporationUser) {
       return "You have unlimited invoices with priority support!";
     }
-    if (isPremiumUser) {
+    if (isEnterpriseUser) {
       return "You have unlimited invoices!";
     }
-    if (isGrowthUser) {
+    if (isSMEUser) {
       return "You have unlimited invoices!";
     }
-    if (isZidLiteUser) {
+    if (isSolopreneurUser) {
       return `You have ${remaining} invoice${remaining !== 1 ? "s" : ""} remaining.`;
     }
     return null;
@@ -190,59 +196,6 @@ export default function InvoicePage() {
                   </p>
                 </div>
               )}
-
-              {/* {isFree && (
-                <div className="mb-6 bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-soft squircle-lg">
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-(--text-secondary)">
-                        Free Trial Invoice Usage:
-                      </span>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          hasReachedLimit
-                            ? "bg-destructive/20 text-destructive"
-                            : remaining <= 2
-                              ? "bg-yellow-100 text-yellow-600"
-                              : "bg-(--color-lemon-green)/20 text-(--color-lemon-green)"
-                        }`}
-                      >
-                        {usedInvoices}/5 used
-                      </span>
-                    </div>
-
-                    {hasReachedLimit && (
-                      <Link href="/pricing?upgrade=growth">
-                        <Button
-                          size="sm"
-                          className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
-                        >
-                          Upgrade for more invoices
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-
-               
-                  <div className="w-full mt-3">
-                    <div className="w-full h-1.5 bg-(--bg-secondary) rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${
-                          hasReachedLimit
-                            ? "bg-destructive"
-                            : remaining <= 2
-                              ? "bg-(--color-lemon-green)"
-                              : "bg-(--color-accent-yellow)"
-                        }`}
-                        style={{ width: `${(usedInvoices / 5) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-(--text-secondary) mt-1">
-                      {remaining} invoice{remaining !== 1 ? "s" : ""} remaining
-                    </p>
-                  </div>
-                </div>
-              )} */}
 
               {/* CTA Section */}
               <div className="max-w-4xl mx-auto">

@@ -15,7 +15,14 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { userData } = useUserContextData();
-  const { userTier, isPremium, isGrowth, isElite, isZidLite } = useSubscription();
+  const { 
+    userTier, 
+    isSME, 
+    isEnterprise, 
+    isCorporation, 
+    isSolopreneur,
+    isFree 
+  } = useSubscription();
 
   const [form, setForm] = useState<InvoiceForm>({
     name: "",
@@ -66,7 +73,7 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
           if (hasUnlimited) {
             canCreate = true; // Unlimited tiers can always create
           } else {
-            // For limited tiers (free/zidlite), check remaining count
+            // For limited tiers (free/solopreneur), check remaining count
             const remaining = data.invoices.remaining;
             canCreate = typeof remaining === "number" && remaining > 0;
           }
@@ -198,15 +205,15 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     // If still checking, default to false
     if (invoiceUsage.isChecking) return false;
     
-    // Premium/Growth/Elite always have unlimited access
-    if (isPremium || isGrowth || isElite) return true;
+    // SME/Enterprise/Corporation always have unlimited access
+    if (isSME || isEnterprise || isCorporation) return true;
     
-    // For limited tiers (free/zidlite), check if remaining > 0
+    // For limited tiers (free/solopreneur), check if remaining > 0
     if (typeof invoiceUsage.remaining === "number") {
       return invoiceUsage.remaining > 0;
     }
     
-    // If remaining is "unlimited" (shouldn't happen for free/zidlite), return true
+    // If remaining is "unlimited" (shouldn't happen for free/solopreneur), return true
     return invoiceUsage.remaining === "unlimited";
   };
 
@@ -220,7 +227,7 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
   };
 
   // Check if user has unlimited access
-  const hasUnlimitedAccess = isPremium || isGrowth || isElite;
+  const hasUnlimitedAccess = isSME || isEnterprise || isCorporation;
 
   return {
     form,
@@ -238,5 +245,3 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     userTier,
   };
 };
-
-

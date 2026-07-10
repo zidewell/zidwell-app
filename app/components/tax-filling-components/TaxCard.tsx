@@ -26,7 +26,7 @@ interface TaxCardProps {
   onPremiumClick: () => void;
   onCalculate: () => void;
   onReset: () => void;
-  userTier?: "free" | "zidlite" | "growth" | "premium" | "elite";
+  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
 }
 
 export function TaxCard({
@@ -50,57 +50,56 @@ export function TaxCard({
     if (userTier === "free") {
       return {
         icon: Lock,
-        title: "Growth Plan Required",
-        message: "Upgrade to Growth plan to access tax calculations",
+        title: "SME Plan Required",
+        message: "Upgrade to SME plan to access tax calculations",
         buttonText: "View Plans",
-        buttonLink: "/pricing?upgrade=growth",
+        buttonLink: "/pricing?upgrade=sme",
         bgColor: "bg-gray-100 dark:bg-gray-800",
         textColor: "text-gray-700 dark:text-gray-300",
         borderColor: "border-gray-200 dark:border-gray-700",
       };
     }
-    if (userTier === "zidlite") {
+    if (userTier === "solopreneur") {
       return {
         icon: Zap,
-        title: "Growth Plan Required",
-        message: "Tax calculator requires Growth plan or higher",
-        buttonText: "Upgrade to Growth",
-        buttonLink: "/pricing?upgrade=growth",
+        title: "SME Plan Required",
+        message: "Tax calculator requires SME plan or higher",
+        buttonText: "Upgrade to SME",
+        buttonLink: "/pricing?upgrade=sme",
         bgColor: "bg-blue-100 dark:bg-blue-900/20",
         textColor: "text-blue-700 dark:text-blue-400",
         borderColor: "border-blue-200 dark:border-blue-800",
       };
     }
-    if (userTier === "growth") {
+    if (userTier === "sme") {
       return {
-        icon: Zap,
+        icon: Star,
         title: "Basic Tax Calculator",
-        message:
-          "You have access to basic calculations. Upgrade to Premium for filing support.",
-        buttonText: "Upgrade to Premium",
-        buttonLink: "/pricing?upgrade=premium",
+        message: "You have access to basic calculations. Upgrade to Enterprise for filing support.",
+        buttonText: "Upgrade to Enterprise",
+        buttonLink: "/pricing?upgrade=enterprise",
         bgColor: "bg-(--color-accent-yellow)/10",
         textColor: "text-(--color-accent-yellow)",
         borderColor: "border-(--color-accent-yellow)/30",
       };
     }
-    if (userTier === "premium") {
+    if (userTier === "enterprise") {
       return {
         icon: Crown,
-        title: "Premium Feature",
-        message: "You have full access to all tax calculations",
-        buttonText: "Upgrade to Elite",
-        buttonLink: "/pricing?upgrade=elite",
-        bgColor: "bg-(--color-accent-yellow)/10",
-        textColor: "text-(--color-accent-yellow)",
-        borderColor: "border-(--color-accent-yellow)",
+        title: "Enterprise Feature",
+        message: "You have full access to all tax calculations and filing support",
+        buttonText: "Upgrade to Corporation",
+        buttonLink: "/pricing?upgrade=corporation",
+        bgColor: "bg-amber-100 dark:bg-amber-900/20",
+        textColor: "text-amber-700 dark:text-amber-400",
+        borderColor: "border-amber-200 dark:border-amber-800",
       };
     }
-    if (userTier === "elite") {
+    if (userTier === "corporation") {
       return {
         icon: Sparkles,
-        title: "Elite Feature",
-        message: "You have full access including tax filing support",
+        title: "Corporation Feature",
+        message: "You have full access including comprehensive tax filing support",
         buttonText: "Contact Support",
         buttonLink: "/contact",
         bgColor: "bg-purple-100 dark:bg-purple-900/20",
@@ -113,10 +112,10 @@ export function TaxCard({
 
   // Get tier icon for badge
   const getTierIcon = () => {
-    if (userTier === "elite") return Sparkles;
-    if (userTier === "premium") return Crown;
-    if (userTier === "growth") return Zap;
-    if (userTier === "zidlite") return Zap;
+    if (userTier === "corporation") return Sparkles;
+    if (userTier === "enterprise") return Crown;
+    if (userTier === "sme") return Star;
+    if (userTier === "solopreneur") return Zap;
     if (userTier === "free") return Star;
     return Lock;
   };
@@ -126,22 +125,22 @@ export function TaxCard({
 
   // Get tier colors for badge
   const getTierColors = () => {
-    if (userTier === "elite")
+    if (userTier === "corporation")
       return {
         bg: "bg-purple-100 dark:bg-purple-900/20",
         text: "text-purple-700 dark:text-purple-400",
       };
-    if (userTier === "premium")
+    if (userTier === "enterprise")
+      return {
+        bg: "bg-amber-100 dark:bg-amber-900/20",
+        text: "text-amber-700 dark:text-amber-400",
+      };
+    if (userTier === "sme")
       return {
         bg: "bg-(--color-accent-yellow)/10",
         text: "text-(--color-accent-yellow)",
       };
-    if (userTier === "growth")
-      return {
-        bg: "bg-(--color-accent-yellow)/10",
-        text: "text-(--color-accent-yellow)",
-      };
-    if (userTier === "zidlite")
+    if (userTier === "solopreneur")
       return {
         bg: "bg-blue-100 dark:bg-blue-900/20",
         text: "text-blue-600 dark:text-blue-400",
@@ -178,8 +177,8 @@ export function TaxCard({
           >
             <TierIcon className="w-3 h-3" />
             <span className="capitalize">
-              {userTier === "zidlite"
-                ? "ZidLite"
+              {userTier === "solopreneur"
+                ? "Solopreneur"
                 : userTier === "free"
                 ? "Free Trial"
                 : userTier}
@@ -283,8 +282,8 @@ export function TaxCard({
         {disclaimer}
       </p>
 
-      {/* Filing Link - Only show for Premium+ users */}
-      {(userTier === "premium" || userTier === "elite") && (
+      {/* Filing Link - Only show for Enterprise+ users */}
+      {(userTier === "enterprise" || userTier === "corporation") && (
         <div className="space-y-2">
           <a
             href="https://taxpromax.firs.gov.ng"
@@ -294,32 +293,32 @@ export function TaxCard({
           >
             <ExternalLink className="w-4 h-4" /> File via TaxPro Max
           </a>
-          {userTier === "elite" && (
+          {userTier === "corporation" && (
             <p className="text-xs text-purple-600 dark:text-purple-400">
-              ✨ Elite benefit: We'll handle your filing for you. Contact your
+              ✨ Corporation benefit: We'll handle your filing for you. Contact your
               account manager.
             </p>
           )}
         </div>
       )}
 
-      {/* Upgrade prompt for non-Premium users */}
+      {/* Upgrade prompt for non-Enterprise users */}
       {(userTier === "free" ||
-        userTier === "zidlite" ||
-        userTier === "growth") && (
+        userTier === "solopreneur" ||
+        userTier === "sme") && (
         <div className="border-t border-(--border-color) pt-4">
           <p className="text-xs text-(--text-secondary) flex items-center gap-1">
             <Lock className="w-3 h-3" />
-            Tax filing available on Premium and Elite plans
+            Tax filing available on Enterprise and Corporation plans
           </p>
-          {userTier === "growth" && (
+          {userTier === "sme" && (
             <p className="text-xs text-(--color-accent-yellow) mt-1">
-              Upgrade to Premium for tax filing support
+              Upgrade to Enterprise for tax filing support
             </p>
           )}
-          {userTier === "zidlite" && (
+          {userTier === "solopreneur" && (
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-              Upgrade to Growth for tax calculator access
+              Upgrade to SME for tax calculator access
             </p>
           )}
         </div>

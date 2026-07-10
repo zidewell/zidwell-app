@@ -13,14 +13,21 @@ import { useJournal } from "@/app/context/JournalContext";
 
 function BookkeepingPageContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { userTier, isFree, isZidLite, isGrowth, isPremium, isElite } = useSubscription();
+  const { 
+    userTier, 
+    isFree, 
+    isSolopreneur, 
+    isSME, 
+    isEnterprise, 
+    isCorporation 
+  } = useSubscription();
   const { unifiedEntries, activeJournalType } = useJournal();
 
   const getTierInfo = () => {
-    if (isElite) return { icon: Sparkles, label: "Elite", color: "text-purple-500" };
-    if (isPremium) return { icon: Crown, label: "Premium", color: "text-amber-500" };
-    if (isGrowth) return { icon: Zap, label: "Growth", color: "text-blue-500" };
-    if (isZidLite) return { icon: Zap, label: "ZidLite", color: "text-cyan-500" };
+    if (isCorporation) return { icon: Sparkles, label: "Corporation", color: "text-purple-500" };
+    if (isEnterprise) return { icon: Crown, label: "Enterprise", color: "text-amber-500" };
+    if (isSME) return { icon: Star, label: "SME", color: "text-(--color-accent-yellow)" };
+    if (isSolopreneur) return { icon: Zap, label: "Solopreneur", color: "text-blue-500" };
     return { icon: Star, label: "Free Trial", color: "text-gray-400" };
   };
 
@@ -93,7 +100,7 @@ function BookkeepingPageContent() {
                 </div>
               </div>
 
-              {/* Tier-specific message */}
+              {/* Tier-specific messages */}
               {isFree && (
                 <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
                   <p className="text-sm text-muted-foreground">
@@ -101,31 +108,31 @@ function BookkeepingPageContent() {
                   </p>
                 </div>
               )}
-              {isZidLite && (
-                <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium text-primary">📊 ZidLite:</span> Upload bank statements and get automatic bookkeeping from uploaded statements.
+              {isSolopreneur && (
+                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-700 dark:text-blue-400">
+                    <span className="font-medium">📊 Solopreneur:</span> Upload bank statements and get automatic bookkeeping from uploaded statements.
                   </p>
                 </div>
               )}
-              {isGrowth && (
-                <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium text-primary">🚀 Growth:</span> Connect up to 5 Nigerian bank accounts for real-time transaction syncing.
+              {isSME && (
+                <div className="mt-3 p-3 bg-(--color-accent-yellow)/10 rounded-lg border border-(--color-accent-yellow)/30">
+                  <p className="text-sm text-(--color-accent-yellow)">
+                    <span className="font-medium">🚀 SME:</span> Connect up to 3 Nigerian bank accounts for real-time transaction syncing. Tax calculator included!
                   </p>
                 </div>
               )}
-              {isPremium && (
-                <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium text-primary">👑 Premium:</span> Unlimited bank accounts, advanced analytics, tax calculator, and priority support.
+              {isEnterprise && (
+                <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    <span className="font-medium">👑 Enterprise:</span> Connect 5 bank accounts, role-based permissions, downloadable reports, and dedicated onboarding support.
                   </p>
                 </div>
               )}
-              {isElite && (
-                <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium text-primary">✨ Elite:</span> CFO-Level Financial Guidance, Full Tax Filing Support, and dedicated account manager.
+              {isCorporation && (
+                <div className="mt-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                  <p className="text-sm text-purple-700 dark:text-purple-400">
+                    <span className="font-medium">✨ Corporation:</span> Unlimited bank accounts, department-based access, payroll system, advanced reporting, and dedicated account manager.
                   </p>
                 </div>
               )}
