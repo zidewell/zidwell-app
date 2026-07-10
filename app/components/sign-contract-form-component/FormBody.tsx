@@ -107,8 +107,14 @@ const LAWYER_FEE = 10000;
 const FormBody: React.FC = () => {
   const router = useRouter();
   const { userData } = useUserContextData();
-  const { userTier, isPremium, isGrowth, isElite, isZidLite, hasRequiredTier } =
-    useSubscription();
+  const { 
+    userTier, 
+    isSME, 
+    isEnterprise, 
+    isCorporation, 
+    isSolopreneur,
+    hasRequiredTier 
+  } = useSubscription();
 
   const inputCount = 4;
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -128,49 +134,55 @@ const FormBody: React.FC = () => {
 
   // Determine user tier
   const isFree = userTier === "free";
-  const isZidLiteUser = userTier === "zidlite";
-  const isGrowthUser = userTier === "growth";
-  const isPremiumUser = userTier === "premium" || userTier === "elite";
-  const hasUnlimitedContracts = isPremiumUser || isGrowthUser;
+  const isSolopreneurUser = userTier === "solopreneur";
+  const isSMEUser = userTier === "sme";
+  const isEnterpriseUser = userTier === "enterprise";
+  const isCorporationUser = userTier === "corporation";
+
+  // Lawyer signature available for Enterprise and Corporation
+  const canAddLawyerSignature = isEnterpriseUser || isCorporationUser;
+  
+  // Unlimited contracts for SME, Enterprise, Corporation
+  const hasUnlimitedContracts = isSMEUser || isEnterpriseUser || isCorporationUser;
 
   // Contract limits based on tier
-  const contractLimit = isFree
-    ? 1
-    : isZidLiteUser
-      ? 2
-      : isGrowthUser
-        ? 5
-        : Infinity;
+  const contractLimit = isFree || isSolopreneurUser
+    ? 0
+    : isSMEUser
+      ? 1
+      : isEnterpriseUser
+        ? 10
+        : Infinity; // Corporation unlimited
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isElite)
+    if (isCorporationUser)
       return {
         icon: Sparkles,
         color: "text-purple-600",
         bg: "bg-purple-100",
-        label: "Elite",
+        label: "Corporation",
       };
-    if (isPremium)
+    if (isEnterpriseUser)
       return {
         icon: Crown,
-        color: "text-(--color-accent-yellow)",
-        bg: "bg-(--color-accent-yellow)/10",
-        label: "Premium",
+        color: "text-amber-600",
+        bg: "bg-amber-100",
+        label: "Enterprise",
       };
-    if (isGrowth)
+    if (isSMEUser)
       return {
-        icon: Zap,
+        icon: Star,
         color: "text-(--color-accent-yellow)",
         bg: "bg-(--color-accent-yellow)/10",
-        label: "Growth",
+        label: "SME",
       };
-    if (isZidLite)
+    if (isSolopreneurUser)
       return {
         icon: Zap,
         color: "text-blue-600",
         bg: "bg-blue-100",
-        label: "ZidLite",
+        label: "Solopreneur",
       };
     return {
       icon: Star,
@@ -521,27 +533,16 @@ const FormBody: React.FC = () => {
     // Get the contract content
     let contractContent = draft.contract_content || draft.contract_text || "";
 
-    // Log the raw content for debugging
-    console.log("Raw draft content:", {
-      contract_content: draft.contract_content,
-      contract_text: draft.contract_text,
-      type: typeof contractContent,
-      length: contractContent.length,
-    });
-
     // Check if the content is wrapped in quotes (JSON string)
     if (typeof contractContent === "string") {
-      // Remove any extra quotes that might be wrapping the content
       if (contractContent.startsWith('"') && contractContent.endsWith('"')) {
         try {
           contractContent = JSON.parse(contractContent);
         } catch (e) {
-          // If parsing fails, just remove the quotes
           contractContent = contractContent.slice(1, -1);
         }
       }
 
-      // If it's a JSON string that contains HTML, ensure it's properly decoded
       try {
         const parsed = JSON.parse(contractContent);
         if (typeof parsed === "string") {
@@ -551,7 +552,6 @@ const FormBody: React.FC = () => {
         // Not JSON, keep as is
       }
 
-      // Decode HTML entities if present
       const textarea = document.createElement("textarea");
       textarea.innerHTML = contractContent;
       if (textarea.innerHTML !== contractContent) {
@@ -565,7 +565,7 @@ const FormBody: React.FC = () => {
       receiverPhone:
         draft.receiver_phone || draft.phone_number?.toString() || "",
       contractTitle: draft.contract_title || "",
-      contractContent: contractContent, // Use the processed content
+      contractContent: contractContent,
       paymentTerms: paymentTerms,
       ageConsent: draft.age_consent || false,
       termsConsent: draft.terms_consent || false,
@@ -601,6 +601,7 @@ const FormBody: React.FC = () => {
       });
     }, 300);
   };
+
   const showDraftsList = (draftsList: ContractDraft[]) => {
     const draftListHTML = draftsList
       .map(
@@ -999,7 +1000,6 @@ const FormBody: React.FC = () => {
     try {
       setIsSubmitting(true);
 
-      // Save the contract
       const result = await handleSaveContract(false);
 
       if (result.success) {
@@ -1011,7 +1011,6 @@ const FormBody: React.FC = () => {
         setIsSubmitting(false);
         setHasUnsavedChanges(false);
 
-        // Reset form
         setForm({
           receiverName: "",
           receiverEmail: "",
@@ -1080,8 +1079,12 @@ const FormBody: React.FC = () => {
   const handleSubmit = async (isDraft: boolean = false) => {
     if (isSubmitting || isSavingDraft) return;
 
-    // Check limit for free and ZidLite tiers
+    // Check limit for tiers without unlimited contracts
     if (!hasUnlimitedContracts && !isDraft) {
+      if (isFree || isSolopreneurUser) {
+        setShowUpgradePrompt(true);
+        return;
+      }
       if (contractCount >= contractLimit) {
         setShowUpgradePrompt(true);
         return;
@@ -1241,20 +1244,26 @@ const FormBody: React.FC = () => {
 
   const getLimitDisplay = () => {
     if (hasUnlimitedContracts) return "Unlimited";
-    if (isFree) return `${Math.max(0, 1 - contractCount)}/1`;
-    if (isZidLite) return `${Math.max(0, 2 - contractCount)}/2`;
-    if (isGrowth) return `${Math.max(0, 5 - contractCount)}/5`;
+    if (isFree || isSolopreneurUser) return "0/0";
+    if (isSMEUser) return `${Math.max(0, 1 - contractCount)}/1`;
+    if (isEnterpriseUser) return `${Math.max(0, 10 - contractCount)}/10`;
     return "0/0";
   };
 
   const getTierMessage = () => {
-    if (isPremiumUser || isGrowthUser) {
+    if (isCorporationUser) {
       return "You have unlimited contracts! Create as many as you need.";
     }
-    if (isZidLiteUser) {
-      return `You have ${Math.max(0, 2 - contractCount)} contract${Math.max(0, 2 - contractCount) !== 1 ? "s" : ""} remaining.`;
+    if (isEnterpriseUser) {
+      return `You have ${Math.max(0, 10 - contractCount)} contract${Math.max(0, 10 - contractCount) !== 1 ? "s" : ""} remaining.`;
     }
-    return `You have ${Math.max(0, 1 - contractCount)} contract${Math.max(0, 1 - contractCount) !== 1 ? "s" : ""} remaining.`;
+    if (isSMEUser) {
+      return `You have ${Math.max(0, 1 - contractCount)} contract${Math.max(0, 1 - contractCount) !== 1 ? "s" : ""} remaining.`;
+    }
+    if (isSolopreneurUser) {
+      return "Solopreneur plan does not include contracts. Upgrade to SME or higher.";
+    }
+    return "Free plan does not include contracts. Upgrade to SME or higher.";
   };
 
   return (
@@ -1270,9 +1279,11 @@ const FormBody: React.FC = () => {
               Contract Limit Reached
             </h3>
             <p className="text-(--text-secondary) text-center mb-6">
-              {isZidLiteUser
-                ? "You've used all your ZidLite contracts. Upgrade to continue creating unlimited contracts!"
-                : "You've used all your free contracts. Upgrade to continue creating unlimited contracts!"}
+              {isFree || isSolopreneurUser
+                ? "Your plan does not include contracts. Upgrade to SME or higher to create contracts!"
+                : isSMEUser
+                ? "You've used all your SME contracts. Upgrade to Enterprise for more contracts!"
+                : "You've used all your Enterprise contracts. Upgrade to Corporation for unlimited!"}
             </p>
             <div className="flex gap-3">
               <Button
@@ -1282,7 +1293,7 @@ const FormBody: React.FC = () => {
               >
                 Cancel
               </Button>
-              <Link href="/pricing?upgrade=growth" className="flex-1">
+              <Link href="/pricing?upgrade=sme" className="flex-1">
                 <Button className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)">
                   View Plans
                 </Button>
@@ -1434,58 +1445,50 @@ const FormBody: React.FC = () => {
             </div>
           </div>
 
-          {/* Tier Message - For paid tiers */}
+          {/* Tier Message */}
           {!isFree && (
             <div
               className={`mb-6 p-4 rounded-lg border-2 ${
-                isPremiumUser
+                isCorporationUser
                   ? "bg-purple-50 border-purple-200"
-                  : isGrowthUser
-                    ? "bg-(--color-accent-yellow)/5 border-(--color-accent-yellow)/20"
-                    : isZidLiteUser
-                      ? "bg-blue-50 border-blue-200"
-                      : ""
+                  : isEnterpriseUser
+                    ? "bg-amber-50 border-amber-200"
+                    : isSMEUser
+                      ? "bg-(--color-accent-yellow)/5 border-(--color-accent-yellow)/20"
+                      : isSolopreneurUser
+                        ? "bg-blue-50 border-blue-200"
+                        : ""
               }`}
             >
               <p
                 className={`font-medium flex items-center gap-2 ${
-                  isPremiumUser
+                  isCorporationUser
                     ? "text-purple-600"
-                    : isGrowthUser
-                      ? "text-(--color-accent-yellow)"
-                      : isZidLiteUser
-                        ? "text-blue-600"
-                        : ""
+                    : isEnterpriseUser
+                      ? "text-amber-600"
+                      : isSMEUser
+                        ? "text-(--color-accent-yellow)"
+                        : isSolopreneurUser
+                          ? "text-blue-600"
+                          : ""
                 }`}
               >
                 <span
                   className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    isPremiumUser
+                    isCorporationUser
                       ? "bg-purple-100 text-purple-600 border border-purple-200"
-                      : isGrowthUser
-                        ? "bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) border border-(--color-accent-yellow)/20"
-                        : isZidLiteUser
-                          ? "bg-blue-100 text-blue-600 border border-blue-200"
-                          : ""
+                      : isEnterpriseUser
+                        ? "bg-amber-100 text-amber-600 border border-amber-200"
+                        : isSMEUser
+                          ? "bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) border border-(--color-accent-yellow)/20"
+                          : isSolopreneurUser
+                            ? "bg-blue-100 text-blue-600 border border-blue-200"
+                            : ""
                   }`}
                 >
                   {tierInfo.label.toUpperCase()}
                 </span>
                 {getTierMessage()}
-              </p>
-            </div>
-          )}
-
-        
-
-          {/* Premium Banner */}
-          {(isPremiumUser || isGrowthUser) && (
-            <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <p className="text-purple-700 font-medium flex items-center gap-2">
-                <span className="bg-purple-600 text-white px-2 py-1 rounded text-xs uppercase">
-                  {userTier}
-                </span>
-                You have unlimited contracts! No payment required.
               </p>
             </div>
           )}
@@ -1708,7 +1711,6 @@ const FormBody: React.FC = () => {
                     onChange={(value) =>
                       handleFormChange("contractContent", value)
                     }
-                    // disabled={isSubmitting}
                   />
                   {errors.contractContent && (
                     <p className="text-xs text-red-500 mt-1">

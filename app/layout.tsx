@@ -459,7 +459,7 @@ export default function RootLayout({
 
         <link rel="preconnect" href="https://cdn.zidwell.com" />
       </head>
-      <body className="bg-(--bg-primary) text-(--text-primary) antialiased">
+      <body className="bg-(--bg-primary) text-(--text-primary) antialiased"  suppressHydrationWarning={true}>
         {/* Google Analytics Script */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}

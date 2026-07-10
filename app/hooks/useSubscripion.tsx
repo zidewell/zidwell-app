@@ -1,12 +1,22 @@
-// hooks/useSubscription.ts
+// app/hooks/useSubscripion.ts
 import { useUserContextData } from "../context/userData";
-import { useState, useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import useSWR from 'swr';
 
-export type SubscriptionTier = 'free' | 'zidlite' | 'growth' | 'premium' | 'elite';
+export type SubscriptionTier = 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
 
 // Tier hierarchy for access control
-const TIER_HIERARCHY: SubscriptionTier[] = ['free', 'zidlite', 'growth', 'premium', 'elite'];
+const TIER_HIERARCHY: SubscriptionTier[] = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
+
+// Fetcher function for SWR
+const fetcher = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to fetch subscription data');
+  }
+  return response.json();
+};
 
 export const useSubscription = () => {
   const {
@@ -22,325 +32,426 @@ export const useSubscription = () => {
   } = useUserContextData();
 
   const supabase = createClientComponentClient();
-  const [trialStatus, setTrialStatus] = useState<Record<string, any>>({});
+
+  // Cache key for subscription data
+  const subscriptionCacheKey = userData?.id ? `/api/subscription?userId=${userData.id}` : null;
+
+  // Use SWR for subscription data caching
+  const { data: cachedSubscription, mutate: mutateSubscription } = useSWR(
+    subscriptionCacheKey,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 60000, // 1 minute
+      fallbackData: subscription,
+      onError: (error) => {
+        console.error('SWR subscription fetch error:', error);
+      },
+    }
+  );
+
+  // Auto-refresh subscription when data changes
+  useEffect(() => {
+    if (!userData?.id) return;
+
+    const channel = supabase
+      .channel('subscription-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscriptions',
+          filter: `user_id=eq.${userData.id}`,
+        },
+        () => {
+          // Invalidate cache and refetch
+          mutateSubscription();
+          refreshSubscription();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userData?.id, mutateSubscription, refreshSubscription, supabase]);
 
   // Check if user has required tier
   const hasRequiredTier = useCallback((requiredTier: SubscriptionTier): boolean => {
-    if (!subscription?.tier) return false;
-    
-    const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier as SubscriptionTier);
+    const currentTier = cachedSubscription?.tier || subscription?.tier || 'free';
+    const userTierIndex = TIER_HIERARCHY.indexOf(currentTier as SubscriptionTier);
     const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
-    
     return userTierIndex >= requiredTierIndex;
-  }, [subscription?.tier]);
+  }, [cachedSubscription?.tier, subscription?.tier]);
 
-  // Check trial status for a specific feature
-  const checkTrialStatus = useCallback(async (featureKey: string) => {
-    if (!userData?.id) return { isActive: false };
-
-    try {
-      const { data: trial, error } = await supabase
-        .from("user_trials")
-        .select("*")
-        .eq("user_id", userData.id)
-        .eq("feature_key", featureKey)
-        .eq("status", "active")
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (!trial) {
-        return { isActive: false };
-      }
-
-      const now = new Date();
-      const endsAt = new Date(trial.ends_at);
-
-      if (endsAt > now) {
-        const daysRemaining = Math.ceil((endsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        const hoursRemaining = Math.ceil((endsAt.getTime() - now.getTime()) / (1000 * 60 * 60));
-        
-        return { 
-          isActive: true, 
-          daysRemaining,
-          hoursRemaining,
-          endsAt,
-          trialId: trial.id
-        };
-      } else {
-        // Auto-expire if past date
-        await supabase
-          .from("user_trials")
-          .update({ status: "expired", updated_at: new Date().toISOString() })
-          .eq("id", trial.id);
-        
-        return { isActive: false };
-      }
-    } catch (error) {
-      console.error("Error checking trial status:", error);
-      return { isActive: false };
-    }
-  }, [userData?.id, supabase]);
-
-  // Activate a trial for a feature
- const activateTrial = useCallback(async (featureKey: string, durationDays: number = 30) => {
-  if (!userData?.id) return { success: false, error: "User not authenticated" };
-
-  try {
-    // Check if user already had or has a trial
-    const { data: existingTrial } = await supabase
-      .from("user_trials")
-      .select("*")
-      .eq("user_id", userData.id)
-      .eq("feature_key", featureKey)
-      .maybeSingle();
-
-    if (existingTrial) {
-      if (existingTrial.status === 'active') {
-        return { success: false, error: "You already have an active trial for this feature" };
-      }
-      if (existingTrial.status === 'expired') {
-        return { success: false, error: "Your trial for this feature has already expired" };
-      }
-    }
-
-    // Calculate trial dates - 30 days from now
-    const startsAt = new Date();
-    const endsAt = new Date();
-    endsAt.setDate(endsAt.getDate() + durationDays);
-
-    // Create trial record
-    const { data: trial, error } = await supabase
-      .from("user_trials")
-      .insert({
-        user_id: userData.id,
-        feature_key: featureKey,
-        starts_at: startsAt.toISOString(),
-        ends_at: endsAt.toISOString(),
-        status: 'active'
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Update local state
-    setTrialStatus(prev => ({
-      ...prev,
-      [featureKey]: { isActive: true, endsAt, daysRemaining: durationDays }
-    }));
-
-    return { success: true, trial, endsAt };
-  } catch (error: any) {
-    console.error("Error activating trial:", error);
-    return { success: false, error: error.message };
-  }
-}, [userData?.id, supabase]);
-  // Enhanced canAccessFeature with trial support
+  // Enhanced canAccessFeature
   const enhancedCanAccessFeature = useCallback(async (featureKey: string, currentCount?: number) => {
-    // Special handling for trial features
-    const trialFeatures = ['bookkeeping_access', 'tax_calculator_access'];
-    
-    if (trialFeatures.includes(featureKey)) {
-      // First check if user has active trial
-      const trial = await checkTrialStatus(featureKey);
-      if (trial.isActive) {
-        return true;
-      }
-    }
-
-    // Then check regular subscription access
+    // Check regular subscription access
     return canAccessFeature(featureKey, currentCount);
-  }, [canAccessFeature, checkTrialStatus]);
+  }, [canAccessFeature]);
 
-const getPlanLimits = useCallback(() => {
-  const tier = subscription?.tier || 'free';
-  
-  const limits = {
-    free: {
-      invoices: 10, 
-      receipts: 10,  
-      contracts: 1,
-      transferFee: 50,
-      bookkeepingTrial: 30, 
-      taxCalculatorTrial: 30, 
-    },
-    zidlite: {
-      invoices: 20,
-      receipts: 20,
-      contracts: 2,
-      transferFee: 50,
-      bookkeepingTrial: 14,
-      taxCalculatorTrial: 14,
-      whatsappCommunity: true,
-    },
-    growth: {
-      invoices: 'unlimited',
-      receipts: 'unlimited',
-      contracts: 5,
-      transferFee: 50,
-      bookkeepingAccess: true,
-      taxCalculator: true,
-      whatsappCommunity: true,
-    },
-    premium: {
-      invoices: 'unlimited',
-      receipts: 'unlimited',
-      contracts: 'unlimited',
-      transferFee: 50,
-      bookkeepingAccess: true,
-      taxCalculator: true,
-      paymentReminders: true,
-      financialStatements: true,
-      taxSupport: true,
-      prioritySupport: true,
-    },
-    elite: {
-      invoices: 'unlimited',
-      receipts: 'unlimited',
-      contracts: 'unlimited',
-      transferFee: 0,
-      bookkeepingAccess: true,
-      taxCalculator: true,
-      paymentReminders: true,
-      financialStatements: true,
-      taxSupport: true,
-      fullTaxFiling: true,
-      vatFiling: true,
-      payeFiling: true,
-      whtFiling: true,
-      citAudit: true,
-      monthlyTaxFiling: true,
-      yearlyTaxFiling: true,
-      cfoGuidance: true,
-      directWhatsappSupport: true,
-      auditCoordination: true,
-    },
-  };
+  const getPlanLimits = useCallback(() => {
+    const tier = cachedSubscription?.tier || subscription?.tier || 'free';
+    
+    const limits = {
+      free: {
+        invoices: 5,
+        receipts: 5,
+        contracts: 0,
+        teamMembers: 0,
+        bankAccounts: 0,
+        manualBookkeeping: true,
+        autoBookkeeping: true,
+        paymentLinks: true,
+        businessBankAccount: true,
+        basicFinancialOverview: true,
+      },
+      solopreneur: {
+        invoices: 10,
+        receipts: 'unlimited',
+        contracts: 0,
+        teamMembers: 0,
+        bankAccounts: 0,
+        manualBookkeeping: true,
+        autoBookkeeping: true,
+        brandedInvoices: true,
+        expenseTracking: true,
+        financialInsights: true,
+      },
+      sme: {
+        invoices: 'unlimited',
+        receipts: 'unlimited',
+        contracts: 1,
+        teamMembers: 1,
+        bankAccounts: 3,
+        manualBookkeeping: true,
+        autoBookkeeping: true,
+        bankStatementUpload: true,
+        vault: true,
+        taxCalculator: true,
+        financialStatements: true,
+      },
+      enterprise: {
+        invoices: 'unlimited',
+        receipts: 'unlimited',
+        contracts: 10,
+        teamMembers: 'unlimited',
+        bankAccounts: 5,
+        manualBookkeeping: true,
+        autoBookkeeping: true,
+        multiUserAccess: true,
+        rolePermissions: true,
+        approvalSystem: true,
+        downloadableReports: true,
+        dedicatedOnboarding: true,
+      },
+      corporation: {
+        invoices: 'unlimited',
+        receipts: 'unlimited',
+        contracts: 'unlimited',
+        teamMembers: 'unlimited',
+        bankAccounts: 'unlimited',
+        manualBookkeeping: true,
+        autoBookkeeping: true,
+        departmentAccess: true,
+        payrollSystem: true,
+        advancedReporting: true,
+        customFinancialStructure: true,
+        priorityOnboarding: true,
+        dedicatedAccountManager: true,
+      },
+    };
 
-  return limits[tier as keyof typeof limits] || limits.free;
-}, [subscription?.tier]);
+    return limits[tier as keyof typeof limits] || limits.free;
+  }, [cachedSubscription?.tier, subscription?.tier]);
+
   // Get upgrade benefits when moving to a new tier
   const enhancedGetUpgradeBenefits = useCallback((targetTier: SubscriptionTier): string[] => {
-    const currentTier = (subscription?.tier || 'free') as SubscriptionTier;
+    const currentTier = (cachedSubscription?.tier || subscription?.tier || 'free') as SubscriptionTier;
     
-    const benefitsMap = {
-      free_to_zidlite: [
-        "10 invoices total",
-        "10 receipts total",
-        "2 contracts total",
-        "Access to WhatsApp Business Community",
-        "WhatsApp support"
+    const benefitsMap: Record<string, string[]> = {
+      free_to_solopreneur: [
+        "Up to 10 invoices (up from 5)",
+        "Unlimited receipts (up from 5)",
+        "Branded invoices",
+        "Better expense tracking",
+        "Basic financial insights",
       ],
-      free_to_growth: [
+      free_to_sme: [
+        "Upload bank statements (PDF/Excel/CSV)",
+        "Connect up to 3 bank accounts",
         "Unlimited invoices",
         "Unlimited receipts",
-        "5 contracts total",
-        "Bookkeeping tool",
-        "Tax Calculator",
-        "Access to WhatsApp Business Community",
-        "WhatsApp support"
+        "Vault for financial documents",
+        "Tax calculator",
+        "Financial statements (P&L, Cash Flow, Balance Sheet)",
+        "1 extra team member access",
       ],
-      free_to_premium: [
-        "Unlimited invoices & receipts",
+      free_to_enterprise: [
+        "Multi-user access (full team)",
+        "Role-based permissions",
+        "Request & approval system",
+        "Connect 5 bank accounts",
+        "Downloadable financial reports",
+        "10 contracts",
+        "Dedicated onboarding support",
+      ],
+      free_to_corporation: [
         "Unlimited contracts",
-        "Invoice Payment Reminders",
-        "Financial Statement Preparation",
-        "Tax filing support",
-        "Priority support"
+        "Department-based access",
+        "Connect unlimited bank accounts",
+        "Simple payroll system",
+        "Advanced financial reporting",
+        "Custom financial structure setup",
+        "Priority onboarding support",
+        "Dedicated account manager",
       ],
-      free_to_elite: [
-        "Everything in Premium",
-        "Full Tax Filing Support",
-        "CFO-Level Financial Guidance",
-        "Direct WhatsApp Support",
-        "Annual Audit Coordination"
-      ],
-      zidlite_to_growth: [
-        "Unlimited invoices",
+      solopreneur_to_sme: [
+        "Upload bank statements (PDF/Excel/CSV)",
+        "Connect up to 3 bank accounts",
+        "Unlimited invoices (up from 10)",
         "Unlimited receipts",
-        "5 contracts total (up from 2)",
-        "Bookkeeping tool",
-        "Tax Calculator"
+        "Vault for financial documents",
+        "Tax calculator",
+        "Financial statements (P&L, Cash Flow, Balance Sheet)",
+        "1 extra team member access",
       ],
-      zidlite_to_premium: [
-        "Unlimited invoices & receipts",
+      solopreneur_to_enterprise: [
+        "Multi-user access (full team)",
+        "Role-based permissions",
+        "Request & approval system",
+        "Connect 5 bank accounts",
+        "Downloadable financial reports",
+        "10 contracts",
+        "Dedicated onboarding support",
+      ],
+      solopreneur_to_corporation: [
         "Unlimited contracts",
-        "Invoice Payment Reminders",
-        "Financial Statement Preparation",
-        "Tax filing support",
-        "Priority support"
+        "Department-based access",
+        "Connect unlimited bank accounts",
+        "Simple payroll system",
+        "Advanced financial reporting",
+        "Custom financial structure setup",
+        "Priority onboarding support",
+        "Dedicated account manager",
       ],
-      zidlite_to_elite: [
-        "Everything in Premium",
-        "Full Tax Filing Support",
-        "CFO-Level Financial Guidance",
-        "Direct WhatsApp Support",
-        "Annual Audit Coordination"
+      sme_to_enterprise: [
+        "Multi-user access (full team) - unlimited team members",
+        "Role-based permissions (owner, staff, finance, viewer)",
+        "Request & approval system",
+        "Connect 5 bank accounts (up from 3)",
+        "Downloadable financial reports",
+        "10 contracts (up from 1)",
+        "Dedicated onboarding support",
       ],
-      growth_to_premium: [
-        "Unlimited contracts (up from 5)",
-        "Invoice Payment Reminders",
-        "Financial Statement Preparation",
-        "Tax filing support",
-        "Priority support"
+      sme_to_corporation: [
+        "Unlimited contracts (up from 1)",
+        "Department-based access - HR, Finance, Operations, etc",
+        "Connect unlimited bank accounts (up from 3)",
+        "Simple payroll system",
+        "Advanced financial reporting",
+        "Custom financial structure setup",
+        "Priority onboarding support",
+        "Dedicated account manager",
       ],
-      growth_to_elite: [
-        "Everything in Premium",
-        "Full Tax Filing Support",
-        "CFO-Level Financial Guidance",
-        "Direct WhatsApp Support",
-        "Annual Audit Coordination"
+      enterprise_to_corporation: [
+        "Unlimited contracts (up from 10)",
+        "Department-based access - HR, Finance, Operations, etc",
+        "Connect unlimited bank accounts (up from 5)",
+        "Simple payroll system",
+        "Advanced financial reporting",
+        "Custom financial structure setup",
+        "Priority onboarding support (up from dedicated)",
+        "Dedicated account manager",
       ],
-      premium_to_elite: [
-        "Full Tax Filing Support (VAT, PAYE, WHT)",
-        "CIT Audit",
-        "Monthly & Yearly Tax Filing",
-        "CFO-Level Financial Guidance",
-        "Direct WhatsApp Support",
-        "Annual Audit Coordination"
-      ]
     };
 
     const key = `${currentTier}_to_${targetTier}` as keyof typeof benefitsMap;
     return benefitsMap[key] || getUpgradeBenefits(targetTier) || [];
-  }, [subscription?.tier, getUpgradeBenefits]);
+  }, [cachedSubscription?.tier, subscription?.tier, getUpgradeBenefits]);
+
+  // Manual refresh function
+  const refreshAll = useCallback(async () => {
+    await Promise.all([
+      mutateSubscription(),
+      refreshSubscription()
+    ]);
+  }, [mutateSubscription, refreshSubscription]);
+
+  // Get current tier from cache or context
+  const currentTier = cachedSubscription?.tier || subscription?.tier || 'free';
+  const currentStatus = cachedSubscription?.status || subscription?.status || 'active';
+
+  // Tier boolean flags
+  const isFree = currentTier === 'free';
+  const isSolopreneur = currentTier === 'solopreneur';
+  const isSME = currentTier === 'sme';
+  const isEnterprise = currentTier === 'enterprise';
+  const isCorporation = currentTier === 'corporation';
+
+  // Check if user has unlimited access for various features
+  const hasUnlimitedInvoices = isSME || isEnterprise || isCorporation;
+  const hasUnlimitedReceipts = isSME || isEnterprise || isCorporation;
+  const hasUnlimitedContracts = isCorporation || isEnterprise || isSME;
+
+  // Feature access helpers
+  const canAccessTaxCalculator = isSME || isEnterprise || isCorporation;
+  const canAccessTaxSupport = isEnterprise || isCorporation;
+  const canAccessFullTaxFiling = isCorporation;
+  const canAddLawyerSignature = isEnterprise || isCorporation;
+
+  // Get tier display name
+  const getTierDisplayName = useCallback(() => {
+    if (isCorporation) return 'Corporation';
+    if (isEnterprise) return 'Enterprise';
+    if (isSME) return 'SME';
+    if (isSolopreneur) return 'Solopreneur';
+    return 'Free Trial';
+  }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
+
+  // Get tier icon name (for use with lucide icons)
+  const getTierIconName = useCallback(() => {
+    if (isCorporation) return 'Sparkles';
+    if (isEnterprise) return 'Crown';
+    if (isSME) return 'Star';
+    if (isSolopreneur) return 'Zap';
+    return 'Star';
+  }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
+
+  // Get tier colors
+  const getTierColors = useCallback(() => {
+    if (isCorporation) {
+      return {
+        bg: 'bg-purple-100 dark:bg-purple-900/20',
+        border: 'border-purple-200 dark:border-purple-800',
+        text: 'text-purple-600 dark:text-purple-400',
+        badge: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+        hover: 'hover:bg-purple-50 dark:hover:bg-purple-900/30',
+        icon: 'text-purple-600 dark:text-purple-400',
+      };
+    }
+    if (isEnterprise) {
+      return {
+        bg: 'bg-amber-100 dark:bg-amber-900/20',
+        border: 'border-amber-200 dark:border-amber-800',
+        text: 'text-amber-600 dark:text-amber-400',
+        badge: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+        hover: 'hover:bg-amber-50 dark:hover:bg-amber-900/30',
+        icon: 'text-amber-600 dark:text-amber-400',
+      };
+    }
+    if (isSME) {
+      return {
+        bg: 'bg-(--color-accent-yellow)/10',
+        border: 'border-(--color-accent-yellow)/30',
+        text: 'text-(--color-accent-yellow)',
+        badge: 'bg-(--color-accent-yellow)/20 text-(--color-accent-yellow)',
+        hover: 'hover:bg-(--color-accent-yellow)/5',
+        icon: 'text-(--color-accent-yellow)',
+      };
+    }
+    if (isSolopreneur) {
+      return {
+        bg: 'bg-blue-100 dark:bg-blue-900/20',
+        border: 'border-blue-200 dark:border-blue-800',
+        text: 'text-blue-600 dark:text-blue-400',
+        badge: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+        hover: 'hover:bg-blue-50 dark:hover:bg-blue-900/30',
+        icon: 'text-blue-600 dark:text-blue-400',
+      };
+    }
+    return {
+      bg: 'bg-gray-100 dark:bg-gray-800',
+      border: 'border-gray-200 dark:border-gray-700',
+      text: 'text-gray-600 dark:text-gray-400',
+      badge: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+      hover: 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
+      icon: 'text-gray-600 dark:text-gray-400',
+    };
+  }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
+
+  // Get limit for a specific feature
+  const getFeatureLimit = useCallback((feature: 'invoices' | 'receipts' | 'contracts' | 'teamMembers' | 'bankAccounts'): number | string => {
+    const limits = getPlanLimits();
+    return limits[feature] || 0;
+  }, [getPlanLimits]);
+
+  // Check if user has reached a specific limit
+  const hasReachedLimit = useCallback((feature: 'invoices' | 'receipts' | 'contracts' | 'teamMembers' | 'bankAccounts', currentCount: number): boolean => {
+    const limit = getFeatureLimit(feature);
+    if (limit === 'unlimited') return false;
+    return currentCount >= (limit as number);
+  }, [getFeatureLimit]);
+
+  // Get remaining count for a specific feature
+  const getRemainingCount = useCallback((feature: 'invoices' | 'receipts' | 'contracts' | 'teamMembers' | 'bankAccounts', currentCount: number): number | string => {
+    const limit = getFeatureLimit(feature);
+    if (limit === 'unlimited') return 'unlimited';
+    return Math.max(0, (limit as number) - currentCount);
+  }, [getFeatureLimit]);
 
   return {
-    subscription,
+    // Core subscription data
+    subscription: cachedSubscription || subscription,
     loading: subscriptionLoading,
-    refreshSubscription,
+    refreshSubscription: refreshAll,
+    
+    // Tier info
+    userTier: currentTier,
+    currentTier,
+    currentStatus,
+    
+    // Tier boolean flags
+    isFree,
+    isSolopreneur,
+    isSME,
+    isEnterprise,
+    isCorporation,
+    
+    // Legacy aliases for backward compatibility (maps to new tier names)
+    isZidLite: isSolopreneur,      // Legacy: ZidLite → Solopreneur
+    isGrowth: isSME,               // Legacy: Growth → SME
+    isPremium: isEnterprise,       // Legacy: Premium → Enterprise
+    isElite: isCorporation,        // Legacy: Elite → Corporation
+    
+    // Feature access helpers
+    hasUnlimitedInvoices,
+    hasUnlimitedReceipts,
+    hasUnlimitedContracts,
+    canAccessTaxCalculator,
+    canAccessTaxSupport,
+    canAccessFullTaxFiling,
+    canAddLawyerSignature,
+    
+    // Helper functions
+    hasRequiredTier,
     checkFeatureAccess,
     subscribe,
     cancelSubscription,
     getUpgradeBenefits: enhancedGetUpgradeBenefits,
     canAccessFeature: enhancedCanAccessFeature,
-    checkTrialStatus,
-    activateTrial,
-    trialStatus,
-    hasRequiredTier,
     getPlanLimits,
-    
-    // Boolean flags for current tier
-    isFree: subscription?.tier === 'free',
-    isZidLite: subscription?.tier === 'zidlite',
-    isGrowth: subscription?.tier === 'growth',
-    isPremium: subscription?.tier === 'premium',
-    isElite: subscription?.tier === 'elite',
+    getFeatureLimit,
+    hasReachedLimit,
+    getRemainingCount,
+    getTierDisplayName,
+    getTierIconName,
+    getTierColors,
     
     // Status flags
-    isActive: subscription?.status === 'active',
-    isExpired: subscription?.status === 'expired',
-    isCancelled: subscription?.status === 'cancelled',
+    isActive: currentStatus === 'active',
+    isExpired: currentStatus === 'expired',
+    isCancelled: currentStatus === 'cancelled',
     
-    // Tier info
-    userTier: subscription?.tier || 'free',
+    // User info
     userId: userData?.id,
     
     // Expiry info
-    expiresAt: subscription?.expiresAt,
-    daysRemaining: subscription?.expiresAt 
-      ? Math.ceil((new Date(subscription.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    expiresAt: cachedSubscription?.expiresAt || subscription?.expiresAt,
+    daysRemaining: (cachedSubscription?.expiresAt || subscription?.expiresAt)
+      ? Math.ceil((new Date(cachedSubscription?.expiresAt || subscription?.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
       : null,
   };
 };

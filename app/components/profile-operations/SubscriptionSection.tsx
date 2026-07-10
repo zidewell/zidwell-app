@@ -1,12 +1,11 @@
-// app/components/new-profile/SubscriptionSection.tsx
 import React from "react";
 import { useUserContextData } from "@/app/context/userData";
 import { useSubscription } from "@/app/hooks/useSubscripion";
 import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
-import { Crown, Zap, Sparkles, Star, AlertCircle } from "lucide-react";
+import { Crown, Zap, Sparkles, Star, Building2, Briefcase } from "lucide-react";
 
-type Tier = "free" | "zidlite" | "growth" | "premium" | "elite";
+type Tier = "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
 
 interface SubscriptionSectionProps {
   currentTier?: Tier;
@@ -22,87 +21,87 @@ const tiers: {
 }[] = [
   {
     id: "free",
-    name: "Free Trial",
+    name: "Free",
     price: "₦0/mo",
     features: [
-      "Unlimited money transfers at N50 per transfer",
-      "1 month free trial of Bookkeeping",
-      "1 month free trial of Tax Calculator",
-      "10 Invoices total",
-      "10 Receipts total",
-      "1 Contract total",
-      "Basic support",
+      "Manual bookkeeping - Global",
+      "Auto-bookkeeping (Nigeria)",
+      "Payment Links & Sales pages (Nigeria)",
+      "Free business bank account (Nigeria)",
+      "Up to 5 invoices - Global",
+      "Up to 5 receipts - Global",
+      "Basic financial overview - Global",
     ],
     icon: Star,
   },
   {
-    id: "zidlite",
-    name: "ZidLite",
+    id: "solopreneur",
+    name: "Solopreneur",
     price: "₦4,900/mo",
     yearlyPrice: "₦49,000/year (save ₦9,800)",
     features: [
       "Everything in Free, plus:",
-      "Unlimited money transfers at N50 per transfer",
-      "Bookkeeping - 2 weeks free trial",
-      "Tax Calculator - 2 weeks free trial",
-      "20 Invoices total",
-      "20 Receipts total",
-      "2 Contracts total",
-      "Access to WhatsApp Business Community",
-      "WhatsApp support",
+      "Up to 10 invoices - Global",
+      "Unlimited receipts - Global",
+      "Branded invoices - Global",
+      "Better expense tracking - Global",
+      "Basic financial insights - Global",
     ],
-    icon: Zap,
+    icon: Briefcase,
   },
   {
-    id: "growth",
-    name: "Growth",
-    price: "₦9,900/mo",
-    yearlyPrice: "₦99,000/year (save ₦19,800)",
+    id: "sme",
+    name: "SME",
+    price: "₦29,900/mo",
+    yearlyPrice: "₦299,000/year (save ₦59,800)",
     features: [
-      "Everything in Free, plus:",
-      "Unlimited Invoices",
-      "Unlimited Receipts",
-      "5 Contracts total",
-      "Bookkeeping tool",
-      "Tax Calculator",
-      "Access to WhatsApp Business Community",
-      "WhatsApp support",
+      "Everything in Solopreneur, plus:",
+      "Upload bank statements (PDF/Excel/CSV) - Global",
+      "Connect up to 3 bank accounts - Nigeria",
+      "Auto-bookkeeping from connected bank accounts - Nigeria",
+      "Unlimited invoices - Global",
+      "Unlimited receipts - Global",
+      "Vault (store financial documents safely) - Global",
+      "Tax calculator - Global",
+      "Financial statements (P&L, Cash Flow, Balance Sheet) - Global",
+      "1 extra team member access - Global",
     ],
-    icon: Zap,
+    icon: Building2,
   },
   {
-    id: "premium",
-    name: "Premium",
-    price: "₦99,900/mo",
-    yearlyPrice: "₦499,000/year (save ₦99,800)",
+    id: "enterprise",
+    name: "Enterprise",
+    price: "₦100,000/mo",
+    yearlyPrice: "₦1,000,000/year (save ₦200,000)",
     features: [
-      "Everything in Growth, plus:",
-      "Invoice Payment Reminders",
-      "Unlimited contracts",
-      "Financial Statement Preparation",
-      "Tax Calculation Support",
-      "Tax filing support",
-      "Priority support",
+      "Everything in SME, plus:",
+      "Multi-user access (full team) - Global",
+      "Role-based permissions - Global",
+      "Request & approval system - Global",
+      "Connect 5 bank accounts - Nigeria",
+      "Auto-bookkeeping from connected bank accounts - Nigeria",
+      "Downloadable financial reports - Global",
+      "10 Contracts - Global",
+      "Dedicated onboarding support - Global",
     ],
     icon: Crown,
   },
   {
-    id: "elite",
-    name: "Elite",
-    price: "₦250,000+",
-    yearlyPrice: "Customized price",
+    id: "corporation",
+    name: "Corporation",
+    price: "₦300,000+",
+    yearlyPrice: "₦3,000,000/year (save ₦600,000)",
     features: [
-      "Everything in Premium, plus:",
-      "Full Tax Filing Support",
-      "VAT Filing",
-      "PAYE Filing",
-      "WHT Filing",
-      "CIT Audit",
-      "Monthly Tax Filing",
-      "Yearly Tax Filing",
-      "CFO-Level Financial Guidance",
-      "Direct WhatsApp Support",
-      "Annual Audit Coordination",
+      "Everything in Enterprise, plus:",
+      "Unlimited contracts - Global",
+      "Department-based access - HR, Finance, Operations, etc",
+      "Connect unlimited bank accounts - Nigeria",
+      "Auto-bookkeeping from connected bank accounts - Nigeria",
+      "Simple payroll system - Global",
+      "Advanced financial reporting - Global",
+      "Custom financial structure setup - Global",
+      "Priority onboarding support - Global",
+      "Dedicated account manager - Global",
     ],
     icon: Sparkles,
   },
@@ -112,8 +111,14 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
   currentTier: propTier,
 }) => {
   const { subscribe, refreshSubscription } = useUserContextData();
-  const { userTier, isPremium, isGrowth, isElite, isZidLite, isFree } =
-    useSubscription();
+  const { 
+    userTier, 
+    isSME, 
+    isEnterprise, 
+    isCorporation, 
+    isSolopreneur, 
+    isFree 
+  } = useSubscription();
 
   const router = useRouter();
 
@@ -130,22 +135,22 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
     let borderColor = "";
 
     switch (tierId) {
-      case "elite":
+      case "corporation":
         bgColor = "bg-purple-100 dark:bg-purple-900/20";
         textColor = "text-purple-600 dark:text-purple-400";
         borderColor = "border-purple-200 dark:border-purple-800";
         break;
-      case "premium":
-        bgColor = "bg-(--color-accent-yellow)/10";
-        textColor = "text-(--color-accent-yellow)";
-        borderColor = "border-(--color-accent-yellow)";
+      case "enterprise":
+        bgColor = "bg-amber-100 dark:bg-amber-900/20";
+        textColor = "text-amber-600 dark:text-amber-400";
+        borderColor = "border-amber-200 dark:border-amber-800";
         break;
-      case "growth":
+      case "sme":
         bgColor = "bg-(--color-accent-yellow)/10";
         textColor = "text-(--color-accent-yellow)";
         borderColor = "border-(--color-accent-yellow)/30";
         break;
-      case "zidlite":
+      case "solopreneur":
         bgColor = "bg-blue-100 dark:bg-blue-900/20";
         textColor = "text-blue-600 dark:text-blue-400";
         borderColor = "border-blue-200 dark:border-blue-800";
@@ -162,9 +167,11 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
   const handleSubscribe = async (tierId: Tier) => {
     if (tierId === "free") return;
 
+    const tierName = tiers.find((t) => t.id === tierId)?.name || tierId;
+    
     Swal.fire({
-      title: "Upgrade Subscription",
-      text: `You're about to upgrade to the ${tiers.find((t) => t.id === tierId)?.name} plan. You'll be redirected to payment.`,
+      title: `Upgrade to ${tierName}`,
+      text: `You're about to upgrade to the ${tierName} plan. You'll be redirected to payment.`,
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "var(--color-accent-yellow)",
@@ -179,6 +186,9 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
 
   // Get current plan summary
   const currentPlanInfo = getTierInfo(currentTier as Tier);
+
+  // Check if user is on a paid plan
+  const isPaid = currentTier !== "free";
 
   return (
     <div className="neo-card bg-(--bg-primary) p-6 border border-(--border-color) rounded-xl shadow-soft">
@@ -198,7 +208,7 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
                 Current Plan: {currentPlanInfo?.name}
               </h4>
               <p className="text-sm text-(--text-secondary) mt-1">
-                {currentPlanInfo?.price} • {currentPlanInfo?.features[0]}
+                {currentPlanInfo?.price}
               </p>
               {currentPlanInfo?.yearlyPrice && (
                 <p className="text-xs text-(--color-accent-yellow) mt-1">
@@ -208,14 +218,50 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
             </div>
           </div>
 
-          {currentTier !== "elite" && (
+          {currentTier === "free" && (
             <button
-              onClick={() => handleSubscribe("elite")}
+              onClick={() => handleSubscribe("solopreneur")}
+              className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+            >
+              <Briefcase className="w-4 h-4" />
+              Upgrade to Solopreneur
+            </button>
+          )}
+
+          {currentTier === "solopreneur" && (
+            <button
+              onClick={() => handleSubscribe("sme")}
+              className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+            >
+              <Building2 className="w-4 h-4" />
+              Upgrade to SME
+            </button>
+          )}
+
+          {currentTier === "sme" && (
+            <button
+              onClick={() => handleSubscribe("enterprise")}
+              className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+            >
+              <Crown className="w-4 h-4" />
+              Upgrade to Enterprise
+            </button>
+          )}
+
+          {currentTier === "enterprise" && (
+            <button
+              onClick={() => handleSubscribe("corporation")}
               className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
-              Upgrade to Elite
+              Upgrade to Corporation
             </button>
+          )}
+
+          {currentTier === "corporation" && (
+            <div className="text-sm font-medium text-purple-600 dark:text-purple-400">
+              🎉 You're on the highest plan!
+            </div>
           )}
         </div>
       </div>
@@ -230,7 +276,7 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
           const tierInfo = getTierInfo(tier.id);
 
           // Determine if this is an upgrade or downgrade
-          const tierOrder = ["free", "zidlite", "growth", "premium", "elite"];
+          const tierOrder = ["free", "solopreneur", "sme", "enterprise", "corporation"];
           const currentIndex = tierOrder.indexOf(currentTier);
           const tierIndex = tierOrder.indexOf(tier.id);
           const isUpgrade = tierIndex > currentIndex;
@@ -301,13 +347,6 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
                   {isUpgrade ? "Upgrade" : "Switch to This Plan"}
                 </button>
               )}
-
-              {/* Show trial available for free users */}
-              {isFree && tier.id === "zidlite" && (
-                <p className="text-[10px] text-center mt-2 text-(--color-accent-yellow)">
-                  2-week free trial available
-                </p>
-              )}
             </div>
           );
         })}
@@ -315,8 +354,7 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
 
       {/* Plan Comparison Note */}
       <p className="text-xs text-(--text-secondary) text-center mt-6">
-        All plans include core features. Upgrade anytime to unlock more
-        capabilities.
+        Each plan is a clear upgrade in capability, not just more limits.
         <button
           onClick={() => router.push("/pricing")}
           className="ml-1 text-(--color-accent-yellow) hover:underline font-medium"

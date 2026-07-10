@@ -1,5 +1,14 @@
 import { Plus, ShieldCheck, CheckCircle2 } from "lucide-react";
-import { banks } from "@/lib/banks"; 
+
+// Define banks data directly in the component or import with proper typing
+const banks = [
+  { name: "GTBank", short: "GT", color: "#e85d3a" },
+  { name: "Zenith", short: "Z", color: "#cc0000" },
+  { name: "Opay", short: "O", color: "#00b64f" },
+  { name: "PalmPay", short: "P", color: "#7a3cf2" },
+  { name: "Access", short: "A", color: "#f47b20" },
+  { name: "UBA", short: "U", color: "#d4001a" },
+];
 
 export function ConnectedAccounts() {
   return (

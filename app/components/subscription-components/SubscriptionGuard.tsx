@@ -1,55 +1,83 @@
-// components/subscription-page-guard.tsx
+// components/subscription-components/SubscriptionGuard.tsx
 "use client";
 
 import { useSubscription } from "@/app/hooks/useSubscripion";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Crown, Zap, Sparkles, Lock } from "lucide-react";
+import { Crown, Zap, Sparkles, Star, Lock, Building2, Briefcase } from "lucide-react";
 import Link from "next/link";
 
 interface SubscriptionPageGuardProps {
   children: React.ReactNode;
-  requiredTier: "free" | "growth" | "premium" | "elite";
+  requiredTier: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
   featureKey: string;
   title?: string;
   description?: string;
 }
 
 const tierConfig = {
-  growth: {
-    icon: Zap,
+  solopreneur: {
+    icon: Briefcase,
     color: "text-blue-600",
     bg: "bg-blue-50",
-    price: "₦10,000/month",
+    price: "₦4,900/month",
+    yearlyPrice: "₦49,000/year",
     features: [
-      "Full bookkeeping access",
-      "Tax calculator",
-      "Payment reminders",
-      "WhatsApp support",
+      "Up to 10 invoices",
+      "Unlimited receipts",
+      "Branded invoices",
+      "Better expense tracking",
+      "Basic financial insights",
     ],
   },
-  premium: {
-    icon: Crown,
+  sme: {
+    icon: Building2,
     color: "text-(--color-accent-yellow)",
     bg: "bg-(--color-accent-yellow)/10",
-    price: "₦50,000/month",
+    price: "₦29,900/month",
+    yearlyPrice: "₦299,000/year",
     features: [
-      "Financial statements",
-      "Tax filing support",
-      "Priority support",
-      "Unlimited everything",
+      "Tax calculator access",
+      "Unlimited invoices",
+      "Unlimited receipts",
+      "Bank statement uploads",
+      "Connect up to 3 bank accounts",
+      "Financial statements (P&L, Cash Flow, Balance Sheet)",
+      "1 extra team member access",
     ],
   },
-  elite: {
+  enterprise: {
+    icon: Crown,
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+    price: "₦100,000/month",
+    yearlyPrice: "₦1,000,000/year",
+    features: [
+      "Full tax calculator",
+      "Tax filing support",
+      "Financial statements",
+      "Role-based permissions",
+      "Request & approval system",
+      "Connect 5 bank accounts",
+      "10 contracts",
+      "Dedicated onboarding support",
+    ],
+  },
+  corporation: {
     icon: Sparkles,
     color: "text-purple-600",
     bg: "bg-purple-50",
-    price: "₦100,000+/month",
+    price: "₦300,000+/month",
+    yearlyPrice: "₦3,000,000/year",
     features: [
       "Full tax filing (VAT, PAYE, WHT)",
-      "CFO-level guidance",
+      "Unlimited contracts",
+      "Department-based access",
+      "Unlimited bank accounts",
+      "Payroll system",
+      "Advanced financial reporting",
+      "Priority onboarding support",
       "Dedicated account manager",
-      "Audit coordination",
     ],
   },
 };
@@ -61,7 +89,7 @@ export function SubscriptionPageGuard({
   title = "Premium Feature",
   description = "This feature requires an upgraded plan",
 }: SubscriptionPageGuardProps) {
-  const { canAccessFeature, loading, subscription } = useSubscription();
+  const { canAccessFeature, loading, subscription, userTier } = useSubscription();
   const router = useRouter();
   const [checking, setChecking] = useState(true);
 
@@ -93,6 +121,15 @@ export function SubscriptionPageGuard({
     const config = tierConfig[requiredTier as keyof typeof tierConfig];
     const Icon = config?.icon || Lock;
 
+    // Get the display name for the tier
+    const getTierDisplayName = (tier: string) => {
+      if (tier === "solopreneur") return "Solopreneur";
+      if (tier === "sme") return "SME";
+      if (tier === "enterprise") return "Enterprise";
+      if (tier === "corporation") return "Corporation";
+      return tier;
+    };
+
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Keep sidebar and header but show upgrade content */}
@@ -106,7 +143,7 @@ export function SubscriptionPageGuard({
           <h1 className="text-3xl font-bold text-gray-900 mb-3">{title}</h1>
 
           <p className="text-gray-600 text-center max-w-md mb-8">
-            {description}. Upgrade to {requiredTier} plan to unlock this feature
+            {description}. Upgrade to {getTierDisplayName(requiredTier)} plan to unlock this feature
             and many more benefits.
           </p>
 
@@ -114,7 +151,7 @@ export function SubscriptionPageGuard({
             <div className="bg-white rounded-xl border-2 border-gray-200 p-6 mb-8 max-w-md w-full">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <Icon className={`w-5 h-5 ${config.color}`} />
-                <span className="capitalize">{requiredTier} Plan Benefits</span>
+                <span className="capitalize">{getTierDisplayName(requiredTier)} Plan Benefits</span>
               </h3>
               <ul className="space-y-3 mb-6">
                 {config.features.map((feature, index) => (
@@ -131,18 +168,25 @@ export function SubscriptionPageGuard({
               <p className="text-2xl font-bold text-gray-900 mb-4">
                 {config.price}
               </p>
+              {config.yearlyPrice && (
+                <p className="text-sm text-(--color-accent-yellow) mb-4">
+                  {config.yearlyPrice}
+                </p>
+              )}
               <Link
                 href={`/pricing?upgrade=${requiredTier}`}
                 className={`block w-full py-3 px-4 rounded-lg text-center font-bold transition-all
                   ${
-                    requiredTier === "premium"
-                      ? "bg-(--color-accent-yellow) text-gray-900 hover:bg-(--color-accent-yellow)/90"
-                      : requiredTier === "elite"
+                    requiredTier === "enterprise"
+                      ? "bg-amber-600 text-white hover:bg-amber-700"
+                      : requiredTier === "corporation"
                         ? "bg-purple-600 text-white hover:bg-purple-700"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        : requiredTier === "sme"
+                          ? "bg-(--color-accent-yellow) text-gray-900 hover:bg-(--color-accent-yellow)/90"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
                   }`}
               >
-                Upgrade to {requiredTier}
+                Upgrade to {getTierDisplayName(requiredTier)}
               </Link>
             </div>
           )}

@@ -19,8 +19,13 @@ const Page = () => {
   const [contracts, setContracts] = useState<any[]>([]);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   const { userData } = useUserContextData();
-  const { userTier, isPremium, isGrowth, isElite, isZidLite } =
-    useSubscription();
+  const { 
+    userTier, 
+    isSME, 
+    isEnterprise, 
+    isCorporation, 
+    isSolopreneur 
+  } = useSubscription();
   const fetchStartedRef = useRef(false);
 
   const fetchContracts = useCallback(
@@ -74,36 +79,36 @@ const Page = () => {
   const contractCount = contracts.length;
 
   const isFree = userTier === "free";
-  const isZidLiteUser = userTier === "zidlite";
-  const isGrowthUser = userTier === "growth";
-  const isPremiumUser = userTier === "premium";
-  const isEliteUser = userTier === "elite";
+  const isSolopreneurUser = userTier === "solopreneur";
+  const isSMEUser = userTier === "sme";
+  const isEnterpriseUser = userTier === "enterprise";
+  const isCorporationUser = userTier === "corporation";
 
-  const hasUnlimitedContracts = isPremiumUser || isEliteUser || isGrowthUser;
+  const hasUnlimitedContracts = isEnterpriseUser || isCorporationUser || isSMEUser;
 
   const contractLimit = useMemo(() => {
     if (hasUnlimitedContracts) return "unlimited";
-    if (isZidLiteUser) return 2;
-    return 1;
-  }, [userTier, hasUnlimitedContracts, isZidLiteUser]);
+    if (isSMEUser) return 1;
+    return 0; // free and solopreneur have 0 contracts
+  }, [userTier, hasUnlimitedContracts, isSMEUser]);
 
   const hasReachedLimit = useMemo(() => {
     if (hasUnlimitedContracts) return false;
-    if (isZidLiteUser) return contractCount >= 2;
-    return contractCount >= 1;
-  }, [userTier, hasUnlimitedContracts, isZidLiteUser, contractCount]);
+    if (isSMEUser) return contractCount >= 1;
+    return contractCount >= 0; // free and solopreneur can't create contracts
+  }, [userTier, hasUnlimitedContracts, isSMEUser, contractCount]);
 
   const remainingContracts = useMemo(() => {
     if (hasUnlimitedContracts) return "unlimited";
-    if (isZidLiteUser) return Math.max(0, 2 - contractCount);
-    return Math.max(0, 1 - contractCount);
-  }, [userTier, hasUnlimitedContracts, isZidLiteUser, contractCount]);
+    if (isSMEUser) return Math.max(0, 1 - contractCount);
+    return 0;
+  }, [userTier, hasUnlimitedContracts, isSMEUser, contractCount]);
 
   const getTierInfo = () => {
-    if (isEliteUser) return { icon: Sparkles, label: "Elite" };
-    if (isPremiumUser) return { icon: Crown, label: "Premium" };
-    if (isGrowthUser) return { icon: Zap, label: "Growth" };
-    if (isZidLiteUser) return { icon: Zap, label: "ZidLite" };
+    if (isCorporationUser) return { icon: Sparkles, label: "Corporation" };
+    if (isEnterpriseUser) return { icon: Crown, label: "Enterprise" };
+    if (isSMEUser) return { icon: Star, label: "SME" };
+    if (isSolopreneurUser) return { icon: Zap, label: "Solopreneur" };
     return { icon: Star, label: "Free Trial" };
   };
 
@@ -111,19 +116,19 @@ const Page = () => {
   const TierIcon = tierInfo.icon;
 
   const getTierMessage = () => {
-    if (isEliteUser) {
+    if (isCorporationUser) {
       return "You have unlimited contracts with priority support!";
     }
-    if (isPremiumUser) {
-      return "You have unlimited contracts!";
+    if (isEnterpriseUser) {
+      return "You have 10 contracts included in your subscription.";
     }
-    if (isGrowthUser) {
-      return "You have 5 contracts included in your subscription.";
+    if (isSMEUser) {
+      return "You have 1 contract included in your subscription.";
     }
-    if (isZidLiteUser) {
-      return `You have ${remainingContracts} contract${remainingContracts !== 1 ? "s" : ""} remaining in your ZidLite plan.`;
+    if (isSolopreneurUser) {
+      return "Solopreneur plan does not include contracts. Upgrade to SME or higher.";
     }
-    return null;
+    return "Free plan does not include contracts. Upgrade to SME or higher.";
   };
 
   const tierMessage = getTierMessage();
@@ -149,7 +154,7 @@ const Page = () => {
 
   return (
     <SubscriptionPageGuard
-      requiredTier="free"
+      requiredTier="sme"
       featureKey="contracts_per_month"
       title="Smart Contract Generator"
       description="Create legally binding agreements, contracts, and NDAs with our easy-to-use contract generator"
@@ -191,12 +196,23 @@ const Page = () => {
                 </div>
               </div>
 
-           
+              {/* Tier Message */}
+              {tierMessage && (
+                <div className="mb-6 p-4 rounded-md border-2 bg-(--bg-secondary) border-(--border-color) shadow-soft squircle-lg">
+                  <p className="font-medium flex items-center gap-2 text-(--text-primary)">
+                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-(--color-accent-yellow) text-(--color-ink)">
+                      {tierInfo.label.toUpperCase()}
+                    </span>
+                    {tierMessage}
+                  </p>
+                </div>
+              )}
+
               <ContractGen
                 contracts={contracts}
                 loading={loading}
                 userTier={userTier}
-                isPremium={isPremiumUser || isGrowthUser}
+                isPremium={isEnterpriseUser || isCorporationUser}
                 hasReachedLimit={hasReachedLimit}
                 remainingContracts={remainingContracts}
                 onRefresh={() =>

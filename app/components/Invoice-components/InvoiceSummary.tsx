@@ -1,3 +1,4 @@
+// app/components/Invoice-components/InvoiceSummary.tsx
 "use client";
 
 import { Button } from "../ui/button";
@@ -57,7 +58,7 @@ interface InvoiceSummaryProps {
   onBack: () => void;
   onConfirm: () => void;
   usageInfo?: InvoiceUsageInfo;
-  userTier?: "free" | "zidlite" | "growth" | "premium" | "elite";
+  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
 }
 
 export default function InvoiceSummary({
@@ -73,11 +74,11 @@ export default function InvoiceSummary({
   userTier = "free",
 }: InvoiceSummaryProps) {
   const isFree = userTier === "free";
-  const isZidLite = userTier === "zidlite";
-  const isGrowth = userTier === "growth";
-  const isPremium = userTier === "premium";
-  const isElite = userTier === "elite";
-  const hasUnlimited = isPremium || isElite || isGrowth;
+  const isSolopreneur = userTier === "solopreneur";
+  const isSME = userTier === "sme";
+  const isEnterprise = userTier === "enterprise";
+  const isCorporation = userTier === "corporation";
+  const hasUnlimited = isSME || isEnterprise || isCorporation;
 
   const getRemaining = (): number => {
     if (usageInfo) {
@@ -93,37 +94,36 @@ export default function InvoiceSummary({
   const isChecking = usageInfo?.isChecking || false;
 
   const getTierIcon = () => {
-    if (isElite) return <Sparkles className="w-5 h-5 text-purple-600" />;
-    if (isPremium)
-      return <Crown className="w-5 h-5 text-(--color-accent-yellow)" />;
-    if (isGrowth) return <Zap className="w-5 h-5 text-green-600" />;
-    if (isZidLite) return <Zap className="w-5 h-5 text-blue-600" />;
+    if (isCorporation) return <Sparkles className="w-5 h-5 text-purple-600" />;
+    if (isEnterprise) return <Crown className="w-5 h-5 text-amber-600" />;
+    if (isSME) return <Star className="w-5 h-5 text-(--color-accent-yellow)" />;
+    if (isSolopreneur) return <Zap className="w-5 h-5 text-blue-600" />;
     return <Star className="w-5 h-5 text-gray-600" />;
   };
 
   const getTierColors = () => {
-    if (isElite)
+    if (isCorporation)
       return {
         bg: "bg-purple-50 dark:bg-purple-900/20",
         border: "border-purple-200 dark:border-purple-800",
         text: "text-purple-700 dark:text-purple-400",
         btn: "bg-purple-600 hover:bg-purple-700",
       };
-    if (isPremium)
+    if (isEnterprise)
+      return {
+        bg: "bg-amber-50 dark:bg-amber-900/20",
+        border: "border-amber-200 dark:border-amber-800",
+        text: "text-amber-700 dark:text-amber-400",
+        btn: "bg-amber-600 hover:bg-amber-700",
+      };
+    if (isSME)
       return {
         bg: "bg-(--color-accent-yellow)/10",
         border: "border-(--color-accent-yellow)",
         text: "text-(--color-accent-yellow)",
         btn: "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)",
       };
-    if (isGrowth)
-      return {
-        bg: "bg-green-50 dark:bg-green-900/20",
-        border: "border-green-200 dark:border-green-800",
-        text: "text-green-700 dark:text-green-400",
-        btn: "bg-green-600 hover:bg-green-700 text-white",
-      };
-    if (isZidLite)
+    if (isSolopreneur)
       return {
         bg: "bg-blue-50 dark:bg-blue-900/20",
         border: "border-blue-200 dark:border-blue-800",
@@ -142,10 +142,10 @@ export default function InvoiceSummary({
   const tierIcon = getTierIcon();
 
   const getTierDisplayName = () => {
-    if (isElite) return "Elite";
-    if (isPremium) return "Premium";
-    if (isGrowth) return "Growth";
-    if (isZidLite) return "ZidLite";
+    if (isCorporation) return "Corporation";
+    if (isEnterprise) return "Enterprise";
+    if (isSME) return "SME";
+    if (isSolopreneur) return "Solopreneur";
     return "Free Trial";
   };
 
@@ -468,10 +468,10 @@ export default function InvoiceSummary({
                             variant="link"
                             className="p-0 h-auto text-(--color-accent-yellow) font-semibold underline"
                             onClick={() =>
-                              (window.location.href = "/pricing?upgrade=growth")
+                              (window.location.href = "/pricing?upgrade=sme")
                             }
                           >
-                            Upgrade to Growth
+                            Upgrade to SME
                           </Button>{" "}
                           for unlimited invoices
                         </li>
@@ -496,7 +496,7 @@ export default function InvoiceSummary({
                 {hasReachedLimit ? (
                   <Button
                     onClick={() =>
-                      (window.location.href = "/pricing?upgrade=growth")
+                      (window.location.href = "/pricing?upgrade=sme")
                     }
                     className="px-8 bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
                   >

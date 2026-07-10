@@ -26,7 +26,6 @@ export function SubscriptionDashboard() {
     getUpgradeBenefits,
     userTier,
     isActive,
-    checkTrialStatus,
     getPlanLimits,
     isFree,
     isZidLite,
@@ -39,13 +38,6 @@ export function SubscriptionDashboard() {
   const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
   const [taxCalculatorTrial, setTaxCalculatorTrial] = useState<any>(null);
 
-  // Check for active trials
-  useEffect(() => {
-    if (isFree || isZidLite) {
-      checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
-      checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
-    }
-  }, [isFree, isZidLite, checkTrialStatus]);
 
   if (loading) {
     return (
@@ -259,9 +251,9 @@ export function SubscriptionDashboard() {
                     <span className="text-gray-600 dark:text-gray-400">
                       Transfer fee:
                     </span>
-                    <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
+                    {/* <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
                       ₦{limits.transferFee} per transfer
-                    </span>
+                    </span> */}
                   </div>
                 </div>
 

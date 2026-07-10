@@ -26,7 +26,7 @@ import Link from "next/link";
 type Props = {
   contracts: any[];
   loading: boolean;
-  userTier?: "free" | "zidlite" | "growth" | "premium" | "elite";
+  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
   isPremium?: boolean;
   hasReachedLimit?: boolean;
   onRefresh?: () => void;
@@ -49,16 +49,31 @@ const ContractList: React.FC<Props> = ({
   // Get tier icon
   const getTierIcon = (tier: string) => {
     switch (tier) {
-      case "elite":
+      case "corporation":
         return <Sparkles className="w-3 h-3" />;
-      case "premium":
+      case "enterprise":
         return <Crown className="w-3 h-3" />;
-      case "growth":
-        return <Zap className="w-3 h-3" />;
-      case "zidlite":
+      case "sme":
+        return <Star className="w-3 h-3" />;
+      case "solopreneur":
         return <Zap className="w-3 h-3" />;
       default:
         return <Star className="w-3 h-3" />;
+    }
+  };
+
+  const getTierLabel = (tier: string) => {
+    switch (tier) {
+      case "corporation":
+        return "Corporation";
+      case "enterprise":
+        return "Enterprise";
+      case "sme":
+        return "SME";
+      case "solopreneur":
+        return "Solopreneur";
+      default:
+        return "Free";
     }
   };
 
@@ -73,7 +88,6 @@ const ContractList: React.FC<Props> = ({
 
   const handleContinueDraft = useCallback(
     (contract: any) => {
-      // Store contract data in sessionStorage to load it in the form
       sessionStorage.setItem(
         "draftToLoad",
         JSON.stringify({
@@ -92,7 +106,6 @@ const ContractList: React.FC<Props> = ({
         }),
       );
 
-      // Navigate to the create contract page with draft ID
       router.push(
         `/dashboard/services/contract/create-contract-form?draftId=${contract.id}`,
       );
@@ -101,7 +114,6 @@ const ContractList: React.FC<Props> = ({
   );
 
   const handleDownload = useCallback(async (contract: any) => {
-    // Don't allow download for draft contracts
     if (contract.status === "draft") {
       Swal.fire(
         "Cannot Download Draft",
@@ -223,7 +235,6 @@ const ContractList: React.FC<Props> = ({
           contract.sent_at?.toDate?.() || new Date(contract.sent_at);
         const isDownloading = loadingMap[contract.id];
 
-        // Ensure status is a valid key for statusColors
         const validStatus =
           status === "signed" || status === "pending" || status === "draft"
             ? (status as ContractStatus)
@@ -246,21 +257,19 @@ const ContractList: React.FC<Props> = ({
                       {status}
                     </Badge>
 
-                    {/* Show lawyer signature badge if present */}
                     {contract.has_lawyer_signature && (
                       <Badge className="bg-purple-100 text-purple-800">
                         👨‍⚖️ Lawyer Signed
                       </Badge>
                     )}
 
-                    {/* Show tier badge on contract */}
                     <Badge
                       variant="outline"
                       className="bg-(--bg-secondary) border-(--border-color) text-(--text-secondary)"
                     >
                       {getTierIcon(userTier)}
                       <span className="ml-1 text-xs capitalize">
-                        {userTier}
+                        {getTierLabel(userTier)}
                       </span>
                     </Badge>
                   </div>
@@ -284,7 +293,6 @@ const ContractList: React.FC<Props> = ({
                     View
                   </Button>
 
-                  {/* Continue Draft Button - Only for draft status */}
                   {status === "draft" && (
                     <Button
                       variant="outline"
@@ -297,7 +305,6 @@ const ContractList: React.FC<Props> = ({
                     </Button>
                   )}
 
-                  {/* Edit Button - Only for draft or pending */}
                   {(status === "draft" || status === "pending") &&
                     status !== "draft" && (
                       <Button
@@ -314,7 +321,6 @@ const ContractList: React.FC<Props> = ({
                       </Button>
                     )}
 
-                  {/* Download Button - Only for signed or completed contracts */}
                   {status !== "draft" && (
                     <Button
                       onClick={() => handleDownload(contract)}
@@ -337,7 +343,6 @@ const ContractList: React.FC<Props> = ({
         );
       })}
 
-      {/* Preview Modal */}
       <ContractsPreview
         isOpen={isPreviewOpen}
         contract={selectedContract}

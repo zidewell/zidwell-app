@@ -138,9 +138,10 @@ export default function Pricing() {
     subscribe,
     loading,
     userTier,
-    canAccessFeature,
-    checkTrialStatus,
-    activateTrial,
+    canAccessFeature
+    // ,
+    // checkTrialStatus,
+    // activateTrial,
   } = useSubscription();
   const { userData } = useUserContextData();
   const [selectedBilling, setSelectedBilling] = useState<"monthly" | "yearly">(
@@ -165,12 +166,12 @@ export default function Pricing() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    if (subscription?.tier === "free") {
-      checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
-      checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
-    }
-  }, [subscription?.tier, checkTrialStatus]);
+  // useEffect(() => {
+  //   if (subscription?.tier === "free") {
+  //     checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
+  //     checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
+  //   }
+  // }, [subscription?.tier, checkTrialStatus]);
 
   useEffect(() => {
     if (upgradeParam && plans.some((p) => p.tier === upgradeParam)) {
@@ -306,27 +307,27 @@ export default function Pricing() {
   const isCurrentPlan = (tier: string) =>
     subscription?.tier === tier && subscription?.status === "active";
 
-  const handleActivateTrial = async (
-    trialType: "bookkeeping" | "tax_calculator",
-  ) => {
-    try {
-      const featureKey =
-        trialType === "bookkeeping"
-          ? "bookkeeping_access"
-          : "tax_calculator_access";
-      const result = await activateTrial(featureKey, 14);
-      if (result.success) {
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 5000);
-        if (trialType === "bookkeeping")
-          checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
-        else
-          checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
-      } else setError(result.error || "Failed to activate trial");
-    } catch (error: any) {
-      setError(error.message);
-    }
-  };
+  // const handleActivateTrial = async (
+  //   trialType: "bookkeeping" | "tax_calculator",
+  // ) => {
+  //   try {
+  //     const featureKey =
+  //       trialType === "bookkeeping"
+  //         ? "bookkeeping_access"
+  //         : "tax_calculator_access";
+  //     const result = await activateTrial(featureKey, 14);
+  //     if (result.success) {
+  //       setShowSuccess(true);
+  //       setTimeout(() => setShowSuccess(false), 5000);
+  //       if (trialType === "bookkeeping")
+  //         checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
+  //       else
+  //         checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
+  //     } else setError(result.error || "Failed to activate trial");
+  //   } catch (error: any) {
+  //     setError(error.message);
+  //   }
+  // };
 
   return (
     <section id="pricing" className="py-20 md:py-32 bg-(--bg-primary)">
@@ -508,7 +509,7 @@ export default function Pricing() {
                       ? "Current Plan"
                       : plan.cta}
                 </Button>
-                {plan.tier === "free" && subscription?.tier === "free" && (
+                {/* {plan.tier === "free" && subscription?.tier === "free" && (
                   <div className="mt-3 space-y-2">
                     {!bookkeepingTrial?.isActive && (
                       <button
@@ -527,7 +528,7 @@ export default function Pricing() {
                       </button>
                     )}
                   </div>
-                )}
+                )} */}
               </div>
             );
           })}

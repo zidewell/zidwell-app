@@ -30,11 +30,11 @@ export default function ReceiptPage() {
   const { userData } = useUserContextData();
   const {
     userTier,
-    isPremium,
-    isGrowth,
-    isElite,
-    isZidLite,
-    checkTrialStatus,
+    isSME,
+    isEnterprise,
+    isCorporation,
+    isSolopreneur,
+    isFree,
   } = useSubscription();
 
   const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
@@ -82,64 +82,56 @@ export default function ReceiptPage() {
   const receiptCount = receipts.length;
 
   // Tier-based limits
-  const isFree = userTier === "free";
-  const isZidLiteUser = userTier === "zidlite";
-  const hasUnlimitedReceipts = isPremium || isGrowth || isElite;
-
-  useEffect(() => {
-    if (isFree) {
-      checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
-      checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
-    }
-  }, [isFree, checkTrialStatus]);
+  const isSolopreneurUser = userTier === "solopreneur";
+  const hasUnlimitedReceipts = isSME || isEnterprise || isCorporation;
 
   const receiptLimit = useMemo(() => {
     if (hasUnlimitedReceipts) return "unlimited";
-    if (isZidLiteUser) return 20;
+    if (isSolopreneurUser) return 10;
     return 5; // free tier
-  }, [userTier, isZidLiteUser, hasUnlimitedReceipts]);
+  }, [userTier, isSolopreneurUser, hasUnlimitedReceipts]);
 
   const hasReachedLimit = useMemo(() => {
     if (hasUnlimitedReceipts) return false;
-    if (isZidLiteUser) return receiptCount >= 20;
+    if (isSolopreneurUser) return receiptCount >= 10;
     return receiptCount >= 5; // free tier
-  }, [userTier, isZidLiteUser, hasUnlimitedReceipts, receiptCount]);
+  }, [userTier, isSolopreneurUser, hasUnlimitedReceipts, receiptCount]);
 
   const remainingReceipts = useMemo(() => {
     if (hasUnlimitedReceipts) return "unlimited";
-    if (isZidLiteUser) return Math.max(0, 20 - receiptCount);
+    if (isSolopreneurUser) return Math.max(0, 10 - receiptCount);
     return Math.max(0, 5 - receiptCount);
-  }, [userTier, isZidLiteUser, hasUnlimitedReceipts, receiptCount]);
+  }, [userTier, isSolopreneurUser, hasUnlimitedReceipts, receiptCount]);
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isElite)
+    if (isCorporation)
       return {
         icon: Sparkles,
         color: "text-purple-600 dark:text-purple-400",
         bg: "bg-purple-100 dark:bg-purple-900/20",
-        label: "Elite",
+        label: "Corporation",
       };
-    if (isPremium)
+    if (isEnterprise)
       return {
         icon: Crown,
-        color: "text-(--color-accent-yellow)",
-        bg: "bg-(--color-accent-yellow)/10",
-        label: "Premium",
+        color: "text-amber-600 dark:text-amber-400",
+        bg: "bg-amber-100 dark:bg-amber-900/20",
+        label: "Enterprise",
       };
-    if (isGrowth)
+    if (isSME)
       return {
-        icon: Zap,
+        icon: Star,
         color: "text-(--color-accent-yellow)",
         bg: "bg-(--color-accent-yellow)/10",
-        label: "Growth",
+        label: "SME",
       };
-    if (isZidLiteUser)
+    if (isSolopreneurUser)
       return {
         icon: Zap,
         color: "text-blue-600 dark:text-blue-400",
         bg: "bg-blue-100 dark:bg-blue-900/20",
-        label: "ZidLite",
+        label: "Solopreneur",
       };
     return {
       icon: Star,
@@ -154,14 +146,18 @@ export default function ReceiptPage() {
 
   // Get status banner based on tier
   const getStatusBanner = () => {
-    // Premium/Elite/Growth - Unlimited
+    // SME/Enterprise/Corporation - Unlimited
     if (hasUnlimitedReceipts) {
       return {
-        bg: isElite
+        bg: isCorporation
           ? "bg-purple-50 dark:bg-purple-900/20"
+          : isEnterprise
+          ? "bg-amber-50 dark:bg-amber-900/20"
           : "bg-(--color-accent-yellow)/10",
-        border: isElite
+        border: isCorporation
           ? "border-purple-200 dark:border-purple-800"
+          : isEnterprise
+          ? "border-amber-200 dark:border-amber-800"
           : "border-(--color-accent-yellow)",
         icon: <TierIcon className={`w-5 h-5 ${tierInfo.color}`} />,
         title: `${tierInfo.label} Plan`,
@@ -170,8 +166,8 @@ export default function ReceiptPage() {
       };
     }
 
-    // ZidLite - Show usage
-    if (isZidLiteUser) {
+    // Solopreneur - Show usage
+    if (isSolopreneurUser) {
       if (hasReachedLimit) {
         return {
           bg: "bg-red-50 dark:bg-red-900/20",
@@ -179,14 +175,14 @@ export default function ReceiptPage() {
           icon: (
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
           ),
-          title: "ZidLite Limit Reached",
-          message: `You've used all ${receiptCount}/20 receipts. Upgrade to continue creating receipts.`,
+          title: "Solopreneur Limit Reached",
+          message: `You've used all ${receiptCount}/10 receipts. Upgrade to continue creating receipts.`,
           showUpgrade: true,
           upgradeText: "Upgrade for Unlimited",
         };
       }
 
-      if (receiptCount >= 15) {
+      if (receiptCount >= 8) {
         return {
           bg: "bg-yellow-50 dark:bg-yellow-900/20",
           border: "border-yellow-200 dark:border-yellow-800",
@@ -194,9 +190,9 @@ export default function ReceiptPage() {
             <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
           ),
           title: "Limited Receipts Remaining",
-          message: `You have ${remainingReceipts} ZidLite receipt${remainingReceipts !== 1 ? "s" : ""} left.`,
+          message: `You have ${remainingReceipts} Solopreneur receipt${remainingReceipts !== 1 ? "s" : ""} left.`,
           showUpgrade: true,
-          upgradeText: "Upgrade to Growth",
+          upgradeText: "Upgrade to SME",
         };
       }
 
@@ -204,7 +200,7 @@ export default function ReceiptPage() {
         bg: "bg-blue-50 dark:bg-blue-900/20",
         border: "border-blue-200 dark:border-blue-800",
         icon: <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
-        title: "ZidLite Plan",
+        title: "Solopreneur Plan",
         message: `You have ${remainingReceipts} receipt${remainingReceipts !== 1 ? "s" : ""} remaining.`,
         showUpgrade: true,
         upgradeText: "Upgrade for Unlimited",
@@ -241,7 +237,7 @@ export default function ReceiptPage() {
     }
 
     return {
-      icon: <Star className="w-5 h-5 " />,
+      icon: <Star className="w-5 h-5 text-gray-600 dark:text-gray-400" />,
       title: "Free Trial",
       message: `You have ${remainingReceipts} free receipt${remainingReceipts !== 1 ? "s" : ""} remaining.`,
       showUpgrade: true,
@@ -316,7 +312,7 @@ export default function ReceiptPage() {
                 </div>
 
                 {banner.showUpgrade && (
-                  <Link href="/pricing?upgrade=growth">
+                  <Link href="/pricing?upgrade=sme">
                     <Button
                       size="sm"
                       className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 whitespace-nowrap squircle-md"
@@ -327,30 +323,6 @@ export default function ReceiptPage() {
                   </Link>
                 )}
               </div>
-
-              {/* Usage bar for free and ZidLite tiers */}
-              {/* {!hasUnlimitedReceipts && (
-                  <div className="mt-4">
-                    <div className="flex justify-between items-center mb-1 text-xs text-(--text-secondary)">
-                      <span>Usage</span>
-                      <span>{receiptCount}/{isZidLiteUser ? 20 : 5} receipts used</span>
-                    </div>
-                    <div className="w-full bg-(--bg-secondary) rounded-full h-2 overflow-hidden">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-500 ${
-                          hasReachedLimit 
-                            ? 'bg-destructive' 
-                            : receiptCount >= (isZidLiteUser ? 15 : 4)
-                              ? 'bg-yellow-500'
-                              : 'bg-(--color-accent-yellow)'
-                        }`}
-                        style={{ 
-                          width: `${(receiptCount / (isZidLiteUser ? 20 : 5)) * 100}%` 
-                        }}
-                      />
-                    </div>
-                  </div>
-                )} */}
             </div>
 
             {/* Receipt Generator */}

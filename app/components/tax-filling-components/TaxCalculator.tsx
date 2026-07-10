@@ -21,7 +21,7 @@ const DISCLAIMER =
   "This is only an estimate. For accurate calculation and tax filing assistance, contact our finance managers.";
 
 interface TaxCalculatorProps {
-  userTier?: "free" | "zidlite" | "growth" | "premium" | "elite";
+  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
 }
 
 const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
@@ -29,14 +29,14 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
 
   // Define tier-based access
   const isFree = userTier === "free";
-  const isZidLite = userTier === "zidlite";
-  const isGrowth = userTier === "growth";
-  const isPremium = userTier === "premium";
-  const isElite = userTier === "elite";
+  const isSolopreneurUser = userTier === "solopreneur";
+  const isSMEUser = userTier === "sme";
+  const isEnterpriseUser = userTier === "enterprise";
+  const isCorporationUser = userTier === "corporation";
 
-  const hasTaxCalculatorAccess = isGrowth || isPremium || isElite;
-  const hasTaxSupport = isPremium || isElite;
-  const hasFullTaxFiling = isElite;
+  const hasTaxCalculatorAccess = isSMEUser || isEnterpriseUser || isCorporationUser;
+  const hasTaxSupport = isEnterpriseUser || isCorporationUser;
+  const hasFullTaxFiling = isCorporationUser;
 
   // CIT state
   const [citRevenue, setCitRevenue] = useState("");
@@ -71,51 +71,51 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
     if (isFree) {
       return {
         icon: Star,
-        text: "Tax Calculator requires Growth plan",
+        text: "Tax Calculator requires SME plan",
         bgColor: "bg-gray-100 dark:bg-gray-800",
         textColor: "text-gray-700 dark:text-gray-300",
         borderColor: "border-gray-200 dark:border-gray-700",
-        action: "Upgrade to Growth",
-        actionLink: "/pricing?upgrade=growth",
+        action: "Upgrade to SME",
+        actionLink: "/pricing?upgrade=sme",
       };
     }
-    if (isZidLite) {
+    if (isSolopreneurUser) {
       return {
         icon: Zap,
-        text: "ZidLite Plan - Tax Calculator requires Growth",
+        text: "Solopreneur Plan - Tax Calculator requires SME",
         bgColor: "bg-blue-100 dark:bg-blue-900/20",
         textColor: "text-blue-700 dark:text-blue-400",
         borderColor: "border-blue-200 dark:border-blue-800",
-        action: "Upgrade to Growth",
-        actionLink: "/pricing?upgrade=growth",
+        action: "Upgrade to SME",
+        actionLink: "/pricing?upgrade=sme",
       };
     }
-    if (isGrowth) {
+    if (isSMEUser) {
       return {
-        icon: Zap,
-        text: "Growth Plan - Basic Tax Calculator",
+        icon: Star,
+        text: "SME Plan - Basic Tax Calculator",
         bgColor: "bg-(--color-accent-yellow)/10",
         textColor: "text-(--color-accent-yellow)",
         borderColor: "border-(--color-accent-yellow)/30",
-        action: "Upgrade to Premium",
-        actionLink: "/pricing?upgrade=premium",
+        action: "Upgrade to Enterprise",
+        actionLink: "/pricing?upgrade=enterprise",
       };
     }
-    if (isPremium) {
+    if (isEnterpriseUser) {
       return {
         icon: Crown,
-        text: "Premium Plan - Full Tax Tools",
-        bgColor: "bg-(--color-accent-yellow)/10",
-        textColor: "text-(--color-accent-yellow)",
-        borderColor: "border-(--color-accent-yellow)",
-        action: "Upgrade to Elite",
-        actionLink: "/pricing?upgrade=elite",
+        text: "Enterprise Plan - Full Tax Tools",
+        bgColor: "bg-amber-100 dark:bg-amber-900/20",
+        textColor: "text-amber-700 dark:text-amber-400",
+        borderColor: "border-amber-200 dark:border-amber-800",
+        action: "Upgrade to Corporation",
+        actionLink: "/pricing?upgrade=corporation",
       };
     }
-    if (isElite) {
+    if (isCorporationUser) {
       return {
-        icon: Crown,
-        text: "Elite Plan - Full Tax Filing Support",
+        icon: Sparkles,
+        text: "Corporation Plan - Full Tax Filing Support",
         bgColor: "bg-purple-100 dark:bg-purple-900/20",
         textColor: "text-purple-700 dark:text-purple-400",
         borderColor: "border-purple-200 dark:border-purple-800",
@@ -141,41 +141,38 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
               <p className={`font-medium ${tierInfo.textColor}`}>
                 {tierInfo.text}
               </p>
-              {isGrowth && (
+              {isSMEUser && (
                 <p className="text-sm text-(--color-accent-yellow) mt-1">
-                  You have access to basic tax calculations. Upgrade to Premium
-                  for tax filing support.
+                  You have access to basic tax calculations. Upgrade to Enterprise for tax filing support.
                 </p>
               )}
-              {isPremium && (
-                <p className="text-sm text-(--color-accent-yellow) mt-1">
+              {isEnterpriseUser && (
+                <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
                   You have access to all tax calculations and filing support.
                 </p>
               )}
-              {isElite && (
+              {isCorporationUser && (
                 <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
-                  Full tax filing including VAT, PAYE, and WHT. Contact our team
-                  for assistance.
+                  Full tax filing including VAT, PAYE, and WHT. Contact our team for assistance.
                 </p>
               )}
-              {(isFree || isZidLite) && (
+              {(isFree || isSolopreneurUser) && (
                 <p className="text-sm text-(--text-secondary) mt-1">
-                  Get accurate tax estimates and filing support with our Growth
-                  plan and above.
+                  Get accurate tax estimates and filing support with our SME plan and above.
                 </p>
               )}
             </div>
           </div>
-          {!isElite && (
+          {!isCorporationUser && (
             <Link href={tierInfo.actionLink}>
               <button
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors
                 ${
-                  isFree || isZidLite
+                  isFree || isSolopreneurUser
                     ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-                    : isGrowth
-                      ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-                      : "bg-purple-600 text-white hover:bg-purple-700"
+                    : isSMEUser
+                    ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+                    : "bg-amber-600 text-white hover:bg-amber-700"
                 }`}
               >
                 {tierInfo.action}
@@ -185,14 +182,13 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         </div>
       )}
 
-      {/* Premium Badge for non-Growth users */}
+      {/* Premium Badge for non-SME users */}
       {!hasTaxCalculatorAccess && (
         <button
           onClick={openModal}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-(--color-accent-yellow)/20 text-(--color-accent-yellow) text-xs font-semibold hover:bg-(--color-accent-yellow)/30 transition-colors"
         >
-          <Sparkles className="w-3.5 h-3.5" /> Premium Feature - Upgrade to
-          Access
+          <Sparkles className="w-3.5 h-3.5" /> Premium Feature - Upgrade to Access
         </button>
       )}
 
@@ -218,8 +214,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
             onChange={() => {}} // Read-only in dev
             className="accent-(--color-accent-yellow)"
           />
-          Current tier: {userTier}{" "}
-          {hasTaxCalculatorAccess ? "(has access)" : "(no access)"}
+          Current tier: {userTier} {hasTaxCalculatorAccess ? "(has access)" : "(no access)"}
         </label>
       )}
 
@@ -500,7 +495,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
           🔗 Tax Filing Integration
           {hasTaxSupport && (
             <span className="text-xs bg-(--color-accent-yellow) text-(--color-ink) px-2 py-1 rounded-full">
-              Available in Premium
+              Available in Enterprise
             </span>
           )}
           {hasFullTaxFiling && (
@@ -513,8 +508,8 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
           Zidwell Finance provides tax estimates based on user inputs. These
           calculations are not legally binding.
           {hasTaxSupport
-            ? " As a Premium/Elite user, you can proceed to file your taxes with our assistance."
-            : " Upgrade to Premium for tax filing support and professional assistance."}
+            ? " As an Enterprise/Corporation user, you can proceed to file your taxes with our assistance."
+            : " Upgrade to Enterprise for tax filing support and professional assistance."}
         </p>
         {hasTaxSupport && (
           <div className="mt-4 flex gap-3">

@@ -1,3 +1,4 @@
+// app/components/home-component/PlansSection.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -19,25 +20,71 @@ export function PlansSection() {
   const [processingTier, setProcessingTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // Check for payment success from URL params
-    const params = new URLSearchParams(window.location.search);
-    const paymentStatus = params.get("payment");
-    if (paymentStatus === "success") {
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 5000);
-    } else if (paymentStatus === "failed") {
-      setError("Payment failed. Please try again.");
-      setTimeout(() => setError(null), 5000);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const paymentStatus = params.get("payment");
+      if (paymentStatus === "success") {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 5000);
+      } else if (paymentStatus === "failed") {
+        setError("Payment failed. Please try again.");
+        setTimeout(() => setError(null), 5000);
+      }
     }
   }, []);
+
+  // Helper function to safely get plan features
+  const getPlanFeatures = (plan: typeof plans[0]) => {
+    return plan?.features || [];
+  };
+
+  // Helper function to safely get plan price
+  const getPlanPrice = (plan: typeof plans[0]) => {
+    if (!plan) return "₦0";
+    if (selectedBilling === "yearly" && plan.yearlyAmount) {
+      return `₦${plan.yearlyAmount.toLocaleString()}`;
+    }
+    return plan.price || "₦0";
+  };
+
+  // Helper function to safely get plan suffix
+  const getPlanSuffix = (plan: typeof plans[0]) => {
+    if (!plan) return "/month";
+    if (selectedBilling === "yearly" && plan.yearlyAmount) {
+      return "/year";
+    }
+    return plan.suffix || "/month";
+  };
+
+  // Helper function to safely get yearly price text
+  const getYearlyPriceText = (plan: typeof plans[0]) => {
+    if (!plan) return "";
+    if (selectedBilling === "yearly" && plan.yearlyPrice) {
+      return plan.yearlyPrice;
+    }
+    return "";
+  };
+
+  // Helper function to safely get plan note
+  const getPlanNote = (plan: typeof plans[0]) => {
+    return plan?.note || "";
+  };
 
   const isCurrentPlan = (tier: string) => {
     return subscription?.tier === tier && subscription?.status === "active";
   };
 
-  const handleSubscribe = async (plan: (typeof plans)[0]) => {
+  const handleSubscribe = async (plan: typeof plans[0]) => {
+    if (!plan) return;
+
     if (plan.tier === "free") {
       router.push("/dashboard");
       return;
@@ -92,6 +139,35 @@ export function PlansSection() {
     }
   };
 
+  // FIXED: Get tier display name with proper null/undefined checks
+  const getTierDisplayName = (tier?: string | null) => {
+    if (!tier) return "Free";
+    if (tier === "solopreneur") return "Solopreneur";
+    if (tier === "sme") return "SME";
+    if (tier === "enterprise") return "Enterprise";
+    if (tier === "corporation") return "Corporation";
+    return tier.charAt(0).toUpperCase() + tier.slice(1);
+  };
+
+  if (!mounted) {
+    return (
+      <section id="plans" className="py-24 sm:py-32 bg-[var(--bg-primary)]">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center mb-16">
+            <div className="h-8 w-24 bg-[var(--bg-secondary)] rounded-full mx-auto mb-4 animate-pulse" />
+            <div className="h-12 w-96 bg-[var(--bg-secondary)] rounded-lg mx-auto mb-4 animate-pulse" />
+            <div className="h-6 w-72 bg-[var(--bg-secondary)] rounded-lg mx-auto animate-pulse" />
+          </div>
+          <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-6">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-96 bg-[var(--bg-secondary)] rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section id="plans" className="py-24 sm:py-32 bg-[var(--bg-primary)]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -126,15 +202,14 @@ export function PlansSection() {
             clear upgrade in capability, not just more limits.
           </p>
 
-          {/* Current Plan Display */}
-          {subscription && subscription.tier !== "free" && (
+          {/* Current Plan Display - FIXED with null check */}
+          {subscription && subscription.tier && subscription.tier !== "free" && (
             <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full">
               <span className="text-sm text-[var(--text-primary)]">
                 Current Plan:
               </span>
               <span className="text-sm font-semibold text-[var(--color-accent-yellow)]">
-                {subscription.tier.charAt(0).toUpperCase() +
-                  subscription.tier.slice(1)}
+                {getTierDisplayName(subscription.tier)}
               </span>
             </div>
           )}
@@ -174,6 +249,11 @@ export function PlansSection() {
             const currentPlan = isCurrentPlan(plan.tier);
             const isProcessing = processingTier === plan.tier;
             const isFeatured = plan.featured;
+            const priceDisplay = getPlanPrice(plan);
+            const suffixDisplay = getPlanSuffix(plan);
+            const yearlyPriceDisplay = getYearlyPriceText(plan);
+            const planNote = getPlanNote(plan);
+            const planFeatures = getPlanFeatures(plan);
 
             return (
               <div
@@ -215,9 +295,7 @@ export function PlansSection() {
                           : "text-[var(--text-primary)]"
                       }`}
                     >
-                      {selectedBilling === "yearly" && plan.yearlyAmount
-                        ? `₦${plan.yearlyAmount.toLocaleString()}`
-                        : plan.price}
+                      {priceDisplay}
                     </span>
                     <span
                       className={`text-sm ${
@@ -226,12 +304,10 @@ export function PlansSection() {
                           : "text-[var(--text-secondary)]"
                       }`}
                     >
-                      {selectedBilling === "yearly"
-                        ? "/year"
-                        : plan.suffix || "/month"}
+                      {suffixDisplay}
                     </span>
                   </div>
-                  {selectedBilling === "yearly" && plan.yearlyPrice && (
+                  {yearlyPriceDisplay && (
                     <p
                       className={`text-xs mt-1 ${
                         isFeatured
@@ -239,7 +315,7 @@ export function PlansSection() {
                           : "text-[var(--text-secondary)]"
                       }`}
                     >
-                      {plan.yearlyPrice}
+                      {yearlyPriceDisplay}
                     </p>
                   )}
                   <p
@@ -249,12 +325,12 @@ export function PlansSection() {
                         : "text-[var(--text-secondary)]"
                     }`}
                   >
-                    {plan.note}
+                    {planNote}
                   </p>
                 </div>
 
                 <ul className="space-y-2 mb-8 grow">
-                  {plan.features.map((feature) => (
+                  {planFeatures.map((feature: string) => (
                     <li
                       key={feature}
                       className="flex items-start gap-2 text-sm"

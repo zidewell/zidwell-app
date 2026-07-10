@@ -29,7 +29,7 @@ import { Badge } from "@/app/components/ui/badge";
 interface ContractGenProps {
   loading: boolean;
   contracts: any[];
-  userTier?: "free" | "zidlite" | "growth" | "premium" | "elite";
+  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
   isPremium?: boolean;
   hasReachedLimit?: boolean;
   remainingContracts?: number | string;
@@ -52,49 +52,58 @@ export default function ContractGen({
 
   // Define tier variables based on userTier prop
   const isFree = userTier === "free";
-  const isZidLite = userTier === "zidlite";
-  const isGrowth = userTier === "growth";
-  const isPremiumUser = userTier === "premium";
-  const isElite = userTier === "elite";
-  const hasUnlimitedContracts = isPremiumUser || isElite || isGrowth;
+  const isSolopreneurUser = userTier === "solopreneur";
+  const isSMEUser = userTier === "sme";
+  const isEnterpriseUser = userTier === "enterprise";
+  const isCorporationUser = userTier === "corporation";
+  const hasUnlimitedContracts = isEnterpriseUser || isCorporationUser || isSMEUser;
 
   const contractCount = contracts.length;
-  const contractLimit = isFree ? 1 : isZidLite ? 2 : isGrowth ? 5 : Infinity;
-  const reachedLimit = !hasUnlimitedContracts && contractCount >= contractLimit;
+  
+  // Contract limits by tier
+  const freeTierLimit = 0;
+  const solopreneurLimit = 0;
+  const smeLimit = 1;
+  const enterpriseLimit = 10;
+  // Corporation has unlimited
+
+  const reachedLimit = !hasUnlimitedContracts && contractCount >= 
+    (isSMEUser ? smeLimit : isEnterpriseUser ? enterpriseLimit : 0);
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isElite)
+    if (isCorporationUser)
       return {
         icon: Sparkles,
         color: "text-purple-600",
         bg: "bg-purple-100",
-        label: "Elite",
+        label: "Corporation",
       };
-    if (isPremiumUser)
+    if (isEnterpriseUser)
       return {
         icon: Crown,
-        color: "text-(--color-accent-yellow)",
-        bg: "bg-(--color-accent-yellow)/10",
-        label: "Premium",
+        color: "text-amber-600",
+        bg: "bg-amber-100",
+        label: "Enterprise",
       };
-    if (isGrowth)
+    if (isSMEUser)
       return {
-        icon: Zap,
+        icon: Star,
         color: "text-(--color-accent-yellow)",
         bg: "bg-(--color-accent-yellow)/10",
-        label: "Growth",
+        label: "SME",
       };
-    if (isZidLite)
+    if (isSolopreneurUser)
       return {
         icon: Zap,
         color: "text-blue-600",
         bg: "bg-blue-100",
-        label: "ZidLite",
+        label: "Solopreneur",
       };
     return {
       icon: Star,
-
+      color: "text-gray-600",
+      bg: "bg-gray-100",
       label: "Free Trial",
     };
   };
@@ -143,21 +152,26 @@ export default function ContractGen({
   // Get remaining count display
   const getRemainingDisplay = () => {
     if (hasUnlimitedContracts) return "unlimited";
-    return Math.max(0, contractLimit - contractCount);
+    if (isSMEUser) return Math.max(0, smeLimit - contractCount);
+    if (isEnterpriseUser) return Math.max(0, enterpriseLimit - contractCount);
+    return 0;
   };
 
   // Get tier message
   const getTierMessage = () => {
-    if (isPremiumUser || isElite) {
+    if (isCorporationUser) {
       return "You have unlimited contracts! Create as many as you need.";
     }
-    if (isGrowth) {
+    if (isEnterpriseUser) {
       return `You have ${getRemainingDisplay()} contract${getRemainingDisplay() !== 1 ? "s" : ""} remaining.`;
     }
-    if (isZidLite) {
+    if (isSMEUser) {
       return `You have ${getRemainingDisplay()} contract${getRemainingDisplay() !== 1 ? "s" : ""} remaining.`;
     }
-    return `You have ${getRemainingDisplay()} contract${getRemainingDisplay() !== 1 ? "s" : ""} remaining.`;
+    if (isSolopreneurUser) {
+      return "Solopreneur plan does not include contracts. Upgrade to SME or higher.";
+    }
+    return "Free plan does not include contracts. Upgrade to SME or higher.";
   };
 
   return (
@@ -173,9 +187,11 @@ export default function ContractGen({
               Contract Limit Reached
             </h3>
             <p className="text-(--text-secondary) text-center mb-6">
-              {isZidLite
-                ? "You've used all your ZidLite contracts. Upgrade to continue creating more contracts!"
-                : "You've used all your free contracts. Upgrade to continue creating unlimited contracts!"}
+              {isSMEUser
+                ? "You've used all your SME contracts. Upgrade to continue creating more contracts!"
+                : isEnterpriseUser
+                ? "You've used all your Enterprise contracts. Upgrade to Corporation for unlimited!"
+                : "You don't have contracts in your current plan. Upgrade to SME or higher to create contracts!"}
             </p>
             <div className="flex gap-3">
               <Button
@@ -185,7 +201,7 @@ export default function ContractGen({
               >
                 Cancel
               </Button>
-              <Link href="/pricing?upgrade=growth" className="flex-1">
+              <Link href="/pricing?upgrade=sme" className="flex-1">
                 <Button className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)">
                   View Plans
                 </Button>
@@ -195,68 +211,7 @@ export default function ContractGen({
         </div>
       )}
 
-      {/* Single Tier Badge and Message */}
-      <div className="mb-4 space-y-3">
-       
-
-      
-        {!isFree && (
-          <div
-            className={`p-4 rounded-lg border-2 ${
-              isPremiumUser || isElite
-                ? "bg-purple-50 border-purple-200"
-                : isGrowth
-                  ? "bg-(--color-accent-yellow)/5 border-(--color-accent-yellow)/20"
-                  : isZidLite
-                    ? "bg-blue-50 border-blue-200"
-                    : ""
-            }`}
-          >
-            <p
-              className={`font-medium flex items-center gap-2 ${
-                isPremiumUser || isElite
-                  ? "text-purple-600"
-                  : isGrowth
-                    ? "text-(--color-accent-yellow)"
-                    : isZidLite
-                      ? "text-blue-600"
-                      : ""
-              }`}
-            >
-              <span
-                className={`px-2 py-0.5 rounded text-xs font-bold ${
-                  isPremiumUser || isElite
-                    ? "bg-purple-100 text-purple-600 border border-purple-200"
-                    : isGrowth
-                      ? "bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) border border-(--color-accent-yellow)/20"
-                      : isZidLite
-                        ? "bg-blue-100 text-blue-600 border border-blue-200"
-                        : ""
-                }`}
-              >
-                {tierInfo.label.toUpperCase()}
-              </span>
-              {getTierMessage()}
-            </p>
-
-            {/* Upgrade Button for non-unlimited tiers */}
-            {!hasUnlimitedContracts && (
-              <div className="mt-3 flex justify-end">
-                <Link href="/pricing?upgrade=growth">
-                  <Button
-                    size="sm"
-                    className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
-                  >
-                    <ArrowUpCircle className="w-4 h-4 mr-1" />
-                    Upgrade Plan
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
+    
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
@@ -307,58 +262,31 @@ export default function ContractGen({
         </Card>
       </div>
 
-      {/* Free Tier Usage and Upgrade Banner */}
-      {isFree && (
-        <Card
-          className={`border-2 ${
-            reachedLimit ? "border-red-200 bg-red-50" : ""
-          }`}
-        >
+      {/* Free and Solopreneur - No contracts available */}
+      {(isFree || isSolopreneurUser) && (
+        <Card className="border-2 border-gray-200 bg-gray-50">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div
-                  className={`p-2 rounded-full ${
-                    reachedLimit ? "bg-red-100" : ""
-                  }`}
-                >
-                  {reachedLimit ? (
-                    <AlertCircle className="w-5 h-5 text-red-600" />
-                  ) : (
-                    <Crown className="w-5 h-5 " />
-                  )}
+                <div className="p-2 rounded-full bg-gray-100">
+                  <AlertCircle className="w-5 h-5 text-gray-600" />
                 </div>
                 <div>
-                  <h3
-                    className={`font-semibold ${
-                      reachedLimit ? "text-red-800" : ""
-                    }`}
-                  >
-                    {reachedLimit
-                      ? "Free Contract Limit Reached"
-                      : "Free Trial"}
+                  <h3 className="font-semibold text-gray-800">
+                    No Contracts Available
                   </h3>
-                  <p
-                    className={`text-sm ${reachedLimit ? "text-red-600" : ""}`}
-                  >
-                    {reachedLimit
-                      ? `You've used all ${contractCount}/${contractLimit} free contracts.`
-                      : `You have ${getRemainingDisplay()} free contract${getRemainingDisplay() !== 1 ? "s" : ""} remaining.`}
+                  <p className="text-sm text-gray-600">
+                    {isFree
+                      ? "Free plan does not include contracts. Upgrade to SME or higher to create contracts."
+                      : "Solopreneur plan does not include contracts. Upgrade to SME or higher to create contracts."}
                   </p>
                 </div>
               </div>
 
-              {/* Upgrade Button for Free Tier */}
-              <Link href="/pricing?upgrade=growth" className="w-full md:w-auto">
-                <Button
-                  className={`w-full md:w-auto ${
-                    reachedLimit
-                      ? "bg-red-600 hover:bg-red-700"
-                      : "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90"
-                  } text-(--color-ink)`}
-                >
+              <Link href="/pricing?upgrade=sme" className="w-full md:w-auto">
+                <Button className="w-full md:w-auto bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)">
                   <ArrowUpCircle className="w-4 h-4 mr-1" />
-                  {reachedLimit ? "Upgrade Now" : "Upgrade for More"}
+                  Upgrade to SME
                 </Button>
               </Link>
             </div>
@@ -366,72 +294,33 @@ export default function ContractGen({
         </Card>
       )}
 
-      {/* ZidLite Upgrade Banner - Show when close to limit */}
-      {isZidLite && !reachedLimit && contractCount >= 1 && (
-        <Card className="border-2 border-yellow-200 bg-yellow-50">
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-full bg-yellow-100">
-                  <Zap className="w-5 h-5 text-yellow-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-yellow-800">
-                    {contractCount === 1
-                      ? "One Contract Left"
-                      : "Limited Contracts Remaining"}
-                  </h3>
-                  <p className="text-sm text-yellow-600">
-                    You have {getRemainingDisplay()} ZidLite contract
-                    {getRemainingDisplay() !== 1 ? "s" : ""} left. Upgrade to
-                    Growth for 5 contracts or Premium for unlimited!
-                  </p>
-                </div>
-              </div>
-
-              {/* Upgrade Button for ZidLite */}
-              <Link href="/pricing?upgrade=growth" className="w-full md:w-auto">
-                <Button className="w-full md:w-auto bg-yellow-600 hover:bg-yellow-700 text-white">
-                  <ArrowUpCircle className="w-4 h-4 mr-1" />
-                  Upgrade Now
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Growth Upgrade Banner - Show when close to limit */}
-      {isGrowth && !reachedLimit && contractCount >= 3 && (
+      {/* SME Upgrade Banner - Show when close to limit */}
+      {isSMEUser && !reachedLimit && contractCount >= 1 && (
         <Card className="border-2 border-(--color-accent-yellow)/30 bg-(--color-accent-yellow)/5">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-full bg-(--color-accent-yellow)/20">
-                  <Zap className="w-5 h-5 text-(--color-accent-yellow)" />
+                  <Star className="w-5 h-5 text-(--color-accent-yellow)" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-(--color-accent-yellow)">
-                    {contractCount === 4
+                    {contractCount === 1
                       ? "Last Contract"
                       : "Limited Contracts Remaining"}
                   </h3>
                   <p className="text-sm text-(--color-accent-yellow)/80">
-                    You have {getRemainingDisplay()} Growth contract
+                    You have {getRemainingDisplay()} SME contract
                     {getRemainingDisplay() !== 1 ? "s" : ""} left. Upgrade to
-                    Premium for unlimited contracts!
+                    Enterprise for 10 contracts or Corporation for unlimited!
                   </p>
                 </div>
               </div>
 
-              {/* Upgrade Button for Growth */}
-              <Link
-                href="/pricing?upgrade=premium"
-                className="w-full md:w-auto"
-              >
+              <Link href="/pricing?upgrade=enterprise" className="w-full md:w-auto">
                 <Button className="w-full md:w-auto bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)">
                   <ArrowUpCircle className="w-4 h-4 mr-1" />
-                  Upgrade to Premium
+                  Upgrade to Enterprise
                 </Button>
               </Link>
             </div>
@@ -439,17 +328,51 @@ export default function ContractGen({
         </Card>
       )}
 
-      {/* Premium/Elite - Show unlimited banner */}
-      {(isPremiumUser || isElite) && (
+      {/* Enterprise Upgrade Banner - Show when close to limit */}
+      {isEnterpriseUser && !reachedLimit && contractCount >= 8 && (
+        <Card className="border-2 border-amber-200 bg-amber-50">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-full bg-amber-100">
+                  <Crown className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-amber-800">
+                    {contractCount === 9
+                      ? "Last Contract"
+                      : "Limited Contracts Remaining"}
+                  </h3>
+                  <p className="text-sm text-amber-600">
+                    You have {getRemainingDisplay()} Enterprise contract
+                    {getRemainingDisplay() !== 1 ? "s" : ""} left. Upgrade to
+                    Corporation for unlimited contracts!
+                  </p>
+                </div>
+              </div>
+
+              <Link href="/pricing?upgrade=corporation" className="w-full md:w-auto">
+                <Button className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white">
+                  <ArrowUpCircle className="w-4 h-4 mr-1" />
+                  Upgrade to Corporation
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Corporation - Show unlimited banner */}
+      {isCorporationUser && (
         <Card className="border-2 border-purple-200 bg-purple-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-full bg-purple-100">
-                <Crown className="w-5 h-5 text-purple-600" />
+                <Sparkles className="w-5 h-5 text-purple-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-purple-800">
-                  {isElite ? "Elite Unlimited" : "Premium Unlimited"}
+                  Corporation Unlimited
                 </h3>
                 <p className="text-sm text-purple-600">
                   You have unlimited contracts! Create as many as you need.
@@ -518,7 +441,7 @@ export default function ContractGen({
         contracts={filteredContracts}
         loading={loading}
         userTier={userTier}
-        isPremium={isPremiumUser || isGrowth || isElite}
+        isPremium={isEnterpriseUser || isCorporationUser}
         hasReachedLimit={reachedLimit}
         onRefresh={onRefresh}
       />

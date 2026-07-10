@@ -64,17 +64,13 @@ export function SubscriptionBadge({
   showTrial = false,
   featureKey = "bookkeeping_access",
 }: SubscriptionBadgeProps) {
-  const { subscription, isActive, checkTrialStatus } = useSubscription();
+  const { subscription, isActive } = useSubscription();
   const [trialInfo, setTrialInfo] = useState<any>(null);
   const tier = subscription?.tier || "free";
   const config = tierConfig[tier as keyof typeof tierConfig];
   const Icon = config.icon;
 
-  useEffect(() => {
-    if (showTrial && tier === "free") {
-      checkTrialStatus(featureKey).then(setTrialInfo);
-    }
-  }, [showTrial, tier, featureKey, checkTrialStatus]);
+ 
 
   const sizeClasses = {
     sm: "text-xs px-2 py-0.5",
