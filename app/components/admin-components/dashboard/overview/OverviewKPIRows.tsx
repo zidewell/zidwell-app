@@ -48,6 +48,8 @@ export const OverviewKPIRows = ({
   invoicePaymentRate,
   calculateContractRevenueGrowth,
 }: OverviewKPIRowsProps) => {
+
+  console.log("summaryData", summaryData)
   // Safely extract data with fallbacks
   const totalInflow = Number(summaryData?.totalInflow ?? 0);
   const totalOutflow = Number(summaryData?.totalOutflow ?? 0);
