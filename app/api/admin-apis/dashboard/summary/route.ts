@@ -19,50 +19,77 @@ async function fetchNombaBalanceCached(
 ): Promise<number> {
   try {
     const now = Date.now();
-    console.log(`[Nomba] Checking cache, age: ${(now - _cachedNomba.ts) / 1000}s`);
-    
     if (now - _cachedNomba.ts < NOMBA_CACHE_TTL) {
-      console.log(`[Nomba] Using cached balance: ${_cachedNomba.value}`);
       return _cachedNomba.value;
     }
 
-    console.log('[Nomba] Fetching new token...');
     const token = await getTokenFn();
     if (!token) {
-      console.error('[Nomba] Failed to get token');
+      console.error('[Nomba] No token available');
       return 0;
     }
-    console.log('[Nomba] Token obtained successfully');
 
-    const url = `${process.env.NOMBA_URL ?? ""}/v1/accounts/balance`;
+    const accountId = process.env.NOMBA_ACCOUNT_ID;
+    if (!accountId) {
+      console.error('[Nomba] No account ID configured');
+      return 0;
+    }
+
+    const url = `${process.env.NOMBA_URL ?? 'https://api.nomba.com'}/v1/accounts/balance`;
     console.log(`[Nomba] Fetching balance from: ${url}`);
-    console.log(`[Nomba] Account ID: ${process.env.NOMBA_ACCOUNT_ID ?? ""}`);
+    console.log(`[Nomba] Account ID: ${accountId}`);
 
-    const res = await fetch(url, {
-      method: "GET",
+    const options = {
+      method: 'GET',
       headers: {
-        Authorization: `Bearer ${token}`,
-        accountId: process.env.NOMBA_ACCOUNT_ID ?? "",
-      },
-    });
+        'accountId': accountId,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    };
+
+    console.log('[Nomba] Request headers:', JSON.stringify(options.headers, null, 2));
+
+    const res = await fetch(url, options);
 
     console.log(`[Nomba] Response status: ${res.status} ${res.statusText}`);
 
     if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      console.error(`[Nomba] Error response: ${txt}`);
+      const errorText = await res.text();
+      console.error(`[Nomba] Error response: ${errorText}`);
+      
+      // Try to parse error as JSON
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.error('[Nomba] Error details:', errorJson);
+      } catch (e) {
+        // Not JSON, use as is
+      }
+      
       return 0;
     }
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
     console.log("[Nomba] Balance response:", JSON.stringify(data, null, 2));
     
-    const amount = Number(data?.data?.amount ?? 0);
+    // Check different possible response structures
+    let amount = 0;
+    if (data?.data?.amount !== undefined) {
+      amount = Number(data.data.amount);
+    } else if (data?.amount !== undefined) {
+      amount = Number(data.amount);
+    } else if (data?.balance !== undefined) {
+      amount = Number(data.balance);
+    } else if (data?.available_balance !== undefined) {
+      amount = Number(data.available_balance);
+    } else if (data?.data?.balance !== undefined) {
+      amount = Number(data.data.balance);
+    }
+    
     console.log(`[Nomba] Parsed amount: ${amount}`);
     
     _cachedNomba = { ts: now, value: amount };
-    console.log(`[Nomba] Cache updated with balance: ${amount}`);
-    
     return amount;
   } catch (err) {
     console.error('[Nomba] Error fetching balance:', err);
