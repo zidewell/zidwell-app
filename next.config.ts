@@ -1,59 +1,59 @@
 /** @type {import('next').NextConfig} */
 
-const withPWA = require('next-pwa')({
-  dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
-  register: true, 
-  skipWaiting: true, 
-  scope: '/',
-  sw: 'sw.js', 
- 
+const withPWA = require("next-pwa")({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
+  register: true,
+  skipWaiting: true,
+  scope: "/",
+  sw: "sw.js",
+
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
-      handler: 'CacheFirst',
+      handler: "CacheFirst",
       options: {
-        cacheName: 'google-fonts',
+        cacheName: "google-fonts",
         expiration: {
           maxEntries: 4,
-          maxAgeSeconds: 365 * 24 * 60 * 60 // 365 days
-        }
-      }
+          maxAgeSeconds: 365 * 24 * 60 * 60, // 365 days
+        },
+      },
     },
     {
       urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
-      handler: 'StaleWhileRevalidate',
+      handler: "StaleWhileRevalidate",
       options: {
-        cacheName: 'static-font-assets',
+        cacheName: "static-font-assets",
         expiration: {
           maxEntries: 4,
-          maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
-        }
-      }
+          maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+        },
+      },
     },
     {
       urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
-      handler: 'StaleWhileRevalidate',
+      handler: "StaleWhileRevalidate",
       options: {
-        cacheName: 'static-image-assets',
+        cacheName: "static-image-assets",
         expiration: {
           maxEntries: 64,
-          maxAgeSeconds: 24 * 60 * 60 
-        }
-      }
+          maxAgeSeconds: 24 * 60 * 60,
+        },
+      },
     },
     {
       urlPattern: /\/_next\/static\/.+$/i,
-      handler: 'CacheFirst',
+      handler: "CacheFirst",
       options: {
-        cacheName: 'next-static',
+        cacheName: "next-static",
         expiration: {
           maxEntries: 64,
-          maxAgeSeconds: 365 * 24 * 60 * 60 
-        }
-      }
-    }
-  ]
+          maxAgeSeconds: 365 * 24 * 60 * 60,
+        },
+      },
+    },
+  ],
 });
 
 const nextConfig = {
@@ -75,16 +75,17 @@ const nextConfig = {
     if (!config.ignoreWarnings) {
       config.ignoreWarnings = [];
     }
-    
+
     config.ignoreWarnings.push(
       {
         module: /@supabase\/realtime-js/,
       },
       {
-        message: /Critical dependency: the request of a dependency is an expression/,
-      }
+        message:
+          /Critical dependency: the request of a dependency is an expression/,
+      },
     );
-    
+
     return config;
   },
 
@@ -158,16 +159,12 @@ const nextConfig = {
     SITE_NAME: "Zidwell",
   },
 
-  compiler: {
-    removeConsole: process.env.NODE_ENV === "production",
-  },
+  // compiler: {
+  //   removeConsole: process.env.NODE_ENV === "production",
+  // },
 };
 
 module.exports = withPWA(nextConfig);
-
-
-
-
 
 // // next.config.js - Simplified version without Serwist
 // /** @type {import('next').NextConfig} */
@@ -190,7 +187,7 @@ module.exports = withPWA(nextConfig);
 //     if (!config.ignoreWarnings) {
 //       config.ignoreWarnings = [];
 //     }
-    
+
 //     config.ignoreWarnings.push(
 //       {
 //         module: /@supabase\/realtime-js/,
@@ -199,7 +196,7 @@ module.exports = withPWA(nextConfig);
 //         message: /Critical dependency: the request of a dependency is an expression/,
 //       }
 //     );
-    
+
 //     return config;
 //   },
 

@@ -19,41 +19,56 @@ async function fetchNombaBalanceCached(
 ): Promise<number> {
   try {
     const now = Date.now();
+    console.log(`[Nomba] Checking cache, age: ${(now - _cachedNomba.ts) / 1000}s`);
+    
     if (now - _cachedNomba.ts < NOMBA_CACHE_TTL) {
+      console.log(`[Nomba] Using cached balance: ${_cachedNomba.value}`);
       return _cachedNomba.value;
     }
 
+    console.log('[Nomba] Fetching new token...');
     const token = await getTokenFn();
     if (!token) {
+      console.error('[Nomba] Failed to get token');
       return 0;
     }
+    console.log('[Nomba] Token obtained successfully');
 
-    const res = await fetch(
-      `${process.env.NOMBA_URL ?? ""}/v1/accounts/balance`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          accountId: process.env.NOMBA_ACCOUNT_ID ?? "",
-        },
-      }
-    );
+    const url = `${process.env.NOMBA_URL ?? ""}/v1/accounts/balance`;
+    console.log(`[Nomba] Fetching balance from: ${url}`);
+    console.log(`[Nomba] Account ID: ${process.env.NOMBA_ACCOUNT_ID ?? ""}`);
+
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        accountId: process.env.NOMBA_ACCOUNT_ID ?? "",
+      },
+    });
+
+    console.log(`[Nomba] Response status: ${res.status} ${res.statusText}`);
 
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
+      console.error(`[Nomba] Error response: ${txt}`);
       return 0;
     }
 
     const data = await res.json().catch(() => ({}));
-    console.log("Nomba balance response:", data);
+    console.log("[Nomba] Balance response:", JSON.stringify(data, null, 2));
+    
     const amount = Number(data?.data?.amount ?? 0);
+    console.log(`[Nomba] Parsed amount: ${amount}`);
+    
     _cachedNomba = { ts: now, value: amount };
+    console.log(`[Nomba] Cache updated with balance: ${amount}`);
+    
     return amount;
   } catch (err) {
+    console.error('[Nomba] Error fetching balance:', err);
     return 0;
   }
 }
-
 function parseRangeToDates(
   range: string | null
 ): { start: string; end: string } | null {
