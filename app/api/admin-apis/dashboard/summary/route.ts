@@ -45,6 +45,7 @@ async function fetchNombaBalanceCached(
     }
 
     const data = await res.json().catch(() => ({}));
+    console.log("Nomba balance response:", data);
     const amount = Number(data?.data?.amount ?? 0);
     _cachedNomba = { ts: now, value: amount };
     return amount;
