@@ -2,7 +2,6 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@supabase/supabase-js";
 
-export const runtime = "edge";
 
 export async function GET(
   request: Request,

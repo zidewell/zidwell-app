@@ -1,3 +1,4 @@
+// app/components/Invoice-components/CreateInvoice.tsx
 "use client";
 
 import React, { JSX, Suspense, useEffect, useState } from "react";
@@ -111,33 +112,41 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const { userData, balance } = useUserContextData();
-  const { userTier, subscription, isPremium, isGrowth, isElite, isZidLite } =
-    useSubscription();
+  const {
+    userTier,
+    subscription,
+    isSME,
+    isEnterprise,
+    isCorporation,
+    isSolopreneur,
+  } = useSubscription();
   const [hasLoadedFromUrl, setHasLoadedFromUrl] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Determine user tier
   const isFree = userTier === "free";
-  const isZidLiteUser = userTier === "zidlite";
-  const isGrowthUser = userTier === "growth";
-  const isPremiumUser = userTier === "premium" || userTier === "elite";
-  const hasUnlimitedInvoices = isPremiumUser || isGrowthUser;
+  const isSolopreneurUser = userTier === "solopreneur";
+  const isSMEUser = userTier === "sme";
+  const isEnterpriseUser = userTier === "enterprise";
+  const isCorporationUser = userTier === "corporation";
+  const hasUnlimitedInvoices =
+    isSMEUser || isEnterpriseUser || isCorporationUser;
 
   // Invoice limits by tier
   const freeTierLimit = 5;
-  const zidLiteLimit = 20;
+  const solopreneurLimit = 10;
 
   const [invoiceUsage, setInvoiceUsage] = useState<InvoiceUsageInfo>({
     used: 0,
     limit: hasUnlimitedInvoices
       ? "unlimited"
-      : isZidLiteUser
-        ? zidLiteLimit
+      : isSolopreneurUser
+        ? solopreneurLimit
         : freeTierLimit,
     remaining: hasUnlimitedInvoices
       ? "unlimited"
-      : isZidLiteUser
-        ? zidLiteLimit
+      : isSolopreneurUser
+        ? solopreneurLimit
         : freeTierLimit,
     hasAccess: true,
     isChecking: true,
@@ -171,33 +180,33 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isElite)
+    if (isCorporationUser)
       return {
         icon: Sparkles,
         color: "text-purple-600 dark:text-purple-400",
         bg: "bg-purple-100 dark:bg-purple-900/30",
-        label: "Elite",
+        label: "Corporation",
       };
-    if (isPremium)
+    if (isEnterpriseUser)
       return {
         icon: Crown,
-        color: "text-[var(--color-accent-yellow)]",
-        bg: "bg-[var(--color-accent-yellow)]/10 dark:bg-[var(--color-accent-yellow)]/20",
-        label: "Premium",
+        color: "text-amber-600 dark:text-amber-400",
+        bg: "bg-amber-100 dark:bg-amber-900/30",
+        label: "Enterprise",
       };
-    if (isGrowth)
+    if (isSMEUser)
       return {
-        icon: Zap,
-        color: "text-green-600 dark:text-green-400",
-        bg: "bg-green-100 dark:bg-green-900/30",
-        label: "Growth",
+        icon: Star,
+        color: "text-(--color-accent-yellow)",
+        bg: "bg-(--color-accent-yellow)/10 dark:bg-(--color-accent-yellow)/20",
+        label: "SME",
       };
-    if (isZidLite)
+    if (isSolopreneurUser)
       return {
         icon: Zap,
         color: "text-blue-600 dark:text-blue-400",
         bg: "bg-blue-100 dark:bg-blue-900/30",
-        label: "ZidLite",
+        label: "Solopreneur",
       };
     return {
       icon: Star,
@@ -327,6 +336,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       loadDraftFromParam();
     }
   }, [searchParams, userData?.id, hasLoadedFromUrl]);
+
   const loadDraftIntoForm = (draft: any) => {
     if (showDraftsModal) {
       setShowDraftsModal(false);
@@ -1083,7 +1093,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   const getRemainingText = (): string => {
     if (hasUnlimitedInvoices) return "UNLIMITED";
-    if (isZidLiteUser) return "20 limit";
+    if (isSolopreneurUser) return "10 limit";
     if (
       typeof invoiceUsage.remaining === "number" &&
       invoiceUsage.remaining > 0
@@ -1095,7 +1105,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   const getRemainingColor = (): string => {
     if (hasUnlimitedInvoices) return "bg-purple-600";
-    if (isZidLiteUser) return "bg-blue-600";
+    if (isSolopreneurUser) return "bg-blue-600";
     if (
       typeof invoiceUsage.remaining === "number" &&
       invoiceUsage.remaining > 0
@@ -1152,8 +1162,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
               Invoice Limit Reached
             </h3>
             <p className="text-[var(--text-secondary)] text-center mb-6">
-              {isZidLiteUser
-                ? "You've used all your ZidLite invoices. Upgrade to continue creating unlimited invoices!"
+              {isSolopreneurUser
+                ? "You've used all your Solopreneur invoices. Upgrade to continue creating unlimited invoices!"
                 : "You've used all your free invoices. Upgrade to continue creating unlimited invoices!"}
             </p>
             <div className="flex gap-3">
@@ -1164,7 +1174,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
               >
                 Cancel
               </Button>
-              <Link href="/pricing?upgrade=growth" className="flex-1">
+              <Link href="/pricing?upgrade=sme" className="flex-1">
                 <Button className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90">
                   View Plans
                 </Button>
@@ -1293,7 +1303,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   <div
                     className={`mb-6 p-4 rounded-lg border ${
                       hasUnlimitedInvoices
-                        ? "bg-purple-50 border-purple-200"
+                        ? isCorporationUser
+                          ? "bg-purple-50 border-purple-200"
+                          : isEnterpriseUser
+                            ? "bg-amber-50 border-amber-200"
+                            : "bg-blue-50 border-blue-200"
                         : hasReachedLimit()
                           ? "bg-yellow-50 border-yellow-200"
                           : "bg-green-50 border-green-200"
@@ -1301,7 +1315,13 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   >
                     <div className="flex items-start gap-3">
                       {hasUnlimitedInvoices ? (
-                        <Crown className="w-5 h-5 text-purple-600 mt-0.5" />
+                        isCorporationUser ? (
+                          <Sparkles className="w-5 h-5 text-purple-600 mt-0.5" />
+                        ) : isEnterpriseUser ? (
+                          <Crown className="w-5 h-5 text-amber-600 mt-0.5" />
+                        ) : (
+                          <Star className="w-5 h-5 text-blue-600 mt-0.5" />
+                        )
                       ) : hasReachedLimit() ? (
                         <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
                       ) : (
@@ -1311,7 +1331,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                         <p
                           className={`font-medium ${
                             hasUnlimitedInvoices
-                              ? "text-purple-700"
+                              ? isCorporationUser
+                                ? "text-purple-700"
+                                : isEnterpriseUser
+                                  ? "text-amber-700"
+                                  : "text-blue-700"
                               : hasReachedLimit()
                                 ? "text-yellow-700"
                                 : "text-green-700"
@@ -1328,16 +1352,16 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             "You have unlimited invoices as part of your subscription."
                           ) : hasReachedLimit() ? (
                             <>
-                              You've used all {isZidLiteUser ? "10" : "5"} free
-                              invoices.{" "}
+                              You've used all {isSolopreneurUser ? "10" : "5"}{" "}
+                              free invoices.{" "}
                               <Button
                                 variant="link"
                                 className="p-0 h-auto text-[var(--color-accent-yellow)] font-semibold underline"
                                 onClick={() =>
-                                  router.push("/pricing?upgrade=growth")
+                                  router.push("/pricing?upgrade=sme")
                                 }
                               >
-                                Upgrade to Growth
+                                Upgrade to SME
                               </Button>{" "}
                               for unlimited invoices.
                             </>
@@ -1622,9 +1646,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           <Button
                             variant="link"
                             className="p-0 h-auto text-[var(--color-accent-yellow)] font-semibold underline"
-                            onClick={() =>
-                              router.push("/pricing?upgrade=growth")
-                            }
+                            onClick={() => router.push("/pricing?upgrade=sme")}
                           >
                             Upgrade your plan
                           </Button>{" "}

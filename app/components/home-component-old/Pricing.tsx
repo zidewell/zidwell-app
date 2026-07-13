@@ -175,6 +175,7 @@ export default function Pricing() {
 
   useEffect(() => {
     if (upgradeParam && plans.some((p) => p.tier === upgradeParam)) {
+      
       const element = document.getElementById("pricing");
       if (element) element.scrollIntoView({ behavior: "smooth" });
     }
