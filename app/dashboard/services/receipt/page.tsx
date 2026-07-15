@@ -34,6 +34,10 @@ export default function ReceiptPage() {
     isEnterprise,
     isCorporation,
     isSolopreneur,
+<<<<<<< HEAD
+=======
+    isFree,
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
   } = useSubscription();
 
   const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
@@ -81,7 +85,10 @@ export default function ReceiptPage() {
   const receiptCount = receipts.length;
 
   // Tier-based limits
+<<<<<<< HEAD
   const isFree = userTier === "free";
+=======
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
   const isSolopreneurUser = userTier === "solopreneur";
   const hasUnlimitedReceipts = isSME || isEnterprise || isCorporation;
 

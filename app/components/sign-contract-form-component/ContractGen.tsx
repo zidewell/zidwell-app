@@ -211,6 +211,7 @@ export default function ContractGen({
         </div>
       )}
 
+<<<<<<< HEAD
       {/* Single Tier Badge and Message */}
       <div className="mb-4 space-y-3">
         {getTierMessage() && (
@@ -276,6 +277,9 @@ export default function ContractGen({
         )}
       </div>
 
+=======
+    
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">

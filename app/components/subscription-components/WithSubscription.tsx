@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 import { SubscriptionPageGuard } from "./SubscriptionGuard";
+=======
+// components/withSubscription.tsx
+import { SubscriptionPageGuard } from "./SubscriptionGuard"; 
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
 
 interface WithSubscriptionProps {
   requiredTier: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';

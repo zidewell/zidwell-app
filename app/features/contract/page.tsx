@@ -9,7 +9,7 @@ import { ArrowLeft, Crown, Zap, Sparkles, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
-import Header from "@/app/components/home-component/Header";
+import Header from "@/app/components/home-component-old/Header";
 
 const ContractLandingPage = () => {
   const router = useRouter();

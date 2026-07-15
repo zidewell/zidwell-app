@@ -4,9 +4,12 @@ import { useState, useEffect, Suspense } from "react";
 import {
   Check,
   Sparkles,
+<<<<<<< HEAD
   Crown,
   Zap,
   Star,
+=======
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
   Loader2,
   ArrowLeft,
 } from "lucide-react";
@@ -14,15 +17,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSubscription } from "../hooks/useSubscripion";
 import { useUserContextData } from "../context/userData";
 import { SubscriptionBadge } from "../components/subscription-components/subscriptionBadges";
-import Footer from "../components/home-component/Footer";
+import Footer from "../components/home-component-old/Footer";
 import { Button } from "../components/ui/button";
-import Header from "../components/home-component/Header";
+import Header from "../components/home-component-old/Header";
 
 const plans = [
   {
     name: "Free",
     tier: "free",
+    tagline: "Start Managing Your Money",
     price: "₦0",
+<<<<<<< HEAD
     period: "/month",
     icon: Star,
     description: "Start managing your money",
@@ -36,15 +41,37 @@ const plans = [
       "Basic financial overview - Global",
     ],
     cta: "Get Started",
+=======
+    altPrice: "$0",
+    suffix: "/month",
+    note: "For individuals and early-stage freelancers.",
+    region: "global",
+    features: [
+      "Manual bookkeeping — Global",
+      "Auto-bookkeeping (Wallet users, Nigeria)",
+      "Payment Links & Sales pages (Nigeria)",
+      "Free business bank account (Nigeria)",
+      "Up to 5 invoices — Global",
+      "Up to 5 receipts — Global",
+      "Basic financial overview",
+    ],
+    cta: "Start Free",
+    featured: false,
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
     amount: 0,
-    color: "gray",
   },
   {
     name: "Solopreneur",
     tier: "solopreneur",
+<<<<<<< HEAD
+=======
+    tagline: "Get Organized",
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
     price: "₦4,900",
-    period: "/month",
+    altPrice: "$3.99",
+    suffix: "/month",
     yearlyPrice: "₦49,000/year (save ₦9,800)",
+<<<<<<< HEAD
     icon: Zap,
     description: "Get organized as a freelancer or solo business owner",
     features: [
@@ -56,13 +83,27 @@ const plans = [
       "Basic financial insights - Global",
     ],
     cta: "Go Solopreneur",
-    amount: 4900,
+=======
     yearlyAmount: 49000,
-    color: "blue",
+    note: "For freelancers and solo business owners.",
+    region: "global",
+    features: [
+      "Everything in Free, plus:",
+      "Up to 10 invoices",
+      "Unlimited receipts",
+      "Branded invoices",
+      "Better expense tracking",
+      "Basic financial insights",
+    ],
+    cta: "Go Solopreneur",
+    featured: false,
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
+    amount: 4900,
   },
   {
     name: "SME",
     tier: "sme",
+<<<<<<< HEAD
     price: "₦29,900",
     period: "/month",
     yearlyPrice: "₦299,000/year (save ₦59,800)",
@@ -85,10 +126,35 @@ const plans = [
     amount: 29900,
     yearlyAmount: 299000,
     color: "yellow",
+=======
+    tagline: "Run Your Business Properly",
+    price: "₦29,900",
+    altPrice: "$21.99",
+    suffix: "/month",
+    yearlyPrice: "₦299,000/year (save ₦59,800)",
+    yearlyAmount: 299000,
+    note: "For growing small businesses.",
+    region: "global",
+    features: [
+      "Everything in Solopreneur, plus:",
+      "Upload bank statements (PDF / Excel / CSV)",
+      "Connect up to 3 bank accounts — Nigeria",
+      "Auto-bookkeeping from connected accounts — Nigeria",
+      "Unlimited invoices & receipts",
+      "Vault — store financial documents safely",
+      "Tax calculator",
+      "Financial statements (view): P&L · Cashflow · Balance Sheet",
+      "1 extra team member",
+    ],
+    cta: "Go SME",
+    featured: true,
+    amount: 29900,
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
   },
   {
     name: "Enterprise",
     tier: "enterprise",
+<<<<<<< HEAD
     price: "₦100,000",
     period: "/month",
     yearlyPrice: "₦1,000,000/year (save ₦200,000)",
@@ -134,6 +200,54 @@ const plans = [
     amount: 300000,
     yearlyAmount: 3000000,
     color: "purple",
+=======
+    tagline: "Team Business Management",
+    price: "₦100,000",
+    altPrice: "$75",
+    suffix: "/month",
+    yearlyPrice: "₦1,000,000/year (save ₦200,000)",
+    yearlyAmount: 1000000,
+    note: "For teams that need structure.",
+    region: "global",
+    features: [
+      "Everything in SME, plus:",
+      "Multi-user access (full team)",
+      "Role-based permissions",
+      "Approvals for payments, invoices, receipts, transfers",
+      "Connect up to 5 bank accounts — Nigeria",
+      "Downloadable financial reports",
+      "10 contracts",
+      "Dedicated onboarding support",
+    ],
+    cta: "Go Enterprise",
+    featured: false,
+    amount: 100000,
+  },
+  {
+    name: "Corporation",
+    tier: "corporation",
+    tagline: "Full Business Finance System",
+    price: "₦300,000",
+    altPrice: "$220",
+    suffix: "/month",
+    yearlyPrice: "₦3,000,000/year (save ₦600,000)",
+    yearlyAmount: 3000000,
+    note: "For large organizations and structured companies.",
+    region: "global",
+    features: [
+      "Everything in Enterprise, plus:",
+      "Unlimited contracts",
+      "Department-based access (HR, Finance, Ops…)",
+      "Connect unlimited bank accounts — Nigeria",
+      "Simple payroll system",
+      "Advanced financial reporting",
+      "Custom financial structure setup",
+      "Priority onboarding & dedicated account manager",
+    ],
+    cta: "Talk to Sales",
+    featured: false,
+    amount: 300000,
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
   },
 ];
 
@@ -251,11 +365,15 @@ function PricingPage() {
   return (
     <>
       <Header />
-      <section id="pricing" className="py-20 md:py-32 bg-(--bg-primary)">
+      <section id="pricing" className="py-20 md:py-32 bg-[var(--bg-primary)]">
         <div className="container mx-auto px-4">
           {/* Success Message */}
           {showSuccess && (
+<<<<<<< HEAD
             <div className="fixed top-4 right-4 z-50 bg-(--color-accent-yellow) text-(--color-ink) px-6 py-3 rounded-xl shadow-pop animate-slideIn">
+=======
+            <div className="fixed top-4 right-4 z-50 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-6 py-3 rounded-xl shadow-pop animate-slideIn">
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
               <p className="font-bold">✓ Payment successful!</p>
               <p className="text-sm">Your subscription has been activated.</p>
             </div>
@@ -263,7 +381,7 @@ function PricingPage() {
 
           {/* Error Message */}
           {error && (
-            <div className="fixed top-4 right-4 z-50 bg-destructive text-white px-6 py-3 rounded-xl shadow-pop animate-slideIn">
+            <div className="fixed top-4 right-4 z-50 bg-[#EF4444] text-white px-6 py-3 rounded-xl shadow-pop animate-slideIn">
               <p className="font-bold">✗ Error</p>
               <p className="text-sm">{error}</p>
             </div>
@@ -271,6 +389,7 @@ function PricingPage() {
 
           {/* Section Header */}
           <div className="max-w-3xl mx-auto text-center mb-16">
+<<<<<<< HEAD
             {/* Back Button */}
             <div className="flex justify-start mb-6">
               <button
@@ -283,19 +402,39 @@ function PricingPage() {
             </div>
 
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-(--text-primary)">
+=======
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-[var(--text-primary)]">
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
               Simple plans that{" "}
-              <span className="text-(--color-accent-yellow)">grow</span> with
-              you
+              <span className="text-[var(--color-accent-yellow)]">grow</span> with you
             </h2>
+<<<<<<< HEAD
             <p className="text-lg text-(--text-secondary)">
+=======
+            <p className="text-lg text-[var(--text-secondary)]">
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
               Choose the plan that matches your business goals. Each plan is a
               clear upgrade in capability, not just more limits.
             </p>
 
+<<<<<<< HEAD
+=======
+            {/* Back Button */}
+            <div className="mt-4">
+              <button
+                onClick={() => router.back()}
+                className="inline-flex items-center gap-2 text-[var(--color-accent-yellow)] hover:underline"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+            </div>
+
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
             {/* Current Plan Display */}
             {subscription && subscription.tier !== "free" && (
-              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-(--color-accent-yellow)/10 rounded-full">
-                <span className="text-sm text-(--text-primary)">
+              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full">
+                <span className="text-sm text-[var(--text-primary)]">
                   Current Plan:
                 </span>
                 <SubscriptionBadge />
@@ -304,14 +443,14 @@ function PricingPage() {
 
             {/* Billing Toggle */}
             <div className="flex items-center justify-center mt-8">
-              <div className="bg-(--bg-secondary) p-1 rounded-full border-2 border-(--border-color)">
+              <div className="bg-[var(--bg-secondary)] p-1 rounded-full border-2 border-[var(--border-color)]">
                 <button
                   onClick={() => setSelectedBilling("monthly")}
                   disabled={processingTier !== null}
                   className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                     selectedBilling === "monthly"
-                      ? "bg-(--color-accent-yellow) text-(--color-ink)"
-                      : "text-(--text-primary)"
+                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                      : "text-[var(--text-primary)] hover:text-[var(--text-primary)]/80"
                   } disabled:opacity-50`}
                 >
                   Monthly
@@ -321,8 +460,8 @@ function PricingPage() {
                   disabled={processingTier !== null}
                   className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                     selectedBilling === "yearly"
-                      ? "bg-(--color-accent-yellow) text-(--color-ink)"
-                      : "text-(--text-primary)"
+                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                      : "text-[var(--text-primary)] hover:text-[var(--text-primary)]/80"
                   } disabled:opacity-50`}
                 >
                   Yearly <span className="text-xs ml-1">Save up to 20%</span>
@@ -333,31 +472,35 @@ function PricingPage() {
 
           {/* Pricing Grid */}
           <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-6">
+<<<<<<< HEAD
             {plans.map((plan, index) => {
+=======
+            {plans.map((plan) => {
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
               const currentPlan = isCurrentPlan(plan.tier);
               const isUpgrade = upgradeParam === plan.tier;
               const isProcessing = processingTier === plan.tier;
+              const isFeatured = plan.featured;
 
               return (
                 <div
-                  key={index}
+                  key={plan.tier}
                   id={`plan-${plan.tier}`}
                   className={`relative flex flex-col p-6 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 rounded-2xl ${
-                    plan.highlight
-                      ? "bg-(--color-accent-yellow) text-(--color-ink) border-2 border-(--border-color) shadow-[6px_6px_0px_var(--border-color)]"
-                      : "bg-(--bg-primary) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)]"
-                  } ${isUpgrade ? "ring-4 ring-(--color-accent-yellow) ring-opacity-50" : ""}`}
+                    isFeatured
+                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] border-2 border-[var(--border-color)] shadow-[6px_6px_0px_var(--border-color)]"
+                      : "bg-[var(--bg-primary)] border-2 border-[var(--border-color)] shadow-[4px_4px_0px_var(--border-color)]"
+                  } ${isUpgrade ? "ring-4 ring-[var(--color-accent-yellow)] ring-opacity-50" : ""}`}
                 >
-                  {plan.highlight && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-(--border-color) text-(--text-primary) text-xs font-bold flex items-center gap-1 rounded-full">
+                  {isFeatured && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--border-color)] text-[var(--text-primary)] text-xs font-bold flex items-center gap-1 rounded-full">
                       <Sparkles className="w-3 h-3" />
                       POPULAR
                     </div>
                   )}
 
-                  {/* Current Plan Badge */}
                   {currentPlan && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-(--color-accent-yellow) text-(--color-ink) text-xs font-bold rounded-full whitespace-nowrap">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] text-xs font-bold whitespace-nowrap rounded-full">
                       CURRENT PLAN
                     </div>
                   )}
@@ -365,9 +508,7 @@ function PricingPage() {
                   <div className="mb-6">
                     <h3
                       className={`text-xl font-bold mb-2 ${
-                        plan.highlight
-                          ? "text-(--color-ink)"
-                          : "text-(--text-primary)"
+                        isFeatured ? "text-[var(--color-ink)]" : "text-[var(--text-primary)]"
                       }`}
                     >
                       {plan.name}
@@ -375,9 +516,7 @@ function PricingPage() {
                     <div className="flex items-baseline gap-1">
                       <span
                         className={`text-3xl font-black ${
-                          plan.highlight
-                            ? "text-(--color-ink)"
-                            : "text-(--text-primary)"
+                          isFeatured ? "text-[var(--color-ink)]" : "text-[var(--text-primary)]"
                         }`}
                       >
                         {selectedBilling === "yearly" && plan.yearlyAmount
@@ -386,20 +525,16 @@ function PricingPage() {
                       </span>
                       <span
                         className={`text-sm ${
-                          plan.highlight
-                            ? "text-(--color-ink)/70"
-                            : "text-(--text-secondary)"
+                          isFeatured ? "text-[var(--color-ink)]/70" : "text-[var(--text-secondary)]"
                         }`}
                       >
-                        {selectedBilling === "yearly" ? "/year" : plan.period}
+                        {selectedBilling === "yearly" ? "/year" : plan.suffix}
                       </span>
                     </div>
                     {selectedBilling === "yearly" && plan.yearlyPrice && (
                       <p
                         className={`text-xs mt-1 ${
-                          plan.highlight
-                            ? "text-(--color-ink)/70"
-                            : "text-(--text-secondary)"
+                          isFeatured ? "text-[var(--color-ink)]/70" : "text-[var(--text-secondary)]"
                         }`}
                       >
                         {plan.yearlyPrice}
@@ -407,32 +542,26 @@ function PricingPage() {
                     )}
                     <p
                       className={`text-sm mt-3 ${
-                        plan.highlight
-                          ? "text-(--color-ink)/80"
-                          : "text-(--text-secondary)"
+                        isFeatured ? "text-[var(--color-ink)]/80" : "text-[var(--text-secondary)]"
                       }`}
                     >
-                      {plan.description}
+                      {plan.note}
                     </p>
                   </div>
 
                   <ul className="space-y-2 mb-8 grow">
-                    {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2 text-sm">
                         {!feature.startsWith("Everything in") && (
                           <Check
                             className={`w-4 h-4 shrink-0 mt-0.5 ${
-                              plan.highlight
-                                ? "text-(--color-ink)"
-                                : "text-(--color-accent-yellow)"
+                              isFeatured ? "text-[var(--color-ink)]" : "text-[var(--color-accent-yellow)]"
                             }`}
                           />
                         )}
                         <span
                           className={`${
-                            plan.highlight
-                              ? "text-(--color-ink)"
-                              : "text-(--text-primary)"
+                            isFeatured ? "text-[var(--color-ink)]" : "text-[var(--text-primary)]"
                           } ${feature.startsWith("Everything in") ? "font-medium" : ""}`}
                         >
                           {feature}
@@ -442,27 +571,35 @@ function PricingPage() {
                   </ul>
 
                   <Button
-                    variant={plan.highlight ? "outline" : "default"}
+                    variant={isFeatured ? "outline" : "default"}
                     className={`w-full rounded-xl ${
-                      plan.highlight
-                        ? "bg-(--bg-primary) text-(--text-primary) hover:bg-(--bg-secondary) border-2 border-(--border-color)"
-                        : "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+                      isFeatured
+                        ? "bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] border-2 border-[var(--border-color)]"
+                        : "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                     }`}
                     onClick={() => handleSubscribe(plan)}
                     disabled={loading || isProcessing || currentPlan}
                   >
-                    {isProcessing
-                      ? "Processing..."
-                      : currentPlan
-                        ? "Current Plan"
-                        : plan.cta}
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : currentPlan ? (
+                      "Current Plan"
+                    ) : (
+                      plan.cta
+                    )}
                   </Button>
                 </div>
               );
             })}
           </div>
+<<<<<<< HEAD
 
        
+=======
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
         </div>
       </section>
       <Footer />
@@ -470,12 +607,16 @@ function PricingPage() {
   );
 }
 
+<<<<<<< HEAD
 export default function Price() {
+=======
+export default function Pricing() {
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-(--bg-primary)">
-          <Loader2 className="w-8 h-8 animate-spin text-(--color-accent-yellow)" />
+        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
         </div>
       }
     >

@@ -1,9 +1,17 @@
+<<<<<<< HEAD
+=======
+// components/subscription-components/SubscriptionGuard.tsx
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
 "use client";
 
 import { useSubscription } from "@/app/hooks/useSubscripion";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+<<<<<<< HEAD
 import { Crown, Zap, Sparkles, Lock, Building2, Briefcase, Gem } from "lucide-react";
+=======
+import { Crown, Zap, Sparkles, Star, Lock, Building2, Briefcase } from "lucide-react";
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
 import Link from "next/link";
 
 interface SubscriptionPageGuardProps {
@@ -20,15 +28,24 @@ const tierConfig = {
     color: "text-blue-600",
     bg: "bg-blue-50",
     price: "₦4,900/month",
+<<<<<<< HEAD
+=======
+    yearlyPrice: "₦49,000/year",
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
     features: [
       "Up to 10 invoices",
       "Unlimited receipts",
       "Branded invoices",
       "Better expense tracking",
+<<<<<<< HEAD
+=======
+      "Basic financial insights",
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
     ],
   },
   sme: {
     icon: Building2,
+<<<<<<< HEAD
     color: "text-green-600",
     bg: "bg-green-50",
     price: "₦29,900/month",
@@ -39,6 +56,20 @@ const tierConfig = {
       "Tax calculator",
       "Financial statements",
       "1 team member",
+=======
+    color: "text-(--color-accent-yellow)",
+    bg: "bg-(--color-accent-yellow)/10",
+    price: "₦29,900/month",
+    yearlyPrice: "₦299,000/year",
+    features: [
+      "Tax calculator access",
+      "Unlimited invoices",
+      "Unlimited receipts",
+      "Bank statement uploads",
+      "Connect up to 3 bank accounts",
+      "Financial statements (P&L, Cash Flow, Balance Sheet)",
+      "1 extra team member access",
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
     ],
   },
   enterprise: {
@@ -46,6 +77,7 @@ const tierConfig = {
     color: "text-amber-600",
     bg: "bg-amber-50",
     price: "₦100,000/month",
+<<<<<<< HEAD
     features: [
       "Multi-user access",
       "Role-based permissions",
@@ -60,11 +92,38 @@ const tierConfig = {
     bg: "bg-purple-50",
     price: "₦300,000+/month",
     features: [
+=======
+    yearlyPrice: "₦1,000,000/year",
+    features: [
+      "Full tax calculator",
+      "Tax filing support",
+      "Financial statements",
+      "Role-based permissions",
+      "Request & approval system",
+      "Connect 5 bank accounts",
+      "10 contracts",
+      "Dedicated onboarding support",
+    ],
+  },
+  corporation: {
+    icon: Sparkles,
+    color: "text-purple-600",
+    bg: "bg-purple-50",
+    price: "₦300,000+/month",
+    yearlyPrice: "₦3,000,000/year",
+    features: [
+      "Full tax filing (VAT, PAYE, WHT)",
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
       "Unlimited contracts",
       "Department-based access",
       "Unlimited bank accounts",
       "Payroll system",
+<<<<<<< HEAD
       "Advanced reporting",
+=======
+      "Advanced financial reporting",
+      "Priority onboarding support",
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
       "Dedicated account manager",
     ],
   },
@@ -77,7 +136,7 @@ export function SubscriptionPageGuard({
   title = "Premium Feature",
   description = "This feature requires an upgraded plan",
 }: SubscriptionPageGuardProps) {
-  const { canAccessFeature, loading, subscription } = useSubscription();
+  const { canAccessFeature, loading, subscription, userTier } = useSubscription();
   const router = useRouter();
   const [checking, setChecking] = useState(true);
 
@@ -108,6 +167,15 @@ export function SubscriptionPageGuard({
     const config = tierConfig[requiredTier as keyof typeof tierConfig];
     const Icon = config?.icon || Lock;
 
+    // Get the display name for the tier
+    const getTierDisplayName = (tier: string) => {
+      if (tier === "solopreneur") return "Solopreneur";
+      if (tier === "sme") return "SME";
+      if (tier === "enterprise") return "Enterprise";
+      if (tier === "corporation") return "Corporation";
+      return tier;
+    };
+
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="flex flex-col items-center justify-center min-h-[80vh] p-6">
@@ -120,7 +188,7 @@ export function SubscriptionPageGuard({
           <h1 className="text-3xl font-bold text-gray-900 mb-3">{title}</h1>
 
           <p className="text-gray-600 text-center max-w-md mb-8">
-            {description}. Upgrade to {requiredTier} plan to unlock this feature
+            {description}. Upgrade to {getTierDisplayName(requiredTier)} plan to unlock this feature
             and many more benefits.
           </p>
 
@@ -128,7 +196,7 @@ export function SubscriptionPageGuard({
             <div className="bg-white rounded-xl border-2 border-gray-200 p-6 mb-8 max-w-md w-full">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <Icon className={`w-5 h-5 ${config.color}`} />
-                <span className="capitalize">{requiredTier} Plan Benefits</span>
+                <span className="capitalize">{getTierDisplayName(requiredTier)} Plan Benefits</span>
               </h3>
               <ul className="space-y-3 mb-6">
                 {config.features.map((feature, index) => (
@@ -145,6 +213,11 @@ export function SubscriptionPageGuard({
               <p className="text-2xl font-bold text-gray-900 mb-4">
                 {config.price}
               </p>
+              {config.yearlyPrice && (
+                <p className="text-sm text-(--color-accent-yellow) mb-4">
+                  {config.yearlyPrice}
+                </p>
+              )}
               <Link
                 href={`/pricing?upgrade=${requiredTier}`}
                 className={`block w-full py-3 px-4 rounded-lg text-center font-bold transition-all
@@ -154,11 +227,15 @@ export function SubscriptionPageGuard({
                       : requiredTier === "corporation"
                         ? "bg-purple-600 text-white hover:bg-purple-700"
                         : requiredTier === "sme"
+<<<<<<< HEAD
                           ? "bg-green-600 text-white hover:bg-green-700"
+=======
+                          ? "bg-(--color-accent-yellow) text-gray-900 hover:bg-(--color-accent-yellow)/90"
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
                           : "bg-blue-600 text-white hover:bg-blue-700"
                   }`}
               >
-                Upgrade to {requiredTier}
+                Upgrade to {getTierDisplayName(requiredTier)}
               </Link>
             </div>
           )}

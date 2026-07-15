@@ -124,7 +124,20 @@ const plans = [
 export default function Pricing() {
   const router = useRouter();
   const searchParams = useSearchParams();
+<<<<<<< HEAD:app/components/home-component/Pricing.tsx
   const { subscription, loading } = useSubscription();
+=======
+  const {
+    subscription,
+    subscribe,
+    loading,
+    userTier,
+    canAccessFeature
+    // ,
+    // checkTrialStatus,
+    // activateTrial,
+  } = useSubscription();
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679:app/components/home-component-old/Pricing.tsx
   const { userData } = useUserContextData();
   const [selectedBilling, setSelectedBilling] = useState<"monthly" | "yearly">(
     "monthly",
@@ -146,8 +159,19 @@ export default function Pricing() {
     }
   }, [searchParams]);
 
+<<<<<<< HEAD:app/components/home-component/Pricing.tsx
+=======
+  // useEffect(() => {
+  //   if (subscription?.tier === "free") {
+  //     checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
+  //     checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
+  //   }
+  // }, [subscription?.tier, checkTrialStatus]);
+
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679:app/components/home-component-old/Pricing.tsx
   useEffect(() => {
     if (upgradeParam && plans.some((p) => p.tier === upgradeParam)) {
+      
       const element = document.getElementById("pricing");
       if (element) element.scrollIntoView({ behavior: "smooth" });
     }
@@ -228,6 +252,31 @@ export default function Pricing() {
   const isCurrentPlan = (tier: string) =>
     subscription?.tier === tier && subscription?.status === "active";
 
+<<<<<<< HEAD:app/components/home-component/Pricing.tsx
+=======
+  // const handleActivateTrial = async (
+  //   trialType: "bookkeeping" | "tax_calculator",
+  // ) => {
+  //   try {
+  //     const featureKey =
+  //       trialType === "bookkeeping"
+  //         ? "bookkeeping_access"
+  //         : "tax_calculator_access";
+  //     const result = await activateTrial(featureKey, 14);
+  //     if (result.success) {
+  //       setShowSuccess(true);
+  //       setTimeout(() => setShowSuccess(false), 5000);
+  //       if (trialType === "bookkeeping")
+  //         checkTrialStatus("bookkeeping_access").then(setBookkeepingTrial);
+  //       else
+  //         checkTrialStatus("tax_calculator_access").then(setTaxCalculatorTrial);
+  //     } else setError(result.error || "Failed to activate trial");
+  //   } catch (error: any) {
+  //     setError(error.message);
+  //   }
+  // };
+
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679:app/components/home-component-old/Pricing.tsx
   return (
     <section id="pricing" className="py-20 md:py-32 bg-(--bg-primary)">
       <div className="container mx-auto px-4">
@@ -372,6 +421,29 @@ export default function Pricing() {
                       ? "Current Plan"
                       : plan.cta}
                 </Button>
+<<<<<<< HEAD:app/components/home-component/Pricing.tsx
+=======
+                {/* {plan.tier === "free" && subscription?.tier === "free" && (
+                  <div className="mt-3 space-y-2">
+                    {!bookkeepingTrial?.isActive && (
+                      <button
+                        onClick={() => handleActivateTrial("bookkeeping")}
+                        className="block w-full text-sm text-(--color-accent-yellow) hover:underline"
+                      >
+                        Activate 14-day bookkeeping trial
+                      </button>
+                    )}
+                    {!taxCalculatorTrial?.isActive && (
+                      <button
+                        onClick={() => handleActivateTrial("tax_calculator")}
+                        className="block w-full text-sm text-(--color-accent-yellow) hover:underline"
+                      >
+                        Activate 14-day tax calculator trial
+                      </button>
+                    )}
+                  </div>
+                )} */}
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679:app/components/home-component-old/Pricing.tsx
               </div>
             );
           })}

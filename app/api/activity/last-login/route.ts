@@ -1,4 +1,4 @@
-// app/api/track-login/route.ts
+// app/api/last-login/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 

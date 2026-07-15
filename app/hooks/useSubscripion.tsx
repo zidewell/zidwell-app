@@ -1,3 +1,4 @@
+// app/hooks/useSubscripion.ts
 import { useUserContextData } from "../context/userData";
 import { useCallback, useEffect } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -122,10 +123,7 @@ export const useSubscription = () => {
       sme: {
         invoices: 'unlimited',
         receipts: 'unlimited',
-        contracts: 0,
-        teamMembers: 1,
         bankAccounts: 3,
-        manualBookkeeping: true,
         autoBookkeeping: true,
         bankStatementUpload: true,
         vault: true,
@@ -242,11 +240,11 @@ export const useSubscription = () => {
         "Request & approval system",
         "Connect 5 bank accounts (up from 3)",
         "Downloadable financial reports",
-        "10 contracts",
+        "10 contracts (up from 1)",
         "Dedicated onboarding support",
       ],
       sme_to_corporation: [
-        "Unlimited contracts",
+        "Unlimited contracts (up from 1)",
         "Department-based access - HR, Finance, Operations, etc",
         "Connect unlimited bank accounts (up from 3)",
         "Simple payroll system",
@@ -283,38 +281,168 @@ export const useSubscription = () => {
   const currentTier = cachedSubscription?.tier || subscription?.tier || 'free';
   const currentStatus = cachedSubscription?.status || subscription?.status || 'active';
 
+  // Tier boolean flags
+  const isFree = currentTier === 'free';
+  const isSolopreneur = currentTier === 'solopreneur';
+  const isSME = currentTier === 'sme';
+  const isEnterprise = currentTier === 'enterprise';
+  const isCorporation = currentTier === 'corporation';
+
+  // Check if user has unlimited access for various features
+  const hasUnlimitedInvoices = isSME || isEnterprise || isCorporation;
+  const hasUnlimitedReceipts = isSME || isEnterprise || isCorporation;
+  const hasUnlimitedContracts = isCorporation || isEnterprise || isSME;
+
+  // Feature access helpers
+  const canAccessTaxCalculator = isSME || isEnterprise || isCorporation;
+  const canAccessTaxSupport = isEnterprise || isCorporation;
+  const canAccessFullTaxFiling = isCorporation;
+  const canAddLawyerSignature = isEnterprise || isCorporation;
+
+  // Get tier display name
+  const getTierDisplayName = useCallback(() => {
+    if (isCorporation) return 'Corporation';
+    if (isEnterprise) return 'Enterprise';
+    if (isSME) return 'SME';
+    if (isSolopreneur) return 'Solopreneur';
+    return 'Free Trial';
+  }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
+
+  // Get tier icon name (for use with lucide icons)
+  const getTierIconName = useCallback(() => {
+    if (isCorporation) return 'Sparkles';
+    if (isEnterprise) return 'Crown';
+    if (isSME) return 'Star';
+    if (isSolopreneur) return 'Zap';
+    return 'Star';
+  }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
+
+  // Get tier colors
+  const getTierColors = useCallback(() => {
+    if (isCorporation) {
+      return {
+        bg: 'bg-purple-100 dark:bg-purple-900/20',
+        border: 'border-purple-200 dark:border-purple-800',
+        text: 'text-purple-600 dark:text-purple-400',
+        badge: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+        hover: 'hover:bg-purple-50 dark:hover:bg-purple-900/30',
+        icon: 'text-purple-600 dark:text-purple-400',
+      };
+    }
+    if (isEnterprise) {
+      return {
+        bg: 'bg-amber-100 dark:bg-amber-900/20',
+        border: 'border-amber-200 dark:border-amber-800',
+        text: 'text-amber-600 dark:text-amber-400',
+        badge: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+        hover: 'hover:bg-amber-50 dark:hover:bg-amber-900/30',
+        icon: 'text-amber-600 dark:text-amber-400',
+      };
+    }
+    if (isSME) {
+      return {
+        bg: 'bg-(--color-accent-yellow)/10',
+        border: 'border-(--color-accent-yellow)/30',
+        text: 'text-(--color-accent-yellow)',
+        badge: 'bg-(--color-accent-yellow)/20 text-(--color-accent-yellow)',
+        hover: 'hover:bg-(--color-accent-yellow)/5',
+        icon: 'text-(--color-accent-yellow)',
+      };
+    }
+    if (isSolopreneur) {
+      return {
+        bg: 'bg-blue-100 dark:bg-blue-900/20',
+        border: 'border-blue-200 dark:border-blue-800',
+        text: 'text-blue-600 dark:text-blue-400',
+        badge: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+        hover: 'hover:bg-blue-50 dark:hover:bg-blue-900/30',
+        icon: 'text-blue-600 dark:text-blue-400',
+      };
+    }
+    return {
+      bg: 'bg-gray-100 dark:bg-gray-800',
+      border: 'border-gray-200 dark:border-gray-700',
+      text: 'text-gray-600 dark:text-gray-400',
+      badge: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+      hover: 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
+      icon: 'text-gray-600 dark:text-gray-400',
+    };
+  }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
+
+  // Get limit for a specific feature
+  const getFeatureLimit = useCallback((feature: 'invoices' | 'receipts' | 'contracts' | 'teamMembers' | 'bankAccounts'): number | string => {
+    const limits = getPlanLimits();
+    return limits[feature] || 0;
+  }, [getPlanLimits]);
+
+  // Check if user has reached a specific limit
+  const hasReachedLimit = useCallback((feature: 'invoices' | 'receipts' | 'contracts' | 'teamMembers' | 'bankAccounts', currentCount: number): boolean => {
+    const limit = getFeatureLimit(feature);
+    if (limit === 'unlimited') return false;
+    return currentCount >= (limit as number);
+  }, [getFeatureLimit]);
+
+  // Get remaining count for a specific feature
+  const getRemainingCount = useCallback((feature: 'invoices' | 'receipts' | 'contracts' | 'teamMembers' | 'bankAccounts', currentCount: number): number | string => {
+    const limit = getFeatureLimit(feature);
+    if (limit === 'unlimited') return 'unlimited';
+    return Math.max(0, (limit as number) - currentCount);
+  }, [getFeatureLimit]);
+
   return {
+    // Core subscription data
     subscription: cachedSubscription || subscription,
     loading: subscriptionLoading,
     refreshSubscription: refreshAll,
+    
+    // Tier info
+    userTier: currentTier,
+    currentTier,
+    currentStatus,
+    
+    // Tier boolean flags
+    isFree,
+    isSolopreneur,
+    isSME,
+    isEnterprise,
+    isCorporation,
+    
+    // Legacy aliases for backward compatibility (maps to new tier names)
+    isZidLite: isSolopreneur,      // Legacy: ZidLite → Solopreneur
+    isGrowth: isSME,               // Legacy: Growth → SME
+    isPremium: isEnterprise,       // Legacy: Premium → Enterprise
+    isElite: isCorporation,        // Legacy: Elite → Corporation
+    
+    // Feature access helpers
+    hasUnlimitedInvoices,
+    hasUnlimitedReceipts,
+    hasUnlimitedContracts,
+    canAccessTaxCalculator,
+    canAccessTaxSupport,
+    canAccessFullTaxFiling,
+    canAddLawyerSignature,
+    
+    // Helper functions
+    hasRequiredTier,
     checkFeatureAccess,
     subscribe,
     cancelSubscription,
     getUpgradeBenefits: enhancedGetUpgradeBenefits,
     canAccessFeature: enhancedCanAccessFeature,
-    hasRequiredTier,
     getPlanLimits,
-    
-    // Boolean flags for current tier
-    isFree: currentTier === 'free',
-    isSolopreneur: currentTier === 'solopreneur',
-    isSME: currentTier === 'sme',
-    isEnterprise: currentTier === 'enterprise',
-    isCorporation: currentTier === 'corporation',
-    
-    // Legacy aliases for backward compatibility
-    isZidLite: currentTier === 'solopreneur',
-    isGrowth: currentTier === 'sme',
-    isPremium: currentTier === 'enterprise',
-    isElite: currentTier === 'corporation',
+    getFeatureLimit,
+    hasReachedLimit,
+    getRemainingCount,
+    getTierDisplayName,
+    getTierIconName,
+    getTierColors,
     
     // Status flags
     isActive: currentStatus === 'active',
     isExpired: currentStatus === 'expired',
     isCancelled: currentStatus === 'cancelled',
     
-    // Tier info
-    userTier: currentTier,
+    // User info
     userId: userData?.id,
     
     // Expiry info

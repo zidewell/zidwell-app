@@ -326,14 +326,17 @@ export const metadata: Metadata = {
     },
   },
   category: "Finance & Business Management",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Zidwell",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   other: {
     "google-site-verification":
       "google-site-verification=rBgRfj247s1PVKZyJC6VRnl_xJxFOo2exemDkjUxEm4",
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "default",
-    "apple-mobile-web-app-title": "Zidwell",
-    "format-detection": "telephone=no",
-    "mobile-web-app-capable": "yes",
   },
 };
 
@@ -363,6 +366,25 @@ export default function RootLayout({
                   document.documentElement.classList.remove('dark');
                 }
               } catch (e) {}
+            `,
+          }}
+        />
+
+        {/* Service Worker Registration for PWA */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                      console.log('ServiceWorker registration successful');
+                    })
+                    .catch(function(err) {
+                      console.log('ServiceWorker registration failed: ', err);
+                    });
+                });
+              }
             `,
           }}
         />
@@ -442,16 +464,6 @@ export default function RootLayout({
           hrefLang="en-NG"
         />
 
-        {/* PWA & iOS specific meta tags */}
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta
-          name="apple-mobile-web-app-status-bar-style"
-          content="black-translucent"
-        />
-        <meta name="apple-mobile-web-app-title" content="Zidwell" />
-        <meta name="format-detection" content="telephone=no" />
-        <meta name="mobile-web-app-capable" content="yes" />
-
         {/* iOS launch images */}
         <link rel="apple-touch-startup-image" href="/splash/launch.png" />
 
@@ -461,7 +473,7 @@ export default function RootLayout({
 
         <link rel="preconnect" href="https://cdn.zidwell.com" />
       </head>
-      <body className="bg-(--bg-primary) text-(--text-primary) antialiased">
+      <body className="bg-(--bg-primary) text-(--text-primary) antialiased" suppressHydrationWarning={true}>
         {/* Google Analytics Script */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
@@ -476,7 +488,7 @@ export default function RootLayout({
           `}
         </Script>
 
-                {/* Google AdSense Script */}
+        {/* Google AdSense Script */}
         <Script
           id="adsbygoogle-init"
           strategy="afterInteractive"
@@ -484,11 +496,9 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
 
-
         <ThemeProvider>
           <ThemeWrapper>
             <UserProvider>
-            
               <SessionRestore>
                 <SessionWatcher>
                   <AuthChecker>

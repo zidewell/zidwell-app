@@ -13,11 +13,6 @@ import { useJournal } from '@/app/context/JournalContext';
 import { useTier } from '@/app/context/TierContext';
 import { toast } from 'sonner';
 
-// ==================== PDF.js IMPORTS ====================
-// Use the main build which handles password-protected PDFs
-import * as pdfjsLib from 'pdfjs-dist';
-
-// ==================== TYPES ====================
 interface UploadedFile {
   id: string;
   name: string;
@@ -52,7 +47,6 @@ interface BankStatementUploadProps {
   onUploadComplete?: () => void;
 }
 
-// ==================== PASSWORD DIALOG ====================
 function PasswordDialog({ 
   open, 
   onClose, 
@@ -152,7 +146,6 @@ function PasswordDialog({
   );
 }
 
-// ==================== MAIN COMPONENT ====================
 export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: BankStatementUploadProps) {
   const { addEntry, activeJournalType, categories, refetch } = useJournal();
   const { isPremium } = useTier();
@@ -164,9 +157,7 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [storedFiles, setStoredFiles] = useState<Map<string, File>>(new Map());
-  const [workerInitialized, setWorkerInitialized] = useState(false);
   
-  // Password dialog state
   const [passwordDialog, setPasswordDialog] = useState<{
     open: boolean;
     fileId: string;
@@ -179,26 +170,6 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
   const previewData = selectedFile?.previewData;
   const isPreviewReady = selectedFile?.status === 'preview' && previewData;
 
-  // ==================== SETUP PDF.JS WORKER ====================
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !workerInitialized) {
-      try {
-        // For version 6.x, use the correct worker URL with .mjs extension
-        const workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.1.200/pdf.worker.min.mjs';
-        pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
-        setWorkerInitialized(true);
-        console.log('✅ PDF.js worker configured with version 6.1.200');
-      } catch (error) {
-        console.error('Failed to configure PDF worker:', error);
-        // Fallback to unpkg
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 
-          'https://unpkg.com/pdfjs-dist@6.1.200/build/pdf.worker.min.mjs';
-        setWorkerInitialized(true);
-      }
-    }
-  }, [workerInitialized]);
-
-  // ==================== HELPERS ====================
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -207,188 +178,33 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
     }).format(value);
   };
 
-  const formatDate = (dateStr: string): string => {
-    if (dateStr.includes('/')) {
-      const parts = dateStr.split('/');
-      if (parts.length === 3) {
-        let [m, d, y] = parts;
-        if (parseInt(m) > 12) [d, m] = [m, d];
-        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-      }
+  const parseStatementFile = async (file: File, password?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (password) {
+      formData.append('password', password);
     }
-    return dateStr;
+
+    const response = await fetch('/api/journal/parse-bank-statement', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!result.success) {
+      if (result.needsPassword) {
+        throw new Error('PASSWORD_REQUIRED');
+      }
+      if (result.invalidPassword) {
+        throw new Error('INVALID_PASSWORD');
+      }
+      throw new Error(result.error || 'Failed to parse file');
+    }
+
+    return result.data;
   };
 
-  const findMatchingCategory = (text: string) => {
-    const keywords: Record<string, string[]> = {
-      food: ['food', 'restaurant', 'cafe', 'meal', 'groceries', 'supermarket'],
-      transport: ['transport', 'uber', 'bolt', 'taxi', 'fuel', 'gas', 'petrol'],
-      salary: ['salary', 'wage', 'payroll', 'bonus'],
-      electricity_bill: ['electricity', 'energy', 'power', 'ede'],
-      data_internet: ['data', 'internet', 'wifi', 'broadband'],
-      call_airtime: ['airtime', 'call', 'phone', 'mtn', 'glo', 'airtel'],
-      transfer: ['transfer', 'send', 'p2p', 'bank transfer'],
-      withdrawal: ['withdrawal', 'atm', 'cash'],
-      online_sales: ['paypal', 'stripe', 'flutterwave', 'paystack', 'online'],
-      rent: ['rent', 'property', 'apartment', 'house'],
-      professional_fees: ['professional fee', 'consulting', 'legal', 'consultation', 'lawyer'],
-    };
-
-    const lowerText = text.toLowerCase();
-    for (const [categoryId, words] of Object.entries(keywords)) {
-      if (words.some(word => lowerText.includes(word))) {
-        return categories.find(c => c.id === categoryId);
-      }
-    }
-    return null;
-  };
-
-  // ==================== PDF PARSING ====================
-  const parsePDFContent = async (file: File, password?: string): Promise<{ text: string; needsPassword?: boolean }> => {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      
-      // Create the loading task
-      const loadingTask = pdfjsLib.getDocument({
-        data: arrayBuffer,
-        password: password || undefined,
-        useSystemFonts: true,
-        disableFontFace: false,
-      });
-
-      // Handle password callback
-      loadingTask.onPassword = (updatePassword: (password: string) => void, reason: number) => {
-        console.log('Password callback triggered, reason:', reason);
-        if (reason === 1) { // NEED_PASSWORD
-          if (password) {
-            updatePassword(password);
-          } else {
-            throw new Error('PASSWORD_REQUIRED');
-          }
-        } else if (reason === 2) { // INCORRECT_PASSWORD
-          throw new Error('INVALID_PASSWORD');
-        }
-      };
-
-      // Load the PDF
-      const pdf = await loadingTask.promise;
-      let fullText = '';
-
-      // Extract text from all pages
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(' ');
-        fullText += pageText + '\n';
-      }
-
-      return { text: fullText };
-    } catch (error: any) {
-      console.error('PDF parsing error:', error);
-      
-      // Check if it's a password error
-      if (error?.message === 'PASSWORD_REQUIRED' || 
-          error?.message === 'INVALID_PASSWORD' ||
-          error?.message?.toLowerCase().includes('password') ||
-          error?.name === 'PasswordException' ||
-          error?.message?.includes('Invalid password')) {
-        return { text: '', needsPassword: true };
-      }
-      
-      throw new Error(error?.message || 'Failed to parse PDF');
-    }
-  };
-
-  const parseStatementFile = async (file: File, password?: string): Promise<UploadedFile['previewData']> => {
-    let text = '';
-
-    try {
-      // Parse PDF
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        const result = await parsePDFContent(file, password);
-        if (result.needsPassword) {
-          throw new Error('PASSWORD_REQUIRED');
-        }
-        text = result.text || '';
-      } else {
-        // CSV or text files
-        text = await file.text();
-      }
-
-      if (!text || text.trim().length === 0) {
-        throw new Error('No text could be extracted from the file');
-      }
-
-      // Extract transactions
-      const lines = text.split('\n').filter(line => line.trim());
-      const entries: UploadedFile['previewData']['entries'] = [];
-
-      for (const line of lines) {
-        const dateMatch = line.match(/(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})/);
-        const amountMatch = line.match(/([\d,]+\.\d{2})/);
-
-        if (dateMatch && amountMatch) {
-          const amount = parseFloat(amountMatch[1].replace(/,/g, ''));
-          const isCredit = line.toLowerCase().includes('credit') || 
-                          line.toLowerCase().includes('deposit') ||
-                          line.toLowerCase().includes('inflow') ||
-                          line.toLowerCase().includes('payment received');
-          const isDebit = line.toLowerCase().includes('debit') || 
-                         line.toLowerCase().includes('withdrawal') ||
-                         line.toLowerCase().includes('outflow') ||
-                         line.toLowerCase().includes('payment made');
-          const category = findMatchingCategory(line);
-          const date = formatDate(dateMatch[1]);
-
-          let type: 'income' | 'expense' = 'expense';
-          if (isCredit) {
-            type = 'income';
-          } else if (isDebit) {
-            type = 'expense';
-          } else if (amount > 0) {
-            const hasPositiveWords = line.toLowerCase().includes('credit') || 
-                                    line.toLowerCase().includes('deposit');
-            type = hasPositiveWords ? 'income' : 'expense';
-          }
-
-          entries.push({
-            date,
-            description: line.substring(0, 200),
-            type,
-            amount: Math.abs(amount),
-            category: category?.name || 'Other',
-            categoryId: category?.id || (type === 'income' ? 'other_income' : 'other_expense'),
-            note: line.substring(0, 200),
-          });
-        }
-      }
-
-      if (entries.length === 0) {
-        throw new Error('No transactions could be extracted from the file');
-      }
-
-      const totalIncome = entries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
-      const totalExpenses = entries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
-
-      return {
-        totalRows: entries.length,
-        entries,
-        summary: {
-          totalIncome,
-          totalExpenses,
-          netBalance: totalIncome - totalExpenses,
-        },
-      };
-    } catch (error) {
-      if (error instanceof Error && error.message === 'PASSWORD_REQUIRED') {
-        throw error;
-      }
-      console.error('Parse error:', error);
-      throw new Error(error instanceof Error ? error.message : 'Failed to parse file');
-    }
-  };
-
-  // ==================== FILE HANDLING ====================
   const handleFileSelect = async (fileList: FileList | null) => {
     if (!fileList) return;
 
@@ -470,7 +286,7 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
       setFiles(prev =>
         prev.map(f =>
           f.id === file.id
-            ? { ...f, status: 'preview', previewData }
+            ? { ...f, status: 'preview', previewData, passwordAttempts: 0 }
             : f
         )
       );
@@ -478,33 +294,38 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
       setPasswordDialog({ open: false, fileId: '', fileName: '' });
       toast.success(`Unlocked! ${previewData.totalRows} transactions found`);
     } catch (error: any) {
-      const attempts = (file.passwordAttempts || 0) + 1;
-      setFiles(prev =>
-        prev.map(f =>
-          f.id === file.id
-            ? { ...f, passwordAttempts: attempts }
-            : f
-        )
-      );
-
-      if (attempts >= 3) {
+      if (error.message === 'INVALID_PASSWORD') {
+        const attempts = (file.passwordAttempts || 0) + 1;
         setFiles(prev =>
           prev.map(f =>
             f.id === file.id
-              ? { ...f, status: 'error', error: 'Too many failed attempts' }
+              ? { ...f, passwordAttempts: attempts }
               : f
           )
         );
-        setPasswordDialog({ open: false, fileId: '', fileName: '' });
-        toast.error('Too many failed attempts. Please try re-uploading the file.');
-        storedFiles.delete(file.id);
+
+        if (attempts >= 3) {
+          setFiles(prev =>
+            prev.map(f =>
+              f.id === file.id
+                ? { ...f, status: 'error', error: 'Too many failed attempts' }
+                : f
+            )
+          );
+          setPasswordDialog({ open: false, fileId: '', fileName: '' });
+          toast.error('Too many failed attempts. Please try re-uploading the file.');
+          storedFiles.delete(file.id);
+        } else {
+          setPasswordDialog({
+            open: true,
+            fileId: file.id,
+            fileName: file.name,
+            error: `Incorrect password. ${3 - attempts} attempts remaining`
+          });
+        }
       } else {
-        setPasswordDialog({
-          open: true,
-          fileId: file.id,
-          fileName: file.name,
-          error: `Incorrect password. ${3 - attempts} attempts remaining`
-        });
+        toast.error(`Error: ${error.message}`);
+        setPasswordDialog({ open: false, fileId: '', fileName: '' });
       }
     }
   };
@@ -584,7 +405,6 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
     }
   };
 
-  // ==================== DRAG & DROP ====================
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -600,7 +420,6 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
     }
   };
 
-  // ==================== RENDER ====================
   if (!isPremium) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -645,7 +464,6 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
           </DialogHeader>
 
           <div className="space-y-6">
-            {/* Upload Area */}
             <div
               className={cn(
                 'border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer',
@@ -674,9 +492,11 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
               <p className="text-sm text-(--text-secondary) mt-1">
                 Supports CSV, Excel, and PDF files (including password-protected PDFs)
               </p>
+              <p className="text-xs text-(--text-secondary) mt-2">
+                PDFs are processed securely on our servers
+              </p>
             </div>
 
-            {/* File List */}
             {files.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -714,7 +534,6 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
                   </div>
                 </div>
 
-                {/* File Chips */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {files.map((file) => (
                     <div
@@ -766,7 +585,6 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
                   ))}
                 </div>
 
-                {/* Password Required Notice */}
                 {files.some(f => f.status === 'password_required') && (
                   <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/30 mb-4">
                     <div className="flex items-center gap-3">
@@ -783,10 +601,8 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
                   </div>
                 )}
 
-                {/* Preview Table */}
                 {isPreviewReady && (
                   <div className="border border-(--border-color) rounded-xl overflow-hidden">
-                    {/* Summary */}
                     <div className="grid grid-cols-4 gap-4 p-4 bg-(--bg-secondary) border-b border-(--border-color)">
                       <div>
                         <p className="text-xs text-(--text-secondary) uppercase tracking-wider">Total Transactions</p>
@@ -811,7 +627,6 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
                       </div>
                     </div>
 
-                    {/* Table */}
                     <div className="overflow-x-auto max-h-64 overflow-y-auto">
                       <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-(--bg-primary)">
@@ -857,7 +672,6 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
                       </table>
                     </div>
 
-                    {/* Pagination */}
                     {Math.ceil(previewData.entries.length / entriesPerPage) > 1 && (
                       <div className="flex items-center justify-between px-4 py-3 border-t border-(--border-color) bg-(--bg-secondary) flex-wrap gap-2">
                         <p className="text-xs text-(--text-secondary)">
@@ -902,7 +716,6 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
         </DialogContent>
       </Dialog>
 
-      {/* Password Dialog */}
       <PasswordDialog
         open={passwordDialog.open}
         onClose={() => {

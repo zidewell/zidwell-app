@@ -442,7 +442,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [balance, setBalance] = useState<number | null>(null);
   const [userData, setUserData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false); // Default: light mode
   const [searchTerm, setSearchTerm] = useState("");
   const [shouldFetchData, setShouldFetchData] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
@@ -571,6 +571,25 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     initializeUser();
   }, [initializeUser]);
+
+  // Theme initialization - LIGHT MODE DEFAULT
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("theme");
+    
+    if (storedTheme === "dark") {
+      // User previously chose dark mode
+      setIsDarkMode(true);
+      document.documentElement.classList.add("dark");
+    } else {
+      // Default to light mode
+      setIsDarkMode(false);
+      document.documentElement.classList.remove("dark");
+      // Only set localStorage if not set to keep light as default
+      if (!storedTheme) {
+        localStorage.setItem("theme", "light");
+      }
+    }
+  }, []);
 
   // Watch for payment processed cookie
   useEffect(() => {
@@ -975,15 +994,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       clearInterval(refreshInterval);
     };
   }, [userData?.id, shouldFetchData, fetchSubscription]);
-
-  // Theme initialization
-  useEffect(() => {
-    const theme = localStorage.getItem("theme");
-    if (theme === "dark") {
-      setIsDarkMode(true);
-      document.documentElement.classList.add("dark");
-    }
-  }, []);
 
   const handleDarkModeToggle = () => {
     const newTheme = !isDarkMode;

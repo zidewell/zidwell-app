@@ -70,7 +70,14 @@ const Footer = () => {
 
             {/* Paragraph */}
             <p className="text-xs sm:text-sm text-(--text-secondary) mb-4 sm:mb-6 leading-relaxed max-w-2xl">
-              Zidwell operates as a financial technology company and does not provide banking services or hold depositor funds. All financial transactions facilitated by Zidwell are conducted in partnership with licensed financial institutions. Zidwell does not engage in traditional banking activities. By accessing or using Zidwell's website and services, you acknowledge and agree that Zidwell is not a bank, and all financial services are provided through third-party partners.
+              Zidwell operates as a financial technology company and does not
+              provide banking services or hold depositor funds. All financial
+              transactions facilitated by Zidwell are conducted in partnership
+              with licensed financial institutions. Zidwell does not engage in
+              traditional banking activities. By accessing or using Zidwell's
+              website and services, you acknowledge and agree that Zidwell is
+              not a bank, and all financial services are provided through
+              third-party partners.
             </p>
 
             {/* Social Links */}
@@ -140,13 +147,19 @@ const Footer = () => {
               </li>
               <li className="flex items-start gap-2 text-xs sm:text-sm text-(--text-secondary)">
                 <Mail className="w-4 h-4 mt-0.5 shrink-0" />
-                <a href="mailto:support@zidwell.com" className="hover:text-(--color-accent-yellow) transition-colors">
+                <a
+                  href="mailto:support@zidwell.com"
+                  className="hover:text-(--color-accent-yellow) transition-colors"
+                >
                   support@zidwell.com
                 </a>
               </li>
               <li className="flex items-start gap-2 text-xs sm:text-sm text-(--text-secondary)">
                 <Phone className="w-4 h-4 mt-0.5 shrink-0" />
-                <a href="tel:+2348000000000" className="hover:text-(--color-accent-yellow) transition-colors">
+                <a
+                  href="tel:+2348000000000"
+                  className="hover:text-(--color-accent-yellow) transition-colors"
+                >
                   +234 706 917 5399
                 </a>
               </li>

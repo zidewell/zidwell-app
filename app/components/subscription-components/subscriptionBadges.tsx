@@ -90,7 +90,13 @@ export function SubscriptionBadge({
   }
   
   const config = tierConfig[tier as keyof typeof tierConfig];
+<<<<<<< HEAD
   const Icon = config?.icon || Star;
+=======
+  const Icon = config.icon;
+
+ 
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
 
  
   const sizeClasses = {

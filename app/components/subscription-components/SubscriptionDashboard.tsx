@@ -50,11 +50,17 @@ export function SubscriptionDashboard() {
   } = useSubscription();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+<<<<<<< HEAD
   
   // Map legacy tier to new tier for display
   const getDisplayTier = (tier: string): string => {
     return LEGACY_TIER_MAP[tier] || tier;
   };
+=======
+  const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
+  const [taxCalculatorTrial, setTaxCalculatorTrial] = useState<any>(null);
+
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
 
   if (loading) {
     return (
@@ -210,6 +216,17 @@ export function SubscriptionDashboard() {
                         : limits.contracts}
                     </span>
                   </div>
+<<<<<<< HEAD
+=======
+                  <div className="text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Transfer fee:
+                    </span>
+                    {/* <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
+                      ₦{limits.transferFee} per transfer
+                    </span> */}
+                  </div>
+>>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
                 </div>
               </div>
             )}
