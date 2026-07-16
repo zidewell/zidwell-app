@@ -139,12 +139,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
   const isCorporationUser = userTier === "corporation";
-<<<<<<< HEAD
-  const hasUnlimitedInvoices = isSMEUser || isEnterpriseUser || isCorporationUser;
-=======
   const hasUnlimitedInvoices =
     isSMEUser || isEnterpriseUser || isCorporationUser;
->>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
 
   // Invoice limits by tier
   const freeTierLimit = 5;
@@ -1353,13 +1349,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                               ? isCorporationUser
                                 ? "text-purple-700"
                                 : isEnterpriseUser
-<<<<<<< HEAD
-                                ? "text-amber-700"
-                                : "text-blue-700"
-=======
                                   ? "text-amber-700"
                                   : "text-blue-700"
->>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
                               : hasReachedLimit()
                               ? "text-yellow-700"
                               : "text-green-700"
@@ -1376,13 +1367,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             "You have unlimited invoices as part of your subscription."
                           ) : hasReachedLimit() ? (
                             <>
-<<<<<<< HEAD
-                              You've used all {isSolopreneurUser ? "10" : "5"} free
-                              invoices.{" "}
-=======
                               You've used all {isSolopreneurUser ? "10" : "5"}{" "}
                               free invoices.{" "}
->>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
                               <Button
                                 variant="link"
                                 className="p-0 h-auto text-[var(--color-accent-yellow)] font-semibold underline"
@@ -1675,13 +1661,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           <Button
                             variant="link"
                             className="p-0 h-auto text-[var(--color-accent-yellow)] font-semibold underline"
-<<<<<<< HEAD
-                            onClick={() =>
-                              router.push("/pricing?upgrade=sme")
-                            }
-=======
                             onClick={() => router.push("/pricing?upgrade=sme")}
->>>>>>> f0dc9f163d2db4c6f24994ecb64105a7d59f7679
                           >
                             Upgrade your plan
                           </Button>{" "}

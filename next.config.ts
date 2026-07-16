@@ -165,14 +165,14 @@
 // };
 
 // module.exports = withPWA(nextConfig);
-
-// next.config.js - Simplified version without Serwist
+// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-   experimental: {
-      runtime: 'nodejs', // Force Node.js runtime instead of edge
-    },
+  
+  // Remove Cloudflare runtime - use default Next.js
+  // Remove experimental.runtime: 'nodejs' if you want default
+  
   images: {
     unoptimized: true,
     domains: ["zidwell.com"],
@@ -274,8 +274,8 @@ const nextConfig = {
   },
 };
 
-// Add Cloudflare dev utility
-const { initOpenNextCloudflareForDev } = require("@opennextjs/cloudflare");
-initOpenNextCloudflareForDev();
+// ❌ REMOVE THIS - Cloudflare dev utility
+// const { initOpenNextCloudflareForDev } = require("@opennextjs/cloudflare");
+// initOpenNextCloudflareForDev();
 
 module.exports = nextConfig;

@@ -1,6 +1,6 @@
 // app/hooks/useJournalStore.ts
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { JournalEntry, Category, JournalType, DEFAULT_CATEGORIES, PeriodSummary, UnifiedTransaction } from '../components/journal/types'; 
 import { 
   startOfDay, 
@@ -32,9 +32,29 @@ const OUTFLOW_TYPES = [
 ];
 
 const API_BASE = '/api/journal';
+const API_COOLDOWN_MS = 3 * 60 * 1000; // 3 minutes
+
+// Track last API call times
+let lastApiCallTime: Record<string, number> = {};
 
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId: string) {
   const isMutation = options.method === 'POST' || options.method === 'PUT';
+  
+  // Only apply cooldown to GET requests
+  if (!isMutation) {
+    const now = Date.now();
+    const endpointKey = `GET_${endpoint}`;
+    
+    if (lastApiCallTime[endpointKey]) {
+      const timeSinceLastCall = now - lastApiCallTime[endpointKey];
+      
+      if (timeSinceLastCall < API_COOLDOWN_MS) {
+        const waitTime = API_COOLDOWN_MS - timeSinceLastCall;
+        console.log(`⏳ API cooldown: waiting ${Math.ceil(waitTime / 1000)}s for ${endpoint}`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
   
   let url = `${API_BASE}${endpoint}`;
   
@@ -65,6 +85,12 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId
   }
 
   const res = await fetch(url, requestOptions);
+
+  // Update last call time for successful GET requests
+  if (!isMutation && res.ok) {
+    const endpointKey = `GET_${endpoint}`;
+    lastApiCallTime[endpointKey] = Date.now();
+  }
 
   if (!res.ok) {
     let errorMessage = `API error (${res.status})`;
@@ -242,7 +268,7 @@ export function useJournalStore() {
       setLoading(true);
       setError(null);
       
-      // Fetch categories
+      // Fetch categories - cooldown applied in fetchWithAuth
       const categoriesData = await fetchWithAuth('/categories', {}, userId);
       const mergedCategories = [
         ...DEFAULT_CATEGORIES,
@@ -250,7 +276,7 @@ export function useJournalStore() {
       ];
       setCategories(mergedCategories);
       
-      // Fetch manual entries
+      // Fetch manual entries - cooldown applied in fetchWithAuth
       const manualData = await fetchManualEntries();
       setManualEntries(manualData);
       
@@ -499,7 +525,7 @@ export function useJournalStore() {
 
     // Combine and sort
     const combined = [...walletEntries, ...manualUnified];
-    console.log(`📊 Total unified entries: ${combined.length} (${walletEntries.length} wallet, ${manualUnified.length} manual)`);
+    // console.log(`📊 Total unified entries: ${combined.length} (${walletEntries.length} wallet, ${manualUnified.length} manual)`);
     
     return combined.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
