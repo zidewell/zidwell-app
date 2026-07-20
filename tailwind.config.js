@@ -10,7 +10,6 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Zidwell semantic tokens as Tailwind utilities (optional)
         'zidwell-ink': '#191919',
         'zidwell-white': '#FFFFFF',
         'zidwell-yellow': '#FDC020',
