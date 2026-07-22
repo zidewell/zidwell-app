@@ -5,7 +5,6 @@ import React, { FormEvent, useState } from "react";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/app/supabase/supabase";
 
 const PasswordReset = () => {
   const [email, setEmail] = useState<string>("");
@@ -14,7 +13,9 @@ const PasswordReset = () => {
 
   const router = useRouter();
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+const handleSubmit = async (
+  event: FormEvent<HTMLFormElement>
+): Promise<void> => {
   event.preventDefault();
 
   const newErrors: { [key: string]: string } = {};
@@ -31,35 +32,39 @@ const PasswordReset = () => {
   setErrors({});
   setLoading(true);
 
-  const baseUrl = process.env.NODE_ENV === "development"
-    ? process.env.NEXT_PUBLIC_DEV_URL
-    : process.env.NEXT_PUBLIC_BASE_URL;
-
-  console.log("Base URL:", baseUrl);
-  console.log("Email:", email);
-
   try {
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${baseUrl}/auth/password-reset/update-password`,
+    const response = await fetch("/api/forgot-password", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
     });
 
-    console.log("Full response:", { data, error });
+    const result = await response.json();
 
-    if (error) throw error;
+    if (!response.ok) {
+      throw new Error(result.error);
+    }
 
     await Swal.fire({
-      title: `Password reset link sent to: ${email}`,
+      title: "Password reset email sent",
+      text: `Check ${email} for the reset link.`,
       icon: "success",
     });
+
+    setEmail("");
   } catch (error: any) {
-    console.error("Full error details:", error);
+    console.error(error);
+
     await Swal.fire({
-      title: `Failed to send password reset email. Please try again later.`,
-      text: error.message || "Unknown error occurred",
+      title: "Failed",
+      text: error.message || "Unable to send password reset email.",
       icon: "error",
     });
+
     setErrors({
-      general: error.message || "Failed to send password reset email.",
+      general: error.message,
     });
   } finally {
     setLoading(false);
