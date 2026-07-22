@@ -25,11 +25,11 @@ export async function POST(req: Request) {
         ? process.env.NEXT_PUBLIC_DEV_URL
         : process.env.NEXT_PUBLIC_BASE_URL;
 
-    // const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    //   redirectTo: `${baseUrl}/auth/password-reset/update-password`,
-    // });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${baseUrl}/auth/password-reset/update-password`,
+    });
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+    //   const { error } = await supabase.auth.resetPasswordForEmail(email);
 
     if (error) {
       return NextResponse.json(

@@ -13,67 +13,91 @@ const PasswordReset = () => {
 
   const router = useRouter();
 
-const handleSubmit = async (
-  event: FormEvent<HTMLFormElement>
-): Promise<void> => {
-  event.preventDefault();
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>
+  ): Promise<void> => {
+    event.preventDefault();
 
-  const newErrors: { [key: string]: string } = {};
+    const newErrors: { [key: string]: string } = {};
 
-  if (!email || !/^[\w-.]+@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(email)) {
-    newErrors.email = "Please enter a valid email address";
-  }
-
-  if (Object.keys(newErrors).length > 0) {
-    setErrors(newErrors);
-    return;
-  }
-
-  setErrors({});
-  setLoading(true);
-
-  try {
-    const response = await fetch("/api/forgot-password", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error);
+    if (!email || !/^[\w-.]+@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(email)) {
+      newErrors.email = "Please enter a valid email address";
     }
 
-    await Swal.fire({
-      title: "Password reset email sent",
-      text: `Check ${email} for the reset link.`,
-      icon: "success",
-    });
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
 
-    setEmail("");
-  } catch (error: any) {
-    console.error(error);
+    setErrors({});
+    setLoading(true);
 
-    await Swal.fire({
-      title: "Failed",
-      text: error.message || "Unable to send password reset email.",
-      icon: "error",
-    });
+    try {
+      const response = await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
 
-    setErrors({
-      general: error.message,
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error);
+      }
+
+      await Swal.fire({
+        title: "Password reset email sent",
+        text: `Check ${email} for the reset link.`,
+        icon: "success",
+      });
+
+      setEmail("");
+    } catch (error: any) {
+      console.error(error);
+
+      await Swal.fire({
+        title: "Failed",
+        text: error.message || "Unable to send password reset email.",
+        icon: "error",
+      });
+
+      setErrors({
+        general: error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="p-5 h-screen">
-      <div className="flex flex-col justify-center items-center h-[80%]">
+      {/* Back Button at Top */}
+      <div className="flex justify-start mb-4">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <path d="M19 12H5"/>
+            <path d="M12 19l-7-7 7-7"/>
+          </svg>
+          <span>Back</span>
+        </button>
+      </div>
+
+      <div className="flex flex-col justify-center items-center h-[70%]">
         <h2 className="text-2xl mb-2">Forgotten Password</h2>
         <p className="mb-4">Input your email for verification</p>
 
