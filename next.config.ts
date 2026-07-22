@@ -1,189 +1,77 @@
-// /** @type {import('next').NextConfig} */
-
-// const withPWA = require("next-pwa")({
-//   dest: "public",
-//   disable: process.env.NODE_ENV === "development",
-//   register: true,
-//   skipWaiting: true,
-//   scope: "/",
-//   sw: "sw.js",
-
-//   runtimeCaching: [
-//     {
-//       urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
-//       handler: "CacheFirst",
-//       options: {
-//         cacheName: "google-fonts",
-//         expiration: {
-//           maxEntries: 4,
-//           maxAgeSeconds: 365 * 24 * 60 * 60, // 365 days
-//         },
-//       },
-//     },
-//     {
-//       urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
-//       handler: "StaleWhileRevalidate",
-//       options: {
-//         cacheName: "static-font-assets",
-//         expiration: {
-//           maxEntries: 4,
-//           maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
-//         },
-//       },
-//     },
-//     {
-//       urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
-//       handler: "StaleWhileRevalidate",
-//       options: {
-//         cacheName: "static-image-assets",
-//         expiration: {
-//           maxEntries: 64,
-//           maxAgeSeconds: 24 * 60 * 60,
-//         },
-//       },
-//     },
-//     {
-//       urlPattern: /\/_next\/static\/.+$/i,
-//       handler: "CacheFirst",
-//       options: {
-//         cacheName: "next-static",
-//         expiration: {
-//           maxEntries: 64,
-//           maxAgeSeconds: 365 * 24 * 60 * 60,
-//         },
-//       },
-//     },
-//   ],
-// });
-
-// const nextConfig = {
-//   reactStrictMode: true,
-//   images: {
-//     unoptimized: true,
-//     domains: ["zidwell.com"],
-//     formats: ["image/webp", "image/avif"],
-//   },
-
-//   // SEO Optimizations
-//   trailingSlash: false,
-//   poweredByHeader: false,
-//   compress: true,
-
-//   // Webpack configuration to suppress warnings
-//   webpack: (config, { isServer }) => {
-//     // Ignore specific warnings from Supabase realtime-js
-//     if (!config.ignoreWarnings) {
-//       config.ignoreWarnings = [];
-//     }
-
-//     config.ignoreWarnings.push(
-//       {
-//         module: /@supabase\/realtime-js/,
-//       },
-//       {
-//         message:
-//           /Critical dependency: the request of a dependency is an expression/,
-//       },
-//     );
-
-//     return config;
-//   },
-
-//   // Headers for security and PWA
-//   async headers() {
-//     return [
-//       {
-//         source: "/(.*)",
-//         headers: [
-//           {
-//             key: "X-Content-Type-Options",
-//             value: "nosniff",
-//           },
-//           {
-//             key: "X-Frame-Options",
-//             value: "DENY",
-//           },
-//           {
-//             key: "X-XSS-Protection",
-//             value: "1; mode=block",
-//           },
-//           {
-//             key: "Referrer-Policy",
-//             value: "origin-when-cross-origin",
-//           },
-//         ],
-//       },
-//       {
-//         source: "/sitemap.xml",
-//         headers: [
-//           {
-//             key: "Content-Type",
-//             value: "application/xml; charset=utf-8",
-//           },
-//         ],
-//       },
-//       {
-//         source: "/robots.txt",
-//         headers: [
-//           {
-//             key: "Content-Type",
-//             value: "text/plain; charset=utf-8",
-//           },
-//         ],
-//       },
-//     ];
-//   },
-
-//   async redirects() {
-//     return [
-//       {
-//         source: "/home",
-//         destination: "/",
-//         permanent: true,
-//       },
-//       {
-//         source: "/signin",
-//         destination: "/auth/login",
-//         permanent: true,
-//       },
-//       {
-//         source: "/register",
-//         destination: "/auth/signup",
-//         permanent: true,
-//       },
-//     ];
-//   },
-
-//   env: {
-//     SITE_URL: process.env.SITE_URL || "zidwell.com",
-//     SITE_NAME: "Zidwell",
-//   },
-
-//   compiler: {
-//     removeConsole: process.env.NODE_ENV === "production",
-//   },
-// };
-
-// module.exports = withPWA(nextConfig);
-
-// next.config.js - Simplified version without Serwist
 /** @type {import('next').NextConfig} */
+
+const withPWA = require("next-pwa")({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
+  register: true,
+  skipWaiting: true,
+  scope: "/",
+  sw: "sw.js",
+
+  runtimeCaching: [
+    {
+      urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+      handler: "CacheFirst",
+      options: {
+        cacheName: "google-fonts",
+        expiration: {
+          maxEntries: 4,
+          maxAgeSeconds: 365 * 24 * 60 * 60, // 365 days
+        },
+      },
+    },
+    {
+      urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
+      handler: "StaleWhileRevalidate",
+      options: {
+        cacheName: "static-font-assets",
+        expiration: {
+          maxEntries: 4,
+          maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+        },
+      },
+    },
+    {
+      urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
+      handler: "StaleWhileRevalidate",
+      options: {
+        cacheName: "static-image-assets",
+        expiration: {
+          maxEntries: 64,
+          maxAgeSeconds: 24 * 60 * 60,
+        },
+      },
+    },
+    {
+      urlPattern: /\/_next\/static\/.+$/i,
+      handler: "CacheFirst",
+      options: {
+        cacheName: "next-static",
+        expiration: {
+          maxEntries: 64,
+          maxAgeSeconds: 365 * 24 * 60 * 60,
+        },
+      },
+    },
+  ],
+});
+
 const nextConfig = {
   reactStrictMode: true,
-   experimental: {
-      runtime: 'nodejs', // Force Node.js runtime instead of edge
-    },
   images: {
     unoptimized: true,
     domains: ["zidwell.com"],
     formats: ["image/webp", "image/avif"],
   },
 
+  // SEO Optimizations
   trailingSlash: false,
   poweredByHeader: false,
   compress: true,
 
+  // Webpack configuration to suppress warnings
   webpack: (config, { isServer }) => {
+    // Ignore specific warnings from Supabase realtime-js
     if (!config.ignoreWarnings) {
       config.ignoreWarnings = [];
     }
@@ -193,13 +81,15 @@ const nextConfig = {
         module: /@supabase\/realtime-js/,
       },
       {
-        message: /Critical dependency: the request of a dependency is an expression/,
-      }
+        message:
+          /Critical dependency: the request of a dependency is an expression/,
+      },
     );
 
     return config;
   },
 
+  // Headers for security and PWA
   async headers() {
     return [
       {
@@ -274,8 +164,118 @@ const nextConfig = {
   // },
 };
 
-// Add Cloudflare dev utility
-const { initOpenNextCloudflareForDev } = require("@opennextjs/cloudflare");
-initOpenNextCloudflareForDev();
+module.exports = withPWA(nextConfig);
 
-module.exports = nextConfig;
+// // next.config.js - Simplified version without Serwist
+// /** @type {import('next').NextConfig} */
+// const nextConfig = {
+//   reactStrictMode: true,
+//    experimental: {
+//       runtime: 'nodejs', // Force Node.js runtime instead of edge
+//     },
+//   images: {
+//     unoptimized: true,
+//     domains: ["zidwell.com"],
+//     formats: ["image/webp", "image/avif"],
+//   },
+
+//   trailingSlash: false,
+//   poweredByHeader: false,
+//   compress: true,
+
+//   webpack: (config, { isServer }) => {
+//     if (!config.ignoreWarnings) {
+//       config.ignoreWarnings = [];
+//     }
+
+//     config.ignoreWarnings.push(
+//       {
+//         module: /@supabase\/realtime-js/,
+//       },
+//       {
+//         message: /Critical dependency: the request of a dependency is an expression/,
+//       }
+//     );
+
+//     return config;
+//   },
+
+//   async headers() {
+//     return [
+//       {
+//         source: "/(.*)",
+//         headers: [
+//           {
+//             key: "X-Content-Type-Options",
+//             value: "nosniff",
+//           },
+//           {
+//             key: "X-Frame-Options",
+//             value: "DENY",
+//           },
+//           {
+//             key: "X-XSS-Protection",
+//             value: "1; mode=block",
+//           },
+//           {
+//             key: "Referrer-Policy",
+//             value: "origin-when-cross-origin",
+//           },
+//         ],
+//       },
+//       {
+//         source: "/sitemap.xml",
+//         headers: [
+//           {
+//             key: "Content-Type",
+//             value: "application/xml; charset=utf-8",
+//           },
+//         ],
+//       },
+//       {
+//         source: "/robots.txt",
+//         headers: [
+//           {
+//             key: "Content-Type",
+//             value: "text/plain; charset=utf-8",
+//           },
+//         ],
+//       },
+//     ];
+//   },
+
+//   async redirects() {
+//     return [
+//       {
+//         source: "/home",
+//         destination: "/",
+//         permanent: true,
+//       },
+//       {
+//         source: "/signin",
+//         destination: "/auth/login",
+//         permanent: true,
+//       },
+//       {
+//         source: "/register",
+//         destination: "/auth/signup",
+//         permanent: true,
+//       },
+//     ];
+//   },
+
+//   env: {
+//     SITE_URL: process.env.SITE_URL || "zidwell.com",
+//     SITE_NAME: "Zidwell",
+//   },
+
+//   // compiler: {
+//   //   removeConsole: process.env.NODE_ENV === "production",
+//   // },
+// };
+
+// // Add Cloudflare dev utility
+// const { initOpenNextCloudflareForDev } = require("@opennextjs/cloudflare");
+// initOpenNextCloudflareForDev();
+
+// module.exports = nextConfig;

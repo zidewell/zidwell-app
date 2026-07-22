@@ -14,55 +14,57 @@ const PasswordReset = () => {
 
   const router = useRouter();
 
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>,
-  ): Promise<void> => {
-    event.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+  event.preventDefault();
 
-    const newErrors: { [key: string]: string } = {};
+  const newErrors: { [key: string]: string } = {};
 
-    if (!email || !/^[\w-.]+@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(email)) {
-      newErrors.email = "Please enter a valid email address";
-    }
+  if (!email || !/^[\w-.]+@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(email)) {
+    newErrors.email = "Please enter a valid email address";
+  }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    return;
+  }
 
-    setErrors({});
-    setLoading(true);
+  setErrors({});
+  setLoading(true);
 
-    const baseUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.NEXT_PUBLIC_DEV_URL
-        : process.env.NEXT_PUBLIC_BASE_URL;
+  const baseUrl = process.env.NODE_ENV === "development"
+    ? process.env.NEXT_PUBLIC_DEV_URL
+    : process.env.NEXT_PUBLIC_BASE_URL;
 
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${baseUrl}/auth/password-reset/update-password`,
-      });
+  console.log("Base URL:", baseUrl);
+  console.log("Email:", email);
 
-      console.log(error);
+  try {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${baseUrl}/auth/password-reset/update-password`,
+    });
 
-      if (error) throw error;
+    console.log("Full response:", { data, error });
 
-      Swal.fire({
-        title: `Password reset link sent to: ${email}`,
-        icon: "success",
-      });
-    } catch (error: any) {
-      Swal.fire({
-        title: `Failed to send password reset email. Please try again later.`,
-        icon: "error",
-      });
-      setErrors({
-        general: error.message || "Failed to send password reset email.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (error) throw error;
+
+    await Swal.fire({
+      title: `Password reset link sent to: ${email}`,
+      icon: "success",
+    });
+  } catch (error: any) {
+    console.error("Full error details:", error);
+    await Swal.fire({
+      title: `Failed to send password reset email. Please try again later.`,
+      text: error.message || "Unknown error occurred",
+      icon: "error",
+    });
+    setErrors({
+      general: error.message || "Failed to send password reset email.",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <main className="p-5 h-screen">
