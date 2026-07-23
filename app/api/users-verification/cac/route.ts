@@ -1,0 +1,49 @@
+// app/api/users-verification/cac/route.js
+import { NextResponse } from 'next/server';
+import prembly from '@api/prembly';
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { rc_number, company_type = 'RC' } = body;
+
+    // Validate input
+    if (!rc_number) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'RC number is required',
+          error: 'Missing required field: rc_number'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Make the API call using the SDK
+    const response = await prembly.basicCac1(
+      { 
+        rc_number: rc_number,
+        company_type: company_type 
+      },
+      { 'x-api-key': process.env.PREMBLY_SECRET_KEY }
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: response.data,
+      raw_response: response
+    });
+
+  } catch (error) {
+    console.error('CAC Verification Error:', error.message);
+    
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'CAC verification failed',
+        error: error.message
+      },
+      { status: 500 }
+    );
+  }
+}

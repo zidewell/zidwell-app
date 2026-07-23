@@ -1,0 +1,406 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BUSINESS SCREENING CHECK",
+    "version": "unknown"
+  },
+  "servers": [
+    {
+      "url": "https://api.prembly.com/radar/api/v1"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "sec0": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-KEY"
+      }
+    }
+  },
+  "security": [
+    {
+      "sec0": []
+    }
+  ],
+  "paths": {
+    "/onboarding-screening/business": {
+      "post": {
+        "summary": "Verify",
+        "description": "This page will help you get started with BUSINESS SCREENING CHECK.",
+        "operationId": "getting-started-with-your-api",
+        "parameters": [
+          {
+            "name": "x_api_key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "business_name",
+                  "business_number",
+                  "business_country"
+                ],
+                "properties": {
+                  "business_name": {
+                    "type": "string",
+                    "default": "John Doe"
+                  },
+                  "business_number": {
+                    "type": "integer",
+                    "default": 12560958,
+                    "format": "int32"
+                  },
+                  "business_country": {
+                    "type": "string",
+                    "description": "Country business is registered in",
+                    "default": "NG"
+                  },
+                  "media_report": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "director_aml": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "fatf_check": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "200",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{\n    \"status\": true,\n    \"message\": \"Success\",\n    \"detail\": \"Success\",\n    \"response_code\": \"00\",\n    \"data\": {\n        \"business_info\": {\n            \"company_name\": \"John Doe\",\n            \"name\": \"John Doe\",\n            \"address\": \"NO. 18 MALLAM LAWAN DANBAZU ROAD, KANO\",\n            \"registrationDate\": \"2015-09-22T08:24:17.353+00:00\",\n            \"company_status\": \"INACTIVE\",\n            \"companyStatus\": \"INACTIVE\",\n            \"directors\": [\n                {\n                    \"surname\": \"TUNDE\",\n                    \"firstname\": \"BADIRU\",\n                    \"email\": \"olakay@yahoo.com\",\n                    \"phoneNumber\": \"080523523433\",\n                    \"accreditationnumber\": \"\",\n                    \"status\": \"ACTIVE\",\n                    \"address\": \"\"\n                }\n            ]\n        },\n        \"business_persons_pep_sanction\": [],\n        \"sanction\": [\n            {\n                \"name\": \"John Doe\",\n                \"summary\": \"DESIGNATION OF \\nJohn Doe\\n \\nAS A \\nTERRORIST FINANCIER \\n \\nOn \\n1\\n8th \\nMarch\\n, 202\\n4\\n, the Chairman of Nigeria Sanctions Committee (NSC) on the \\nrecommendation \\nof the NSC designated\\n \\nWEST AND EAST AFRICA GENERAL TRADING CO. LTD\\n \\nNL\\nISW\\ne\\n.1\\n3\\n \\nas a terrorist financier and directs his addition to the Nigeria Sanctions List. Pursuant to \\nthe provisions of section 54 of the Terrorism (Prevention and Prohibiti\\non) Act, 2022, all financial \\ninstitutions and designated non\\n-\\nfinancial businesses and professions are required to:\\n \\na) immediately, identify and freeze, without prior notice, all funds, assets, and any other economic \\nresources belonging to the designated pe\\nrsons and entities in your possession and report same to the \\nSecretariat of the Nigeria Sanctions Committee;\\n \\n(b) report to the Secretariat of the Nigeria Sanctions Committee, any assets frozen or actions taken in \\ncompliance with the designation, including \\nattempted transactions;\\n \\n(c) immediately file a suspicious transactions report to the NFIU for further analysis on the financial \\nactivities of such an individual or entity; and\\n \\n(d) report as a suspicious transactions report to the NFIU, all cases of name ma\\ntching in financial \\ntransactions prior to or after receipt of the Nigerian Sanctions List.\\n \\n(d) subsequently prohibit dealings with the designated persons and entities and to continue to check \\nfor transactions relating to the designated person or entity and\\n \\nthe actions to be taken if funds or other \\nassets or suspect transactions are discovered\\n \\n(e) note that this freezing obligation extends to:\\n \\n(i) all funds or other assets that are owned or controlled by the designated person or entity, and not \\njust those th\\nat can be tied to a particular act, plot, or threat of terrorism or terrorism financing;\\n \\n(ii) those funds or other assets that are wholly or jointly owned or controlled, directly or indirectly, by \\ndesignated persons or entities;\\n \\n(iii) the funds or other as\\nsets derived or generated from funds or other assets owned or controlled \\ndirectly or indirectly by designated persons or entities; and\\n \\n(iv) funds or other assets of persons and entities acting on behalf of, or at the direction of designated \\npersons or enti\\nties.\\n \\n(f) note that this asset freezing mechanism is a preventive tool to disrupt terrorist support and activity \\nand it is incumbent on financial institutions and designated non\\n-\\nfinancial businesses and professions \\nto comply with the asset freezing obligat\\nions, giving the potential of both criminal and civil liabilities \\nfor non\\n-\\ncompliance, as well as the reputational risks for financial institutions and DNFBPs of being \\nseen to be in breach of the asset freezing mechanism.\\n \\n(g) All actions taken pursuant to t\\nhis publication should be immediately communicated to the \\nSecretariat of the Nigeria Sanctions Committee through\\n \\nnigsac@nfiu.gov.ng\\n \\n \\n\",\n                \"other_information\": {\n                    \"type\": \"business\",\n                    \"rc\": \"123456789\",\n                    \"date_of_registration\": \"22/09/2015\",\n                    \"address\": \"No 18 Mallam Lawan Danbazau Road, No 535 R/Zaki Quarters, Kano State\",\n                    \"reason_for_designation\": \"The Entity, in 2017 transferred the sum of N153 Million to Mustapha Musa Adamu. The Entity, in 2017 transferred the sum of N50 million to Ali Abdullahi Yusuf who is the brother to two of the convicts (Ibrahim Ali Alhassan and Bashir Ali Yusuf). The Entity, in 2016 transferred the sum of N160 million to Ambare Mohammed who is a major suspect in Maiduguri.\"\n                }\n            }\n        ],\n        \"adverse_media\": [\n            [\n                {\n                    \"title\": \"Treasury Designates Transnational al-Shabaab Money Laundering ...\",\n                    \"content\": \"Mar 11, 2024 ... ... East Africa's modern history. These attacks ... Dubai-based Haleel Commodities L.L.C., also known ... General Trading. UAE-based Mohamed Artan&nbsp;...\",\n                    \"link\": \"https://home.treasury.gov/news/press-releases/jy2168\",\n                    \"thumbnail\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-91IfwYYNnVbB_SsWhMb954aObHlbTxojgkmXpbpy7fdA3rsWflH3E6el&s\"\n                },\n                {\n                    \"title\": \"Treasury Disrupts International Money Laundering and Sanctions ...\",\n                    \"content\": \"Apr 18, 2023 ... ... company, Thula Uzwe Trading, also in South Africa. ... Limited, and ... General Trading, and Joud General Trading is being designated pursuant to&nbsp;...\",\n                    \"link\": \"https://home.treasury.gov/news/press-releases/jy1422\",\n                    \"thumbnail\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-91IfwYYNnVbB_SsWhMb954aObHlbTxojgkmXpbpy7fdA3rsWflH3E6el&s\"\n                },\n                {\n                    \"title\": \"World Bank Listing of Ineligible Firms and Individuals\",\n                    \"content\": \"For the current list, see Table 2: Other Sanctions which is located further down this page. To report allegations of fraud and corruption in Bank-financed&nbsp;...\",\n                    \"link\": \"https://www.worldbank.org/en/projects-operations/procurement/debarred-firms\",\n                    \"thumbnail\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSshVT0UZJ421VXW3nkNfI6UyzWVj7XVWvmfYMXe0dKvggO_OxDGHAFNn-p&s\"\n                },\n                {\n                    \"title\": \"Africa Overview: Development news, research, data | World Bank\",\n                    \"content\": \"Growth remains uneven across the continent. While the East Africa is set to record a growth rate of 1.8% in 2023, West Africa is expected to grow at 3.3% this&nbsp;...\",\n                    \"link\": \"https://www.worldbank.org/en/region/afr/overview\",\n                    \"thumbnail\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSshVT0UZJ421VXW3nkNfI6UyzWVj7XVWvmfYMXe0dKvggO_OxDGHAFNn-p&s\"\n                },\n                {\n                    \"title\": \"United Nations Office on Drugs and Crime\",\n                    \"content\": \"... General Assembly and ECOSOC · Secretariat · FINGOV ... News. barrels ... Africa and Middle East. Eastern Africa · Middle East and North Africa · Nigeria · Southern&nbsp;...\",\n                    \"link\": \"https://www.unodc.org/\",\n                    \"thumbnail\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTml07EG-1IL3JT4ryX33Ty5bkWiNPLz6bB9Um0YxYMdOprFUsVdBAPAqqo&s\"\n                },\n                {\n                    \"title\": \"Coface: Global Credit Insurance Solutions To Protect Your Business ...\",\n                    \"content\": \"Trade credit insurance, debt collection, business information & surety to empower businesses with tools to optimize credit management & reduce credit risks.\",\n                    \"link\": \"https://www.coface.com/\",\n                    \"thumbnail\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0VyGmAkkYENiiHyv-0R57XNKzXU3cYM0_Pza5CTXF-NT6BB9vJyuOvJSW&s\"\n                }\n            ]\n        ],\n        \"overall_sentiment\": {\n            \"overall_sentiment\": \"Negative\",\n            \"scores\": {\n                \"positive\": 0.131,\n                \"negative\": 0.117,\n                \"neutral\": 0.752\n            }\n        },\n        \"screening_result\": {\n            \"final_risk_score\": 40,\n            \"risk_rank\": \"MEDIUM\",\n            \"toolkit\": [\n                \"The business's score is 100 of 250.\",\n                \"The percentage score is 40.00%.\",\n                \"Activities or transactions falling within this range are deemed medium risk and may trigger further review\"\n            ],\n            \"tooltips\": [\n                \"The business's score is 100 of 250.\",\n                \"The percentage score is 40.00%.\",\n                \"Activities or transactions falling within this range are deemed medium risk and may trigger further review\"\n            ],\n            \"rank_description\": \"Activities or transactions falling within this range are deemed medium risk and may trigger further review\",\n            \"applied_rules\": {\n                \"name_rules\": [\n                    {\n                        \"rule\": \"Business name similarity to sanctions\",\n                        \"condition\": \"len(entity_value) > 0\",\n                        \"entity_key\": \"sanction\",\n                        \"value\": true,\n                        \"score\": 50\n                    },\n                    {\n                        \"rule\": \"Business negative adverse response\",\n                        \"condition\": \"entity_value.get('overall_sentiment','') == 'Negative'\",\n                        \"entity_key\": \"overall_sentiment\",\n                        \"value\": true,\n                        \"score\": 50\n                    },\n                    {\n                        \"rule\": \"Business persons name similarity to sanctions\",\n                        \"condition\": \"any(list(filter(lambda x: len(x.get('sanction',[])) > 0, entity_value)))\",\n                        \"entity_key\": \"business_persons_pep_sanction\",\n                        \"value\": false,\n                        \"score\": 0\n                    },\n                    {\n                        \"rule\": \"Business persons name similarity to pep\",\n                        \"condition\": \"any(list(filter(lambda x: len(x.get('pep',[])) > 0, entity_value)))\",\n                        \"entity_key\": \"business_persons_pep_sanction\",\n                        \"value\": false,\n                        \"score\": 0\n                    },\n                    {\n                        \"rule\": \"Business number record not found\",\n                        \"condition\": \"(isinstance(entity_value,dict)  and entity_value == dict()) or ( not entity_value)\",\n                        \"entity_key\": \"business_info\",\n                        \"value\": false,\n                        \"score\": 0\n                    }\n                ]\n            },\n            \"ai_analysis\": {\n                \"ai_analysis\": \"Based on the information provided, the individual in question appears to be associated with topics related to money laundering, sanctions, and credit insurance solutions. The mention of transnational money laundering activities and sanctions raises concerns about potential involvement in illicit financial transactions. The lack of specific details about the individual suggests a medium level of risk. For an onboarding screening product, it would be advisable to conduct further due diligence to assess the individual's background and potential risks. \\n\\n**Category: POSSIBLE_RISK**\",\n                \"category\": \"POSSIBLE_RISK\",\n                \"reason\": \"This individual is having just a possibility of being fraudulent\"\n            }\n        },\n        \"id_response\": {},\n        \"report\": \"b843f3ab-5f94-4389-aa43-4de789d06bc2\"\n    }\n}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": true,
+                      "default": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Success"
+                    },
+                    "detail": {
+                      "type": "string",
+                      "example": "Success"
+                    },
+                    "response_code": {
+                      "type": "string",
+                      "example": "00"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "business_info": {
+                          "type": "object",
+                          "properties": {
+                            "company_name": {
+                              "type": "string",
+                              "example": "John Doe"
+                            },
+                            "name": {
+                              "type": "string",
+                              "example": "John Doe"
+                            },
+                            "address": {
+                              "type": "string",
+                              "example": "NO. 18 MALLAM LAWAN DANBAZU ROAD, KANO"
+                            },
+                            "registrationDate": {
+                              "type": "string",
+                              "example": "2015-09-22T08:24:17.353+00:00"
+                            },
+                            "company_status": {
+                              "type": "string",
+                              "example": "INACTIVE"
+                            },
+                            "companyStatus": {
+                              "type": "string",
+                              "example": "INACTIVE"
+                            },
+                            "directors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "surname": {
+                                    "type": "string",
+                                    "example": "TUNDE"
+                                  },
+                                  "firstname": {
+                                    "type": "string",
+                                    "example": "BADIRU"
+                                  },
+                                  "email": {
+                                    "type": "string",
+                                    "example": "olakay@yahoo.com"
+                                  },
+                                  "phoneNumber": {
+                                    "type": "string",
+                                    "example": "080523523433"
+                                  },
+                                  "accreditationnumber": {
+                                    "type": "string",
+                                    "example": ""
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "example": "ACTIVE"
+                                  },
+                                  "address": {
+                                    "type": "string",
+                                    "example": ""
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "business_persons_pep_sanction": {
+                          "type": "array"
+                        },
+                        "sanction": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "example": "John Doe"
+                              },
+                              "summary": {
+                                "type": "string",
+                                "example": "DESIGNATION OF \nJohn Doe\n \nAS A \nTERRORIST FINANCIER \n \nOn \n1\n8th \nMarch\n, 202\n4\n, the Chairman of Nigeria Sanctions Committee (NSC) on the \nrecommendation \nof the NSC designated\n \nWEST AND EAST AFRICA GENERAL TRADING CO. LTD\n \nNL\nISW\ne\n.1\n3\n \nas a terrorist financier and directs his addition to the Nigeria Sanctions List. Pursuant to \nthe provisions of section 54 of the Terrorism (Prevention and Prohibiti\non) Act, 2022, all financial \ninstitutions and designated non\n-\nfinancial businesses and professions are required to:\n \na) immediately, identify and freeze, without prior notice, all funds, assets, and any other economic \nresources belonging to the designated pe\nrsons and entities in your possession and report same to the \nSecretariat of the Nigeria Sanctions Committee;\n \n(b) report to the Secretariat of the Nigeria Sanctions Committee, any assets frozen or actions taken in \ncompliance with the designation, including \nattempted transactions;\n \n(c) immediately file a suspicious transactions report to the NFIU for further analysis on the financial \nactivities of such an individual or entity; and\n \n(d) report as a suspicious transactions report to the NFIU, all cases of name ma\ntching in financial \ntransactions prior to or after receipt of the Nigerian Sanctions List.\n \n(d) subsequently prohibit dealings with the designated persons and entities and to continue to check \nfor transactions relating to the designated person or entity and\n \nthe actions to be taken if funds or other \nassets or suspect transactions are discovered\n \n(e) note that this freezing obligation extends to:\n \n(i) all funds or other assets that are owned or controlled by the designated person or entity, and not \njust those th\nat can be tied to a particular act, plot, or threat of terrorism or terrorism financing;\n \n(ii) those funds or other assets that are wholly or jointly owned or controlled, directly or indirectly, by \ndesignated persons or entities;\n \n(iii) the funds or other as\nsets derived or generated from funds or other assets owned or controlled \ndirectly or indirectly by designated persons or entities; and\n \n(iv) funds or other assets of persons and entities acting on behalf of, or at the direction of designated \npersons or enti\nties.\n \n(f) note that this asset freezing mechanism is a preventive tool to disrupt terrorist support and activity \nand it is incumbent on financial institutions and designated non\n-\nfinancial businesses and professions \nto comply with the asset freezing obligat\nions, giving the potential of both criminal and civil liabilities \nfor non\n-\ncompliance, as well as the reputational risks for financial institutions and DNFBPs of being \nseen to be in breach of the asset freezing mechanism.\n \n(g) All actions taken pursuant to t\nhis publication should be immediately communicated to the \nSecretariat of the Nigeria Sanctions Committee through\n \nnigsac@nfiu.gov.ng\n \n \n"
+                              },
+                              "other_information": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "example": "business"
+                                  },
+                                  "rc": {
+                                    "type": "string",
+                                    "example": "123456789"
+                                  },
+                                  "date_of_registration": {
+                                    "type": "string",
+                                    "example": "22/09/2015"
+                                  },
+                                  "address": {
+                                    "type": "string",
+                                    "example": "No 18 Mallam Lawan Danbazau Road, No 535 R/Zaki Quarters, Kano State"
+                                  },
+                                  "reason_for_designation": {
+                                    "type": "string",
+                                    "example": "The Entity, in 2017 transferred the sum of N153 Million to Mustapha Musa Adamu. The Entity, in 2017 transferred the sum of N50 million to Ali Abdullahi Yusuf who is the brother to two of the convicts (Ibrahim Ali Alhassan and Bashir Ali Yusuf). The Entity, in 2016 transferred the sum of N160 million to Ambare Mohammed who is a major suspect in Maiduguri."
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "adverse_media": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "title": {
+                                  "type": "string",
+                                  "example": "Treasury Designates Transnational al-Shabaab Money Laundering ..."
+                                },
+                                "content": {
+                                  "type": "string",
+                                  "example": "Mar 11, 2024 ... ... East Africa's modern history. These attacks ... Dubai-based Haleel Commodities L.L.C., also known ... General Trading. UAE-based Mohamed Artan&nbsp;..."
+                                },
+                                "link": {
+                                  "type": "string",
+                                  "example": "https://home.treasury.gov/news/press-releases/jy2168"
+                                },
+                                "thumbnail": {
+                                  "type": "string",
+                                  "example": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-91IfwYYNnVbB_SsWhMb954aObHlbTxojgkmXpbpy7fdA3rsWflH3E6el&s"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "overall_sentiment": {
+                          "type": "object",
+                          "properties": {
+                            "overall_sentiment": {
+                              "type": "string",
+                              "example": "Negative"
+                            },
+                            "scores": {
+                              "type": "object",
+                              "properties": {
+                                "positive": {
+                                  "type": "number",
+                                  "example": 0.131,
+                                  "default": 0
+                                },
+                                "negative": {
+                                  "type": "number",
+                                  "example": 0.117,
+                                  "default": 0
+                                },
+                                "neutral": {
+                                  "type": "number",
+                                  "example": 0.752,
+                                  "default": 0
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "screening_result": {
+                          "type": "object",
+                          "properties": {
+                            "final_risk_score": {
+                              "type": "integer",
+                              "example": 40,
+                              "default": 0
+                            },
+                            "risk_rank": {
+                              "type": "string",
+                              "example": "MEDIUM"
+                            },
+                            "toolkit": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "example": "The business's score is 100 of 250."
+                              }
+                            },
+                            "tooltips": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "example": "The business's score is 100 of 250."
+                              }
+                            },
+                            "rank_description": {
+                              "type": "string",
+                              "example": "Activities or transactions falling within this range are deemed medium risk and may trigger further review"
+                            },
+                            "applied_rules": {
+                              "type": "object",
+                              "properties": {
+                                "name_rules": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "rule": {
+                                        "type": "string",
+                                        "example": "Business name similarity to sanctions"
+                                      },
+                                      "condition": {
+                                        "type": "string",
+                                        "example": "len(entity_value) > 0"
+                                      },
+                                      "entity_key": {
+                                        "type": "string",
+                                        "example": "sanction"
+                                      },
+                                      "value": {
+                                        "type": "boolean",
+                                        "example": true,
+                                        "default": true
+                                      },
+                                      "score": {
+                                        "type": "integer",
+                                        "example": 50,
+                                        "default": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "ai_analysis": {
+                              "type": "object",
+                              "properties": {
+                                "ai_analysis": {
+                                  "type": "string",
+                                  "example": "Based on the information provided, the individual in question appears to be associated with topics related to money laundering, sanctions, and credit insurance solutions. The mention of transnational money laundering activities and sanctions raises concerns about potential involvement in illicit financial transactions. The lack of specific details about the individual suggests a medium level of risk. For an onboarding screening product, it would be advisable to conduct further due diligence to assess the individual's background and potential risks. \n\n**Category: POSSIBLE_RISK**"
+                                },
+                                "category": {
+                                  "type": "string",
+                                  "example": "POSSIBLE_RISK"
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "example": "This individual is having just a possibility of being fraudulent"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "id_response": {
+                          "type": "object",
+                          "properties": {}
+                        },
+                        "report": {
+                          "type": "string",
+                          "example": "b843f3ab-5f94-4389-aa43-4de789d06bc2"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "400",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "Result": {
+                    "value": "{}"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": []
+      }
+    }
+  },
+  "x-readme": {
+    "headers": []
+  },
+  "x-readme-fauxas": true
+}
