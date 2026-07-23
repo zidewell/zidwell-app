@@ -8,7 +8,7 @@ export function HealthSection() {
         <div className="grid lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-5">
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-lemon-green)]/10 text-[var(--color-lemon-green)] px-3 py-1.5 text-xs font-medium">Why Zidwell</span>
-            <h2 className="mt-5 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">Business isn't just about making money. It's about understanding it.</h2>
+            <h2 className="mt-5 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">Business isn't just about making money. It's also about how you ACCOUNT for it.</h2>
             <p className="mt-4 text-[var(--text-secondary)]">A live Financial Health Score paired with intelligent, plain-English insights — so you can make better decisions, faster.</p>
             <ul className="mt-6 space-y-2 text-sm text-[var(--text-primary)]">
               {["Know exactly where your money is", "Always be ready for taxes", "Always be ready for investors", "Always understand your cash flow", "Replace scattered tools with one system"].map((p) => (

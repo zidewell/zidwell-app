@@ -32,7 +32,7 @@ export function StatementsSection() {
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent-yellow)]/15 px-3 py-1.5 text-xs font-medium text-[var(--text-primary)]">
               <Upload className="h-3.5 w-3.5 text-[var(--color-accent-yellow)]" /> What you get from your records
             </span>
-            <h2 className="mt-4 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">Not just bookkeeping. Real financial intelligence.</h2>
+            <h2 className="mt-4 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">Not just Accounting. Real financial intelligence.</h2>
             <p className="mt-4 text-[var(--text-secondary)]">Once your records are organized, Zidwell generates the reports every serious business needs — useful for tax filing, loan applications, investor meetings and better business decisions.</p>
             <div className="mt-6 grid sm:grid-cols-2 gap-2">
               {reports.map((r) => {
