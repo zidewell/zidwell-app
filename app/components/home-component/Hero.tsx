@@ -78,9 +78,10 @@ export function Hero() {
                   <Instagram className="h-4 w-4" /> Follow on Instagram
                 </Link>
                 <Link
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href="https://www.youtube.com/playlist?list=PLfdCv9wrHSQxJhRQA9teTJGgyhyhrYtSi"
+                  // target="_blank"
+                  // rel="noopener noreferrer"
+                  // href="https://www.youtube.com/playlist?list=PLfdCv9wrHSQxJhRQA9teTJGgyhyhrYtSi"
+                  href="#"
                   className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] text-sm font-semibold font-['Be_Vietnam_Pro',system-ui,sans-serif] border border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%] hover:bg-[oklch(0.935_0_0)] dark:hover:bg-[oklch(0.22_0_0)] transition text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)]"
                 >
                   Book a Demo
