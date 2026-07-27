@@ -86,12 +86,12 @@ export async function POST(req: NextRequest) {
     const tokenExpiry = new Date();
     tokenExpiry.setHours(tokenExpiry.getHours() + 24);
 
-    // Create auth user with email_confirm: true (Supabase handles email verification)
+  
     const { data: authData, error: authError } =
       await supabase.auth.admin.createUser({
         email: email.toLowerCase(),
         password: password,
-        email_confirm: true, // Supabase sends verification email
+        email_confirm: true, 
         user_metadata: {
           full_name: fullName,
           phone: phone,
