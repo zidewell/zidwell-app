@@ -1,3 +1,4 @@
+// app/components/ProtectedLink.tsx
 "use client";
 
 import { ReactNode } from "react";
@@ -14,22 +15,22 @@ interface ProtectedLinkProps {
   icon?: any;
 }
 
-export const ProtectedLink = ({ 
-  href, 
-  children, 
-  className = "", 
+export const ProtectedLink = ({
+  href,
+  children,
+  className = "",
   onClick,
-  icon: Icon 
+  icon: Icon,
 }: ProtectedLinkProps) => {
   const router = useRouter();
   const { userData } = useUserContextData();
   const { openVerificationModal } = useVerificationModal();
 
-  const isVerified = userData?.bvnVerification === "verified";
+  const isVerified = userData?.bvn_verification === "verified";
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    
+
     if (onClick) {
       onClick();
     }
@@ -53,21 +54,21 @@ export const ProtectedLink = ({
   );
 };
 
-export const ProtectedButton = ({ 
+export const ProtectedButton = ({
   onClick,
-  children, 
+  children,
   className = "",
-  icon: Icon 
-}: { 
+  icon: Icon,
+}: {
   onClick?: () => void;
-  children: ReactNode; 
+  children: ReactNode;
   className?: string;
   icon?: any;
 }) => {
   const { userData } = useUserContextData();
   const { openVerificationModal } = useVerificationModal();
 
-  const isVerified = userData?.bvnVerification === "verified";
+  const isVerified = userData?.bvn_verification === "verified";
 
   const handleClick = () => {
     if (!isVerified) {

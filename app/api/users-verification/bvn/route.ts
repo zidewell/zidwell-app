@@ -1,13 +1,12 @@
 // app/api/users-verification/bvn/route.js
 import { NextResponse } from 'next/server';
-import prembly from '@api/prembly';
+import axios from 'axios';
 
 export async function POST(request) {
   try {
     const body = await request.json();
     const { number } = body;
 
-    // Validate input
     if (!number) {
       return NextResponse.json(
         {
@@ -19,28 +18,35 @@ export async function POST(request) {
       );
     }
 
-    // Make the API call using the SDK
-    const response = await prembly.bvnBasic(
-      { number: number },
-      { 'x-api-key': process.env.PREMBLY_SECRET_KEY }
-    );
+    const options = {
+      method: 'POST',
+      url: 'https://api.prembly.com/verification/bvn_validation',
+      headers: {
+        accept: 'application/json',
+        'x-api-key': process.env.PREMBLY_SECRET_KEY,
+        'content-type': 'application/json'
+      },
+      data: { number: number }
+    };
+
+    const response = await axios.request(options);
 
     return NextResponse.json({
       success: true,
       data: response.data,
-      raw_response: response
+      raw_response: response.data
     });
 
   } catch (error) {
-    console.error('BVN Verification Error:', error.message);
+    console.error('BVN Verification Error:', error.response?.data || error.message);
     
     return NextResponse.json(
       {
         success: false,
         message: 'BVN verification failed',
-        error: error.message
+        error: error.response?.data || error.message
       },
-      { status: 500 }
+      { status: error.response?.status || 500 }
     );
   }
 }

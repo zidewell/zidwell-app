@@ -1,7 +1,8 @@
 // app/page.js
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import useIdentityPayKYC from 'next-identity-kyc';
 import { 
   User, 
   Building2, 
@@ -13,17 +14,89 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
-  // Input refs
-  const bvnInputRef = useRef(null);
-  const ninInputRef = useRef(null);
-  const rcInputRef = useRef(null);
+  // State for manual API verification (BVN, NIN, CAC)
+  const [bvnNumber, setBvnNumber] = useState('');
+  const [ninNumber, setNinNumber] = useState('');
+  const [rcNumber, setRcNumber] = useState('');
+  
+  // State for KYC widget user details
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
   
   const [results, setResults] = useState({
     bvn: { loading: false, data: null, error: null },
     nin: { loading: false, data: null, error: null },
     cac: { loading: false, data: null, error: null },
+    kyc: { loading: false, data: null, error: null }, 
   });
 
+  // KYC Widget Configuration - Using next-identity-kyc format
+  const kycConfig: any = {
+    first_name: firstName,
+    last_name: lastName,
+    email: email,
+    merchant_key: "",
+    user_ref: `user_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+    is_test: process.env.NODE_ENV !== 'production',
+    config_id: "", // optional
+    callback: (response) => {
+      console.log('KYC Response:', response);
+      
+      // Handle different response types
+      if (response.status === 'success' && response.code === '00') {
+        // Successful verification
+        setResults(prev => ({
+          ...prev,
+          kyc: {
+            loading: false,
+            data: {
+              success: true,
+              status: response.status,
+              message: response.message,
+              channel: response.channel,
+              data: response.data
+            },
+            error: null
+          }
+        }));
+      } else if (response.status === 'failed' && response.code === 'E01') {
+        // Failed verification
+        setResults(prev => ({
+          ...prev,
+          kyc: {
+            loading: false,
+            data: null,
+            error: `${response.code}: ${response.message}`
+          }
+        }));
+      } else if (response.code === 'E02' && response.status === 'failed') {
+        // User cancelled
+        setResults(prev => ({
+          ...prev,
+          kyc: {
+            loading: false,
+            data: null,
+            error: 'Verification was cancelled by user'
+          }
+        }));
+      } else {
+        // Handle other responses
+        setResults(prev => ({
+          ...prev,
+          kyc: {
+            loading: false,
+            data: null,
+            error: response.message || 'Unknown response received'
+          }
+        }));
+      }
+    },
+  };
+
+  const verifyWithIdentity = useIdentityPayKYC(kycConfig);
+
+  // Manual API verification functions
   const verifyAPI = async (type, payload) => {
     setResults(prev => ({
       ...prev,
@@ -99,21 +172,27 @@ export default function Home() {
     if (result.error) {
       return (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-          <p className="text-red-600 text-sm">{result.error}</p>
+          <p className="text-red-600 text-sm whitespace-pre-wrap">{result.error}</p>
         </div>
       );
     }
 
     if (result.data) {
+      const formattedData = result.data.data || result.data;
+      
       return (
         <div>
           <div className="flex justify-between items-center mb-2">
             <span className="text-green-600 text-sm font-medium">✓ Success</span>
-            <span className="text-xs text-gray-500">{result.responseTime}ms</span>
+            {result.responseTime && (
+              <span className="text-xs text-gray-500">{result.responseTime}ms</span>
+            )}
           </div>
-          <pre className="bg-gray-50 p-3 rounded-lg overflow-auto max-h-60 text-xs">
-            {JSON.stringify(result.data, null, 2)}
-          </pre>
+          <div className="bg-gray-50 p-3 rounded-lg overflow-auto max-h-80">
+            <pre className="text-xs whitespace-pre-wrap break-all">
+              {JSON.stringify(formattedData, null, 2)}
+            </pre>
+          </div>
         </div>
       );
     }
@@ -161,19 +240,18 @@ export default function Home() {
       bvn: { loading: false, data: null, error: null },
       nin: { loading: false, data: null, error: null },
       cac: { loading: false, data: null, error: null },
+      kyc: { loading: false, data: null, error: null },
     });
   };
 
   const fillTestData = () => {
-    if (bvnInputRef.current) bvnInputRef.current.value = '54651333604';
-    if (ninInputRef.current) ninInputRef.current.value = '56182742701';
-    if (rcInputRef.current) rcInputRef.current.value = '092932';
+    setBvnNumber('54651333604');
+    setNinNumber('56182742701');
+    setRcNumber('092932');
+    setFirstName('John');
+    setLastName('Doe');
+    setEmail('john.doe@example.com');
   };
-
-  // Get values from refs
-  const getBVN = () => bvnInputRef.current?.value || '';
-  const getNIN = () => ninInputRef.current?.value || '';
-  const getRC = () => rcInputRef.current?.value || '';
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -181,7 +259,7 @@ export default function Home() {
         <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Prembly Verification</h1>
-            <p className="text-sm text-gray-600">Test BVN, NIN, and CAC verification APIs</p>
+            <p className="text-sm text-gray-600">Test BVN, NIN, CAC, and KYC Widget</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -199,23 +277,100 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-1 gap-4">
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* KYC Widget */}
+          <div className="md:col-span-2">
+            <VerificationCard type="kyc" title="KYC Widget (IdentityPass)" icon={User}>
+              <div className="space-y-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-700">
+                    Enter user details below. These will be used when launching the KYC widget.
+                  </p>
+                </div>
+                
+                {/* User Details Inputs for KYC Widget */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="Enter first name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Enter last name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter email"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+                </div>
+                
+                {/* Display config status */}
+                <div className="flex gap-4 text-xs">
+                  <div className={process.env.NEXT_PUBLIC_MERCHANT_KEY ? 'text-green-600' : 'text-yellow-600'}>
+                    {process.env.NEXT_PUBLIC_MERCHANT_KEY ? '✓ Merchant Key configured' : '⚠ Merchant Key not set'}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {process.env.NEXT_PUBLIC_CONFIG_ID ? '✓ Config ID set' : 'Config ID optional'}
+                  </div>
+                </div>
+                
+                <button
+                  onClick={verifyWithIdentity}
+                  disabled={results.kyc.loading || !firstName || !lastName || !email}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium py-2 rounded transition-colors"
+                >
+                  {results.kyc.loading ? 'Opening Widget...' : 'Launch KYC Widget'}
+                </button>
+              </div>
+            </VerificationCard>
+          </div>
+
           {/* BVN */}
           <VerificationCard type="bvn" title="BVN Verification" icon={User}>
-            <input
-              ref={bvnInputRef}
-              type="text"
-              placeholder="Enter BVN number"
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  verifyAPI('bvn', { number: getBVN() });
-                }
-              }}
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                BVN Number
+              </label>
+              <input
+                type="text"
+                value={bvnNumber}
+                onChange={(e) => setBvnNumber(e.target.value)}
+                placeholder="Enter BVN number"
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    verifyAPI('bvn', { number: bvnNumber });
+                  }
+                }}
+              />
+            </div>
             <button
-              onClick={() => verifyAPI('bvn', { number: getBVN() })}
-              disabled={results.bvn.loading}
+              onClick={() => verifyAPI('bvn', { number: bvnNumber })}
+              disabled={!bvnNumber || results.bvn.loading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-medium py-2 rounded transition-colors"
             >
               {results.bvn.loading ? 'Verifying...' : 'Verify BVN'}
@@ -224,20 +379,26 @@ export default function Home() {
 
           {/* NIN */}
           <VerificationCard type="nin" title="NIN Verification" icon={User}>
-            <input
-              ref={ninInputRef}
-              type="text"
-              placeholder="Enter NIN number"
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  verifyAPI('nin', { number: getNIN() });
-                }
-              }}
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                NIN Number
+              </label>
+              <input
+                type="text"
+                value={ninNumber}
+                onChange={(e) => setNinNumber(e.target.value)}
+                placeholder="Enter NIN number"
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    verifyAPI('nin', { number: ninNumber });
+                  }
+                }}
+              />
+            </div>
             <button
-              onClick={() => verifyAPI('nin', { number: getNIN() })}
-              disabled={results.nin.loading}
+              onClick={() => verifyAPI('nin', { number: ninNumber })}
+              disabled={!ninNumber || results.nin.loading}
               className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-sm font-medium py-2 rounded transition-colors"
             >
               {results.nin.loading ? 'Verifying...' : 'Verify NIN'}
@@ -246,28 +407,35 @@ export default function Home() {
 
           {/* CAC */}
           <VerificationCard type="cac" title="CAC Verification" icon={Building2}>
-            <div className="space-y-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                RC Number
+              </label>
               <input
-                ref={rcInputRef}
                 type="text"
+                value={rcNumber}
+                onChange={(e) => setRcNumber(e.target.value)}
                 placeholder="Enter RC number"
                 className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     verifyAPI('cac', { 
-                      rc_number: getRC(),
+                      rc_number: rcNumber,
                       company_type: 'RC'
                     });
                   }
                 }}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Company type defaults to RC (Registered Company)
+              </p>
             </div>
             <button
               onClick={() => verifyAPI('cac', { 
-                rc_number: getRC(),
+                rc_number: rcNumber,
                 company_type: 'RC'
               })}
-              disabled={results.cac.loading}
+              disabled={!rcNumber || results.cac.loading}
               className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white text-sm font-medium py-2 rounded transition-colors"
             >
               {results.cac.loading ? 'Verifying...' : 'Verify CAC'}
@@ -275,18 +443,35 @@ export default function Home() {
           </VerificationCard>
         </div>
 
-        <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start gap-2">
-            <FileText className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <FileText className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-medium text-blue-800 text-sm">Test Data</p>
-              <ul className="text-xs text-blue-700 space-y-0.5 mt-1">
-                <li>• BVN: 54651333604</li>
-                <li>• NIN: 56182742701</li>
-                <li>• CAC RC: 092932</li>
+              <p className="font-medium text-blue-800 text-sm">Test Data & Information</p>
+              <ul className="text-xs text-blue-700 space-y-1 mt-1">
+                <li>• <strong>BVN:</strong> 54651333604</li>
+                <li>• <strong>NIN:</strong> 56182742701</li>
+                <li>• <strong>CAC RC:</strong> 092932 (Company Type: RC)</li>
+                <li>• <strong>KYC Widget:</strong> Uses first name, last name, and email</li>
               </ul>
+              <p className="text-xs text-blue-600 mt-2">
+                💡 Press Enter in any input field to trigger verification
+              </p>
             </div>
           </div>
+        </div>
+
+        {/* Response Legend */}
+        <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+          <p className="text-xs text-gray-600">
+            <strong>Response Codes:</strong><br />
+            • <span className="text-green-600">00</span> - Successful<br />
+            • <span className="text-red-600">01</span> - ID not found<br />
+            • <span className="text-yellow-600">02</span> - Service not available<br />
+            • <span className="text-orange-600">03</span> - Insufficient wallet balance<br />
+            • <span className="text-red-600">E01</span> - Verification failed<br />
+            • <span className="text-red-600">E02</span> - Verification cancelled
+          </p>
         </div>
       </div>
     </div>

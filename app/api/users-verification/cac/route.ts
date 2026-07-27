@@ -1,13 +1,12 @@
 // app/api/users-verification/cac/route.js
 import { NextResponse } from 'next/server';
-import prembly from '@api/prembly';
+import axios from 'axios';
 
 export async function POST(request) {
   try {
     const body = await request.json();
     const { rc_number, company_type = 'RC' } = body;
 
-    // Validate input
     if (!rc_number) {
       return NextResponse.json(
         {
@@ -19,31 +18,38 @@ export async function POST(request) {
       );
     }
 
-    // Make the API call using the SDK
-    const response = await prembly.basicCac1(
-      { 
-        rc_number: rc_number,
-        company_type: company_type 
+    const options = {
+      method: 'POST',
+      url: 'https://api.prembly.com/verification/cac',
+      headers: {
+        accept: 'application/json',
+        'x-api-key': process.env.PREMBLY_SECRET_KEY,
+        'content-type': 'application/json'
       },
-      { 'x-api-key': process.env.PREMBLY_SECRET_KEY }
-    );
+      data: {
+        rc_number: rc_number,
+        company_type: company_type
+      }
+    };
+
+    const response = await axios.request(options);
 
     return NextResponse.json({
       success: true,
       data: response.data,
-      raw_response: response
+      raw_response: response.data
     });
 
   } catch (error) {
-    console.error('CAC Verification Error:', error.message);
+    console.error('CAC Verification Error:', error.response?.data || error.message);
     
     return NextResponse.json(
       {
         success: false,
         message: 'CAC verification failed',
-        error: error.message
+        error: error.response?.data || error.message
       },
-      { status: 500 }
+      { status: error.response?.status || 500 }
     );
   }
 }
