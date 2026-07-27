@@ -82,16 +82,15 @@ export async function POST(req: NextRequest) {
     const generatedReferral = `${namePart}-${Date.now().toString(36)}`;
 
     // Generate email verification token (optional - if you want custom verification)
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationToken = crypto.randomBytes(32).toString("hex");
     const tokenExpiry = new Date();
     tokenExpiry.setHours(tokenExpiry.getHours() + 24);
 
-  
     const { data: authData, error: authError } =
       await supabase.auth.admin.createUser({
         email: email.toLowerCase(),
         password: password,
-        email_confirm: true, 
+        email_confirm: true,
         user_metadata: {
           full_name: fullName,
           phone: phone,
@@ -131,7 +130,8 @@ export async function POST(req: NextRequest) {
         bvn_verification: bvn ? "pending" : "not_submitted",
         nin_verification: nin ? "pending" : "not_submitted",
         nin: nin || null,
-        is_business_registered: purpose === "business" ? (isRegistered || false) : false,
+        is_business_registered:
+          purpose === "business" ? isRegistered || false : false,
         // Email verification
         email_verified: false,
         email_verification_token: verificationToken,
@@ -342,101 +342,32 @@ export async function POST(req: NextRequest) {
           to: email,
           subject: "🎉 Welcome to Zidwell!",
           html: `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Zidwell</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f9fafb; line-height: 1.6; }
-      .container { max-width: 600px; margin: 0 auto; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-      .header { background: linear-gradient(135deg, #fdc020 0%, #f5b800 100%); padding: 32px 24px; text-align: center; }
-      .header h1 { font-size: 28px; font-weight: 700; color: #191919; }
-      .content { padding: 40px 32px; }
-      .greeting { font-size: 20px; font-weight: 600; color: #191919; margin-bottom: 16px; }
-      .text { font-size: 15px; color: #4b5563; margin-bottom: 24px; line-height: 1.7; }
-      .features { background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0; }
-      .feature { padding: 8px 0; display: flex; align-items: center; gap: 12px; }
-      .feature:not(:last-child) { border-bottom: 1px solid #e5e7eb; }
-      .button-container { text-align: center; margin: 32px 0; }
-      .cta-button { 
-        display: inline-block;
-        background: linear-gradient(135deg, #fdc020 0%, #f5b800 100%);
-        color: #191919;
-        padding: 14px 32px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 16px;
-        box-shadow: 0 2px 8px rgba(253, 192, 32, 0.3);
-      }
-      .cta-button:hover {
-        box-shadow: 0 4px 12px rgba(253, 192, 32, 0.4);
-        transform: translateY(-2px);
-      }
-      .important { 
-        background: #fef3c7; 
-        border-left: 4px solid #f59e0b; 
-        padding: 12px 16px; 
-        border-radius: 4px;
-        margin: 16px 0;
-      }
-      .footer { background: #f9fafb; padding: 24px 32px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #6b7280; }
-      @media (max-width: 600px) {
-        .content { padding: 24px 16px; }
-        .cta-button { padding: 12px 24px; font-size: 14px; }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">
-        <h1>🎉 Welcome to Zidwell</h1>
-      </div>
-      <div class="content">
-        <p class="greeting">Hi ${fullName},</p>
-        <p class="text">
-          Congratulations! Your Zidwell account is ready and waiting. We're thrilled to have you on board!
-        </p>
-        ${businessName ? `<p class="text">Your business "<strong>${businessName}</strong>" has been registered successfully.</p>` : ""}
-        
-        <div class="important">
-          <strong>⚠️ Important:</strong> Please check your email for the verification link sent by Supabase to activate your account.
-        </div>
-
-        <p class="text">Here's what you get with your free trial:</p>
-        <div class="features">
-          <div class="feature">✨ <strong>10 Free Invoices</strong> — Start managing your billing right away</div>
-          <div class="feature">📋 <strong>10 Free Receipts</strong> — Keep organized records of all transactions</div>
-          <div class="feature">📊 <strong>30-Day Tax Calculator Trial</strong> — Simplify tax planning</div>
-          <div class="feature">🎁 <strong>₦20 Zidcoin Welcome Bonus</strong> — Use it on any premium services</div>
-        </div>
-        <p class="text" style="font-size: 14px; color: #6b7280;">
-          Your tax calculator trial starts today and will expire on <strong>${trialEndsAt.toLocaleDateString()}</strong>.
-        </p>
-
-        <div class="button-container">
-          <a href="${baseUrl}/dashboard" class="cta-button">
-            Go to Dashboard
-          </a>
-        </div>
-
-        <p class="text" style="font-size: 14px; color: #6b7280; margin-top: 16px;">
-          Questions? Our support team is here to help. Reply to this email or visit our Help Center.
-        </p>
-      </div>
-      <div class="footer">
-        <p>© 2026 Zidwell. All rights reserved.</p>
-        <p style="margin-top: 4px;">You're receiving this email because you recently created a Zidwell account.</p>
-        <p style="margin-top: 4px; font-size: 11px; color: #9ca3af;">
-          If you didn't create this account, please ignore this email.
-        </p>
-      </div>
-    </div>
-  </body>
-</html>
+            <div style="background: #f3f4f6; padding: 20px; font-family: Arial, sans-serif;">
+              <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden;">
+                <div style="background: #FDC020; padding: 20px; text-align: center;">
+                  <h2 style="color: #191919; margin: 0;">Welcome to Zidwell 🎉</h2>
+                </div>
+                <div style="padding: 30px;">
+                  <h2 style="color: #333;">Hi ${fullName},</h2>
+                  <p style="color: #666; line-height: 1.6;">Congratulations! Your Zidwell account is ready.</p>
+                  <p style="color: #666; line-height: 1.6;">Please complete your KYC verification to unlock all features.</p>
+                  <p style="color: #666; line-height: 1.6;">Here's what you get with your free trial:</p>
+                  <ul style="color: #666; line-height: 1.6;">
+                    <li>✨ <strong>10 Free Invoices</strong> to get started</li>
+                    <li>✨ <strong>10 Free Receipts</strong> for your records</li>
+                    <li>✨ <strong>30-day free trial</strong> of Tax Calculator</li>
+                    <li>✨ <strong>₦20 Zidcoin</strong> welcome bonus 🎁</li>
+                  </ul>
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${baseUrl}/dashboard" 
+                       style="background: #FDC020; color: #191919; padding: 12px 24px; border-radius: 8px; 
+                              text-decoration: none; display: inline-block; font-weight: bold;">
+                      Go to Dashboard
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
           `,
         });
 
@@ -449,7 +380,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "Registration successful. Please check your email for verification.",
+        message:
+          "Registration successful. Please check your email for verification.",
         user: {
           id: userId,
           email: email.toLowerCase(),

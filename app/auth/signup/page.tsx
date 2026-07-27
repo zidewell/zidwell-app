@@ -674,13 +674,7 @@ const RegisterForm = () => {
                     </p>
                   </div>
                 </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2">
-                  <Clock className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-700">
-                    Please check your email and click the verification link to activate your account. 
-                    The link expires in 24 hours.
-                  </p>
-                </div>
+              
               </div>
 
               <div className="rounded-2xl bg-[rgba(253,192,32,0.1)] border border-[rgba(253,192,32,0.3)] p-4 flex gap-3 animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
@@ -694,7 +688,7 @@ const RegisterForm = () => {
               <button
                 onClick={() => {
                   setShowConfirmationModal(false);
-                  router.push("/login");
+                  router.push("/auth/login");
                 }}
                 className="w-full h-14 rounded-2xl text-base font-semibold font-display bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:opacity-90 hover:-translate-y-0.5 hover:shadow-[var(--shadow-pop)] transition-all animate-fade-in-up"
                 style={{ animationDelay: "0.4s" }}
@@ -702,16 +696,7 @@ const RegisterForm = () => {
                 Go to Login
               </button>
 
-              <button
-                onClick={() => {
-                  setShowConfirmationModal(false);
-                  router.push("/");
-                }}
-                className="w-full text-center text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors animate-fade-in-up"
-                style={{ animationDelay: "0.5s" }}
-              >
-                Back to Home
-              </button>
+           
             </div>
           </div>
         </div>
