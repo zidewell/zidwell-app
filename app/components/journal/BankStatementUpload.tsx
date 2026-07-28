@@ -468,68 +468,68 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
   };
 
   const parsePDF = async (file: File, password?: string) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (password) {
-      formData.append('password', password);
+  const formData = new FormData();
+  formData.append('file', file);
+  if (password) {
+    formData.append('password', password);
+  }
+
+  const response = await fetch('/api/journal/parse-pdf', {
+    method: 'POST',
+    body: formData,
+  });
+
+  const result = await response.json();
+
+  if (!result.success) {
+    if (result.needsPassword) {
+      throw new Error('PASSWORD_REQUIRED');
     }
-
-    const response = await fetch('/api/journal/parse-pdf', {
-      method: 'POST',
-      body: formData,
-    });
-
-    const result = await response.json();
-
-    if (!result.success) {
-      if (result.needsPassword) {
-        throw new Error('PASSWORD_REQUIRED');
-      }
-      if (result.passwordError) {
-        throw new Error('INVALID_PASSWORD');
-      }
-      throw new Error(result.error || 'Failed to parse PDF');
+    if (result.passwordError) {
+      throw new Error('INVALID_PASSWORD');
     }
+    throw new Error(result.error || 'Failed to parse PDF');
+  }
 
-    const data = result.data;
-    
-    if (!data.transactions || data.transactions.length === 0) {
-      throw new Error('No transactions found in the PDF');
-    }
-    
-    const entries = data.transactions.map((tx: any) => {
-      const type = tx.type === 'credit' ? 'income' : tx.type === 'debit' ? 'expense' : 'expense';
-      const amount = Math.abs(tx.amount);
-      const { category, categoryId } = findMatchingCategory(tx.description, type);
+  const data = result.data;
 
-      return {
-        date: tx.date,
-        description: tx.description || 'No description',
-        type: type as 'income' | 'expense',
-        amount: amount,
-        category: category,
-        categoryId: categoryId,
-        note: tx.description || 'Imported from bank statement',
-        reference: tx.reference,
-        balance: tx.balance,
-      };
-    });
+  if (!data.transactions || data.transactions.length === 0) {
+    throw new Error('No transactions found in the PDF');
+  }
 
-    const totalIncome = entries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
-    const totalExpenses = entries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
+  const entries = data.transactions.map((tx: any) => {
+    const type = tx.type === 'credit' ? 'income' : tx.type === 'debit' ? 'expense' : 'expense';
+    const amount = Math.abs(tx.amount);
+    const { category, categoryId } = findMatchingCategory(tx.description, type);
 
     return {
-      totalRows: entries.length,
-      entries: entries,
-      summary: {
-        totalIncome: totalIncome,
-        totalExpenses: totalExpenses,
-        netBalance: totalIncome - totalExpenses,
-      },
-      pageCount: data.pageCount || 1,
-      fileName: data.fileName || file.name,
+      date: tx.date,
+      description: tx.description || 'No description',
+      type: type as 'income' | 'expense',
+      amount: amount,
+      category: category,
+      categoryId: categoryId,
+      note: tx.description || 'Imported from bank statement',
+      reference: tx.reference,
+      balance: tx.balance,
     };
+  });
+
+  const totalIncome = entries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+  const totalExpenses = entries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
+
+  return {
+    totalRows: entries.length,
+    entries: entries,
+    summary: {
+      totalIncome: totalIncome,
+      totalExpenses: totalExpenses,
+      netBalance: totalIncome - totalExpenses,
+    },
+    pageCount: data.pageCount || 1,
+    fileName: data.fileName || file.name,
   };
+};
 
   const handleFileSelect = async (fileList: FileList | null) => {
     if (!fileList) return;
@@ -770,38 +770,38 @@ export function BankStatementUpload({ open, onOpenChange, onUploadComplete }: Ba
     return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  if (!isPremium) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl bg-(--bg-primary) border-(--border-color)">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-(--text-primary) font-display">
-              Upload Bank Statement
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-8 text-center">
-            <div className="p-4 rounded-full bg-(--color-accent-yellow)/10 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-              <Lock className="h-8 w-8 text-(--color-accent-yellow)" />
-            </div>
-            <h3 className="text-lg font-semibold text-(--text-primary) mb-2">Premium Feature</h3>
-            <p className="text-(--text-secondary) mb-6">
-              Upload bank statements and automatically import transactions into your journal.
-            </p>
-            <Button
-              onClick={() => {
-                onOpenChange(false);
-                window.dispatchEvent(new CustomEvent('openUpgradeModal'));
-              }}
-              className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Upgrade to Premium
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  // if (!isPremium) {
+  //   return (
+  //     <Dialog open={open} onOpenChange={onOpenChange}>
+  //       <DialogContent className="sm:max-w-2xl bg-(--bg-primary) border-(--border-color)">
+  //         <DialogHeader>
+  //           <DialogTitle className="text-xl text-(--text-primary) font-display">
+  //             Upload Bank Statement
+  //           </DialogTitle>
+  //         </DialogHeader>
+  //         <div className="py-8 text-center">
+  //           <div className="p-4 rounded-full bg-(--color-accent-yellow)/10 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+  //             <Lock className="h-8 w-8 text-(--color-accent-yellow)" />
+  //           </div>
+  //           <h3 className="text-lg font-semibold text-(--text-primary) mb-2">Premium Feature</h3>
+  //           <p className="text-(--text-secondary) mb-6">
+  //             Upload bank statements and automatically import transactions into your journal.
+  //           </p>
+  //           <Button
+  //             onClick={() => {
+  //               onOpenChange(false);
+  //               window.dispatchEvent(new CustomEvent('openUpgradeModal'));
+  //             }}
+  //             className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+  //           >
+  //             <Sparkles className="h-4 w-4 mr-2" />
+  //             Upgrade to Premium
+  //           </Button>
+  //         </div>
+  //       </DialogContent>
+  //     </Dialog>
+  //   );
+  // }
 
   return (
     <>

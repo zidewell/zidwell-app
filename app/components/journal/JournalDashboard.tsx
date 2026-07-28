@@ -117,11 +117,11 @@ export function JournalDashboard() {
 
   // Handle Statement button click - works like UpgradePrompt
   const handleStatementClick = () => {
-    if (!isPremium) {
-      // Free user: Open UpgradeModal (just like UpgradePrompt does)
-      setShowUpgradeModal(true);
-      return;
-    }
+    // if (!isPremium) {
+    //   // Free user: Open UpgradeModal (just like UpgradePrompt does)
+    //   setShowUpgradeModal(true);
+    //   return;
+    // }
     // Premium user: Toggle dropdown
     setIsStatementDropdownOpen(!isStatementDropdownOpen);
   };
@@ -251,18 +251,18 @@ export function JournalDashboard() {
                 >
                   <FileText className="h-4 w-4 mr-1.5" />
                   Statement
-                  {isPremium ? (
+                  {/* {isPremium ? ( */}
                     <ChevronDown className={cn(
                       "h-4 w-4 ml-1 transition-transform duration-200",
                       isStatementDropdownOpen && "rotate-180"
                     )} />
-                  ) : (
+                  {/* ) : (
                     <Sparkles className="h-3 w-3 ml-1 group-hover:animate-pulse" />
-                  )}
+                  )} */}
                 </Button>
                 
                 {/* Dropdown Menu - Only for Premium users */}
-                {isPremium && isStatementDropdownOpen && (
+                {/* {isPremium  */ isStatementDropdownOpen && (
                   <div className="absolute left-0 right-0 top-full mt-1 bg-(--bg-primary) border border-(--border-color) rounded-xl shadow-pop z-50 overflow-hidden min-w-[200px]">
                     <button
                       onClick={() => handleStatementAction('upload')}

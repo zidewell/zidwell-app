@@ -169,7 +169,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  
+  serverExternalPackages: ['pdfjs-dist'],
+
   // Remove Cloudflare runtime - use default Next.js
   // Remove experimental.runtime: 'nodejs' if you want default
   

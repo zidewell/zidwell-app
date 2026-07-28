@@ -190,25 +190,25 @@ const LoginForm = () => {
         showConfirmButton: false,
         timer: 2000,
         timerProgressBar: true,
-      }).catch(console.error);
+      });
     }, 100);
-  } catch (err: any) {
-    clearTimeout(timeoutId);
-    Swal.close();
+        Swal.close();
 
-    let errorMessage =
-      "Invalid email or password. Please check your credentials and try again.";
+    // let errorMessage =
+    //   "Invalid email or password. Please check your credentials and try again.";
 
-    if (err.name === "AbortError") {
-      errorMessage = "Please check your internet connection and try again.";
-    } else if (err.message) {
-      errorMessage = err.message;
-    }
+    // if (err.name === "AbortError") {
+    //   errorMessage = "Please check your internet connection and try again.";
+    // } else if (err.message) {
+    //   errorMessage = err.message;
+    // }
 
+    
+  }catch(err){
     Swal.fire({
       icon: "error",
       title: "Login Failed",
-      text: errorMessage,
+      text: err,
       confirmButtonColor: "var(--color-accent-yellow)",
       confirmButtonText: "Try Again",
     });

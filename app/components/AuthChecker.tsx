@@ -116,26 +116,42 @@ export default function AuthChecker({ children }: { children: React.ReactNode })
   };
 
   // Intercept 401 responses
-  useEffect(() => {
-    if (isPublicRoute() || loading) return;
+ // Intercept 401 responses
+useEffect(() => {
+  if (isPublicRoute() || loading) return;
 
-    const originalFetch = window.fetch;
-    
-    window.fetch = async (...args) => {
-      const response = await originalFetch(...args);
-      
-      if (response.status === 401 && requiresAuth()) {
-        redirectToLogin();
-        throw new Error('Session expired');
-      }
-      
-      return response;
-    };
+  const originalFetch = window.fetch;
 
-    return () => {
-      window.fetch = originalFetch;
-    };
-  }, [pathname, loading]);
+  const AUTH_SENSITIVE_PREFIXES = ["/api/user", "/api/journal/entries", "/api/activity"];
+  // add whatever your session-dependent endpoints actually are
+
+  window.fetch = async (...args) => {
+    const response = await originalFetch(...args);
+
+    const input = args[0];
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.href
+        : input instanceof Request
+        ? input.url
+        : "";
+
+    const isAuthSensitive = AUTH_SENSITIVE_PREFIXES.some(p => url.includes(p));
+
+    if (response.status === 401 && requiresAuth() && isAuthSensitive) {
+      redirectToLogin();
+      throw new Error('Session expired');
+    }
+
+    return response;
+  };
+
+  return () => {
+    window.fetch = originalFetch;
+  };
+}, [pathname, loading]);
 
   // ✅ Redirect if on protected route without user data
   useEffect(() => {

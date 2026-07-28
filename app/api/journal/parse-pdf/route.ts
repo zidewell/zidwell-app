@@ -1,9 +1,22 @@
 // app/api/journal/parse-pdf/route.ts
 import { NextRequest, NextResponse } from "next/server";
+// @ts-ignore - legacy build has no bundled types entry for this subpath
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+interface ColumnDef {
+  key: string;
+  xStart: number;
+}
+const EXPECTED_COLUMNS: { key: string; match: string[] }[] = [
+  { key: 'transDate', match: ['trans date', 'trans. date', 'transaction date'] },
+  { key: 'valueDate', match: ['value date', 'value. date'] },
+  { key: 'narration', match: ['narration', 'description', 'remarks'] },
+  { key: 'chqNo', match: ['chq no', 'cheque no', 'chq. no'] },
+  { key: 'debit', match: ['debit'] },
+  { key: 'credit', match: ['credit'] },
+  { key: 'balance', match: ['balance'] },
+];
 
-const pdfParse = require('pdf-parse');
 
-// Transaction interface
 interface Transaction {
   date: string;
   description: string;
@@ -13,16 +26,247 @@ interface Transaction {
   reference?: string;
 }
 
-// Parse transactions from text with support for GTBank statement format
+// --- pdfjs-dist extraction ------------------------------------------
+
+interface TextRun {
+  x: number;
+  y: number;
+  text: string;
+}
+
+interface RowData {
+  y: number;
+  items: { x: number; text: string }[];
+}
+
+async function extractTextFromPDF(
+  buffer: Buffer,
+  password?: string
+): Promise<{ text: string; numpages: number; rows: RowData[] }> {
+  const uint8 = new Uint8Array(buffer);
+
+  const loadingTask = pdfjsLib.getDocument({
+    data: uint8,
+    password: password || undefined,
+    useSystemFonts: true,
+    disableFontFace: true,
+    isEvalSupported: false,
+  });
+
+  const pdf = await loadingTask.promise;
+
+  const numPages = pdf.numPages;
+  const lines: string[] = [];
+  const allRows: RowData[] = [];
+
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+
+    const runs: TextRun[] = content.items
+      .filter((item: any) => typeof item.str === "string" && item.str.trim().length > 0)
+      .map((item: any) => ({
+        x: item.transform[4],
+        y: item.transform[5],
+        text: item.str,
+      }));
+
+    runs.sort((a, b) => b.y - a.y || a.x - b.x);
+
+    let currentY: number | null = null;
+    let currentLine: TextRun[] = [];
+    const Y_TOLERANCE = 2;
+
+    const flushLine = () => {
+      if (currentLine.length === 0) return;
+      currentLine.sort((a, b) => a.x - b.x);
+      lines.push(currentLine.map(r => r.text).join(' ').replace(/\s+/g, ' ').trim());
+      allRows.push({
+        y: currentLine[0].y,
+        items: currentLine.map(r => ({ x: r.x, text: r.text })),
+      });
+      currentLine = [];
+    };
+
+    for (const run of runs) {
+      if (currentY === null || Math.abs(run.y - currentY) <= Y_TOLERANCE) {
+        currentLine.push(run);
+        currentY = run.y;
+      } else {
+        flushLine();
+        currentLine.push(run);
+        currentY = run.y;
+      }
+    }
+    flushLine();
+  }
+
+  return { text: lines.join('\n'), numpages: numPages, rows: allRows };
+}
+
+//56158
+
+
+// --- Transaction parsing (unchanged) ----------------------------------
+
+function detectColumns(headerItems: { x: number; text: string }[]): ColumnDef[] | null {
+  const tokens = headerItems.slice().sort((a, b) => a.x - b.x);
+  const found: ColumnDef[] = [];
+  const usedIndices = new Set<number>();
+
+  for (const col of EXPECTED_COLUMNS) {
+    for (let i = 0; i < tokens.length; i++) {
+      if (usedIndices.has(i)) continue;
+      const text = tokens[i].text.toLowerCase().trim();
+      if (col.match.some(phrase => text === phrase || text.includes(phrase))) {
+        usedIndices.add(i);
+        found.push({ key: col.key, xStart: tokens[i].x });
+        break;
+      }
+    }
+  }
+
+  const required = ['transDate', 'narration'];
+  const hasRequired = required.every(k => found.some(f => f.key === k));
+  if (!hasRequired) return null;
+
+  found.sort((a, b) => a.xStart - b.xStart);
+  return found;
+}
+
+function assignColumn(x: number, columns: ColumnDef[]): string {
+  // columns must be sorted ascending by xStart
+  if (x < columns[0].xStart) return columns[0].key;
+  for (let i = 0; i < columns.length - 1; i++) {
+    const boundary = (columns[i].xStart + columns[i + 1].xStart) / 2;
+    if (x < boundary) return columns[i].key;
+  }
+  return columns[columns.length - 1].key;
+}
+
+function parseTableStatement(rows: RowData[]): Transaction[] {
+  const headerRowIndex = rows.findIndex(r => {
+    const joined = r.items.map(i => i.text).join(' ').toLowerCase();
+    return joined.includes('narration') &&
+      (joined.includes('debit') || joined.includes('credit')) &&
+      joined.includes('date');
+  });
+
+  if (headerRowIndex === -1) return [];
+
+  const columns = detectColumns(rows[headerRowIndex].items);
+  if (!columns) return [];
+
+  const DATE_RE = /^\d{2}-[A-Za-z]{3}-\d{2,4}$/;
+  const AMOUNT_RE = /^[\d,]+\.\d{2}$/;
+
+  let endIndex = rows.length;
+  for (let i = headerRowIndex + 1; i < rows.length; i++) {
+    const joined = rows[i].items.map(it => it.text).join(' ').toLowerCase();
+    if (joined.includes('total debit') || joined.includes('total credit') ||
+        joined.includes('statement period') || joined.includes('closing balance summary')) {
+      endIndex = i;
+      break;
+    }
+  }
+
+  const bodyRows = rows.slice(headerRowIndex + 1, endIndex);
+
+  const bucketRow = (row: RowData) => {
+    const buckets: Record<string, string[]> = {};
+    for (const item of row.items) {
+      const key = assignColumn(item.x, columns);
+      if (!buckets[key]) buckets[key] = [];
+      buckets[key].push(item.text);
+    }
+    return buckets;
+  };
+
+  interface Anchor {
+    y: number;
+    date: string;
+    debit?: number;
+    credit?: number;
+    balance?: number;
+    narration: string[];
+  }
+
+  const anchors: Anchor[] = [];
+
+  // Pass 1: identify anchor rows (rows with a valid date)
+  for (const row of bodyRows) {
+    const buckets = bucketRow(row);
+    const transDateText = (buckets['transDate'] || []).join(' ').trim();
+    if (DATE_RE.test(transDateText)) {
+      const debitText = (buckets['debit'] || []).join(' ').trim();
+      const creditText = (buckets['credit'] || []).join(' ').trim();
+      const balanceText = (buckets['balance'] || []).join(' ').trim();
+
+      anchors.push({
+        y: row.y,
+        date: transDateText,
+        debit: AMOUNT_RE.test(debitText) ? parseFloat(debitText.replace(/,/g, '')) : undefined,
+        credit: AMOUNT_RE.test(creditText) ? parseFloat(creditText.replace(/,/g, '')) : undefined,
+        balance: AMOUNT_RE.test(balanceText) ? parseFloat(balanceText.replace(/,/g, '')) : undefined,
+        narration: [],
+      });
+    }
+  }
+
+  if (anchors.length === 0) return [];
+
+  // Pass 2: attach every row's narration text to the nearest anchor by y-distance
+  for (const row of bodyRows) {
+    const buckets = bucketRow(row);
+    const narrationPart = (buckets['narration'] || []).join(' ').trim();
+    if (!narrationPart) continue;
+
+    let nearest = anchors[0];
+    let minDist = Math.abs(row.y - anchors[0].y);
+    for (const a of anchors) {
+      const d = Math.abs(row.y - a.y);
+      if (d < minDist) {
+        minDist = d;
+        nearest = a;
+      }
+    }
+    nearest.narration.push(narrationPart);
+  }
+
+  const transactions: Transaction[] = [];
+  for (const a of anchors) {
+    const narrationText = a.narration.join(' ').replace(/\s+/g, ' ').trim();
+    const lower = narrationText.toLowerCase();
+    if (lower.includes('opening balance') || lower.includes('closing balance')) continue;
+
+    if (a.debit && a.debit > 0) {
+      transactions.push({
+        date: formatDateGTBank(a.date),
+        description: narrationText || 'Debit transaction',
+        amount: a.debit,
+        type: 'debit',
+        balance: a.balance,
+      });
+    } else if (a.credit && a.credit > 0) {
+      transactions.push({
+        date: formatDateGTBank(a.date),
+        description: narrationText || 'Credit transaction',
+        amount: a.credit,
+        type: 'credit',
+        balance: a.balance,
+      });
+    }
+  }
+
+  return transactions;
+}
 function parseTransactions(text: string): Transaction[] {
   const transactions: Transaction[] = [];
   const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  
-  // Find where the actual transaction data starts
+
   let dataStartIndex = -1;
   let dataEndIndex = lines.length;
-  
-  // Look for the header row with column names
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].toLowerCase();
     if (line.includes('trans. date') && line.includes('value. date')) {
@@ -30,119 +274,100 @@ function parseTransactions(text: string): Transaction[] {
       break;
     }
   }
-  
-  // If header not found, try to find first transaction by date pattern
+
   if (dataStartIndex === -1) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      // Look for date pattern at start of line (DD-MMM-YYYY or DD-MMM-YY)
       if (/^\d{2}-[A-Za-z]{3}-\d{2,4}/.test(line)) {
         dataStartIndex = i;
         break;
       }
     }
   }
-  
-  // Find where data ends (look for totals or closing balance)
+
+  // If we still couldn't find a starting point, skip the structured
+  // GTBank parser entirely and go straight to the fallback parser.
+  if (dataStartIndex === -1) {
+    return parseTransactionsFallback(lines);
+  }
+
   for (let i = dataStartIndex; i < lines.length; i++) {
     const line = lines[i].toLowerCase();
-    if (line.includes('total debit') || line.includes('total credit') || 
-        line.includes('closing balance') || line.includes('opening balance') ||
-        line.includes('statement period')) {
+    if (line.includes('total debit') || line.includes('total credit') ||
+      line.includes('closing balance') || line.includes('opening balance') ||
+      line.includes('statement period')) {
       dataEndIndex = i;
       break;
     }
   }
-  
-  // If no end found, use all lines after start
+
   if (dataEndIndex === lines.length && dataStartIndex !== -1) {
     dataEndIndex = lines.length;
   }
-  
-  // Process each line in the data section
+
   for (let i = dataStartIndex; i < dataEndIndex && i < lines.length; i++) {
     const line = lines[i];
     if (!line || line.length < 10) continue;
-    
-    // Skip header lines and summary lines
     if (/^(trans\.|value\.|date|remarks|originating)/i.test(line)) continue;
     if (/^(total|opening|closing|statement)/i.test(line)) continue;
-    
-    // Parse line with GTBank format
+
     const transaction = parseGTBankLine(line);
     if (transaction) {
       transactions.push(transaction);
     }
   }
-  
-  // If no transactions found with the structured parser, try the fallback parser
+
   if (transactions.length === 0) {
     return parseTransactionsFallback(lines);
   }
-  
+
   return transactions;
 }
 
-// Parse a single GTBank transaction line
 function parseGTBankLine(line: string): Transaction | null {
-  // Try to match the GTBank format
-  // Format: "01-Jan-2025 01-Jan-2025 'REF2751603000GA P 248,740.00 8,029,757.72 635 AKIN ADESOLA TRANSFER BETWEEN CUSTOMERS VIA GAPSLITE TAX SETTLEMENT 1011550 0248740250 REF:2751603000 FROM TMS - TOCHIMINT STYLEZ TO ODEY SUNDAY DANIEL"
-  
-  // Extract date (DD-MMM-YYYY)
   const dateMatch = line.match(/^(\d{2}-[A-Za-z]{3}-\d{4})/);
   if (!dateMatch) return null;
-  
+
   const date = formatDateGTBank(dateMatch[1]);
-  
-  // Remove the date part
   let remaining = line.substring(dateMatch[0].length).trim();
-  
-  // Extract value date (DD-MMM-YYYY) - second date
+
   const valueDateMatch = remaining.match(/^(\d{2}-[A-Za-z]{3}-\d{4})/);
   if (valueDateMatch) {
     remaining = remaining.substring(valueDateMatch[0].length).trim();
   }
-  
-  // Extract reference (starts with ' or " and contains alphanumeric)
+
   let reference = '';
   const refMatch = remaining.match(/^['"]?([A-Z0-9]+)['"]?/);
   if (refMatch) {
     reference = refMatch[1];
     remaining = remaining.substring(refMatch[0].length).trim();
   }
-  
-  // Look for debit amount (positive number with commas)
+
   const debitMatch = remaining.match(/^([\d,]+\.\d{2})/);
   let debit = 0;
   let credit = 0;
   let balance = 0;
   let description = '';
-  
+
   if (debitMatch) {
     debit = parseFloat(debitMatch[1].replace(/,/g, ''));
     remaining = remaining.substring(debitMatch[0].length).trim();
-    
-    // Look for balance after debit
+
     const balanceMatch = remaining.match(/^([\d,]+\.\d{2})/);
     if (balanceMatch) {
       balance = parseFloat(balanceMatch[1].replace(/,/g, ''));
       remaining = remaining.substring(balanceMatch[0].length).trim();
     }
-    
-    // The rest is description (removing branch code if present)
+
     description = remaining;
-    
-    // Remove branch code if it's at the start (e.g., "635 AKIN ADESOLA")
     const branchMatch = description.match(/^\d{3}\s+/);
     if (branchMatch) {
       description = description.substring(branchMatch[0].length).trim();
     }
-    
-    // Clean up description - remove extra spaces and special characters
     description = description.replace(/\s+/g, ' ').trim();
-    
+
     return {
-      date: date,
+      date,
       description: description || 'Debit transaction',
       amount: debit,
       type: 'debit',
@@ -150,34 +375,27 @@ function parseGTBankLine(line: string): Transaction | null {
       reference: reference || undefined,
     };
   }
-  
-  // Look for credit amount
+
   const creditMatch = remaining.match(/^([\d,]+\.\d{2})/);
   if (creditMatch) {
     credit = parseFloat(creditMatch[1].replace(/,/g, ''));
     remaining = remaining.substring(creditMatch[0].length).trim();
-    
-    // Look for balance after credit
+
     const balanceMatch = remaining.match(/^([\d,]+\.\d{2})/);
     if (balanceMatch) {
       balance = parseFloat(balanceMatch[1].replace(/,/g, ''));
       remaining = remaining.substring(balanceMatch[0].length).trim();
     }
-    
-    // The rest is description
+
     description = remaining;
-    
-    // Remove branch code if present
     const branchMatch = description.match(/^\d{3}\s+/);
     if (branchMatch) {
       description = description.substring(branchMatch[0].length).trim();
     }
-    
-    // Clean up description
     description = description.replace(/\s+/g, ' ').trim();
-    
+
     return {
-      date: date,
+      date,
       description: description || 'Credit transaction',
       amount: credit,
       type: 'credit',
@@ -185,11 +403,10 @@ function parseGTBankLine(line: string): Transaction | null {
       reference: reference || undefined,
     };
   }
-  
+
   return null;
 }
 
-// Fallback parser for other formats
 function parseTransactionsFallback(lines: string[]): Transaction[] {
   const transactions: Transaction[] = [];
   const patterns = {
@@ -206,17 +423,17 @@ function parseTransactionsFallback(lines: string[]): Transaction[] {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    
+
     if (line.toLowerCase().includes('statement') ||
-        line.toLowerCase().includes('page') ||
-        line.toLowerCase().includes('account') ||
-        line.toLowerCase().includes('balance') ||
-        line.toLowerCase().includes('opening') ||
-        line.toLowerCase().includes('closing') ||
-        line.toLowerCase().includes('summary') ||
-        line.toLowerCase().includes('total') ||
-        line.toLowerCase().includes('rate') ||
-        line.toLowerCase().includes('interest')) {
+      line.toLowerCase().includes('page') ||
+      line.toLowerCase().includes('account') ||
+      line.toLowerCase().includes('balance') ||
+      line.toLowerCase().includes('opening') ||
+      line.toLowerCase().includes('closing') ||
+      line.toLowerCase().includes('summary') ||
+      line.toLowerCase().includes('total') ||
+      line.toLowerCase().includes('rate') ||
+      line.toLowerCase().includes('interest')) {
       continue;
     }
 
@@ -230,7 +447,7 @@ function parseTransactionsFallback(lines: string[]): Transaction[] {
           type: currentType,
         });
       }
-      
+
       currentDate = formatDate(dateMatch[1]);
       currentDescription = '';
       currentAmount = 0;
@@ -245,7 +462,7 @@ function parseTransactionsFallback(lines: string[]): Transaction[] {
         const isCredit = patterns.credit.test(lowerLine);
         const isDebit = patterns.debit.test(lowerLine);
         const hasNegative = line.includes('-') || line.includes('(') || line.includes(')');
-        
+
         if (isCredit && !isDebit) {
           currentType = 'credit';
           currentAmount = amount;
@@ -264,7 +481,7 @@ function parseTransactionsFallback(lines: string[]): Transaction[] {
 
     const isNumericLine = /^[\d,.\s]+$/.test(line);
     const isDateLine = patterns.date.test(line);
-    
+
     if (!isNumericLine && !isDateLine && line.length > 3) {
       if (currentDescription) {
         currentDescription += ' ' + line;
@@ -273,15 +490,15 @@ function parseTransactionsFallback(lines: string[]): Transaction[] {
       }
     }
 
-    if (currentDate && currentAmount > 0 && currentDescription && 
-        (i === lines.length - 1 || patterns.date.test(lines[i + 1]))) {
+    if (currentDate && currentAmount > 0 && currentDescription &&
+      (i === lines.length - 1 || patterns.date.test(lines[i + 1]))) {
       transactions.push({
         date: currentDate,
         description: currentDescription.substring(0, 200),
         amount: currentAmount,
         type: currentType,
       });
-      
+
       currentDate = '';
       currentDescription = '';
       currentAmount = 0;
@@ -301,7 +518,6 @@ function parseTransactionsFallback(lines: string[]): Transaction[] {
   return transactions;
 }
 
-// Format date from DD-MMM-YYYY to YYYY-MM-DD
 function formatDateGTBank(dateStr: string): string {
   try {
     const months: { [key: string]: string } = {
@@ -309,7 +525,7 @@ function formatDateGTBank(dateStr: string): string {
       'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
       'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
     };
-    
+
     const parts = dateStr.split('-');
     if (parts.length === 3) {
       const day = parts[0].padStart(2, '0');
@@ -323,13 +539,12 @@ function formatDateGTBank(dateStr: string): string {
   }
 }
 
-// Helper: Format date to YYYY-MM-DD
 function formatDate(dateStr: string): string {
   try {
     const clean = dateStr.replace(/[^0-9\/\-\.]/g, '');
-    
+
     let day, month, year;
-    
+
     if (clean.includes('/')) {
       [day, month, year] = clean.split('/');
     } else if (clean.includes('-')) {
@@ -357,7 +572,6 @@ function formatDate(dateStr: string): string {
   }
 }
 
-// Calculate summary statistics
 function calculateSummary(transactions: Transaction[]) {
   let totalCredit = 0;
   let totalDebit = 0;
@@ -384,70 +598,60 @@ function calculateSummary(transactions: Transaction[]) {
   };
 }
 
-// Main POST handler with password support
+// --- Main handler --------------------------------------------------
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const password = formData.get("password") as string || null;
-    
+    const password = (formData.get("password") as string) || undefined;
+
     if (!file) {
-      return NextResponse.json(
-        { error: "No file provided" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
-      return NextResponse.json(
-        { error: "Only PDF files are allowed" },
-        { status: 400 }
-      );
+    if (!file.type.includes('pdf') && !file.name?.toLowerCase().endsWith('.pdf')) {
+      return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Extract text from PDF with password support
-    let data;
+    let parsed: { text: string; numpages: number; rows: RowData[] };
     try {
-      data = await pdfParse(buffer);
+      parsed = await extractTextFromPDF(buffer, password);
     } catch (error: any) {
-      const isPasswordError = 
-        error?.constructor?.name === 'PasswordException' ||
-        error?.message?.toLowerCase().includes('password') ||
-        error?.code === 1 ||
-        error?.toString().toLowerCase().includes('password');
-      
-      if (isPasswordError) {
-        if (!password) {
+      const isPasswordException = error?.name === "PasswordException";
+
+      if (isPasswordException) {
+        // pdfjs PasswordResponses: 1 = NEED_PASSWORD, 2 = INCORRECT_PASSWORD
+        const needsPassword = error.code === 1 || !password;
+        const wrongPassword = error.code === 2;
+
+        if (wrongPassword) {
           return NextResponse.json(
-            { 
-              needsPassword: true,
-              error: "This PDF is password protected. Please provide the password." 
-            },
+            { needsPassword: true, passwordError: true, error: "Incorrect password. Please try again." },
             { status: 401 }
           );
         }
-        
-        try {
-          data = await pdfParse(buffer, { password });
-        } catch (passwordError: any) {
-          return NextResponse.json(
-            { 
-              needsPassword: true,
-              passwordError: true,
-              error: "Incorrect password. Please try again." 
-            },
-            { status: 401 }
-          );
-        }
-      } else {
-        throw error;
+
+        return NextResponse.json(
+          { needsPassword: true, error: "This PDF is password protected. Please provide the password." },
+          { status: 401 }
+        );
       }
+
+      console.error("PDF extraction error - name:", error?.name);
+      console.error("PDF extraction error - message:", error?.message);
+      console.error("PDF extraction error - stack:", error?.stack);
+
+      return NextResponse.json(
+        { success: false, error: "Failed to extract text from this PDF. It may be scanned/image-based or corrupted." },
+        { status: 422 }
+      );
     }
 
-    const text = data.text || '';
+    const text = parsed.text || '';
 
     if (!text || text.trim().length === 0) {
       return NextResponse.json(
@@ -456,18 +660,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse transactions
-    const transactions = parseTransactions(text);
-    const summary = calculateSummary(transactions);
+  let transactions = parseTableStatement(parsed.rows);
 
-    // Get first 10 transactions as preview
+    console.log("=== TABLE PARSER RESULT ===");
+    console.log("Transactions found by table parser:", transactions.length);
+    console.log("Total rows extracted:", parsed.rows.length);
+
+    // Find and dump the header row + next 15 rows after it
+    const headerIdx = parsed.rows.findIndex(r => {
+      const joined = r.items.map(i => i.text).join(' ').toLowerCase();
+      return joined.includes('narration');
+    });
+    console.log("Detected header row index:", headerIdx);
+
+    if (headerIdx !== -1) {
+      console.log("Header row + next 15 rows:", JSON.stringify(parsed.rows.slice(headerIdx, headerIdx + 16), null, 2));
+    } else {
+      console.log("No row containing 'narration' was found at all. Dumping rows 10-40 instead:");
+      console.log(JSON.stringify(parsed.rows.slice(10, 40), null, 2));
+    }
+
+    if (transactions.length === 0) {
+      transactions = parseTransactions(text);
+      console.log("Fallback parser found:", transactions.length);
+    }
+
+    const summary = calculateSummary(transactions);
     const preview = transactions.slice(0, 10);
 
     return NextResponse.json({
       success: true,
       data: {
         fileName: file.name,
-        pageCount: data.numpages || 1,
+        pageCount: parsed.numpages || 1,
         totalTransactions: transactions.length,
         summary,
         transactions,
@@ -477,28 +702,8 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error("PDF extraction error:", error);
-    
-    const isPasswordError = 
-      error?.constructor?.name === 'PasswordException' ||
-      error?.message?.toLowerCase().includes('password') ||
-      error?.code === 1 ||
-      error?.toString().toLowerCase().includes('password');
-    
-    if (isPasswordError) {
-      return NextResponse.json(
-        { 
-          needsPassword: true,
-          error: "This PDF is password protected. Please provide the password." 
-        },
-        { status: 401 }
-      );
-    }
-    
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error.message || "Failed to extract text from PDF" 
-      },
+      { success: false, error: error.message || "Failed to extract text from PDF" },
       { status: 500 }
     );
   }
