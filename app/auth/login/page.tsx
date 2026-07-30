@@ -28,7 +28,6 @@ const fixDoubleEncodedUrl = (url: string): string => {
     }
     return "/dashboard";
   } catch (error) {
-    console.error("Failed to decode URL:", error);
     return "/dashboard";
   }
 };
@@ -88,11 +87,11 @@ const LoginForm = () => {
         throw new Error(result.error || "Invalid email or password");
       }
 
-      const { profile, isVerified, sessionEstablished } = result;
+      const { profile, safeProfile, isVerified, sessionEstablished } = result;
       if (!profile) throw new Error("User profile not found.");
 
       setUserData(profile);
-      localStorage.setItem("userData", JSON.stringify(profile));
+      localStorage.setItem("userData", JSON.stringify(safeProfile));
 
       Cookies.set("verified", isVerified ? "true" : "false", {
         expires: 7,
@@ -121,16 +120,6 @@ const LoginForm = () => {
       } else {
         router.replace(targetUrl);
       }
-
-      Promise.allSettled([
-        (async () => {
-          await fetch("/api/activity/last-login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: profile.id, email: profile.email }),
-          }).catch(console.error);
-        })(),
-      ]).catch((err) => console.error("Background operations failed:", err));
 
       if (process.env.NODE_ENV === "production") {
         sendLoginNotificationWithDeviceInfo(profile).catch((err) =>

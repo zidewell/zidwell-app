@@ -21,13 +21,19 @@ import {
   FileSpreadsheet,
   ChartColumnIncreasing,
 } from "lucide-react";
-import { useVerificationModal } from "@/app/context/verificationModalContext";
 import { useUserContextData } from "@/app/context/userData";
 
 interface FeatureCardsProps {
   onActionComplete?: () => void;
   usage?: any;
 }
+
+// ✅ Check if user is authenticated AND has allowed email
+const canAccessPaymentPage = (userEmail?: string | null, isAuthenticated?: boolean) => {
+  if (!isAuthenticated) return false;
+  if (!userEmail) return false;
+  return ALLOWED_PAYMENT_EMAILS.has(userEmail.toLowerCase());
+};
 
 const ALLOWED_PAYMENT_EMAILS = new Set([
   "characterinternational@gmail.com",
@@ -37,12 +43,7 @@ const ALLOWED_PAYMENT_EMAILS = new Set([
   "abbalolo360@gmail.com",
 ]);
 
-const canAccessPaymentPage = (userEmail?: string | null) => {
-  if (!userEmail) return false;
-  return ALLOWED_PAYMENT_EMAILS.has(userEmail.toLowerCase());
-};
-
-const getFeatures = (userEmail?: string | null) => {
+const getFeatures = (userEmail?: string | null, isAuthenticated?: boolean) => {
   const baseFeatures = [
     {
       id: 1,
@@ -167,7 +168,8 @@ const getFeatures = (userEmail?: string | null) => {
     },
   ];
 
-  if (canAccessPaymentPage(userEmail)) {
+  // ✅ Only show payment page if user is authenticated and has allowed email
+  if (canAccessPaymentPage(userEmail, isAuthenticated)) {
     baseFeatures.push({
       id: 12,
       title: "Payment Page",
@@ -187,10 +189,14 @@ const getFeatures = (userEmail?: string | null) => {
 const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
   const { canAccessFeature, userTier } = useSubscription();
   const router = useRouter();
-  const { userData } = useUserContextData();
-  const { openVerificationModal } = useVerificationModal();
+  const { userData, loading } = useUserContextData();
 
-  const features = getFeatures(userData?.email);
+  // ✅ Check if user is authenticated
+  const isAuthenticated = !!userData?.id && !loading;
+  const userEmail = userData?.email;
+
+  // ✅ Pass isAuthenticated to getFeatures
+  const features = getFeatures(userEmail, isAuthenticated);
 
   const bvnRequiredServices = [
     "/dashboard/fund-account",
@@ -203,13 +209,14 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
   ];
 
   const handleFeatureClick = (feature: (typeof features)[0]) => {
-    const isVerified = userData?.bvnVerification === "verified";
-    const requiresBVN = bvnRequiredServices.includes(feature.link);
-
-    if (requiresBVN && !isVerified) {
-      openVerificationModal();
+    // ✅ If user is not authenticated, redirect to login
+    if (!isAuthenticated) {
+      router.push("/auth/login");
       return;
     }
+
+    const isVerified = userData?.bvn_verification === "verified";
+    const requiresBVN = bvnRequiredServices.includes(feature.link);
 
     if (feature.type === "utility") {
       router.push(feature.link);
@@ -288,14 +295,15 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
         const remaining = getRemainingCount(feature.featureKey);
         const progress = getProgressPercentage(feature.featureKey);
         const Icon = feature.icon;
-        const isVerified = userData?.bvnVerification === "verified";
+        const isVerified = userData?.bvn_verification === "verified";
         const requiresBVN = bvnRequiredServices.includes(feature.link);
         const hasBookkeepingTrial =
           feature.featureKey === "bookkeeping_access" &&
           usage?.bookkeepingTrial?.isActive;
         const isDisabled =
           (requiresBVN && !isVerified) ||
-          (!hasAccess && !isUtility && !isPayment && !hasBookkeepingTrial);
+          (!hasAccess && !isUtility && !isPayment && !hasBookkeepingTrial) ||
+          !isAuthenticated;
 
         return (
           <button
@@ -313,7 +321,12 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
             `}
             disabled={isDisabled}
           >
-            {requiresBVN && !isVerified && (
+            {!isAuthenticated && (
+              <div className="absolute top-2 right-2">
+                <Lock className="w-4 h-4 text-red-500" />
+              </div>
+            )}
+            {requiresBVN && !isVerified && isAuthenticated && (
               <div className="absolute top-2 right-2">
                 <Lock className="w-4 h-4 text-red-500" />
               </div>
@@ -322,7 +335,8 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
               !isUtility &&
               !isPayment &&
               !hasBookkeepingTrial &&
-              !requiresBVN && (
+              !requiresBVN &&
+              isAuthenticated && (
                 <div className="absolute top-2 right-2">
                   <Lock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                 </div>
@@ -337,7 +351,8 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
               remaining !== null &&
               !isUtility &&
               !isPayment &&
-              !hasBookkeepingTrial && (
+              !hasBookkeepingTrial &&
+              isAuthenticated && (
                 <div className="absolute top-2 left-2">
                   <span
                     className={`text-xs font-medium px-2 py-1 rounded-full ${
@@ -374,14 +389,18 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
               {feature.desc}
             </span>
 
-            {requiresBVN && !isVerified && (
+            {!isAuthenticated && (
+              <span className="text-xs text-red-500 mt-1">Login required</span>
+            )}
+            {requiresBVN && !isVerified && isAuthenticated && (
               <span className="text-xs text-red-500 mt-1">BVN required</span>
             )}
             {!hasAccess &&
               !isUtility &&
               !isPayment &&
               !hasBookkeepingTrial &&
-              !requiresBVN && (
+              !requiresBVN &&
+              isAuthenticated && (
                 <span className="text-xs text-(--color-accent-yellow) mt-1">
                   Upgrade to {feature.requiredTier}
                 </span>
@@ -391,7 +410,8 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
               progress > 0 &&
               !isUtility &&
               !isPayment &&
-              !hasBookkeepingTrial && (
+              !hasBookkeepingTrial &&
+              isAuthenticated && (
                 <div className="mt-2 w-full h-1 bg-gray-200 rounded-full overflow-hidden">
                   <div
                     className={`h-full ${getProgressColor(progress)}`}

@@ -13,16 +13,14 @@ interface UpgradeBannerProps {
 
 export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
   const router = useRouter();
-  const { isFree, loading } = useSubscription();
-  const [isVisible, setIsVisible] = useState(false); // Start with false
+  const { userTier, loading } = useSubscription();
+  const [isVisible, setIsVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Handle mounting
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Check localStorage only after mount
   useEffect(() => {
     if (mounted) {
       const dismissed = localStorage.getItem("upgradeBannerDismissed");
@@ -32,18 +30,20 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
     }
   }, [mounted]);
 
-  // Don't render anything during SSR or while loading
   if (!mounted || loading) {
     return null;
   }
 
-  // Only show for free users and if visible
-  if (!isFree || !isVisible) {
+  if (userTier && userTier !== "free") {
+    return null;
+  }
+
+  if (!isVisible) {
     return null;
   }
 
   const handleUpgrade = () => {
-    router.push("/pricing?upgrade=zidlite");
+    router.push("/pricing?upgrade=solopreneur");
   };
 
   const handleDismiss = () => {
@@ -63,26 +63,16 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
             <motion.div
-              className="relative overflow-hidden rounded-2xl shadow-[0_10px_40px_-10px_rgba(43,130,91,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(43,130,91,0.5)] border border-(--color-accent-yellow)/20"
+              className="relative overflow-hidden rounded-xl border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20"
               whileHover={{ scale: 1.01 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             >
-              {/* Animated gradient background */}
-              <div className="absolute inset-0 bg-linear-to-r from-(--color-accent-yellow) via-[#3a9b6e] to-(--color-accent-yellow) bg-size-[200%_100%] animate-gradient-x opacity-10 dark:opacity-20" />
-
-              {/* Main gradient overlay */}
-              <div className="absolute inset-0 bg-linear-to-br from-(--color-accent-yellow)/5 via-transparent to-(--color-accent-yellow)/10 dark:from-(--color-accent-yellow)/20 dark:via-transparent dark:to-(--color-accent-yellow)/30" />
-
-              {/* Glow effect */}
-              <div className="absolute -top-24 -right-24 w-48 h-48 bg-(--color-accent-yellow)/20 rounded-full blur-3xl animate-pulse" />
-              <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-(--color-accent-yellow)/10 rounded-full blur-3xl animate-pulse delay-1000" />
-
-              {/* Content */}
-              <div className="relative bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-4 py-3 sm:px-6">
-                <div className="flex items-center gap-3">
+              {/* Simple solid background - no gradients */}
+              <div className="px-4 py-3 sm:px-6">
+                <div className="flex items-start sm:items-center gap-3">
                   {/* Icon with pulse animation */}
                   <motion.div
-                    className="shrink-0"
+                    className="shrink-0 mt-0.5 sm:mt-0"
                     animate={{ scale: [1, 1.1, 1] }}
                     transition={{
                       duration: 2,
@@ -90,57 +80,53 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
                       ease: "easeInOut",
                     }}
                   >
-                    <div className="h-8 w-8 rounded-xl bg-linear-to-br from-(--color-accent-yellow) to-[#1e5f43] flex items-center justify-center shadow-lg shadow-(--color-accent-yellow)/30">
-                      <Sparkles className="h-4 w-4 text-white" />
+                    <div className="h-8 w-8 rounded-xl bg-yellow-400 flex items-center justify-center shadow-sm">
+                      <Sparkles className="h-4 w-4 text-black" />
                     </div>
                   </motion.div>
 
                   {/* Content */}
-                  <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
                     <div>
-                      <h4 className="text-sm sm:text-base font-bold text-gray-900 dark:text-gray-50 flex items-center gap-2">
-                        You're on the Free Trial Plan
-                        <motion.span
-                          className="inline-flex items-center px-2 py-0.5 rounded-full bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) text-[10px] font-semibold"
-                          animate={{ opacity: [0.7, 1, 0.7] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        >
+                      <h4 className="text-sm sm:text-base font-bold text-gray-900 dark:text-gray-50 flex items-center flex-wrap gap-2">
+                        You're on the Free Plan
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 text-[10px] font-semibold">
                           Upgrade Available
-                        </motion.span>
+                        </span>
                       </h4>
                       <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                        Upgrade to ZidLite to get 10 invoices, 10 receipts,
-                        bookkeeping trials, and WhatsApp community access.
+                        Upgrade to <span className="font-semibold text-yellow-600 dark:text-yellow-400">Solopreneur</span> for ₦4,900/month — get 10 invoices, unlimited receipts, branded invoices, expense tracking & financial insights.
                       </p>
                     </div>
 
-                    {/* Upgrade Button with hover effect */}
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <Button
-                        onClick={handleUpgrade}
-                        size="sm"
-                        className="bg-linear-to-r from-(--color-accent-yellow) to-[#1e5f43] hover:from-[#1e5f43] hover:to-(--color-accent-yellow) text-white h-8 sm:h-9 text-xs sm:text-sm whitespace-nowrap shadow-lg shadow-(--color-accent-yellow)/30 border border-(--color-accent-yellow)/50"
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                       >
-                        Upgrade to ZidLite
-                        <Zap className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5" />
-                      </Button>
-                    </motion.div>
-                  </div>
+                        <Button
+                          onClick={handleUpgrade}
+                          size="sm"
+                          className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold h-8 sm:h-9 text-xs sm:text-sm whitespace-nowrap shadow-sm"
+                        >
+                          Upgrade Now
+                          <Zap className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5" />
+                        </Button>
+                      </motion.div>
 
-                  {/* Close button with hover effect */}
-                  <motion.button
-                    onClick={handleDismiss}
-                    className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-1.5 transition-colors"
-                    aria-label="Dismiss"
-                    whileHover={{ scale: 1.1, rotate: 90 }}
-                    whileTap={{ scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </motion.button>
+                      <motion.button
+                        onClick={handleDismiss}
+                        className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-1.5 transition-colors"
+                        aria-label="Dismiss"
+                        whileHover={{ scale: 1.1, rotate: 90 }}
+                        whileTap={{ scale: 0.9 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </motion.button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>

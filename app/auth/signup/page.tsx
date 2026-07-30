@@ -105,10 +105,8 @@ const RegisterForm = () => {
     if (showConfirmationModal && !confettiTriggered) {
       setConfettiTriggered(true);
       
-      // Trigger confetti with multiple bursts
       const colors = ["#FDC020", "#00B64F", "#191919", "#FF6B6B", "#4ECDC4", "#45B7D1"];
       
-      // First burst - main celebration
       confetti({
         particleCount: 200,
         spread: 100,
@@ -119,7 +117,6 @@ const RegisterForm = () => {
         scalar: 1.2,
       });
 
-      // Second burst - left side
       setTimeout(() => {
         confetti({
           particleCount: 120,
@@ -132,7 +129,6 @@ const RegisterForm = () => {
         });
       }, 200);
 
-      // Third burst - right side
       setTimeout(() => {
         confetti({
           particleCount: 120,
@@ -145,7 +141,6 @@ const RegisterForm = () => {
         });
       }, 400);
 
-      // Fourth burst - center top
       setTimeout(() => {
         confetti({
           particleCount: 100,
@@ -158,7 +153,6 @@ const RegisterForm = () => {
         });
       }, 600);
 
-      // Fifth burst - sparkles
       setTimeout(() => {
         confetti({
           particleCount: 80,
@@ -171,7 +165,6 @@ const RegisterForm = () => {
         });
       }, 800);
 
-      // Reset confetti trigger after 3 seconds
       setTimeout(() => {
         setConfettiTriggered(false);
       }, 3000);
@@ -233,6 +226,48 @@ const RegisterForm = () => {
     else setStep(step - 1);
   };
 
+  // Function to resend verification email
+  const handleResendVerification = async (email: string) => {
+    try {
+      Swal.fire({
+        title: "Sending verification email...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      const response = await fetch("/api/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const result = await response.json();
+      Swal.close();
+
+      if (response.ok) {
+        await Swal.fire({
+          icon: "success",
+          title: "Verification Email Sent",
+          html: `
+            <p>A new verification link has been sent to <strong>${email}</strong></p>
+            <p class="text-sm text-gray-600 mt-2">Please check your inbox and spam folder.</p>
+          `,
+          confirmButtonColor: "#FDC020",
+        });
+      } else {
+        throw new Error(result.error || "Failed to resend verification");
+      }
+    } catch (error: any) {
+      Swal.close();
+      await Swal.fire({
+        icon: "error",
+        title: "Failed to Resend",
+        text: error.message || "Please try again later.",
+        confirmButtonColor: "#FDC020",
+      });
+    }
+  };
+
   const handleContinue = async () => {
     if (!canContinue) return;
 
@@ -279,6 +314,85 @@ const RegisterForm = () => {
 
       const result = await response.json();
 
+      // Handle 409 - User already exists
+      if (response.status === 409) {
+        Swal.close();
+        
+        if (result.user_exists && !result.email_verified) {
+          // User exists but not verified
+          if (result.verification_sent) {
+            await Swal.fire({
+              icon: "info",
+              title: "Account Already Exists",
+              html: `
+                <div class="text-left">
+                  <p class="mb-3">An account with <strong>${email}</strong> already exists but is not verified.</p>
+                  <p class="mb-3">A new verification email has been sent to your inbox.</p>
+                  <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
+                    <p class="font-medium">📧 Please check your email</p>
+                    <p class="text-gray-600 mt-1">Click the verification link to activate your account.</p>
+                  </div>
+                </div>
+              `,
+              confirmButtonText: "Check Email",
+              confirmButtonColor: "#FDC020",
+            });
+          } else {
+            await Swal.fire({
+              icon: "warning",
+              title: "Account Not Verified",
+              html: `
+                <div class="text-left">
+                  <p class="mb-3">An account with <strong>${email}</strong> already exists but is not verified.</p>
+                  <p class="mb-3">Please check your email for the verification link or try logging in.</p>
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                    <p class="font-medium">💡 Tip</p>
+                    <p class="text-gray-600 mt-1">Check your spam folder if you don't see the verification email.</p>
+                  </div>
+                </div>
+              `,
+              confirmButtonText: "OK",
+              confirmButtonColor: "#FDC020",
+              showCancelButton: true,
+              cancelButtonText: "Resend Email",
+              cancelButtonColor: "#6B7280",
+            }).then((result) => {
+              if (result.isDismissed) {
+                // User wants to resend verification
+                handleResendVerification(email);
+              }
+            });
+          }
+        } else if (result.user_exists && result.email_verified) {
+          // User already verified
+          await Swal.fire({
+            icon: "warning",
+            title: "Account Already Exists",
+            html: `
+              <div class="text-left">
+                <p class="mb-3">An account with <strong>${email}</strong> already exists and is verified.</p>
+                <p>Please login to access your account.</p>
+              </div>
+            `,
+            confirmButtonText: "Go to Login",
+            confirmButtonColor: "#FDC020",
+          }).then((result) => {
+            if (result.isConfirmed) {
+              router.push("/auth/login");
+            }
+          });
+        } else {
+          // Generic 409 error
+          await Swal.fire({
+            icon: "error",
+            title: "Registration Failed",
+            text: result.error || "An account with this email already exists.",
+            confirmButtonColor: "#FDC020",
+          });
+        }
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(result.error || "Registration failed");
       }
@@ -291,7 +405,7 @@ const RegisterForm = () => {
       setShowConfirmationModal(true);
     } catch (error: any) {
       Swal.close();
-      Swal.fire({
+      await Swal.fire({
         icon: "error",
         title: "Registration Failed",
         text: error.message || "Something went wrong. Please try again.",
@@ -674,7 +788,6 @@ const RegisterForm = () => {
                     </p>
                   </div>
                 </div>
-              
               </div>
 
               <div className="rounded-2xl bg-[rgba(253,192,32,0.1)] border border-[rgba(253,192,32,0.3)] p-4 flex gap-3 animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
@@ -695,8 +808,6 @@ const RegisterForm = () => {
               >
                 Go to Login
               </button>
-
-           
             </div>
           </div>
         </div>

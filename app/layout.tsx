@@ -9,8 +9,6 @@ import NotificationToast from "./components/NotificationToast";
 import FloatingWhatsApp from "./components/FloatingWhatsapp";
 import Script from "next/script";
 import { InstallPrompt } from "./components/PushNotificationManager";
-import GlobalVerificationModal from "./components/GlobalVerificationModal";
-import { VerificationModalProvider } from "./context/verificationModalContext";
 import AuthChecker from "./components/AuthChecker";
 import { StoreProvider } from "./hooks/useStore";
 import { ThemeProvider } from "./components/ThemeProvider";
@@ -500,17 +498,17 @@ export default function RootLayout({
               <SessionRestore>
                 <SessionWatcher>
                   <AuthChecker>
-                    <VerificationModalProvider>
+                   
                       <StoreProvider>
                         {children}
-                        <GlobalVerificationModal />
-                        <div className="fixed bottom-4 right-4 z-50">
+                       
+                        {/* <div className="fixed bottom-4 right-4 z-50">
                           <InstallPrompt />
-                        </div>
+                        </div> */}
                         <FloatingWhatsApp />
-                        <NotificationToast />
+                        {/* <NotificationToast /> */}
                       </StoreProvider>
-                    </VerificationModalProvider>
+                   
                   </AuthChecker>
                 </SessionWatcher>
               </SessionRestore>

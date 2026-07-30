@@ -705,8 +705,9 @@
 //     "/auth/:path*",
 //   ],
 // };
+//
 
-
+// app/middleware.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
 import { 
@@ -734,7 +735,6 @@ const bvnRequiredRoutes = [
   "/dashboard/services/buy-power",
   "/dashboard/services/buy-cable-tv",
 ];
-
 
 export const ALLOWED_PAYMENT_EMAILS = new Set([
   "characterinternational@gmail.com",
@@ -775,18 +775,15 @@ function getRequiredTier(pathname: string): string | null {
   return null;
 }
 
-// ✅ Check if a route requires payment page email restriction
 function requiresPaymentEmailRestriction(pathname: string): boolean {
   return pathname === "/dashboard/services/payment" || 
          pathname.startsWith("/dashboard/services/payment/");
 }
 
 function shouldBypassAuth(pathname: string): boolean {
-  // Check static files
   if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js)$/)) {
     return true;
   }
-  
   return publicPaths.some(path => pathname.startsWith(path));
 }
 
@@ -840,7 +837,9 @@ function isUser(result: TokenValidationResult): result is User {
   return result !== null && !('error' in result) && 'id' in result;
 }
 
-function clearAuthCookies(response: NextResponse) {
+// ✅ Enhanced function to clear ALL auth-related data including localStorage
+function clearAllAuthData(response: NextResponse) {
+  // Clear cookies
   const cookiesToDelete = [
     "sb-access-token",
     "sb-refresh-token",
@@ -848,12 +847,114 @@ function clearAuthCookies(response: NextResponse) {
     "sb-login-time",
     "sb-user-data",
     "verified",
-    "payment_processed"
+    "payment_processed",
+    "verification_message",
+    "subscription_message",
+    "payment_access_denied"
   ];
   
   cookiesToDelete.forEach(cookieName => {
     response.cookies.delete(cookieName);
   });
+
+  // ✅ Add script to clear localStorage and sessionStorage with all user data
+  const clearStorageScript = `
+    <script>
+      (function() {
+        try {
+          // Clear specific localStorage items
+          const localStorageKeys = [
+            // Supabase auth tokens
+            'supabase.auth.token',
+            'sb-access-token',
+            'sb-refresh-token',
+            
+            // User data
+            'userData',
+            'user',
+            'session',
+            'access_token',
+            'refresh_token',
+            
+            // App settings
+            'theme',
+            'upgradeBannerDismissed',
+            'verified',
+            'payment_processed',
+            
+            // All sb- prefixed items
+            'sb-login-time',
+            'sb-client-session',
+            'sb-user-data'
+          ];
+          
+          localStorageKeys.forEach(key => {
+            localStorage.removeItem(key);
+            console.log('🧹 Removed localStorage key:', key);
+          });
+          
+          // Clear any localStorage items that contain user/session/auth data
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (
+              key.includes('supabase') || 
+              key.includes('sb-') || 
+              key.includes('auth') || 
+              key.includes('session') ||
+              key.includes('user') ||
+              key.includes('token') ||
+              key === 'theme' ||
+              key === 'upgradeBannerDismissed' ||
+              key === 'userData'
+            )) {
+              keysToRemove.push(key);
+            }
+          }
+          
+          keysToRemove.forEach(key => {
+            localStorage.removeItem(key);
+            console.log('🧹 Removed localStorage key (pattern match):', key);
+          });
+          
+          // Clear sessionStorage
+          sessionStorage.clear();
+          console.log('🧹 SessionStorage cleared');
+          
+          // Remove all cookies that might be stored in client-side
+          document.cookie.split(';').forEach(cookie => {
+            const [name] = cookie.split('=');
+            if (name.trim() && (
+              name.includes('sb-') || 
+              name.includes('supabase') || 
+              name.includes('auth') ||
+              name === 'verified' ||
+              name === 'payment_processed'
+            )) {
+              document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+              console.log('🧹 Removed cookie:', name.trim());
+            }
+          });
+          
+          console.log('✅ All auth data cleared from localStorage, sessionStorage, and cookies');
+        } catch (error) {
+          console.error('Error clearing storage:', error);
+        }
+      })();
+    </script>
+  `;
+
+  // Inject the script into the response if it's HTML
+  const originalBody = response.body;
+  if (typeof originalBody === 'string') {
+    const modifiedHtml = originalBody.replace('</body>', `${clearStorageScript}</body>`);
+    return new NextResponse(modifiedHtml, {
+      status: response.status,
+      headers: response.headers,
+    });
+  }
+
+  return response;
 }
 
 function redirectToLogin(req: NextRequest) {
@@ -865,11 +966,10 @@ function redirectToLogin(req: NextRequest) {
   console.log(`🔄 Redirecting to login from ${fullUrl}`);
 
   const res = NextResponse.redirect(loginUrl);
-  clearAuthCookies(res);
+  clearAllAuthData(res);
   return res;
 }
 
-// ✅ Redirect unauthorized users away from payment page
 function redirectFromPaymentPage(req: NextRequest) {
   console.log(`🚫 Unauthorized access attempt to payment page from ${req.nextUrl.pathname}`);
   const response = NextResponse.redirect(new URL("/dashboard", req.url));
@@ -881,26 +981,79 @@ function redirectFromPaymentPage(req: NextRequest) {
     sameSite: "lax",
   });
   
+  clearAllAuthData(response);
   return response;
+}
+
+// ✅ Check if user is fully verified
+function isUserVerified(userDetails: any): boolean {
+  return userDetails.bvn_verification === 'verified' || 
+         userDetails.identity_verified === true || 
+         userDetails.kyc_level === 'personal_verified' || 
+         userDetails.kyc_level === 'business_verified' ||
+         userDetails.verification_completed === true;
 }
 
 export async function middleware(req: NextRequest) {
   const startTime = Date.now();
   const currentPath = req.nextUrl.pathname;
   
+  // ✅ Handle onboarding - authenticate but don't redirect based on verification
+  if (currentPath === "/onboarding" || currentPath.startsWith("/onboarding/")) {
+    console.log(`🔐 Checking auth for onboarding: ${currentPath}`);
+    
+    let accessToken = req.cookies.get("sb-access-token")?.value;
+    const refreshToken = req.cookies.get("sb-refresh-token")?.value;
+    
+    if (!accessToken && refreshToken) {
+      const session = await refreshAccessToken(refreshToken);
+      if (session) {
+        accessToken = session.access_token;
+      }
+    }
+    
+    if (!accessToken) {
+      console.log("❌ No valid token for onboarding access");
+      return redirectToLogin(req);
+    }
+    
+    const tokenResult = await validateTokenAndGetUser(accessToken);
+    
+    if (!tokenResult || isTokenError(tokenResult) || !isUser(tokenResult)) {
+      console.log("❌ Invalid user for onboarding");
+      return redirectToLogin(req);
+    }
+    
+    const userDetails = await getUserWithDetails(tokenResult.id);
+    
+    if (!userDetails) {
+      console.log("❌ User details not found for onboarding");
+      return redirectToLogin(req);
+    }
+    
+    if (userDetails.is_blocked) {
+      console.log("🚫 User is blocked");
+      const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
+      clearAllAuthData(response);
+      return response;
+    }
+    
+    console.log(`✅ Onboarding access granted for user: ${tokenResult.id}`);
+    return NextResponse.next();
+  }
+  
   // Bypass auth for public paths
   if (shouldBypassAuth(currentPath)) {
     return NextResponse.next();
   }
   
-  // ✅ Check payment page email restriction FIRST (before post-payment access)
+  // ✅ Check payment page email restriction
   if (requiresPaymentEmailRestriction(currentPath)) {
     console.log(`🔐 Checking payment page access for: ${currentPath}`);
     
     let accessToken = req.cookies.get("sb-access-token")?.value;
     const refreshToken = req.cookies.get("sb-refresh-token")?.value;
     
-    // Try to refresh token if needed
     if (!accessToken && refreshToken) {
       const session = await refreshAccessToken(refreshToken);
       if (session) {
@@ -920,17 +1073,14 @@ export async function middleware(req: NextRequest) {
       return redirectToLogin(req);
     }
     
-    // Get user email from token result
     const userEmail = tokenResult.email?.toLowerCase();
     
-    // Check if email is in allowed list
     if (!userEmail || !ALLOWED_PAYMENT_EMAILS.has(userEmail)) {
       console.log(`🚫 Unauthorized email: ${userEmail} attempted to access payment page`);
       return redirectFromPaymentPage(req);
     }
     
     console.log(`✅ Payment page access granted for: ${userEmail}`);
-    // Continue to let them access the payment page
   }
   
   // Handle post-payment access
@@ -948,13 +1098,11 @@ export async function middleware(req: NextRequest) {
 
   console.log(`🔒 Checking auth for: ${currentPath}`);
 
-  // Get tokens
   let accessToken = req.cookies.get("sb-access-token")?.value;
   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
   const clientSession = req.cookies.get("sb-client-session")?.value;
   const loginTime = req.cookies.get("sb-login-time")?.value;
 
-  // Only allow client session bypass within 10 seconds of login
   if (clientSession === "true" && !accessToken && !refreshToken) {
     if (loginTime && (Date.now() - parseInt(loginTime) < 10000)) {
       console.log("🟢 Recent login detected (within 10s), allowing temporary access");
@@ -964,13 +1112,11 @@ export async function middleware(req: NextRequest) {
     return redirectToLogin(req);
   }
 
-  // No tokens at all
   if (!accessToken && !refreshToken) {
     console.log("❌ No tokens found, redirecting to login");
     return redirectToLogin(req);
   }
 
-  // Try to refresh token if needed
   if (!accessToken && refreshToken) {
     console.log("🔄 Attempting token refresh");
     const session = await refreshAccessToken(refreshToken);
@@ -1008,7 +1154,6 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
-  // Validate token
   if (!accessToken) {
     return redirectToLogin(req);
   }
@@ -1030,7 +1175,6 @@ export async function middleware(req: NextRequest) {
     return redirectToLogin(req);
   }
 
-  // Get user details
   const userDetails = await getUserWithDetails(tokenResult.id);
   
   if (!userDetails) {
@@ -1038,12 +1182,17 @@ export async function middleware(req: NextRequest) {
     return redirectToLogin(req);
   }
 
-  // Check if user is blocked
   if (userDetails.is_blocked) {
     console.log("🚫 User is blocked");
     const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
-    clearAuthCookies(response);
+    clearAllAuthData(response);
     return response;
+  }
+
+  // ✅ Log verification status but DON'T redirect - let page components handle it
+  const isVerified = isUserVerified(userDetails);
+  if (currentPath.startsWith("/dashboard") && !isVerified) {
+    console.log(`ℹ️ User not verified (${userDetails.id}), dashboard page will handle redirect`);
   }
 
   // Check BVN requirement for specific routes
@@ -1101,5 +1250,6 @@ export const config = {
     "/admin/:path*",
     "/blog/admin/:path*",
     "/auth/:path*",
+    "/onboarding", 
   ],
 };

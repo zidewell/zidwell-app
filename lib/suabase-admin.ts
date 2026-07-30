@@ -1,3 +1,4 @@
+// lib/suabase-admin.ts
 import { createClient } from "@supabase/supabase-js";
 
 let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
@@ -18,16 +19,16 @@ export function getSupabaseAdmin() {
   return supabaseAdminInstance;
 }
 
-// Cache for user data to prevent duplicate queries
+// Cache for user data
 interface CacheEntry {
   data: any;
   timestamp: number;
 }
 
 const userCache = new Map<string, CacheEntry>();
-const CACHE_TTL = 5000; // 5 seconds
+const CACHE_TTL = 5000;
 
-// Define the User type based on your schema
+// Updated UserDetails interface with new verification fields
 export interface UserDetails {
   id: string;
   full_name: string;
@@ -51,6 +52,30 @@ export interface UserDetails {
   block_reason: string | null;
   transaction_pin: string | null;
   pin_set: boolean;
+  // Verification fields
+  verification_completed: boolean;
+  verification_step: number;
+  bank78_verified: boolean;
+  primary_provider: string;
+  wallet_provider: string;
+  nin_verification: string | null;
+  is_business_registered: boolean;
+  onboarding_completed: boolean;
+  onboarding_step: number;
+  purpose: string | null;
+  // NEW verification fields
+  identity_verified: boolean;
+  kyc_level: string;
+  verified_at: string | null;
+  verification_provider: string | null;
+  verification_reference: string | null;
+  verification_id: string | null;
+  verification_status: string;
+  encrypted_bvn: string | null;
+  verification_logs: any[];
+  face_match_verified: boolean;
+  dob_verified: boolean;
+  name_verified: boolean;
 }
 
 export async function getUserWithDetails(userId: string): Promise<UserDetails | null> {
@@ -62,55 +87,77 @@ export async function getUserWithDetails(userId: string): Promise<UserDetails | 
 
   const supabase = getSupabaseAdmin();
   
-  // Single query to get user with all needed data
+  const selectQuery = `
+    id,
+    full_name,
+    email,
+    phone,
+    wallet_balance,
+    zidcoin_balance,
+    referral_code,
+    bvn_verification,
+    admin_role,
+    city,
+    state,
+    address,
+    date_of_birth,
+    profile_picture,
+    current_login_session,
+    subscription_tier,
+    subscription_expires_at,
+    is_blocked,
+    blocked_at,
+    block_reason,
+    transaction_pin,
+    pin_set,
+    verification_completed,
+    verification_step,
+    bank78_verified,
+    primary_provider,
+    wallet_provider,
+    nin_verification,
+    is_business_registered,
+    onboarding_completed,
+    onboarding_step,
+    purpose,
+    identity_verified,
+    kyc_level,
+    verified_at,
+    verification_provider,
+    verification_reference,
+    verification_id,
+    verification_status,
+    encrypted_bvn,
+    verification_logs,
+    face_match_verified,
+    dob_verified,
+    name_verified
+  `;
+
   const { data: user, error } = await supabase
     .from("users")
-    .select(`
-      id,
-      full_name,
-      email,
-      phone,
-      wallet_balance,
-      zidcoin_balance,
-      referral_code,
-      bvn_verification,
-      admin_role,
-      city,
-      state,
-      address,
-      date_of_birth,
-      profile_picture,
-      current_login_session,
-      subscription_tier,
-      subscription_expires_at,
-      is_blocked,
-      blocked_at,
-      block_reason,
-      transaction_pin,
-      pin_set
-    `)
+    .select(selectQuery)
     .eq("id", userId)
     .single();
 
   if (error || !user) return null;
 
+  const userDetails = user as UserDetails;
+
   // Cache the result
-  userCache.set(userId, { data: user, timestamp: Date.now() });
+  userCache.set(userId, { data: userDetails, timestamp: Date.now() });
   
-  // Clear cache after TTL
   setTimeout(() => {
     userCache.delete(userId);
   }, CACHE_TTL);
   
-  return user as UserDetails;
+  return userDetails;
 }
 
 // Helper function to check if subscription is active
 export function isSubscriptionActive(user: UserDetails): boolean {
   if (user.subscription_tier === "free") return true;
-  
   if (!user.subscription_expires_at) return false;
-  
   return new Date(user.subscription_expires_at) > new Date();
 }
 

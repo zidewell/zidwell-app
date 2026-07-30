@@ -33,11 +33,48 @@ export async function POST(request) {
     };
 
     const response = await axios.request(options);
+    const result = response.data;
+
+    // Extract business verification data
+    const businessInfo = result.data && result.data.length > 0 ? result.data[0] : null;
+    
+    const verificationData = {
+      status: result.status,
+      reference: result.reference_id || result.verification?.reference,
+      verification_id: result.verification?.verification_id,
+      account_verified: result.account_verified,
+      is_sandbox: result.is_sandbox,
+      // Business data
+      business_info: businessInfo ? {
+        company_name: businessInfo.company_name,
+        company_address: businessInfo.company_address,
+        entity_type: businessInfo.entity_type,
+        company_status: businessInfo.company_status,
+        registration_date: businessInfo.registrationDate,
+        rc_number: businessInfo.rc_number,
+        directors: businessInfo.directors || [],
+        company_id: businessInfo.company_id,
+        branch_address: businessInfo.branchAddress,
+        email_address: businessInfo.email_address,
+        lga: businessInfo.lga,
+        city: businessInfo.city,
+        state: businessInfo.state,
+        postcode: businessInfo.postcode,
+        // Full data for reference
+        full_data: businessInfo
+      } : null,
+      // Verification metadata
+      verification_provider: 'prembly',
+      verification_reference: result.reference_id || result.verification?.reference,
+      verification_status: result.verification_status || result.status ? 'VERIFIED' : 'FAILED',
+      cac_verified: result.account_verified === true || result.status === true,
+      raw_response: result
+    };
 
     return NextResponse.json({
       success: true,
-      data: response.data,
-      raw_response: response.data
+      data: verificationData,
+      raw_response: result
     });
 
   } catch (error) {

@@ -1,34 +1,21 @@
+// app/dashboard/page.tsx
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import DashboardSidebar from "../components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "../components/dashboard-component/DashboardHeader";
 import AnnouncementSlider from "../components/dashboard-component/AnnouncementSlider";
 import FeatureCards from "../components/dashboard-component/FeatureCards";
-import DataOverviewCards from "../components/dashboard-component/DataOverviewCards";
 import DashboardCharts from "../components/dashboard-component/DashboardCharts";
 import RecentArticles from "../components/dashboard-component/RecentArticles";
 import MobileBottomNav from "../components/dashboard-component/MobileBottomNav";
-import BVNVerificationBadge from "../components/BVNVerificationBadge";
-import BalanceCard from "../components/Balance-card";
 import TransactionHistory from "../components/transaction-history";
-import UsageSummary from "../components/UsageSummary";
 import { useSubscription } from "../hooks/useSubscripion";
 import { UpgradeBanner } from "../components/subscription-components/UpgradeBanner";
 import { SubscriptionModal } from "../components/dashboard-component/SubscriptionModal";
 import { CheckCircle, Loader2, X } from "lucide-react";
-
-// Define the Usage interface
-interface UsageData {
-  invoices_used: number;
-  invoices_limit: number;
-  receipts_used: number;
-  receipts_limit: number;
-  contracts_used: number;
-  contracts_limit: number;
-  // Add other usage fields as needed
-}
+import { useUserContextData } from "../context/userData";
 
 function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,11 +23,113 @@ function DashboardPage() {
   const [successPlan, setSuccessPlan] = useState("");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const { userTier, userId, loading: subscriptionLoading } = useSubscription();
-  const [usage, setUsage] = useState<UsageData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { userData, loading: userLoading, refreshUserData } = useUserContextData();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [verificationChecked, setVerificationChecked] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // ✅ Check if user is verified - with proper null checks
+  const isUserVerified = useCallback((): boolean => {
+    if (!userData) return false;
+    
+    // Primary check: bvn_verification
+    if (userData.bvn_verification === 'verified') {
+      return true;
+    }
+    
+    // Secondary checks for backward compatibility
+    return (
+      userData.identity_verified === true ||
+      userData.kyc_level === 'personal_verified' ||
+      userData.kyc_level === 'business_verified' ||
+      userData.verification_completed === true
+    );
+  }, [userData]);
+
+  // ✅ Check localStorage for cached user data on mount
+  useEffect(() => {
+    // If userData is already loaded, mark initial load as complete
+    if (userData && !userLoading) {
+      setInitialLoadComplete(true);
+      return;
+    }
+
+    // Try to get user data from localStorage as fallback
+    try {
+      const stored = localStorage.getItem("userData");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.id) {
+          console.log("📦 Using cached user data from localStorage");
+          // Don't set state, just use for verification check
+          // The context will update when ready
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+
+    // Mark initial load as complete after a timeout to prevent infinite loading
+    const timer = setTimeout(() => {
+      if (!userData && !userLoading) {
+        console.log("⏰ Initial load timeout - checking verification with available data");
+        setInitialLoadComplete(true);
+      }
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [userData, userLoading]);
+
+  // ✅ Single redirect effect - waits for data to be ready
+  useEffect(() => {
+    // Skip if already redirecting
+    if (isRedirecting) return;
+    
+    // Wait for user data to be loaded or initial load to complete
+    if (userLoading) {
+      console.log("⏳ Waiting for user data to load...");
+      return;
+    }
+
+    // If no user data and initial load is not complete, wait
+    if (!userData && !initialLoadComplete) {
+      console.log("⏳ Waiting for user data...");
+      return;
+    }
+
+    // If no user data after loading, redirect to login
+    if (!userData) {
+      console.log("❌ No user data found, redirecting to login");
+      setIsRedirecting(true);
+      router.replace("/auth/login");
+      return;
+    }
+
+    // Check if user is verified
+    const verified = isUserVerified();
+    
+    console.log("🔍 Dashboard - Verification check:", {
+      bvn_verification: userData.bvn_verification,
+      identity_verified: userData.identity_verified,
+      kyc_level: userData.kyc_level,
+      verification_completed: userData.verification_completed,
+      isVerified: verified,
+    });
+
+    // Only redirect if NOT verified
+    if (!verified) {
+      console.log("🔄 User not verified, redirecting to onboarding");
+      setIsRedirecting(true);
+      router.replace("/onboarding");
+    } else {
+      console.log("✅ User is verified, showing dashboard");
+      setVerificationChecked(true);
+    }
+  }, [userData, userLoading, router, isRedirecting, isUserVerified, initialLoadComplete]);
 
   // Check for subscription success on mount
   useEffect(() => {
@@ -51,12 +140,10 @@ function DashboardPage() {
       setSuccessPlan(plan || userTier || "");
       setShowSuccess(true);
 
-      // Auto-hide after 5 seconds
       const timer = setTimeout(() => {
         setShowSuccess(false);
       }, 5000);
 
-      // Clean up URL without refreshing
       const url = new URL(window.location.href);
       url.searchParams.delete("subscription");
       url.searchParams.delete("plan");
@@ -65,55 +152,6 @@ function DashboardPage() {
       return () => clearTimeout(timer);
     }
   }, [searchParams, userTier]);
-
-  // Check if we should show subscription modal (when user hits limits)
-  useEffect(() => {
-    if (userTier === "free" && usage) {
-      const invoiceUsage = (usage.invoices_used / 5) * 100; // 5 is free tier limit
-      if (invoiceUsage >= 80) {
-        setShowSubscriptionModal(true);
-      }
-    }
-  }, [userTier, usage]);
-
-  // Fetch usage data
-  const fetchUsage = async () => {
-    try {
-      const res = await fetch("/api/user/usage");
-      if (res.ok) {
-        const data = await res.json();
-        setUsage(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch usage:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Refresh usage after actions
-  const refreshUsage = () => {
-    setRefreshKey((prev) => prev + 1);
-  };
-
-  // Fetch usage on mount and when refreshKey changes
-  useEffect(() => {
-    if (userTier === "free") {
-      fetchUsage();
-    }
-  }, [userTier, refreshKey]);
-
-  // Listen for focus events to refresh data when returning to dashboard
-  useEffect(() => {
-    const handleFocus = () => {
-      if (userTier === "free") {
-        fetchUsage();
-      }
-    };
-
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [userTier]);
 
   // Format plan name for display
   const formatPlanName = (plan: string) => {
@@ -127,25 +165,37 @@ function DashboardPage() {
     return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
 
-  // Get free tier limits
-  const getFreeTierLimits = () => {
-    return {
-      invoices: 5,
-      receipts: 5,
-      contracts: 1,
-    };
-  };
-
-  // Check if user is near limits
-  const isNearLimit = () => {
-    if (!usage || userTier !== "free") return false;
-    const limits = getFreeTierLimits();
+  // ✅ Show loader while checking or redirecting
+  if (userLoading || isRedirecting) {
     return (
-      usage.invoices_used / limits.invoices >= 0.8 ||
-      usage.receipts_used / limits.receipts >= 0.8 ||
-      usage.contracts_used / limits.contracts >= 0.8
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f7f5] dark:bg-[#0e0e0e]">
+        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
+      </div>
     );
-  };
+  }
+
+  // If no user data and not loading, show loader (waiting for initial load)
+  if (!userData && !initialLoadComplete) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f7f5] dark:bg-[#0e0e0e]">
+        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
+      </div>
+    );
+  }
+
+  // If user is not verified, don't render dashboard (redirect will happen via useEffect)
+  if (userData && !isUserVerified()) {
+    return null;
+  }
+
+  // If there's no user data, show loader
+  if (!userData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f7f5] dark:bg-[#0e0e0e]">
+        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full bg-[#f7f7f7] dark:bg-[#0e0e0e]">
@@ -211,20 +261,13 @@ function DashboardPage() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Main Content - Using lg:pl-72 for desktop spacing */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 lg:pl-72">
-        {/* Header with menu button */}
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-
-        {/* Upgrade Banner - Shows only for free users */}
         <UpgradeBanner />
 
-        {/* Main Content Area */}
         <main className="flex-1 px-4 md:px-6 py-6 md:py-8 pb-28 lg:pb-10 overflow-y-auto">
           <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-            {/* BVN Verification Badge */}
-            <BVNVerificationBadge />
-
             {/* Hero Section */}
             <div className="text-left">
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#141414] dark:text-[#f5f5f5] tracking-tight uppercase">
@@ -234,36 +277,6 @@ function DashboardPage() {
                 Everything you need to control your finances is here.
               </p>
             </div>
-
-            {/* Balance Card */}
-            {/* <section>
-              <BalanceCard />
-            </section> */}
-
-            {/* Usage Summary for Free Tier
-            {userTier === 'free' && !loading && usage && (
-              <section>
-                <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
-                  Your Usage {isNearLimit() && <span className="ml-2 text-yellow-600">⚠️ Near limit</span>}
-                </h3>
-                <UsageSummary usage={usage} onRefresh={refreshUsage} />
-                
-          
-                {isNearLimit() && (
-                  <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                      You're approaching your free tier limits. 
-                      <button 
-                        onClick={() => setShowSubscriptionModal(true)}
-                        className="ml-2 font-semibold text-(--color-accent-yellow) hover:underline"
-                      >
-                        Upgrade now →
-                      </button>
-                    </p>
-                  </div>
-                )}
-              </section>
-            )} */}
 
             {/* Announcement Slider */}
             <section>
@@ -275,24 +288,8 @@ function DashboardPage() {
               <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
                 Quick Actions
               </h3>
-              <FeatureCards onActionComplete={refreshUsage} usage={usage} />
+              <FeatureCards />
             </section>
-
-            {/* Analytics Charts */}
-            {/* <section>
-              <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
-                Analytics
-              </h3>
-              <DashboardCharts />
-            </section> */}
-
-            {/* Transaction History */}
-            {/* <section>
-              <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
-                Recent Transactions
-              </h3>
-              <TransactionHistory />
-            </section> */}
 
             {/* Articles */}
             <section className="mt-6">
@@ -302,18 +299,7 @@ function DashboardPage() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      {/* <MobileBottomNav /> */}
-
-      {/* Manual trigger button for testing - remove in production */}
-      {process.env.NODE_ENV === "development" && (
-        <button
-          onClick={() => setShowSubscriptionModal(true)}
-          className="fixed bottom-4 left-4 z-50 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg"
-        >
-          Test Modal
-        </button>
-      )}
+      <MobileBottomNav />
     </div>
   );
 }
@@ -323,7 +309,7 @@ export default function Dashboard() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-[#f7f7f5] dark:bg-[#0e0e0e]">
-          <Loader2 className="w-8 h-8 animate-spin text-(--color-accent-yellow)" />
+          <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
         </div>
       }
     >
