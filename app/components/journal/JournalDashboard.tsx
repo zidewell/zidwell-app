@@ -191,26 +191,27 @@ export function JournalDashboard() {
           <div className="space-y-8 animate-fade-in">
             {/* Connected Accounts */}
             {isNigeria && (
-              hasBankSync ? (
+              // hasBankSync && (
                 <ConnectedAccounts />
-              ) : (
-                <LockedOverlay
-                  requiredTier="premium"
-                  title="Connect your bank accounts"
-                  description="Zidwell Sync auto-syncs up to 5 Nigerian bank accounts — GTBank, Zenith, Opay, PalmPay and more — so bookkeeping happens as you spend and earn."
-                  className="min-h-[200px]"
-                >
-                  <div className="grid gap-3 sm:grid-cols-3 p-2">
-                    {['GT', 'Z', 'O'].map((l, i) => (
-                      <div key={i} className="squircle p-5 bg-card border border-border">
-                        <div className="w-12 h-12 squircle-sm bg-primary/15" />
-                        <p className="font-display font-semibold mt-3">Bank Account</p>
-                        <p className="text-sm text-muted-foreground">•••• 1234</p>
-                      </div>
-                    ))}
-                  </div>
-                </LockedOverlay>
-              )
+              
+              // ) : (
+              //   <LockedOverlay
+              //     requiredTier="premium"
+              //     title="Connect your bank accounts"
+              //     description="Zidwell Sync auto-syncs up to 5 Nigerian bank accounts — GTBank, Zenith, Opay, PalmPay and more — so bookkeeping happens as you spend and earn."
+              //     className="min-h-[200px]"
+              //   >
+              //     <div className="grid gap-3 sm:grid-cols-3 p-2">
+              //       {['GT', 'Z', 'O'].map((l, i) => (
+              //         <div key={i} className="squircle p-5 bg-card border border-border">
+              //           <div className="w-12 h-12 squircle-sm bg-primary/15" />
+              //           <p className="font-display font-semibold mt-3">Bank Account</p>
+              //           <p className="text-sm text-muted-foreground">•••• 1234</p>
+              //         </div>
+              //       ))}
+              //     </div>
+              //   </LockedOverlay>
+              // )
             )}
 
             {/* Today's Summary */}
