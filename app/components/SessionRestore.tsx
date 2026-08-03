@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useUserContextData } from '@/app/context/userData';
+import { useUserContextData, saveUserDataToStorage } from '@/app/context/userData';
 
 export function SessionRestore({ children }: { children: React.ReactNode }) {
   const { setUserData, loading, userData } = useUserContextData();
@@ -30,7 +30,7 @@ export function SessionRestore({ children }: { children: React.ReactNode }) {
             const userData = await response.json();
             if (userData && userData.id) {
               setUserData(userData);
-              localStorage.setItem('userData', JSON.stringify(userData));
+              saveUserDataToStorage(userData);
               console.log('✅ Session restored successfully');
             }
           } else if (response.status === 401) {

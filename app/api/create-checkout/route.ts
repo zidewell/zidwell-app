@@ -34,8 +34,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ Validate tier - now accepts zidlite
-    const validTiers = ['free', 'zidlite', 'growth', 'premium', 'elite'];
+    const validTiers = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
     if (!validTiers.includes(planTier)) {
       return NextResponse.json(
         { success: false, error: 'Invalid plan tier' },
@@ -93,7 +92,7 @@ export async function POST(request: Request) {
         status: 'pending',
         reference: orderReference,
         metadata: {
-          planTier, // ✅ 'zidlite' stored in metadata
+          planTier, // plan tier (e.g., 'solopreneur', 'sme', 'enterprise', 'corporation')
           billingPeriod,
           checkoutLink: data.data.checkoutLink,
         }

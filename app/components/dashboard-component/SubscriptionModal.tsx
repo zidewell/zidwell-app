@@ -29,7 +29,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   );
   const { userTier } = useSubscription();
 
-  if (userTier === "elite") return null;
+  if (userTier === "corporation") return null;
 
   const handleViewPricing = () => {
     onClose();
@@ -39,15 +39,15 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   const getNextTier = () => {
     switch (userTier) {
       case "free":
-        return "zidlite";
-      case "zidlite":
-        return "growth";
-      case "growth":
-        return "premium";
-      case "premium":
-        return "elite";
+        return "solopreneur";
+      case "solopreneur":
+        return "sme";
+      case "sme":
+        return "enterprise";
+      case "enterprise":
+        return "corporation";
       default:
-        return "zidlite";
+        return "solopreneur";
     }
   };
 
@@ -72,7 +72,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             "Unlimited transfers at ₦50 each",
           ],
         };
-      case "zidlite":
+      case "solopreneur":
         return {
           currentTier: "ZidLite",
           nextTier: "Growth",
@@ -91,7 +91,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             "WhatsApp Community + Support",
           ],
         };
-      case "growth":
+      case "sme":
         return {
           currentTier: "Growth",
           nextTier: "Premium",
@@ -110,7 +110,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             "Tax Filing Support • Priority Support",
           ],
         };
-      case "premium":
+      case "enterprise":
         return {
           currentTier: "Premium",
           nextTier: "Elite",
@@ -245,7 +245,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 </span>
               </div>
 
-              {userTier !== "premium" && (
+              {userTier !== "enterprise" && (
                 <div className="mb-4">
                   <div className="flex items-center justify-center gap-2">
                     <button
@@ -277,12 +277,12 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
               <div
                 className={`relative rounded-xl ${
-                  userTier === "premium"
+                  userTier === "enterprise"
                     ? "bg-linear-to-br from-purple-50 to-transparent border-2 border-purple-500"
                     : "bg-linear-to-br from-(--color-accent-yellow)/5 to-transparent border-2 border-(--color-accent-yellow)"
                 } p-4 shadow-lg mb-4`}
               >
-                {userTier !== "premium" && (
+                {userTier !== "enterprise" && (
                   <div className="absolute -top-2 left-4 bg-(--color-accent-yellow) text-(--color-ink) text-[10px] font-bold px-2 py-0.5 rounded-full">
                     RECOMMENDED
                   </div>
@@ -297,20 +297,20 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
                 <div className="mb-2">
                   <span className="text-2xl font-bold">
-                    {userTier === "premium"
+                    {userTier === "enterprise"
                       ? tierInfo.monthlyPrice
                       : selectedPlan === "annual"
                         ? tierInfo.annualPrice
                         : tierInfo.monthlyPrice}
                   </span>
                   <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">
-                    {userTier === "premium"
+                    {userTier === "enterprise"
                       ? "/mo"
                       : selectedPlan === "annual"
                         ? "/yr"
                         : "/mo"}
                   </span>
-                  {selectedPlan === "annual" && userTier !== "premium" && (
+                  {selectedPlan === "annual" && userTier !== "enterprise" && (
                     <p className="text-[10px] text-(--color-accent-yellow)">
                       {tierInfo.annualSavings}
                     </p>
@@ -325,7 +325,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     >
                       <Check
                         className={`h-3 w-3 shrink-0 mt-0.5 ${
-                          userTier === "premium"
+                          userTier === "enterprise"
                             ? "text-purple-500"
                             : "text-(--color-accent-yellow)"
                         }`}
@@ -335,7 +335,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   ))}
                 </ul>
 
-                {userTier !== "free" && userTier !== "premium" && (
+                {userTier !== "free" && userTier !== "enterprise" && (
                   <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <p className="text-[10px] text-gray-500 dark:text-gray-400">
                       vs {tierInfo.currentTier}:{" "}
@@ -351,7 +351,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 <Button
                   onClick={handleViewPricing}
                   className={`w-full rounded-lg py-3 text-sm font-semibold shadow-lg transition-all hover:scale-[1.02] ${
-                    userTier === "premium"
+                    userTier === "enterprise"
                       ? "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/25"
                       : "bg-(--color-accent-yellow) hover:bg-[#e0a800] text-(--color-ink) shadow-(--color-accent-yellow)/25"
                   }`}
@@ -366,7 +366,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   Maybe later
                 </button>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500">
-                  {userTier === "premium"
+                  {userTier === "enterprise"
                     ? "Contact sales for custom pricing"
                     : "14-day trials available on select features"}
                 </p>

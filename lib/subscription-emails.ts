@@ -26,10 +26,10 @@ export async function sendSubscriptionReceiptWithPDF(
 ): Promise<void> {
   try {
     const planNames: Record<string, string> = {
-      zidlite: "ZidLite",
-      growth: "Growth",
-      premium: "Premium",
-      elite: "Elite"
+      solopreneur: "ZidLite",
+      sme: "Growth",
+      enterprise: "Premium",
+      corporation: "Elite"
     };
 
     await transporter.sendMail({
@@ -69,10 +69,10 @@ export async function sendSubscriptionActivationEmail(
 ): Promise<void> {
   try {
     const planNames: Record<string, string> = {
-      zidlite: "ZidLite",
-      growth: "Growth",
-      premium: "Premium",
-      elite: "Elite"
+      solopreneur: "ZidLite",
+      sme: "Growth",
+      enterprise: "Premium",
+      corporation: "Elite"
     };
 
     await transporter.sendMail({
@@ -91,9 +91,9 @@ export async function sendSubscriptionActivationEmail(
           </div>
           <p>You can now enjoy premium features:</p>
           <ul>
-            ${planTier === 'zidlite' ? '<li>20 Invoices & Receipts</li><li>2 Contracts</li><li>WhatsApp Support</li>' : ''}
-            ${planTier === 'growth' ? '<li>Unlimited Invoices & Receipts</li><li>Bookkeeping Tool</li><li>Tax Calculator</li>' : ''}
-            ${planTier === 'premium' ? '<li>Unlimited Contracts</li><li>Financial Statement Preparation</li><li>Priority Support</li>' : ''}
+             ${planTier === 'solopreneur' ? '<li>20 Invoices & Receipts</li><li>2 Contracts</li><li>WhatsApp Support</li>' : ''}
+             ${planTier === 'sme' ? '<li>Unlimited Invoices & Receipts</li><li>Bookkeeping Tool</li><li>Tax Calculator</li>' : ''}
+             ${planTier === 'enterprise' ? '<li>Unlimited Contracts</li><li>Financial Statement Preparation</li><li>Priority Support</li>' : ''}
           </ul>
           <p><a href="${baseUrl}/dashboard" style="background: #e1bf46; color: #023528; padding: 10px 20px; text-decoration: none; border-radius: 8px;">Start Using Zidwell</a></p>
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />

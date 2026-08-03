@@ -340,14 +340,14 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             "operations_admin",
             "support_admin",
             "legal_admin",
-          ].includes(userData?.role) && (
+          ].includes(userData?.admin_role) && (
             <NavItem
               item={{ name: "Admin Panel", href: "/admin", icon: Settings }}
               isActive={pathname === "/admin" || pathname.startsWith("/admin/")}
             />
           )}
           {["super_admin", "operations_admin", "blog_admin"].includes(
-            userData?.role,
+            userData?.admin_role,
           ) && (
             <NavItem
               item={{ name: "Blog Admin", href: "/blog/admin", icon: Captions }}

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useUserContextData } from '@/app/context/userData';
+import { useUserContextData, saveUserDataToStorage } from '@/app/context/userData';
 
 // ✅ Add ALL public routes here (same as middleware)
 const PUBLIC_ROUTES = [
@@ -139,23 +139,16 @@ export default function AuthChecker({ children }: { children: React.ReactNode })
 
   // ✅ Redirect if on protected route without user data
   useEffect(() => {
-    // Skip if it's a public route
     if (isPublicRoute()) {
-      console.log(`✅ AuthChecker: Public route accessed - ${pathname}`);
       return;
     }
     
-    // Skip if not a protected route
     if (!requiresAuth()) {
-      console.log(`✅ AuthChecker: Non-protected route accessed - ${pathname}`);
       return;
     }
     
     if (loading) return;
 
-    console.log(`🔒 AuthChecker: Protected route accessed - ${pathname}, userData: ${!!userData}`);
-
-    // Clear any existing timeout
     if (checkTimeoutRef.current) {
       clearTimeout(checkTimeoutRef.current);
     }

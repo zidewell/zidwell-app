@@ -1,6 +1,6 @@
 // app/components/new-profile/PersonalKYCTab.tsx
 import React, { useState, useEffect } from "react";
-import { useUserContextData } from "@/app/context/userData";
+import { useUserContextData, saveUserDataToStorage } from "@/app/context/userData";
 import Swal from "sweetalert2";
 import Loader from "../Loader";
 import { Loader2, RefreshCw } from "lucide-react";
@@ -220,7 +220,7 @@ const PersonalKYCTab: React.FC = () => {
         p_account_name: formData.accountName,
       };
       setUserData(updatedUser);
-      localStorage.setItem("userData", JSON.stringify(updatedUser));
+      saveUserDataToStorage(updatedUser);
 
       Swal.fire({
         icon: "success",

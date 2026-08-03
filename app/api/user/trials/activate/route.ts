@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     const tier = userData?.subscription_tier || 'free';
     
-    if (tier === 'growth' || tier === 'premium' || tier === 'elite') {
+    if (tier === 'sme' || tier === 'enterprise' || tier === 'corporation') {
       const response = NextResponse.json({ 
         message: "Your current plan already includes this feature", 
         tier,

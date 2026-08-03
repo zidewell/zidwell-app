@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
-import { useUserContextData } from "../context/userData";
+import { useUserContextData, saveUserDataToStorage } from "../context/userData";
 import DataPlanSelector from "./DataPlansSelector";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -263,7 +263,7 @@ export default function DataBundlePurchase() {
       if (data.zidCoinBalance !== undefined) {
         setUserData((prev: any) => {
           const updated = { ...prev, zidcoinBalance: data.zidCoinBalance };
-          localStorage.setItem("userData", JSON.stringify(updated));
+          saveUserDataToStorage(updated);
           return updated;
         });
       }

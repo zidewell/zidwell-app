@@ -459,7 +459,7 @@ async function sendNotificationToUsers({
       // Handle other target audiences
       switch (target_audience) {
         case "premium_users":
-          userQuery = userQuery.eq("subscription_tier", "premium");
+          userQuery = userQuery.eq("subscription_tier", "enterprise");
           break;
         case "new_users":
           const thirtyDaysAgo = new Date();

@@ -3,12 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
-import bcrypt from "bcryptjs";
 import { transporter } from "@/lib/node-mailer";
 import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
+  requireAuth,
 } from "@/lib/auth-check-api";
+import { verifyPinWithLockout } from "@/lib/pin-verification";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -163,8 +164,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
-    const isValid = await bcrypt.compare(plainPin, cachedUser.transaction_pin);
-    if (!isValid)
+    const pinResult = await verifyPinWithLockout(userId, plainPin);
+    
+    if (!pinResult.valid) {
+      if (pinResult.locked) {
+        const lockMsg = pinResult.lockedUntil
+          ? `Account locked until ${new Date(pinResult.lockedUntil).toLocaleString()}`
+          : "Account locked due to too many failed attempts";
+        return NextResponse.json({ message: lockMsg, locked: true }, { status: 423 });
+      }
+      return NextResponse.json({ message: pinResult.error || "Invalid Transaction PIN" }, { status: 401 });
+    }
       return NextResponse.json(
         { message: "Invalid transaction PIN" },
         { status: 401 },

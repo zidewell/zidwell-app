@@ -1,637 +1,904 @@
-// app/api/onboarding/complete/route.js
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import bcrypt from 'bcryptjs';
-import axios from 'axios';
-import bank78AccountService from '@/lib/bank78/bank78AccountService';
-import { getNombaToken } from '@/lib/nomba'; 
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import bcrypt from "bcryptjs";
+import axios from "axios";
+import bank78AccountService from "@/lib/bank78/bank78AccountService";
+import { getNombaToken } from "@/lib/nomba";
+import { encrypt } from "@/lib/encryption";
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(request) {
-  // Track what has been created for rollback
-  let createdRecords = {
-    businessId: null,
-    userId: null,
+const PREMBLY_TIMEOUT = 30000;
+const NOMBA_TIMEOUT = 30000;
+
+const BVN_REGEX = /^\d{11}$/;
+const PIN_REGEX = /^\d{4}$/;
+
+interface OnboardingBody {
+  userId: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  purpose: "personal" | "business";
+  bvn: string;
+  transactionPin: string;
+  businessAddress?: string;
+  mapUrl?: string;
+  utilityBillName?: string;
+  business?: {
+    isRegistered: boolean;
+    businessName: string;
+    cacNumber: string | null;
+    businessAddress: string;
+    businessCategory: string;
+    businessDescription: string;
+    mapUrl: string;
+    businessEmail: string;
+    businessPhone: string;
+    businessWebsite: string;
+    businessType: string;
+    businessIndustry: string;
+    cacVerified: boolean;
+    businessData: any;
+    dateOfBirth: string;
+  };
+  faceMatchData?: { verified: boolean };
+}
+
+export async function POST(request: Request) {
+  const createdRecords = {
+    businessId: null as string | null,
     bvnSaved: false,
   };
-  
+
+  let body: OnboardingBody;
+
   try {
-    const body = await request.json();
-    
-    console.log('📥 Onboarding complete request:', {
-      userId: body.userId,
-      fullName: body.fullName,
-      email: body.email,
-      phone: body.phone,
-      purpose: body.purpose,
-      bvn: body.bvn ? 'present' : 'missing',
-      transactionPin: body.transactionPin ? 'present' : 'missing',
-      hasBusiness: !!body.business,
-    });
+    body = await request.json();
+  } catch (e) {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
 
-    const {
-      userId,
-      fullName,
-      email,
-      phone,
-      purpose,
-      bvn,
-      transactionPin,
-      business,
-      faceMatchData,
-    } = body;
+  const missingFields: string[] = [];
+  if (!body.userId) missingFields.push("userId");
+  if (!body.fullName) missingFields.push("fullName");
+  if (!body.email) missingFields.push("email");
+  if (!body.bvn) missingFields.push("bvn");
+  if (!body.transactionPin) missingFields.push("transactionPin");
 
-    // ✅ Validation
-    const missingFields = [];
-    if (!userId) missingFields.push('userId');
-    if (!fullName) missingFields.push('fullName');
-    if (!email) missingFields.push('email');
-    if (!bvn) missingFields.push('bvn');
-    if (!transactionPin) missingFields.push('transactionPin');
+  if (missingFields.length > 0) {
+    return NextResponse.json(
+      {
+        error: "Missing required fields",
+        missing: missingFields,
+        message: `The following fields are required: ${missingFields.join(", ")}`,
+      },
+      { status: 400 }
+    );
+  }
 
-    if (missingFields.length > 0) {
-      console.error('❌ Missing required fields:', missingFields);
-      return NextResponse.json(
-        { 
-          error: 'Missing required fields', 
-          missing: missingFields,
-          message: `The following fields are required: ${missingFields.join(', ')}`
-        },
-        { status: 400 }
-      );
-    }
+  if (!BVN_REGEX.test(body.bvn)) {
+    return NextResponse.json(
+      { 
+        error: "Invalid BVN format", 
+        message: "BVN must be exactly 11 digits.",
+        status: "bvn_invalid_format"
+      },
+      { status: 400 }
+    );
+  }
 
-    if (!/^\d{4}$/.test(transactionPin)) {
-      console.error('❌ Invalid PIN format:', transactionPin);
-      return NextResponse.json(
-        { error: 'Transaction PIN must be exactly 4 digits' },
-        { status: 400 }
-      );
-    }
+  if (!PIN_REGEX.test(body.transactionPin)) {
+    return NextResponse.json(
+      { error: "Transaction PIN must be exactly 4 digits" },
+      { status: 400 }
+    );
+  }
 
-    if (!bvn || bvn.length !== 11) {
-      console.error('❌ Invalid BVN format:', bvn?.length);
-      return NextResponse.json(
-        { error: 'Valid 11-digit BVN is required' },
-        { status: 400 }
-      );
-    }
-
-    // 1. Verify BVN with Prembly
-    console.log('🔐 Verifying BVN with Prembly...');
-    let bvnResult, bvnData;
-    try {
-      const bvnResponse = await axios.post(
-        'https://api.prembly.com/verification/bvn_validation',
-        { number: bvn },
-        {
-          headers: {
-            accept: 'application/json',
-            'x-api-key': process.env.PREMBLY_SECRET_KEY,
-            'content-type': 'application/json'
-          },
-          timeout: 30000,
-        }
-      );
-
-      if (!bvnResponse.data.status) {
-        console.error('❌ BVN verification failed:', bvnResponse.data);
-        return NextResponse.json(
-          { error: 'BVN verification failed: ' + (bvnResponse.data.message || 'Invalid BVN') },
-          { status: 400 }
-        );
-      }
-
-      bvnResult = bvnResponse.data;
-      bvnData = bvnResult.data || {};
-      console.log('✅ BVN verified successfully for:', bvnData.firstName, bvnData.lastName);
-    } catch (error) {
-      console.error('❌ BVN verification error:', error);
-      return NextResponse.json(
-        { error: 'BVN verification failed: ' + error.message },
-        { status: 400 }
-      );
-    }
-
-    // Extract verification metadata
-    const verificationReference = bvnResult.reference_id || bvnResult.verification?.reference;
-    const verificationId = bvnResult.verification?.verification_id;
-    const verificationStatus = bvnResult.verification_status || (bvnResult.status ? 'VERIFIED' : 'FAILED');
-
-    // 2. Verify name and date of birth match
-    const nameMatches = bvnData.firstName && fullName.toLowerCase().includes(bvnData.firstName.toLowerCase());
-    const dobMatches = bvnData.dateOfBirth && business?.dateOfBirth && 
-      new Date(bvnData.dateOfBirth).getTime() === new Date(business.dateOfBirth).getTime();
-
-    // 3. Get user's current data
+  try {
     const { data: existingUser, error: existingUserError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
+      .from("users")
+      .select("*")
+      .eq("id", body.userId)
       .single();
 
     if (existingUserError) {
-      console.error('❌ Failed to fetch existing user:', existingUserError);
       return NextResponse.json(
-        { error: 'Failed to fetch user data' },
+        { error: "Failed to fetch user data" },
         { status: 500 }
       );
     }
 
-    const userPhone = phone || existingUser?.phone || '';
+    // Verify BVN with Prembly
+    const bvnResult = await verifyBvnWithPrembly(body.bvn);
+    const bvnData = bvnResult.data || {};
 
-    // 4. ✅ FIRST: Save BVN data to user (so Bank78 has the BVN data)
-    console.log('📤 Saving BVN data to user...');
-    
+    const verificationReference =
+      bvnResult.reference_id || bvnResult.verification?.reference;
+    const verificationId = bvnResult.verification?.verification_id;
+    const verificationStatus =
+      bvnResult.verification_status ||
+      (bvnResult.status ? "VERIFIED" : "FAILED");
+
+    const nameMatches =
+      bvnData.firstName &&
+      body.fullName.toLowerCase().includes(bvnData.firstName.toLowerCase());
+    const dobMatches =
+      bvnData.dateOfBirth &&
+      body.business?.dateOfBirth &&
+      new Date(bvnData.dateOfBirth).getTime() ===
+        new Date(body.business.dateOfBirth).getTime();
+
+    const encryptedBvn = encrypt(body.bvn);
+
     const initialUpdateData = {
-      bvn_data: bvnData,
-      bvn_verification: 'verified',
-      transaction_pin: await bcrypt.hash(transactionPin, 10),
+      bvn_data: {
+        verification: {
+          provider: "prembly",
+          reference: verificationReference,
+          id: verificationId,
+          status: verificationStatus,
+          timestamp: new Date().toISOString(),
+        },
+        request: {
+          id: `BVN-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`,
+          timestamp: new Date().toISOString(),
+          ip:
+            request.headers.get("x-forwarded-for") ||
+            request.headers.get("x-real-ip") ||
+            "unknown",
+          user_agent: request.headers.get("user-agent") || "unknown",
+        },
+        consent: {
+          given: true,
+          timestamp: new Date().toISOString(),
+        },
+        audit_trail: {
+          verification_payload: bvnResult,
+          request_payload: { bvn: body.bvn },
+          timestamp: new Date().toISOString(),
+        },
+        raw_data: {
+          firstName: bvnData.firstName || "",
+          lastName: bvnData.lastName || "",
+          middleName: bvnData.middleName || "",
+          nameOnCard: bvnData.nameOnCard || "",
+          dateOfBirth: bvnData.dateOfBirth || "",
+          phoneNumber1: bvnData.phoneNumber1 || "",
+          phoneNumber2: bvnData.phoneNumber2 || "",
+          email: bvnData.email || "",
+          gender: bvnData.gender || "",
+          title: bvnData.title || "",
+          nationality: bvnData.nationality || "",
+          stateOfOrigin: bvnData.stateOfOrigin || "",
+          lgaOfOrigin: bvnData.lgaOfOrigin || "",
+          stateOfResidence: bvnData.stateOfResidence || "",
+          lgaOfResidence: bvnData.lgaOfResidence || "",
+          residentialAddress: bvnData.residentialAddress || "",
+          enrollmentBank: bvnData.enrollmentBank || "",
+          enrollmentBranch: bvnData.enrollmentBranch || "",
+          registrationDate: bvnData.registrationDate || "",
+          maritalStatus: bvnData.maritalStatus || "",
+          levelOfAccount: bvnData.levelOfAccount || "",
+          watchListed: bvnData.watchListed || "False",
+          base64Image: bvnData.base64Image || null,
+        },
+        logs: [
+          {
+            provider: "prembly",
+            type: "bvn",
+            request_payload: { bvn: body.bvn },
+            response_payload: bvnResult,
+            status: verificationStatus,
+            verified_at: new Date().toISOString(),
+            reference: verificationReference,
+            verification_id: verificationId,
+            consent_given: true,
+            consent_timestamp: new Date().toISOString(),
+          },
+        ],
+      },
+      bvn_verification: "verified",
+      encrypted_bvn: encryptedBvn,
+      transaction_pin: await bcrypt.hash(body.transactionPin, 10),
       pin_set: true,
       verification_step: 1,
-      encrypted_bvn: bvn,
-      verification_logs: [
-        {
-          provider: 'prembly',
-          type: 'bvn',
-          request_payload: { bvn },
-          response_payload: bvnResult,
-          status: verificationStatus,
-          verified_at: new Date().toISOString(),
-          reference: verificationReference,
-          verification_id: verificationId
-        }
-      ]
     };
 
     const { error: initialUpdateError } = await supabase
-      .from('users')
+      .from("users")
       .update(initialUpdateData)
-      .eq('id', userId);
+      .eq("id", body.userId);
 
     if (initialUpdateError) {
-      console.error('❌ Failed to save BVN data:', initialUpdateError);
       return NextResponse.json(
-        { error: 'Failed to save BVN data: ' + initialUpdateError.message },
+        { error: "Failed to save BVN data: " + initialUpdateError.message },
         { status: 500 }
       );
     }
 
     createdRecords.bvnSaved = true;
-    console.log('✅ BVN data saved to user');
 
-    // 5. Handle business verification and create business record
     let isRegisteredBusiness = false;
-    let businessData = null;
-    let cacVerificationData = null;
+    let businessData: any = null;
     let directorVerified = false;
 
-    if (purpose === 'business' && business) {
-      if (business.cacNumber && business.cacNumber.trim().length > 0) {
-        try {
-          console.log('🔐 Verifying CAC with Prembly:', business.cacNumber);
-          
-          const cacResponse = await axios.post(
-            'https://api.prembly.com/verification/cac',
-            {
-              rc_number: business.cacNumber,
-              company_type: 'RC'
-            },
-            {
-              headers: {
-                accept: 'application/json',
-                'x-api-key': process.env.PREMBLY_SECRET_KEY,
-                'content-type': 'application/json'
-              },
-              timeout: 30000,
-            }
-          );
+    // ✅ CHECK IF BUSINESS RECORD ALREADY EXISTS
+    const { data: existingBusiness, error: existingBusinessError } = await supabase
+      .from("businesses")
+      .select("*")
+      .eq("user_id", body.userId)
+      .single();
 
-          if (cacResponse.data.status && cacResponse.data.data && cacResponse.data.data.length > 0) {
-            const cacResult = cacResponse.data;
-            const cacData = cacResult.data[0];
-            const cacVerificationRef = cacResult.reference_id || cacResult.verification?.reference;
-            const cacVerificationId = cacResult.verification?.verification_id;
-            
-            isRegisteredBusiness = true;
-            
-            const companyActive = cacData.company_status === 'ACTIVE' || cacData.company_status === 'active';
-            
-            const directors = cacData.directors || [];
-            const userIsDirector = directors.some((director: any) => {
-              const directorName = `${director.firstname} ${director.otherName || ''} ${director.surname || ''}`.trim();
-              return directorName.toLowerCase().includes(fullName.toLowerCase()) ||
-                     director.firstname?.toLowerCase().includes(fullName.split(' ')[0]?.toLowerCase());
-            });
+    if (body.purpose === "business" && body.business) {
+      // ✅ If business record exists, UPDATE it instead of creating new one
+      if (existingBusiness) {
+        console.log('✅ Business record already exists, updating...');
+        
+        // Only update CAC verification if registered and has CAC number
+        if (body.business.isRegistered && body.business.cacNumber && body.business.cacNumber.trim().length > 0) {
+          try {
+            const cacResult = await verifyCacWithPrembly(body.business.cacNumber);
+            const cacData = cacResult.data?.[0] || null;
 
-            directorVerified = userIsDirector;
+            if (cacResult.status && cacData) {
+              isRegisteredBusiness = true;
 
-            cacVerificationData = {
-              cac_verified: true,
-              company_name: cacData.company_name,
-              rc_number: cacData.rc_number,
-              company_status: cacData.company_status,
-              company_active: companyActive,
-              director_verified: directorVerified,
-              authorized_representative_verified: directorVerified,
-              verification_reference: cacVerificationRef,
-              verification_id: cacVerificationId,
-              verified_at: new Date().toISOString(),
-              full_data: cacData
-            };
+              const companyActive =
+                cacData.company_status === "ACTIVE" ||
+                cacData.company_status === "active" ||
+                cacData.company_status === "Active";
 
-            // Create business record
-            const businessInsert = {
-              user_id: userId,
-              business_name: cacData.company_name || business.businessName,
-              business_address: cacData.company_address || business.businessAddress || '',
-              cac_number: business.cacNumber,
-              is_registered: true,
-              verification_status: 'verified',
-              cac_data: cacData,
-              business_type: cacData.entity_type || business.businessType || '',
-              business_category: business.businessCategory || '',
-              business_description: business.businessDescription || '',
-              business_email: business.businessEmail || '',
-              business_phone: business.businessPhone || '',
-              business_website: business.businessWebsite || '',
-              map_url: business.mapUrl || '',
-              registration_date: cacData.registrationDate || null,
-              cac_verified: true,
-              company_name: cacData.company_name,
-              rc_number: cacData.rc_number,
-              company_status: cacData.company_status,
-              director_verified: directorVerified,
-              authorized_representative_verified: directorVerified,
-              verification_reference: cacVerificationRef,
-              verification_id: cacVerificationId,
-              verified_at: new Date().toISOString(),
-              business_kyc_completed: companyActive && directorVerified,
-              verification_logs: [
-                {
-                  provider: 'prembly',
-                  type: 'cac',
-                  request_payload: { rc_number: business.cacNumber },
-                  response_payload: cacResult,
-                  status: cacResult.verification_status || 'VERIFIED',
-                  verified_at: new Date().toISOString(),
-                  reference: cacVerificationRef,
-                  verification_id: cacVerificationId
-                }
-              ],
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
+              const directors = cacData.directors || [];
+              directorVerified = directors.some((director: any) => {
+                const directorName = `${director.firstname || ""} ${director.otherName || ""} ${director.surname || ""}`.trim();
+                return (
+                  directorName.toLowerCase().includes(body.fullName.toLowerCase()) ||
+                  director.firstname?.toLowerCase().includes(body.fullName.split(" ")[0]?.toLowerCase())
+                );
+              });
 
-            const { data: bizData, error: bizError } = await supabase
-              .from('businesses')
-              .insert(businessInsert)
-              .select()
-              .single();
+              // ✅ UPDATE existing business record
+              const updateData = {
+                business_name: cacData.company_name || body.business.businessName || existingBusiness.business_name,
+                business_address: cacData.company_address || body.business.businessAddress || existingBusiness.business_address || "",
+                cac_number: body.business.cacNumber,
+                is_registered: true,
+                verification_status: "verified",
+                cac_data: {
+                  ...cacData,
+                  verification: {
+                    provider: "prembly",
+                    reference: cacResult.reference_id,
+                    id: cacResult.verification?.verification_id,
+                    status: "VERIFIED",
+                    timestamp: new Date().toISOString(),
+                  },
+                  consent: {
+                    given: true,
+                    timestamp: new Date().toISOString(),
+                  },
+                  directors: cacData.directors || [],
+                },
+                business_type: cacData.entity_type || body.business.businessType || existingBusiness.business_type,
+                business_category: body.business.businessCategory || existingBusiness.business_category,
+                business_description: body.business.businessDescription || existingBusiness.business_description,
+                business_email: body.business.businessEmail || existingBusiness.business_email,
+                business_phone: body.business.businessPhone || existingBusiness.business_phone,
+                business_website: body.business.businessWebsite || existingBusiness.business_website,
+                map_url: body.business.mapUrl || existingBusiness.map_url,
+                registration_date: cacData.registration_date || null,
+                cac_verified: true,
+                company_name: cacData.company_name,
+                rc_number: cacData.rc_number,
+                company_status: cacData.company_status,
+                director_verified: directorVerified,
+                authorized_representative_verified: directorVerified,
+                verification_reference: cacResult.reference_id,
+                verification_id: cacResult.verification?.verification_id,
+                verified_at: new Date().toISOString(),
+                business_kyc_completed: companyActive && directorVerified,
+                updated_at: new Date().toISOString(),
+              };
 
-            if (!bizError) {
-              businessData = bizData;
-              createdRecords.businessId = bizData.id;
-              console.log('✅ CAC verified for business:', cacData.company_name);
+              const { data: updatedBusiness, error: updateError } = await supabase
+                .from("businesses")
+                .update(updateData)
+                .eq("user_id", body.userId)
+                .select()
+                .single();
+
+              if (!updateError) {
+                businessData = updatedBusiness;
+                createdRecords.businessId = updatedBusiness.id;
+              } else {
+                console.error("Failed to update business:", updateError);
+                return NextResponse.json(
+                  { error: "Failed to update business record: " + updateError.message },
+                  { status: 500 }
+                );
+              }
             } else {
-              console.error('❌ Failed to create business record:', bizError);
-              // ROLLBACK: Remove BVN data from user
-              await rollbackBvnData(userId);
-              return NextResponse.json(
-                { error: 'Failed to create business record: ' + bizError.message },
-                { status: 500 }
-              );
+              // CAC verification failed - update as unregistered
+              const updateData = {
+                is_registered: false,
+                verification_status: "pending",
+                updated_at: new Date().toISOString(),
+              };
+
+              const { data: updatedBusiness, error: updateError } = await supabase
+                .from("businesses")
+                .update(updateData)
+                .eq("user_id", body.userId)
+                .select()
+                .single();
+
+              if (!updateError) {
+                businessData = updatedBusiness;
+                createdRecords.businessId = updatedBusiness.id;
+              }
             }
-          } else {
-            console.warn('⚠️ CAC verification failed - creating unregistered business');
+          } catch (cacError: any) {
+            console.error("CAC verification error:", cacError);
             isRegisteredBusiness = false;
-            businessData = await createUnregisteredBusiness(userId, business);
-            if (businessData) createdRecords.businessId = businessData.id;
           }
-        } catch (cacError) {
-          console.error('❌ CAC verification error:', cacError);
-          isRegisteredBusiness = false;
-          businessData = await createUnregisteredBusiness(userId, business);
-          if (businessData) createdRecords.businessId = businessData.id;
+        } else if (body.business.isRegistered === false) {
+          // Business not registered - update status only
+          const updateData = {
+            is_registered: false,
+            verification_status: "pending",
+            updated_at: new Date().toISOString(),
+          };
+
+          const { data: updatedBusiness, error: updateError } = await supabase
+            .from("businesses")
+            .update(updateData)
+            .eq("user_id", body.userId)
+            .select()
+            .single();
+
+          if (!updateError) {
+            businessData = updatedBusiness;
+            createdRecords.businessId = updatedBusiness.id;
+          }
         }
       } else {
-        console.log('📋 No CAC number provided - creating unregistered business');
-        isRegisteredBusiness = false;
-        businessData = await createUnregisteredBusiness(userId, business);
-        if (businessData) createdRecords.businessId = businessData.id;
+        // ✅ No business record exists - CREATE NEW
+        console.log('✅ No business record exists, creating new...');
+        
+        if (body.business.isRegistered && body.business.cacNumber && body.business.cacNumber.trim().length > 0) {
+          try {
+            const cacResult = await verifyCacWithPrembly(body.business.cacNumber);
+            const cacData = cacResult.data?.[0] || null;
+
+            if (cacResult.status && cacData) {
+              isRegisteredBusiness = true;
+
+              const companyActive =
+                cacData.company_status === "ACTIVE" ||
+                cacData.company_status === "active" ||
+                cacData.company_status === "Active";
+
+              const directors = cacData.directors || [];
+              directorVerified = directors.some((director: any) => {
+                const directorName = `${director.firstname || ""} ${director.otherName || ""} ${director.surname || ""}`.trim();
+                return (
+                  directorName.toLowerCase().includes(body.fullName.toLowerCase()) ||
+                  director.firstname?.toLowerCase().includes(body.fullName.split(" ")[0]?.toLowerCase())
+                );
+              });
+
+              const businessInsert = {
+                user_id: body.userId,
+                business_name: cacData.company_name || body.business.businessName,
+                business_address: cacData.company_address || body.business.businessAddress || "",
+                cac_number: body.business.cacNumber,
+                is_registered: true,
+                verification_status: "verified",
+                cac_data: {
+                  ...cacData,
+                  verification: {
+                    provider: "prembly",
+                    reference: cacResult.reference_id,
+                    id: cacResult.verification?.verification_id,
+                    status: "VERIFIED",
+                    timestamp: new Date().toISOString(),
+                  },
+                  consent: {
+                    given: true,
+                    timestamp: new Date().toISOString(),
+                  },
+                  directors: cacData.directors || [],
+                },
+                business_type: cacData.entity_type || body.business.businessType,
+                business_category: body.business.businessCategory || "",
+                business_description: body.business.businessDescription || "",
+                business_email: body.business.businessEmail || "",
+                business_phone: body.business.businessPhone || "",
+                business_website: body.business.businessWebsite || "",
+                map_url: body.business.mapUrl || "",
+                registration_date: cacData.registration_date || null,
+                cac_verified: true,
+                company_name: cacData.company_name,
+                rc_number: cacData.rc_number,
+                company_status: cacData.company_status,
+                director_verified: directorVerified,
+                authorized_representative_verified: directorVerified,
+                verification_reference: cacResult.reference_id,
+                verification_id: cacResult.verification?.verification_id,
+                verified_at: new Date().toISOString(),
+                business_kyc_completed: companyActive && directorVerified,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              };
+
+              const { data: bizData, error: bizError } = await supabase
+                .from("businesses")
+                .insert(businessInsert)
+                .select()
+                .single();
+
+              if (!bizError) {
+                businessData = bizData;
+                createdRecords.businessId = bizData.id;
+              } else {
+                await rollbackBvnData(body.userId);
+                return NextResponse.json(
+                  { error: "Failed to create business record: " + bizError.message },
+                  { status: 500 }
+                );
+              }
+            } else {
+              // CAC verification failed - create unregistered
+              isRegisteredBusiness = false;
+              businessData = await createUnregisteredBusiness(
+                body.userId,
+                body.business
+              );
+              if (businessData) createdRecords.businessId = businessData.id;
+            }
+          } catch (cacError: any) {
+            console.error("CAC verification error:", cacError);
+            isRegisteredBusiness = false;
+            businessData = await createUnregisteredBusiness(
+              body.userId,
+              body.business
+            );
+            if (businessData) createdRecords.businessId = businessData.id;
+          }
+        } else {
+          // Unregistered business
+          isRegisteredBusiness = false;
+          businessData = await createUnregisteredBusiness(
+            body.userId,
+            body.business
+          );
+          if (businessData) createdRecords.businessId = businessData.id;
+        }
       }
     }
 
-    // 6. ✅ CREATE BANK78 ACCOUNTS (BVN data is now saved)
-    console.log('📤 Creating accounts...');
-    let bank78Accounts = null;
-    
-    if (isRegisteredBusiness || purpose !== 'business') {
-      // Create Bank78 accounts
+    let bank78Accounts: any = null;
+
+    // ✅ CORRECTED LOGIC:
+    // - Personal accounts: Create ONLY Personal Bank78 account
+    // - Business registered: Create ONLY Business Bank78 account
+    // - Business unregistered: Use Nomba
+    if (body.purpose === "personal") {
       try {
-        console.log('📤 Creating Bank78 accounts for user:', userId);
-        bank78Accounts = await bank78AccountService.createUserAccounts(userId);
-        console.log('✅ Bank78 accounts created successfully');
-      } catch (accountError) {
-        console.error('❌ Bank78 account creation error:', accountError);
-        
-        // ✅ ROLLBACK: Delete business record if created
-        await rollbackAll(createdRecords, userId);
-        
+        bank78Accounts = await bank78AccountService.createUserAccounts(
+          body.userId
+        );
+      } catch (accountError: any) {
+        console.error("Bank78 account creation error:", accountError);
+        await rollbackAll(createdRecords, body.userId);
         return NextResponse.json(
-          { 
-            error: 'Account creation failed', 
+          {
+            error: "Account creation failed",
             message: accountError.message,
-            details: 'Please check your Bank78 configuration and try again. Make sure your API keys and client credentials are correct.',
-            status: 'bank78_error'
+            details: "Please ensure your BVN is valid and try again.",
+            status: "bank78_error"
+          },
+          { status: 500 }
+        );
+      }
+    } else if (body.purpose === "business" && isRegisteredBusiness) {
+      try {
+        bank78Accounts = await bank78AccountService.createUserAccounts(
+          body.userId
+        );
+      } catch (accountError: any) {
+        console.error("Bank78 business account creation error:", accountError);
+        await rollbackAll(createdRecords, body.userId);
+        return NextResponse.json(
+          {
+            error: "Business account creation failed",
+            message: accountError.message,
+            details: "Please ensure your BVN is valid and try again.",
+            status: "bank78_error"
           },
           { status: 500 }
         );
       }
     } else {
-      // Unregistered business - create Nomba account
+      // Unregistered business → Use Nomba
       try {
-        console.log('📤 Creating Nomba account for unregistered business:', userId);
-        const nombaResult = await createNombaWallet(userId, existingUser);
-        if (nombaResult) {
-          console.log('✅ Nomba account created successfully');
-        }
-      } catch (nombaError) {
-        console.error('❌ Nomba account creation error:', nombaError);
-        
-        // ✅ ROLLBACK: Delete business record if created
-        await rollbackAll(createdRecords, userId);
-        
+        await createNombaWallet(body.userId, existingUser);
+      } catch (nombaError: any) {
+        await rollbackAll(createdRecords, body.userId);
         return NextResponse.json(
-          { 
-            error: 'Nomba account creation failed', 
+          {
+            error: "Nomba account creation failed",
             message: nombaError.message,
-            status: 'nomba_error'
+            status: "nomba_error",
           },
           { status: 500 }
         );
       }
     }
 
-    // 7. ✅ FINALLY: Complete user verification
-    console.log('📤 Finalizing user verification...');
-    
     const finalUpdateData = {
       verification_step: 6,
       identity_verified: true,
-      kyc_level: isRegisteredBusiness ? 'business_verified' : 'personal_verified',
+      kyc_level: isRegisteredBusiness ? "business_verified" : "personal_verified",
       verified_at: new Date().toISOString(),
-      verification_provider: 'prembly',
+      verification_provider: "prembly",
       verification_reference: verificationReference,
       verification_id: verificationId,
       verification_status: verificationStatus,
-      face_match_verified: !!faceMatchData?.verified,
+      face_match_verified: !!body.faceMatchData?.verified,
       dob_verified: dobMatches,
       name_verified: nameMatches,
       verification_completed: true,
-      ...(userPhone && { phone: userPhone })
+      onboarding_completed: true,
+      onboarding_step: 6,
+      ...(body.phone && { phone: body.phone }),
     };
 
-    if (isRegisteredBusiness && businessData) {
-      finalUpdateData.is_business_registered = true;
-      finalUpdateData.business_verified = true;
+    // ✅ Add Bank78 account fields if they exist
+    if (bank78Accounts?.personalAccount) {
+      Object.assign(finalUpdateData, {
+        bank78_verified: true,
+        bank78_personal_account_number: bank78Accounts.personalAccount.account_number,
+        bank78_personal_account_name: bank78Accounts.personalAccount.account_name,
+        bank78_personal_bank_name: bank78Accounts.personalAccount.bank_name,
+        bank78_personal_account_id: bank78Accounts.personalAccount.account_id,
+        bank_account_number: bank78Accounts.personalAccount.account_number,
+        bank_account_name: bank78Accounts.personalAccount.account_name,
+        bank_name: bank78Accounts.personalAccount.bank_name,
+        wallet_id: bank78Accounts.personalAccount.account_id,
+        primary_provider: "bank78",
+        wallet_provider: "bank78",
+      });
     }
 
-    const { data: userData, error: finalUpdateError } = await supabase
-      .from('users')
+    if (bank78Accounts?.businessAccount) {
+      Object.assign(finalUpdateData, {
+        bank78_verified: true,
+        bank78_business_account_number: bank78Accounts.businessAccount.account_number,
+        bank78_business_account_name: bank78Accounts.businessAccount.account_name,
+        bank78_business_bank_name: bank78Accounts.businessAccount.bank_name,
+        bank78_business_account_id: bank78Accounts.businessAccount.account_id,
+        primary_provider: "bank78",
+        wallet_provider: "bank78",
+      });
+    }
+
+    // Update user and fetch the complete updated profile
+    const { data: updatedUser, error: finalUpdateError } = await supabase
+      .from("users")
       .update(finalUpdateData)
-      .eq('id', userId)
+      .eq("id", body.userId)
       .select()
       .single();
 
     if (finalUpdateError) {
-      console.error('❌ Final update error:', finalUpdateError);
-      await rollbackAll(createdRecords, userId);
+      await rollbackAll(createdRecords, body.userId);
       return NextResponse.json(
-        { error: 'Failed to finalize verification: ' + finalUpdateError.message },
+        { error: "Failed to finalize verification: " + finalUpdateError.message },
         { status: 500 }
       );
     }
 
-    console.log('✅ User verification finalized:', userId);
+    // Build the safe user profile for frontend
+    const safeProfile = {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      fullName: updatedUser.full_name || body.fullName,
+      full_name: updatedUser.full_name || body.fullName,
+      first_name: updatedUser.first_name || "",
+      last_name: updatedUser.last_name || "",
+      phone: updatedUser.phone || body.phone || "",
+      bvn_verification: "verified",
+      identity_verified: true,
+      kyc_level: isRegisteredBusiness ? "business_verified" : "personal_verified",
+      verification_completed: true,
+      onboarding_completed: true,
+      bank78_verified: !!bank78Accounts?.personalAccount || !!bank78Accounts?.businessAccount,
+      purpose: body.purpose,
+      verification_step: 6,
+      onboarding_step: 6,
+      // Bank78 fields
+      bank78_personal_account_number: bank78Accounts?.personalAccount?.account_number || "",
+      bank78_personal_account_name: bank78Accounts?.personalAccount?.account_name || "",
+      bank78_personal_bank_name: bank78Accounts?.personalAccount?.bank_name || "",
+      bank78_personal_account_id: bank78Accounts?.personalAccount?.account_id || "",
+      bank78_business_account_number: bank78Accounts?.businessAccount?.account_number || "",
+      bank78_business_account_name: bank78Accounts?.businessAccount?.account_name || "",
+      bank78_business_bank_name: bank78Accounts?.businessAccount?.bank_name || "",
+      bank78_business_account_id: bank78Accounts?.businessAccount?.account_id || "",
+      // Bank fields for compatibility
+      bank_account_number: bank78Accounts?.personalAccount?.account_number || updatedUser.bank_account_number || "",
+      bank_account_name: bank78Accounts?.personalAccount?.account_name || updatedUser.bank_account_name || "",
+      bank_name: bank78Accounts?.personalAccount?.bank_name || updatedUser.bank_name || "",
+      wallet_id: bank78Accounts?.personalAccount?.account_id || updatedUser.wallet_id || "",
+      primary_provider: bank78Accounts ? "bank78" : "nomba",
+      wallet_provider: bank78Accounts ? "bank78" : "nomba",
+      // Verification fields
+      verified_at: new Date().toISOString(),
+      verification_provider: "prembly",
+      verification_reference: verificationReference,
+      verification_id: verificationId,
+      verification_status: verificationStatus,
+      face_match_verified: !!body.faceMatchData?.verified,
+      dob_verified: dobMatches,
+      name_verified: nameMatches,
+      // Subscription
+      subscription_tier: updatedUser.subscription_tier || "free",
+      subscription_expires_at: updatedUser.subscription_expires_at || null,
+      // Other fields
+      created_at: updatedUser.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_login: updatedUser.last_login || new Date().toISOString(),
+      wallet_balance: updatedUser.wallet_balance || 0,
+      zidcoin_balance: updatedUser.zidcoin_balance || 0,
+      referral_code: updatedUser.referral_code || "",
+      referred_by: updatedUser.referred_by || null,
+      is_blocked: updatedUser.is_blocked || false,
+      email_verified: updatedUser.email_verified || false,
+      country: updatedUser.country || "Nigeria",
+      admin_role: updatedUser.admin_role || "",
+    };
 
-    // 8. Prepare response
     const responseData = {
       success: true,
-      message: 'Verification complete and account activated',
-      user: userData,
-      business: businessData,
-      wallet_type: bank78Accounts ? 'bank78' : (isRegisteredBusiness ? 'bank78' : 'nomba'),
+      message: "Verification complete and account activated",
+      user: safeProfile,
+      // business: businessData,
+      wallet_type: bank78Accounts ? "bank78" : "nomba",
       verification_summary: {
         identity_verified: true,
-        kyc_level: isRegisteredBusiness ? 'business_verified' : 'personal_verified',
+        kyc_level: isRegisteredBusiness ? "business_verified" : "personal_verified",
         verified_at: new Date().toISOString(),
-        verification_provider: 'prembly',
+        verification_provider: "prembly",
         verification_reference: verificationReference,
         verification_id: verificationId,
-        verification_status: 'VERIFIED',
-        face_match_verified: !!faceMatchData?.verified,
+        verification_status: "VERIFIED",
+        face_match_verified: !!body.faceMatchData?.verified,
         name_verified: nameMatches,
         dob_verified: dobMatches,
         business_verified: isRegisteredBusiness,
         cac_verified: isRegisteredBusiness,
         director_verified: directorVerified,
-        company_active: cacVerificationData?.company_active || false
-      }
+        bvn_validated: true,
+        onboarding_completed: true,
+      },
     };
 
-    if (bank78Accounts) {
+    if (bank78Accounts && bank78Accounts.personalAccount) {
       responseData.bank78 = {
         personal: {
-          accountNumber: bank78Accounts.personalAccount?.account_number,
-          accountName: bank78Accounts.personalAccount?.account_name,
-          bankName: bank78Accounts.personalAccount?.bank_name
+          accountNumber: bank78Accounts.personalAccount.account_number || "",
+          accountName: bank78Accounts.personalAccount.account_name || "",
+          bankName: bank78Accounts.personalAccount.bank_name || "Bank78",
+          accountId: bank78Accounts.personalAccount.account_id || "",
         },
-        business: bank78Accounts.businessAccount ? {
-          accountNumber: bank78Accounts.businessAccount.account_number,
-          accountName: bank78Accounts.businessAccount.account_name,
-          bankName: bank78Accounts.businessAccount.bank_name
-        } : null
       };
-    } else if (userData.wallet_id) {
+
+      if (bank78Accounts.businessAccount) {
+        responseData.bank78.business = {
+          accountNumber: bank78Accounts.businessAccount.account_number || "",
+          accountName: bank78Accounts.businessAccount.account_name || "",
+          bankName: bank78Accounts.businessAccount.bank_name || "Bank78",
+          accountId: bank78Accounts.businessAccount.account_id || "",
+        };
+      }
+    }
+
+    if (updatedUser?.wallet_id) {
       responseData.nomba = {
-        accountNumber: userData.bank_account_number || userData.wallet_id,
-        accountName: userData.bank_account_name || userData.full_name,
-        bankName: userData.bank_name || 'Wema Bank'
+        accountNumber: updatedUser.bank_account_number || updatedUser.wallet_id,
+        accountName: updatedUser.bank_account_name || updatedUser.full_name,
+        bankName: updatedUser.bank_name || "Wema Bank",
       };
     }
 
-    if (businessData) {
-      responseData.business = businessData;
-    }
-
-    console.log('✅ Onboarding completed successfully for user:', userId);
     return NextResponse.json(responseData);
-
-  } catch (error) {
-    console.error('❌ Onboarding error:', error);
+  } catch (error: any) {
     await rollbackAll(createdRecords, body?.userId);
-    
+
     return NextResponse.json(
-      { 
-        error: 'Onboarding failed', 
-        message: error.message || 'An unexpected error occurred',
-        details: error.stack
+      {
+        error: "Onboarding failed",
+        message: error.message || "An unexpected error occurred",
+        status: "onboarding_failed"
       },
       { status: 500 }
     );
   }
 }
 
-/**
- * Rollback BVN data from user
- */
-async function rollbackBvnData(userId) {
+// Verify BVN with Prembly
+async function verifyBvnWithPrembly(bvn: string) {
+  const response = await axios.post(
+    "https://api.prembly.com/verification/bvn_validation",
+    { number: bvn },
+    {
+      headers: {
+        accept: "application/json",
+        "x-api-key": process.env.PREMBLY_SECRET_KEY,
+        "content-type": "application/json",
+      },
+      timeout: PREMBLY_TIMEOUT,
+    }
+  );
+  return response.data;
+}
+
+// Verify CAC with Prembly
+async function verifyCacWithPrembly(rcNumber: string) {
+  const response = await axios.post(
+    "https://api.prembly.com/verification/cac",
+    { rc_number: rcNumber, company_type: "RC" },
+    {
+      headers: {
+        accept: "application/json",
+        "x-api-key": process.env.PREMBLY_SECRET_KEY,
+        "content-type": "application/json",
+      },
+      timeout: PREMBLY_TIMEOUT,
+    }
+  );
+  return response.data;
+}
+
+async function rollbackBvnData(userId: string) {
   try {
-    console.log('🔄 Rolling back BVN data for user:', userId);
     await supabase
-      .from('users')
+      .from("users")
       .update({
         bvn_data: null,
-        bvn_verification: 'not_submitted',
+        bvn_verification: "not_submitted",
         encrypted_bvn: null,
-        verification_logs: [],
-        pin_set: false,
         transaction_pin: null,
+        pin_set: false,
         verification_step: 0,
       })
-      .eq('id', userId);
-    console.log('✅ BVN data rolled back');
+      .eq("id", userId);
   } catch (error) {
-    console.error('❌ Rollback error:', error);
+    console.error("Rollback error:", error);
   }
 }
 
-/**
- * Rollback all created records
- */
-async function rollbackAll(createdRecords, userId) {
-  // Delete business record if created
+async function rollbackAll(
+  createdRecords: { businessId: string | null; bvnSaved: boolean },
+  userId: string
+) {
   if (createdRecords.businessId) {
-    console.log('🔄 Rolling back business record...');
     try {
       await supabase
-        .from('businesses')
+        .from("businesses")
         .delete()
-        .eq('id', createdRecords.businessId);
-      console.log('✅ Business record rolled back');
+        .eq("id", createdRecords.businessId);
     } catch (rollbackError) {
-      console.error('❌ Rollback error:', rollbackError);
+      console.error("Rollback error:", rollbackError);
     }
   }
-  
-  // Remove BVN data if saved
+
   if (createdRecords.bvnSaved && userId) {
     await rollbackBvnData(userId);
   }
 }
 
-/**
- * Create an unregistered business record
- */
-async function createUnregisteredBusiness(userId, businessData) {
+async function createUnregisteredBusiness(userId: string, businessData: any) {
   try {
-    console.log('📤 Creating unregistered business record for user:', userId);
-    
     const businessInsert = {
       user_id: userId,
-      business_name: businessData.businessName || 'Unnamed Business',
-      business_address: businessData.businessAddress || '',
+      business_name: businessData.businessName || "Unnamed Business",
+      business_address: businessData.businessAddress || "",
       cac_number: null,
       is_registered: false,
-      verification_status: 'pending',
-      business_type: businessData.businessType || '',
-      business_category: businessData.businessCategory || '',
-      business_description: businessData.businessDescription || '',
-      business_email: businessData.businessEmail || '',
-      business_phone: businessData.businessPhone || '',
-      business_website: businessData.businessWebsite || '',
-      map_url: businessData.mapUrl || '',
+      verification_status: "pending",
+      business_type: businessData.businessType || "",
+      business_category: businessData.businessCategory || "",
+      business_description: businessData.businessDescription || "",
+      business_email: businessData.businessEmail || "",
+      business_phone: businessData.businessPhone || "",
+      business_website: businessData.businessWebsite || "",
+      map_url: businessData.mapUrl || "",
       business_kyc_completed: false,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     const { data: bizData, error: bizError } = await supabase
-      .from('businesses')
+      .from("businesses")
       .insert(businessInsert)
       .select()
       .single();
 
     if (bizError) {
-      console.error('❌ Unregistered business insert error:', bizError);
+      console.error("Unregistered business insert error:", bizError);
       return null;
     }
 
-    console.log('✅ Unregistered business created:', bizData.id);
     return bizData;
   } catch (error) {
-    console.error('❌ Failed to create unregistered business:', error);
+    console.error("Failed to create unregistered business:", error);
     return null;
   }
 }
 
-/**
- * Create a Nomba wallet for unregistered businesses
- * ✅ Uses your existing getNombaToken function
- */
-async function createNombaWallet(userId, userData) {
+async function createNombaWallet(userId: string, userData: any) {
   try {
-    console.log('📤 Creating Nomba wallet for user:', userId);
-    
-    // ✅ Use your existing token function
     const token = await getNombaToken();
-    console.log('✅ Nomba token obtained');
 
-    const response = await fetch(`${process.env.NOMBA_URL}/v1/accounts/virtual`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'accountId': process.env.NOMBA_ACCOUNT_ID,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        accountName: userData.full_name,
-        accountRef: userId,
-        bvn: userData.bvn_data?.bvn
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), NOMBA_TIMEOUT);
+
+    const response = await fetch(
+      `${process.env.NOMBA_URL}/v1/accounts/virtual`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          accountId: process.env.NOMBA_ACCOUNT_ID,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accountName: userData.full_name,
+          accountRef: userId,
+          bvn: userData.bvn_data?.raw_data?.bvn || userData.bvn_data?.bvn || "",
+        }),
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
 
     const wallet = await response.json();
 
     if (!response.ok || !wallet?.data) {
-      console.error('❌ Nomba wallet creation failed:', wallet);
-      throw new Error(wallet.message || 'Failed to create Nomba wallet');
+      throw new Error(wallet.message || "Failed to create Nomba wallet");
     }
 
-    console.log('✅ Nomba wallet created:', wallet.data.accountRef);
-
-    // Update user with Nomba wallet details
     await supabase
-      .from('users')
+      .from("users")
       .update({
         wallet_id: wallet.data.accountRef,
         bank_name: wallet.data.bankName,
         bank_account_number: wallet.data.bankAccountNumber,
         bank_account_name: wallet.data.bankAccountName,
-        wallet_provider: 'nomba',
-        primary_provider: 'nomba',
-        wallet_updated_at: new Date().toISOString()
+        wallet_provider: "nomba",
+        primary_provider: "nomba",
+        wallet_updated_at: new Date().toISOString(),
+        verification_completed: true,
+        verification_step: 6,
+        bank78_verified: false,
       })
-      .eq('id', userId);
+      .eq("id", userId);
 
     return wallet.data;
-  } catch (error) {
-    console.error('❌ Nomba wallet creation error:', error);
-    throw new Error('Failed to create Nomba wallet: ' + error.message);
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      throw new Error("Nomba wallet creation timed out");
+    }
+    throw new Error("Failed to create Nomba wallet: " + error.message);
   }
 }

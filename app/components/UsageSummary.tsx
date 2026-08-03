@@ -10,12 +10,8 @@ import DataOverviewCards from "../components/dashboard-component/DataOverviewCar
 import DashboardCharts from "../components/dashboard-component/DashboardCharts";
 import RecentArticles from "../components/dashboard-component/RecentArticles";
 import MobileBottomNav from "../components/dashboard-component/MobileBottomNav";
-import BVNVerificationBadge from "../components/BVNVerificationBadge";
-import BalanceCard from "../components/Balance-card";
-import TransactionHistory from "../components/transaction-history";
-import UsageSummary from "../components/UsageSummary";
-import { useSubscription } from "../hooks/useSubscripion";
 import { UpgradeBanner } from "../components/subscription-components/UpgradeBanner";
+import { useSubscription } from "../hooks/useSubscripion";
 import { CheckCircle, Loader2, X } from "lucide-react";
 
 function DashboardPage() {
@@ -96,10 +92,10 @@ function DashboardPage() {
   const formatPlanName = (plan: string) => {
     if (!plan) return "";
     const planMap: Record<string, string> = {
-      zidlite: "ZidLite",
-      growth: "Growth",
-      premium: "Premium",
-      elite: "Elite",
+      solopreneur: "ZidLite",
+      sme: "Growth",
+      enterprise: "Premium",
+      corporation: "Elite",
     };
     return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
@@ -173,9 +169,6 @@ function DashboardPage() {
         {/* Main Content Area */}
         <main className="flex-1 px-4 md:px-6 py-6 md:py-8 pb-28 lg:pb-10 overflow-y-auto">
           <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-            {/* BVN Verification Badge */}
-            <BVNVerificationBadge />
-
             {/* Hero Section */}
             <div className="text-left">
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#141414] dark:text-[#f5f5f5] tracking-tight uppercase">

@@ -5,7 +5,6 @@ import React, { FormEvent, useState } from "react";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/app/supabase/supabase";
 
 const PasswordReset = () => {
   const [email, setEmail] = useState<string>("");
@@ -15,7 +14,7 @@ const PasswordReset = () => {
   const router = useRouter();
 
   const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>
   ): Promise<void> => {
     event.preventDefault();
 
@@ -33,31 +32,39 @@ const PasswordReset = () => {
     setErrors({});
     setLoading(true);
 
-    const baseUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.NEXT_PUBLIC_DEV_URL
-        : process.env.NEXT_PUBLIC_BASE_URL;
-
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${baseUrl}/auth/password-reset/update-password`,
+      const response = await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
       });
 
-      console.log(error);
+      const result = await response.json();
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error);
+      }
 
-      Swal.fire({
-        title: `Password reset link sent to: ${email}`,
+      await Swal.fire({
+        title: "Password reset email sent",
+        text: `Check ${email} for the reset link.`,
         icon: "success",
       });
+
+      setEmail("");
     } catch (error: any) {
-      Swal.fire({
-        title: `Failed to send password reset email. Please try again later.`,
+      console.error(error);
+
+      await Swal.fire({
+        title: "Failed",
+        text: error.message || "Unable to send password reset email.",
         icon: "error",
       });
+
       setErrors({
-        general: error.message || "Failed to send password reset email.",
+        general: error.message,
       });
     } finally {
       setLoading(false);
@@ -66,7 +73,31 @@ const PasswordReset = () => {
 
   return (
     <main className="p-5 h-screen">
-      <div className="flex flex-col justify-center items-center h-[80%]">
+      {/* Back Button at Top */}
+      <div className="flex justify-start mb-4">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <path d="M19 12H5"/>
+            <path d="M12 19l-7-7 7-7"/>
+          </svg>
+          <span>Back</span>
+        </button>
+      </div>
+
+      <div className="flex flex-col justify-center items-center h-[70%]">
         <h2 className="text-2xl mb-2">Forgotten Password</h2>
         <p className="mb-4">Input your email for verification</p>
 

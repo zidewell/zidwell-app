@@ -3,6 +3,7 @@ import {
   sendSubscriptionReceiptWithPDF, 
   sendSubscriptionActivationEmail 
 } from "../../../../lib/subscription-emails";
+import { generateAuthToken } from "@/lib/auth-token";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -32,12 +33,6 @@ export async function processSubscriptionPayment(
 ): Promise<{ success: boolean; message: string; subscription_id?: string }> {
   const { nombaTransactionId, orderReference } = params;
 
-  console.log("=".repeat(60));
-  console.log("💰 PROCESSING SUBSCRIPTION CARD PAYMENT");
-  console.log("=".repeat(60));
-  console.log("Order Reference:", orderReference);
-  console.log("Transaction ID:", nombaTransactionId);
-
   // Get payment record from DATABASE
   const { data: payment, error: paymentError } = await supabase
     .from('subscription_payments')
@@ -46,16 +41,8 @@ export async function processSubscriptionPayment(
     .maybeSingle();
 
   if (paymentError || !payment) {
-    console.error("❌ Payment not found:", orderReference);
     return { success: false, message: "Payment not found" };
   }
-
-  console.log("✅ Found payment:", { 
-    id: payment.id, 
-    status: payment.status, 
-    amount: payment.amount,
-    metadata: payment.metadata 
-  });
 
   // Get metadata from database
   const metadata = payment.metadata || {};
@@ -63,26 +50,20 @@ export async function processSubscriptionPayment(
   const billingPeriod = metadata.billingPeriod || 'monthly';
   const userId = metadata.userId || payment.user_id;
 
-  console.log("📊 Extracted from Database:", { planTier, billingPeriod, userId });
-
   if (!userId || !planTier) {
-    console.error("❌ Missing required metadata!");
     return { success: false, message: "Missing subscription metadata" };
   }
 
   // Validate tier
   if (!PAID_TIERS.includes(planTier)) {
-    console.error("❌ Invalid plan tier:", planTier);
     return { success: false, message: "Invalid plan tier" };
   }
 
   // Check if already processed
   if (payment.status === 'completed') {
-    console.log("✅ Payment already processed");
     return { success: true, message: "Already processed" };
   }
 
-  // Get user data
   const { data: user, error: userError } = await supabase
     .from('users')
     .select('id, email, full_name, subscription_tier')
@@ -90,11 +71,8 @@ export async function processSubscriptionPayment(
     .single();
 
   if (userError || !user) {
-    console.error("❌ User not found:", userId);
     return { success: false, message: "User not found" };
   }
-
-  console.log("✅ User found:", { id: user.id, email: user.email });
 
   // Calculate expiration
   const expiresAt = calculateExpiration(billingPeriod);
@@ -381,5 +359,6 @@ export function checkIfSubscriptionBankTransfer(aliasAccountReference: string, p
 }
 
 export function getAutoLoginUrl(userId: string, email: string, planTier: string): string {
-  return `${baseUrl}/api/auth/auto-login?userId=${userId}&email=${encodeURIComponent(email)}&plan=${planTier}`;
+  const token = generateAuthToken({ userId, email, plan: planTier });
+  return `${baseUrl}/api/auth/auto-login?token=${token}`;
 }

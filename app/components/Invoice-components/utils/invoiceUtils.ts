@@ -73,10 +73,10 @@ export const getRemainingInvoices = (
   tier: string,
   usedCount: number
 ): number | "unlimited" => {
-  if (tier === "growth" || tier === "premium" || tier === "elite") {
+  if (tier === "sme" || tier === "enterprise" || tier === "corporation") {
     return "unlimited";
   }
-  if (tier === "zidlite") {
+  if (tier === "solopreneur") {
     return Math.max(0, 10 - usedCount);
   }
   // Free tier

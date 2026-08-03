@@ -50,7 +50,7 @@ const plans = [
     ],
     cta: "Go ZidLite",
     highlight: false,
-    tier: "zidlite",
+    tier: "solopreneur",
     priceId: "price_zidlite_monthly",
     yearlyPriceId: "price_zidlite_yearly",
     amount: 4900,
@@ -74,7 +74,7 @@ const plans = [
     ],
     cta: "Go Growth",
     highlight: true,
-    tier: "growth",
+    tier: "sme",
     priceId: "price_growth_monthly",
     yearlyPriceId: "price_growth_yearly",
     amount: 9900,
@@ -97,7 +97,7 @@ const plans = [
     ],
     cta: "Upgrade to Premium",
     highlight: false,
-    tier: "premium",
+    tier: "enterprise",
     priceId: "price_premium_monthly",
     yearlyPriceId: "price_premium_yearly",
     amount: 99900,
@@ -124,7 +124,7 @@ const plans = [
     ],
     cta: "Contact Us",
     highlight: false,
-    tier: "elite",
+    tier: "corporation",
     priceId: "elite",
     amount: 250000,
   },
@@ -194,7 +194,7 @@ export default function Pricing() {
 
       // Find and trigger subscription for the plan
       const plan = plans.find((p) => p.tier === upgradePlan);
-      if (plan && plan.tier !== "free" && plan.tier !== "elite") {
+      if (plan && plan.tier !== "free" && plan.tier !== "corporation") {
         // Clear the URL parameters
         const newUrl = window.location.pathname;
         window.history.replaceState({}, "", newUrl);
@@ -255,7 +255,7 @@ export default function Pricing() {
       return;
     }
 
-    if (plan.tier === "elite") {
+    if (plan.tier === "corporation") {
       window.location.href =
         "mailto:sales@zidwell.com?subject=Elite%20Plan%20Inquiry";
       return;
@@ -449,15 +449,15 @@ export default function Pricing() {
                     <span
                       className={`text-3xl font-black ${plan.highlight ? "text-(--color-ink)" : "text-(--text-primary)"}`}
                     >
-                      {selectedBilling === "yearly" && plan.yearlyPrice
-                        ? plan.tier === "zidlite"
-                          ? "₦49,000"
-                          : plan.tier === "growth"
-                            ? "₦99,000"
-                            : plan.tier === "premium"
-                              ? "₦499,000"
-                              : plan.price
-                        : plan.price}
+                       {selectedBilling === "yearly" && plan.yearlyPrice
+                         ? plan.tier === "solopreneur"
+                           ? "₦49,000"
+                           : plan.tier === "sme"
+                             ? "₦99,000"
+                             : plan.tier === "enterprise"
+                               ? "₦499,000"
+                               : plan.price
+                         : plan.price}
                     </span>
                     <span
                       className={`text-sm ${plan.highlight ? "text-(--color-ink)/70" : "text-(--text-secondary)"}`}

@@ -516,7 +516,7 @@ const {
 // Check if user can access a feature  
 const { hasAccess, limit, message } = await checkFeatureAccess(  
   'financial_statements',  
-  currentCount // Current usage count  
+  currentCount 
 );  
 ```
 

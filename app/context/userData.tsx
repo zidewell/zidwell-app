@@ -1,4 +1,3 @@
-// app/context/userData.tsx
 "use client";
 
 import {
@@ -140,12 +139,6 @@ interface Notification {
   created_at: string;
 }
 
-interface Bank78Balance {
-  personal: number;
-  business: number;
-  total: number;
-}
-
 interface UserContextType {
   user: SupabaseUser | null;
   userData: SupabaseUser | null;
@@ -181,11 +174,8 @@ interface UserContextType {
   cancelSubscription: () => Promise<any>;
   getUpgradeBenefits: (targetTier: SubscriptionTier) => string[];
   canAccessFeature: (featureKey: string, currentCount?: number) => boolean;
-  bank78Balance: Bank78Balance | null;
-  bank78Loading: boolean;
-  refreshBank78Balance: () => Promise<void>;
-  hasBank78Account: boolean;
   refreshUserData: () => Promise<void>;
+   forceUpdate: (data: SupabaseUser) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -282,6 +272,72 @@ const getSupabaseClient = () => {
 
 const supabase = getSupabaseClient();
 
+const SENSITIVE_FIELDS = new Set([
+  'transaction_pin',
+  'bvn_data',
+  'cac_data',
+  'encrypted_bvn',
+  'pin_reset_token',
+  'pin_reset_token_expires',
+  'current_login_session',
+  'nin',
+  'email_verification_token',
+  'email_verification_token_expires',
+  'verification_logs',
+  'pin_locked_until',
+  'pin_attempts',
+  'flag_notes',
+  'wallet_freeze_reason',
+]);
+
+export function sanitizeUserData(userData: any): any {
+  if (!userData) return null;
+  const sanitized: any = {};
+  
+  // ✅ Keep ALL fields EXCEPT the truly sensitive ones
+  const sensitiveFields = new Set([
+    'transaction_pin',
+    'bvn_data',
+    'cac_data',
+    'encrypted_bvn',
+    'pin_reset_token',
+    'pin_reset_token_expires',
+    'current_login_session',
+    'nin',
+    'email_verification_token',
+    'email_verification_token_expires',
+    'verification_logs',
+    'pin_locked_until',
+    'pin_attempts',
+    'flag_notes',
+    'wallet_freeze_reason',
+  ]);
+  
+  for (const [key, value] of Object.entries(userData)) {
+    if (!sensitiveFields.has(key)) {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+export function saveUserDataToStorage(userData: any) {
+  if (!userData) {
+    localStorage.removeItem('userData');
+    return;
+  }
+  try {
+    // ✅ Sanitize before saving to localStorage
+    const sanitized = sanitizeUserData(userData);
+    localStorage.setItem('userData', JSON.stringify(sanitized));
+    console.log('💾 User data saved to localStorage');
+    console.log('💾 Purpose saved:', sanitized.purpose);
+    console.log('💾 is_business_registered saved:', sanitized.is_business_registered);
+  } catch (error) {
+    console.error('❌ Failed to save user data to localStorage:', error);
+  }
+}
+
 class NotificationCache {
   private cache = new Map();
   private readonly DEFAULT_TTL = 3 * 60 * 1000;
@@ -359,9 +415,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
-  const [bank78Balance, setBank78Balance] = useState<Bank78Balance | null>(null);
-  const [bank78Loading, setBank78Loading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -382,7 +437,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       data.identity_verified === true ||
       data.kyc_level === 'personal_verified' ||
       data.kyc_level === 'business_verified' ||
-      data.verification_completed === true
+      data.verification_completed === true ||
+      data.onboarding_completed === true
     );
   }, []);
 
@@ -444,15 +500,36 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshUserData = useCallback(async () => {
-    if (fetchInProgress.current) return;
+    if (fetchInProgress.current || isRefreshing) return;
     fetchInProgress.current = true;
+    setIsRefreshing(true);
 
     try {
+      console.log('🔄 Refreshing user data from database...');
       const userData = await fetchUserFromDB();
       if (userData) {
-        setUserData(userData);
+        setUserData(prev => {
+          const prevStr = JSON.stringify(prev);
+          const newStr = JSON.stringify(userData);
+          if (prevStr === newStr) return prev;
+          return userData;
+        });
         setUser(userData);
-        localStorage.setItem("userData", JSON.stringify(userData));
+        const stored = localStorage.getItem('userData');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            const currentStr = JSON.stringify(parsed);
+            const newStr = JSON.stringify(sanitizeUserData(userData));
+            if (currentStr !== newStr) {
+              saveUserDataToStorage(userData);
+            }
+          } catch {
+            saveUserDataToStorage(userData);
+          }
+        } else {
+          saveUserDataToStorage(userData);
+        }
       } else {
         setUserData(null);
         setUser(null);
@@ -462,66 +539,111 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       console.error('Failed to refresh user:', error);
     } finally {
       fetchInProgress.current = false;
+      setIsRefreshing(false);
     }
-  }, [fetchUserFromDB]);
+  }, [fetchUserFromDB, isRefreshing]);
 
-  const initializeUser = useCallback(async () => {
-    if (isInitialized) return;
+const initializeUser = useCallback(async () => {
+  if (isInitialized) return;
 
-    // ✅ Step 1: Load from localStorage immediately
-    const stored = localStorage.getItem("userData");
-    let hasStoredData = false;
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed?.id) {
-          console.log('📦 Loaded user data from localStorage');
-          setUserData(parsed);
-          setUser(parsed);
-          setShouldFetchData(!isPublicPage());
-          hasStoredData = true;
-          setLoading(false);
-        }
-      } catch (e) {
-        localStorage.removeItem("userData");
-      }
-    }
-
-    // ✅ Step 2: Always fetch fresh data in background
+  // ✅ Step 1: Load from localStorage immediately
+  const stored = localStorage.getItem("userData");
+  let hasStoredData = false;
+  let storedData = null;
+  
+  if (stored) {
     try {
-      console.log('🔄 Fetching fresh user data in background...');
-      const freshUserData = await fetchUserFromDB();
-      
-      if (freshUserData) {
-        console.log('✅ Fresh user data loaded');
-        setUserData(freshUserData);
-        setUser(freshUserData);
-        localStorage.setItem("userData", JSON.stringify(freshUserData));
+      storedData = JSON.parse(stored);
+      if (storedData?.id) {
+        setUserData(storedData);
+        setUser(storedData);
         setShouldFetchData(!isPublicPage());
-        
-        // Check verification and redirect if needed
-        const verified = isUserVerified(freshUserData);
-        const currentPath = window.location.pathname;
-        
-        if (verified && currentPath === '/onboarding') {
-          router.replace('/dashboard');
-        } else if (!verified && currentPath === '/dashboard') {
-          router.replace('/onboarding');
-        }
-      } else if (!hasStoredData) {
-        // No data anywhere
-        setShouldFetchData(false);
-        setUserData(null);
-        setUser(null);
+        hasStoredData = true;
+        setLoading(false);
+        console.log('✅ Loaded user data from localStorage:', {
+          id: storedData.id,
+          purpose: storedData.purpose,
+          is_business_registered: storedData.is_business_registered,
+        });
       }
-    } catch (error) {
-      console.error('Failed to fetch fresh user data:', error);
-    } finally {
-      setLoading(false);
-      setInitialCheckDone(true);
-      setIsInitialized(true);
+    } catch (e) {
+      localStorage.removeItem("userData");
+      console.error('Failed to parse localStorage data:', e);
     }
-  }, [isPublicPage, fetchUserFromDB, isUserVerified, router, isInitialized]);
+  }
+
+  // ✅ Step 2: Check if we should fetch fresh data
+  const currentPath = window.location.pathname;
+  const isOnboardingPage = currentPath === '/onboarding';
+  
+  // ✅ If on onboarding page, ONLY use localStorage data - don't fetch
+  if (isOnboardingPage) {
+    console.log('📌 On onboarding page, using localStorage data only');
+    // If no stored data, we need to fetch
+    if (!hasStoredData) {
+      console.log('⚠️ No stored data found on onboarding page, attempting to fetch...');
+      try {
+        const freshUserData = await fetchUserFromDB();
+        if (freshUserData) {
+          setUserData(freshUserData);
+          setUser(freshUserData);
+          saveUserDataToStorage(freshUserData);
+          setShouldFetchData(!isPublicPage());
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data on onboarding:', error);
+      }
+    }
+    setLoading(false);
+    setInitialCheckDone(true);
+    setIsInitialized(true);
+    return;
+  }
+
+  // ✅ Step 3: For non-onboarding pages, fetch fresh data
+  try {
+    console.log('🔄 Fetching fresh user data in background...');
+    const freshUserData = await fetchUserFromDB();
+    
+    if (freshUserData) {
+      // ✅ MERGE with stored data to preserve any fields
+      const mergedData = {
+        ...freshUserData,
+        ...storedData,
+        // Keep important fields from stored data if they exist
+        onboarding_completed: storedData?.onboarding_completed || freshUserData.onboarding_completed,
+        verification_completed: storedData?.verification_completed || freshUserData.verification_completed,
+        bank78_verified: storedData?.bank78_verified || freshUserData.bank78_verified,
+        purpose: storedData?.purpose || freshUserData.purpose || 'personal',
+        is_business_registered: storedData?.is_business_registered !== undefined 
+          ? storedData.is_business_registered 
+          : freshUserData.is_business_registered || false,
+      };
+      
+      setUserData(mergedData);
+      setUser(mergedData);
+      saveUserDataToStorage(mergedData);
+      setShouldFetchData(!isPublicPage());
+      
+      // Check verification and redirect if needed
+      const verified = isUserVerified(mergedData);
+      
+      if (verified && currentPath === '/onboarding') {
+        router.replace('/dashboard');
+      }
+    } else if (!hasStoredData) {
+      setShouldFetchData(false);
+      setUserData(null);
+      setUser(null);
+    }
+  } catch (error) {
+    console.error('Failed to fetch fresh user data:', error);
+  } finally {
+    setLoading(false);
+    setInitialCheckDone(true);
+    setIsInitialized(true);
+  }
+}, [isPublicPage, fetchUserFromDB, isUserVerified, router, isInitialized]);
 
   useEffect(() => {
     initializeUser();
@@ -531,14 +653,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-          await refreshUserData();
+          // Don't auto-refresh if on onboarding page
+          if (window.location.pathname !== '/onboarding') {
+            await refreshUserData();
+          }
         } else if (event === "SIGNED_OUT") {
           setUserData(null);
           setUser(null);
           localStorage.removeItem("userData");
           setShouldFetchData(false);
           setBalance(null);
-          setBank78Balance(null);
           if (window.location.pathname.startsWith('/dashboard') || 
               window.location.pathname.startsWith('/onboarding')) {
             router.replace('/auth/login');
@@ -567,6 +691,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const newData = e.newValue ? JSON.parse(e.newValue) : null;
         setUserData(newData);
         setUser(newData);
+        console.log('🔄 Storage event: userData updated');
       }
     };
     window.addEventListener("storage", handleStorage);
@@ -697,6 +822,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return true;
   }, [subscription]);
 
+
+  const forceUpdate = useCallback((data: SupabaseUser) => {
+  console.log('🔒 Force updating user data');
+  setUserData(data);
+  setUser(data);
+  saveUserDataToStorage(data);
+  // Dispatch event for other tabs
+  window.dispatchEvent(new Event('storage'));
+  // Dispatch custom event
+  window.dispatchEvent(new CustomEvent('userDataUpdated', { detail: data }));
+}, []);
+
   const subscribe = useCallback(async (
     tier: SubscriptionTier,
     paymentMethod: string,
@@ -757,29 +894,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return UPGRADE_BENEFITS[`${currentTier}_to_${targetTier}`] || [];
   }, [subscription?.tier]);
 
-  const refreshBank78Balance = useCallback(async () => {
-    if (!userData?.bank78_verified || !userData?.id) return;
-
-    setBank78Loading(true);
-    try {
-      const response = await fetch(`/api/bank78/balance?userId=${userData.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setBank78Balance({
-            personal: data.data.personal.balance || 0,
-            business: data.data.business?.balance || 0,
-            total: data.data.total || 0,
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch Bank78 balance:', error);
-    } finally {
-      setBank78Loading(false);
-    }
-  }, [userData]);
-
   const handleDarkModeToggle = () => {
     const newTheme = !isDarkMode;
     setIsDarkMode(newTheme);
@@ -787,7 +901,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("theme", newTheme ? "dark" : "light");
   };
 
+  // Only fetch balance if NOT on onboarding page
   useEffect(() => {
+    const isOnboardingPage = window.location.pathname === '/onboarding';
+    if (isOnboardingPage) {
+      setBalance(0);
+      return;
+    }
+    
     if (!shouldFetchData || !userData?.id) return;
 
     const fetchBalance = async () => {
@@ -802,21 +923,23 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setBalance(data.wallet_balance ?? 0);
       } catch (error) {
         console.error('Error fetching balance:', error);
-        setBalance(userData?.zidcoinBalance ?? 0);
+        setBalance(userData?.zidcoin_balance ?? 0);
       }
     };
     fetchBalance();
-  }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
+  }, [userData?.id, userData?.zidcoin_balance, shouldFetchData]);
+
+  // REMOVED: Bank78 balance fetching logic - no longer needed
 
   useEffect(() => {
-    if (userData?.bank78_verified && shouldFetchData) {
-      refreshBank78Balance();
-      const interval = setInterval(refreshBank78Balance, 30000);
-      return () => clearInterval(interval);
+    const isOnboardingPage = window.location.pathname === '/onboarding';
+    if (isOnboardingPage) {
+      setLifetimeBalance(0);
+      setTotalOutflow(0);
+      setTotalTransactions(0);
+      return;
     }
-  }, [userData?.bank78_verified, shouldFetchData, refreshBank78Balance]);
 
-  useEffect(() => {
     if (!shouldFetchData || !userData?.id) return;
 
     const fetchTransactionStats = async () => {
@@ -853,24 +976,37 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, [userData?.id, shouldFetchData]);
 
   useEffect(() => {
+    const isOnboardingPage = window.location.pathname === '/onboarding';
+    if (isOnboardingPage) return;
+    
     if (shouldFetchData && userData?.id) {
       fetchSubscription();
     }
   }, [userData?.id, shouldFetchData, fetchSubscription]);
 
+  // Less frequent subscription refresh - only when tab is visible and not on onboarding
   useEffect(() => {
     if (!shouldFetchData || !userData?.id) return;
 
-    const cleanupInterval = setInterval(() => notificationCache.cleanup(), 5 * 60 * 1000);
-    const refreshInterval = setInterval(() => fetchSubscription(), 5 * 60 * 1000);
+    const isOnboardingPage = window.location.pathname === '/onboarding';
+    if (isOnboardingPage) return;
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') {
+        subscriptionCache.delete(`subscription_${userData.id}`);
+        fetchSubscription();
+      }
+    };
+
+    const interval = setInterval(refreshIfVisible, 15 * 60 * 1000);
+
+    document.addEventListener('visibilitychange', refreshIfVisible);
 
     return () => {
-      clearInterval(cleanupInterval);
-      clearInterval(refreshInterval);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
     };
   }, [userData?.id, shouldFetchData, fetchSubscription]);
-
-  const hasBank78Account = userData?.bank78_verified === true;
 
   return (
     <UserContext.Provider
@@ -904,17 +1040,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         cancelSubscription,
         getUpgradeBenefits,
         canAccessFeature,
-        bank78Balance,
-        bank78Loading,
-        refreshBank78Balance,
-        hasBank78Account,
         refreshUserData,
+        forceUpdate
       }}
     >
       {children}
     </UserContext.Provider>
   );
 };
+
 
 export const useUserContextData = () => {
   const context = useContext(UserContext);

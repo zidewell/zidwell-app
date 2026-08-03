@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import Image from "next/image";
-import { useUserContextData } from "../context/userData";
+import { useUserContextData, saveUserDataToStorage } from "../context/userData";
 import ElectricityCustomerCard from "./ElectricityCusInfo";
 import Swal from "sweetalert2";
 import { Button } from "./ui/button";
@@ -169,7 +169,7 @@ export default function ElectricityBills() {
       if (data.zidCoinBalance !== undefined) {
         setUserData((prev: any) => {
           const updated = { ...prev, zidcoinBalance: data.zidCoinBalance };
-          localStorage.setItem("userData", JSON.stringify(updated));
+          saveUserDataToStorage(updated);
           return updated;
         });
       }

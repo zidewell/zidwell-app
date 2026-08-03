@@ -718,13 +718,13 @@ import {
 
 // Define route configurations
 const premiumRoutes = [
-  { path: "/dashboard/bookkeeping", requiredTier: "growth" },
-  { path: "/dashboard/tax-calculator", requiredTier: "growth" },
-  { path: "/dashboard/financial-statements", requiredTier: "premium" },
-  { path: "/dashboard/tax-filing", requiredTier: "premium" },
-  { path: "/dashboard/vat-filing", requiredTier: "elite" },
-  { path: "/dashboard/paye-filing", requiredTier: "elite" },
-  { path: "/dashboard/cfo-guidance", requiredTier: "elite" },
+  { path: "/dashboard/bookkeeping", requiredTier: "sme" },
+  { path: "/dashboard/tax-calculator", requiredTier: "sme" },
+  { path: "/dashboard/financial-statements", requiredTier: "enterprise" },
+  { path: "/dashboard/tax-filing", requiredTier: "enterprise" },
+  { path: "/dashboard/vat-filing", requiredTier: "corporation" },
+  { path: "/dashboard/paye-filing", requiredTier: "corporation" },
+  { path: "/dashboard/cfo-guidance", requiredTier: "corporation" },
 ];
 
 const bvnRequiredRoutes = [
@@ -736,14 +736,11 @@ const bvnRequiredRoutes = [
   "/dashboard/services/buy-cable-tv",
 ];
 
-export const ALLOWED_PAYMENT_EMAILS = new Set([
-  "characterinternational@gmail.com",
-  "abdullahtimilehin15@gmail.com",
-  "ebrusikefavour@gmail.com",
-  "skillfidelafrica@gmail.com",
-  "verifiedaboki@gmail.com",
-  "abbalolo360@gmail.com"
-]);
+const ALLOWED_PAYMENT_EMAILS: Set<string> | null = (() => {
+  const emails = process.env.PAYMENT_ACCESS_EMAILS;
+  if (!emails) return null;
+  return new Set(emails.split(",").map(e => e.trim().toLowerCase()));
+})();
 
 const allowedAdminRoles = [
   "super_admin",
@@ -760,6 +757,12 @@ const publicPaths = [
   "/auth/password-reset",
   "/auth/forgot-password",
   "/auth/blocked",
+];
+
+// ✅ Add verification paths to bypass auth
+const verificationPaths = [
+  "/auth/confirm",
+  "/auth/verify",
 ];
 
 // Fast route matching using Set/Map
@@ -781,10 +784,44 @@ function requiresPaymentEmailRestriction(pathname: string): boolean {
 }
 
 function shouldBypassAuth(pathname: string): boolean {
+  // ✅ Allow verification paths
+  if (verificationPaths.some(path => pathname.startsWith(path))) {
+    return true;
+  }
+  
   if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js)$/)) {
     return true;
   }
   return publicPaths.some(path => pathname.startsWith(path));
+}
+
+// ✅ NEW: Check if request has verification hash in URL
+function hasVerificationHash(url: string): boolean {
+  return url.includes('#access_token=') || 
+         url.includes('access_token=') ||
+         url.includes('#error=') ||
+         url.includes('error=');
+}
+
+// ✅ NEW: Extract verification params from hash
+function extractVerificationParams(url: string): URLSearchParams | null {
+  try {
+    const hashIndex = url.indexOf('#');
+    if (hashIndex === -1) return null;
+    
+    const hash = url.substring(hashIndex + 1);
+    const params = new URLSearchParams(hash);
+    
+    // Check if it has access_token or error
+    if (params.has('access_token') || params.has('error')) {
+      return params;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting verification params:', error);
+    return null;
+  }
 }
 
 type TokenValidationResult = User | { error: "expired" } | null;
@@ -800,13 +837,11 @@ async function validateTokenAndGetUser(token: string): Promise<TokenValidationRe
       if (error.message?.includes("JWT expired")) {
         return { error: "expired" };
       }
-      console.error("Token validation error:", error.message);
       return null;
     }
 
     return user;
   } catch (error) {
-    console.error("Token validation error:", error);
     return null;
   }
 }
@@ -837,7 +872,7 @@ function isUser(result: TokenValidationResult): result is User {
   return result !== null && !('error' in result) && 'id' in result;
 }
 
-// ✅ Enhanced function to clear ALL auth-related data including localStorage
+// Enhanced function to clear ALL auth-related data including localStorage
 function clearAllAuthData(response: NextResponse) {
   // Clear cookies
   const cookiesToDelete = [
@@ -856,103 +891,6 @@ function clearAllAuthData(response: NextResponse) {
   cookiesToDelete.forEach(cookieName => {
     response.cookies.delete(cookieName);
   });
-
-  // ✅ Add script to clear localStorage and sessionStorage with all user data
-  const clearStorageScript = `
-    <script>
-      (function() {
-        try {
-          // Clear specific localStorage items
-          const localStorageKeys = [
-            // Supabase auth tokens
-            'supabase.auth.token',
-            'sb-access-token',
-            'sb-refresh-token',
-            
-            // User data
-            'userData',
-            'user',
-            'session',
-            'access_token',
-            'refresh_token',
-            
-            // App settings
-            'theme',
-            'upgradeBannerDismissed',
-            'verified',
-            'payment_processed',
-            
-            // All sb- prefixed items
-            'sb-login-time',
-            'sb-client-session',
-            'sb-user-data'
-          ];
-          
-          localStorageKeys.forEach(key => {
-            localStorage.removeItem(key);
-            console.log('🧹 Removed localStorage key:', key);
-          });
-          
-          // Clear any localStorage items that contain user/session/auth data
-          const keysToRemove = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && (
-              key.includes('supabase') || 
-              key.includes('sb-') || 
-              key.includes('auth') || 
-              key.includes('session') ||
-              key.includes('user') ||
-              key.includes('token') ||
-              key === 'theme' ||
-              key === 'upgradeBannerDismissed' ||
-              key === 'userData'
-            )) {
-              keysToRemove.push(key);
-            }
-          }
-          
-          keysToRemove.forEach(key => {
-            localStorage.removeItem(key);
-            console.log('🧹 Removed localStorage key (pattern match):', key);
-          });
-          
-          // Clear sessionStorage
-          sessionStorage.clear();
-          console.log('🧹 SessionStorage cleared');
-          
-          // Remove all cookies that might be stored in client-side
-          document.cookie.split(';').forEach(cookie => {
-            const [name] = cookie.split('=');
-            if (name.trim() && (
-              name.includes('sb-') || 
-              name.includes('supabase') || 
-              name.includes('auth') ||
-              name === 'verified' ||
-              name === 'payment_processed'
-            )) {
-              document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-              console.log('🧹 Removed cookie:', name.trim());
-            }
-          });
-          
-          console.log('✅ All auth data cleared from localStorage, sessionStorage, and cookies');
-        } catch (error) {
-          console.error('Error clearing storage:', error);
-        }
-      })();
-    </script>
-  `;
-
-  // Inject the script into the response if it's HTML
-  const originalBody = response.body;
-  if (typeof originalBody === 'string') {
-    const modifiedHtml = originalBody.replace('</body>', `${clearStorageScript}</body>`);
-    return new NextResponse(modifiedHtml, {
-      status: response.status,
-      headers: response.headers,
-    });
-  }
 
   return response;
 }
@@ -985,7 +923,7 @@ function redirectFromPaymentPage(req: NextRequest) {
   return response;
 }
 
-// ✅ Check if user is fully verified
+// Check if user is fully verified
 function isUserVerified(userDetails: any): boolean {
   return userDetails.bvn_verification === 'verified' || 
          userDetails.identity_verified === true || 
@@ -997,11 +935,32 @@ function isUserVerified(userDetails: any): boolean {
 export async function middleware(req: NextRequest) {
   const startTime = Date.now();
   const currentPath = req.nextUrl.pathname;
+  const fullUrl = req.url;
+  
+  // ✅ CRITICAL: Handle verification redirects FIRST
+  // Check if the URL has verification parameters
+  if (hasVerificationHash(fullUrl)) {
+    console.log('🔐 Verification link detected in middleware');
+    
+    const params = extractVerificationParams(fullUrl);
+    if (params) {
+      // Build the verification URL with query params instead of hash
+      const verificationUrl = new URL('/auth/confirm', req.url);
+      
+      // Transfer all parameters from hash to query string
+      params.forEach((value, key) => {
+        verificationUrl.searchParams.set(key, value);
+      });
+      
+      console.log(`🔄 Redirecting verification to: ${verificationUrl.toString()}`);
+      
+      // Redirect to the verification page with query params
+      return NextResponse.redirect(verificationUrl);
+    }
+  }
   
   // ✅ Handle onboarding - authenticate but don't redirect based on verification
   if (currentPath === "/onboarding" || currentPath.startsWith("/onboarding/")) {
-    console.log(`🔐 Checking auth for onboarding: ${currentPath}`);
-    
     let accessToken = req.cookies.get("sb-access-token")?.value;
     const refreshToken = req.cookies.get("sb-refresh-token")?.value;
     
@@ -1013,44 +972,37 @@ export async function middleware(req: NextRequest) {
     }
     
     if (!accessToken) {
-      console.log("❌ No valid token for onboarding access");
       return redirectToLogin(req);
     }
     
     const tokenResult = await validateTokenAndGetUser(accessToken);
     
     if (!tokenResult || isTokenError(tokenResult) || !isUser(tokenResult)) {
-      console.log("❌ Invalid user for onboarding");
       return redirectToLogin(req);
     }
     
     const userDetails = await getUserWithDetails(tokenResult.id);
     
     if (!userDetails) {
-      console.log("❌ User details not found for onboarding");
       return redirectToLogin(req);
     }
     
     if (userDetails.is_blocked) {
-      console.log("🚫 User is blocked");
       const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
       clearAllAuthData(response);
       return response;
     }
     
-    console.log(`✅ Onboarding access granted for user: ${tokenResult.id}`);
     return NextResponse.next();
   }
   
-  // Bypass auth for public paths
+  // Bypass auth for public paths (including verification paths)
   if (shouldBypassAuth(currentPath)) {
     return NextResponse.next();
   }
   
-  // ✅ Check payment page email restriction
+  // Check payment page email restriction
   if (requiresPaymentEmailRestriction(currentPath)) {
-    console.log(`🔐 Checking payment page access for: ${currentPath}`);
-    
     let accessToken = req.cookies.get("sb-access-token")?.value;
     const refreshToken = req.cookies.get("sb-refresh-token")?.value;
     
@@ -1062,30 +1014,24 @@ export async function middleware(req: NextRequest) {
     }
     
     if (!accessToken) {
-      console.log("❌ No valid token for payment page access");
       return redirectToLogin(req);
     }
     
     const tokenResult = await validateTokenAndGetUser(accessToken);
     
     if (!tokenResult || isTokenError(tokenResult) || !isUser(tokenResult)) {
-      console.log("❌ Invalid user for payment page");
       return redirectToLogin(req);
     }
     
     const userEmail = tokenResult.email?.toLowerCase();
     
-    if (!userEmail || !ALLOWED_PAYMENT_EMAILS.has(userEmail)) {
-      console.log(`🚫 Unauthorized email: ${userEmail} attempted to access payment page`);
+    if (!userEmail || !ALLOWED_PAYMENT_EMAILS?.has(userEmail)) {
       return redirectFromPaymentPage(req);
     }
-    
-    console.log(`✅ Payment page access granted for: ${userEmail}`);
   }
   
   // Handle post-payment access
   if (currentPath.startsWith("/dashboard") && req.cookies.get("payment_processed")) {
-    console.log("🟡 Post-payment access granted");
     const response = NextResponse.next();
     response.cookies.delete("payment_processed");
     return response;
@@ -1096,8 +1042,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  console.log(`🔒 Checking auth for: ${currentPath}`);
-
   let accessToken = req.cookies.get("sb-access-token")?.value;
   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
   const clientSession = req.cookies.get("sb-client-session")?.value;
@@ -1105,28 +1049,22 @@ export async function middleware(req: NextRequest) {
 
   if (clientSession === "true" && !accessToken && !refreshToken) {
     if (loginTime && (Date.now() - parseInt(loginTime) < 10000)) {
-      console.log("🟢 Recent login detected (within 10s), allowing temporary access");
       return NextResponse.next();
     }
-    console.log("❌ Invalid session state - redirecting to login");
     return redirectToLogin(req);
   }
 
   if (!accessToken && !refreshToken) {
-    console.log("❌ No tokens found, redirecting to login");
     return redirectToLogin(req);
   }
 
   if (!accessToken && refreshToken) {
-    console.log("🔄 Attempting token refresh");
     const session = await refreshAccessToken(refreshToken);
     
     if (!session) {
-      console.log("❌ Token refresh failed");
       return redirectToLogin(req);
     }
 
-    console.log("✅ Token refresh successful");
     const response = NextResponse.next();
     response.cookies.set("sb-access-token", session.access_token, {
       httpOnly: true,
@@ -1161,43 +1099,37 @@ export async function middleware(req: NextRequest) {
   const tokenResult = await validateTokenAndGetUser(accessToken);
   
   if (!tokenResult) {
-    console.log("❌ Token validation failed");
     return redirectToLogin(req);
   }
 
   if (isTokenError(tokenResult)) {
-    console.log("⚠️ Token expired");
     return redirectToLogin(req);
   }
 
   if (!isUser(tokenResult)) {
-    console.log("❌ Invalid user object");
     return redirectToLogin(req);
   }
 
   const userDetails = await getUserWithDetails(tokenResult.id);
   
   if (!userDetails) {
-    console.log("❌ User details not found");
     return redirectToLogin(req);
   }
 
   if (userDetails.is_blocked) {
-    console.log("🚫 User is blocked");
     const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
     clearAllAuthData(response);
     return response;
   }
 
-  // ✅ Log verification status but DON'T redirect - let page components handle it
+  // Log verification status but DON'T redirect - let page components handle it
   const isVerified = isUserVerified(userDetails);
   if (currentPath.startsWith("/dashboard") && !isVerified) {
-    console.log(`ℹ️ User not verified (${userDetails.id}), dashboard page will handle redirect`);
+    // User not verified - page component will handle redirect
   }
 
   // Check BVN requirement for specific routes
   if (bvnRequiredSet.has(currentPath) && userDetails.bvn_verification !== "verified") {
-    console.log(`⚠️ BVN verification required for ${currentPath}`);
     const response = NextResponse.redirect(
       new URL(`/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`, req.url),
     );
@@ -1213,7 +1145,6 @@ export async function middleware(req: NextRequest) {
     const hasAccess = hasSufficientTier(userDetails, requiredTier);
     
     if (!hasAccess) {
-      console.log(`⚠️ Insufficient tier for ${currentPath}, requires ${requiredTier}`);
       const response = NextResponse.redirect(
         new URL(`/pricing?upgrade=${requiredTier}&redirect=${encodeURIComponent(currentPath)}`, req.url),
       );
@@ -1227,17 +1158,8 @@ export async function middleware(req: NextRequest) {
   // Check admin routes
   if (currentPath.startsWith("/admin") || currentPath.startsWith("/blog/admin")) {
     if (!userDetails.admin_role || !allowedAdminRoles.includes(userDetails.admin_role)) {
-      console.log(`⚠️ Admin access denied for ${currentPath}`);
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-    console.log(`✅ Admin access granted for role: ${userDetails.admin_role}`);
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
-
-  const responseTime = Date.now() - startTime;
-  if (responseTime > 200) {
-    console.warn(`⚠️ Slow middleware (${responseTime}ms) for ${currentPath}`);
-  } else {
-    console.log(`✅ Auth check passed for ${currentPath} (${responseTime}ms)`);
   }
 
   return NextResponse.next();
@@ -1250,6 +1172,7 @@ export const config = {
     "/admin/:path*",
     "/blog/admin/:path*",
     "/auth/:path*",
-    "/onboarding", 
+    "/onboarding",
+    "/auth/confirm",
   ],
 };

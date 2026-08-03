@@ -95,13 +95,13 @@ export function SubscriptionDashboard() {
     switch (tier) {
       case "free":
         return <Star className="w-5 h-5 text-gray-600" />;
-      case "zidlite":
+      case "solopreneur":
         return <Zap className="w-5 h-5 text-blue-600" />;
-      case "growth":
+      case "sme":
         return <Zap className="w-5 h-5 text-green-600" />;
-      case "premium":
+      case "enterprise":
         return <Crown className="w-5 h-5 text-(--color-accent-yellow)" />;
-      case "elite":
+      case "corporation":
         return <Sparkles className="w-5 h-5 text-purple-600" />;
       default:
         return null;
@@ -112,13 +112,13 @@ export function SubscriptionDashboard() {
     switch (tier) {
       case "free":
         return "Free Trial";
-      case "zidlite":
+      case "solopreneur":
         return "ZidLite";
-      case "growth":
+      case "sme":
         return "Growth";
-      case "premium":
+      case "enterprise":
         return "Premium";
-      case "elite":
+      case "corporation":
         return "Elite";
       default:
         return tier;
@@ -521,9 +521,9 @@ export function SubscriptionDashboard() {
             Upgrade Your Plan
           </h3>
           <div className="space-y-4">
-            {["zidlite", "growth", "premium", "elite"]
+            {["solopreneur", "sme", "enterprise", "corporation"]
               .filter((tier) => {
-                const tiers = ["free", "zidlite", "growth", "premium", "elite"];
+                const tiers = ["free", "solopreneur", "sme", "enterprise", "corporation"];
                 const currentIndex = tiers.indexOf(subscription.tier);
                 const targetIndex = tiers.indexOf(tier);
                 return targetIndex > currentIndex;

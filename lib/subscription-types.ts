@@ -1,7 +1,7 @@
 // app/lib/subscription/subscription-types.ts
 
 export interface SubscriptionPlan {
-  tier: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite';
+  tier: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
   name: string;
   monthlyAmount: number;
   yearlyAmount: number;

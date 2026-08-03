@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
-import { useUserContextData } from "../context/userData";
+import { useUserContextData, saveUserDataToStorage } from "../context/userData";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import PinPopOver from "./PinPopOver";
@@ -302,7 +302,7 @@ export default function AirtimePurchase() {
       if (data.zidCoinBalance !== undefined) {
         setUserData((prev: any) => {
           const updated = { ...prev, zidcoinBalance: data.zidCoinBalance };
-          localStorage.setItem("userData", JSON.stringify(updated));
+          saveUserDataToStorage(updated);
           return updated;
         });
       }

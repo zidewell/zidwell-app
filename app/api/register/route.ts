@@ -1,7 +1,5 @@
-// app/api/register/route.js
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import bcrypt from "bcryptjs";
 import { transporter } from "@/lib/node-mailer";
 
 const supabase = createClient(
@@ -64,10 +62,17 @@ export async function POST(req: NextRequest) {
       purpose,
       heardFrom,
       attractions,
-      businessName,
+      // Business profile fields (CAC number NOT included)
       businessType,
-      businessIndustry,
-      businessCategory,
+      teamSize,
+      isRegistered,
+      businessName,
+      businessAddress,
+      mapUrl,
+      businessDescription,
+      businessEmail,
+      businessPhone,
+      businessWebsite,
     } = body;
 
     // Validation
@@ -86,7 +91,6 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existingUser) {
-      // If user exists but not verified, resend verification
       if (!existingUser.email_verified) {
         try {
           const { error: resendError } = await supabase.auth.resend({
@@ -149,7 +153,7 @@ export async function POST(req: NextRequest) {
 
     const userId = authData.user.id;
 
-    // Generate verification link with password
+    // Generate verification link
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'signup',
       email: email.toLowerCase(),
@@ -165,40 +169,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Insert user profile WITH ALL VERIFICATION FIELDS
+    // Insert user profile
+    const userInsertData = {
+      id: userId,
+      full_name: fullName,
+      first_name: fullName.split(" ")[0],
+      last_name: fullName.split(" ").slice(1).join(" ") || "",
+      email: email.toLowerCase(),
+      phone: phone,
+      wallet_balance: 0,
+      zidcoin_balance: 20,
+      referral_code: `${fullName.split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, "")}-${Date.now().toString(36)}`,
+      email_verified: false,
+      region: region || null,
+      admin_role: "user",
+      purpose: purpose || null,
+      heard_from: heardFrom || null,
+      attractions: attractions || null,
+      subscription_tier: "free",
+      verification_completed: false,
+      verification_step: 0,
+      bvn_verification: "not_submitted",
+      bank78_verified: false,
+      primary_provider: "nomba",
+      wallet_provider: "nomba",
+      onboarding_completed: false,
+      onboarding_step: 0,
+      is_business_registered: purpose === "business" ? isRegistered || false : false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
     const { error: userError } = await supabase
       .from("users")
-      .insert({
-        id: userId,
-        full_name: fullName,
-        first_name: fullName.split(" ")[0],
-        last_name: fullName.split(" ").slice(1).join(" ") || "",
-        email: email.toLowerCase(),
-        phone: phone,
-        wallet_balance: 0,
-        zidcoin_balance: 20,
-        referral_code: `${fullName.split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, "")}-${Date.now().toString(36)}`,
-        email_verified: false,
-        region: region || null,
-        admin_role: "user",
-        purpose: purpose || null,
-        heard_from: heardFrom || null,
-        attractions: attractions || null,
-        subscription_tier: "free",
-        // ✅ VERIFICATION FIELDS - THESE ARE CRITICAL
-        verification_completed: false,
-        verification_step: 0,
-        bvn_verification: "not_submitted",
-        bank78_verified: false,
-        primary_provider: "nomba",
-        wallet_provider: "nomba",
-        onboarding_completed: false,
-        onboarding_step: 0,
-        is_business_registered: false,
-        // Timestamps
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
+      .insert(userInsertData);
 
     if (userError) {
       console.error("User insert error:", userError);
@@ -209,21 +213,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create business record if business purpose
-    if (purpose === 'business' && businessName?.trim()) {
+    // ✅ Create business record WITHOUT CAC number
+    if (purpose === 'business') {
+      const businessInsertData = {
+        user_id: userId,
+        business_name: businessName?.trim() || "Unnamed Business",
+        business_type: businessType || null,
+        business_address: businessAddress || null,
+        business_description: businessDescription || null,
+        map_url: mapUrl || null,
+        business_email: businessEmail || null,
+        business_phone: businessPhone || null,
+        business_website: businessWebsite || null,
+        is_registered: isRegistered || false,
+        verification_status: 'pending',
+        business_kyc_completed: false,
+        cac_verified: false,
+        director_verified: false,
+        authorized_representative_verified: false,
+        // ❌ cac_number NOT set - will be added during onboarding verification
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
       const { error: businessError } = await supabase
         .from('businesses')
-        .insert({
-          user_id: userId,
-          business_name: businessName.trim(),
-          business_type: businessType || null,
-          business_industry: businessIndustry || null,
-          business_category: businessCategory || null,
-          is_registered: false,
-          verification_status: 'pending',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+        .insert(businessInsertData);
 
       if (businessError) {
         console.error('Business creation error:', businessError);
@@ -243,7 +258,6 @@ export async function POST(req: NextRequest) {
       console.log(`Verification email sent to ${email}`);
     } catch (emailError) {
       console.error("Email error:", emailError);
-      // Clean up if email fails
       await supabase.auth.admin.deleteUser(userId);
       return NextResponse.json(
         { error: "Failed to send verification email" },
@@ -259,6 +273,7 @@ export async function POST(req: NextRequest) {
           id: userId,
           email: email.toLowerCase(),
           full_name: fullName,
+          purpose: purpose,
           requires_verification: true,
           verification_step: 0,
           verification_completed: false,

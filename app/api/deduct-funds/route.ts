@@ -72,10 +72,10 @@ export async function POST(req: NextRequest) {
 
     // Check subscription status
     const isFree = userData.subscription_tier === "free";
-    const isZidLite = userData.subscription_tier === "zidlite";
-    const isGrowth = userData.subscription_tier === "growth";
-    const isPremium = userData.subscription_tier === "premium" || 
-                      userData.subscription_tier === "elite";
+    const isZidLite = userData.subscription_tier === "solopreneur";
+    const isGrowth = userData.subscription_tier === "sme";
+    const isPremium = userData.subscription_tier === "enterprise" || 
+                      userData.subscription_tier === "corporation";
 
     // ============ INVOICE CREATION ============
     if (isInvoiceCreation) {
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
             { 
               error: "You've used all your free lifetime invoices. Please upgrade to continue creating invoices.",
               requiresUpgrade: true,
-              requiredTier: "growth",
+              requiredTier: "sme",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
             usedLifetime: lifetimeUsed + 1,
             limit: lifetimeLimit,
             remaining: lifetimeLimit - (lifetimeUsed + 1),
-            tier: 'zidlite',
+            tier: 'solopreneur',
           });
         } else {
           // ZidLite user exhausted limit - upgrade required
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
             { 
               error: "You've used all your ZidLite invoices. Please upgrade to continue creating unlimited invoices.",
               requiresUpgrade: true,
-              requiredTier: "growth",
+              requiredTier: "sme",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
             { 
               error: "You've used all your free lifetime receipts. Please upgrade to continue creating receipts.",
               requiresUpgrade: true,
-              requiredTier: "growth",
+              requiredTier: "sme",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -229,14 +229,14 @@ export async function POST(req: NextRequest) {
             usedLifetime: lifetimeUsed + 1,
             limit: lifetimeLimit,
             remaining: lifetimeLimit - (lifetimeUsed + 1),
-            tier: 'zidlite',
+            tier: 'solopreneur',
           });
         } else {
           return NextResponse.json(
             { 
               error: "You've used all your ZidLite receipts. Please upgrade to continue creating unlimited receipts.",
               requiresUpgrade: true,
-              requiredTier: "growth",
+              requiredTier: "sme",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -294,7 +294,7 @@ export async function POST(req: NextRequest) {
             { 
               error: "You've used your free lifetime contract. Please upgrade to continue creating contracts.",
               requiresUpgrade: true,
-              requiredTier: "growth",
+              requiredTier: "sme",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -322,7 +322,7 @@ export async function POST(req: NextRequest) {
             usedLifetime: lifetimeUsed + 1,
             limit: lifetimeLimit,
             remaining: lifetimeLimit - (lifetimeUsed + 1),
-            tier: 'zidlite',
+            tier: 'solopreneur',
             lawyer_signature: include_lawyer_signature,
           });
         } else {
@@ -330,7 +330,7 @@ export async function POST(req: NextRequest) {
             { 
               error: "You've used all your ZidLite contracts. Please upgrade to continue creating more contracts.",
               requiresUpgrade: true,
-              requiredTier: "growth",
+              requiredTier: "sme",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -358,7 +358,7 @@ export async function POST(req: NextRequest) {
             usedLifetime: lifetimeUsed + 1,
             limit: lifetimeLimit,
             remaining: lifetimeLimit - (lifetimeUsed + 1),
-            tier: 'growth',
+            tier: 'sme',
             lawyer_signature: include_lawyer_signature,
           });
         } else {
@@ -367,7 +367,7 @@ export async function POST(req: NextRequest) {
             { 
               error: "You've used all your included contracts. Please upgrade to Premium for unlimited contracts.",
               requiresUpgrade: true,
-              requiredTier: "premium",
+              requiredTier: "enterprise",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -435,7 +435,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: "Bookkeeping requires Growth plan or higher",
-          requiredTier: "growth",
+            requiredTier: "sme",
           upgradeRequired: true,
           canStartTrial: true,
           trialDays: 14,
@@ -457,7 +457,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: "Tax calculator requires Growth plan or higher",
-          requiredTier: "growth",
+            requiredTier: "sme",
           upgradeRequired: true,
         },
         { status: 403 },
@@ -477,7 +477,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: "Tax filing requires Premium plan or higher",
-          requiredTier: "premium",
+          requiredTier: "enterprise",
           upgradeRequired: true,
         },
         { status: 403 },

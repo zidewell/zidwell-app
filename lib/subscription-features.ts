@@ -9,7 +9,7 @@ export const SUBSCRIPTION_FEATURES = {
     transfer_fee: { value: '50', limit: null },
     support_type: { value: 'basic', limit: null },
   },
-  zidlite: {
+  solopreneur: {
     invoices_total: { value: '20', limit: 20 },
     receipts_total: { value: '20', limit: 20 },
     contracts_total: { value: '2', limit: 2 },
@@ -29,7 +29,7 @@ export const SUBSCRIPTION_FEATURES = {
     whatsapp_community: { value: 'true', limit: null },
     support_type: { value: 'whatsapp', limit: null },
   },
-  premium: {
+  enterprise: {
     invoices_total: { value: 'unlimited', limit: null },
     receipts_total: { value: 'unlimited', limit: null },
     contracts_total: { value: 'unlimited', limit: null },
@@ -41,7 +41,7 @@ export const SUBSCRIPTION_FEATURES = {
     transfer_fee: { value: '50', limit: null },
     priority_support: { value: 'true', limit: null },
   },
-  elite: {
+  corporation: {
     invoices_total: { value: 'unlimited', limit: null },
     receipts_total: { value: 'unlimited', limit: null },
     contracts_total: { value: 'unlimited', limit: null },
@@ -64,12 +64,12 @@ export const SUBSCRIPTION_FEATURES = {
   },
 };
 
-export const TIER_HIERARCHY = ['free', 'zidlite', 'growth', 'premium', 'elite'];
+export const TIER_HIERARCHY = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
 
 export const TIER_DISPLAY_NAMES = {
   free: 'Free Trial',
-  zidlite: 'ZidLite',
-  growth: 'Growth',
-  premium: 'Premium',
-  elite: 'Elite',
+  solopreneur: 'ZidLite',
+  sme: 'Growth',
+  enterprise: 'Premium',
+  corporation: 'Elite',
 };

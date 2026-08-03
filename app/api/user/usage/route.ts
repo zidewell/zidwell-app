@@ -59,10 +59,10 @@ export async function GET(req: NextRequest) {
     
     // Define tier types
     const isFree = tier === 'free';
-    const isZidLite = tier === 'zidlite';
-    const isGrowth = tier === 'growth';
-    const isPremium = tier === 'premium';
-    const isElite = tier === 'elite';
+    const isZidLite = tier === 'solopreneur';
+    const isGrowth = tier === 'sme';
+    const isPremium = tier === 'enterprise';
+    const isElite = tier === 'corporation';
     const hasUnlimitedInvoices = isGrowth || isPremium || isElite;
 
     // Calculate invoice usage based on tier

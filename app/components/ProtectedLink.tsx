@@ -14,6 +14,17 @@ interface ProtectedLinkProps {
   icon?: any;
 }
 
+// Use the same verification logic as the context
+const isUserVerified = (userData: any): boolean => {
+  if (!userData) return false;
+  return (
+    userData.bvn_verification === 'verified' ||
+    userData.identity_verified === true ||
+    userData.kyc_level === 'personal_verified' ||
+    userData.kyc_level === 'business_verified' ||
+    userData.verification_completed === true
+  );
+};
 
 export const ProtectedLink = ({
   href,
@@ -25,7 +36,7 @@ export const ProtectedLink = ({
   const router = useRouter();
   const { userData } = useUserContextData();
 
-  const isVerified = userData?.verification_completed === true;
+  const verified = isUserVerified(userData);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -34,7 +45,7 @@ export const ProtectedLink = ({
       onClick();
     }
 
-    if (!isVerified) {
+    if (!verified) {
       router.push("/onboarding");
     } else {
       router.push(href);
@@ -43,7 +54,7 @@ export const ProtectedLink = ({
 
   return (
     <Link
-      href={isVerified ? href : "/onboarding"}
+      href={verified ? href : "/onboarding"}
       onClick={handleClick}
       className={className}
     >

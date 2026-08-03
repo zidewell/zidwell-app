@@ -55,7 +55,7 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          className={`sticky top-0 left-0 right-0 z-50 w-full ${className}`}
+          className={`sticky top-0 left-0 right-0 w-full ${className}`}
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}

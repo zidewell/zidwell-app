@@ -1,10 +1,10 @@
 "use client";
-import { useState, FormEvent, Suspense } from "react";
+import { useState, FormEvent, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
-import { useUserContextData } from "@/app/context/userData";
+import { useUserContextData, saveUserDataToStorage } from "@/app/context/userData";
 import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
 import Cookies from "js-cookie";
 import Swal from "sweetalert2";
@@ -87,11 +87,42 @@ const LoginForm = () => {
         throw new Error(result.error || "Invalid email or password");
       }
 
-      const { profile, safeProfile, isVerified, sessionEstablished } = result;
+      const { profile, isVerified, sessionEstablished } = result;
       if (!profile) throw new Error("User profile not found.");
 
+     
+
+      // ✅ STEP 1: Update context
       setUserData(profile);
-      localStorage.setItem("userData", JSON.stringify(safeProfile));
+      
+      // ✅ STEP 2: Save to localStorage using helper (sanitizes sensitive data)
+      saveUserDataToStorage(profile);
+      
+      // ✅ STEP 3: Also save to sessionStorage as backup
+      try {
+        sessionStorage.setItem('userData', JSON.stringify(profile));
+        console.log('💾 Profile saved to sessionStorage');
+      } catch (err) {
+        console.error('❌ Failed to save to sessionStorage:', err);
+      }
+
+      // ✅ STEP 4: Verify localStorage was saved
+      const saved = localStorage.getItem('userData');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          console.log('✅ Verified localStorage save:', {
+            id: parsed.id,
+            purpose: parsed.purpose,
+            is_business_registered: parsed.is_business_registered,
+            onboarding_completed: parsed.onboarding_completed,
+          });
+        } catch (e) {
+          console.error('❌ Failed to parse saved data:', e);
+        }
+      } else {
+        console.warn('⚠️ localStorage save failed! No data found.');
+      }
 
       Cookies.set("verified", isVerified ? "true" : "false", {
         expires: 7,
@@ -111,6 +142,15 @@ const LoginForm = () => {
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       let targetUrl = callbackUrl;
+      
+      // ✅ Redirect based on verification
+      if (!isVerified) {
+        targetUrl = "/onboarding";
+        console.log('🔄 User not verified, redirecting to onboarding');
+      } else {
+        console.log('🔄 User verified, redirecting to dashboard');
+      }
+
       if (fromLogin === "true" && scrollToPricing === "true") {
         targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
       }

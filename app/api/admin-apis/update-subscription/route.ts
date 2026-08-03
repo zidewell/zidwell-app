@@ -24,10 +24,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate tier
-    const validTiers = ['free', 'growth', 'premium', 'elite'];
+    const validTiers = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
     if (!validTiers.includes(tier)) {
       return NextResponse.json(
-        { error: "Invalid tier. Must be free, growth, premium, or elite" },
+        { error: "Invalid tier. Must be free, solopreneur, sme, enterprise, or corporation" },
         { status: 400 }
       );
     }

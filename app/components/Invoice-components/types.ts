@@ -156,7 +156,7 @@ export interface UsageApiResponse {
     endsAt: Date;
     daysRemaining: number;
   } | null;
-  tier: 'free' | 'growth' | 'premium' | 'elite';
+  tier: 'free' | 'sme' | 'enterprise' | 'corporation';
   payPerUseFee?: number;
 }
 

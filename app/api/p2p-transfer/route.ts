@@ -1,12 +1,12 @@
 // app/api/p2p-transfer/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import bcrypt from "bcryptjs";
 import { transporter } from "@/lib/node-mailer";
 import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
+import { verifyPinWithLockout } from "@/lib/pin-verification";
 
 const baseUrl =
   process.env.NODE_ENV === "development"
@@ -184,12 +184,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
 
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
-    const isValid = await bcrypt.compare(plainPin, sender.transaction_pin);
-    if (!isValid)
-      return NextResponse.json(
-        { message: "Invalid transaction PIN" },
-        { status: 401 },
-      );
+    const pinResult = await verifyPinWithLockout(userId, plainPin);
+    
+    if (!pinResult.valid) {
+      if (pinResult.locked) {
+        const lockMsg = pinResult.lockedUntil
+          ? `Account locked until ${new Date(pinResult.lockedUntil).toLocaleString()}`
+          : "Account locked due to too many failed attempts";
+        return NextResponse.json({ message: lockMsg, locked: true }, { status: 423 });
+      }
+      return NextResponse.json({ message: pinResult.error || "Invalid Transaction PIN" }, { status: 401 });
+    }
 
     if (
       sender.bank_name !== "Nombank MFB" &&

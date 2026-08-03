@@ -1,4 +1,3 @@
-// app/register/page.tsx
 "use client";
 
 import {
@@ -26,11 +25,12 @@ import {
 import Swal from "sweetalert2";
 import confetti from "canvas-confetti";
 import { Input } from "@/app/components/ui/input";
+import { Textarea } from "@/app/components/ui/textarea";
 
 type Region = "nigeria" | "outside" | "";
 type Purpose = "personal" | "business" | "";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 const hearAboutOptions = [
   "Instagram",
@@ -52,6 +52,22 @@ const attractionOptions = [
   "Multi-Signatory Business Accounts",
   "Tax Calculator",
 ];
+
+// Business type options
+const businessTypeOptions = [
+  "Freelancer",
+  "Agency",
+  "Consultant",
+  "Ecommerce",
+  "Restaurant",
+  "Retail",
+  "Professional Services",
+  "Nonprofit",
+  "Other",
+];
+
+// Team size options
+const teamSizeOptions = ["Just Me", "2–10", "11–50", "50+"];
 
 const freebies = [
   "Business Bank Account",
@@ -92,13 +108,30 @@ const RegisterForm = () => {
   // Step 5: Attractions
   const [attractions, setAttractions] = useState<string[]>([]);
 
-  // Step 6: Terms
+  // Step 6: Business Profile (ALL business fields EXCEPT CAC number)
+  const [businessType, setBusinessType] = useState<string>("");
+  const [teamSize, setTeamSize] = useState<string>("");
+  const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
+  const [businessName, setBusinessName] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
+  const [mapUrl, setMapUrl] = useState("");
+  const [businessDescription, setBusinessDescription] = useState("");
+  const [businessEmail, setBusinessEmail] = useState("");
+  const [businessPhone, setBusinessPhone] = useState("");
+  const [businessWebsite, setBusinessWebsite] = useState("");
+
+  // Step 7: Terms
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Confirmation modal state
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [confettiTriggered, setConfettiTriggered] = useState(false);
+
+  // Dynamic total steps based on purpose
+  const totalSteps = purpose === "business" ? 7 : 6;
+  const isBusinessProfileStep = purpose === "business" && step === 6;
+  const isCheckoutStep = step === totalSteps && step >= 6;
 
   // Confetti effect
   useEffect(() => {
@@ -203,9 +236,31 @@ const RegisterForm = () => {
       case 5:
         return attractions.length > 0;
       case 6:
-        return termsAccepted;
+        if (isBusinessProfileStep) {
+          const typeOk = businessType !== "";
+          const teamOk = teamSize !== "";
+          const regOk = isRegistered !== null;
+          const nameOk = businessName.trim().length > 1;
+          const addressOk = businessAddress.trim().length > 4;
+          const descOk = businessDescription.trim().length > 10;
+          return typeOk && teamOk && regOk && nameOk && addressOk && descOk;
+        }
+        return checkoutValid();
+      case 7:
+        return checkoutValid();
       default:
         return false;
+    }
+
+    function checkoutValid() {
+      if (purpose === "business") {
+        const nameOk = businessName.trim().length > 1;
+        const addressOk = businessAddress.trim().length > 4;
+        const descOk = businessDescription.trim().length > 10;
+        return nameOk && addressOk && descOk && termsAccepted;
+      }
+      const personalAddressOk = businessAddress.trim().length > 4;
+      return personalAddressOk && termsAccepted;
     }
   }, [
     step,
@@ -219,6 +274,13 @@ const RegisterForm = () => {
     heardFrom,
     attractions,
     termsAccepted,
+    businessType,
+    teamSize,
+    isRegistered,
+    businessName,
+    businessAddress,
+    businessDescription,
+    isBusinessProfileStep,
   ]);
 
   const handleBack = () => {
@@ -226,7 +288,6 @@ const RegisterForm = () => {
     else setStep(step - 1);
   };
 
-  // Function to resend verification email
   const handleResendVerification = async (email: string) => {
     try {
       Swal.fire({
@@ -281,13 +342,12 @@ const RegisterForm = () => {
       return;
     }
 
-    if (step < TOTAL_STEPS) {
+    if (step < totalSteps) {
       setStep(step + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
-    // Final step - register user
     setLoading(true);
     try {
       Swal.fire({
@@ -309,17 +369,25 @@ const RegisterForm = () => {
           purpose,
           heardFrom,
           attractions,
+          businessType: purpose === "business" ? businessType : null,
+          teamSize: purpose === "business" ? teamSize : null,
+          isRegistered: purpose === "business" ? isRegistered : null,
+          businessName: purpose === "business" ? businessName : null,
+          businessAddress: purpose === "business" ? businessAddress : null,
+          mapUrl: purpose === "business" ? mapUrl : null,
+          businessDescription: purpose === "business" ? businessDescription : null,
+          businessEmail: purpose === "business" ? businessEmail : null,
+          businessPhone: purpose === "business" ? businessPhone : null,
+          businessWebsite: purpose === "business" ? businessWebsite : null,
         }),
       });
 
       const result = await response.json();
 
-      // Handle 409 - User already exists
       if (response.status === 409) {
         Swal.close();
         
         if (result.user_exists && !result.email_verified) {
-          // User exists but not verified
           if (result.verification_sent) {
             await Swal.fire({
               icon: "info",
@@ -358,13 +426,11 @@ const RegisterForm = () => {
               cancelButtonColor: "#6B7280",
             }).then((result) => {
               if (result.isDismissed) {
-                // User wants to resend verification
                 handleResendVerification(email);
               }
             });
           }
         } else if (result.user_exists && result.email_verified) {
-          // User already verified
           await Swal.fire({
             icon: "warning",
             title: "Account Already Exists",
@@ -382,7 +448,6 @@ const RegisterForm = () => {
             }
           });
         } else {
-          // Generic 409 error
           await Swal.fire({
             icon: "error",
             title: "Registration Failed",
@@ -399,7 +464,6 @@ const RegisterForm = () => {
 
       Swal.close();
 
-      // Show confirmation modal
       setUserEmail(email);
       setConfettiTriggered(false);
       setShowConfirmationModal(true);
@@ -423,11 +487,10 @@ const RegisterForm = () => {
     );
   };
 
-  const ctaLabel = step === TOTAL_STEPS ? "Create Account" : "Continue";
+  const ctaLabel = isCheckoutStep ? "Create Account" : "Continue";
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
-      {/* Top bar */}
       <header className="sticky top-0 z-40 bg-[var(--bg-primary)]/85 backdrop-blur-md border-b border-[var(--border-color)]">
         <div className="mx-auto max-w-4xl px-5 py-4 flex items-center gap-4">
           <button
@@ -442,23 +505,22 @@ const RegisterForm = () => {
             <div className="h-2 w-full bg-[var(--bg-secondary)] rounded-full overflow-hidden">
               <div
                 className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+                style={{ width: `${(step / totalSteps) * 100}%` }}
               />
             </div>
           </div>
 
           <div className="hidden sm:block text-sm font-medium text-[var(--text-secondary)] tabular-nums">
-            {step} / {TOTAL_STEPS}
+            {step} / {totalSteps}
           </div>
         </div>
       </header>
 
-      {/* Content */}
       <main className="mx-auto max-w-2xl px-5 pt-10 pb-32 sm:pt-16">
         <div key={step} className="animate-fade-in">
           {step === 1 && (
             <StepShell
-              eyebrow="Step 1 of 6"
+              eyebrow={`Step 1 of ${totalSteps}`}
               title="Create your account"
               subtitle="Just a few details to get you started."
             >
@@ -619,7 +681,7 @@ const RegisterForm = () => {
 
           {step === 2 && (
             <StepShell
-              eyebrow="Step 2 of 6"
+              eyebrow={`Step 2 of ${totalSteps}`}
               title="Select your region"
               subtitle="This helps us tailor your Zidwell experience."
             >
@@ -636,7 +698,7 @@ const RegisterForm = () => {
                   onClick={() => setRegion("outside")}
                   icon={<Globe2 className="h-8 w-8" />}
                   title="Outside Nigeria"
-                  description="Join the waitlist — we'll notify you when we launch in your region."
+                  description="Global access to invoicing, bookkeeping and business tools. Local bank accounts coming soon in your region."
                 />
               </div>
             </StepShell>
@@ -644,7 +706,7 @@ const RegisterForm = () => {
 
           {step === 3 && (
             <StepShell
-              eyebrow="Step 3 of 6"
+              eyebrow={`Step 3 of ${totalSteps}`}
               title="What are you using Zidwell for?"
               subtitle="We'll customize the experience just for you."
             >
@@ -669,7 +731,7 @@ const RegisterForm = () => {
 
           {step === 4 && (
             <StepShell
-              eyebrow="Step 4 of 6"
+              eyebrow={`Step 4 of ${totalSteps}`}
               title="How did you hear about Zidwell?"
               subtitle="Pick the one that fits best."
             >
@@ -688,7 +750,7 @@ const RegisterForm = () => {
 
           {step === 5 && (
             <StepShell
-              eyebrow="Step 5 of 6"
+              eyebrow={`Step 5 of ${totalSteps}`}
               title="What attracted you to Zidwell?"
               subtitle="Select all that apply — this helps us serve you better."
             >
@@ -705,9 +767,170 @@ const RegisterForm = () => {
             </StepShell>
           )}
 
-          {step === 6 && (
+          {isBusinessProfileStep && (
+            <StepShell
+              eyebrow={`Step 6 of ${totalSteps}`}
+              title="Tell us about your business"
+              subtitle="This helps us tailor the right tools and templates for you."
+            >
+              <div className="space-y-10">
+                <div className="space-y-4">
+                  <h3 className="font-display text-xl font-bold text-[var(--text-primary)]">
+                    What best describes your business?
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {businessTypeOptions.map((option) => (
+                      <PillChoice
+                        key={option}
+                        selected={businessType === option}
+                        onClick={() => setBusinessType(option)}
+                        label={option}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-display text-xl font-bold text-[var(--text-primary)]">
+                    Team size
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {teamSizeOptions.map((option) => (
+                      <PillChoice
+                        key={option}
+                        selected={teamSize === option}
+                        onClick={() => setTeamSize(option)}
+                        label={option}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-display text-xl font-bold text-[var(--text-primary)]">
+                    Is your business registered with CAC?
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsRegistered(true)}
+                      aria-pressed={isRegistered === true}
+                      className={`h-14 rounded-2xl border-2 font-semibold text-base transition-all ${
+                        isRegistered === true
+                          ? "border-[var(--color-accent-yellow)] bg-[rgba(253,192,32,0.05)] text-[var(--text-primary)]"
+                          : "border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--text-primary)]/20"
+                      }`}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsRegistered(false)}
+                      aria-pressed={isRegistered === false}
+                      className={`h-14 rounded-2xl border-2 font-semibold text-base transition-all ${
+                        isRegistered === false
+                          ? "border-[var(--color-accent-yellow)] bg-[rgba(253,192,32,0.05)] text-[var(--text-primary)]"
+                          : "border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--text-primary)]/20"
+                      }`}
+                    >
+                      No
+                    </button>
+                  </div>
+                  {isRegistered === false && (
+                    <p className="text-sm font-medium text-[var(--text-primary)] bg-yellow-50 border border-yellow-200 rounded-2xl p-4 leading-relaxed">
+                      Note: We pay stricter attention to transactions carried out by unregistered businesses.
+                    </p>
+                  )}
+                </div>
+
+                <Field id="businessName" label={isRegistered ? "Registered Business Name" : "Preferred Business Name"}>
+                  <Input
+                    id="businessName"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder={isRegistered ? "Zidwell Technologies Ltd" : "e.g. Johanne's Kitchen"}
+                    className="h-14 rounded-2xl px-5 text-base"
+                  />
+                </Field>
+
+                <Field id="businessAddress" label="Business Address" hint="Answer correctly, we will verify this address">
+                  <Input
+                    id="businessAddress"
+                    value={businessAddress}
+                    onChange={(e) => setBusinessAddress(e.target.value)}
+                    placeholder="12 Admiralty Way, Lekki, Lagos"
+                    className="h-14 rounded-2xl px-5 text-base"
+                  />
+                </Field>
+
+                <Field id="mapUrl" label="Google Maps URL" hint="Paste a link to your location">
+                  <Input
+                    id="mapUrl"
+                    type="url"
+                    value={mapUrl}
+                    onChange={(e) => setMapUrl(e.target.value)}
+                    placeholder="https://maps.google.com/..."
+                    className="h-14 rounded-2xl px-5 text-base"
+                  />
+                </Field>
+
+                <Field id="businessDescription" label="Describe your business" hint="Up to 100 words">
+                  <Textarea
+                    id="businessDescription"
+                    value={businessDescription}
+                    onChange={(e) => {
+                      const words = e.target.value.trim().split(/\s+/).filter(Boolean);
+                      if (words.length <= 100) setBusinessDescription(e.target.value);
+                    }}
+                    placeholder="What do you sell or do? Who are your customers?"
+                    className="min-h-32 rounded-2xl px-5 py-4 text-base"
+                  />
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">
+                    {businessDescription.trim() ? businessDescription.trim().split(/\s+/).filter(Boolean).length : 0} / 100 words
+                  </p>
+                </Field>
+
+                <Field id="businessEmail" label="Business Email" hint="Optional">
+                  <Input
+                    id="businessEmail"
+                    type="email"
+                    value={businessEmail}
+                    onChange={(e) => setBusinessEmail(e.target.value)}
+                    placeholder="business@example.com"
+                    className="h-14 rounded-2xl px-5 text-base"
+                  />
+                </Field>
+
+                <Field id="businessPhone" label="Business Phone" hint="Optional">
+                  <Input
+                    id="businessPhone"
+                    value={businessPhone}
+                    onChange={(e) => setBusinessPhone(e.target.value)}
+                    placeholder="080 0000 0000"
+                    className="h-14 rounded-2xl px-5 text-base"
+                  />
+                </Field>
+
+                <Field id="businessWebsite" label="Business Website" hint="Optional">
+                  <Input
+                    id="businessWebsite"
+                    type="url"
+                    value={businessWebsite}
+                    onChange={(e) => setBusinessWebsite(e.target.value)}
+                    placeholder="https://www.yourbusiness.com"
+                    className="h-14 rounded-2xl px-5 text-base"
+                  />
+                </Field>
+              </div>
+            </StepShell>
+          )}
+
+          {isCheckoutStep && (
             <FinalStep
               purpose={purpose}
+              businessName={businessName}
+              businessAddress={businessAddress}
+              totalSteps={totalSteps}
               termsAccepted={termsAccepted}
               setTermsAccepted={setTermsAccepted}
             />
@@ -715,7 +938,6 @@ const RegisterForm = () => {
         </div>
       </main>
 
-      {/* Sticky CTA */}
       <div className="fixed bottom-0 inset-x-0 z-30 bg-[var(--bg-primary)]/95 backdrop-blur-md border-t border-[var(--border-color)]">
         <div className="mx-auto max-w-2xl px-5 py-4 sm:py-5">
           <button
@@ -749,9 +971,7 @@ const RegisterForm = () => {
               </span>
             ) : (
               <>
-                {step === TOTAL_STEPS && (
-                  <Sparkles className="mr-2 h-5 w-5 inline" />
-                )}
+                {isCheckoutStep && <Sparkles className="mr-2 h-5 w-5 inline" />}
                 {ctaLabel}
               </>
             )}
@@ -759,7 +979,6 @@ const RegisterForm = () => {
         </div>
       </div>
 
-      {/* Confirmation Modal - Registration Success with Confetti */}
       {showConfirmationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="max-w-md w-full rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-primary)] overflow-hidden animate-scale-in">
@@ -816,109 +1035,7 @@ const RegisterForm = () => {
   );
 };
 
-/* ---------- FinalStep Component ---------- */
-const FinalStep = ({
-  purpose,
-  termsAccepted,
-  setTermsAccepted,
-}: {
-  purpose: string;
-  termsAccepted: boolean;
-  setTermsAccepted: (value: boolean) => void;
-}) => {
-  const isBusiness = purpose === "business";
-
-  return (
-    <div className="space-y-12">
-      <div className="text-center space-y-4">
-        <p className="text-sm font-semibold text-[var(--color-accent-yellow)] uppercase tracking-wider">
-          Step 6 of 6
-        </p>
-        <h1 className="font-display text-4xl sm:text-6xl font-bold leading-[1.02] text-[var(--text-primary)]">
-          Almost There!
-        </h1>
-        <p className="text-lg sm:text-xl text-[var(--text-secondary)] max-w-xl mx-auto">
-          Review and accept our terms to complete registration.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 sm:gap-8">
-        <div className="rounded-2xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] p-6 sm:p-8 text-center shadow-[var(--shadow-soft)]">
-          <div className="text-3xl sm:text-4xl">🏆</div>
-          <div className="mt-3 font-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)]">
-            165
-          </div>
-          <div className="mt-1 text-sm sm:text-base text-[var(--text-secondary)] font-medium">
-            Businesses trust Zidwell
-          </div>
-        </div>
-        <div className="rounded-2xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] p-6 sm:p-8 text-center shadow-[var(--shadow-soft)]">
-          <div className="text-3xl sm:text-4xl">🏆</div>
-          <div className="mt-3 font-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)]">
-            1
-          </div>
-          <div className="mt-1 text-sm sm:text-base text-[var(--text-secondary)] font-medium">
-            Customer complaint so far
-          </div>
-        </div>
-      </div>
-
-      <section className="space-y-5">
-        <h2 className="font-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)]">
-          What you get, free
-        </h2>
-        <div className="rounded-2xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] p-6 sm:p-8 shadow-[var(--shadow-soft)]">
-          <ul className="grid sm:grid-cols-2 gap-4">
-            {freebies.map((item) => (
-              <li key={item} className="flex items-center gap-3">
-                <span className="h-8 w-8 rounded-full bg-[rgba(253,192,32,0.1)] flex items-center justify-center flex-shrink-0">
-                  <Check
-                    className="h-4 w-4 text-[var(--color-accent-yellow)]"
-                    strokeWidth={3}
-                  />
-                </span>
-                <span className="text-base font-medium text-[var(--text-primary)]">
-                  {item}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="rounded-2xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] p-6 sm:p-8 shadow-[var(--shadow-soft)]">
-        <label className="flex items-start gap-4 cursor-pointer">
-          <input
-            type="checkbox"
-            id="terms"
-            checked={termsAccepted}
-            onChange={(e) => setTermsAccepted(e.target.checked)}
-            className="mt-1 h-6 w-6 rounded-md border-[var(--border-color)] accent-[var(--color-accent-yellow)]"
-          />
-          <span className="text-base text-[var(--text-primary)] leading-relaxed">
-            I acknowledge and agree to Zidwell's{" "}
-            <a
-              href="#"
-              className="text-[var(--color-accent-yellow)] font-semibold underline underline-offset-2"
-            >
-              Terms of Use
-            </a>{" "}
-            and{" "}
-            <a
-              href="#"
-              className="text-[var(--color-accent-yellow)] font-semibold underline underline-offset-2"
-            >
-              Privacy Policy
-            </a>
-            . I confirm the information I've provided is accurate.
-          </span>
-        </label>
-      </section>
-    </div>
-  );
-};
-
-/* ---------- StepShell Component ---------- */
+// Sub-components
 const StepShell = ({
   eyebrow,
   title,
@@ -948,7 +1065,6 @@ const StepShell = ({
   </div>
 );
 
-/* ---------- Field Component ---------- */
 const Field = ({
   id,
   label,
@@ -976,7 +1092,6 @@ const Field = ({
   </div>
 );
 
-/* ---------- BigChoiceCard Component ---------- */
 const BigChoiceCard = ({
   selected,
   onClick,
@@ -1034,7 +1149,6 @@ const BigChoiceCard = ({
   </button>
 );
 
-/* ---------- PillChoice Component ---------- */
 const PillChoice = ({
   selected,
   onClick,
@@ -1071,7 +1185,6 @@ const PillChoice = ({
   </button>
 );
 
-/* ---------- MultiChoice Component ---------- */
 const MultiChoice = ({
   selected,
   onClick,
@@ -1107,7 +1220,6 @@ const MultiChoice = ({
   </button>
 );
 
-/* ---------- PasswordRule Component ---------- */
 const PasswordRule = ({
   valid,
   text,
@@ -1125,12 +1237,135 @@ const PasswordRule = ({
     ) : (
       <X className="h-4 w-4" />
     )}
-
     <span>{text}</span>
   </div>
 );
 
-/* ---------- Page Export ---------- */
+const FinalStep = ({
+  purpose,
+  businessName,
+  businessAddress,
+  totalSteps,
+  termsAccepted,
+  setTermsAccepted,
+}: {
+  purpose: string;
+  businessName: string;
+  businessAddress: string;
+  totalSteps: number;
+  termsAccepted: boolean;
+  setTermsAccepted: (value: boolean) => void;
+}) => {
+  const isBusiness = purpose === "business";
+
+  return (
+    <div className="space-y-12">
+      <div className="text-center space-y-4">
+        <p className="text-sm font-semibold text-[var(--color-accent-yellow)] uppercase tracking-wider">
+          Step {totalSteps} of {totalSteps}
+        </p>
+        <h1 className="font-display text-4xl sm:text-6xl font-bold leading-[1.02] text-[var(--text-primary)]">
+          Almost There!
+        </h1>
+        <p className="text-lg sm:text-xl text-[var(--text-secondary)] max-w-xl mx-auto">
+          {isBusiness
+            ? "Review your business details and accept our terms to complete registration."
+            : "Review your details and accept our terms to complete registration."}
+        </p>
+      </div>
+
+      <div className="rounded-2xl bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] p-6 sm:p-8 space-y-4">
+        <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">Review Your Information</h3>
+        
+        {isBusiness && (
+          <>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <span className="text-[var(--text-secondary)]">Business Name</span>
+              <span className="text-[var(--text-primary)] font-medium">{businessName || "Not specified"}</span>
+              <span className="text-[var(--text-secondary)]">Business Address</span>
+              <span className="text-[var(--text-primary)] font-medium">{businessAddress || "Not specified"}</span>
+            </div>
+            <div className="border-t border-[var(--border-color)] pt-3">
+              <p className="text-xs text-[var(--text-secondary)]">
+                Your business details will be used for verification purposes.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 sm:gap-8">
+        <TrustLaurel title="165" subtitle="Businesses trust Zidwell" />
+        <TrustLaurel title="1" subtitle="Customer complaint so far" />
+      </div>
+
+      <section className="space-y-5">
+        <h2 className="font-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)]">
+          What you get, free
+        </h2>
+        <div className="rounded-2xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] p-6 sm:p-8 shadow-[var(--shadow-soft)]">
+          <ul className="grid sm:grid-cols-2 gap-4">
+            {freebies.map((item) => (
+              <li key={item} className="flex items-center gap-3">
+                <span className="h-8 w-8 rounded-full bg-[rgba(253,192,32,0.1)] flex items-center justify-center flex-shrink-0">
+                  <Check
+                    className="h-4 w-4 text-[var(--color-accent-yellow)]"
+                    strokeWidth={3}
+                  />
+                </span>
+                <span className="text-base font-medium text-[var(--text-primary)]">
+                  {item}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="rounded-2xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] p-6 sm:p-8 shadow-[var(--shadow-soft)]">
+        <label className="flex items-start gap-4 cursor-pointer">
+          <input
+            type="checkbox"
+            id="terms"
+            checked={termsAccepted}
+            onChange={(e) => setTermsAccepted(e.target.checked)}
+            className="mt-1 h-6 w-6 rounded-md border-[var(--border-color)] accent-[var(--color-accent-yellow)]"
+          />
+          <span className="text-base text-[var(--text-primary)] leading-relaxed">
+            I acknowledge and agree to Zidwell's{" "}
+            <a
+              href="#"
+              className="text-[var(--color-accent-yellow)] font-semibold underline underline-offset-2"
+            >
+              Terms of Use
+            </a>{" "}
+            and{" "}
+            <a
+              href="#"
+              className="text-[var(--color-accent-yellow)] font-semibold underline underline-offset-2"
+            >
+              Privacy Policy
+            </a>
+            . I confirm the information I've provided is accurate.
+          </span>
+        </label>
+      </section>
+    </div>
+  );
+};
+
+const TrustLaurel = ({ title, subtitle }: { title: string; subtitle: string }) => (
+  <div className="rounded-2xl bg-[var(--bg-primary)] border-2 border-[var(--border-color)] p-6 sm:p-8 text-center shadow-[var(--shadow-soft)]">
+    <div className="text-3xl sm:text-4xl">🏆</div>
+    <div className="mt-3 font-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)]">
+      {title}
+    </div>
+    <div className="mt-1 text-sm sm:text-base text-[var(--text-secondary)] font-medium">
+      {subtitle}
+    </div>
+  </div>
+);
+
 export default function RegisterPage() {
   return (
     <Suspense

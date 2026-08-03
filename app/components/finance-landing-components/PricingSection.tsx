@@ -97,7 +97,7 @@ const plans = [
     buttonVariant: "brutalOutline" as const,
   },
   {
-    key: "growth",
+    key: "sme",
     name: "Business Growth",
     description: "For growing businesses that need more support",
     features: [
@@ -112,7 +112,7 @@ const plans = [
     buttonVariant: "brutal" as const,
   },
   {
-    key: "elite",
+    key: "corporation",
     name: "Business Elite",
     description: "Complete financial management for established businesses",
     features: [

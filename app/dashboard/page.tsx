@@ -157,10 +157,10 @@ function DashboardPage() {
   const formatPlanName = (plan: string) => {
     if (!plan) return "";
     const planMap: Record<string, string> = {
-      zidlite: "ZidLite",
-      growth: "Growth",
-      premium: "Premium",
-      elite: "Elite",
+      solopreneur: "ZidLite",
+      sme: "Growth",
+      enterprise: "Premium",
+      corporation: "Elite",
     };
     return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
@@ -292,14 +292,14 @@ function DashboardPage() {
             </section>
 
             {/* Articles */}
-            <section className="mt-6">
+            {/* <section className="mt-6">
               <RecentArticles />
-            </section>
+            </section> */}
           </div>
         </main>
       </div>
-
-      <MobileBottomNav />
+{/* 
+      <MobileBottomNav /> */}
     </div>
   );
 }

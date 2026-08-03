@@ -48,8 +48,6 @@ export async function isBVNVerified(userId: string): Promise<boolean> {
     }
 
     const isVerified = user?.bvn_verification === "verified";
-    console.log(`📋 User BVN verification status: ${user?.bvn_verification || 'not_found'}`);
-    
     return isVerified;
   } catch (error) {
     console.error("❌ Error checking BVN:", error);
@@ -68,8 +66,6 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
       return null;
     }
 
-    console.log(`🔍 Searching for user's virtual account with accountRef: ${userId}`);
-    
     const response = await fetch(
       `${process.env.NOMBA_URL}/v1/accounts/virtual/list`,
       {
@@ -108,12 +104,6 @@ export async function getUserBVNFromNomba(userId: string): Promise<string | null
     }
 
     const userBVN = activeAccount.bvn;
-    
-    console.log(`✅ Found user's virtual account!`);
-    console.log(`   Account Number: ${activeAccount.bankAccountNumber}`);
-    console.log(`   Bank: ${activeAccount.bankName}`);
-    console.log(`   Account Ref: ${activeAccount.accountRef}`);
-    console.log(`   BVN: ${userBVN.substring(0, 4)}****`);
     
     return userBVN;
     
@@ -188,7 +178,7 @@ function formatAccountName(title: string, className?: string): string {
     formatted = formatted.substring(0, 50);
   }
   
-  console.log(`   Formatted Account Name: "${formatted}"`);
+    console.log(`   Formatted Account Name: "${formatted}"`);
   return formatted;
 }
 
@@ -208,26 +198,14 @@ export async function createPaymentPageVirtualAccount(
       return null;
     }
 
-    // Format account name (includes class name if provided)
     let accountName = formatAccountName(paymentPageTitle, className);
     
     if (!accountName) {
       accountName = `PAGE ${paymentPageId.substring(0, 8)}`;
     }
     
-    // Create account reference - must be 16-64 characters, alphanumeric
     const cleanId = paymentPageId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
     const accountRef = `PPL${cleanId}${Date.now().toString().slice(-6)}`;
-
-    console.log(`🏦 Creating NEW virtual account for payment page`);
-    console.log(`   Original Title: ${paymentPageTitle}`);
-    if (className) {
-      console.log(`   Original Class: ${className}`);
-      console.log(`   Normalized Class: ${normalizeClassName(className)}`);
-    }
-    console.log(`   Account Name: "${accountName}"`);
-    console.log(`   Account Ref: ${accountRef}`);
-    console.log(`   Using Merchant's BVN: ${userBVN.substring(0, 4)}****`);
 
     const requestBody = {
       accountName: accountName,
@@ -256,11 +234,6 @@ export async function createPaymentPageVirtualAccount(
     }
 
     const account = result.data;
-    
-    console.log(`✅ Payment page virtual account created successfully!`);
-    console.log(`   Account Number: ${account.bankAccountNumber}`);
-    console.log(`   Bank: ${account.bankName}`);
-    console.log(`   Account Name: ${account.accountName}`);
     
     return {
       accountNumber: account.bankAccountNumber,
