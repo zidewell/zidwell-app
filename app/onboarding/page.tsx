@@ -736,12 +736,7 @@ export default function OnboardingPage() {
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="font-medium text-gray-500 dark:text-gray-400">KYC Level:</span>
-                <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-                  {userData.kyc_level || "unverified"}
-                </span>
-              </div>
+             
               <div className="flex items-center gap-1.5 text-xs">
                 <span className="font-medium text-gray-500 dark:text-gray-400">Status:</span>
                 <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
