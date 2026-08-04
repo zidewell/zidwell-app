@@ -89,7 +89,14 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   const CACHE_KEY = 'blog_cache_data';
   const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
-  // ✅ Load from localStorage
+  
+  const shouldFetchBlogData = useCallback(() => {
+    if (!pathname) return false;
+    // Only fetch for /blog/* or exactly /dashboard
+    return pathname.startsWith('/blog') || pathname === '/dashboard' ||  pathname === '/';
+  }, [pathname]);
+
+
   const loadFromCache = useCallback(() => {
     try {
       if (typeof window === 'undefined') return null;
@@ -164,11 +171,6 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     return false;
   }, [loadFromCache, getRemainingCooldown]);
 
-  const shouldFetchBlogData = useCallback(() => {
-    if (!pathname) return false;
-    return pathname.startsWith('/blog') || pathname === '/dashboard';
-  }, [pathname]);
-
   const transformPosts = useCallback((data: any): BlogPost[] => {
     const posts = data.posts || data;
     if (!Array.isArray(posts)) return [];
@@ -221,6 +223,12 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
 
   // ✅ Main fetch function with cooldown and deduplication
   const fetchAllPosts = useCallback(async () => {
+    // ✅ Check if we're on a blog-related page
+    if (!shouldFetchBlogData()) {
+      console.log('⏭️ Not on blog/dashboard page, skipping fetch');
+      return;
+    }
+
     // ✅ Check cooldown FIRST
     if (!canFetch()) {
       const remaining = getRemainingCooldown();
@@ -261,7 +269,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
       return;
     }
     
-    console.log('🔄 Fetching fresh data...');
+    console.log('🔄 Fetching fresh blog data...');
     isFetchingRef.current = true;
     setIsLoading(true);
     setError(null);
@@ -327,7 +335,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
         setIsInitialized(true);
         setCooldownRemaining(COOLDOWN_MS);
 
-        console.log('✅ Data fetched and cached. Next fetch available in 5 minutes.');
+        console.log('✅ Blog data fetched and cached. Next fetch available in 5 minutes.');
 
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
@@ -335,7 +343,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
           return;
         }
         
-        console.error('❌ Error fetching posts:', err);
+        console.error('❌ Error fetching blog posts:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch posts');
         
         // Try to load from cache on error
@@ -365,7 +373,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     // After fetch completes, update cooldown
     setCooldownRemaining(getRemainingCooldown());
     
-  }, [canFetch, getRemainingCooldown, loadFromCache, loadDataFromCache, transformPosts, extractCategories, saveToCache]);
+  }, [shouldFetchBlogData, canFetch, getRemainingCooldown, loadFromCache, loadDataFromCache, transformPosts, extractCategories, saveToCache]);
 
   // ✅ Force refresh (bypass cooldown)
   const forceRefresh = useCallback(async () => {
@@ -390,6 +398,12 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   const refreshPosts = useCallback(async () => {
     console.log('🔄 Refresh triggered');
     
+    // Check if we're on a blog-related page
+    if (!shouldFetchBlogData()) {
+      console.log('⏭️ Not on blog/dashboard page, skipping refresh');
+      return;
+    }
+    
     // Check cooldown
     if (!canFetch()) {
       const remaining = getRemainingCooldown();
@@ -412,7 +426,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     // Clear cache and fetch fresh
     localStorage.removeItem(CACHE_KEY);
     await fetchAllPosts();
-  }, [canFetch, getRemainingCooldown, loadFromCache, fetchAllPosts]);
+  }, [shouldFetchBlogData, canFetch, getRemainingCooldown, loadFromCache, fetchAllPosts]);
 
   // ✅ Initialize cooldown timer
   useEffect(() => {
@@ -457,14 +471,16 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     if (!hasCache && shouldFetchBlogData()) {
       // Check if we can fetch (not on cooldown)
       if (canFetch()) {
-        console.log('📡 No cache found, fetching...');
+        console.log('📡 No cache found, fetching blog data...');
         fetchAllPosts();
       } else {
         console.log('⏳ On cooldown, waiting...');
         setCooldownRemaining(getRemainingCooldown());
       }
     } else if (hasCache) {
-      console.log('📦 Using cached data');
+      console.log('📦 Using cached blog data');
+    } else {
+      console.log('⏭️ Not on blog/dashboard page, skipping initial fetch');
     }
     
     globalInitialized = true;
@@ -475,7 +491,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
         abortControllerRef.current.abort();
       }
     };
-  }, []);
+  }, [shouldFetchBlogData, loadDataFromCache, canFetch, fetchAllPosts, getRemainingCooldown]);
 
   // ✅ Cleanup
   useEffect(() => {

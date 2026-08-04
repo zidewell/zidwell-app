@@ -21,11 +21,13 @@ import {
   Mail,
   CheckCircle,
   Clock,
+  Eye, EyeOff
 } from "lucide-react";
 import Swal from "sweetalert2";
 import confetti from "canvas-confetti";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
+
 
 type Region = "nigeria" | "outside" | "";
 type Purpose = "personal" | "business" | "";
@@ -532,12 +534,12 @@ const RegisterForm = () => {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Johanne Thompson"
-                    className="w-full h-14 px-5 rounded-2xl text-base bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)] outline-none transition-all"
+                    className="w-full h-14 px-5 rounded-4xl text-base bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)] outline-none transition-all"
                     autoFocus
                   />
                 </Field>
                 <Field id="phone" label="Phone Number">
-                  <div className="flex items-center rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm focus-within:border-[var(--color-accent-yellow)] focus-within:ring-2 focus-within:ring-[var(--color-accent-yellow)] transition-all">
+                  <div className="flex items-center rounded-4xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm focus-within:border-[var(--color-accent-yellow)] focus-within:ring-2 focus-within:ring-[var(--color-accent-yellow)] transition-all">
                     <Select value={countryCode} onValueChange={setCountryCode}>
                       <SelectTrigger className="h-14 w-28 rounded-l-2xl rounded-r-none border-0 border-r border-[var(--border-color)] bg-transparent shadow-none focus:ring-0">
                         <SelectValue />
@@ -571,7 +573,7 @@ const RegisterForm = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full h-14 px-5 rounded-2xl text-base bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)] outline-none transition-all"
+                    className="w-full h-14 px-5 rounded-4xl text-base bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)] outline-none transition-all"
                   />
                 </Field>
                 <Field id="password" label="Password" hint="Must be strong">
@@ -583,7 +585,7 @@ const RegisterForm = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Create a strong password"
-                        className="h-14 pr-12"
+                         className="w-full h-14 px-5 rounded-4xl text-base bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)] outline-none transition-all"
                       />
 
                       <button
@@ -634,7 +636,7 @@ const RegisterForm = () => {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="Confirm your password"
-                        className="h-14 pr-12"
+                        className="w-full h-14 px-5 rounded-4xl text-base bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] focus:border-[var(--color-accent-yellow)] focus:ring-2 focus:ring-[var(--color-accent-yellow)] outline-none transition-all"
                       />
 
                       <button
@@ -645,9 +647,9 @@ const RegisterForm = () => {
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                       >
                         {showConfirmPassword ? (
-                          <span className="text-xl">👁️</span>
+                         <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                         ) : (
-                          <span className="text-xl">👁️‍🗨️</span>
+                          <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
                         )}
                       </button>
                     </div>
@@ -943,7 +945,7 @@ const RegisterForm = () => {
           <button
             onClick={handleContinue}
             disabled={!canContinue || loading}
-            className="w-full h-16 rounded-2xl text-base font-semibold font-display bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:opacity-90 hover:-translate-y-0.5 hover:shadow-[var(--shadow-pop)] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+            className="w-full h-16 rounded-4xl text-base font-semibold font-display bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:opacity-90 hover:-translate-y-0.5 hover:shadow-[var(--shadow-pop)] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">

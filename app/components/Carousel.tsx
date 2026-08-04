@@ -145,9 +145,13 @@ const Carousel: React.FC = () => {
     touchStartX.current = null;
   };
 
+    // <div className="hidden lg:block lg:w-full lg:h-screen lg:sticky lg:top-0 lg:self-start overflow-hidden">
+    //     <Carousel />
+    //   </div>
+
   return (
     <div
-      className="relative hidden lg:block w-[50%] h-screen overflow-hidden bg-gray-100"
+      className="relative hidden lg:block w-[50%] h-screen overflow-hidden bg-gray-100 lg:sticky lg:top-0 "
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
