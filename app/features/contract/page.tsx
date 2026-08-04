@@ -14,11 +14,11 @@ import Pricing from "@/app/components/smart-contract-components/Pricing";
 import SmartContractHero from "@/app/components/smart-contract-components/SmartContractHero";
 import SmartContractStep from "@/app/components/smart-contract-components/SmartContractStep";
 import { useSubscription } from "@/app/hooks/useSubscripion";
-import { ArrowLeft } from "lucide-react"; // Removed unused icons: Crown, Zap, Sparkles, Star
+import { ArrowLeft } from "lucide-react"; 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
-import Footer from "./components/home-component/Footer";
+import Footer from "@/app/components/home-component/Footer";
 import { Nav } from "@/app/components/home-component/Nav";
 
 const ContractLandingPage = () => {
