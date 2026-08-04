@@ -413,7 +413,7 @@ export default function RootLayout({
         <link rel="canonical" href="https://zidwell.com" />
         <link
           rel="alternate"
-          href="https://zidwell.com/accountants"
+          href="https://zidwell.com"
           hrefLang="en-NG"
         />
         <link
