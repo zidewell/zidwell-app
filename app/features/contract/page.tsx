@@ -1,3 +1,12 @@
+import { generatePageMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata = generatePageMetadata({
+  title: "Smart Contract Solutions | Zidwell",
+  description: "Create and manage smart contracts effortlessly with Zidwell's secure and automated contract management system.",
+  pathname: "/smart-contract",
+  keywords: ["smart contract", "blockchain", "contract management", "automated contracts", "Zidwell"],
+});
+
 "use client";
 
 import Features from "@/app/components/smart-contract-components/Features";
@@ -5,7 +14,7 @@ import Pricing from "@/app/components/smart-contract-components/Pricing";
 import SmartContractHero from "@/app/components/smart-contract-components/SmartContractHero";
 import SmartContractStep from "@/app/components/smart-contract-components/SmartContractStep";
 import { useSubscription } from "@/app/hooks/useSubscripion";
-import { ArrowLeft, Crown, Zap, Sparkles, Star } from "lucide-react";
+import { ArrowLeft } from "lucide-react"; // Removed unused icons: Crown, Zap, Sparkles, Star
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";

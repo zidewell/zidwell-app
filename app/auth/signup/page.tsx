@@ -1,5 +1,15 @@
 // app/auth/signup/page.tsx
 "use client";
+import { generatePageMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+ const metadata = generatePageMetadata({
+  title: "Create Your Zidwell Account | Start Free Trial",
+  description: "Create your Zidwell account today. Start sending invoices, collecting payments, and automating your receipts in minutes.",
+  pathname: "/auth/signup",
+  keywords: ["sign up", "create account", "Zidwell registration", "free trial", "financial tools"],
+});
+
+
 import Carousel from "@/app/components/Carousel";
 import RegisterForm from "@/app/components/RegisterForm";
 import { Button } from "@/app/components/ui/button";

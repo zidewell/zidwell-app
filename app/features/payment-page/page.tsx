@@ -1,3 +1,12 @@
+import { generatePageMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata = generatePageMetadata({
+  title: "Create Payment Pages | Collect Money Instantly | Zidwell",
+  description: "Create a beautiful payment page in 2 minutes. Share on WhatsApp and start collecting school fees, service payments, event tickets — anything.",
+  pathname: "/payment-page",
+  keywords: ["payment page", "collect payments", "online payment", "payment link", "Zidwell pay", "school fees", "freelance payments"],
+});
+
 "use client"
 import React from "react";
 import { motion } from "framer-motion";

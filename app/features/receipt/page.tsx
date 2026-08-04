@@ -1,3 +1,12 @@
+import { generatePageMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata = generatePageMetadata({
+  title: "Automated Receipt System | Smart Receipts for Every Payment | Zidwell",
+  description: "Stop manually creating receipts. Zidwell automatically generates and sends professional receipts for every invoice and payment — instantly.",
+  pathname: "/receipts",
+  keywords: ["receipts", "automated receipts", "payment receipts", "invoice receipts", "digital receipts", "Zidwell receipts"],
+});
+
 "use client";
 
 import Link from "next/link";
@@ -23,7 +32,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Nav } from "@/app/components/home-component/Nav";
-import Footer from "@app/components/home-component/Footer";
+// import Footer from "@app/components/home-component/Footer"; // Commented as per original
 
 export default function ReceiptsPage() {
   const router = useRouter();

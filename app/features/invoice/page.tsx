@@ -1,3 +1,12 @@
+import { generatePageMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata = generatePageMetadata({
+  title: "Professional Invoicing & Payment System | Zidwell",
+  description: "Create beautiful invoices, accept payments instantly, and get paid faster with Zidwell's complete billing solution.",
+  pathname: "/invoices",
+  keywords: ["invoice", "payment system", "billing", "online payments", "invoice generator", "Zidwell"],
+});
+
 "use client";
 
 import Link from "next/link";
@@ -16,7 +25,8 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/app/components/ui/button";
 import { Nav } from "@/app/components/home-component/Nav";
-import Footer from "@app/components/home-component/Footer";
+// import Footer from "@app/components/home-component/Footer"; // Commented as per original
+
 export default function InvoicePage() {
   const router = useRouter();
 
@@ -272,7 +282,7 @@ export default function InvoicePage() {
         </div>
       </div>
 
-      {/* <Footer /> */}
+      <Footer />
     </div>
   );
 }

@@ -1,4 +1,15 @@
+// app/auth/login/page.tsx
 "use client";
+import { generatePageMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+ const metadata = generatePageMetadata({
+  title: "Sign In to Zidwell Wallet | Secure Login",
+  description: "Sign in securely to your Zidwell Wallet. Access your payment pages, invoices, receipts, and manage your finances.",
+  pathname: "/auth/login",
+  keywords: ["login", "sign in", "Zidwell wallet", "secure login", "financial dashboard"],
+});
+
+
 import Swal from "sweetalert2";
 import { useState, FormEvent, useEffect, Suspense } from "react";
 import Image from "next/image";

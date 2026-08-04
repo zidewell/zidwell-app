@@ -1,118 +1,9 @@
-// "use client";
-// import { Suspense } from "react";
-// import { Loader2 } from "lucide-react";
-// import CTA from "./components/home-component-old/CTA";
-// import Features from "./components/home-component-old/Features";
-// import Footer from "./components/home-component-old/Footer";
-// import Hero from "./components/home-component-old/Hero";
-// import Testimonials from "./components/home-component-old/Testimonials";
-// import { useEffect, useMemo, useState } from "react";
-// import Pricing from "./components/home-component-old/Pricing";
-// import WhyDifferent from "./components/home-component-old/WhyDifferent";
-// import HowItWorks from "./components/home-component-old/HowItWork";
-// import WhyChoose from "./components/home-component-old/WhyChoose";
-// import ZidCoin from "./components/home-component-old/Zidcoin";
-// import FAQ from "./components/home-component-old/FAQ";
-// import Header from "./components/home-component-old/Header";
-
-// const animations = [
-//   "fade-up",
-//   "fade-down",
-//   "fade-left",
-//   "fade-right",
-//   "zoom-in",
-//   "zoom-in-up",
-//   "flip-left",
-//   "flip-right",
-// ];
-
-// function HomeContent() {
-//   const [aosLoaded, setAosLoaded] = useState(false);
-
-//   useEffect(() => {
-//     // Dynamically import AOS only on client side
-//     import("aos").then((AOS) => {
-//       AOS.default.init({
-//         duration: 800,
-//         once: true,
-//       });
-//       setAosLoaded(true);
-//     });
-//   }, []);
-
-//   const componentSettings = useMemo(() => {
-//     const components = [
-//       { id: "hero", name: "Hero" },
-//       { id: "features", name: "Features" },
-//       { id: "howItWorks", name: "HowItWorks" },
-//       { id: "whyDifferent", name: "WhyDifferent" },
-//       { id: "whyChoose", name: "WhyChoose" },
-//       { id: "testimonials", name: "Testimonials" },
-//       { id: "pricing", name: "Pricing" },
-//       { id: "zidCoin", name: "ZidCoin" },
-//       { id: "faq", name: "FAQ" },
-//       { id: "cta", name: "CTA" },
-//     ];
-
-//     return components.map((component) => ({
-//       ...component,
-//       animation: animations[Math.floor(Math.random() * animations.length)],
-//       delay: Math.floor(Math.random() * 300),
-//       duration: 600 + Math.floor(Math.random() * 600),
-//     }));
-//   }, []);
-
-//   return (
-//     <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-50 overflow-x-hidden">
-//       <Header />
-
-//       {componentSettings.map((component) => (
-//         <div
-//           key={component.id}
-//           data-aos={aosLoaded ? component.animation : undefined}
-//           data-aos-delay={aosLoaded ? component.delay : undefined}
-//           data-aos-duration={aosLoaded ? component.duration : undefined}
-//         >
-//           {component.id === "hero" && <Hero />}
-//           {component.id === "features" && <Features />}
-//           {component.id === "howItWorks" && <HowItWorks />}
-//           {component.id === "whyDifferent" && <WhyDifferent />}
-//           {component.id === "whyChoose" && <WhyChoose />}
-//           {component.id === "testimonials" && <Testimonials />}
-//           {component.id === "pricing" && <Pricing />}
-//           {/* {component.id === "zidCoin" && <ZidCoin />} */}
-//           {component.id === "faq" && <FAQ />}
-//           {component.id === "cta" && <CTA />}
-//         </div>
-//       ))}
-
-//       <Footer />
-//     </main>
-//   );
-// }
-
-// export default function Page() {
-//   return (
-//     <Suspense
-//       fallback={
-//         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-//           <Loader2 className="w-8 h-8 animate-spin text-(--color-accent-yellow)" />
-//         </div>
-//       }
-//     >
-//       <HomeContent />
-//     </Suspense>
-//   );
-// }
-
-
-
-
+// app/page.tsx
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { AISection } from "./components/home-component/AISection"; 
+import { AISection } from "./components/home-component/AISection";
 import { BonusTools } from "./components/home-component/BonusTools";
 import { BuiltForReal } from "./components/home-component/BuiltForReal";
 import { Categories } from "./components/home-component/Categories";
@@ -130,6 +21,53 @@ import { SocialBar } from "./components/home-component/SocialBar";
 import { StatementsSection } from "./components/home-component/StatementsSection";
 import { TeamControl } from "./components/home-component/TeamControl";
 
+// ✅ Homepage-specific metadata (overrides root layout)
+export const metadata = {
+  title: "Zidwell | All-in-One Finance & Business Management Platform for Nigerian SMEs",
+  description:
+    "Zidwell helps Nigerian businesses with invoicing, receipts, contracts, accounting, tax filing, and financial management. All-in-one platform for SMEs, freelancers, and entrepreneurs.",
+  keywords: [
+    "invoice generator Nigeria",
+    "online invoice maker Nigeria",
+    "business accounting Nigeria",
+    "SME finance platform",
+    "Nigerian business tools",
+    "digital receipt Nigeria",
+    "contract creator Nigeria",
+    "business tax filing Nigeria",
+    "fintech platform Nigeria",
+  ],
+  alternates: {
+    canonical: "https://zidwell.com",
+  },
+  openGraph: {
+    title: "Zidwell | Finance & Business Tools for Nigerian SMEs",
+    description:
+      "Create invoices, receipts, contracts, manage finances, and grow your business with Zidwell. All-in-one platform for Nigerian entrepreneurs.",
+    url: "https://zidwell.com",
+    siteName: "Zidwell",
+    locale: "en_NG",
+    type: "website",
+    images: [
+      {
+        url: "https://zidwell.com/images/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Zidwell - Business Finance & Management Platform",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@zidwellapp",
+    creator: "@zidwellapp",
+    title: "Zidwell | Business Finance Platform Nigeria",
+    description:
+      "Invoicing, contracts, receipts, accounting & financial tools for Nigerian businesses. Start free today.",
+    images: ["https://zidwell.com/images/twitter-card.jpg"],
+  },
+};
+
 const animations = [
   "fade-up",
   "fade-down",
@@ -145,7 +83,6 @@ function LandingContent() {
   const [aosLoaded, setAosLoaded] = useState(false);
 
   useEffect(() => {
-    // Dynamically import AOS only on client side
     import("aos").then((AOS) => {
       AOS.default.init({
         duration: 800,

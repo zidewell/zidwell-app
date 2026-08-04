@@ -136,11 +136,6 @@ const nextConfig = {
 
   async redirects() {
     return [
-        {
-      source: '/',
-      destination: '/?refreshed=1',
-      permanent: false, 
-    },
       {
         source: "/home",
         destination: "/",
