@@ -25,8 +25,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/app/components/ui/button";
 import { Nav } from "@/app/components/home-component/Nav";
-// import Footer from "@app/components/home-component/Footer"; // Commented as per original
-
+import Footer from "@app/components/home-component/Footer";
 export default function InvoicePage() {
   const router = useRouter();
 
