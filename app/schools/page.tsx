@@ -39,9 +39,10 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import Footer from "../components/home-component-old/Footer";
+import Footer from "@/app/components/home-component/Footer";
 import Link from "next/link";
-import { useUserContextData } from "../context/userData";
+
+import { useUserContextData } from "@/app/context/userData";
 
 const adminStressed =
   "https://images.unsplash.com/photo-1758876201933-ff3b3484d810?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fHN0cmVzcyUyMG9mZmljZSUyMGJsYWNrJTIwd29tYW58ZW58MHx8MHx8fDA%3D";

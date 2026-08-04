@@ -22,15 +22,15 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import Header from "@/app/components/home-component-old/Header";
-import Footer from "@/app/components/home-component-old/Footer";
+import { Nav } from "@/app/components/home-component/Nav";
+import Footer from "@app/components/home-component/Footer";
 
 export default function ReceiptsPage() {
   const router = useRouter();
 
   return (
     <div className="min-h-screen bg-(--bg-primary) fade-in">
-      <Header />
+      <Nav />
 
       <main>
         {/* 1. HERO SECTION */}

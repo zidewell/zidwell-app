@@ -15,15 +15,14 @@ import {
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/app/components/ui/button";
-import Header from "@/app/components/home-component-old/Header";
-import Footer from "@/app/components/home-component-old/Footer";
-
+import { Nav } from "@/app/components/home-component/Nav";
+import Footer from "@app/components/home-component/Footer";
 export default function InvoicePage() {
   const router = useRouter();
 
   return (
     <div className="min-h-screen bg-(--bg-primary) fade-in">
-      <Header />
+      <Nav />
 
       {/* Back Button */}
       <div className="max-w-6xl mx-auto px-4 pt-24 md:pt-28">
@@ -273,7 +272,7 @@ export default function InvoicePage() {
         </div>
       </div>
 
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }
