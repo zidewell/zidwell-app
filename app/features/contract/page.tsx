@@ -1,13 +1,13 @@
+"use client";
 import { generatePageMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const metadata = generatePageMetadata({
+const metadata = generatePageMetadata({
   title: "Smart Contract Solutions | Zidwell",
   description: "Create and manage smart contracts effortlessly with Zidwell's secure and automated contract management system.",
   pathname: "/smart-contract",
   keywords: ["smart contract", "blockchain", "contract management", "automated contracts", "Zidwell"],
 });
 
-"use client";
 
 import Features from "@/app/components/smart-contract-components/Features";
 import Pricing from "@/app/components/smart-contract-components/Pricing";

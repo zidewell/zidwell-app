@@ -1,13 +1,13 @@
+"use client";
 import { generatePageMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const metadata = generatePageMetadata({
+const metadata = generatePageMetadata({
   title: "Automated Receipt System | Smart Receipts for Every Payment | Zidwell",
   description: "Stop manually creating receipts. Zidwell automatically generates and sends professional receipts for every invoice and payment — instantly.",
-  pathname: "/receipts",
+  pathname: "/features/receipts",
   keywords: ["receipts", "automated receipts", "payment receipts", "invoice receipts", "digital receipts", "Zidwell receipts"],
 });
 
-"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";

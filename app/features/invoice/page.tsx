@@ -1,13 +1,13 @@
+"use client";
 import { generatePageMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const metadata = generatePageMetadata({
+const metadata = generatePageMetadata({
   title: "Professional Invoicing & Payment System | Zidwell",
   description: "Create beautiful invoices, accept payments instantly, and get paid faster with Zidwell's complete billing solution.",
-  pathname: "/invoices",
+  pathname: "/features/invoices",
   keywords: ["invoice", "payment system", "billing", "online payments", "invoice generator", "Zidwell"],
 });
 
-"use client";
 
 import Link from "next/link";
 import {
