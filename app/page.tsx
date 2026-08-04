@@ -21,8 +21,8 @@ import { SocialBar } from "./components/home-component/SocialBar";
 import { StatementsSection } from "./components/home-component/StatementsSection";
 import { TeamControl } from "./components/home-component/TeamControl";
 
-// ✅ Homepage-specific metadata (overrides root layout)
-export const metadata = {
+
+ const metadata = {
   title: "Zidwell | All-in-One Finance & Business Management Platform for Nigerian SMEs",
   description:
     "Zidwell helps Nigerian businesses with invoicing, receipts, contracts, accounting, tax filing, and financial management. All-in-one platform for SMEs, freelancers, and entrepreneurs.",
