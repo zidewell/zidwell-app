@@ -268,14 +268,14 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     (t: any) => t.status === "pending"
   );
 
- const totalInflow = successfulTransactions
-  .filter((t: any) => {
-    const typeLower = (t.type || "").toString().toLowerCase();
-    return INFLOW_TYPES.some((inflowType) =>
-      typeLower.includes(inflowType.toLowerCase())
-    );
-  })
-  .reduce((s: number, t: any) => s + getTransactionAmount(t), 0);
+  const totalInflow = successfulTransactions
+    .filter((t: any) => {
+      const typeLower = (t.type || "").toString().toLowerCase();
+      return INFLOW_TYPES.some((inflowType) =>
+        typeLower.includes(inflowType.toLowerCase())
+      );
+    })
+    .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
   const totalOutflow = successfulTransactions
     .filter((t: any) => {
@@ -564,17 +564,17 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     revenue: monthlyInvoicesMap[m]?.revenue ?? 0,
   }));
 
- const monthlyTransactionsMap: Record<string, number> = {};
-successfulTransactions.forEach((t: any) => {
-  const d = new Date(t.created_at);
-  if (isNaN(d.getTime())) return;
-  const key = d.toLocaleString("default", {
-    month: "short",
-    year: "numeric",
+  const monthlyTransactionsMap: Record<string, number> = {};
+  successfulTransactions.forEach((t: any) => {
+    const d = new Date(t.created_at);
+    if (isNaN(d.getTime())) return;
+    const key = d.toLocaleString("default", {
+      month: "short",
+      year: "numeric",
+    });
+    monthlyTransactionsMap[key] =
+      (monthlyTransactionsMap[key] ?? 0) + Number(t.amount ?? 0);
   });
-  monthlyTransactionsMap[key] =
-    (monthlyTransactionsMap[key] ?? 0) + getTransactionAmount(t);
-});
   
   const monthlyTransactions = monthLabels.map((m) => ({
     month: m,
