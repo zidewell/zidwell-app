@@ -377,13 +377,13 @@
 //   }
 // }
 
-
 import { NextRequest, NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api"; 
 import { sendPinResetEmail } from "@/lib/email/pin-reset";
+import { sendWithdrawalEmail, generateTransferReceipt } from "@/lib/email-service";
 
 export async function POST(req: NextRequest) {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
@@ -415,8 +415,8 @@ export async function POST(req: NextRequest) {
       pin,
       fee,
       totalDebit,
-      category,      // NEW: Category name
-      categoryId,    // NEW: Category ID from journal_categories
+      category,
+      categoryId,
     } = await req.json();
 
     if (userId !== user.id) {
@@ -437,7 +437,7 @@ export async function POST(req: NextRequest) {
     // ✅ Verify user + PIN with attempt tracking
     const { data: userData, error: userError } = await supabase
       .from("users")
-      .select("id, transaction_pin, wallet_balance, pin_attempts, pin_locked_until, email, first_name, last_name")
+      .select("id, transaction_pin, wallet_balance, pin_attempts, pin_locked_until, email, first_name, last_name, full_name")
       .eq("id", userId)
       .single();
 
@@ -598,7 +598,6 @@ export async function POST(req: NextRequest) {
         merchant_tx_ref: merchantTxRef,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        // NEW: Add category fields
         category: category || null,
         category_id: categoryId || null,
       })
@@ -646,11 +645,15 @@ export async function POST(req: NextRequest) {
       nombaReference: nombaData?.data?.reference,
     });
 
-    // ✅ Update transaction to PROCESSING state (preserve category)
+    // ✅ Check if transfer was immediately successful
+    const isSuccess = nombaResponse.ok && nombaData?.data?.status === "success";
+    const finalStatus = isSuccess ? "success" : "processing";
+
+    // ✅ Update transaction with initial status
     await supabase
       .from("transactions")
       .update({
-        status: "processing",
+        status: finalStatus,
         description: `Transfer of ₦${amount} to ${accountName}`,
         reference: nombaData?.data?.reference || null,
         external_response: {
@@ -662,14 +665,73 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", pendingTx.id);
 
-    // ✅ Return processing status - NO BALANCE DEDUCTED YET
+    // ✅ If immediately successful, deduct balance and send receipt email
+    if (isSuccess) {
+      console.log(`✅ Transfer immediately successful for transaction ${pendingTx.id}`);
+      
+      // Deduct wallet balance
+      const { error: deductError } = await supabase.rpc(
+        "deduct_wallet_balance",
+        {
+          user_id: userId,
+          amt: totalDeduction,
+          transaction_type: "withdrawal",
+          reference: merchantTxRef,
+          description: `Transfer to ${accountName}`,
+        }
+      );
+
+      if (deductError) {
+        console.error("❌ Failed to deduct wallet balance:", deductError);
+        // Update transaction status to failed
+        await supabase
+          .from("transactions")
+          .update({
+            status: "failed",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", pendingTx.id);
+      } else {
+        // Generate receipt HTML for email
+        const receiptHtml = generateTransferReceipt({
+          transactionId: pendingTx.id,
+          amount: Number(amount),
+          date: new Date().toISOString(),
+          recipientName: accountName,
+          recipientAccount: accountNumber,
+          recipientBank: bankName,
+          senderName: senderName || userData.full_name || 'Zidwell User',
+          senderAccount: senderAccountNumber,
+          narration: narration || "N/A",
+          fee: fee || 0,
+          type: "bank_transfer"
+        });
+
+        // Send email with receipt
+        await sendWithdrawalEmail(
+          userId,
+          "success",
+          Number(amount),
+          accountName,
+          accountNumber,
+          bankName,
+          pendingTx.id,
+          undefined,
+          fee || 0,
+          receiptHtml
+        ).catch(err => console.error("Failed to send withdrawal email:", err));
+      }
+    }
+
+    // ✅ Return response
     const responseData = {
-      message: "Transfer initiated. Processing...",
+      message: isSuccess ? "Transfer completed successfully." : "Transfer initiated. Processing...",
       transactionId: pendingTx.id,
       merchantTxRef,
-      status: "processing",
-      requiresPolling: true,
-      category: category || null,  // Include category in response
+      status: finalStatus,
+      requiresPolling: !isSuccess,
+      category: category || null,
+      ...(isSuccess && { reference: nombaData?.data?.reference }),
     };
 
     if (newTokens) {
