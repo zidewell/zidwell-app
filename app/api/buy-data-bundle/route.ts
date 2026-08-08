@@ -257,69 +257,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create transaction with reference (which has unique constraint)
-    const { data: transactionData, error: transactionError } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: userId,
-        type: "data",
-        amount: parsedAmount,
-        status: "pending",
-        reference: finalMerchantTxRef,
-        merchant_tx_ref: finalMerchantTxRef,
-        description: `Data purchase on ${network} for ${phoneNumber}`,
-        phone_number: phoneNumber,
-        network: network,
-        balance_before: beforeBalance,
-        balance_after: null,
-        provider: "nomba",
-        external_response: {
-          status: "pending",
-          initiated_at: new Date().toISOString(),
-        },
-      })
-      .select("id")
-      .single();
-
-    if (transactionError) {
-      // Check for duplicate key error on "reference"
-      if (transactionError.code === "23505") {
-        console.log(`🔄 Duplicate transaction detected for ${finalMerchantTxRef}`);
-        const { data: existingTx } = await supabase
-          .from("transactions")
-          .select("id, status, amount, balance_before, balance_after")
-          .eq("reference", finalMerchantTxRef)
-          .single();
-        
-        if (existingTx) {
-          const responseData = {
-            success: true,
-            message: "Transaction already processed",
-            status: existingTx.status,
-            transactionId: existingTx.id,
-            amount: existingTx.amount,
-            balance_before: existingTx.balance_before,
-            balance_after: existingTx.balance_after,
-            idempotent: true,
-          };
-          
-          if (newTokens) {
-            return createAuthResponse(responseData, newTokens);
-          }
-          return NextResponse.json(responseData);
-        }
-      }
-      
-      console.error("Failed to create transaction:", transactionError);
-      return NextResponse.json(
-        { error: "Failed to create transaction" },
-        { status: 500 },
-      );
-    }
-
-    transactionId = transactionData.id;
-
-    // Call Nomba API
+    // ✅ Call Nomba API FIRST before creating transaction
     let nombaResponse;
     try {
       nombaResponse = await axios.post(
@@ -343,24 +281,14 @@ export async function POST(req: NextRequest) {
     } catch (nombaError: any) {
       console.error("Nomba API Error:", nombaError.message);
       
-      await supabase
-        .from("transactions")
-        .update({
-          status: "failed",
-          external_response: {
-            error: nombaError.message,
-            failed_at: new Date().toISOString(),
-          },
-        })
-        .eq("id", transactionId);
-      
+      // Just return error, no transaction created yet
       return NextResponse.json(
         { error: "Payment provider error", detail: nombaError.message },
         { status: 502 },
       );
     }
 
-    // Deduct balance after Nomba succeeds
+    // ✅ Now call the RPC to deduct balance (this will create the transaction)
     const { data: rpcResult, error: rpcError } = await supabase.rpc(
       "deduct_wallet_balance",
       {
@@ -375,26 +303,16 @@ export async function POST(req: NextRequest) {
     if (rpcError || !rpcResult || rpcResult[0].status !== "OK") {
       console.error("Deduction failed:", rpcError);
       
-      await supabase
-        .from("transactions")
-        .update({
-          status: "failed",
-          external_response: {
-            ...(await getCurrentExternalResponse(transactionId)),
-            deduction_error: rpcError?.message || "Balance deduction failed",
-            failed_at: new Date().toISOString(),
-          },
-        })
-        .eq("id", transactionId);
-      
+      // Nomba succeeded but deduction failed - this is a critical error
+      // We need to handle this manually
       return NextResponse.json(
-        { error: "Transaction failed during processing" },
+        { error: "Transaction failed during processing", detail: rpcError?.message },
         { status: 500 },
       );
     }
 
+    transactionId = rpcResult[0].tx_id;
     deductionCommitted = true;
-    transactionId = rpcResult[0].tx_id || transactionId;
     afterBalance = rpcResult[0].new_balance || beforeBalance - parsedAmount;
 
     // Determine status from Nomba response
@@ -425,7 +343,7 @@ export async function POST(req: NextRequest) {
       emailStatus = "pending";
     }
 
-    // Update transaction using id
+    // ✅ Update the transaction (created by RPC) with Nomba response
     await supabase
       .from("transactions")
       .update({
@@ -433,11 +351,16 @@ export async function POST(req: NextRequest) {
         balance_before: beforeBalance,
         balance_after: afterBalance,
         deducted_at: new Date().toISOString(),
+        merchant_tx_ref: finalMerchantTxRef,
+        phone_number: phoneNumber,
+        network: network,
         external_response: {
           nomba_response: nombaResponse.data,
           status: transactionStatus,
           completed_at: transactionStatus === "success" ? new Date().toISOString() : null,
           merchant_tx_ref: finalMerchantTxRef,
+          balance_before: beforeBalance,
+          balance_after: afterBalance,
         },
       })
       .eq("id", transactionId);
@@ -487,6 +410,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Data Purchase Error:", error.message);
     
+    // ✅ Only refund if deduction was committed
     if (userId && amount && transactionId && deductionCommitted) {
       await supabase.rpc("refund_wallet_balance", {
         user_id: userId,
