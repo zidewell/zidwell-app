@@ -192,11 +192,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(cachedResponse);
     }
 
-    // Check for existing transaction
+    // Check for existing transaction using "reference" column
     const { data: existingTx, error: findError } = await supabase
       .from("transactions")
       .select("id, status, amount, balance_before, balance_after, external_response")
-      .eq("merchant_tx_ref", finalMerchantTxRef)
+      .eq("reference", finalMerchantTxRef)
       .maybeSingle();
 
     if (!findError && existingTx) {
@@ -257,7 +257,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create transaction
+    // Create transaction with reference (which has unique constraint)
     const { data: transactionData, error: transactionError } = await supabase
       .from("transactions")
       .insert({
@@ -282,12 +282,13 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (transactionError) {
+      // Check for duplicate key error on "reference"
       if (transactionError.code === "23505") {
         console.log(`🔄 Duplicate transaction detected for ${finalMerchantTxRef}`);
         const { data: existingTx } = await supabase
           .from("transactions")
           .select("id, status, amount, balance_before, balance_after")
-          .eq("merchant_tx_ref", finalMerchantTxRef)
+          .eq("reference", finalMerchantTxRef)
           .single();
         
         if (existingTx) {
@@ -359,7 +360,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Deduct balance
+    // Deduct balance after Nomba succeeds
     const { data: rpcResult, error: rpcError } = await supabase.rpc(
       "deduct_wallet_balance",
       {
@@ -396,7 +397,7 @@ export async function POST(req: NextRequest) {
     transactionId = rpcResult[0].tx_id || transactionId;
     afterBalance = rpcResult[0].new_balance || beforeBalance - parsedAmount;
 
-    // Determine status
+    // Determine status from Nomba response
     const responseCode = nombaResponse.data?.code?.toString();
     const nombaStatus = nombaResponse.data?.status;
     const responseDescription = nombaResponse.data?.description || "";
@@ -424,7 +425,7 @@ export async function POST(req: NextRequest) {
       emailStatus = "pending";
     }
 
-    // Update transaction
+    // Update transaction using id
     await supabase
       .from("transactions")
       .update({
@@ -451,7 +452,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Send email
+    // Send email notification
     await sendEmailNotification(
       userId,
       emailStatus,
@@ -476,6 +477,7 @@ export async function POST(req: NextRequest) {
       idempotent: false,
     };
 
+    // Cache response for idempotency
     idempotencyCache.set(finalMerchantTxRef, responseData);
     setTimeout(() => idempotencyCache.delete(finalMerchantTxRef), 10 * 60 * 1000);
 
