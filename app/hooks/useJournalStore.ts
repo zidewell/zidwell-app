@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { JournalEntry, Category, JournalType, DEFAULT_CATEGORIES, PeriodSummary } from '../components/journal/types'; 
 import { 
@@ -44,6 +46,7 @@ interface WalletTransaction {
   merchant_tx_ref?: string;
   user_id: string;
   category?: string;
+  category_id?: string; 
 }
 
 const API_BASE = '/api/journal';
@@ -154,9 +157,9 @@ export function useJournalStore() {
     return 'expense';
   }, []);
 
-  // Get category ID from category name
+  // FIXED: Case-insensitive matching, bookkeeping defaults, no random fallbacks
   const getCategoryIdFromName = useCallback((categoryName: string, transactionType: string, isOutflow: boolean): string => {
-    // First, try to find category by name in journal_categories
+    // Priority 1: Match by exact category name in journal_categories
     if (categoryName && categoryName.trim()) {
       const matchedCategory = categories.find(
         c => c.name.toLowerCase() === categoryName.toLowerCase()
@@ -166,71 +169,50 @@ export function useJournalStore() {
       }
     }
     
-    // Fallback: use transaction type logic
     const type = transactionType?.toLowerCase();
     
     if (isOutflow) {
       if (type === 'bill_payment' || type === 'bill') {
-        const billsCat = categories.find(c => c.name === 'Bills');
+        const billsCat = categories.find(c => c.name.toLowerCase() === 'bills');
         if (billsCat) return billsCat.id;
       }
       if (type === 'withdrawal') {
-        const cat = categories.find(c => c.name === 'Cash Withdrawal');
+        const cat = categories.find(c => c.name.toLowerCase() === 'cash withdrawal');
         if (cat) return cat.id;
       }
       if (type === 'transfer' || type === 'p2p_transfer' || type === 'debit') {
-        const cat = categories.find(c => c.name === 'Transfer');
+        const cat = categories.find(c => c.name.toLowerCase() === 'transfer');
         if (cat) return cat.id;
       }
       if (type === 'airtime') {
-        const cat = categories.find(c => c.name === 'Call Airtime');
+        const cat = categories.find(c => c.name.toLowerCase() === 'call airtime');
         if (cat) return cat.id;
       }
       if (type === 'data') {
-        const cat = categories.find(c => c.name === 'Data / Internet');
+        const cat = categories.find(c => c.name.toLowerCase() === 'data / internet');
         if (cat) return cat.id;
       }
       if (type === 'electricity') {
-        const cat = categories.find(c => c.name === 'Electricity bill');
+        const cat = categories.find(c => c.name.toLowerCase() === 'electricity bill');
         if (cat) return cat.id;
       }
       
-      const otherExpense = categories.find(c => c.name === 'Other Expense');
+      const otherExpense = categories.find(c => c.name.toLowerCase() === 'other expense');
       if (otherExpense) return otherExpense.id;
       
-      const anyExpense = categories.find(c => c.type === 'expense');
-      return anyExpense?.id || '';
+      // FIXED: Don't fallback to a random expense category — return empty to prevent mislabeling
+      return '';
     } else {
-      if (type === 'deposit' || type === 'virtual_account_deposit' || type === 'card_deposit') {
-        const cat = categories.find(c => c.name === 'Bank Deposit');
-        if (cat) return cat.id;
-      }
-      if (type === 'referral' || type === 'referral_reward') {
-        const cat = categories.find(c => c.name === 'Referral Bonus');
-        if (cat) return cat.id;
-      }
-      if (type === 'refund' || type === 'reversal') {
-        const cat = categories.find(c => c.name === 'Refund');
-        if (cat) return cat.id;
-      }
-      if (type === 'cashback') {
-        const cat = categories.find(c => c.name === 'Cashback');
-        if (cat) return cat.id;
-      }
-      if (type === 'p2p_received') {
-        const cat = categories.find(c => c.name === 'P2P Transfer Received');
-        if (cat) return cat.id;
-      }
-      if (type === 'salary') {
-        const cat = categories.find(c => c.name === 'Salary');
-        if (cat) return cat.id;
-      }
+      // FIXED: Bookkeeping rule — all inflows default to Sales Revenue
+      const salesRevenue = categories.find(c => c.name.toLowerCase() === 'sales revenue');
+      if (salesRevenue) return salesRevenue.id;
       
-      const otherIncome = categories.find(c => c.name === 'Other Income');
+      // Only if Sales Revenue doesn't exist, try Other Income
+      const otherIncome = categories.find(c => c.name.toLowerCase() === 'other income');
       if (otherIncome) return otherIncome.id;
       
-      const anyIncome = categories.find(c => c.type === 'income');
-      return anyIncome?.id || '';
+      // FIXED: Don't fallback to a random income category
+      return '';
     }
   }, [categories]);
 
@@ -287,46 +269,43 @@ export function useJournalStore() {
     }
   }, [userId, loadData]);
 
- const addEntry = useCallback(async (entry: Omit<JournalEntry, 'id' | 'createdAt'>) => {
-  console.warn('Manual entry creation is disabled. Use wallet transactions instead.');
-  
-  // Show a toast notification to inform the user
-  if (typeof window !== 'undefined') {
-    const Swal = require('sweetalert2').default;
-    Swal.fire({
-      icon: "info",
-      title: "Manual Entry Disabled",
-      text: "All transactions are automatically synced from your wallet activity. Manual entries are not available.",
-      confirmButtonColor: "var(--color-accent-yellow)",
-      timer: 3000,
-    });
-  }
-  
-  // Return a mock entry to prevent UI errors
-  return {
-    id: crypto.randomUUID(),
-    ...entry,
-    createdAt: new Date().toISOString(),
-  } as JournalEntry;
-}, []);
+  const addEntry = useCallback(async (entry: Omit<JournalEntry, 'id' | 'createdAt'>) => {
+    console.warn('Manual entry creation is disabled. Use wallet transactions instead.');
+    
+    if (typeof window !== 'undefined') {
+      const Swal = require('sweetalert2').default;
+      Swal.fire({
+        icon: "info",
+        title: "Manual Entry Disabled",
+        text: "All transactions are automatically synced from your wallet activity. Manual entries are not available.",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        timer: 3000,
+      });
+    }
+    
+    return {
+      id: crypto.randomUUID(),
+      ...entry,
+      createdAt: new Date().toISOString(),
+    } as JournalEntry;
+  }, []);
 
-const updateEntry = useCallback(async (id: string, updates: any) => {
-  console.warn('Manual entry update is disabled. Use wallet transactions instead.');
-  
-  // Show a toast notification to inform the user
-  if (typeof window !== 'undefined') {
-    const Swal = require('sweetalert2').default;
-    Swal.fire({
-      icon: "info",
-      title: "Manual Update Disabled",
-      text: "Transactions are automatically synced from your wallet. Category changes can be made via the edit button on each entry.",
-      confirmButtonColor: "var(--color-accent-yellow)",
-      timer: 3000,
-    });
-  }
-  
-  return { id, ...updates };
-}, []);
+  const updateEntry = useCallback(async (id: string, updates: any) => {
+    console.warn('Manual entry update is disabled. Use wallet transactions instead.');
+    
+    if (typeof window !== 'undefined') {
+      const Swal = require('sweetalert2').default;
+      Swal.fire({
+        icon: "info",
+        title: "Manual Update Disabled",
+        text: "Transactions are automatically synced from your wallet. Category changes can be made via the edit button on each entry.",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        timer: 3000,
+      });
+    }
+    
+    return { id, ...updates };
+  }, []);
 
   const deleteEntry = useCallback(async (id: string) => {
     if (!userId) throw new Error('User not authenticated');
@@ -430,12 +409,11 @@ const updateEntry = useCallback(async (id: string, updates: any) => {
     }
   }, [userId, forceUpdate]);
 
-  // Create unified entries - ONLY from wallet transactions (single source of truth)
+  // FIXED: Create unified entries — respects tx.category_id from backend trigger
   const unifiedEntries: UnifiedTransaction[] = useMemo(() => {
     const hiddenWalletEntries = JSON.parse(localStorage.getItem(`hidden_wallet_entries_${userId}`) || '[]');
     const walletCategoryOverrides = JSON.parse(localStorage.getItem(`wallet_category_overrides_${userId}`) || '{}');
     
-    // ONLY wallet transactions - no manual entries to avoid duplicates
     const walletEntries: UnifiedTransaction[] = walletTransactions
       .filter(tx => {
         const walletId = `wallet_${tx.id}`;
@@ -446,12 +424,19 @@ const updateEntry = useCallback(async (id: string, updates: any) => {
         const primaryDescription = tx.narration || tx.description || `${tx.type} transaction`;
         const isOutflow = OUTFLOW_TYPES.includes(tx.type?.toLowerCase()) || tx.amount < 0;
         
-        const transactionCategoryName = tx.category || '';
+        // FIXED: Priority order for category resolution
+        // 1. User override from localStorage
+        // 2. category_id from transaction (set by backend trigger)
+        // 3. Derive from category name or transaction type
+        let categoryId = walletCategoryOverrides[tx.id] || '';
         
-        let categoryId = getCategoryIdFromName(transactionCategoryName, tx.type, isOutflow);
+        if (!categoryId && tx.category_id) {
+          categoryId = tx.category_id;
+        }
         
-        if (walletCategoryOverrides[tx.id]) {
-          categoryId = walletCategoryOverrides[tx.id];
+        if (!categoryId) {
+          const transactionCategoryName = tx.category || '';
+          categoryId = getCategoryIdFromName(transactionCategoryName, tx.type, isOutflow);
         }
         
         const amount = Math.abs(tx.amount);
@@ -463,7 +448,7 @@ const updateEntry = useCallback(async (id: string, updates: any) => {
           type: txType,
           amount: amount,
           categoryId: categoryId,
-          categoryName: transactionCategoryName || matchedCategory?.name,
+          categoryName: tx.category || matchedCategory?.name,
           note: primaryDescription,
           source: 'wallet',
           journalType: activeJournalType,
@@ -604,7 +589,7 @@ const updateEntry = useCallback(async (id: string, updates: any) => {
   }, [userId, loadData]);
 
   return {
-    entries: [], // No manual entries
+    entries: [],
     categories,
     activeJournalType,
     setActiveJournalType,

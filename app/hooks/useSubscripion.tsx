@@ -43,7 +43,7 @@ export const useSubscription = () => {
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 60000, // 1 minute
+      dedupingInterval: 60000,
       fallbackData: subscription,
       onError: (error) => {
         console.error('SWR subscription fetch error:', error);
@@ -66,7 +66,6 @@ export const useSubscription = () => {
           filter: `user_id=eq.${userData.id}`,
         },
         () => {
-          // Invalidate cache and refetch
           mutateSubscription();
           refreshSubscription();
         }
@@ -88,7 +87,6 @@ export const useSubscription = () => {
 
   // Enhanced canAccessFeature
   const enhancedCanAccessFeature = useCallback(async (featureKey: string, currentCount?: number) => {
-    // Check regular subscription access
     return canAccessFeature(featureKey, currentCount);
   }, [canAccessFeature]);
 
@@ -182,8 +180,8 @@ export const useSubscription = () => {
       free_to_sme: [
         "Upload bank statements (PDF/Excel/CSV)",
         "Connect up to 3 bank accounts",
-        "Unlimited invoices",
-        "Unlimited receipts",
+        "Unlimited invoices (up from 5)",
+        "Unlimited receipts (up from 5)",
         "Vault for financial documents",
         "Tax calculator",
         "Financial statements (P&L, Cash Flow, Balance Sheet)",
@@ -294,7 +292,7 @@ export const useSubscription = () => {
   // Check if user has unlimited access for various features
   const hasUnlimitedInvoices = isSME || isEnterprise || isCorporation;
   const hasUnlimitedReceipts = isSME || isEnterprise || isCorporation;
-  const hasUnlimitedContracts = isCorporation || isEnterprise || isSME;
+  const hasUnlimitedContracts = isCorporation;
 
   // Feature access helpers
   const canAccessTaxCalculator = isSME || isEnterprise || isCorporation;
@@ -308,7 +306,7 @@ export const useSubscription = () => {
     if (isEnterprise) return 'Enterprise';
     if (isSME) return 'SME';
     if (isSolopreneur) return 'Solopreneur';
-    return 'Free Trial';
+    return 'Free';
   }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
 
   // Get tier icon name (for use with lucide icons)
@@ -372,26 +370,6 @@ export const useSubscription = () => {
     };
   }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
 
-  // Get limit for a specific feature
-  const getFeatureLimit = useCallback((feature: 'invoices' | 'receipts' | 'contracts' | 'teamMembers' | 'bankAccounts'): number | string => {
-    const limits = getPlanLimits();
-    return limits[feature] || 0;
-  }, [getPlanLimits]);
-
-  // Check if user has reached a specific limit
-  const hasReachedLimit = useCallback((feature: 'invoices' | 'receipts' | 'contracts' | 'teamMembers' | 'bankAccounts', currentCount: number): boolean => {
-    const limit = getFeatureLimit(feature);
-    if (limit === 'unlimited') return false;
-    return currentCount >= (limit as number);
-  }, [getFeatureLimit]);
-
-  // Get remaining count for a specific feature
-  const getRemainingCount = useCallback((feature: 'invoices' | 'receipts' | 'contracts' | 'teamMembers' | 'bankAccounts', currentCount: number): number | string => {
-    const limit = getFeatureLimit(feature);
-    if (limit === 'unlimited') return 'unlimited';
-    return Math.max(0, (limit as number) - currentCount);
-  }, [getFeatureLimit]);
-
   return {
     // Core subscription data
     subscription: cachedSubscription || subscription,
@@ -410,11 +388,11 @@ export const useSubscription = () => {
     isEnterprise,
     isCorporation,
     
-    // Legacy aliases for backward compatibility (maps to new tier names)
-    isZidLite: isSolopreneur,      // Legacy: ZidLite → Solopreneur
-    isGrowth: isSME,               // Legacy: Growth → SME
-    isPremium: isEnterprise,       // Legacy: Premium → Enterprise
-    isElite: isCorporation,        // Legacy: Elite → Corporation
+    // Legacy aliases for backward compatibility
+    isZidLite: isSolopreneur,
+    isGrowth: isSME,
+    isPremium: isEnterprise,
+    isElite: isCorporation,
     
     // Feature access helpers
     hasUnlimitedInvoices,
@@ -433,12 +411,6 @@ export const useSubscription = () => {
     getUpgradeBenefits: enhancedGetUpgradeBenefits,
     canAccessFeature: enhancedCanAccessFeature,
     getPlanLimits,
-    getFeatureLimit,
-    hasReachedLimit,
-    getRemainingCount,
-    getTierDisplayName,
-    getTierIconName,
-    getTierColors,
     
     // Status flags
     isActive: currentStatus === 'active',

@@ -15,37 +15,37 @@ const tierConfig = {
     darkColor: "dark:text-gray-300",
     label: TIER_DISPLAY_NAMES.free,
   },
-  zidlite: {
+  solopreneur: {
     icon: Zap,
     color: "text-blue-600",
     bg: "bg-blue-100",
     darkBg: "dark:bg-blue-900/30",
     darkColor: "dark:text-blue-300",
-    label: TIER_DISPLAY_NAMES.zidlite,
+    label: TIER_DISPLAY_NAMES.solopreneur,
   },
-  growth: {
+  sme: {
     icon: Zap,
     color: "text-green-600",
     bg: "bg-green-100",
     darkBg: "dark:bg-green-900/30",
     darkColor: "dark:text-green-300",
-    label: TIER_DISPLAY_NAMES.growth,
+    label: TIER_DISPLAY_NAMES.sme,
   },
-  premium: {
+  enterprise: {
     icon: Crown,
     color: "text-(--color-accent-yellow)",
     bg: "bg-(--color-accent-yellow)/10",
     darkBg: "dark:bg-(--color-accent-yellow)/20",
     darkColor: "dark:text-(--color-accent-yellow)",
-    label: TIER_DISPLAY_NAMES.premium,
+    label: TIER_DISPLAY_NAMES.enterprise,
   },
-  elite: {
+  corporation: {
     icon: Sparkles,
     color: "text-purple-600",
     bg: "bg-purple-100",
     darkBg: "dark:bg-purple-900/30",
     darkColor: "dark:text-purple-300",
-    label: TIER_DISPLAY_NAMES.elite,
+    label: TIER_DISPLAY_NAMES.corporation,
   },
 };
 
@@ -70,7 +70,18 @@ export function SubscriptionBadge({
   const config = tierConfig[tier as keyof typeof tierConfig];
   const Icon = config.icon;
 
- 
+  useEffect(() => {
+    if (showTrial) {
+      fetch(`/api/trials/check?feature=${featureKey}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.isActive) {
+            setTrialInfo(data);
+          }
+        })
+        .catch(() => setTrialInfo(null));
+    }
+  }, [showTrial, featureKey]);
 
   const sizeClasses = {
     sm: "text-xs px-2 py-0.5",
