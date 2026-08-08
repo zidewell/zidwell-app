@@ -13,7 +13,6 @@ import MobileBottomNav from "../components/dashboard-component/MobileBottomNav";
 import BVNVerificationBadge from "../components/BVNVerificationBadge";
 import BalanceCard from "../components/Balance-card";
 import TransactionHistory from "../components/transaction-history";
-import UsageSummary from "../components/UsageSummary";
 import { useSubscription } from "../hooks/useSubscripion";
 import { UpgradeBanner } from "../components/subscription-components/UpgradeBanner";
 import { SubscriptionModal } from "../components/dashboard-component/SubscriptionModal";

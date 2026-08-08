@@ -40,29 +40,29 @@ const plans = [
     cta: "Start Free",
     featured: false,
   },
-  {
-    name: "Solopreneur",
-    tagline: "Get Organized",
-    tier: "solopreneur",
-    amount: 4900,
-    yearlyAmount: 49000,
-    price: "₦4,900",
-    yearlyPrice: "₦49,000/year (Save 17%)",
-    altPrice: "$3.99",
-    suffix: "/month",
-    note: "For freelancers and solo business owners.",
-    region: "global",
-    features: [
-      "Everything in Free, plus:",
-      "Up to 10 invoices",
-      "Unlimited receipts",
-      "Branded invoices",
-      "Better expense tracking",
-      "Basic financial insights",
-    ],
-    cta: "Go Solopreneur",
-    featured: false,
-  },
+  // {
+  //   name: "Solopreneur",
+  //   tagline: "Get Organized",
+  //   tier: "solopreneur",
+  //   amount: 4900,
+  //   yearlyAmount: 49000,
+  //   price: "₦4,900",
+  //   yearlyPrice: "₦49,000/year (Save 17%)",
+  //   altPrice: "$3.99",
+  //   suffix: "/month",
+  //   note: "For freelancers and solo business owners.",
+  //   region: "global",
+  //   features: [
+  //     "Everything in Free, plus:",
+  //     "Up to 10 invoices",
+  //     "Unlimited receipts",
+  //     "Branded invoices",
+  //     "Better expense tracking",
+  //     "Basic financial insights",
+  //   ],
+  //   cta: "Go Solopreneur",
+  //   featured: false,
+  // },
   {
     name: "SME",
     tagline: "Run Your Business Properly",
@@ -341,7 +341,7 @@ export function PlansSection() {
           </div>
 
           {/* Pricing Grid */}
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 ">
             {plans.map((plan) => {
               const currentPlan = isCurrentPlan(plan.tier);
               const isProcessing = processingTier === plan.tier;

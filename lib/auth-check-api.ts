@@ -1,11 +1,11 @@
-// lib/check-auth.ts
+// lib/auth-check-api.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  subscription_tier?: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite';
+  subscription_tier?: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
   subscription_expires_at?: string | null;
   is_subscription_active?: boolean;
 }
@@ -117,7 +117,6 @@ export async function isAuthenticatedWithRefresh(req: NextRequest): Promise<Auth
 
     if (dbError) {
       console.error("🔴 Error fetching user data:", dbError);
-      // Return basic user info even if DB fetch fails
       const basicUser: AuthenticatedUser = {
         id: user.id,
         email: user.email!,
@@ -171,7 +170,7 @@ export function createAuthResponse(
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
     });
     
     response.cookies.set("sb-refresh-token", newTokens.refreshToken, {
@@ -179,7 +178,7 @@ export function createAuthResponse(
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
     });
     
     console.log("🔄 New tokens set in response");
@@ -212,7 +211,7 @@ export async function requireAuth(req: NextRequest) {
 // Check if user has required subscription tier
 export async function hasRequiredTier(
   req: NextRequest,
-  requiredTier: 'free' | 'zidlite' | 'growth' | 'premium' | 'elite'
+  requiredTier: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation'
 ): Promise<{ hasAccess: boolean; user: AuthenticatedUser | null; newTokens?: any; error?: string }> {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
   
@@ -224,7 +223,7 @@ export async function hasRequiredTier(
     };
   }
 
-  const tierHierarchy = ['free', 'zidlite', 'growth', 'premium', 'elite'];
+  const tierHierarchy = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
   const userTierIndex = tierHierarchy.indexOf(user.subscription_tier || 'free');
   const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
 
@@ -375,78 +374,4 @@ export async function getUserSubscriptionDetails(userId: string) {
     console.error("Error in getUserSubscriptionDetails:", error);
     return null;
   }
-}
-
-// Check usage limits
-export async function checkUsageLimit(
-  userId: string,
-  featureKey: string,
-  currentCount: number
-): Promise<{ withinLimit: boolean; limit?: number; error?: string }> {
-  try {
-    const supabaseAdmin = getSupabaseAdmin();
-    
-    const { data: features, error } = await supabaseAdmin
-      .from("subscription_features")
-      .select("feature_limit")
-      .eq("tier", (await getUserSubscriptionDetails(userId))?.tier || 'free')
-      .eq("feature_key", featureKey)
-      .single();
-
-    if (error || !features) {
-      return { withinLimit: true };
-    }
-
-    const limit = features.feature_limit;
-    if (limit && currentCount >= limit) {
-      return {
-        withinLimit: false,
-        limit,
-        error: `You've reached your ${featureKey.replace(/_/g, ' ')} limit of ${limit}`,
-      };
-    }
-
-    return { withinLimit: true, limit };
-  } catch (error) {
-    console.error("Error checking usage limit:", error);
-    return { withinLimit: true };
-  }
-}
-
-// Increment usage (placeholder - implement actual logic)
-export async function incrementUsage(
-  userId: string,
-  featureKey: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    console.log(`Incrementing usage for user ${userId}, feature ${featureKey}`);
-    // Add your actual increment logic here
-    return { success: true };
-  } catch (error) {
-    console.error("Error incrementing usage:", error);
-    return { success: false, error: "Failed to increment usage" };
-  }
-}
-
-// Redirect to login with callback URL
-export function redirectToLogin(req: NextRequest, customMessage?: string) {
-  const { pathname, search } = req.nextUrl;
-  const fullUrl = `${pathname}${search}`;
-  
-  const loginUrl = new URL("/auth/login", req.url);
-  loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
-  
-  if (customMessage) {
-    loginUrl.searchParams.set("message", encodeURIComponent(customMessage));
-  }
-  
-  return loginUrl.toString();
-}
-
-// Clear all auth cookies
-export function clearAuthCookies(response: NextResponse) {
-  response.cookies.delete("sb-access-token");
-  response.cookies.delete("sb-refresh-token");
-  response.cookies.delete("verified");
-  return response;
 }

@@ -28,16 +28,29 @@ export function SubscriptionDashboard() {
     isActive,
     getPlanLimits,
     isFree,
-    isZidLite,
-    isGrowth,
-    isPremium,
-    isElite,
+    isSolopreneur,
+    isSME,
+    isEnterprise,
+    isCorporation,
   } = useSubscription();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
   const [taxCalculatorTrial, setTaxCalculatorTrial] = useState<any>(null);
 
+  useEffect(() => {
+    if (isFree) {
+      fetch("/api/trials/check?feature=bookkeeping_access")
+        .then((res) => res.json())
+        .then((data) => setBookkeepingTrial(data))
+        .catch(() => setBookkeepingTrial(null));
+
+      fetch("/api/trials/check?feature=tax_calculator")
+        .then((res) => res.json())
+        .then((data) => setTaxCalculatorTrial(data))
+        .catch(() => setTaxCalculatorTrial(null));
+    }
+  }, [isFree]);
 
   if (loading) {
     return (
@@ -95,13 +108,13 @@ export function SubscriptionDashboard() {
     switch (tier) {
       case "free":
         return <Star className="w-5 h-5 text-gray-600" />;
-      case "zidlite":
+      case "solopreneur":
         return <Zap className="w-5 h-5 text-blue-600" />;
-      case "growth":
+      case "sme":
         return <Zap className="w-5 h-5 text-green-600" />;
-      case "premium":
+      case "enterprise":
         return <Crown className="w-5 h-5 text-(--color-accent-yellow)" />;
-      case "elite":
+      case "corporation":
         return <Sparkles className="w-5 h-5 text-purple-600" />;
       default:
         return null;
@@ -111,15 +124,15 @@ export function SubscriptionDashboard() {
   const getPlanDisplayName = (tier: string) => {
     switch (tier) {
       case "free":
-        return "Free Trial";
-      case "zidlite":
-        return "ZidLite";
-      case "growth":
-        return "Growth";
-      case "premium":
-        return "Premium";
-      case "elite":
-        return "Elite";
+        return "Free";
+      case "solopreneur":
+        return "Solopreneur";
+      case "sme":
+        return "SME";
+      case "enterprise":
+        return "Enterprise";
+      case "corporation":
+        return "Corporation";
       default:
         return tier;
     }
@@ -127,7 +140,6 @@ export function SubscriptionDashboard() {
 
   const limits = getPlanLimits();
 
-  // Helper function to safely check if a feature is included
   const isFeatureIncluded = (featureName: string): boolean => {
     return (limits as any)[featureName] === true;
   };
@@ -154,7 +166,7 @@ export function SubscriptionDashboard() {
               </span>
             </div>
 
-            {subscription.expiresAt && !isFree && !isZidLite && (
+            {subscription.expiresAt && !isFree && !isSolopreneur && (
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-4">
                 <Calendar className="w-4 h-4" />
                 <span>
@@ -165,15 +177,14 @@ export function SubscriptionDashboard() {
               </div>
             )}
 
-            {(isFree || isZidLite) && (
+            {(isFree || isSolopreneur) && (
               <div className="space-y-2">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {isFree
-                    ? "You're on the Free Trial plan. Upgrade to access more features and higher limits."
-                    : "You're on the ZidLite plan. Upgrade to Growth or higher for unlimited features."}
+                    ? "You're on the Free plan. Upgrade to access more features and higher limits."
+                    : "You're on the Solopreneur plan. Upgrade to SME or higher for unlimited features."}
                 </p>
 
-                {/* Show trial information if active */}
                 <div className="space-y-2 mt-3">
                   {bookkeepingTrial?.isActive && (
                     <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
@@ -251,13 +262,12 @@ export function SubscriptionDashboard() {
                     <span className="text-gray-600 dark:text-gray-400">
                       Transfer fee:
                     </span>
-                    {/* <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
-                      ₦{limits.transferFee} per transfer
-                    </span> */}
+                    <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
+                      ₦50 per transfer
+                    </span>
                   </div>
                 </div>
 
-                {/* Feature Access Section */}
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                     Feature Access
@@ -328,10 +338,10 @@ export function SubscriptionDashboard() {
               </div>
             )}
 
-            {isGrowth && (
+            {isSME && (
               <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
-                  Growth Plan Benefits
+                  SME Plan Benefits
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -341,7 +351,10 @@ export function SubscriptionDashboard() {
                     <span className="font-medium">Receipts:</span> Unlimited
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Contracts:</span> 5 total
+                    <span className="font-medium">Contracts:</span> 1 total
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Bank Accounts:</span> 3
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Bookkeeping:</span> Included
@@ -351,16 +364,20 @@ export function SubscriptionDashboard() {
                     Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Financial Statements:</span>{" "}
+                    View only
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Support:</span> WhatsApp
                   </div>
                 </div>
               </div>
             )}
 
-            {isPremium && (
+            {isEnterprise && (
               <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
-                  Premium Plan Benefits
+                  Enterprise Plan Benefits
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -370,60 +387,68 @@ export function SubscriptionDashboard() {
                     <span className="font-medium">Receipts:</span> Unlimited
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Contracts:</span> Unlimited
+                    <span className="font-medium">Contracts:</span> 10 total
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Payment Reminders:</span>{" "}
+                    <span className="font-medium">Bank Accounts:</span> 5
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Multi-user Access:</span> Full
+                    team
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Role Permissions:</span>{" "}
                     Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Financial Statements:</span>{" "}
+                    <span className="font-medium">Approval System:</span>{" "}
                     Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Tax Support:</span> Included
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Support:</span> Priority
+                    <span className="font-medium">Support:</span> Dedicated
+                    Onboarding
                   </div>
                 </div>
               </div>
             )}
 
-            {isElite && (
+            {isCorporation && (
               <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
-                  Elite Plan Benefits
+                  Corporation Plan Benefits
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">
-                      Everything in Premium, plus:
-                    </span>
+                    <span className="font-medium">Everything in Enterprise, plus:</span>
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Transfer Fee:</span> ₦0
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Full Tax Filing:</span> VAT,
-                    PAYE, WHT
+                    <span className="font-medium">Unlimited Contracts:</span>{" "}
+                    Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">CIT Audit:</span> Included
+                    <span className="font-medium">Department Access:</span> HR,
+                    Finance, Ops
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">CFO Guidance:</span> Included
+                    <span className="font-medium">Payroll System:</span> Simple
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Support:</span> Direct
-                    WhatsApp
+                    <span className="font-medium">Advanced Reporting:</span>{" "}
+                    Included
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Support:</span> Dedicated
+                    Account Manager
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {!isFree && !isZidLite && subscription.status === "active" && (
+          {!isFree && !isSolopreneur && subscription.status === "active" && (
             <div className="mt-4 md:mt-0 md:ml-6">
               {!showCancelConfirm ? (
                 <Button2
@@ -465,7 +490,7 @@ export function SubscriptionDashboard() {
 
       {/* Features List - Only for paid tiers */}
       {!isFree &&
-        !isZidLite &&
+        !isSolopreneur &&
         subscription.features &&
         Object.keys(subscription.features).length > 0 && (
           <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
@@ -500,8 +525,8 @@ export function SubscriptionDashboard() {
           </div>
         )}
 
-      {/* Payment History - Placeholder for now */}
-      {!isFree && !isZidLite && (
+      {/* Payment History - Placeholder */}
+      {!isFree && !isSolopreneur && (
         <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
           <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
             Payment History
@@ -515,15 +540,15 @@ export function SubscriptionDashboard() {
       )}
 
       {/* Upgrade Options */}
-      {!isElite && (
+      {!isCorporation && (
         <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6">
           <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
             Upgrade Your Plan
           </h3>
           <div className="space-y-4">
-            {["zidlite", "growth", "premium", "elite"]
+            {["solopreneur", "sme", "enterprise", "corporation"]
               .filter((tier) => {
-                const tiers = ["free", "zidlite", "growth", "premium", "elite"];
+                const tiers = ["free", "solopreneur", "sme", "enterprise", "corporation"];
                 const currentIndex = tiers.indexOf(subscription.tier);
                 const targetIndex = tiers.indexOf(tier);
                 return targetIndex > currentIndex;
