@@ -269,6 +269,410 @@ export default function Transfer() {
     }, 300);
   };
 
+  // Function to handle downloading receipt from data using exact receipt HTML from TransactionDetailsPage
+  const handleDownloadReceiptFromData = async (receiptData: any) => {
+    try {
+      // Fetch logo as base64
+      let logoBase64 = '';
+      try {
+        const response = await fetch("/logo.png");
+        if (response.ok) {
+          const blob = await response.blob();
+          logoBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch (e) {
+        console.error("Error loading logo:", e);
+      }
+
+      const logoSrc = logoBase64 || "/logo.png";
+      const amountDisplay = `₦${Number(receiptData.amount).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
+      const formattedDate = new Date(receiptData.date).toLocaleString('en-GB', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const statusColor = "#E5B333";
+      const statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
+        <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+
+      const receiptHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zidwell Receipt | ${receiptData.transactionId}</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Arial', 'Helvetica', sans-serif;
+  }
+  body {
+    background: #101010;
+    display: flex;
+    justify-content: center;
+    padding: 30px 20px;
+  }
+  .receipt {
+    width: 550px;
+    background: #fff;
+    border: 2px solid ${statusColor};
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+  }
+  .header {
+    height: 120px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .header::after {
+    content: "";
+    position: absolute;
+    bottom: 0px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    height: 130px;
+    background: #101010;
+    border: 2px solid #E5B333;
+    clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%);
+    border-radius: 0 0 240px 240px;
+  }
+  .logo {
+    position: relative;
+    z-index: 2;
+  }
+  .logo img {
+    width: 130px;
+  }
+  .content {
+    padding: 30px 40px 30px;
+  }
+  .status-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .status-icon svg {
+    width: 48px;
+    height: 48px;
+  }
+  .title {
+    text-align: center;
+  }
+  .title h1 {
+    font-size: 25px;
+    margin-bottom: 10px;
+  }
+  .title p {
+    color: #777;
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 20px 0;
+  }
+  .divider-line {
+    flex: 1;
+    height: 1px;
+    background: #E5B333;
+  }
+  .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #E5B333;
+  }
+  .amount {
+    text-align: center;
+  }
+  .amount-label {
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .amount-value {
+    font-size: 30px;
+    font-weight: 700;
+    margin-top: 10px;
+  }
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin: 40px 0 25px;
+  }
+  .section-title .line {
+    flex: 1;
+    height: 1px;
+    background: #E5B333;
+  }
+  .section-title span {
+    color: #E5B333;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 0;
+    border-bottom: 1px solid #f0e0a3;
+  }
+  .detail-row-last {
+    border-bottom: none;
+  }
+  .left {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+  }
+  .icon {
+    width: 42px;
+    height: 42px;
+    background: #101010;
+    border-radius: 50%;
+    color: #E5B333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .detail-title {
+    font-size: 15px;
+    color: #444;
+  }
+  .detail-value {
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .sub {
+    color: #777;
+    font-size: 14px;
+  }
+  .right {
+    font-weight: 600;
+  }
+  .footer {
+    height: 50px;
+    color: #fff;
+    font-size:12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    background: #101010;
+  }
+  .footer::before {
+    content: "";
+    position: absolute;
+    top: -40px;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    background: #101010;
+    border-top: 2px solid #E5B333;
+    border-top-left-radius: 70%;
+    border-top-right-radius: 70%;
+  }
+  .footer span {
+    position: relative;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+
+<div class="receipt">
+  <div class="header">
+    <div class="logo">
+      <img src="${logoSrc}" alt="Zidwell Logo">
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="status-icon">
+      ${statusIconSvg}
+    </div>
+
+    <div class="title">
+      <h1>Transfer Successful</h1>
+      <p>Your transaction has been completed successfully.</p>
+    </div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="divider-line"></div>
+    </div>
+
+    <div class="amount">
+      <div class="amount-label">Amount</div>
+      <div class="amount-value">${amountDisplay}</div>
+    </div>
+
+    <div class="section-title">
+      <div class="line"></div>
+      <span>Transaction Details</span>
+      <div class="line"></div>
+    </div>
+
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">Date & Time</div>
+        </div>
+      </div>
+      <div class="right">${formattedDate}</div>
+    </div>
+
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="19" x2="12" y2="5"/>
+            <polyline points="5 12 12 5 19 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">From</div>
+          <div class="detail-value">${receiptData.senderName || 'Zidwell User'}</div>
+          ${receiptData.senderAccount ? `<div class="sub">${receiptData.senderAccount}</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <polyline points="19 12 12 19 5 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">To</div>
+          <div class="detail-value">${receiptData.recipientName || 'N/A'}</div>
+          ${receiptData.recipientAccount ? `<div class="sub">${receiptData.recipientAccount}</div>` : ''}
+          ${receiptData.recipientBank ? `<div class="sub">${receiptData.recipientBank}</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    ${receiptData.narration ? `
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">Narration</div>
+          <div class="detail-value" style="font-weight: 400; font-size: 14px;">${receiptData.narration}</div>
+        </div>
+      </div>
+    </div>
+    ` : ''}
+
+    ${receiptData.fee && receiptData.fee > 0 ? `
+    <div class="detail-row">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">Fee</div>
+        </div>
+      </div>
+      <div class="right">₦${Number(receiptData.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
+    </div>
+    ` : ''}
+
+    <div class="detail-row detail-row-last">
+      <div class="left">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <div>
+          <div class="detail-title">Transaction ID</div>
+          <div class="detail-value">${receiptData.transactionId}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Thank you for using Zidwell.</span>
+  </div>
+</div>
+
+</body>
+</html>`;
+
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: receiptHTML }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate PDF");
+      }
+
+      const pdfBlob = await response.blob();
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `zidwell-receipt-${receiptData.transactionId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Error generating receipt:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Download",
+        text: "Could not generate receipt. Please try again.",
+      });
+    }
+  };
+
   const startPolling = (transactionId: string) => {
     stopPolling();
     alertShownRef.current = false;
@@ -431,11 +835,8 @@ export default function Transfer() {
     };
 
     setRecentBeneficiaries((prev) => {
-      // Remove existing entry with same account number
       const filtered = prev.filter((b) => b.account_number !== accountNumber);
-      // Add new entry at the beginning
       const updated = [newRecent, ...filtered].slice(0, 10);
-      // Save to localStorage
       localStorage.setItem(
         `recent_beneficiaries_${userData?.id}`,
         JSON.stringify(updated),
@@ -466,12 +867,10 @@ export default function Transfer() {
       })),
     ];
 
-    // Remove duplicates by account_number
     const unique = Array.from(
       new Map(allBeneficiaries.map((b) => [b.account_number, b])).values(),
     );
 
-    // Sort by last_used (most recent first)
     unique.sort(
       (a, b) =>
         new Date(b.last_used).getTime() - new Date(a.last_used).getTime(),
@@ -493,7 +892,6 @@ export default function Transfer() {
       setBeneficiarySearch("");
       setMatchingBeneficiaries([]);
       setIsInputFocused(false);
-      // Remove focus from input
       accountInputRef.current?.blur();
     } else {
       setRecepientAcc(beneficiary.account_number);
@@ -519,9 +917,7 @@ export default function Transfer() {
     setAccountNumber(limitedValue);
     setBeneficiarySearch(limitedValue);
 
-    // Only show suggestions if there's input and we're not selecting a saved account
     if (limitedValue.length > 0 && !selectedSavedAccount) {
-      // Find matching beneficiaries
       const allBeneficiaries = getAllBeneficiaries();
       const matches = allBeneficiaries.filter(
         (b) =>
@@ -560,7 +956,6 @@ export default function Transfer() {
     setBeneficiarySearch(newValue);
 
     if (newValue.length > 0 && !selectedSavedP2PBeneficiary) {
-      // Find matching beneficiaries
       const allBeneficiaries = getAllBeneficiaries();
       const matches = allBeneficiaries.filter(
         (b) =>
@@ -780,12 +1175,10 @@ export default function Transfer() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      // Check if click is outside the beneficiary suggestions container and input
       if (
         beneficiaryContainerRef.current &&
         !beneficiaryContainerRef.current.contains(target)
       ) {
-        // Check if click is on an input field that should keep the dropdown open
         const isInputTrigger = target.closest(".beneficiary-input-trigger");
         if (!isInputTrigger) {
           setShowBeneficiarySuggestions(false);
@@ -852,7 +1245,7 @@ export default function Transfer() {
     if (transferType !== "other-bank") return;
     if (accountNumber.length !== 10 || !bankCode) return;
 
-    if (accountNumber === userDetails?.bank_details.bank_account_number) {
+    if (accountNumber === userDetails?.bank_details?.bank_account_number) {
       setP2pDetails(null);
       setErrors((prev) => ({
         ...prev,
@@ -895,57 +1288,56 @@ export default function Transfer() {
     return () => clearTimeout(timeout);
   }, [accountNumber, bankCode, transferType, userDetails]);
 
- useEffect(() => {
-  if (transferType !== "p2p") return;
-  if (!recepientAcc || recepientAcc.length < 6) return;
+  useEffect(() => {
+    if (transferType !== "p2p") return;
+    if (!recepientAcc || recepientAcc.length < 6) return;
 
-  if (recepientAcc === userDetails?.bank_details?.bank_account_number) {
-    setP2pDetails(null);
-    setErrors((prev) => ({
-      ...prev,
-      recepientAcc: "You cannot transfer to your own account.",
-    }));
-    return;
-  }
-
-  const timeout = setTimeout(async () => {
-    setLookupLoading(true);
-    try {
-      const res = await fetch("/api/find-user-wallet-id", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accNumber: recepientAcc }),
-      });
-      const data = res.ok ? await res.json() : null;
-
-      if (data?.receiverName || data?.full_name) {
-        // Use receiverName or full_name from response
-        const displayName = data.receiverName || data.full_name || 'Zidwell User';
-        setP2pDetails({
-          name: displayName,
-          id: data.walletId,
-        });
-        setErrors((prev) => ({ ...prev, recepientAcc: "" }));
-      } else {
-        setP2pDetails(null);
-        setErrors((prev) => ({
-          ...prev,
-          recepientAcc: data?.error || "User not found.",
-        }));
-      }
-    } catch (err: any) {
+    if (recepientAcc === userDetails?.bank_details?.bank_account_number) {
       setP2pDetails(null);
       setErrors((prev) => ({
         ...prev,
-        recepientAcc: err?.message || "Could not verify account.",
+        recepientAcc: "You cannot transfer to your own account.",
       }));
-    } finally {
-      setLookupLoading(false);
+      return;
     }
-  }, 400);
 
-  return () => clearTimeout(timeout);
-}, [recepientAcc, transferType, userDetails]);
+    const timeout = setTimeout(async () => {
+      setLookupLoading(true);
+      try {
+        const res = await fetch("/api/find-user-wallet-id", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accNumber: recepientAcc }),
+        });
+        const data = res.ok ? await res.json() : null;
+
+        if (data?.receiverName || data?.full_name) {
+          const displayName = data.receiverName || data.full_name || 'Zidwell User';
+          setP2pDetails({
+            name: displayName,
+            id: data.walletId,
+          });
+          setErrors((prev) => ({ ...prev, recepientAcc: "" }));
+        } else {
+          setP2pDetails(null);
+          setErrors((prev) => ({
+            ...prev,
+            recepientAcc: data?.error || "User not found.",
+          }));
+        }
+      } catch (err: any) {
+        setP2pDetails(null);
+        setErrors((prev) => ({
+          ...prev,
+          recepientAcc: err?.message || "Could not verify account.",
+        }));
+      } finally {
+        setLookupLoading(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [recepientAcc, transferType, userDetails]);
 
   const handleSelectSavedAccount = (account: SavedAccount) => {
     setSelectedSavedAccount(account);
@@ -983,8 +1375,7 @@ export default function Transfer() {
       !accountName ||
       !bankCode ||
       !bankName
-    )
-      return;
+    ) return;
     try {
       const response = await fetch("/api/saved-accounts", {
         method: "POST",
@@ -1168,16 +1559,55 @@ export default function Transfer() {
 
         triggerConfetti();
 
-        await Swal.fire({
+        // Prepare receipt data for download
+        const receiptData = {
+          transactionId: data.transactionId || data.reference || data.transactionRef || 'TXN-' + Date.now(),
+          amount: Number(amount),
+          date: new Date().toISOString(),
+          recipientName: transferType === "p2p" 
+            ? p2pDetails?.name 
+            : transferType === "other-bank" 
+              ? accountName 
+              : userDetails?.payment_details?.p_account_name,
+          recipientAccount: transferType === "p2p" 
+            ? recepientAcc 
+            : transferType === "other-bank" 
+              ? accountNumber 
+              : userDetails?.payment_details?.p_account_number,
+          recipientBank: transferType === "p2p" 
+            ? "Zidwell" 
+            : transferType === "other-bank" 
+              ? bankName 
+              : userDetails?.payment_details?.p_bank_name,
+          senderName: userData?.fullName || userDetails?.bank_details?.bank_account_name || 'Zidwell User',
+          senderAccount: userDetails?.bank_details?.bank_account_number || 'N/A',
+          narration: narration,
+          status: 'success',
+          fee: calculatedFee,
+          type: transferType
+        };
+
+        // Show success with download button
+        const result = await Swal.fire({
           icon: "success",
           title: "Transfer Successful! 🎉",
           text: "Your transaction has been processed successfully.",
           showConfirmButton: true,
           confirmButtonColor: "var(--color-accent-yellow)",
+          confirmButtonText: "Done",
           timer: 5000,
           timerProgressBar: true,
           background: "#fefefe",
+          showCancelButton: true,
+          cancelButtonText: "Download Receipt",
+          cancelButtonColor: "#6b7280",
+          reverseButtons: true,
         });
+
+        // If user clicked "Download Receipt"
+        if (result.dismiss === Swal.DismissReason.cancel) {
+          await handleDownloadReceiptFromData(receiptData);
+        }
 
         resetForm();
         setConfirmTransaction(false);
@@ -1292,7 +1722,6 @@ export default function Transfer() {
     return "bank_transfer";
   };
 
-  // Use matchingBeneficiaries for display - only show when there are matches and input is focused
   const showSuggestions =
     showBeneficiarySuggestions &&
     matchingBeneficiaries.length > 0 &&
@@ -1541,7 +1970,6 @@ export default function Transfer() {
             {/* Other Bank */}
             {transferType === "other-bank" && (
               <>
-                {/* Beneficiary Suggestions Dropdown - Positioned below with proper spacing */}
                 {showSuggestions && (
                   <div
                     ref={beneficiaryContainerRef}
@@ -1602,7 +2030,6 @@ export default function Transfer() {
                   </div>
                 )}
 
-                {/* Saved Accounts Button */}
                 {savedAccounts.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -1720,7 +2147,6 @@ export default function Transfer() {
                     onChange={handleAccountNumberChange}
                     onFocus={() => {
                       setIsInputFocused(true);
-                      // Only show suggestions on focus if there's a matching beneficiary
                       if (accountNumber.length > 0) {
                         const allBeneficiaries = getAllBeneficiaries();
                         const matches = allBeneficiaries.filter(
@@ -1737,7 +2163,6 @@ export default function Transfer() {
                       }
                     }}
                     onBlur={() => {
-                      // Delay hiding to allow click on suggestion
                       setTimeout(() => {
                         if (
                           !document.activeElement?.closest(
@@ -1794,7 +2219,6 @@ export default function Transfer() {
             {/* P2P */}
             {transferType === "p2p" && (
               <>
-                {/* Beneficiary Suggestions Dropdown for P2P - Positioned below with proper spacing */}
                 {showSuggestions && (
                   <div
                     ref={beneficiaryContainerRef}
@@ -1855,7 +2279,6 @@ export default function Transfer() {
                   </div>
                 )}
 
-                {/* Saved P2P Beneficiaries Button */}
                 {savedP2PBeneficiaries.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">

@@ -7,6 +7,7 @@ import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
+import { generateTransferReceipt } from "../webhook/helpers/email-helpers"; 
 
 const baseUrl =
   process.env.NODE_ENV === "development"
@@ -34,6 +35,8 @@ async function sendP2PSuccessEmailNotification(
   narration: string,
   isInvoicePayment: boolean = false,
   invoiceReference?: string,
+  receiptHtml?: string,
+  transactionId?: string,
 ) {
   try {
     const supabase = createClient(
@@ -52,12 +55,25 @@ async function sendP2PSuccessEmailNotification(
       : `✅ P2P Transfer Successful - ₦${amount.toLocaleString()}`;
     const greeting = user.full_name ? `Hi ${user.full_name},` : "Hello,";
 
-    await transporter.sendMail({
+    const mailOptions: any = {
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
-      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Recipient:"}</strong> ${isInvoicePayment ? invoiceReference : receiverName}</p><p><strong>Reference:</strong> ${transactionRef}</p><p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
-    });
+      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Recipient:"}</strong> ${isInvoicePayment ? invoiceReference : receiverName}</p><p><strong>Reference:</strong> ${transactionRef}</p>${isInvoicePayment ? '' : '<p>📎 Please find your receipt attached to this email.</p>'}<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
+    };
+
+    // Attach receipt for successful transactions
+    if (receiptHtml && transactionId) {
+      mailOptions.attachments = [
+        {
+          filename: `zidwell-receipt-${transactionId}.html`,
+          content: receiptHtml,
+          contentType: 'text/html',
+        }
+      ];
+    }
+
+    await transporter.sendMail(mailOptions);
   } catch (emailError) {
     logger.error("Failed to send P2P success email", emailError);
   }
@@ -391,7 +407,7 @@ export async function POST(req: NextRequest) {
       ]);
     }
 
-    // Update sender transaction with full names
+    // Update sender transaction with full names and success status
     await supabase
       .from("transactions")
       .update({
@@ -443,7 +459,23 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Send email notifications with full names
+    // Generate receipt HTML for sender email
+    const transactionIdForReceipt = transactionId || linkedTransactionId;
+    const receiptHtml = generateTransferReceipt({
+      transactionId: transactionIdForReceipt,
+      amount: Number(amount),
+      date: new Date().toISOString(),
+      recipientName: receiverName,
+      recipientAccount: receiver.bank_account_number || receiver.wallet_id || 'N/A',
+      recipientBank: receiver.bank_name || 'Zidwell',
+      senderName: senderName,
+      senderAccount: sender.bank_account_number || 'N/A',
+      narration: narration || "N/A",
+      fee: 0,
+      type: "p2p"
+    });
+
+    // Send email notifications with receipt attachment
     sendP2PSuccessEmailNotification(
       userId,
       receiverName,
@@ -452,6 +484,8 @@ export async function POST(req: NextRequest) {
       narration,
       invoicePaymentData?.isInvoicePayment || false,
       invoicePaymentData?.invoice_reference,
+      receiptHtml,
+      transactionIdForReceipt
     ).catch((err) => logger.error("Sender email failed", err));
 
     sendP2PReceivedEmailNotification(
@@ -491,6 +525,7 @@ export async function POST(req: NextRequest) {
     const responseData = {
       message: "P2P transfer completed successfully.",
       transactionRef: linkedTransactionId,
+      transactionId: transactionIdForReceipt,
       amount,
       receiverName: receiverName,
     };
