@@ -47,8 +47,8 @@ const AnnouncementSlider = () => {
   const a = announcements[current];
 
   return (
-    <div className="relative bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-5 md:p-6 shadow-[4px_4px_0px_var(--border-color)]">
-      <div className="flex items-center gap-5">
+    <div className="relative bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 md:p-6 shadow-[4px_4px_0px_var(--border-color)]">
+      <div className="flex items-center gap-4">
         <div className="hidden sm:flex items-center justify-center w-12 h-12 rounded-md bg-(--color-accent-yellow) text-(--color-ink) border-2 border-(--border-color) shadow-[2px_2px_0px_var(--border-color)] shrink-0">
           <Megaphone className="w-5 h-5" />
         </div>
@@ -64,6 +64,12 @@ const AnnouncementSlider = () => {
       </div>
 
       <div className="flex justify-center gap-2 mt-4">
+        <button
+          onClick={prev}
+          className="p-1 rounded-full hover:bg-(--bg-secondary) transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5 text-(--text-secondary)" />
+        </button>
         {announcements.map((_, i) => (
           <button
             key={i}
@@ -75,6 +81,12 @@ const AnnouncementSlider = () => {
             }`}
           />
         ))}
+        <button
+          onClick={next}
+          className="p-1 rounded-full hover:bg-(--bg-secondary) transition-colors"
+        >
+          <ChevronRight className="w-5 h-5 text-(--text-secondary)" />
+        </button>
       </div>
     </div>
   );

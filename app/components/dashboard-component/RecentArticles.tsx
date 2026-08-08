@@ -47,12 +47,7 @@ const isCacheValid = (cachedData: CachedData | null): boolean => {
 };
 
 const RecentArticles = () => {
-  const {
-    posts,
-    recentPosts,
-    isLoading: blogLoading,
-    error: blogError,
-  } = useBlog();
+  const { posts, recentPosts, isLoading: blogLoading, error: blogError } = useBlog();
   const [displayArticles, setDisplayArticles] = useState<any[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,7 +90,7 @@ const RecentArticles = () => {
             .sort(
               (a, b) =>
                 new Date(b.published_at || b.created_at).getTime() -
-                new Date(a.published_at || a.created_at).getTime(),
+                new Date(a.published_at || a.created_at).getTime()
             )
             .slice(0, 3)
             .map(transformPostForDisplay);
@@ -106,11 +101,7 @@ const RecentArticles = () => {
           } else {
             setHasError(true);
           }
-        } else if (
-          !blogLoading &&
-          (!posts || posts.length === 0) &&
-          (!recentPosts || recentPosts.length === 0)
-        ) {
+        } else if (!blogLoading && (!posts || posts.length === 0) && (!recentPosts || recentPosts.length === 0)) {
           setHasError(true);
         }
       } catch (error) {
@@ -125,8 +116,7 @@ const RecentArticles = () => {
   }, [posts, recentPosts, isClient, blogLoading, blogError]);
 
   useEffect(() => {
-    if (!isClient || (!recentPosts?.length && !posts?.length) || hasError)
-      return;
+    if (!isClient || (!recentPosts?.length && !posts?.length) || hasError) return;
     const refreshCache = () => {
       try {
         let articles: any[] = [];
@@ -138,7 +128,7 @@ const RecentArticles = () => {
             .sort(
               (a, b) =>
                 new Date(b.published_at || b.created_at).getTime() -
-                new Date(a.published_at || a.created_at).getTime(),
+                new Date(a.published_at || a.created_at).getTime()
             )
             .slice(0, 3)
             .map(transformPostForDisplay);
@@ -173,11 +163,7 @@ const RecentArticles = () => {
     }
   };
 
-  if (
-    hasError ||
-    (!isLoading && !blogLoading && displayArticles.length === 0 && !isFromCache)
-  )
-    return null;
+  if (hasError || (!isLoading && !blogLoading && displayArticles.length === 0 && !isFromCache)) return null;
   if (!isClient) return null;
 
   if (isLoading || (blogLoading && !isFromCache)) {
@@ -197,19 +183,19 @@ const RecentArticles = () => {
               key={i}
               className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md overflow-hidden shadow-[4px_4px_0px_var(--border-color)]"
             >
-              <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+              <div className="w-full h-48 bg-(--bg-secondary) animate-pulse" />
               <div className="p-6">
-                <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 animate-pulse mb-3" />
-                <div className="h-6 w-full bg-gray-200 dark:bg-gray-700 animate-pulse mb-3" />
-                <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 animate-pulse mb-2" />
-                <div className="h-4 w-2/3 bg-gray-200 dark:bg-gray-700 animate-pulse mb-4" />
-                <div className="h-5 w-24 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                <div className="h-4 w-20 bg-(--bg-secondary) animate-pulse mb-3" />
+                <div className="h-6 w-full bg-(--bg-secondary) animate-pulse mb-3" />
+                <div className="h-4 w-full bg-(--bg-secondary) animate-pulse mb-2" />
+                <div className="h-4 w-2/3 bg-(--bg-secondary) animate-pulse mb-4" />
+                <div className="h-5 w-24 bg-(--bg-secondary) animate-pulse" />
               </div>
             </div>
           ))}
         </div>
         {isFromCache && (
-          <p className="text-xs text-gray-400 text-center mt-2">
+          <p className="text-xs text-(--text-secondary) text-center mt-2">
             Loading fresh content...
           </p>
         )}
@@ -239,7 +225,7 @@ const RecentArticles = () => {
             key={article.id}
             href={`/blog/post-blog/${article.slug}`}
             className="block bg-(--bg-primary) border-2 border-(--border-color) rounded-md overflow-hidden shadow-[4px_4px_0px_var(--border-color)]
-                       hover:shadow-[6px_6px_0px_var(--border-color)] dark:hover:shadow-[6px_6px_0px_rgba(253,192,32,0.4)] hover:-translate-x-px hover:-translate-y-px
+                       hover:shadow-[6px_6px_0px_var(--border-color)] hover:-translate-x-px hover:-translate-y-px
                        active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all duration-150 group cursor-pointer"
           >
             <div className="w-full h-48 overflow-hidden border-b-2 border-(--border-color)">

@@ -191,11 +191,11 @@ const SectionGrid = ({ section }: { section: (typeof primarySections)[0] }) => (
     <h4 className="text-sm font-bold text-(--text-secondary) uppercase tracking-widest mb-4">
       {section.label}
     </h4>
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {section.cards.map((s) => (
         <div
           key={s.title}
-          className="relative bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-6 overflow-hidden
+          className="relative bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-5 overflow-hidden
                      shadow-[2px_2px_0px_var(--border-color)] cursor-pointer transition-all duration-150
                      hover:shadow-[6px_6px_0px_var(--border-color)] hover:-translate-x-px hover:-translate-y-px
                      active:shadow-none active:translate-x-0.5 active:translate-y-0.5"
@@ -204,7 +204,7 @@ const SectionGrid = ({ section }: { section: (typeof primarySections)[0] }) => (
             className={`absolute top-0 left-0 right-0 h-1.5 ${s.indicator}`}
           />
 
-          <div className="flex items-start justify-between mb-5">
+          <div className="flex items-start justify-between mb-4">
             <div className="p-3 rounded-md bg-(--bg-secondary) border-2 border-(--border-color)">
               <s.icon className="w-5 h-5 text-(--text-primary)" />
             </div>

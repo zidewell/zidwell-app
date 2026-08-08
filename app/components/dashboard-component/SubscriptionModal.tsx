@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -24,9 +24,7 @@ interface SubscriptionModalProps {
 
 export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   const navigate = useRouter();
-  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">(
-    "monthly",
-  );
+  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">("monthly");
   const { userTier } = useSubscription();
 
   if (userTier === "elite") return null;
@@ -59,7 +57,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           nextTier: "ZidLite",
           title: "Upgrade to ZidLite",
           description: "Test what finance automation looks like",
-          icon: <Zap className="h-6 w-6 text-white" />,
+          icon: <Zap className="h-6 w-6 text-(--color-ink)" />,
           badge: "UPGRADE NOW",
           primaryCta: "Go ZidLite",
           monthlyPrice: "₦4,900",
@@ -78,7 +76,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           nextTier: "Growth",
           title: "Upgrade to Growth",
           description: "Structure without stress",
-          icon: <Rocket className="h-6 w-6 text-white" />,
+          icon: <Rocket className="h-6 w-6 text-(--color-ink)" />,
           badge: "GROW FASTER",
           primaryCta: "Go Growth",
           monthlyPrice: "₦9,900",
@@ -97,7 +95,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           nextTier: "Premium",
           title: "Upgrade to Premium",
           description: "For founders who want hands-on help",
-          icon: <Crown className="h-6 w-6 text-white" />,
+          icon: <Crown className="h-6 w-6 text-(--color-ink)" />,
           badge: "GO PREMIUM",
           primaryCta: "Upgrade to Premium",
           monthlyPrice: "₦99,900",
@@ -116,7 +114,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           nextTier: "Elite",
           title: "Upgrade to Elite",
           description: "For businesses that need tax support",
-          icon: <Gem className="h-6 w-6 text-white" />,
+          icon: <Gem className="h-6 w-6 text-(--color-ink)" />,
           badge: "GO ELITE",
           primaryCta: "Contact Us",
           monthlyPrice: "₦250,000+",
@@ -135,7 +133,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           nextTier: "ZidLite",
           title: "Upgrade to ZidLite",
           description: "Test what finance automation looks like",
-          icon: <Zap className="h-6 w-6 text-white" />,
+          icon: <Zap className="h-6 w-6 text-(--color-ink)" />,
           badge: "UPGRADE NOW",
           primaryCta: "Go ZidLite",
           monthlyPrice: "₦4,900",
@@ -165,7 +163,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           transition={{ duration: 0.25 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-(--color-ink)/50 backdrop-blur-sm"
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -173,7 +171,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           />
 
           <motion.div
-            className="relative z-10 w-full max-w-3xl overflow-hidden rounded-2xl bg-white dark:bg-[#1a1a1a] shadow-2xl flex flex-col md:flex-row"
+            className="relative z-10 w-full max-w-3xl overflow-hidden rounded-2xl bg-(--bg-primary) border-2 border-(--border-color) shadow-2xl flex flex-col md:flex-row"
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -181,13 +179,13 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           >
             <button
               onClick={onClose}
-              className="absolute right-4 top-4 z-20 rounded-full p-1.5 text-gray-400 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-200"
+              className="absolute right-4 top-4 z-20 rounded-full p-1.5 text-(--text-secondary) transition-all hover:bg-(--bg-secondary)"
             >
               <X className="h-4 w-4" />
             </button>
 
             {/* Left Column - Gradient Header */}
-            <div className="relative md:w-2/5 bg-linear-to-br from-(--color-accent-yellow) to-[#e0a800] p-6 text-white flex flex-col justify-between">
+            <div className="relative md:w-2/5 bg-linear-to-br from-(--color-accent-yellow) to-[#e0a800] p-6 text-(--color-ink) flex flex-col justify-between">
               <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16" />
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/5 rounded-full blur-2xl -ml-12 -mb-12" />
 
@@ -203,7 +201,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     </span>
                   </div>
                 </div>
-                <h2 className="text-2xl font-bold tracking-tight mb-2 text-(--color-ink)">
+                <h2 className="text-2xl font-bold tracking-tight mb-2">
                   {tierInfo.title}
                 </h2>
                 <p className="text-(--color-ink)/80 text-sm">
@@ -219,7 +217,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   {tierInfo.features.slice(0, 4).map((benefit, index) => (
                     <li key={index} className="flex items-center gap-2 text-xs">
                       <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/20">
-                        <Check className="h-2.5 w-2.5 text-(--color-ink)" />
+                        <Check className="h-2.5 w-2.5" />
                       </div>
                       <span className="text-(--color-ink)/90">{benefit}</span>
                     </li>
@@ -235,11 +233,11 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             </div>
 
             {/* Right Column - Pricing & CTA */}
-            <div className="md:w-3/5 p-6 bg-white dark:bg-[#1a1a1a]">
+            <div className="md:w-3/5 p-6 bg-(--bg-primary)">
               <div className="mb-3 text-center">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-xs text-(--text-secondary)">
                   Current:{" "}
-                  <span className="font-semibold text-gray-900 dark:text-gray-50">
+                  <span className="font-semibold text-(--text-primary)">
                     {tierInfo.currentTier}
                   </span>
                 </span>
@@ -253,7 +251,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                       className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
                         selectedPlan === "monthly"
                           ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          : "bg-(--bg-secondary) text-(--text-secondary) hover:bg-(--bg-secondary)"
                       }`}
                     >
                       Monthly
@@ -263,7 +261,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                       className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
                         selectedPlan === "annual"
                           ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          : "bg-(--bg-secondary) text-(--text-secondary) hover:bg-(--bg-secondary)"
                       }`}
                     >
                       Annual
@@ -290,20 +288,20 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
                 <div className="flex items-center gap-2 mb-2">
                   {tierInfo.icon}
-                  <h3 className="font-semibold text-base">
+                  <h3 className="font-semibold text-base text-(--text-primary)">
                     {tierInfo.nextTier} Plan
                   </h3>
                 </div>
 
                 <div className="mb-2">
-                  <span className="text-2xl font-bold">
+                  <span className="text-2xl font-bold text-(--text-primary)">
                     {userTier === "premium"
                       ? tierInfo.monthlyPrice
                       : selectedPlan === "annual"
                         ? tierInfo.annualPrice
                         : tierInfo.monthlyPrice}
                   </span>
-                  <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">
+                  <span className="text-(--text-secondary) text-xs ml-1">
                     {userTier === "premium"
                       ? "/mo"
                       : selectedPlan === "annual"
@@ -321,7 +319,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   {tierInfo.features.map((feature, index) => (
                     <li
                       key={index}
-                      className="flex items-start gap-1.5 text-xs"
+                      className="flex items-start gap-1.5 text-xs text-(--text-secondary)"
                     >
                       <Check
                         className={`h-3 w-3 shrink-0 mt-0.5 ${
@@ -336,8 +334,8 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 </ul>
 
                 {userTier !== "free" && userTier !== "premium" && (
-                  <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  <div className="mt-2 p-2 bg-(--bg-secondary) rounded-lg">
+                    <p className="text-[10px] text-(--text-secondary)">
                       vs {tierInfo.currentTier}:{" "}
                       {selectedPlan === "annual"
                         ? tierInfo.annualSavings
@@ -361,11 +359,11 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 </Button>
                 <button
                   onClick={onClose}
-                  className="text-xs text-gray-500 dark:text-gray-400 transition-colors hover:text-gray-700 dark:hover:text-gray-200"
+                  className="text-xs text-(--text-secondary) transition-colors hover:text-(--text-primary)"
                 >
                   Maybe later
                 </button>
-                <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                <p className="text-[10px] text-(--text-secondary)">
                   {userTier === "premium"
                     ? "Contact sales for custom pricing"
                     : "14-day trials available on select features"}

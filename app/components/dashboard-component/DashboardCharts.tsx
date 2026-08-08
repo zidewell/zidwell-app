@@ -90,9 +90,11 @@ const ChartCard = ({
 const DashboardCharts = () => {
   const [filter, setFilter] = useState<(typeof filters)[number]>("Daily");
 
+  const chartTabs = ["bookkeeping", "wallet", "invoices", "receipts", "contracts"];
+
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         {filters.map((f: any) => (
           <button
             key={f}
@@ -110,21 +112,19 @@ const DashboardCharts = () => {
 
       <div className="w-full">
         <div className="flex flex-wrap gap-2 bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-2">
-          {["bookkeeping", "wallet", "invoices", "receipts", "contracts"].map(
-            (tab) => (
-              <button
-                key={tab}
-                onClick={() => setFilter(tab as any)}
-                className={`px-4 py-2 text-sm font-bold uppercase tracking-wide rounded-md transition-all ${
-                  filter === tab
-                    ? "bg-(--color-accent-yellow) text-(--color-ink)"
-                    : "text-(--text-secondary) hover:text-(--text-primary)"
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ),
-          )}
+          {chartTabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setFilter(tab as any)}
+              className={`px-4 py-2 text-sm font-bold uppercase tracking-wide rounded-md transition-all ${
+                filter === tab
+                  ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                  : "text-(--text-secondary) hover:text-(--text-primary)"
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
         </div>
 
         <div className="mt-5">
@@ -133,18 +133,18 @@ const DashboardCharts = () => {
               <ChartCard title="Income vs Expenses">
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={bookkeepingData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 12, fill: "#999999", fontWeight: 600 }}
+                      tick={{ fontSize: 12, fill: "var(--text-secondary)", fontWeight: 600 }}
                     />
                     <YAxis
-                      tick={{ fontSize: 12, fill: "#999999", fontWeight: 600 }}
+                      tick={{ fontSize: 12, fill: "var(--text-secondary)", fontWeight: 600 }}
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#171717",
-                        border: "2px solid #474747",
+                        backgroundColor: "var(--bg-primary)",
+                        border: "2px solid var(--border-color)",
                         borderRadius: 4,
                         fontSize: 13,
                         fontWeight: 600,
@@ -200,8 +200,8 @@ const DashboardCharts = () => {
                       </Pie>
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "#171717",
-                          border: "2px solid #474747",
+                          backgroundColor: "var(--bg-primary)",
+                          border: "2px solid var(--border-color)",
                           borderRadius: 4,
                           fontSize: 13,
                           fontWeight: 600,
@@ -245,18 +245,18 @@ const DashboardCharts = () => {
             <ChartCard title="Wallet Funding vs Spending">
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={walletData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 12, fill: "#999999", fontWeight: 600 }}
+                    tick={{ fontSize: 12, fill: "var(--text-secondary)", fontWeight: 600 }}
                   />
                   <YAxis
-                    tick={{ fontSize: 12, fill: "#999999", fontWeight: 600 }}
+                    tick={{ fontSize: 12, fill: "var(--text-secondary)", fontWeight: 600 }}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#171717",
-                      border: "2px solid #474747",
+                      backgroundColor: "var(--bg-primary)",
+                      border: "2px solid var(--border-color)",
                       borderRadius: 4,
                       fontSize: 13,
                       fontWeight: 600,
@@ -277,18 +277,18 @@ const DashboardCharts = () => {
             <ChartCard title="Invoices Sent vs Paid">
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={invoiceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 12, fill: "#999999", fontWeight: 600 }}
+                    tick={{ fontSize: 12, fill: "var(--text-secondary)", fontWeight: 600 }}
                   />
                   <YAxis
-                    tick={{ fontSize: 12, fill: "#999999", fontWeight: 600 }}
+                    tick={{ fontSize: 12, fill: "var(--text-secondary)", fontWeight: 600 }}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#171717",
-                      border: "2px solid #474747",
+                      backgroundColor: "var(--bg-primary)",
+                      border: "2px solid var(--border-color)",
                       borderRadius: 4,
                       fontSize: 13,
                       fontWeight: 600,
@@ -309,24 +309,24 @@ const DashboardCharts = () => {
             <ChartCard title="Receipts Issued & Value">
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={receiptData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 12, fill: "#999999", fontWeight: 600 }}
+                    tick={{ fontSize: 12, fill: "var(--text-secondary)", fontWeight: 600 }}
                   />
                   <YAxis
                     yAxisId="left"
-                    tick={{ fontSize: 12, fill: "#999999", fontWeight: 600 }}
+                    tick={{ fontSize: 12, fill: "var(--text-secondary)", fontWeight: 600 }}
                   />
                   <YAxis
                     yAxisId="right"
                     orientation="right"
-                    tick={{ fontSize: 12, fill: "#999999", fontWeight: 600 }}
+                    tick={{ fontSize: 12, fill: "var(--text-secondary)", fontWeight: 600 }}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#171717",
-                      border: "2px solid #474747",
+                      backgroundColor: "var(--bg-primary)",
+                      border: "2px solid var(--border-color)",
                       borderRadius: 4,
                       fontSize: 13,
                       fontWeight: 600,
@@ -375,8 +375,8 @@ const DashboardCharts = () => {
                     </Pie>
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#171717",
-                        border: "2px solid #474747",
+                        backgroundColor: "var(--bg-primary)",
+                        border: "2px solid var(--border-color)",
                         borderRadius: 4,
                         fontSize: 13,
                         fontWeight: 600,

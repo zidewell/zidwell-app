@@ -16,10 +16,7 @@ import {
   Clock,
   Lightbulb,
   Tv,
-  Smartphone,
-  Scale,
   FileSpreadsheet,
-  ChartColumnIncreasing,
 } from "lucide-react";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
 import { useUserContextData } from "@/app/context/userData";
@@ -242,11 +239,11 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
     if (!usage) return null;
     switch (featureKey) {
       case "invoices_per_month":
-        return usage.invoices?.remaining;
+        return usage.invoices?.remaining ?? usage.invoices?.remaining_count ?? null;
       case "receipts_per_month":
-        return usage.receipts?.remaining;
+        return usage.receipts?.remaining ?? usage.receipts?.remaining_count ?? null;
       case "contracts_per_month":
-        return usage.contracts?.remaining;
+        return usage.contracts?.remaining ?? usage.contracts?.remaining_count ?? null;
       default:
         return null;
     }
@@ -255,18 +252,21 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
   const getProgressPercentage = (featureKey: string) => {
     if (!usage) return 0;
     switch (featureKey) {
-      case "invoices_per_month":
-        return (
-          ((usage.invoices?.used || 0) / (usage.invoices?.limit || 1)) * 100
-        );
-      case "receipts_per_month":
-        return (
-          ((usage.receipts?.used || 0) / (usage.receipts?.limit || 1)) * 100
-        );
-      case "contracts_per_month":
-        return (
-          ((usage.contracts?.used || 0) / (usage.contracts?.limit || 1)) * 100
-        );
+      case "invoices_per_month": {
+        const used = usage.invoices?.used || 0;
+        const limit = usage.invoices?.limit || 1;
+        return (used / limit) * 100;
+      }
+      case "receipts_per_month": {
+        const used = usage.receipts?.used || 0;
+        const limit = usage.receipts?.limit || 1;
+        return (used / limit) * 100;
+      }
+      case "contracts_per_month": {
+        const used = usage.contracts?.used || 0;
+        const limit = usage.contracts?.limit || 1;
+        return (used / limit) * 100;
+      }
       default:
         return 0;
     }
@@ -279,7 +279,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
   };
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
       {features.map((feature) => {
         const isUtility = feature.type === "utility";
         const isPayment = feature.type === "payment";
@@ -305,7 +305,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
               group relative flex flex-col items-center gap-3 p-4 
               bg-(--bg-primary) border-2 border-(--border-color) rounded-md
               shadow-[2px_2px_0px_var(--border-color)] 
-              hover:shadow-[6px_6px_0px_var(--border-color)] dark:hover:shadow-[6px_6px_0px_rgba(253,192,32,0.4)] 
+              hover:shadow-[6px_6px_0px_var(--border-color)]
               hover:-translate-x-px hover:-translate-y-px
               active:shadow-none active:translate-x-0.5 active:translate-y-0.5
               transition-all duration-150 text-center
@@ -324,7 +324,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
               !hasBookkeepingTrial &&
               !requiresBVN && (
                 <div className="absolute top-2 right-2">
-                  <Lock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                  <Lock className="w-4 h-4 text-gray-400" />
                 </div>
               )}
             {hasBookkeepingTrial && (
@@ -335,6 +335,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
 
             {userTier === "free" &&
               remaining !== null &&
+              remaining !== undefined &&
               !isUtility &&
               !isPayment &&
               !hasBookkeepingTrial && (
@@ -342,10 +343,10 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
                   <span
                     className={`text-xs font-medium px-2 py-1 rounded-full ${
                       remaining <= 1
-                        ? "bg-red-100 text-red-600"
+                        ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
                         : remaining <= 3
-                          ? "bg-yellow-100 text-yellow-600"
-                          : "bg-green-100 text-green-600"
+                          ? "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400"
+                          : "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
                     }`}
                   >
                     {remaining} left
@@ -355,8 +356,8 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
 
             {hasBookkeepingTrial && (
               <div className="absolute top-2 left-2">
-                <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-600">
-                  {usage.bookkeepingTrial.daysRemaining} days trial
+                <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+                  {usage?.bookkeepingTrial?.daysRemaining || 0} days trial
                 </span>
               </div>
             )}
@@ -392,7 +393,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
               !isUtility &&
               !isPayment &&
               !hasBookkeepingTrial && (
-                <div className="mt-2 w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+                <div className="mt-2 w-full h-1 bg-(--bg-secondary) rounded-full overflow-hidden">
                   <div
                     className={`h-full ${getProgressColor(progress)}`}
                     style={{ width: `${Math.min(progress, 100)}%` }}
