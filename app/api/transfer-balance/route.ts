@@ -382,7 +382,7 @@ import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api"; 
 import { sendPinResetEmail } from "@/lib/email/pin-reset";
-import { sendWithdrawalEmail, generateTransferReceipt } from "@/lib/email-service";
+import { sendWithdrawalEmail, generateTransferReceipt } from "../webhook/helpers/email-helpers"; 
 
 export async function POST(req: NextRequest) {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
