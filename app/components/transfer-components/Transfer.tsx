@@ -271,17 +271,18 @@ export default function Transfer() {
       }
 
       const logoSrc = logoBase64 || "/logo.png";
-      const amountDisplay = `₦${Number(receiptData.amount).toLocaleString(
-        "en-NG",
-        { minimumFractionDigits: 2 }
-      )}`;
-      const formattedDate = new Date(receiptData.date).toLocaleString("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+       const amountValue = Number(receiptData.amount);
+    const amountDisplay = `₦${Math.abs(amountValue).toLocaleString(
+      "en-NG",
+      { minimumFractionDigits: 2 }
+    )}`;
+    const formattedDate = new Date(receiptData.date).toLocaleString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
       const statusColor = "#E5B333";
       const statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -372,7 +373,7 @@ export default function Transfer() {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 20px 0;
+    margin: 15px 0;
   }
   .divider-line {
     flex: 1;
