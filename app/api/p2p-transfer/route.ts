@@ -7,7 +7,7 @@ import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
-import { generateTransferReceipt } from "@/lib/email-service";
+import { generateTransferReceipt } from "../webhook/helpers/email-helpers"; 
 
 const baseUrl =
   process.env.NODE_ENV === "development"
