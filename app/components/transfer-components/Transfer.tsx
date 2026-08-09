@@ -252,6 +252,7 @@ export default function Transfer() {
     });
   };
 // Helper: Download receipt
+// Helper: Download receipt
 const handleDownloadReceiptFromData = async (receiptData: any) => {
   try {
     let logoBase64 = "";
@@ -271,13 +272,14 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
 
     const logoSrc = logoBase64 || "/logo.png";
     
-    // FIX: Ensure amount is a number and format it properly
+    // FIX: Properly format amount with ₦ symbol
     const amountValue = Number(receiptData?.amount || 0);
     const amountDisplay = `₦${amountValue.toLocaleString("en-NG", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
     
+    // FIX: Properly format date
     const formattedDate = new Date(receiptData?.date || Date.now()).toLocaleString("en-GB", {
       day: "numeric",
       month: "long",
@@ -286,7 +288,7 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
       minute: "2-digit",
     });
 
-    // FIX: Ensure fee is a number and format it properly
+    // FIX: Properly format fee with ₦ symbol
     const feeValue = Number(receiptData?.fee || 0);
     const feeDisplay = feeValue > 0 
       ? `₦${feeValue.toLocaleString("en-NG", {
@@ -300,6 +302,17 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
       <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
       <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
+
+    // Escape HTML special characters to prevent XSS
+    const escapeHtml = (str: string) => {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
 
     const receiptHTML = `<!DOCTYPE html>
 <html lang="en">
@@ -556,10 +569,8 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         </div>
         <div>
           <div class="detail-title">From</div>
-          <div class="detail-value">${receiptData?.senderName || "Zidwell User"}</div>
-          ${receiptData?.senderAccount
-            ? `<div class="sub">${receiptData.senderAccount}</div>`
-            : ""}
+          <div class="detail-value">${escapeHtml(receiptData?.senderName || "Zidwell User")}</div>
+          ${receiptData?.senderAccount ? `<div class="sub">${escapeHtml(receiptData.senderAccount)}</div>` : ""}
         </div>
       </div>
     </div>
@@ -574,19 +585,14 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         </div>
         <div>
           <div class="detail-title">To</div>
-          <div class="detail-value">${receiptData?.recipientName || "N/A"}</div>
-          ${receiptData?.recipientAccount
-            ? `<div class="sub">${receiptData.recipientAccount}</div>`
-            : ""}
-          ${receiptData?.recipientBank
-            ? `<div class="sub">${receiptData.recipientBank}</div>`
-            : ""}
+          <div class="detail-value">${escapeHtml(receiptData?.recipientName || "N/A")}</div>
+          ${receiptData?.recipientAccount ? `<div class="sub">${escapeHtml(receiptData.recipientAccount)}</div>` : ""}
+          ${receiptData?.recipientBank ? `<div class="sub">${escapeHtml(receiptData.recipientBank)}</div>` : ""}
         </div>
       </div>
     </div>
 
-    ${receiptData?.narration
-      ? `
+    ${receiptData?.narration ? `
     <div class="detail-row">
       <div class="left">
         <div class="icon">
@@ -596,15 +602,13 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         </div>
         <div>
           <div class="detail-title">Narration</div>
-          <div class="detail-value" style="font-weight: 400; font-size: 14px;">${receiptData.narration}</div>
+          <div class="detail-value" style="font-weight: 400; font-size: 14px;">${escapeHtml(receiptData.narration)}</div>
         </div>
       </div>
     </div>
-    `
-      : ""}
+    ` : ""}
 
-    ${feeValue > 0
-      ? `
+    ${feeValue > 0 ? `
     <div class="detail-row">
       <div class="left">
         <div class="icon">
@@ -621,8 +625,7 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
       </div>
       <div class="right">${feeDisplay}</div>
     </div>
-    `
-      : ""}
+    ` : ""}
 
     <div class="detail-row detail-row-last">
       <div class="left">
@@ -636,7 +639,7 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         </div>
         <div>
           <div class="detail-title">Transaction ID</div>
-          <div class="detail-value">${receiptData?.transactionId || "N/A"}</div>
+          <div class="detail-value">${escapeHtml(receiptData?.transactionId || "N/A")}</div>
         </div>
       </div>
     </div>
