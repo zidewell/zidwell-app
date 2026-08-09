@@ -251,32 +251,34 @@ export default function Transfer() {
       return updated;
     });
   };
-
-  // Helper: Download receipt
-  const handleDownloadReceiptFromData = async (receiptData: any) => {
+// Helper: Download receipt
+const handleDownloadReceiptFromData = async (receiptData: any) => {
+  try {
+    let logoBase64 = "";
     try {
-      let logoBase64 = "";
-      try {
-        const response = await fetch("/logo.png");
-        if (response.ok) {
-          const blob = await response.blob();
-          logoBase64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
-        }
-      } catch (e) {
-        console.error("Error loading logo:", e);
+      const response = await fetch("/logo.png");
+      if (response.ok) {
+        const blob = await response.blob();
+        logoBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
       }
+    } catch (e) {
+      console.error("Error loading logo:", e);
+    }
 
-      const logoSrc = logoBase64 || "/logo.png";
-       const amountValue = Number(receiptData.amount);
-    const amountDisplay = `₦${Math.abs(amountValue).toLocaleString(
-      "en-NG",
-      { minimumFractionDigits: 2 }
-    )}`;
-    const formattedDate = new Date(receiptData.date).toLocaleString("en-GB", {
+    const logoSrc = logoBase64 || "/logo.png";
+    
+    // FIX: Ensure amount is a number and format it properly
+    const amountValue = Number(receiptData?.amount || 0);
+    const amountDisplay = `₦${amountValue.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+    
+    const formattedDate = new Date(receiptData?.date || Date.now()).toLocaleString("en-GB", {
       day: "numeric",
       month: "long",
       year: "numeric",
@@ -284,18 +286,27 @@ export default function Transfer() {
       minute: "2-digit",
     });
 
-      const statusColor = "#E5B333";
-      const statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
-        <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>`;
+    // FIX: Ensure fee is a number and format it properly
+    const feeValue = Number(receiptData?.fee || 0);
+    const feeDisplay = feeValue > 0 
+      ? `₦${feeValue.toLocaleString("en-NG", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`
+      : "";
 
-      const receiptHTML = `<!DOCTYPE html>
+    const statusColor = "#E5B333";
+    const statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
+      <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+
+    const receiptHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zidwell Receipt | ${receiptData.transactionId}</title>
+<title>Zidwell Receipt | ${receiptData?.transactionId || "N/A"}</title>
 <style>
   * {
     margin: 0;
@@ -545,8 +556,8 @@ export default function Transfer() {
         </div>
         <div>
           <div class="detail-title">From</div>
-          <div class="detail-value">${receiptData.senderName || "Zidwell User"}</div>
-          ${receiptData.senderAccount
+          <div class="detail-value">${receiptData?.senderName || "Zidwell User"}</div>
+          ${receiptData?.senderAccount
             ? `<div class="sub">${receiptData.senderAccount}</div>`
             : ""}
         </div>
@@ -563,18 +574,18 @@ export default function Transfer() {
         </div>
         <div>
           <div class="detail-title">To</div>
-          <div class="detail-value">${receiptData.recipientName || "N/A"}</div>
-          ${receiptData.recipientAccount
+          <div class="detail-value">${receiptData?.recipientName || "N/A"}</div>
+          ${receiptData?.recipientAccount
             ? `<div class="sub">${receiptData.recipientAccount}</div>`
             : ""}
-          ${receiptData.recipientBank
+          ${receiptData?.recipientBank
             ? `<div class="sub">${receiptData.recipientBank}</div>`
             : ""}
         </div>
       </div>
     </div>
 
-    ${receiptData.narration
+    ${receiptData?.narration
       ? `
     <div class="detail-row">
       <div class="left">
@@ -592,7 +603,7 @@ export default function Transfer() {
     `
       : ""}
 
-    ${receiptData.fee && receiptData.fee > 0
+    ${feeValue > 0
       ? `
     <div class="detail-row">
       <div class="left">
@@ -608,9 +619,7 @@ export default function Transfer() {
           <div class="detail-title">Fee</div>
         </div>
       </div>
-      <div class="right">₦${Number(receiptData.fee).toLocaleString("en-NG", {
-        minimumFractionDigits: 2,
-      })}</div>
+      <div class="right">${feeDisplay}</div>
     </div>
     `
       : ""}
@@ -627,7 +636,7 @@ export default function Transfer() {
         </div>
         <div>
           <div class="detail-title">Transaction ID</div>
-          <div class="detail-value">${receiptData.transactionId}</div>
+          <div class="detail-value">${receiptData?.transactionId || "N/A"}</div>
         </div>
       </div>
     </div>
@@ -641,34 +650,34 @@ export default function Transfer() {
 </body>
 </html>`;
 
-      const response = await fetch("/api/generate-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: receiptHTML }),
-      });
+    const response = await fetch("/api/generate-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ html: receiptHTML }),
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to generate PDF");
-      }
-
-      const pdfBlob = await response.blob();
-      const url = URL.createObjectURL(pdfBlob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `zidwell-receipt-${receiptData.transactionId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error generating receipt:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Failed to Download",
-        text: "Could not generate receipt. Please try again.",
-      });
+    if (!response.ok) {
+      throw new Error("Failed to generate PDF");
     }
-  };
+
+    const pdfBlob = await response.blob();
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `zidwell-receipt-${receiptData?.transactionId || "receipt"}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Error generating receipt:", error);
+    Swal.fire({
+      icon: "error",
+      title: "Failed to Download",
+      text: "Could not generate receipt. Please try again.",
+    });
+  }
+};
 
   // Polling
   const startPolling = (transactionId: string) => {
