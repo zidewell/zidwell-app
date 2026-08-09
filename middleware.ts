@@ -706,7 +706,6 @@
 //   ],
 // };
 
-
 import { NextResponse, type NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
 import { 
@@ -715,7 +714,8 @@ import {
   hasSufficientTier
 } from "@/lib/suabase-admin"; 
 
-// Define route configurations
+// ─── ROUTE CONFIGURATIONS ───
+
 const premiumRoutes = [
   { path: "/dashboard/bookkeeping", requiredTier: "growth" },
   { path: "/dashboard/tax-calculator", requiredTier: "growth" },
@@ -734,7 +734,6 @@ const bvnRequiredRoutes = [
   "/dashboard/services/buy-power",
   "/dashboard/services/buy-cable-tv",
 ];
-
 
 export const ALLOWED_PAYMENT_EMAILS = new Set([
   "characterinternational@gmail.com",
@@ -762,7 +761,8 @@ const publicPaths = [
   "/auth/blocked",
 ];
 
-// Fast route matching using Set/Map
+// ─── FAST ROUTE MATCHING ───
+
 const bvnRequiredSet = new Set(bvnRequiredRoutes);
 const premiumRoutesMap = new Map(premiumRoutes.map(route => [route.path, route.requiredTier]));
 
@@ -775,20 +775,19 @@ function getRequiredTier(pathname: string): string | null {
   return null;
 }
 
-// ✅ Check if a route requires payment page email restriction
 function requiresPaymentEmailRestriction(pathname: string): boolean {
   return pathname === "/dashboard/services/payment" || 
          pathname.startsWith("/dashboard/services/payment/");
 }
 
 function shouldBypassAuth(pathname: string): boolean {
-  // Check static files
   if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js)$/)) {
     return true;
   }
-  
   return publicPaths.some(path => pathname.startsWith(path));
 }
+
+// ─── TYPE GUARDS ───
 
 type TokenValidationResult = User | { error: "expired" } | null;
 
@@ -840,6 +839,8 @@ function isUser(result: TokenValidationResult): result is User {
   return result !== null && !('error' in result) && 'id' in result;
 }
 
+// ─── COOKIE & REDIRECT HELPERS ───
+
 function clearAuthCookies(response: NextResponse) {
   const cookiesToDelete = [
     "sb-access-token",
@@ -848,7 +849,9 @@ function clearAuthCookies(response: NextResponse) {
     "sb-login-time",
     "sb-user-data",
     "verified",
-    "payment_processed"
+    "payment_processed",
+    "sb-session-id",
+    "sb-session-risk"
   ];
   
   cookiesToDelete.forEach(cookieName => {
@@ -869,7 +872,6 @@ function redirectToLogin(req: NextRequest) {
   return res;
 }
 
-// ✅ Redirect unauthorized users away from payment page
 function redirectFromPaymentPage(req: NextRequest) {
   console.log(`🚫 Unauthorized access attempt to payment page from ${req.nextUrl.pathname}`);
   const response = NextResponse.redirect(new URL("/dashboard", req.url));
@@ -884,23 +886,24 @@ function redirectFromPaymentPage(req: NextRequest) {
   return response;
 }
 
+// ─── MAIN MIDDLEWARE ───
+
 export async function middleware(req: NextRequest) {
   const startTime = Date.now();
   const currentPath = req.nextUrl.pathname;
   
-  // Bypass auth for public paths
+  // Bypass auth for public paths and static files
   if (shouldBypassAuth(currentPath)) {
     return NextResponse.next();
   }
   
-  // ✅ Check payment page email restriction FIRST (before post-payment access)
+  // ─── PAYMENT PAGE EMAIL RESTRICTION ───
   if (requiresPaymentEmailRestriction(currentPath)) {
     console.log(`🔐 Checking payment page access for: ${currentPath}`);
     
     let accessToken = req.cookies.get("sb-access-token")?.value;
     const refreshToken = req.cookies.get("sb-refresh-token")?.value;
     
-    // Try to refresh token if needed
     if (!accessToken && refreshToken) {
       const session = await refreshAccessToken(refreshToken);
       if (session) {
@@ -920,24 +923,21 @@ export async function middleware(req: NextRequest) {
       return redirectToLogin(req);
     }
     
-    // Get user email from token result
     const userEmail = tokenResult.email?.toLowerCase();
     
-    // Check if email is in allowed list
     if (!userEmail || !ALLOWED_PAYMENT_EMAILS.has(userEmail)) {
       console.log(`🚫 Unauthorized email: ${userEmail} attempted to access payment page`);
       return redirectFromPaymentPage(req);
     }
     
     console.log(`✅ Payment page access granted for: ${userEmail}`);
-    // Continue to let them access the payment page
   }
   
   // Handle post-payment access
   if (currentPath.startsWith("/dashboard") && req.cookies.get("payment_processed")) {
     console.log("🟡 Post-payment access granted");
     const response = NextResponse.next();
-    response.cookies.delete("payment_processed");
+    response.cookies.delete('payment_processed');
     return response;
   }
 
@@ -953,6 +953,7 @@ export async function middleware(req: NextRequest) {
   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
   const clientSession = req.cookies.get("sb-client-session")?.value;
   const loginTime = req.cookies.get("sb-login-time")?.value;
+  const sessionIdCookie = req.cookies.get("sb-session-id")?.value;
 
   // Only allow client session bypass within 10 seconds of login
   if (clientSession === "true" && !accessToken && !refreshToken) {
@@ -971,6 +972,8 @@ export async function middleware(req: NextRequest) {
   }
 
   // Try to refresh token if needed
+  let refreshedResponse: NextResponse | null = null;
+  
   if (!accessToken && refreshToken) {
     console.log("🔄 Attempting token refresh");
     const session = await refreshAccessToken(refreshToken);
@@ -981,22 +984,22 @@ export async function middleware(req: NextRequest) {
     }
 
     console.log("✅ Token refresh successful");
-    const response = NextResponse.next();
-    response.cookies.set("sb-access-token", session.access_token, {
+    refreshedResponse = NextResponse.next();
+    refreshedResponse.cookies.set("sb-access-token", session.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
-    response.cookies.set("sb-refresh-token", session.refresh_token!, {
+    refreshedResponse.cookies.set("sb-refresh-token", session.refresh_token!, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
-    response.cookies.set("sb-client-session", "true", {
+    refreshedResponse.cookies.set("sb-client-session", "true", {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -1005,7 +1008,7 @@ export async function middleware(req: NextRequest) {
     });
 
     accessToken = session.access_token;
-    return response;
+    // Continue with validation - do NOT return early
   }
 
   // Validate token
@@ -1044,6 +1047,57 @@ export async function middleware(req: NextRequest) {
     const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
     clearAuthCookies(response);
     return response;
+  }
+
+  // ─── CONCURRENT LOGIN VALIDATION ───
+  const { data: sessionData } = await getSupabaseAdmin()
+    .from('users')
+    .select('current_session_id, current_session_expires_at')
+    .eq('id', tokenResult.id)
+    .single();
+
+  if (sessionData && sessionIdCookie) {
+    // Cast to any since Supabase returns unknown for dynamic selects
+    const session = sessionData as any;
+    const dbSessionId = session.current_session_id as string | null;
+    const dbSessionExpires = session.current_session_expires_at as string | null;
+
+    if (dbSessionId !== sessionIdCookie) {
+      console.warn(`🚫 Middleware: Session mismatch for ${userDetails.email}. DB: ${dbSessionId?.slice(0,8)}... Cookie: ${sessionIdCookie.slice(0,8)}...`);
+      
+      const res = redirectToLogin(req);
+      res.cookies.set("login_error", "Your session was invalidated because you logged in on another device", {
+        httpOnly: false,
+        maxAge: 30,
+        path: "/",
+        sameSite: "lax",
+      });
+      return res;
+    }
+
+    if (dbSessionExpires && new Date(dbSessionExpires) < new Date()) {
+      console.log("⏰ Session expired in database");
+      return redirectToLogin(req);
+    }
+  } else if (currentPath.startsWith('/dashboard') || currentPath.startsWith('/admin') || currentPath.startsWith('/blog/admin')) {
+    if (!sessionIdCookie) {
+      console.log("❌ No session ID cookie found for protected route");
+      return redirectToLogin(req);
+    }
+  }
+  // ─── SECURITY COOKIE VALIDATION ───
+  const sessionRisk = req.cookies.get("sb-session-risk")?.value;
+  if (sessionRisk && parseInt(sessionRisk) >= 60) {
+    console.log("🚫 High-risk session cookie detected, forcing logout");
+    return redirectToLogin(req);
+  }
+
+  // ─── GEO BLOCKING (Optional) ───
+  const BLOCKED_COUNTRIES: string[] = [];
+  const geoCountry = req.headers.get('x-vercel-ip-country') || req.headers.get('cf-ipcountry');
+  if (geoCountry && BLOCKED_COUNTRIES.includes(geoCountry)) {
+    console.log(`🚫 Access from blocked country: ${geoCountry}`);
+    return NextResponse.redirect(new URL("/auth/blocked?reason=geo", req.url));
   }
 
   // Check BVN requirement for specific routes
@@ -1091,7 +1145,8 @@ export async function middleware(req: NextRequest) {
     console.log(`✅ Auth check passed for ${currentPath} (${responseTime}ms)`);
   }
 
-  return NextResponse.next();
+  // If we refreshed tokens earlier, return that response so cookies are updated
+  return refreshedResponse || NextResponse.next();
 }
 
 export const config = {

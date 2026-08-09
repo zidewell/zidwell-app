@@ -1,14 +1,14 @@
 // app/auth/login/page.tsx
 "use client";
-import { generatePageMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
- const metadata = generatePageMetadata({
+import { generatePageMetadata } from "@/lib/seo";
+
+const metadata = generatePageMetadata({
   title: "Sign In to Zidwell Wallet | Secure Login",
   description: "Sign in securely to your Zidwell Wallet. Access your payment pages, invoices, receipts, and manage your finances.",
   pathname: "/auth/login",
   keywords: ["login", "sign in", "Zidwell wallet", "secure login", "financial dashboard"],
 });
-
 
 import Swal from "sweetalert2";
 import { useState, FormEvent, useEffect, Suspense } from "react";
@@ -31,6 +31,52 @@ import { useUserContextData } from "@/app/context/userData";
 import Carousel from "@/app/components/Carousel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
+
+// ─── DEVICE FINGERPRINTING ───
+
+interface DeviceInfo {
+  userAgent: string;
+  platform: string;
+  language: string;
+  timezone: string;
+  screenResolution?: string;
+  cores?: number;
+  vendor?: string;
+  fingerprint?: string;
+}
+
+function collectDeviceInfo(): DeviceInfo {
+  const components = [
+    navigator.userAgent,
+    navigator.language,
+    navigator.platform,
+    screen.colorDepth,
+    screen.width + 'x' + screen.height,
+    new Date().getTimezoneOffset(),
+    !!window.sessionStorage,
+    !!window.localStorage,
+    navigator.hardwareConcurrency,
+  ];
+  
+  let hash = 0;
+  const str = components.join('::');
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+
+  return {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    screenResolution: `${window.screen.width}x${window.screen.height}`,
+    cores: navigator.hardwareConcurrency || undefined,
+    vendor: navigator.vendor || undefined,
+    fingerprint: hash.toString(16),
+  };
+}
 
 const fixDoubleEncodedUrl = (url: string): string => {
   if (!url || url === "/dashboard") return "/dashboard";
@@ -88,145 +134,194 @@ const LoginForm = () => {
   }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (loading) return;
+    if (loading) return;
 
-  if (!email || !password) {
-    setErrors({
-      email: !email ? "Email is required" : "",
-      password: !password ? "Password is required" : "",
-    });
-    return;
-  }
-
-  setLoading(true);
-  setErrors({});
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-  try {
-    Swal.fire({
-      title: "Signing in...",
-      text: "Please wait while we verify your credentials",
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
-
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    const result = await res.json();
-
-    if (!res.ok) {
-      throw new Error(result.error || "Invalid email or password");
+    if (!email || !password) {
+      setErrors({
+        email: !email ? "Email is required" : "",
+        password: !password ? "Password is required" : "",
+      });
+      return;
     }
 
-    const { profile, isVerified, sessionEstablished } = result;
-    if (!profile) throw new Error("User profile not found.");
+    setLoading(true);
+    setErrors({});
 
-    setUserData(profile);
-    localStorage.setItem("userData", JSON.stringify(profile));
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    Cookies.set("verified", isVerified ? "true" : "false", {
-      expires: 7,
-      path: "/",
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
-
-    Cookies.set("sb-client-session", "true", {
-      expires: 7,
-      path: "/",
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
-
-    Swal.close();
-
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    const sessionCookie = Cookies.get("sb-client-session");
-    if (!sessionCookie) {
-      console.warn("Session cookie not set, retrying...");
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
-
-    let targetUrl = callbackUrl;
-    if (fromLogin === "true" && scrollToPricing === "true") {
-      targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
-    }
-
-    // ✅ Updated: Use replace instead of push to prevent going back
-    if (process.env.NODE_ENV === "production") {
-      window.location.replace(targetUrl); // Replaces history in production
-    } else {
-      router.replace(targetUrl); // Replaces history in development
-    }
-
-    Promise.allSettled([
-      (async () => {
-        await fetch("/api/activity/last-login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: profile.id,
-            email: profile.email,
-          }),
-        }).catch(console.error);
-      })(),
-    ]).catch((err) => console.error("Background operations failed:", err));
-
-    if (process.env.NODE_ENV === "production") {
-      sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
-        console.error("Failed to send login notification:", err),
-      );
-    }
-
-    setTimeout(() => {
+    try {
       Swal.fire({
-        icon: "success",
-        title: "Welcome Back!",
-        text: `Hello, ${profile.name || profile.email?.split("@")[0] || "User"}`,
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 2000,
-        timerProgressBar: true,
-      }).catch(console.error);
-    }, 100);
-  } catch (err: any) {
-    clearTimeout(timeoutId);
-    Swal.close();
+        title: "Signing in...",
+        text: "Please wait while we verify your credentials",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
 
-    let errorMessage =
-      "Invalid email or password. Please check your credentials and try again.";
+      const deviceInfo = collectDeviceInfo();
 
-    if (err.name === "AbortError") {
-      errorMessage = "Please check your internet connection and try again.";
-    } else if (err.message) {
-      errorMessage = err.message;
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, deviceInfo }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || "Invalid email or password");
+      }
+
+      // ─── HANDLE BLOCKED LOGIN ───
+      if (result.blocked) {
+        Swal.close();
+        Swal.fire({
+          icon: "warning",
+          title: "Login Blocked",
+          html: `
+            <div style="text-align: left;">
+              <p>This login was blocked due to unusual activity:</p>
+              <ul style="margin-top: 10px;">
+                ${result.reasons?.map((r: string) => `<li>${r}</li>`).join('') || ''}
+              </ul>
+              <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
+                If this was you, please try again from a trusted device or contact support.
+              </p>
+            </div>
+          `,
+          confirmButtonColor: "var(--color-accent-yellow)",
+          confirmButtonText: "I Understand",
+        });
+        setLoading(false);
+        return;
+      }
+
+      const { profile, isVerified, sessionEstablished } = result;
+      if (!profile) throw new Error("User profile not found.");
+
+      setUserData(profile);
+      localStorage.setItem("userData", JSON.stringify(profile));
+
+      Cookies.set("verified", isVerified ? "true" : "false", {
+        expires: 7,
+        path: "/",
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+
+      Cookies.set("sb-client-session", "true", {
+        expires: 7,
+        path: "/",
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+
+      Swal.close();
+
+      // ─── SUSPICIOUS LOGIN WARNING ───
+      if (result.security?.isSuspicious) {
+        Swal.fire({
+          icon: "warning",
+          title: "Unusual Login Detected",
+          text: `Login from ${result.security.location.city}, ${result.security.location.country}. A security alert has been sent to your email.`,
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 5000,
+          timerProgressBar: true,
+        });
+      }
+
+      // ─── NEW DEVICE NOTICE ───
+      if (result.security?.newDevice && !result.security?.isKnownDevice) {
+        console.log("New device detected - user should verify");
+      }
+
+      // ─── CONCURRENT SESSION NOTICE ───
+      if (result.concurrentSessionInvalidated) {
+        console.log("Previous device session was invalidated");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const sessionCookie = Cookies.get("sb-client-session");
+      if (!sessionCookie) {
+        console.warn("Session cookie not set, retrying...");
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
+      let targetUrl = callbackUrl;
+      if (fromLogin === "true" && scrollToPricing === "true") {
+        targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
+      }
+
+      if (process.env.NODE_ENV === "production") {
+        window.location.replace(targetUrl);
+      } else {
+        router.replace(targetUrl);
+      }
+
+      Promise.allSettled([
+        (async () => {
+          await fetch("/api/activity/last-login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: profile.id,
+              email: profile.email,
+            }),
+          }).catch(console.error);
+        })(),
+      ]).catch((err) => console.error("Background operations failed:", err));
+
+      if (process.env.NODE_ENV === "production") {
+        sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
+          console.error("Failed to send login notification:", err),
+        );
+      }
+
+      setTimeout(() => {
+        Swal.fire({
+          icon: "success",
+          title: "Welcome Back!",
+          text: `Hello, ${profile.name || profile.email?.split("@")[0] || "User"}`,
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+        }).catch(console.error);
+      }, 100);
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      Swal.close();
+
+      let errorMessage =
+        "Invalid email or password. Please check your credentials and try again.";
+
+      if (err.name === "AbortError") {
+        errorMessage = "Please check your internet connection and try again.";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      Swal.fire({
+        icon: "error",
+        title: "Login Failed",
+        text: errorMessage,
+        confirmButtonColor: "var(--color-accent-yellow)",
+        confirmButtonText: "Try Again",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    Swal.fire({
-      icon: "error",
-      title: "Login Failed",
-      text: errorMessage,
-      confirmButtonColor: "var(--color-accent-yellow)",
-      confirmButtonText: "Try Again",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="lg:flex lg:justify-between bg-(--bg-primary) min-h-screen fade-in">
