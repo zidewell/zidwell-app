@@ -7,7 +7,7 @@ import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
-import { generateTransferReceipt } from "../webhook/helpers/email-helpers";
+import { generateTransferReceipt } from "@/lib/email-service";
 
 const baseUrl =
   process.env.NODE_ENV === "development"
@@ -65,7 +65,7 @@ async function sendP2PSuccessEmailNotification(
     // Generate PDF from HTML and attach as PDF
     if (receiptHtml && transactionId) {
       try {
-        // Generate PDF from HTML
+        // Generate PDF from HTML using the generate-pdf API
         const pdfResponse = await fetch(`${baseUrl}/api/generate-pdf`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -120,8 +120,6 @@ async function sendP2PReceivedEmailNotification(
   narration: string,
   isInvoicePayment: boolean = false,
   invoiceReference?: string,
-  beforeBalance?: number,
-  afterBalance?: number,
 ) {
   try {
     const supabase = createClient(
@@ -140,22 +138,11 @@ async function sendP2PReceivedEmailNotification(
       : `💰 P2P Transfer Received - ₦${amount.toLocaleString()}`;
     const greeting = user.full_name ? `Hi ${user.full_name},` : "Hello,";
 
-    let balanceHtml = "";
-    if (beforeBalance !== undefined && afterBalance !== undefined) {
-      balanceHtml = `
-        <div style="background:#f0fdf4; padding:15px; border-radius:8px; margin:15px 0;">
-          <p><strong>Balance Before:</strong> ₦${beforeBalance.toFixed(2)}</p>
-          <p><strong>Balance After:</strong> ₦${afterBalance.toFixed(2)}</p>
-          <p><strong>Amount Received:</strong> ₦${amount.toFixed(2)}</p>
-        </div>
-      `;
-    }
-
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
-      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>💰 ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Received</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Sender:"}</strong> ${isInvoicePayment ? invoiceReference : senderName}</p><p><strong>Reference:</strong> ${transactionRef}</p>${balanceHtml}<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
+      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>💰 ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Received</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Sender:"}</strong> ${isInvoicePayment ? invoiceReference : senderName}</p><p><strong>Reference:</strong> ${transactionRef}</p><p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
     });
   } catch (emailError) {
     logger.error("Failed to send P2P received email", emailError);
@@ -405,11 +392,10 @@ export async function POST(req: NextRequest) {
       .select("wallet_balance")
       .eq("id", receiver.id)
       .single();
-    let receiverBalanceAfter = Number(receiverAfterData?.wallet_balance || 0);
+    const receiverBalanceAfter = Number(receiverAfterData?.wallet_balance || 0);
 
     let platformFee = 0;
     let netAmount = amount;
-    let finalReceiverBalanceAfter = receiverBalanceAfter;
 
     if (invoicePaymentData?.isInvoicePayment && invoiceDetails) {
       platformFee = Math.round(amount * 0.02);
@@ -437,25 +423,13 @@ export async function POST(req: NextRequest) {
 
       if (platformFee > 0) {
         // Deduct platform fee from receiver
-        const feeDeductionResult = await supabase.rpc("deduct_wallet_balance", {
+        await supabase.rpc("deduct_wallet_balance", {
           user_id: receiver.id,
           amt: platformFee,
           transaction_type: "debit",
           reference: `PLATFORM_FEE_${invoiceTxRef}`,
           description: `2% platform fee for invoice ${invoicePaymentData.invoice_reference}`,
         });
-        
-        // Get receiver's balance AFTER fee deduction
-        if (feeDeductionResult) {
-          const { data: receiverAfterFeeData } = await supabase
-            .from("users")
-            .select("wallet_balance")
-            .eq("id", receiver.id)
-            .single();
-          finalReceiverBalanceAfter = Number(receiverAfterFeeData?.wallet_balance || 0);
-        }
-      } else {
-        finalReceiverBalanceAfter = receiverBalanceAfter;
       }
 
       await updateInvoiceTotals(invoiceDetails, amount, supabase);
@@ -470,9 +444,6 @@ export async function POST(req: NextRequest) {
           description: `P2P payment of ₦${amount} for invoice ${invoicePaymentData.invoice_reference}`,
           fee: platformFee,
           channel: "p2p_transfer",
-          balance_before: receiverBalanceBefore,
-          balance_after: finalReceiverBalanceAfter,
-          deducted_at: new Date().toISOString(),
           external_response: {
             invoice_payment: true,
             invoice_reference: invoicePaymentData.invoice_reference,
@@ -489,7 +460,7 @@ export async function POST(req: NextRequest) {
               },
               receiver: {
                 before: receiverBalanceBefore,
-                after: finalReceiverBalanceAfter,
+                after: receiverBalanceAfter - platformFee,
                 credited: netAmount,
                 fee_deducted: platformFee,
               },
@@ -528,9 +499,6 @@ export async function POST(req: NextRequest) {
         total_deduction: amount,
         narration,
         description: senderDescription,
-        balance_before: senderBalanceBefore,
-        balance_after: senderBalanceAfter,
-        deducted_at: new Date().toISOString(),
         external_response: {
           status: "success",
           type: "internal_p2p",
@@ -543,7 +511,7 @@ export async function POST(req: NextRequest) {
             },
             receiver: {
               before: receiverBalanceBefore,
-              after: invoicePaymentData?.isInvoicePayment ? finalReceiverBalanceAfter : receiverBalanceAfter,
+              after: invoicePaymentData?.isInvoicePayment ? receiverBalanceAfter - platformFee : receiverBalanceAfter,
               credited: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
               fee_deducted: invoicePaymentData?.isInvoicePayment ? platformFee : 0,
             },
@@ -565,9 +533,6 @@ export async function POST(req: NextRequest) {
       narration,
       description: receiverDescription,
       fee: invoicePaymentData?.isInvoicePayment ? platformFee : 0,
-      balance_before: receiverBalanceBefore,
-      balance_after: invoicePaymentData?.isInvoicePayment ? finalReceiverBalanceAfter : receiverBalanceAfter,
-      deducted_at: new Date().toISOString(),
       external_response: {
         status: "success",
         type: "internal_p2p",
@@ -580,7 +545,7 @@ export async function POST(req: NextRequest) {
           },
           receiver: {
             before: receiverBalanceBefore,
-            after: invoicePaymentData?.isInvoicePayment ? finalReceiverBalanceAfter : receiverBalanceAfter,
+            after: invoicePaymentData?.isInvoicePayment ? receiverBalanceAfter - platformFee : receiverBalanceAfter,
             credited: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
             fee_deducted: invoicePaymentData?.isInvoicePayment ? platformFee : 0,
           },
@@ -614,7 +579,7 @@ export async function POST(req: NextRequest) {
       type: "p2p"
     });
 
-    // Send email notifications with receipt attachment and balance info
+    // Send email notifications with receipt attachment - FIXED: Only 9 arguments
     sendP2PSuccessEmailNotification(
       userId,
       receiverName,
@@ -624,9 +589,7 @@ export async function POST(req: NextRequest) {
       invoicePaymentData?.isInvoicePayment || false,
       invoicePaymentData?.invoice_reference,
       receiptHtml,
-      transactionIdForReceipt,
-      senderBalanceBefore,
-      senderBalanceAfter
+      transactionIdForReceipt
     ).catch((err) => logger.error("Sender email failed", err));
 
     sendP2PReceivedEmailNotification(
@@ -637,9 +600,36 @@ export async function POST(req: NextRequest) {
       narration,
       invoicePaymentData?.isInvoicePayment || false,
       invoicePaymentData?.invoice_reference,
-      receiverBalanceBefore,
-      invoicePaymentData?.isInvoicePayment ? finalReceiverBalanceAfter : receiverBalanceAfter
     ).catch((err) => logger.error("Receiver email failed", err));
+
+    // Insert wallet history with before/after balances
+    await supabase
+      .from("wallet_history")
+      .insert({
+        user_id: userId,
+        transaction_id: transactionId,
+        amount: -amount,
+        transaction_type: "debit",
+        reference: senderTxRef,
+        description: senderDescription,
+        linked_transaction_id: linkedTransactionId,
+        balance_before: senderBalanceBefore,
+        balance_after: senderBalanceAfter,
+      });
+    
+    await supabase
+      .from("wallet_history")
+      .insert({
+        user_id: receiver.id,
+        transaction_id: transactionId,
+        amount: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
+        transaction_type: "credit",
+        reference: receiverTxRef,
+        description: receiverDescription,
+        linked_transaction_id: linkedTransactionId,
+        balance_before: receiverBalanceBefore,
+        balance_after: invoicePaymentData?.isInvoicePayment ? receiverBalanceAfter - platformFee : receiverBalanceAfter,
+      });
 
     const responseData = {
       message: "P2P transfer completed successfully.",
@@ -655,7 +645,7 @@ export async function POST(req: NextRequest) {
         },
         receiver: {
           before: receiverBalanceBefore,
-          after: invoicePaymentData?.isInvoicePayment ? finalReceiverBalanceAfter : receiverBalanceAfter,
+          after: invoicePaymentData?.isInvoicePayment ? receiverBalanceAfter - platformFee : receiverBalanceAfter,
           credited: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
         },
       },
