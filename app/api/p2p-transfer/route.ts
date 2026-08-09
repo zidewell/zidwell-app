@@ -7,7 +7,7 @@ import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
-import { generateTransferReceipt } from "../webhook/helpers/email-helpers"; 
+import { generateTransferReceipt, getLogoBase64, generatePdfBufferFromHtml } from "../webhook/helpers/email-helpers"; 
 
 const baseUrl =
   process.env.NODE_ENV === "development"
@@ -39,6 +39,10 @@ async function sendP2PSuccessEmailNotification(
   transactionId?: string,
 ) {
   try {
+    console.log(`📧 sendP2PSuccessEmailNotification called for user ${userId}`);
+    console.log(`📧 Receipt HTML provided: ${!!receiptHtml}`);
+    console.log(`📧 Transaction ID: ${transactionId}`);
+    
     const supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -48,7 +52,10 @@ async function sendP2PSuccessEmailNotification(
       .select("email, full_name")
       .eq("id", userId)
       .single();
-    if (error || !user) return;
+    if (error || !user) {
+      console.error(`❌ User not found: ${userId}`);
+      return;
+    }
 
     const subject = isInvoicePayment
       ? `✅ Invoice Payment Sent - ₦${amount.toLocaleString()}`
@@ -62,39 +69,40 @@ async function sendP2PSuccessEmailNotification(
       html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Recipient:"}</strong> ${isInvoicePayment ? invoiceReference : receiverName}</p><p><strong>Reference:</strong> ${transactionRef}</p>${isInvoicePayment ? '' : '<p>📎 Please find your receipt attached to this email.</p>'}<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
     };
 
-    // Generate PDF from HTML and attach as PDF
+    // Generate PDF using Puppeteer and attach
     if (receiptHtml && transactionId) {
+      console.log(`📎 Attempting to attach receipt for P2P transaction ${transactionId}`);
+      console.log(`📎 Receipt HTML length: ${receiptHtml.length}`);
+      
       try {
-        // Generate PDF from HTML using the generate-pdf API
-        const pdfResponse = await fetch(`${baseUrl}/api/generate-pdf`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ html: receiptHtml }),
-        });
-
-        if (pdfResponse.ok) {
-          const pdfBuffer = await pdfResponse.arrayBuffer();
-          mailOptions.attachments = [
-            {
-              filename: `zidwell-receipt-${transactionId}.pdf`,
-              content: Buffer.from(pdfBuffer),
-              contentType: 'application/pdf',
-            }
-          ];
-          console.log(`✅ PDF receipt attached for P2P transaction ${transactionId}`);
-        } else {
-          // Fallback: attach as HTML
-          mailOptions.attachments = [
-            {
-              filename: `zidwell-receipt-${transactionId}.html`,
-              content: receiptHtml,
-              contentType: 'text/html',
-            }
-          ];
-          console.log(`⚠️ PDF generation failed for P2P, attaching HTML instead`);
+        // Get logo as base64
+        const logoBase64 = getLogoBase64();
+        
+        // Replace logo URL with base64 if available
+        let finalReceiptHtml = receiptHtml;
+        if (logoBase64) {
+          finalReceiptHtml = receiptHtml.replace(
+            /src="[^"]*\/logo\.png"/g,
+            `src="${logoBase64}"`
+          );
         }
+        
+        // Generate PDF using Puppeteer
+        console.log('🔄 Generating PDF with Puppeteer...');
+        const pdfBuffer = await generatePdfBufferFromHtml(finalReceiptHtml);
+        console.log(`✅ PDF generated successfully! Size: ${pdfBuffer.length} bytes`);
+        
+        mailOptions.attachments = [
+          {
+            filename: `zidwell-receipt-${transactionId}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          }
+        ];
+        console.log(`✅ PDF receipt attached for P2P transaction ${transactionId}`);
       } catch (pdfError) {
         console.error("❌ Failed to generate PDF for P2P email:", pdfError);
+        // Fallback: attach as HTML
         mailOptions.attachments = [
           {
             filename: `zidwell-receipt-${transactionId}.html`,
@@ -102,12 +110,24 @@ async function sendP2PSuccessEmailNotification(
             contentType: 'text/html',
           }
         ];
+        console.log(`⚠️ Error generating PDF, attaching HTML receipt instead`);
       }
+    } else {
+      console.log(`⚠️ No receipt to attach. Has HTML: ${!!receiptHtml}, Has TransactionId: ${!!transactionId}`);
+    }
+
+    // Log attachment info
+    if (mailOptions.attachments && mailOptions.attachments.length > 0) {
+      console.log(`📎 Attachments: ${mailOptions.attachments.length} file(s)`);
+      mailOptions.attachments.forEach((att: any, index: number) => {
+        console.log(`📎 Attachment ${index + 1}: ${att.filename} (${att.contentType})`);
+      });
     }
 
     await transporter.sendMail(mailOptions);
     console.log(`✅ P2P success email sent to ${user.email}`);
   } catch (emailError) {
+    console.error("❌ Failed to send P2P success email:", emailError);
     logger.error("Failed to send P2P success email", emailError);
   }
 }

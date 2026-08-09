@@ -1,5 +1,8 @@
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
+import puppeteer from "puppeteer";
+import path from "path";
+import fs from "fs";
 
 const baseUrl =
   process.env.NODE_ENV === "development"
@@ -14,6 +17,50 @@ const headerImageUrl = `${baseUrl}/zidwell-header.png`;
 const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 const cheersImageUrl =
   `${baseUrl}/cheers-transanction.gif` || `${baseUrl}/cheers-transanction.gif`;
+
+// Convert logo to base64 - EXPORT THIS
+export function getLogoBase64() {
+  try {
+    const logoPath = path.join(process.cwd(), "public", "logo.png");
+    const imageBuffer = fs.readFileSync(logoPath);
+    return `data:image/png;base64,${imageBuffer.toString("base64")}`;
+  } catch (error) {
+    console.error("Error loading logo:", error);
+    return "";
+  }
+}
+
+// Generate PDF from HTML using Puppeteer - EXPORT THIS
+export async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  
+  try {
+    const page = await browser.newPage();
+    
+    await page.setContent(html, { 
+      waitUntil: "networkidle0",
+      timeout: 30000 
+    });
+    
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: '20px',
+        bottom: '20px',
+        left: '20px',
+        right: '20px'
+      }
+    });
+    
+    return Buffer.from(pdf);
+  } finally {
+    await browser.close();
+  }
+}
 
 export async function sendInvoiceCreatorNotificationEmail(
   creatorEmail: string,
@@ -109,9 +156,8 @@ export async function sendWithdrawalEmail(
   receiptHtml?: string
 ) {
   try {
-    console.log(
-      `📧 Attempting to send ${status} withdrawal email for user ${userId}`,
-    );
+    console.log(`📧 Attempting to send ${status} withdrawal email for user ${userId}`);
+    console.log(`📧 Receipt HTML provided: ${!!receiptHtml}`);
 
     const { data: user, error } = await supabase
       .from("users")
@@ -166,38 +212,37 @@ export async function sendWithdrawalEmail(
       `,
     };
 
-    // Attach receipt as PDF for successful transactions
+    // Attach receipt as PDF for successful transactions using Puppeteer
     if (status === "success" && receiptHtml && transactionId) {
+      console.log(`📎 Attempting to attach receipt for transaction ${transactionId}`);
+      console.log(`📎 Receipt HTML length: ${receiptHtml.length}`);
+      
       try {
-        // Generate PDF from HTML using the generate-pdf API
-        const pdfResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || baseUrl}/api/generate-pdf`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ html: receiptHtml }),
-        });
-
-        if (pdfResponse.ok) {
-          const pdfBuffer = await pdfResponse.arrayBuffer();
-          
-          mailOptions.attachments = [
-            {
-              filename: `zidwell-receipt-${transactionId}.pdf`,
-              content: Buffer.from(pdfBuffer),
-              contentType: 'application/pdf',
-            }
-          ];
-          console.log(`✅ PDF receipt generated and attached for transaction ${transactionId}`);
-        } else {
-          // Fallback: attach as HTML if PDF generation fails
-          mailOptions.attachments = [
-            {
-              filename: `zidwell-receipt-${transactionId}.html`,
-              content: receiptHtml,
-              contentType: 'text/html',
-            }
-          ];
-          console.log(`⚠️ PDF generation failed, attaching HTML receipt instead`);
+        // Get logo as base64
+        const logoBase64 = getLogoBase64();
+        
+        // Replace logo URL with base64 if available
+        let finalReceiptHtml = receiptHtml;
+        if (logoBase64) {
+          finalReceiptHtml = receiptHtml.replace(
+            /src="[^"]*\/logo\.png"/g,
+            `src="${logoBase64}"`
+          );
         }
+        
+        // Generate PDF using Puppeteer
+        console.log('🔄 Generating PDF with Puppeteer...');
+        const pdfBuffer = await generatePdfBufferFromHtml(finalReceiptHtml);
+        console.log(`✅ PDF generated successfully! Size: ${pdfBuffer.length} bytes`);
+        
+        mailOptions.attachments = [
+          {
+            filename: `zidwell-receipt-${transactionId}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          }
+        ];
+        console.log(`✅ PDF receipt attached for transaction ${transactionId}`);
       } catch (pdfError) {
         console.error("❌ Failed to generate PDF for email:", pdfError);
         // Fallback: attach as HTML
@@ -208,11 +253,22 @@ export async function sendWithdrawalEmail(
             contentType: 'text/html',
           }
         ];
+        console.log(`⚠️ Error generating PDF, attaching HTML receipt instead`);
       }
+    } else {
+      console.log(`⚠️ No receipt to attach. Status: ${status}, Has HTML: ${!!receiptHtml}, Has TransactionId: ${!!transactionId}`);
+    }
+
+    // Log attachment info
+    if (mailOptions.attachments && mailOptions.attachments.length > 0) {
+      console.log(`📎 Attachments: ${mailOptions.attachments.length} file(s)`);
+      mailOptions.attachments.forEach((att: any, index: number) => {
+        console.log(`📎 Attachment ${index + 1}: ${att.filename} (${att.contentType})`);
+      });
     }
 
     await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent successfully!`);
+    console.log(`✅ Email sent successfully to ${user.email}!`);
   } catch (error) {
     console.error("❌ Failed to send withdrawal email:", error);
     if (error instanceof Error) {
@@ -452,7 +508,7 @@ export function generateTransferReceipt(data: any): string {
 <div class="receipt">
   <div class="header">
     <div class="logo">
-      <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'https://zidwell.com'}/logo.png" alt="Zidwell Logo">
+      <img src="/logo.png" alt="Zidwell Logo">
     </div>
   </div>
 
