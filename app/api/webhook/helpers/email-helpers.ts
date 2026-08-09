@@ -18,47 +18,96 @@ const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 const cheersImageUrl =
   `${baseUrl}/cheers-transanction.gif` || `${baseUrl}/cheers-transanction.gif`;
 
-// Convert logo to base64 - EXPORT THIS
+// Convert logo to base64
 export function getLogoBase64() {
   try {
     const logoPath = path.join(process.cwd(), "public", "logo.png");
-    const imageBuffer = fs.readFileSync(logoPath);
-    return `data:image/png;base64,${imageBuffer.toString("base64")}`;
+    console.log(`🔍 Looking for logo at: ${logoPath}`);
+    
+    if (fs.existsSync(logoPath)) {
+      const imageBuffer = fs.readFileSync(logoPath);
+      const base64 = `data:image/png;base64,${imageBuffer.toString("base64")}`;
+      console.log(`✅ Logo found! Size: ${imageBuffer.length} bytes`);
+      return base64;
+    } else {
+      console.warn(`⚠️ Logo file NOT found at: ${logoPath}`);
+      return "";
+    }
   } catch (error) {
-    console.error("Error loading logo:", error);
+    console.error("❌ Error loading logo:", error);
     return "";
   }
 }
 
-// Generate PDF from HTML using Puppeteer - EXPORT THIS
+// Generate PDF from HTML using Puppeteer
 export async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+  console.log('🔄 Starting PDF generation with Puppeteer...');
+  console.log(`📄 HTML length: ${html.length} bytes`);
+  console.log(`📄 HTML preview: ${html.substring(0, 500)}...`);
   
+  let browser = null;
   try {
-    const page = await browser.newPage();
+    console.log('🚀 Launching Puppeteer browser...');
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu'
+      ]
+    });
+    console.log('✅ Browser launched successfully');
     
+    const page = await browser.newPage();
+    console.log('✅ New page created');
+    
+    await page.setViewport({
+      width: 1200,
+      height: 800,
+      deviceScaleFactor: 1,
+    });
+    console.log('✅ Viewport set');
+    
+    console.log('📄 Setting page content...');
     await page.setContent(html, { 
-      waitUntil: "networkidle0",
+      waitUntil: 'networkidle0',
       timeout: 30000 
     });
+    console.log('✅ Page content set');
     
+    console.log('⏳ Waiting for rendering...');
+    await page.waitForTimeout(1000);
+    console.log('✅ Rendering complete');
+    
+    console.log('📄 Generating PDF...');
     const pdf = await page.pdf({
-      format: "A4",
+      format: 'A4',
       printBackground: true,
       margin: {
-        top: '20px',
-        bottom: '20px',
-        left: '20px',
-        right: '20px'
-      }
+        top: '40px',
+        bottom: '40px',
+        left: '40px',
+        right: '40px'
+      },
+      displayHeaderFooter: false,
+      preferCSSPageSize: true,
     });
     
+    console.log(`✅ PDF generated successfully! Size: ${pdf.length} bytes`);
     return Buffer.from(pdf);
+    
+  } catch (error) {
+    console.error("❌ Puppeteer PDF generation error:", error);
+    console.error("❌ Error details:", JSON.stringify(error, null, 2));
+    throw error;
   } finally {
-    await browser.close();
+    if (browser) {
+      console.log('🔚 Closing browser...');
+      await browser.close();
+      console.log('✅ Browser closed');
+    }
   }
 }
 
@@ -155,10 +204,25 @@ export async function sendWithdrawalEmail(
   fee?: number,
   receiptHtml?: string
 ) {
+  console.log('='.repeat(60));
+  console.log('📧 SEND WITHDRAWAL EMAIL - DEBUG START');
+  console.log('='.repeat(60));
+  
   try {
-    console.log(`📧 Attempting to send ${status} withdrawal email for user ${userId}`);
+    console.log(`📧 Status: ${status}`);
+    console.log(`📧 User ID: ${userId}`);
+    console.log(`📧 Amount: ${amount}`);
+    console.log(`📧 Recipient: ${recipientName}`);
+    console.log(`📧 Transaction ID: ${transactionId}`);
     console.log(`📧 Receipt HTML provided: ${!!receiptHtml}`);
+    console.log(`📧 Receipt HTML length: ${receiptHtml?.length || 0}`);
+    
+    if (receiptHtml) {
+      console.log(`📧 Receipt HTML preview: ${receiptHtml.substring(0, 300)}...`);
+    }
 
+    // Fetch user
+    console.log('🔍 Fetching user from Supabase...');
     const { data: user, error } = await supabase
       .from("users")
       .select("email, first_name")
@@ -166,7 +230,7 @@ export async function sendWithdrawalEmail(
       .single();
 
     if (error) {
-      console.error("❌ Failed to fetch user for email:", error);
+      console.error("❌ Failed to fetch user:", error);
       return;
     }
 
@@ -180,8 +244,9 @@ export async function sendWithdrawalEmail(
       return;
     }
 
-    console.log(`📧 Sending email to: ${user.email}`);
+    console.log(`✅ User found: ${user.email}`);
 
+    // Prepare email options
     const mailOptions: any = {
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
@@ -212,29 +277,61 @@ export async function sendWithdrawalEmail(
       `,
     };
 
-    // Attach receipt as PDF for successful transactions using Puppeteer
-    if (status === "success" && receiptHtml && transactionId) {
-      console.log(`📎 Attempting to attach receipt for transaction ${transactionId}`);
-      console.log(`📎 Receipt HTML length: ${receiptHtml.length}`);
+    // ✅ ATTEMPT TO ATTACH RECEIPT
+    let attachmentAttempted = false;
+    let attachmentSuccess = false;
+    let attachmentError = null;
+
+    if (status === "success" && transactionId) {
+      console.log('📎 RECEIPT ATTACHMENT START');
+      console.log(`📎 Transaction ID: ${transactionId}`);
+      attachmentAttempted = true;
       
       try {
+        // Use provided receipt HTML or generate fallback
+        let finalReceiptHtml = receiptHtml;
+        if (!finalReceiptHtml) {
+          console.warn('⚠️ No receipt HTML provided, generating fallback receipt');
+          finalReceiptHtml = generateFallbackReceipt({
+            transactionId,
+            amount,
+            recipientName,
+            recipientAccount,
+            bankName,
+            fee: fee || 0,
+          });
+          console.log(`✅ Fallback receipt generated: ${finalReceiptHtml.length} bytes`);
+        }
+        
         // Get logo as base64
+        console.log('🔍 Getting logo as base64...');
         const logoBase64 = getLogoBase64();
+        console.log(`📎 Logo base64 available: ${!!logoBase64}`);
+        if (logoBase64) {
+          console.log(`📎 Logo base64 length: ${logoBase64.length} bytes`);
+        }
         
         // Replace logo URL with base64 if available
-        let finalReceiptHtml = receiptHtml;
+        let finalHtml = finalReceiptHtml;
         if (logoBase64) {
-          finalReceiptHtml = receiptHtml.replace(
+          const originalHtml = finalReceiptHtml;
+          finalHtml = finalReceiptHtml.replace(
             /src="[^"]*\/logo\.png"/g,
             `src="${logoBase64}"`
           );
+          if (originalHtml !== finalHtml) {
+            console.log('✅ Logo URL replaced with base64');
+          } else {
+            console.warn('⚠️ No logo URL found to replace');
+          }
         }
         
         // Generate PDF using Puppeteer
         console.log('🔄 Generating PDF with Puppeteer...');
-        const pdfBuffer = await generatePdfBufferFromHtml(finalReceiptHtml);
-        console.log(`✅ PDF generated successfully! Size: ${pdfBuffer.length} bytes`);
+        const pdfBuffer = await generatePdfBufferFromHtml(finalHtml);
+        console.log(`✅ PDF generated! Size: ${pdfBuffer.length} bytes`);
         
+        // Attach the PDF
         mailOptions.attachments = [
           {
             filename: `zidwell-receipt-${transactionId}.pdf`,
@@ -242,33 +339,59 @@ export async function sendWithdrawalEmail(
             contentType: 'application/pdf',
           }
         ];
-        console.log(`✅ PDF receipt attached for transaction ${transactionId}`);
+        attachmentSuccess = true;
+        console.log(`✅ PDF receipt attached successfully!`);
+        console.log(`📎 Attachment filename: zidwell-receipt-${transactionId}.pdf`);
+        console.log(`📎 Attachment size: ${pdfBuffer.length} bytes`);
+        
       } catch (pdfError) {
-        console.error("❌ Failed to generate PDF for email:", pdfError);
-        // Fallback: attach as HTML
-        mailOptions.attachments = [
-          {
-            filename: `zidwell-receipt-${transactionId}.html`,
-            content: receiptHtml,
-            contentType: 'text/html',
-          }
-        ];
-        console.log(`⚠️ Error generating PDF, attaching HTML receipt instead`);
+        attachmentError = pdfError;
+        console.error("❌ PDF generation/attachment failed:", pdfError);
+        console.error("❌ Error details:", JSON.stringify(pdfError, null, 2));
+        
+        // Add error note to email
+        mailOptions.html += `
+          <p style="color: #ff6b6b; margin-top: 20px;">
+            ⚠️ We were unable to generate a PDF receipt for this transaction. 
+            Please contact support if you need a copy of your receipt.
+          </p>
+        `;
+        console.log(`⚠️ Email will be sent without PDF attachment`);
       }
     } else {
-      console.log(`⚠️ No receipt to attach. Status: ${status}, Has HTML: ${!!receiptHtml}, Has TransactionId: ${!!transactionId}`);
+      console.log(`⚠️ Skipping receipt attachment: status=${status}, hasTransactionId=${!!transactionId}`);
     }
 
-    // Log attachment info
-    if (mailOptions.attachments && mailOptions.attachments.length > 0) {
-      console.log(`📎 Attachments: ${mailOptions.attachments.length} file(s)`);
+    // Log final attachment status
+    console.log('📎 ATTACHMENT SUMMARY:');
+    console.log(`📎 Attempted: ${attachmentAttempted}`);
+    console.log(`📎 Success: ${attachmentSuccess}`);
+    if (attachmentError) {
+      console.log(`📎 Error: ${attachmentError.message}`);
+    }
+    console.log(`📎 Has attachments: ${!!mailOptions.attachments}`);
+    if (mailOptions.attachments) {
+      console.log(`📎 Attachments count: ${mailOptions.attachments.length}`);
       mailOptions.attachments.forEach((att: any, index: number) => {
-        console.log(`📎 Attachment ${index + 1}: ${att.filename} (${att.contentType})`);
+        console.log(`📎 Attachment ${index + 1}:`);
+        console.log(`   - Filename: ${att.filename}`);
+        console.log(`   - ContentType: ${att.contentType}`);
+        console.log(`   - Size: ${att.content?.length || 0} bytes`);
       });
     }
 
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent successfully to ${user.email}!`);
+    // Send the email
+    console.log('📧 Sending email...');
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Email sent successfully!`);
+    console.log(`📧 Message ID: ${info.messageId}`);
+    console.log(`📧 To: ${user.email}`);
+    console.log(`📧 Subject: ${mailOptions.subject}`);
+    
+    console.log('='.repeat(60));
+    console.log('📧 SEND WITHDRAWAL EMAIL - DEBUG END');
+    console.log('='.repeat(60));
+    
   } catch (error) {
     console.error("❌ Failed to send withdrawal email:", error);
     if (error instanceof Error) {
@@ -276,10 +399,73 @@ export async function sendWithdrawalEmail(
       console.error("Error message:", error.message);
       console.error("Error stack:", error.stack);
     }
+    console.log('='.repeat(60));
+    console.log('📧 SEND WITHDRAWAL EMAIL - DEBUG END WITH ERROR');
+    console.log('='.repeat(60));
   }
 }
 
+// Fallback receipt generator
+function generateFallbackReceipt(data: any): string {
+  console.log('📄 Generating fallback receipt for:', data.transactionId);
+  
+  const amountDisplay = `₦${Number(data.amount).toLocaleString("en-NG", { 
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2 
+  })}`;
+  
+  const date = new Date().toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Zidwell Receipt</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+  .receipt { max-width: 500px; margin: 0 auto; background: #fff; border: 2px solid #E5B333; padding: 30px; border-radius: 10px; }
+  .header { text-align: center; border-bottom: 2px solid #E5B333; padding-bottom: 20px; margin-bottom: 20px; }
+  .logo { font-size: 24px; font-weight: bold; color: #E5B333; }
+  .amount { font-size: 28px; font-weight: bold; color: #E5B333; text-align: center; margin: 20px 0; }
+  .detail { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+  .detail:last-child { border-bottom: none; }
+  .label { color: #666; }
+  .value { font-weight: 500; }
+  .footer { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 2px solid #E5B333; color: #666; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="receipt">
+  <div class="header">
+    <div class="logo">Zidwell</div>
+    <p>Payment Receipt</p>
+  </div>
+  <div class="amount">${amountDisplay}</div>
+  <div class="detail"><span class="label">Transaction ID:</span><span class="value">${data.transactionId}</span></div>
+  <div class="detail"><span class="label">Date:</span><span class="value">${date}</span></div>
+  <div class="detail"><span class="label">Recipient:</span><span class="value">${data.recipientName}</span></div>
+  <div class="detail"><span class="label">Account:</span><span class="value">${data.recipientAccount}</span></div>
+  <div class="detail"><span class="label">Bank:</span><span class="value">${data.bankName}</span></div>
+  ${data.fee > 0 ? `<div class="detail"><span class="label">Fee:</span><span class="value">₦${data.fee.toLocaleString()}</span></div>` : ''}
+  <div class="footer">Thank you for using Zidwell.</div>
+</div>
+</body>
+</html>`;
+
+  console.log(`✅ Fallback receipt HTML generated: ${html.length} bytes`);
+  return html;
+}
+
 export function generateTransferReceipt(data: any): string {
+  console.log('📄 Generating transfer receipt for:', data.transactionId);
+  
   const amountDisplay = `₦${Number(data.amount).toLocaleString("en-NG", { 
     minimumFractionDigits: 2,
     maximumFractionDigits: 2 
@@ -310,7 +496,7 @@ export function generateTransferReceipt(data: any): string {
       .replace(/'/g, '&#039;');
   };
 
-  return `
+  const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -652,4 +838,7 @@ export function generateTransferReceipt(data: any): string {
 
 </body>
 </html>`;
+
+  console.log(`✅ Transfer receipt HTML generated: ${html.length} bytes`);
+  return html;
 }
