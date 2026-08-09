@@ -1,6 +1,7 @@
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import fs from "fs";
 import path from "path";
 
@@ -30,11 +31,12 @@ function getLogoBase64() {
   }
 }
 
-// ✅ Same as invoice - Generate PDF using Puppeteer
+// ✅ SERVERLESS-SAFE PDF generation using @sparticuz/chromium
 async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({ 
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: "domcontentloaded" });
@@ -43,7 +45,7 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
   return Buffer.from(pdf);
 }
 
- async function sendInvoiceCreatorNotificationEmail(
+async function sendInvoiceCreatorNotificationEmail(
   creatorEmail: string,
   invoiceId: string,
   amount: number,
@@ -77,7 +79,7 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
   }
 }
 
- async function sendVirtualAccountDepositEmail(
+async function sendVirtualAccountDepositEmail(
   userId: string,
   amount: number,
   transactionId: string,
@@ -124,7 +126,7 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
   }
 }
 
- async function sendWithdrawalEmail(
+async function sendWithdrawalEmail(
   userId: string,
   status: "success" | "failed",
   amount: number,
@@ -193,15 +195,12 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
       `,
     };
 
-    // ✅ Same as invoice - Attach receipt as PDF
+    // ✅ Attach receipt as PDF
     if (status === "success" && receiptHtml && transactionId) {
       console.log(`📎 Attempting to attach receipt for transaction ${transactionId}`);
       
       try {
-        // Get logo as base64 (same as invoice)
         const logo = getLogoBase64();
-        
-        // Replace logo URL with base64 if available (same as invoice)
         let finalHtml = receiptHtml;
         if (logo) {
           finalHtml = receiptHtml.replace(
@@ -210,12 +209,10 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
           );
         }
         
-        // ✅ Generate PDF using Puppeteer (same as invoice)
         console.log('🔄 Generating PDF with Puppeteer...');
         const pdfBuffer = await generatePdfBufferFromHtml(finalHtml);
         console.log(`✅ PDF generated! Size: ${pdfBuffer.length} bytes`);
         
-        // ✅ Attach PDF (same as invoice)
         mailOptions.attachments = [
           {
             filename: `zidwell-receipt-${transactionId}.pdf`,
@@ -227,7 +224,6 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
         
       } catch (pdfError) {
         console.error("❌ Failed to generate PDF for email:", pdfError);
-        // Send without attachment, don't show error in email
         console.log(`⚠️ Email sent without PDF attachment`);
       }
     }
@@ -245,7 +241,7 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
 }
 
 // ✅ Generate Transfer Receipt HTML
- function generateTransferReceipt(data: any): string {
+function generateTransferReceipt(data: any): string {
   const amountDisplay = `₦${Number(data.amount).toLocaleString("en-NG", { 
     minimumFractionDigits: 2,
     maximumFractionDigits: 2 

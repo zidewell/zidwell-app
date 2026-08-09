@@ -70,7 +70,7 @@ async function sendP2PSuccessEmailNotification(
       html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Recipient:"}</strong> ${isInvoicePayment ? invoiceReference : receiverName}</p><p><strong>Reference:</strong> ${transactionRef}</p>${isInvoicePayment ? '' : '<p>📎 Please find your receipt attached to this email.</p>'}<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
     };
 
-    // ✅ Same as invoice - Attach receipt as PDF
+    // ✅ Attach receipt as PDF
     if (receiptHtml && transactionId) {
       console.log(`📎 Attempting to attach receipt for P2P transaction ${transactionId}`);
       
@@ -583,28 +583,30 @@ export async function POST(req: NextRequest) {
       type: "p2p"
     });
 
-    // Send email notifications with receipt attachment - FIXED: Only 9 arguments
-    sendP2PSuccessEmailNotification(
-      userId,
-      receiverName,
-      amount,
-      linkedTransactionId,
-      narration,
-      invoicePaymentData?.isInvoicePayment || false,
-      invoicePaymentData?.invoice_reference,
-      receiptHtml,
-      transactionIdForReceipt
-    ).catch((err) => logger.error("Sender email failed", err));
+    // ✅ AWAIT emails before returning response so PDF generation completes
+    await Promise.all([
+      sendP2PSuccessEmailNotification(
+        userId,
+        receiverName,
+        amount,
+        linkedTransactionId,
+        narration,
+        invoicePaymentData?.isInvoicePayment || false,
+        invoicePaymentData?.invoice_reference,
+        receiptHtml,
+        transactionIdForReceipt
+      ).catch((err) => logger.error("Sender email failed", err)),
 
-    sendP2PReceivedEmailNotification(
-      receiver.id,
-      senderName,
-      invoicePaymentData?.isInvoicePayment ? netAmount : amount,
-      linkedTransactionId,
-      narration,
-      invoicePaymentData?.isInvoicePayment || false,
-      invoicePaymentData?.invoice_reference,
-    ).catch((err) => logger.error("Receiver email failed", err));
+      sendP2PReceivedEmailNotification(
+        receiver.id,
+        senderName,
+        invoicePaymentData?.isInvoicePayment ? netAmount : amount,
+        linkedTransactionId,
+        narration,
+        invoicePaymentData?.isInvoicePayment || false,
+        invoicePaymentData?.invoice_reference,
+      ).catch((err) => logger.error("Receiver email failed", err)),
+    ]);
 
     // Insert wallet history with before/after balances
     await supabase
