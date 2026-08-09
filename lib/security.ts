@@ -175,11 +175,24 @@ export async function analyzeLoginRisk(
     .order("login_time", { ascending: false })
     .limit(10);
 
+  // ─── FIX #1: First login — no risk penalty ───
+  if (!history || history.length === 0) {
+    return {
+      ip: context.ip,
+      location: context.location,
+      device: context.device,
+      timestamp: context.timestamp,
+      isKnownDevice: true,
+      riskScore: 0,
+      reasons: ["First login"],
+    };
+  }
+
   const { data: trustedDevices } = await supabase
     .from("trusted_devices")
     .select("*")
-    .eq("user_id", userId)
-    .eq("is_trusted", true);
+    .eq("user_id", userId);
+    // REMOVED: .eq("is_trusted", true)
 
   const isKnownDevice =
     trustedDevices?.some(
@@ -239,9 +252,6 @@ export async function analyzeLoginRisk(
       riskScore += 15;
       reasons.push(`Late night login: ${currentHour}:00`);
     }
-  } else {
-    riskScore += 10;
-    reasons.push("First login on this account");
   }
 
   if (!isKnownDevice && context.device.fingerprint) {

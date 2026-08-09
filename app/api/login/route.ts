@@ -16,7 +16,7 @@ import {
 
 const MAX_FAILED_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
-const BLOCK_THRESHOLD = 60;
+const BLOCK_THRESHOLD = 75; // FIX #3: Raised from 60 to 75
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -332,7 +332,7 @@ export async function POST(request: NextRequest) {
             last_location: `${location.city}, ${location.country}`,
             last_ip: ip,
             last_used: new Date().toISOString(),
-            is_trusted: !isSuspicious && securityContext.isKnownDevice,
+            is_trusted: !isSuspicious, // FIX #2: was !isSuspicious && securityContext.isKnownDevice
           },
           {
             onConflict: "user_id,device_fingerprint",
