@@ -195,6 +195,7 @@
 //   return { success: true };
 // }
 
+
 import { createClient } from "@supabase/supabase-js";
 import { sendWithdrawalEmail, generateTransferReceipt } from "../helpers/email-helpers";
 
@@ -215,6 +216,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
   console.log("💸 Processing payout webhook...");
 
+  // Find the pending/processing transaction
   const merchantTxRef = tx.merchantTxRef;
   const searchRefs = [nombaTransactionId, merchantTxRef].filter(Boolean);
 
@@ -241,6 +243,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
   console.log(`📦 Found transaction ${pendingTx.id} in status: ${pendingTx.status}`);
 
+  // Check for duplicate webhook processing
   const webhookProcessed = pendingTx.external_response?.webhook_processed;
   if (webhookProcessed) {
     console.log("⚠️ Webhook already processed this transaction, skipping");
@@ -252,6 +255,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
     const totalDeduction = pendingTx.total_deduction || pendingTx.amount + (pendingTx.fee || 0);
 
+    // Deduct balance only on webhook confirmation
     const { data: deductResult, error: deductError } = await supabase.rpc(
       "deduct_wallet_balance_with_lock",
       {
@@ -281,7 +285,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
         .eq("id", pendingTx.id);
 
       const receiver = pendingTx.receiver || {};
-      sendWithdrawalEmail(
+      await sendWithdrawalEmail(
         pendingTx.user_id,
         "failed",
         pendingTx.amount,
@@ -302,6 +306,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
     console.log(`✅ Deducted ₦${totalDeduction} from user ${pendingTx.user_id}. New balance: ₦${deductResult}`);
 
+    // Update transaction to SUCCESS
     await supabase
       .from("transactions")
       .update({
@@ -321,7 +326,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
     const receiver = pendingTx.receiver || {};
 
-    // ✅ Generate receipt from transaction record
+    // ✅ Generate receipt HTML from transaction data
     const receiptHtml = generateTransferReceipt({
       transactionId: pendingTx.id,
       amount: Number(pendingTx.amount),
@@ -336,8 +341,8 @@ export async function processPayout(payload: any, params: PayoutParams) {
       type: "bank_transfer"
     });
 
-    // ✅ Pass receiptHtml so PDF attachment works
-    sendWithdrawalEmail(
+    // ✅ AWAIT the email so PDF generation completes before function returns
+    await sendWithdrawalEmail(
       pendingTx.user_id,
       "success",
       pendingTx.amount,
@@ -348,7 +353,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
       undefined,
       pendingTx.fee,
       receiptHtml,
-    ).catch(console.error);
+    ).catch(err => console.error("Failed to send withdrawal email:", err));
 
     return {
       success: true,
@@ -382,7 +387,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
     console.log(`✅ Transaction marked as failed. User ${pendingTx.user_id} was never charged.`);
 
     const receiver = pendingTx.receiver || {};
-    sendWithdrawalEmail(
+    await sendWithdrawalEmail(
       pendingTx.user_id,
       "failed",
       pendingTx.amount,
