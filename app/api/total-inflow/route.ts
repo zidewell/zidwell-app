@@ -14,68 +14,67 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
 
-  // Fetch all transactions for this user
-  const { data: transactions, error } = await supabase
-    .from("transactions")
-    .select("amount, type, status, created_at, description")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+  try {
+    // Get current wallet balance directly from users table
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("wallet_balance")
+      .eq("id", userId)
+      .single();
 
-  if (error) {
+    if (userError) {
+      return NextResponse.json({ error: userError.message }, { status: 500 });
+    }
+
+    // Get transaction totals using SQL aggregation
+    const { data: txData, error: txError } = await supabase
+      .from("transactions")
+      .select("type, amount, total_deduction, status")
+      .eq("user_id", userId)
+      .eq("status", "success");
+
+    if (txError) {
+      return NextResponse.json({ error: txError.message }, { status: 500 });
+    }
+
+    const inflowTypes = [
+      "deposit", "virtual_account_deposit", "card_deposit",
+      "p2p_received", "p2p_credit", "referral", "referral_reward",
+      "invoice_payment", "refund", "cashback", "bonus"
+    ];
+
+    const outflowTypes = [
+      "withdrawal", "debit", "airtime", "data", "electricity",
+      "cable", "transfer", "p2p_transfer", "p2p_debit",
+      "bill_payment", "subscription", "fee"
+    ];
+
+    let totalInflow = 0;
+    let totalOutflow = 0;
+
+    txData.forEach(tx => {
+      const amount = Number(tx.amount || 0);
+      if (inflowTypes.includes(tx.type)) {
+        totalInflow += amount;
+      } else if (outflowTypes.includes(tx.type)) {
+        const deduction = Number(tx.total_deduction || tx.amount || 0);
+        totalOutflow += deduction;
+      }
+    });
+
+    const lifetimeBalance = totalInflow - totalOutflow;
+    const currentBalance = Number(userData.wallet_balance || 0);
+
+    return NextResponse.json({
+      totalInflow,
+      totalOutflow,
+      lifetimeBalance,
+      currentBalance,
+      totalTransactions: txData.length,
+      netFlow: totalInflow - totalOutflow
+    });
+
+  } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  if (!transactions || transactions.length === 0) {
-    return NextResponse.json({
-      totalInflow: 0,
-      totalOutflow: 0,
-      totalTransactions: 0
-    });
-  }
-
-
-  const inflowTypes = [
-    "deposit",                    
-    "virtual_account_deposit",   
-    "card_deposit",             
-    "p2p_received",              
-    "referral",                  
-    "referral_reward"            
-  ];
-
-  const outflowTypes = [
-    "withdrawal",                
-    "debit",                   
-    "airtime",                   
-    "data",                      
-    "electricity",             
-    "cable",                    
-    "transfer"                   
-  ];
-
-  // Filter only SUCCESSFUL transactions
-  const successfulTransactions = transactions.filter(tx => tx.status === 'success');
-
-  // Calculate totals
-  const inflowTransactions = successfulTransactions.filter(tx => inflowTypes.includes(tx.type));
-  const outflowTransactions = successfulTransactions.filter(tx => outflowTypes.includes(tx.type));
-
-  // Log transaction types for debugging
-  const typeCounts: { [key: string]: number } = {};
-  successfulTransactions.forEach(tx => {
-    typeCounts[tx.type] = (typeCounts[tx.type] || 0) + 1;
-  });
- 
-
-  const totalInflow = inflowTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const totalOutflow = outflowTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
-  const totalTransactions = successfulTransactions.length;
-
-
-  return NextResponse.json({
-    totalInflow,
-    totalOutflow,
-    totalTransactions,
-    netFlow: totalInflow - totalOutflow
-  });
 }

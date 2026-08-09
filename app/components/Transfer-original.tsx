@@ -38,7 +38,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import PinPopOver from "./PinPopOver";
-import TransactionSummary from "./TransactionSummary";
+import TransactionSummary from "./transfer-components/TransactionSummary";
 import confetti from "canvas-confetti";
 
 interface Bank {

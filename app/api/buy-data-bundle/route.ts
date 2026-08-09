@@ -80,16 +80,6 @@ async function sendEmailNotification(
     const headerImageUrl = `${baseUrl}/zidwell-header.png`;
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
-    let balanceHtml = "";
-    if (beforeBalance !== undefined && afterBalance !== undefined) {
-      balanceHtml = `
-        <div style="background:#f0fdf4; padding:15px; border-radius:8px; margin:15px 0;">
-          <p><strong>Before Balance:</strong> ₦${beforeBalance.toFixed(2)}</p>
-          <p><strong>After Balance:</strong> ₦${afterBalance.toFixed(2)}</p>
-          <p><strong>Amount Deducted:</strong> ₦${amount.toFixed(2)}</p>
-        </div>
-      `;
-    }
 
     await transporter.sendMail({
       from: `"Zidwell" <${process.env.EMAIL_USER}>`,
@@ -113,7 +103,7 @@ async function sendEmailNotification(
                     <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
                     ${status === "failed" ? `<p><strong>Reason:</strong> ${errorDetail || "Transaction failed"}</p>` : ""}
                 </div>
-                ${balanceHtml}
+              
                 <p>Thank you for using Zidwell!</p>
             </td></tr>
             <tr><td><img src="${footerImageUrl}" style="width:100%;" /></td></tr>
