@@ -376,14 +376,13 @@
 //     return response;
 //   }
 // }
-
 import { NextRequest, NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api"; 
 import { sendPinResetEmail } from "@/lib/email/pin-reset";
-import { sendWithdrawalEmail, generateTransferReceipt } from "../webhook/helpers/email-helpers"; 
+import { sendWithdrawalEmail, generateTransferReceipt } from "@/lib/email-service";
 
 export async function POST(req: NextRequest) {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
@@ -545,7 +544,7 @@ export async function POST(req: NextRequest) {
 
     const totalDeduction = totalDebit || amount + (fee || 0);
     
-    // ✅ Check sufficient balance (but DON'T deduct yet!)
+    // ✅ Check sufficient balance
     if (userData.wallet_balance < totalDeduction) {
       const response = NextResponse.json(
         { message: "Insufficient wallet balance (including fees)" },
@@ -574,7 +573,7 @@ export async function POST(req: NextRequest) {
 
     const merchantTxRef = `WD_${Date.now()}_${userId.slice(0, 8)}`;
 
-    // ✅ Create PENDING transaction FIRST (NO balance deduction) - INCLUDING CATEGORY
+    // ✅ Create PENDING transaction
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
@@ -617,7 +616,7 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
-    console.log(`📝 Created pending transaction ${pendingTx.id} for user ${userId} with category: ${category || 'none'}`);
+    console.log(`📝 Created pending transaction ${pendingTx.id} for user ${userId}`);
 
     // ✅ Call Nomba API
     const nombaResponse = await fetch(`${process.env.NOMBA_URL}/v1/transfers/bank`, {
@@ -683,7 +682,6 @@ export async function POST(req: NextRequest) {
 
       if (deductError) {
         console.error("❌ Failed to deduct wallet balance:", deductError);
-        // Update transaction status to failed
         await supabase
           .from("transactions")
           .update({
@@ -708,18 +706,34 @@ export async function POST(req: NextRequest) {
         });
 
         // Send email with receipt
-        await sendWithdrawalEmail(
-          userId,
-          "success",
-          Number(amount),
-          accountName,
-          accountNumber,
-          bankName,
-          pendingTx.id,
-          undefined,
-          fee || 0,
-          receiptHtml
-        ).catch(err => console.error("Failed to send withdrawal email:", err));
+        if (receiptHtml && receiptHtml.length > 0) {
+          console.log(`📧 Sending withdrawal email with receipt for transaction ${pendingTx.id}`);
+          await sendWithdrawalEmail(
+            userId,
+            "success",
+            Number(amount),
+            accountName,
+            accountNumber,
+            bankName,
+            pendingTx.id,
+            undefined,
+            fee || 0,
+            receiptHtml
+          ).catch(err => console.error("Failed to send withdrawal email:", err));
+        } else {
+          console.warn(`⚠️ No receipt HTML generated for transaction ${pendingTx.id}`);
+          await sendWithdrawalEmail(
+            userId,
+            "success",
+            Number(amount),
+            accountName,
+            accountNumber,
+            bankName,
+            pendingTx.id,
+            undefined,
+            fee || 0
+          ).catch(err => console.error("Failed to send withdrawal email:", err));
+        }
       }
     }
 

@@ -37,8 +37,6 @@ async function sendP2PSuccessEmailNotification(
   invoiceReference?: string,
   receiptHtml?: string,
   transactionId?: string,
-  beforeBalance?: number,
-  afterBalance?: number,
 ) {
   try {
     const supabase = createClient(
@@ -57,35 +55,58 @@ async function sendP2PSuccessEmailNotification(
       : `✅ P2P Transfer Successful - ₦${amount.toLocaleString()}`;
     const greeting = user.full_name ? `Hi ${user.full_name},` : "Hello,";
 
-    let balanceHtml = "";
-    if (beforeBalance !== undefined && afterBalance !== undefined) {
-      balanceHtml = `
-        <div style="background:#f0fdf4; padding:15px; border-radius:8px; margin:15px 0;">
-          <p><strong>Balance Before:</strong> ₦${beforeBalance.toFixed(2)}</p>
-          <p><strong>Balance After:</strong> ₦${afterBalance.toFixed(2)}</p>
-          <p><strong>Amount Deducted:</strong> ₦${amount.toFixed(2)}</p>
-        </div>
-      `;
-    }
-
     const mailOptions: any = {
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
-      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Recipient:"}</strong> ${isInvoicePayment ? invoiceReference : receiverName}</p><p><strong>Reference:</strong> ${transactionRef}</p>${balanceHtml}${isInvoicePayment ? '' : '<p>📎 Please find your receipt attached to this email.</p>'}<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
+      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Recipient:"}</strong> ${isInvoicePayment ? invoiceReference : receiverName}</p><p><strong>Reference:</strong> ${transactionRef}</p>${isInvoicePayment ? '' : '<p>📎 Please find your receipt attached to this email.</p>'}<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
     };
 
+    // Generate PDF from HTML and attach as PDF
     if (receiptHtml && transactionId) {
-      mailOptions.attachments = [
-        {
-          filename: `zidwell-receipt-${transactionId}.html`,
-          content: receiptHtml,
-          contentType: 'text/html',
+      try {
+        // Generate PDF from HTML
+        const pdfResponse = await fetch(`${baseUrl}/api/generate-pdf`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ html: receiptHtml }),
+        });
+
+        if (pdfResponse.ok) {
+          const pdfBuffer = await pdfResponse.arrayBuffer();
+          mailOptions.attachments = [
+            {
+              filename: `zidwell-receipt-${transactionId}.pdf`,
+              content: Buffer.from(pdfBuffer),
+              contentType: 'application/pdf',
+            }
+          ];
+          console.log(`✅ PDF receipt attached for P2P transaction ${transactionId}`);
+        } else {
+          // Fallback: attach as HTML
+          mailOptions.attachments = [
+            {
+              filename: `zidwell-receipt-${transactionId}.html`,
+              content: receiptHtml,
+              contentType: 'text/html',
+            }
+          ];
+          console.log(`⚠️ PDF generation failed for P2P, attaching HTML instead`);
         }
-      ];
+      } catch (pdfError) {
+        console.error("❌ Failed to generate PDF for P2P email:", pdfError);
+        mailOptions.attachments = [
+          {
+            filename: `zidwell-receipt-${transactionId}.html`,
+            content: receiptHtml,
+            contentType: 'text/html',
+          }
+        ];
+      }
     }
 
     await transporter.sendMail(mailOptions);
+    console.log(`✅ P2P success email sent to ${user.email}`);
   } catch (emailError) {
     logger.error("Failed to send P2P success email", emailError);
   }

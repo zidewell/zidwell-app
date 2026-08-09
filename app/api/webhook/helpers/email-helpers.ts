@@ -166,15 +166,49 @@ export async function sendWithdrawalEmail(
       `,
     };
 
-    // Attach receipt for successful transactions
+    // Attach receipt as PDF for successful transactions
     if (status === "success" && receiptHtml && transactionId) {
-      mailOptions.attachments = [
-        {
-          filename: `zidwell-receipt-${transactionId}.html`,
-          content: receiptHtml,
-          contentType: 'text/html',
+      try {
+        // Generate PDF from HTML using the generate-pdf API
+        const pdfResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || baseUrl}/api/generate-pdf`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ html: receiptHtml }),
+        });
+
+        if (pdfResponse.ok) {
+          const pdfBuffer = await pdfResponse.arrayBuffer();
+          
+          mailOptions.attachments = [
+            {
+              filename: `zidwell-receipt-${transactionId}.pdf`,
+              content: Buffer.from(pdfBuffer),
+              contentType: 'application/pdf',
+            }
+          ];
+          console.log(`✅ PDF receipt generated and attached for transaction ${transactionId}`);
+        } else {
+          // Fallback: attach as HTML if PDF generation fails
+          mailOptions.attachments = [
+            {
+              filename: `zidwell-receipt-${transactionId}.html`,
+              content: receiptHtml,
+              contentType: 'text/html',
+            }
+          ];
+          console.log(`⚠️ PDF generation failed, attaching HTML receipt instead`);
         }
-      ];
+      } catch (pdfError) {
+        console.error("❌ Failed to generate PDF for email:", pdfError);
+        // Fallback: attach as HTML
+        mailOptions.attachments = [
+          {
+            filename: `zidwell-receipt-${transactionId}.html`,
+            content: receiptHtml,
+            contentType: 'text/html',
+          }
+        ];
+      }
     }
 
     await transporter.sendMail(mailOptions);
@@ -190,7 +224,11 @@ export async function sendWithdrawalEmail(
 }
 
 export function generateTransferReceipt(data: any): string {
-  const amountDisplay = `₦${Number(data.amount).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
+  const amountDisplay = `₦${Number(data.amount).toLocaleString("en-NG", { 
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2 
+  })}`;
+  
   const formattedDate = new Date(data.date).toLocaleString('en-GB', { 
     day: 'numeric', 
     month: 'long', 
@@ -198,6 +236,23 @@ export function generateTransferReceipt(data: any): string {
     hour: '2-digit',
     minute: '2-digit'
   });
+
+  const feeDisplay = data.fee && data.fee > 0 
+    ? `₦${Number(data.fee).toLocaleString("en-NG", { 
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2 
+      })}` 
+    : "";
+
+  const escapeHtml = (str: string) => {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
 
   return `
 <!DOCTYPE html>
@@ -283,7 +338,7 @@ export function generateTransferReceipt(data: any): string {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 20px 0;
+    margin: 15px 0;
   }
   .divider-line {
     flex: 1;
@@ -458,8 +513,8 @@ export function generateTransferReceipt(data: any): string {
         </div>
         <div>
           <div class="detail-title">From</div>
-          <div class="detail-value">${data.senderName || 'Zidwell User'}</div>
-          ${data.senderAccount ? `<div class="sub">${data.senderAccount}</div>` : ''}
+          <div class="detail-value">${escapeHtml(data.senderName || 'Zidwell User')}</div>
+          ${data.senderAccount ? `<div class="sub">${escapeHtml(data.senderAccount)}</div>` : ''}
         </div>
       </div>
     </div>
@@ -474,9 +529,9 @@ export function generateTransferReceipt(data: any): string {
         </div>
         <div>
           <div class="detail-title">To</div>
-          <div class="detail-value">${data.recipientName || 'N/A'}</div>
-          ${data.recipientAccount ? `<div class="sub">${data.recipientAccount}</div>` : ''}
-          ${data.recipientBank ? `<div class="sub">${data.recipientBank}</div>` : ''}
+          <div class="detail-value">${escapeHtml(data.recipientName || 'N/A')}</div>
+          ${data.recipientAccount ? `<div class="sub">${escapeHtml(data.recipientAccount)}</div>` : ''}
+          ${data.recipientBank ? `<div class="sub">${escapeHtml(data.recipientBank)}</div>` : ''}
         </div>
       </div>
     </div>
@@ -491,7 +546,7 @@ export function generateTransferReceipt(data: any): string {
         </div>
         <div>
           <div class="detail-title">Narration</div>
-          <div class="detail-value" style="font-weight: 400; font-size: 14px;">${data.narration}</div>
+          <div class="detail-value" style="font-weight: 400; font-size: 14px;">${escapeHtml(data.narration)}</div>
         </div>
       </div>
     </div>
@@ -512,7 +567,7 @@ export function generateTransferReceipt(data: any): string {
           <div class="detail-title">Fee</div>
         </div>
       </div>
-      <div class="right">₦${Number(data.fee).toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
+      <div class="right">${feeDisplay}</div>
     </div>
     ` : ''}
 
@@ -528,7 +583,7 @@ export function generateTransferReceipt(data: any): string {
         </div>
         <div>
           <div class="detail-title">Transaction ID</div>
-          <div class="detail-value">${data.transactionId}</div>
+          <div class="detail-value">${escapeHtml(data.transactionId)}</div>
         </div>
       </div>
     </div>

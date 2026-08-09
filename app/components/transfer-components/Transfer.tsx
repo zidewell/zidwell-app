@@ -272,14 +272,13 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
 
     const logoSrc = logoBase64 || "/logo.png";
     
-    // FIX: Properly format amount with ₦ symbol
+    // Properly format amount with ₦ symbol
     const amountValue = Number(receiptData?.amount || 0);
     const amountDisplay = `₦${amountValue.toLocaleString("en-NG", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
     
-    // FIX: Properly format date
     const formattedDate = new Date(receiptData?.date || Date.now()).toLocaleString("en-GB", {
       day: "numeric",
       month: "long",
@@ -288,7 +287,7 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
       minute: "2-digit",
     });
 
-    // FIX: Properly format fee with ₦ symbol
+    // Properly format fee with ₦ symbol
     const feeValue = Number(receiptData?.fee || 0);
     const feeDisplay = feeValue > 0 
       ? `₦${feeValue.toLocaleString("en-NG", {
@@ -297,13 +296,7 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         })}`
       : "";
 
-    const statusColor = "#E5B333";
-    const statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
-      <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
-
-    // Escape HTML special characters to prevent XSS
+    // Escape HTML special characters
     const escapeHtml = (str: string) => {
       if (!str) return '';
       return str
@@ -313,6 +306,12 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
     };
+
+    const statusColor = "#E5B333";
+    const statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
+      <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
 
     const receiptHTML = `<!DOCTYPE html>
 <html lang="en">
@@ -681,7 +680,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     });
   }
 };
-
   // Polling
   const startPolling = (transactionId: string) => {
     stopPolling();
