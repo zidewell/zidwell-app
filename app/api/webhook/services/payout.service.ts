@@ -195,9 +195,6 @@
 //   return { success: true };
 // }
 
-
-
-
 import { createClient } from "@supabase/supabase-js";
 import { sendWithdrawalEmail, generateTransferReceipt } from "../helpers/email-helpers";
 
@@ -218,7 +215,6 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
   console.log("💸 Processing payout webhook...");
 
-  // Find the pending/processing transaction
   const merchantTxRef = tx.merchantTxRef;
   const searchRefs = [nombaTransactionId, merchantTxRef].filter(Boolean);
 
@@ -245,7 +241,6 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
   console.log(`📦 Found transaction ${pendingTx.id} in status: ${pendingTx.status}`);
 
-  // Check for duplicate webhook processing
   const webhookProcessed = pendingTx.external_response?.webhook_processed;
   if (webhookProcessed) {
     console.log("⚠️ Webhook already processed this transaction, skipping");
@@ -257,7 +252,6 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
     const totalDeduction = pendingTx.total_deduction || pendingTx.amount + (pendingTx.fee || 0);
 
-    // Deduct balance only on webhook confirmation
     const { data: deductResult, error: deductError } = await supabase.rpc(
       "deduct_wallet_balance_with_lock",
       {
@@ -270,7 +264,6 @@ export async function processPayout(payload: any, params: PayoutParams) {
     if (deductError || deductResult === null || deductResult === -1) {
       console.error("❌ Balance deduction failed:", deductError);
 
-      // Mark transaction as failed (no refund needed)
       await supabase
         .from("transactions")
         .update({
@@ -309,7 +302,6 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
     console.log(`✅ Deducted ₦${totalDeduction} from user ${pendingTx.user_id}. New balance: ₦${deductResult}`);
 
-    // Update transaction to SUCCESS
     await supabase
       .from("transactions")
       .update({
@@ -329,7 +321,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
     const receiver = pendingTx.receiver || {};
 
-    // ✅ Generate receipt HTML from transaction data
+    // ✅ Generate receipt from transaction record
     const receiptHtml = generateTransferReceipt({
       transactionId: pendingTx.id,
       amount: Number(pendingTx.amount),
@@ -371,7 +363,6 @@ export async function processPayout(payload: any, params: PayoutParams) {
       payload.data?.transaction?.responseMessage ||
       "Transaction failed";
 
-    // Update to FAILED (balance was never deducted)
     await supabase
       .from("transactions")
       .update({
