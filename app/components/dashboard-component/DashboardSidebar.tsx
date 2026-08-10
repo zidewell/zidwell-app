@@ -352,10 +352,10 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       )}
 
       <aside
-        className={`fixed top-0 left-0 z-50 flex h-full w-[280px] sm:w-72 flex-col bg-(--bg-primary) border-r-2 border-(--border-color) transition-transform duration-300 ease-out lg:sticky lg:h-screen lg:translate-x-0 ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
+       className={`fixed top-0 left-0 z-50 flex h-full w-[280px] sm:w-72 flex-col bg-(--bg-primary) border-r-2 border-(--border-color) transition-transform duration-300 ease-out lg:translate-x-0 ${
+    open ? "translate-x-0" : "-translate-x-full"
+  }`}
+>
         {/* Header - Fixed height */}
         <div className="flex h-14 sm:h-16 lg:h-[72px] items-center justify-between px-4 sm:px-6 lg:px-8 border-b-2 border-(--border-color) shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2 sm:gap-3" onClick={() => onClose()}>

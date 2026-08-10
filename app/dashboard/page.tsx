@@ -43,14 +43,18 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="min-h-screen bg-(--bg-primary) fade-in relative">
       <AmbientBackground tone={tab === "today" ? "gold" : "green"} />
 
+      {/* Sidebar - fixed positioning */}
       <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Main content - with left padding for desktop sidebar */}
+      <div className="lg:pl-72 min-h-screen flex flex-col">
+        {/* Header */}
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
+        {/* Main content area */}
         <main className="flex-1 px-4 sm:px-6 pb-32 pt-6 md:px-8 lg:px-10 lg:pb-16">
           <h1 className="sr-only">Zidwell financial dashboard</h1>
 
