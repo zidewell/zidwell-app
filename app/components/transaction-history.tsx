@@ -685,6 +685,15 @@ export default function TransactionHistory() {
     return null;
   };
 
+  const getSenderBank = (transaction: any) => {
+    if (transaction.sender?.bank) return transaction.sender.bank;
+    if (transaction.sender?.bankName) return transaction.sender.bankName;
+    if (transaction.from_bank) return transaction.from_bank;
+    if (transaction.external_response?.withdrawal_details?.bank_name) return transaction.external_response.withdrawal_details.bank_name;
+    if (transaction.external_response?.data?.sender?.bank) return transaction.external_response.data.sender.bank;
+    return null;
+  };
+
   const getReceiverName = (transaction: any) => {
     if (transaction.receiver?.name) return transaction.receiver.name;
     if (transaction.to_name) return transaction.to_name;
@@ -707,6 +716,15 @@ export default function TransactionHistory() {
     if (transaction.to_account) return transaction.to_account;
     if (transaction.external_response?.receiver_details?.account_number) return transaction.external_response.receiver_details.account_number;
     if (transaction.external_response?.data?.transaction?.aliasAccountNumber) return transaction.external_response.data.transaction.aliasAccountNumber;
+    return null;
+  };
+
+  const getReceiverBank = (transaction: any) => {
+    if (transaction.receiver?.bank) return transaction.receiver.bank;
+    if (transaction.receiver?.bankName) return transaction.receiver.bankName;
+    if (transaction.to_bank) return transaction.to_bank;
+    if (transaction.external_response?.receiver_details?.bank_name) return transaction.external_response.receiver_details.bank_name;
+    if (transaction.external_response?.data?.receiver?.bank) return transaction.external_response.data.receiver.bank;
     return null;
   };
 
@@ -744,10 +762,12 @@ export default function TransactionHistory() {
       const senderName = getSenderName(transaction);
       const senderEmail = getSenderEmail(transaction);
       const senderAccount = getSenderAccount(transaction);
+      const senderBank = getSenderBank(transaction);
       
       const receiverName = getReceiverName(transaction);
       const receiverEmail = getReceiverEmail(transaction);
       const receiverAccount = getReceiverAccount(transaction);
+      const receiverBank = getReceiverBank(transaction);
       
       const feeAmount = transaction.fee || 0;
 
@@ -785,7 +805,7 @@ export default function TransactionHistory() {
         });
       }
 
-      const receiptHTML = `<!DOCTYPE html>
+   const receiptHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -898,7 +918,7 @@ export default function TransactionHistory() {
     display: flex;
     align-items: center;
     gap: 15px;
-    margin: 40px 0 25px;
+    margin: 25px 0 15px;
   }
   .section-title .line {
     flex: 1;
@@ -909,11 +929,12 @@ export default function TransactionHistory() {
     color: #E5B333;
     font-weight: 600;
     text-transform: uppercase;
+    font-size: 13px;
   }
   .detail-row {
     display: flex;
     justify-content: space-between;
-    padding: 20px 0;
+    padding: 10px 0;
     border-bottom: 1px solid #f0e0a3;
   }
   .detail-row-last {
@@ -923,6 +944,7 @@ export default function TransactionHistory() {
     display: flex;
     gap: 15px;
     align-items: center;
+    flex: 1;
   }
   .icon {
     width: 42px;
@@ -933,21 +955,42 @@ export default function TransactionHistory() {
     display: flex;
     justify-content: center;
     align-items: center;
+    flex-shrink: 0;
+  }
+  .icon svg {
+    width: 20px;
+    height: 20px;
   }
   .detail-title {
-    font-size: 15px;
+    font-size: 13px;
     color: #444;
   }
   .detail-value {
     font-weight: 600;
-    margin-top: 4px;
+    margin-top: 3px;
+    font-size: 14px;
   }
   .sub {
     color: #777;
-    font-size: 14px;
+    font-size: 12px;
   }
   .right {
     font-weight: 600;
+    text-align: right;
+    font-size: 14px;
+  }
+  .narration-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex: 1;
+  }
+  .narration-text {
+    font-weight: 400;
+    font-size: 13px;
+    text-align: right;
+    max-width: 60%;
+    word-break: break-word;
   }
   .footer {
     height: 50px;
@@ -1023,11 +1066,13 @@ export default function TransactionHistory() {
             <polyline points="12 6 12 12 16 14"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">Date & Time</div>
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">Date & Time</div>
+          </div>
+          <div class="right">${formattedDate}</div>
         </div>
       </div>
-      <div class="right">${formattedDate}</div>
     </div>
 
     ${senderName ? `
@@ -1039,13 +1084,16 @@ export default function TransactionHistory() {
             <polyline points="5 12 12 5 19 12"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">From</div>
-          <div class="detail-value">${escapeHtml(senderName)}</div>
-          ${senderEmail ? `<div class="sub">${escapeHtml(senderEmail)}</div>` : ''}
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">From</div>
+            <div class="detail-value">${escapeHtml(senderName)}</div>
+            ${senderEmail ? `<div class="sub">${escapeHtml(senderEmail)}</div>` : ''}
+            ${senderBank ? `<div class="sub">${escapeHtml(senderBank)}</div>` : ''}
+          </div>
+          ${senderAccount ? `<div class="right">${escapeHtml(senderAccount)}</div>` : ''}
         </div>
       </div>
-      ${senderAccount ? `<div class="right">${escapeHtml(senderAccount)}</div>` : '<div class="right"></div>'}
     </div>
     ` : ''}
 
@@ -1058,13 +1106,16 @@ export default function TransactionHistory() {
             <polyline points="19 12 12 19 5 12"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">To</div>
-          <div class="detail-value">${escapeHtml(receiverName)}</div>
-          ${receiverEmail ? `<div class="sub">${escapeHtml(receiverEmail)}</div>` : ''}
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">To</div>
+            <div class="detail-value">${escapeHtml(receiverName)}</div>
+            ${receiverEmail ? `<div class="sub">${escapeHtml(receiverEmail)}</div>` : ''}
+            ${receiverBank ? `<div class="sub">${escapeHtml(receiverBank)}</div>` : ''}
+          </div>
+          ${receiverAccount ? `<div class="right">${escapeHtml(receiverAccount)}</div>` : ''}
         </div>
       </div>
-      ${receiverAccount ? `<div class="right">${escapeHtml(receiverAccount)}</div>` : '<div class="right"></div>'}
     </div>
     ` : ''}
 
@@ -1076,9 +1127,11 @@ export default function TransactionHistory() {
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">Narration</div>
-          <div class="detail-value" style="font-weight: 400; font-size: 14px;">${escapeHtml(narration)}</div>
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">Narration</div>
+          </div>
+          <div class="narration-text">${escapeHtml(narration)}</div>
         </div>
       </div>
     </div>
@@ -1095,11 +1148,13 @@ export default function TransactionHistory() {
             <line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">Fee</div>
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">Fee</div>
+          </div>
+          <div class="right">₦${feeAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
         </div>
       </div>
-      <div class="right">₦${feeAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
     </div>
     ` : ''}
 
@@ -1113,9 +1168,11 @@ export default function TransactionHistory() {
             <line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">Transaction ID</div>
-          <div class="detail-value">${escapeHtml(transactionIdDisplay)}</div>
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">Transaction ID</div>
+            <div class="detail-value">${escapeHtml(transactionIdDisplay)}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1160,18 +1217,18 @@ export default function TransactionHistory() {
     }
   };
 
-const formatAmount = (transaction: any) => {
-  const isOutflowTransaction = isOutflow(transaction.type);
-  const amount = Number(transaction.amount) || 0;
+  const formatAmount = (transaction: any) => {
+    const isOutflowTransaction = isOutflow(transaction.type);
+    const amount = Number(transaction.amount) || 0;
 
-  return {
-    display: formatCurrency(amount),
-    signedDisplay: `${isOutflowTransaction ? "-" : "+"}${formatCurrency(amount)}`,
-    receiptDisplay: `₦${Math.abs(amount).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
-    isOutflow: isOutflowTransaction,
-    rawAmount: amount,
+    return {
+      display: formatCurrency(amount),
+      signedDisplay: `${isOutflowTransaction ? "-" : "+"}${formatCurrency(amount)}`,
+      receiptDisplay: `₦${Math.abs(amount).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
+      isOutflow: isOutflowTransaction,
+      rawAmount: amount,
+    };
   };
-};
 
   const isEligibleForReceipt = (transaction: any) => {
     return transaction.status?.toLowerCase() === "success";

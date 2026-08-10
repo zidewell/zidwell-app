@@ -293,20 +293,22 @@ function generateTransferReceipt(data: any): string {
   .amount { text-align: center; }
   .amount-label { color: #777; text-transform: uppercase; letter-spacing: 1px; }
   .amount-value { font-size: 30px; font-weight: 700; margin-top: 10px; }
-  .section-title { display: flex; align-items: center; gap: 15px; margin: 40px 0 25px; }
+  .section-title { display: flex; align-items: center; gap: 15px; margin: 25px 0 15px; }
   .section-title .line { flex: 1; height: 1px; background: #E5B333; }
-  .section-title span { color: #E5B333; font-weight: 600; text-transform: uppercase; }
-  .detail-row { display: flex; justify-content: space-between; padding: 20px 0; border-bottom: 1px solid #f0e0a3; }
+  .section-title span { color: #E5B333; font-weight: 600; text-transform: uppercase; font-size: 13px; }
+  .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0e0a3; }
   .detail-row-last { border-bottom: none; }
-  .left { display: flex; gap: 15px; align-items: center; }
-  .icon { width: 42px; height: 42px; background: #101010; border-radius: 50%; color: #E5B333; display: flex; justify-content: center; align-items: center; }
-  .detail-title { font-size: 15px; color: #444; }
-  .detail-value { font-weight: 600; margin-top: 4px; }
-  .sub { color: #777; font-size: 14px; }
-  .right { font-weight: 600; }
+  .left { display: flex; gap: 15px; align-items: center; flex: 1; }
+  .icon { width: 42px; height: 42px; background: #101010; border-radius: 50%; color: #E5B333; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+  .detail-title { font-size: 13px; color: #444; }
+  .detail-value { font-weight: 600; margin-top: 3px; font-size: 14px; }
+  .sub { color: #777; font-size: 12px; }
+  .right { font-weight: 600; text-align: right; font-size: 14px; }
   .footer { height: 50px; color: #fff; font-size:12px; display: flex; justify-content: center; align-items: center; position: relative; background: #101010; }
   .footer::before { content: ""; position: absolute; top: -40px; left: 0; width: 100%; height: 80px; background: #101010; border-top: 2px solid #E5B333; border-top-left-radius: 70%; border-top-right-radius: 70%; }
   .footer span { position: relative; z-index: 2; }
+  .narration-wrapper { display: flex; justify-content: space-between; align-items: center; flex: 1; }
+  .narration-text { font-weight: 400; font-size: 13px; text-align: right; max-width: 60%; word-break: break-word; }
 </style>
 </head>
 <body>
@@ -351,11 +353,13 @@ function generateTransferReceipt(data: any): string {
             <polyline points="12 6 12 12 16 14"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">Date & Time</div>
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">Date & Time</div>
+          </div>
+          <div class="right">${formattedDate}</div>
         </div>
       </div>
-      <div class="right">${formattedDate}</div>
     </div>
     <div class="detail-row">
       <div class="left">
@@ -365,10 +369,12 @@ function generateTransferReceipt(data: any): string {
             <polyline points="5 12 12 5 19 12"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">From</div>
-          <div class="detail-value">${escapeHtml(data.senderName || 'Zidwell User')}</div>
-          ${data.senderAccount ? `<div class="sub">${escapeHtml(data.senderAccount)}</div>` : ''}
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">From</div>
+            <div class="detail-value">${escapeHtml(data.senderName || 'Zidwell User')}</div>
+            ${data.senderAccount ? `<div class="sub">${escapeHtml(data.senderAccount)}</div>` : ''}
+          </div>
         </div>
       </div>
     </div>
@@ -380,11 +386,13 @@ function generateTransferReceipt(data: any): string {
             <polyline points="19 12 12 19 5 12"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">To</div>
-          <div class="detail-value">${escapeHtml(data.recipientName || 'N/A')}</div>
-          ${data.recipientAccount ? `<div class="sub">${escapeHtml(data.recipientAccount)}</div>` : ''}
-          ${data.recipientBank ? `<div class="sub">${escapeHtml(data.recipientBank)}</div>` : ''}
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">To</div>
+            <div class="detail-value">${escapeHtml(data.recipientName || 'N/A')}</div>
+            ${data.recipientAccount ? `<div class="sub">${escapeHtml(data.recipientAccount)}</div>` : ''}
+            ${data.recipientBank ? `<div class="sub">${escapeHtml(data.recipientBank)}</div>` : ''}
+          </div>
         </div>
       </div>
     </div>
@@ -396,9 +404,11 @@ function generateTransferReceipt(data: any): string {
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">Narration</div>
-          <div class="detail-value" style="font-weight: 400; font-size: 14px;">${escapeHtml(data.narration)}</div>
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">Narration</div>
+          </div>
+          <div class="narration-text">${escapeHtml(data.narration)}</div>
         </div>
       </div>
     </div>
@@ -414,11 +424,13 @@ function generateTransferReceipt(data: any): string {
             <line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">Fee</div>
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">Fee</div>
+          </div>
+          <div class="right">${feeDisplay}</div>
         </div>
       </div>
-      <div class="right">${feeDisplay}</div>
     </div>
     ` : ''}
     <div class="detail-row detail-row-last">
@@ -431,9 +443,11 @@ function generateTransferReceipt(data: any): string {
             <line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
         </div>
-        <div>
-          <div class="detail-title">Transaction ID</div>
-          <div class="detail-value">${escapeHtml(data.transactionId)}</div>
+        <div class="narration-wrapper">
+          <div>
+            <div class="detail-title">Transaction ID</div>
+            <div class="detail-value">${escapeHtml(data.transactionId)}</div>
+          </div>
         </div>
       </div>
     </div>
