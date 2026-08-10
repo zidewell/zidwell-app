@@ -728,95 +728,101 @@ export default function TransactionHistory() {
     return null;
   };
 
-  const handleDownloadReceipt = async (transaction: any) => {
-    const transactionId = transaction.id;
-    setDownloadingReceipts((prev) => new Set(prev).add(transactionId));
+ const handleDownloadReceipt = async (transaction: any) => {
+  const transactionId = transaction.id;
+  setDownloadingReceipts((prev) => new Set(prev).add(transactionId));
 
-    try {
-      let logoBase64 = base64Logo;
-      if (!logoBase64) {
-        logoBase64 = await getBase64Logo();
-      }
+  try {
+    let logoBase64 = base64Logo;
+    if (!logoBase64) {
+      logoBase64 = await getBase64Logo();
+    }
 
-      const amountInfo = formatAmount(transaction);
-      
-      const getNarration = (tx: any) => {
-        if (tx.narration) return tx.narration;
-        if (tx.description) return tx.description;
-        if (tx.external_response?.data?.transaction?.narration)
-          return tx.external_response.data.transaction.narration;
-        if (tx.external_response?.narration)
-          return tx.external_response.narration;
-        if (tx.external_response?.withdrawal_details?.narration)
-          return tx.external_response.withdrawal_details.narration;
-        return null;
-      };
+    const amountInfo = formatAmount(transaction);
+    
+    const getNarration = (tx: any) => {
+      if (tx.narration) return tx.narration;
+      if (tx.description) return tx.description;
+      if (tx.external_response?.data?.transaction?.narration)
+        return tx.external_response.data.transaction.narration;
+      if (tx.external_response?.narration)
+        return tx.external_response.narration;
+      if (tx.external_response?.withdrawal_details?.narration)
+        return tx.external_response.withdrawal_details.narration;
+      return null;
+    };
 
-      const narration = getNarration(transaction);
-      const statusMeta = getStatusMeta(transaction.status);
-      const transactionIdDisplay = transaction.reference || transaction.merchant_tx_ref || transaction.id;
-      
-      const dateObj = new Date(transaction.created_at);
-      const formattedDate = `${dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} • ${dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-      
-      const senderName = getSenderName(transaction);
-      const senderEmail = getSenderEmail(transaction);
-      const senderAccount = getSenderAccount(transaction);
-      const senderBank = getSenderBank(transaction);
-      
-      const receiverName = getReceiverName(transaction);
-      const receiverEmail = getReceiverEmail(transaction);
-      const receiverAccount = getReceiverAccount(transaction);
-      const receiverBank = getReceiverBank(transaction);
-      
-      const feeAmount = transaction.fee || 0;
+    const narration = getNarration(transaction);
+    const statusMeta = getStatusMeta(transaction.status);
+    const transactionIdDisplay = transaction.reference || transaction.merchant_tx_ref || transaction.id;
+    
+    const dateObj = new Date(transaction.created_at);
+    const formattedDate = `${dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} • ${dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    
+    const senderName = getSenderName(transaction);
+    const senderEmail = getSenderEmail(transaction);
+    const senderAccount = getSenderAccount(transaction);
+    const senderBank = getSenderBank(transaction);
+    
+    const receiverName = getReceiverName(transaction);
+    const receiverEmail = getReceiverEmail(transaction);
+    const receiverAccount = getReceiverAccount(transaction);
+    const receiverBank = getReceiverBank(transaction);
+    
+    const feeAmount = transaction.fee || 0;
 
-      const logoSrc = logoBase64 || "/logo.png";
+    const logoSrc = logoBase64 || "/logo.png";
 
-      let statusIconSvg = '';
-      if (statusMeta.statusClass === 'success') {
-        statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
-          <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`;
-      } else if (statusMeta.statusClass === 'pending') {
-        statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" fill="#f5a524" stroke="none"/>
-          <circle cx="12" cy="12" r="3" fill="white"/>
-          <path d="M12 8V12L14 14" stroke="white" stroke-width="2" stroke-linecap="round"/>
-        </svg>`;
-      } else {
-        statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" fill="#ff3b30" stroke="none"/>
-          <path d="M15 9L9 15" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          <path d="M9 9L15 15" stroke="white" stroke-width="2" stroke-linecap="round"/>
-        </svg>`;
-      }
+    // Use Unicode Naira sign
+    const NAIRA = '\u20A6';
 
-      function escapeHtml(str: string): string {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-          if (m === '&') return '&amp;';
-          if (m === '<') return '&lt;';
-          if (m === '>') return '&gt;';
-          return m;
-        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
-          return c;
-        });
-      }
+    let statusIconSvg = '';
+    if (statusMeta.statusClass === 'success') {
+      statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
+        <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    } else if (statusMeta.statusClass === 'pending') {
+      statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" fill="#f5a524" stroke="none"/>
+        <circle cx="12" cy="12" r="3" fill="white"/>
+        <path d="M12 8V12L14 14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>`;
+    } else {
+      statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" fill="#ff3b30" stroke="none"/>
+        <path d="M15 9L9 15" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <path d="M9 9L15 15" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>`;
+    }
 
-   const receiptHTML = `<!DOCTYPE html>
+    function escapeHtml(str: string): string {
+      if (!str) return '';
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+      });
+    }
+
+    const receiptHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>Zidwell Receipt | ${transactionIdDisplay}</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  
   * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Arial', 'Helvetica', sans-serif;
+    font-family: 'Inter', 'Arial', 'Helvetica', sans-serif;
   }
   body {
     background: #101010;
@@ -1152,7 +1158,7 @@ export default function TransactionHistory() {
           <div>
             <div class="detail-title">Fee</div>
           </div>
-          <div class="right">₦${feeAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
+          <div class="right">${NAIRA}${feeAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
         </div>
       </div>
     </div>
@@ -1186,36 +1192,36 @@ export default function TransactionHistory() {
 </body>
 </html>`;
 
-      const response = await fetch("/api/generate-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: receiptHTML }),
-      });
+    const response = await fetch("/api/generate-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ html: receiptHTML }),
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to generate PDF");
-      }
-
-      const pdfBlob = await response.blob();
-      const url = URL.createObjectURL(pdfBlob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `zidwell-receipt-${transactionIdDisplay}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("PDF generation failed. Please try again.");
-    } finally {
-      setDownloadingReceipts((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(transactionId);
-        return newSet;
-      });
+    if (!response.ok) {
+      throw new Error("Failed to generate PDF");
     }
-  };
+
+    const pdfBlob = await response.blob();
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `zidwell-receipt-${transactionIdDisplay}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    alert("PDF generation failed. Please try again.");
+  } finally {
+    setDownloadingReceipts((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(transactionId);
+      return newSet;
+    });
+  }
+};
 
   const formatAmount = (transaction: any) => {
     const isOutflowTransaction = isOutflow(transaction.type);
