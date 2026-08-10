@@ -69,7 +69,16 @@ const DashboardPage = () => {
                     : "text-(--text-secondary)/50 hover:text-(--text-secondary)"
                 }`}
               >
-                {t.label}
+                {t.id === "future" ? (
+                  <span className="flex items-center gap-3">
+                    {t.label}
+                    <span className="text-[0.5rem] sm:text-xs md:text-sm font-bold uppercase tracking-wider text-(--color-accent-yellow) bg-(--color-accent-yellow)/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-(--color-accent-yellow)/30 animate-pulse whitespace-nowrap">
+                      Coming Soon
+                    </span>
+                  </span>
+                ) : (
+                  t.label
+                )}
                 <span
                   className={`absolute bottom-0 left-0 h-1.5 rounded-full transition-all duration-300 ${
                     tab === t.id ? "w-full" : "w-0"

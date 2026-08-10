@@ -220,7 +220,7 @@ export function useJournalStore() {
   const fetchWalletTransactions = useCallback(async () => {
     if (!userId) return [];
     try {
-      const response = await fetch(`/api/bill-transactions?userId=${userId}&limit=500`);
+      const response = await fetch(`/api/bill-transactions?userId=${userId}&limit=50`);
       const data = await response.json();
       console.log('💰 Wallet transactions fetched:', data?.transactions?.length || 0);
       return data?.transactions || [];

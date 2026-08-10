@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Send,
   Plus,
@@ -19,6 +20,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
 import CircleAction from "./CircleAction";
 import { useUserContextData } from "@/app/context/userData";
@@ -50,25 +52,9 @@ const outflowTypes = [
   "expense",
 ];
 
-// Cache keys
-const CACHE_KEY = "todays_money_transactions";
-const CACHE_TIMESTAMP_KEY = "todays_money_timestamp";
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
-
-interface CachedData {
-  transactions: any[];
-  metrics: {
-    totalInflow: number;
-    totalOutflow: number;
-    totalTransactions: number;
-    netFlow: number;
-  };
-}
-
 // Loading Skeleton Component
 const LoadingSkeleton = () => (
   <div className="space-y-10 animate-pulse">
-    {/* Balance + health skeleton */}
     <section className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
       <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-8 shadow-[2px_2px_0px_var(--border-color)]">
         <div className="h-4 w-32 bg-(--bg-secondary) rounded mb-4"></div>
@@ -92,8 +78,6 @@ const LoadingSkeleton = () => (
         </div>
       </div>
     </section>
-
-    {/* Metrics skeleton */}
     <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
       {[1, 2, 3, 4].map((i) => (
         <div key={i} className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-6 shadow-[2px_2px_0px_var(--border-color)]">
@@ -103,8 +87,6 @@ const LoadingSkeleton = () => (
         </div>
       ))}
     </section>
-
-    {/* Actions skeleton */}
     <section>
       <div className="h-8 w-48 bg-(--bg-secondary) rounded mb-8"></div>
       <div className="flex flex-wrap gap-8 sm:gap-12">
@@ -116,8 +98,6 @@ const LoadingSkeleton = () => (
         ))}
       </div>
     </section>
-
-    {/* Tools + transactions skeleton */}
     <section className="grid gap-8 xl:grid-cols-[1fr_1.15fr]">
       <div>
         <div className="h-8 w-48 bg-(--bg-secondary) rounded mb-6"></div>
@@ -156,7 +136,6 @@ const TodaysMoney = () => {
   const router = useRouter();
   const { userData, balance } = useUserContextData();
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({
     totalInflow: 0,
@@ -164,47 +143,12 @@ const TodaysMoney = () => {
     totalTransactions: 0,
     netFlow: 0,
   });
-  const [isFromCache, setIsFromCache] = useState(false);
+  const [totalTransactionCount, setTotalTransactionCount] = useState(0);
   const fetchInProgress = useRef(false);
+  const initialFetchDone = useRef(false);
 
   const circumference = 2 * Math.PI * 52;
   const healthScore = 82;
-
-  // Helper to get cached data
-  const getCachedData = useCallback((): CachedData | null => {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-      
-      if (!cached || !timestamp) return null;
-      
-      const now = Date.now();
-      const cacheTime = parseInt(timestamp, 10);
-      
-      // Check if cache is still valid
-      if (now - cacheTime > CACHE_DURATION) {
-        // Cache expired, clear it
-        localStorage.removeItem(CACHE_KEY);
-        localStorage.removeItem(CACHE_TIMESTAMP_KEY);
-        return null;
-      }
-      
-      return JSON.parse(cached);
-    } catch (error) {
-      console.error("Error reading cache:", error);
-      return null;
-    }
-  }, []);
-
-  // Helper to save data to cache
-  const saveToCache = useCallback((data: CachedData) => {
-    try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-      localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
-    } catch (error) {
-      console.error("Error saving to cache:", error);
-    }
-  }, []);
 
   // Calculate metrics from transactions
   const calculateMetrics = useCallback((transactions: any[]) => {
@@ -236,72 +180,56 @@ const TodaysMoney = () => {
     };
   }, []);
 
-  // Fetch all transactions
-  const fetchAllTransactions = useCallback(async (forceRefresh = false) => {
+  // Fetch only recent transactions (limit 5) - FORCE REFRESH, NO CACHE
+  const fetchRecentTransactions = useCallback(async () => {
     if (!userData?.id) return;
-    
-    // Prevent multiple simultaneous fetches
     if (fetchInProgress.current) return;
-    
-    // Check cache first (unless force refresh)
-    if (!forceRefresh) {
-      const cachedData = getCachedData();
-      if (cachedData) {
-        const { transactions, metrics: cachedMetrics } = cachedData;
-        setAllTransactions(transactions);
-        setRecentTransactions(transactions.slice(0, 5));
-        setMetrics(cachedMetrics);
-        setIsFromCache(true);
-        setLoading(false);
-        return;
-      }
-    }
 
     fetchInProgress.current = true;
     setLoading(true);
-    setIsFromCache(false);
 
     try {
-      let allTxns: any[] = [];
-      let page = 1;
-      let hasMore = true;
-      const limit = 100;
+      // Clear any existing cache for this component
+      localStorage.removeItem("todays_money_recent_transactions_v3");
+      localStorage.removeItem("todays_money_timestamp_v3");
 
-      // Fetch all pages to get complete data
-      while (hasMore) {
-        const params = new URLSearchParams({
-          userId: userData.id,
-          page: page.toString(),
-          limit: limit.toString(),
+      // Fetch only first page with limit 5
+      const params = new URLSearchParams({
+        userId: userData.id,
+        page: '1',
+        limit: '5',
+      });
+
+      console.log("🔍 Fetching transactions with limit=5:", params.toString());
+      
+      const response = await fetch(
+        `/api/bill-transactions?${params.toString()}`
+      );
+      const data = await response.json();
+      
+  
+      if (data.transactions && data.transactions.length > 0) {
+        const transactions = data.transactions;
+        const calculatedMetrics = calculateMetrics(transactions);
+        const totalCount = data.total || data.count || transactions.length;
+
+        setRecentTransactions(transactions);
+        setMetrics(calculatedMetrics);
+        setTotalTransactionCount(totalCount);
+        
+        console.log(`✅ Loaded ${transactions.length} recent transactions (out of ${totalCount} total)`);
+      } else {
+        setRecentTransactions([]);
+        setMetrics({
+          totalInflow: 0,
+          totalOutflow: 0,
+          totalTransactions: 0,
+          netFlow: 0,
         });
-
-        const response = await fetch(
-          `/api/bill-transactions?${params.toString()}`
-        );
-        const data = await response.json();
-
-        if (data.transactions && data.transactions.length > 0) {
-          allTxns = [...allTxns, ...data.transactions];
-          hasMore = data.hasMore || false;
-          page++;
-        } else {
-          hasMore = false;
-        }
+        setTotalTransactionCount(0);
       }
 
-      // Calculate metrics
-      const calculatedMetrics = calculateMetrics(allTxns);
-
-      // Update state
-      setAllTransactions(allTxns);
-      setRecentTransactions(allTxns.slice(0, 5));
-      setMetrics(calculatedMetrics);
-
-      // Save to cache
-      saveToCache({
-        transactions: allTxns,
-        metrics: calculatedMetrics,
-      });
+      initialFetchDone.current = true;
 
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -309,24 +237,14 @@ const TodaysMoney = () => {
       setLoading(false);
       fetchInProgress.current = false;
     }
-  }, [userData, getCachedData, calculateMetrics, saveToCache]);
+  }, [userData, calculateMetrics]);
 
-  // Initial fetch on mount and when user changes
+  // Initial fetch on mount
   useEffect(() => {
-    fetchAllTransactions();
-  }, [fetchAllTransactions]);
-
-  // Refresh data periodically (every 5 minutes)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Only refresh if not already loading
-      if (!fetchInProgress.current) {
-        fetchAllTransactions(true); // Force refresh
-      }
-    }, CACHE_DURATION);
-
-    return () => clearInterval(interval);
-  }, [fetchAllTransactions]);
+    if (userData?.id && !initialFetchDone.current) {
+      fetchRecentTransactions();
+    }
+  }, [userData, fetchRecentTransactions]);
 
   // Helper to format currency
   const formatCurrency = (amount: number) => {
@@ -413,7 +331,7 @@ const TodaysMoney = () => {
   // Use real balance from context or fallback
   const displayBalance = balance ?? 0;
 
-  // Use real metrics calculated from all transactions
+  // Use real metrics calculated from transactions
   const displayMetrics = [
     {
       label: "Money In",
@@ -435,8 +353,8 @@ const TodaysMoney = () => {
     },
     {
       label: "Transactions",
-      value: metrics.totalTransactions.toString(),
-      delta: `${metrics.totalTransactions} total`,
+      value: totalTransactionCount.toString(),
+      delta: `${totalTransactionCount} total`,
       positive: true,
     },
   ];
@@ -531,10 +449,10 @@ const TodaysMoney = () => {
     displayTransactions.length > 0 ? displayTransactions : fallbackTransactions;
 
   // Check if we have real data
-  const hasRealData = allTransactions.length > 0;
+  const hasRealData = recentTransactions.length > 0;
 
   // Show loading skeleton while fetching
-  if (loading && !isFromCache) {
+  if (loading) {
     return <LoadingSkeleton />;
   }
 
@@ -560,12 +478,6 @@ const TodaysMoney = () => {
             >
               {metrics.netFlow >= 0 ? "+" : ""}
               {formatCurrency(metrics.netFlow)} net flow
-            </span>
-            <span className="text-sm text-(--text-secondary)">
-              {hasRealData ? `${allTransactions.length} total transactions` : "No transactions yet"}
-              {isFromCache && !loading && (
-                <span className="ml-2 text-xs text-(--text-secondary)/60">(cached)</span>
-              )}
             </span>
           </div>
         </div>
@@ -638,10 +550,18 @@ const TodaysMoney = () => {
           Quick actions
         </h2>
         <div className="flex flex-wrap gap-8 sm:gap-12">
-          <CircleAction label="Send Money" icon={Send} variant="gold" />
-          <CircleAction label="Add Money" icon={Plus} variant="green" />
-          <CircleAction label="Bookkeeping" icon={BookOpen} />
-          <CircleAction label="More Tools" icon={LayoutGrid} />
+          <Link href="/dashboard/fund-account/transfer-page">
+            <CircleAction label="Send Money" icon={Send} variant="gold" />
+          </Link>
+          <Link href="/dashboard/fund-account">
+            <CircleAction label="Add Money" icon={Plus} variant="green" />
+          </Link>
+          <Link href="/dashboard/services/bookkeeping">
+            <CircleAction label="Bookkeeping" icon={BookOpen} />
+          </Link>
+          <Link href="/dashboard/services">
+            <CircleAction label="More Tools" icon={LayoutGrid} />
+          </Link>
         </div>
       </section>
 
@@ -671,20 +591,22 @@ const TodaysMoney = () => {
         </div>
 
         <div>
-          <h2 className="mb-6 text-2xl font-extrabold text-(--text-primary)">
-            Recent transactions
-          </h2>
+          {/* Header with View All link */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-extrabold text-(--text-primary)">
+              Recent transactions
+            </h2>
+            <Link
+              href="/dashboard/transactions"
+              className="flex items-center gap-1 text-sm font-medium text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 transition-colors group"
+            >
+              View All
+              <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </div>
+
           <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md shadow-[2px_2px_0px_var(--border-color)] divide-y divide-(--border-color) overflow-hidden">
-            {loading && isFromCache ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="flex flex-col items-center gap-2">
-                  <Loader2 className="w-6 h-6 animate-spin text-(--color-accent-yellow)" />
-                  <p className="text-sm text-(--text-secondary)">
-                    Refreshing data...
-                  </p>
-                </div>
-              </div>
-            ) : !hasRealData ? (
+            {!hasRealData ? (
               <div className="text-center py-12 text-(--text-secondary)">
                 <p className="mb-2">No transactions yet</p>
                 <p className="text-sm">Start using Zidwell to see your transactions here</p>

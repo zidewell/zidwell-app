@@ -1,4 +1,4 @@
-// app/api/transactions/route.ts
+// app/api/bill-transactions/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
