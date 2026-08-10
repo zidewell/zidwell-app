@@ -1006,7 +1006,7 @@ export default function TransactionHistory() {
 
     <div class="amount">
       <div class="amount-label">Amount</div>
-      <div class="amount-value">₦${amountInfo.signedDisplay}</div>
+      <div class="amount-value">${amountInfo.receiptDisplay}</div>
     </div>
 
     <div class="section-title">
@@ -1160,17 +1160,18 @@ export default function TransactionHistory() {
     }
   };
 
-  const formatAmount = (transaction: any) => {
-    const isOutflowTransaction = isOutflow(transaction.type);
-    const amount = Number(transaction.amount) || 0;
+const formatAmount = (transaction: any) => {
+  const isOutflowTransaction = isOutflow(transaction.type);
+  const amount = Number(transaction.amount) || 0;
 
-    return {
-      display: formatCurrency(amount),
-      signedDisplay: `${isOutflowTransaction ? "-" : "+"}${formatCurrency(amount)}`,
-      isOutflow: isOutflowTransaction,
-      rawAmount: amount,
-    };
+  return {
+    display: formatCurrency(amount),
+    signedDisplay: `${isOutflowTransaction ? "-" : "+"}${formatCurrency(amount)}`,
+    receiptDisplay: `₦${Math.abs(amount).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
+    isOutflow: isOutflowTransaction,
+    rawAmount: amount,
   };
+};
 
   const isEligibleForReceipt = (transaction: any) => {
     return transaction.status?.toLowerCase() === "success";

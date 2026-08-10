@@ -1,15 +1,39 @@
-import { getUserWithDetails, UserDetails } from "@/lib/suabase-admin"; 
-import { NextResponse } from "next/server";
+// app/api/login/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
+import { getUserWithDetails } from "@/lib/suabase-admin";
 import { supabase } from "@/app/supabase/supabase";
+import {
+  getClientIp,
+  getGeoLocation,
+  checkRateLimit,
+  trackFailedAttempt,
+  analyzeLoginRisk,
+  generateSessionId,
+  type DeviceInfo,
+} from "@/lib/security";
 
-export async function POST(req: Request) {
+const MAX_FAILED_ATTEMPTS = 5;
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
+const BLOCK_THRESHOLD = 75; // FIX #3: Raised from 60 to 75
+
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  
-  try {
-    const { email, password } = await req.json();
 
-    // Validate input
+  try {
+    const body = await request.json();
+    const { email, password, deviceInfo } = body as {
+      email: string;
+      password: string;
+      deviceInfo?: DeviceInfo;
+    };
+
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
@@ -17,7 +41,47 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1️⃣ Sign in the user
+    // ─── RATE LIMITING ───
+    const ip = getClientIp(request);
+
+    const ipLimit = checkRateLimit(`ip:${ip}`, MAX_FAILED_ATTEMPTS, RATE_LIMIT_WINDOW);
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Too many login attempts. Please try again in 15 minutes.",
+          retryAfter: Math.ceil((ipLimit.resetTime - Date.now()) / 1000),
+        },
+        { status: 429 }
+      );
+    }
+
+    const emailLimit = checkRateLimit(
+      `email:${email.toLowerCase()}`,
+      MAX_FAILED_ATTEMPTS,
+      RATE_LIMIT_WINDOW
+    );
+    if (!emailLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Too many failed attempts for this account. Please try again later.",
+          retryAfter: Math.ceil((emailLimit.resetTime - Date.now()) / 1000),
+        },
+        { status: 429 }
+      );
+    }
+
+    // ─── GEOLOCATION & DEVICE ───
+    const location = await getGeoLocation(ip);
+    const timestamp = new Date();
+
+    const device: DeviceInfo = deviceInfo || {
+      userAgent: request.headers.get("user-agent") || "unknown",
+      platform: "unknown",
+      language: "unknown",
+      timezone: "unknown",
+    };
+
+    // ─── AUTHENTICATION ───
     const { data: authData, error: authError } =
       await supabase.auth.signInWithPassword({
         email,
@@ -26,19 +90,34 @@ export async function POST(req: Request) {
 
     if (authError || !authData?.session) {
       console.error("Auth error:", authError?.message);
+
+      try {
+        await supabase.from("failed_login_attempts").insert({
+          email: email.toLowerCase(),
+          ip_address: ip,
+          device_info: device as any,
+          location_info: location as any,
+          reason: authError?.message || "Invalid credentials",
+        });
+      } catch (e) {
+        console.error("Failed to log failed attempt:", e);
+      }
+
+      trackFailedAttempt(`ip:${ip}`, email);
+      trackFailedAttempt(`email:${email.toLowerCase()}`, email);
+
       return NextResponse.json(
         { error: authError?.message || "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    // Check if user is blocked
     const { access_token, refresh_token, expires_in } = authData.session;
     const userId = authData.user.id;
 
-    // Get user profile to check if blocked
+    // ─── USER PROFILE & BLOCK CHECK ───
     const userProfile = await getUserWithDetails(userId);
-    
+
     if (!userProfile) {
       return NextResponse.json(
         { error: "Account not found. Please sign up first." },
@@ -46,73 +125,231 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user is blocked
     if (userProfile.is_blocked) {
       return NextResponse.json(
-        { 
+        {
           error: "Your account has been blocked. Please contact support for assistance.",
           blocked: true,
           blockedReason: userProfile.block_reason,
-          blockedAt: userProfile.blocked_at
+          blockedAt: userProfile.blocked_at,
         },
         { status: 403 }
       );
     }
 
-    // Fetch user's business information
+    // ─── SECURITY ANALYSIS ───
+    let securityContext = await analyzeLoginRisk(supabase, userId, {
+      ip,
+      location,
+      device,
+      timestamp,
+    });
+
+    console.log(`🔐 Login security analysis for ${email}:`, {
+      riskScore: securityContext.riskScore,
+      reasons: securityContext.reasons,
+      isKnownDevice: securityContext.isKnownDevice,
+      location: `${location.city}, ${location.country}`,
+    });
+
+    // ─── DEVELOPMENT BYPASS ───
+    const isDevLocalhost =
+      process.env.NODE_ENV === "development" &&
+      (ip === "127.0.0.1" || ip === "::1" || ip === "unknown");
+
+    if (isDevLocalhost) {
+      console.log("🔓 Development localhost detected — bypassing geo/time risk checks");
+      securityContext = {
+        ...securityContext,
+        riskScore: 0,
+        reasons: [],
+        isKnownDevice: true,
+      };
+    }
+
+    // ─── HIGH-RISK LOGIN HANDLING ───
+    if (securityContext.riskScore >= BLOCK_THRESHOLD) {
+      try {
+        await supabase.from("login_history").insert({
+          user_id: userId,
+          ip_address: ip,
+          country: location.country,
+          city: location.city,
+          region: location.region,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          timezone: location.timezone,
+          user_agent: device.userAgent,
+          device_fingerprint: device.fingerprint,
+          platform: device.platform,
+          screen_resolution: device.screenResolution,
+          is_suspicious: true,
+          suspicious_reasons: securityContext.reasons,
+          is_successful: false,
+        });
+      } catch (e) {
+        console.error("Failed to log blocked login:", e);
+      }
+
+      console.warn(
+        `🚫 BLOCKED high-risk login for ${email} from ${location.city}, ${location.country}`
+      );
+
+      return NextResponse.json(
+        {
+          error: "This login was blocked due to unusual activity. Please check your email or contact support.",
+          blocked: true,
+          riskScore: securityContext.riskScore,
+          reasons: securityContext.reasons,
+        },
+        { status: 403 }
+      );
+    }
+
+    const isSuspicious = securityContext.riskScore > 30;
+
+    // ─── GENERATE UNIQUE SESSION TOKEN ───
+    const sessionToken = generateSessionId();
+    const sessionExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const oldSessionId = userProfile.current_session_id;
+
+    try {
+      await supabaseAdmin
+        .from("users")
+        .update({
+          current_session_id: sessionToken,
+          current_session_ip: ip,
+          current_session_device: `${device.platform} | ${device.userAgent?.slice(0, 60)}`,
+          current_session_expires_at: sessionExpiresAt.toISOString(),
+        })
+        .eq("id", userId);
+    } catch (e) {
+      console.error("Failed to update session in DB:", e);
+    }
+
+    if (oldSessionId) {
+      console.log(
+        `🔑 Session ${oldSessionId.slice(0, 8)}... invalidated. New session ${sessionToken.slice(0, 8)}... created for ${email}`
+      );
+    } else {
+      console.log(`🔑 New session ${sessionToken.slice(0, 8)}... created for ${email}`);
+    }
+
+    // ─── BUSINESS INFO ───
     const { data: businessData, error: businessError } = await supabase
       .from("businesses")
       .select("business_name")
       .eq("user_id", userId)
-      .maybeSingle(); 
+      .maybeSingle();
 
-    if (businessError && businessError.code !== "PGRST116") { 
+    if (businessError && businessError.code !== "PGRST116") {
       console.error("Error fetching business:", businessError.message);
     }
 
     const displayName = businessData?.business_name || userProfile.full_name;
 
-    // 2️⃣ Set HTTP-only cookies with proper persistence
+    // ─── SET COOKIES ───
     const cookieStore = await cookies();
-    
-    // Set cookies with longer expiration for persistence across page refreshes
+
     await Promise.all([
       cookieStore.set("sb-access-token", access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: 60 * 60 * 24 * 7,
       }),
       cookieStore.set("sb-refresh-token", refresh_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60 * 24 * 30, // 30 days
+        maxAge: 60 * 60 * 24 * 30,
       }),
       cookieStore.set("sb-client-session", "true", {
         httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: 60 * 60 * 24 * 7,
       }),
       cookieStore.set("sb-login-time", Date.now().toString(), {
         httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60, 
+        maxAge: 60 * 60,
+      }),
+      cookieStore.set("sb-session-risk", securityContext.riskScore.toString(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24,
+      }),
+      cookieStore.set("sb-session-id", sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
       }),
     ]);
 
+    // ─── LOG SUCCESSFUL LOGIN ───
+    try {
+      await supabase.from("login_history").insert({
+        user_id: userId,
+        ip_address: ip,
+        country: location.country,
+        city: location.city,
+        region: location.region,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        timezone: location.timezone,
+        user_agent: device.userAgent,
+        device_fingerprint: device.fingerprint,
+        platform: device.platform,
+        screen_resolution: device.screenResolution,
+        is_suspicious: isSuspicious,
+        suspicious_reasons: securityContext.reasons,
+        is_successful: true,
+        session_id: access_token.slice(-16),
+        session_token: sessionToken,
+      });
+    } catch (e: any) {
+      console.error("Failed to log successful login:", e.message || e);
+    }
+
+    // ─── UPDATE TRUSTED DEVICES ───
+    if (device.fingerprint) {
+      try {
+        await supabase.from("trusted_devices").upsert(
+          {
+            user_id: userId,
+            device_fingerprint: device.fingerprint,
+            device_name: `${device.platform} - ${device.userAgent?.split(" ").slice(-1)[0] || "Browser"}`,
+            last_location: `${location.city}, ${location.country}`,
+            last_ip: ip,
+            last_used: new Date().toISOString(),
+            is_trusted: !isSuspicious, // FIX #2: was !isSuspicious && securityContext.isKnownDevice
+          },
+          {
+            onConflict: "user_id,device_fingerprint",
+          }
+        );
+      } catch (e) {
+        console.error("Failed to update trusted devices:", e);
+      }
+    }
+
+    // ─── RESPONSE ───
     const profile = {
       id: userProfile.id,
       fullName: displayName,
       email: userProfile.email,
       phone: userProfile.phone,
-      currentLoginSession: userProfile.current_login_session,
+      currentLoginSession: sessionToken,
       zidcoinBalance: userProfile.zidcoin_balance,
       walletBalance: userProfile.wallet_balance,
       bvnVerification: userProfile.bvn_verification,
@@ -130,21 +367,31 @@ export async function POST(req: Request) {
     };
 
     const responseTime = Date.now() - startTime;
-    console.log(`Login API completed in ${responseTime}ms`);
+    console.log(
+      `✅ Secure login completed in ${responseTime}ms for ${email} (Risk: ${securityContext.riskScore})`
+    );
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       profile,
       isVerified: profile.bvnVerification === "verified",
       sessionEstablished: true,
-      access_token,  
-      refresh_token, 
-      expires_in,    
+      access_token,
+      refresh_token,
+      expires_in,
+      concurrentSessionInvalidated: !!oldSessionId,
+      security: {
+        riskScore: securityContext.riskScore,
+        isSuspicious,
+        isKnownDevice: securityContext.isKnownDevice,
+        location: {
+          city: location.city,
+          country: location.country,
+        },
+        newDevice: !securityContext.isKnownDevice,
+      },
     });
-
-    return response;
-    
   } catch (err: any) {
-    console.error("Login API Error:", err.message);
+    console.error("Secure Login API Error:", err.message);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

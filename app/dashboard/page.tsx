@@ -7,6 +7,13 @@ import AmbientBackground from "../components/dashboard-component/AmbientBackgrou
 import TodaysMoney from "../components/dashboard-component/TodaysMoney";
 import FutureMoney from "../components/dashboard-component/FutureMoney";
 import MobileBottomNav from "../components/dashboard-component/MobileBottomNav";
+import BVNVerificationBadge from "../components/BVNVerificationBadge";
+import BalanceCard from "../components/Balance-card";
+import TransactionHistory from "../components/transaction-history";
+import { useSubscription } from "../hooks/useSubscripion";
+import { UpgradeBanner } from "../components/subscription-components/UpgradeBanner";
+import { SubscriptionModal } from "../components/dashboard-component/SubscriptionModal";
+import { CheckCircle, Loader2, X } from "lucide-react";
 import Loader from "../components/Loader";
 
 type Tab = "today" | "future";

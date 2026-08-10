@@ -27,7 +27,7 @@ interface CacheEntry {
 const userCache = new Map<string, CacheEntry>();
 const CACHE_TTL = 5000; // 5 seconds
 
-// Define the User type based on your schema
+// ─── UPDATED: Add concurrent session fields ───
 export interface UserDetails {
   id: string;
   full_name: string;
@@ -51,6 +51,11 @@ export interface UserDetails {
   block_reason: string | null;
   transaction_pin: string | null;
   pin_set: boolean;
+  // NEW: Concurrent login fields
+  current_session_id: string | null;
+  current_session_ip: string | null;
+  current_session_device: string | null;
+  current_session_expires_at: string | null;
 }
 
 export async function getUserWithDetails(userId: string): Promise<UserDetails | null> {
@@ -62,7 +67,6 @@ export async function getUserWithDetails(userId: string): Promise<UserDetails | 
 
   const supabase = getSupabaseAdmin();
   
-  // Single query to get user with all needed data
   const { data: user, error } = await supabase
     .from("users")
     .select(`
@@ -87,17 +91,19 @@ export async function getUserWithDetails(userId: string): Promise<UserDetails | 
       blocked_at,
       block_reason,
       transaction_pin,
-      pin_set
+      pin_set,
+      current_session_id,
+      current_session_ip,
+      current_session_device,
+      current_session_expires_at
     `)
     .eq("id", userId)
     .single();
 
   if (error || !user) return null;
 
-  // Cache the result
   userCache.set(userId, { data: user, timestamp: Date.now() });
   
-  // Clear cache after TTL
   setTimeout(() => {
     userCache.delete(userId);
   }, CACHE_TTL);
@@ -105,16 +111,12 @@ export async function getUserWithDetails(userId: string): Promise<UserDetails | 
   return user as UserDetails;
 }
 
-// Helper function to check if subscription is active
 export function isSubscriptionActive(user: UserDetails): boolean {
   if (user.subscription_tier === "free") return true;
-  
   if (!user.subscription_expires_at) return false;
-  
   return new Date(user.subscription_expires_at) > new Date();
 }
 
-// Helper function to check subscription tier access
 export function hasSufficientTier(
   user: UserDetails, 
   requiredTier: string

@@ -9,7 +9,6 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
-  // ✅ Updated to use enhanced auth with refresh
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
   
   if (!user) {
@@ -26,7 +25,6 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Get user's usage counts
     const { data: userData, error } = await supabase
       .from("users")
       .select(`
@@ -57,19 +55,19 @@ export async function GET(req: NextRequest) {
 
     const tier = userData.subscription_tier || 'free';
     
-    // Define tier types
+    // ✅ Updated tier types
     const isFree = tier === 'free';
-    const isZidLite = tier === 'zidlite';
-    const isGrowth = tier === 'growth';
-    const isPremium = tier === 'premium';
-    const isElite = tier === 'elite';
-    const hasUnlimitedInvoices = isGrowth || isPremium || isElite;
+    const isSolopreneur = tier === 'solopreneur';
+    const isSME = tier === 'sme';
+    const isEnterprise = tier === 'enterprise';
+    const isCorporation = tier === 'corporation';
+    const hasUnlimitedInvoices = isSME || isEnterprise || isCorporation;
 
     // Calculate invoice usage based on tier
     let invoiceData;
-    if (isFree || isZidLite) {
+    if (isFree || isSolopreneur) {
       const used = userData.invoices_used_lifetime || 0;
-      const limit = isFree ? 5 : 20; // Free: 5, ZidLite: 20
+      const limit = isFree ? 5 : 10; // Free: 5, Solopreneur: 10
       invoiceData = {
         used,
         limit,
@@ -79,7 +77,6 @@ export async function GET(req: NextRequest) {
         canCreate: used < limit
       };
     } else {
-      // Growth, Premium, Elite: unlimited
       const used = userData.invoices_used_lifetime || 0;
       invoiceData = {
         used,
@@ -93,17 +90,28 @@ export async function GET(req: NextRequest) {
 
     // Calculate receipt usage
     let receiptData;
-    if (isFree || isZidLite) {
+    if (isFree || isSolopreneur) {
       const used = userData.receipts_used_lifetime || 0;
-      const limit = isFree ? 5 : 20;
-      receiptData = {
-        used,
-        limit,
-        remaining: Math.max(0, limit - used),
-        type: 'lifetime',
-        requiresUpgrade: used >= limit,
-        canCreate: used < limit
-      };
+      const limit = isFree ? 5 : 'unlimited'; // Free: 5, Solopreneur: unlimited
+      if (limit === 'unlimited') {
+        receiptData = {
+          used,
+          limit: 'unlimited',
+          remaining: 'unlimited',
+          type: 'unlimited',
+          requiresUpgrade: false,
+          canCreate: true
+        };
+      } else {
+        receiptData = {
+          used,
+          limit,
+          remaining: Math.max(0, limit - used),
+          type: 'lifetime',
+          requiresUpgrade: used >= limit,
+          canCreate: used < limit
+        };
+      }
     } else {
       receiptData = {
         used: userData.receipts_used_lifetime || 0,
@@ -119,7 +127,29 @@ export async function GET(req: NextRequest) {
     let contractData;
     if (isFree) {
       const used = userData.contracts_used_lifetime || 0;
-      const limit = 1;
+      const limit = 0; // Free: 0 contracts
+      contractData = {
+        used,
+        limit,
+        remaining: Math.max(0, limit - used),
+        type: 'lifetime',
+        requiresUpgrade: true,
+        canCreate: false
+      };
+    } else if (isSolopreneur) {
+      const used = userData.contracts_used_lifetime || 0;
+      const limit = 0; // Solopreneur: 0 contracts
+      contractData = {
+        used,
+        limit,
+        remaining: Math.max(0, limit - used),
+        type: 'lifetime',
+        requiresUpgrade: true,
+        canCreate: false
+      };
+    } else if (isSME) {
+      const used = userData.contracts_used_lifetime || 0;
+      const limit = 1; // SME: 1 contract
       contractData = {
         used,
         limit,
@@ -128,20 +158,9 @@ export async function GET(req: NextRequest) {
         requiresUpgrade: used >= limit,
         canCreate: used < limit
       };
-    } else if (isZidLite) {
+    } else if (isEnterprise) {
       const used = userData.contracts_used_lifetime || 0;
-      const limit = 2;
-      contractData = {
-        used,
-        limit,
-        remaining: Math.max(0, limit - used),
-        type: 'lifetime',
-        requiresUpgrade: used >= limit,
-        canCreate: used < limit
-      };
-    } else if (isGrowth) {
-      const used = userData.contracts_used_lifetime || 0;
-      const limit = 5;
+      const limit = 10; // Enterprise: 10 contracts
       contractData = {
         used,
         limit,
@@ -192,17 +211,16 @@ export async function GET(req: NextRequest) {
       summary: {
         invoices: {
           used: userData.invoices_used_lifetime || 0,
-          limit: isFree ? 5 : isZidLite ? 20 : 'unlimited',
+          limit: isFree ? 5 : isSolopreneur ? 10 : 'unlimited',
           remaining: isFree 
             ? Math.max(0, 5 - (userData.invoices_used_lifetime || 0))
-            : isZidLite
-            ? Math.max(0, 20 - (userData.invoices_used_lifetime || 0))
+            : isSolopreneur
+            ? Math.max(0, 10 - (userData.invoices_used_lifetime || 0))
             : 'unlimited'
         }
       }
     };
 
-    // Include new tokens if available
     if (newTokens) {
       return createAuthResponse(responseData, newTokens);
     }

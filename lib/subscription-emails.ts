@@ -1,4 +1,4 @@
-// app/lib/subscription-emails.ts
+// app/lib/subscription-emails.ts (UPDATED with real plan names)
 
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
@@ -15,6 +15,58 @@ const baseUrl = process.env.NODE_ENV === "development"
 const headerImageUrl = `${baseUrl}/zidwell-header.png`;
 const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
+// Get plan display name (UPDATED with real plan names)
+const getPlanDisplayName = (tier: string): string => {
+  const planNames: Record<string, string> = {
+    solopreneur: "Solopreneur",
+    sme: "SME",
+    enterprise: "Enterprise",
+    corporation: "Corporation"
+  };
+  return planNames[tier] || tier.charAt(0).toUpperCase() + tier.slice(1);
+};
+
+// Get plan features for email (UPDATED with real plan names)
+const getPlanFeatures = (tier: string): string[] => {
+  const features: Record<string, string[]> = {
+    solopreneur: [
+      '10 Invoices',
+      'Unlimited Receipts',
+      'Branded Invoices',
+      'Better expense tracking',
+      'Basic financial insights'
+    ],
+    sme: [
+      'Unlimited Invoices & Receipts',
+      'Bank statement upload (PDF/Excel/CSV)',
+      'Connect up to 3 bank accounts',
+      'Vault for financial documents',
+      'Tax calculator',
+      'Financial statements (P&L, Cash Flow, Balance Sheet)',
+      '1 extra team member'
+    ],
+    enterprise: [
+      'Multi-user access (full team)',
+      'Role-based permissions',
+      'Approval system for payments, invoices, receipts',
+      'Connect up to 5 bank accounts',
+      'Downloadable financial reports',
+      '10 contracts',
+      'Dedicated onboarding support'
+    ],
+    corporation: [
+      'Unlimited contracts',
+      'Department-based access (HR, Finance, Ops…)',
+      'Connect unlimited bank accounts',
+      'Simple payroll system',
+      'Advanced financial reporting',
+      'Custom financial structure setup',
+      'Priority onboarding & dedicated account manager'
+    ],
+  };
+  return features[tier] || [];
+};
+
 export async function sendSubscriptionReceiptWithPDF(
   email: string,
   customerName: string,
@@ -25,25 +77,20 @@ export async function sendSubscriptionReceiptWithPDF(
   expiresAt: Date
 ): Promise<void> {
   try {
-    const planNames: Record<string, string> = {
-      zidlite: "ZidLite",
-      growth: "Growth",
-      premium: "Premium",
-      elite: "Elite"
-    };
+    const planName = getPlanDisplayName(planTier);
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: `🧾 Subscription Payment Receipt - ${planNames[planTier] || planTier}`,
+      subject: `🧾 Subscription Payment Receipt - ${planName} Plan`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
           <h3 style="color: #22c55e;">✅ Payment Confirmed!</h3>
           <p>Hello ${customerName},</p>
-          <p>Thank you for subscribing to <strong>${planNames[planTier] || planTier}</strong> plan.</p>
+          <p>Thank you for subscribing to <strong>${planName}</strong> plan.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Plan:</strong> ${planNames[planTier] || planTier}</p>
+            <p><strong>Plan:</strong> ${planName}</p>
             <p><strong>Billing Period:</strong> ${billingPeriod}</p>
             <p><strong>Amount Paid:</strong> ₦${amount.toLocaleString()}</p>
             <p><strong>Transaction ID:</strong> ${transactionId}</p>
@@ -68,32 +115,26 @@ export async function sendSubscriptionActivationEmail(
   expiresAt: Date
 ): Promise<void> {
   try {
-    const planNames: Record<string, string> = {
-      zidlite: "ZidLite",
-      growth: "Growth",
-      premium: "Premium",
-      elite: "Elite"
-    };
+    const planName = getPlanDisplayName(planTier);
+    const features = getPlanFeatures(planTier);
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: `🎉 Subscription Activated - ${planNames[planTier] || planTier} Plan`,
+      subject: `🎉 Subscription Activated - ${planName} Plan`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
           <h3 style="color: #22c55e;">🎉 Subscription Activated!</h3>
           <p>Hello ${customerName},</p>
-          <p>Your <strong>${planNames[planTier] || planTier}</strong> subscription has been activated successfully.</p>
+          <p>Your <strong>${planName}</strong> subscription has been activated successfully.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Billing Period:</strong> ${billingPeriod}</p>
             <p><strong>Next Billing Date:</strong> ${expiresAt.toLocaleDateString()}</p>
           </div>
           <p>You can now enjoy premium features:</p>
           <ul>
-            ${planTier === 'zidlite' ? '<li>20 Invoices & Receipts</li><li>2 Contracts</li><li>WhatsApp Support</li>' : ''}
-            ${planTier === 'growth' ? '<li>Unlimited Invoices & Receipts</li><li>Bookkeeping Tool</li><li>Tax Calculator</li>' : ''}
-            ${planTier === 'premium' ? '<li>Unlimited Contracts</li><li>Financial Statement Preparation</li><li>Priority Support</li>' : ''}
+            ${features.map(f => `<li>${f}</li>`).join('')}
           </ul>
           <p><a href="${baseUrl}/dashboard" style="background: #e1bf46; color: #023528; padding: 10px 20px; text-decoration: none; border-radius: 8px;">Start Using Zidwell</a></p>
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
@@ -102,5 +143,36 @@ export async function sendSubscriptionActivationEmail(
     });
   } catch (error) {
     console.error("Failed to send activation email:", error);
+  }
+}
+
+// Send cancellation email
+export async function sendSubscriptionCancellationEmail(
+  email: string,
+  customerName: string,
+  planTier: string
+): Promise<void> {
+  try {
+    const planName = getPlanDisplayName(planTier);
+
+    await transporter.sendMail({
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `⚠️ Subscription Cancelled - ${planName} Plan`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
+          <h3 style="color: #f59e0b;">⚠️ Subscription Cancelled</h3>
+          <p>Hello ${customerName},</p>
+          <p>Your <strong>${planName}</strong> subscription has been cancelled.</p>
+          <p>You will continue to have access until the end of your current billing period.</p>
+          <p>If this was a mistake, you can resubscribe anytime from your dashboard.</p>
+          <p><a href="${baseUrl}/dashboard" style="background: #e1bf46; color: #023528; padding: 10px 20px; text-decoration: none; border-radius: 8px;">Go to Dashboard</a></p>
+          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Failed to send cancellation email:", error);
   }
 }

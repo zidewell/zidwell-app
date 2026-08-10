@@ -166,25 +166,29 @@ export default function TransactionDetailsPage() {
     return outflowTypes.includes(transactionType?.toLowerCase());
   };
 
-  const formatAmount = (transaction: any) => {
-    if (!transaction)
-      return {
-        display: "₦0.00",
-        isOutflow: false,
-        rawAmount: 0,
-      };
-
-    const isOutflowTransaction = isOutflow(transaction.type);
-    const amount = Number(transaction.amount) || 0;
-
+const formatAmount = (transaction: any) => {
+  if (!transaction)
     return {
-      display: `₦${amount.toLocaleString("en-NG", {
-        minimumFractionDigits: 2,
-      })}`,
-      isOutflow: isOutflowTransaction,
-      rawAmount: amount,
+      display: "₦0.00",
+      isOutflow: false,
+      rawAmount: 0,
+      receiptDisplay: "₦0.00",
     };
+
+  const isOutflowTransaction = isOutflow(transaction.type);
+  const amount = Number(transaction.amount) || 0;
+
+  return {
+    display: `₦${amount.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+    })}`,
+    receiptDisplay: `₦${Math.abs(amount).toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+    })}`,
+    isOutflow: isOutflowTransaction,
+    rawAmount: amount,
   };
+};
 
   const getNarration = (transaction: any) => {
     if (!transaction) return null;
@@ -543,7 +547,7 @@ export default function TransactionDetailsPage() {
 
     <div class="amount">
       <div class="amount-label">Amount</div>
-      <div class="amount-value">₦${amountInfo.display}</div>
+      <div class="amount-value">${amountInfo.receiptDisplay}</div>
     </div>
 
     <div class="section-title">

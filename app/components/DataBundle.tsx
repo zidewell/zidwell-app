@@ -1,4 +1,4 @@
-// DataBundlePurchase.tsx
+// app/components/DataBundlePurchase.tsx
 "use client";
 
 import {
@@ -87,6 +87,7 @@ export default function DataBundlePurchase() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
   const [loading2, setLoading2] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { userData, setUserData } = useUserContextData();
   const router = useRouter();
 
@@ -226,6 +227,12 @@ export default function DataBundlePurchase() {
   };
 
   const purchaseDatabundle = async (pinCode: string) => {
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log("Already submitting, ignoring duplicate request");
+      return;
+    }
+
     if (!validateForm()) return;
 
     if (!selectedProvider?.id || !selectedPlan) {
@@ -234,46 +241,60 @@ export default function DataBundlePurchase() {
       );
     }
 
-    const serviceName = selectedProvider.id;
+    // Generate unique idempotency key
+    const idempotencyKey = `DATA-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${userData?.id}`;
 
     const payload = {
       userId: userData?.id,
       pin: pinCode,
       amount: selectedPlan.amount,
-      network: serviceName,
+      network: selectedProvider.id,
       phoneNumber: phoneNumber,
-      merchantTxRef: `Data-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      merchantTxRef: idempotencyKey,
       senderName: userData?.fullName || "Zidwell User",
     };
 
     try {
+      setIsSubmitting(true);
       setLoading2(true);
+      
       const response = await fetch("/api/buy-data-bundle", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         body: JSON.stringify(payload),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Transaction failed");
+        throw new Error(data.message || data.error || "Transaction failed");
       }
 
-      if (data.zidCoinBalance !== undefined) {
+      // Update user data with new balance
+      if (data.balance_after !== undefined) {
         setUserData((prev: any) => {
-          const updated = { ...prev, zidcoinBalance: data.zidCoinBalance };
+          const updated = { 
+            ...prev, 
+            walletBalance: data.balance_after,
+            zidcoinBalance: data.zidCoinBalance || prev?.zidcoinBalance 
+          };
           localStorage.setItem("userData", JSON.stringify(updated));
           return updated;
         });
       }
 
+      // Save beneficiary if checked
       if (saveBeneficiary && !selectedSavedBeneficiary) {
         await saveBeneficiaryToProfile();
       }
 
+      // Close PIN popover
       setIsOpen(false);
 
+      // Reset form
       setPin(Array(inputCount).fill(""));
       setPhoneNumber("");
       setSelectedProvider(null);
@@ -281,18 +302,38 @@ export default function DataBundlePurchase() {
       setSaveBeneficiary(false);
       setSelectedSavedBeneficiary(null);
 
-      Swal.fire({
-        icon: "success",
-        title: "Data Bundle Purchase Successful",
-        text: `₦${payload.amount} sent to ${payload.phoneNumber}`,
-        confirmButtonColor: "var(--color-accent-yellow)",
-      });
+      // Show success message
+      if (data.idempotent) {
+        Swal.fire({
+          icon: "info",
+          title: "Transaction Already Processed",
+          text: `This transaction was already completed. Transaction ID: ${data.transactionId}`,
+          confirmButtonColor: "var(--color-accent-yellow)",
+        });
+      } else {
+        Swal.fire({
+          icon: "success",
+          title: "Data Bundle Purchase Successful",
+          text: `₦${payload.amount} sent to ${payload.phoneNumber}`,
+          confirmButtonColor: "var(--color-accent-yellow)",
+        });
+      }
 
       return { success: true };
     } catch (error: any) {
       console.error("Purchase error:", error);
+      
+      // Show error message
+      Swal.fire({
+        icon: "error",
+        title: "Purchase Failed",
+        text: error.message || "Transaction failed. Please try again.",
+        confirmButtonColor: "var(--color-accent-yellow)",
+      });
+      
       throw error;
     } finally {
+      setIsSubmitting(false);
       setLoading2(false);
     }
   };
@@ -362,6 +403,7 @@ export default function DataBundlePurchase() {
         }}
         error={pinError}
         onClearError={() => setPinError(null)}
+        isLoading={isSubmitting}
       />
 
       <div className="flex items-start space-x-4">

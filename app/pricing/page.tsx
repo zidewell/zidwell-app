@@ -38,29 +38,7 @@ const plans = [
     featured: false,
     amount: 0,
   },
-  {
-    name: "Solopreneur",
-    tier: "solopreneur",
-    tagline: "Get Organized",
-    price: "₦4,900",
-    altPrice: "$3.99",
-    suffix: "/month",
-    yearlyPrice: "₦49,000/year (save ₦9,800)",
-    yearlyAmount: 49000,
-    note: "For freelancers and solo business owners.",
-    region: "global",
-    features: [
-      "Everything in Free, plus:",
-      "Up to 10 invoices",
-      "Unlimited receipts",
-      "Branded invoices",
-      "Better expense tracking",
-      "Basic financial insights",
-    ],
-    cta: "Go Solopreneur",
-    featured: false,
-    amount: 4900,
-  },
+
   {
     name: "SME",
     tier: "sme",
@@ -286,7 +264,7 @@ function PricingPage() {
             <div className="mt-4">
               <button
                 onClick={() => router.back()}
-                className="inline-flex items-center gap-2 text-[var(--color-accent-yellow)] hover:underline"
+                className="inline-flex items-start gap-2 text-[var(--color-accent-yellow)] hover:underline"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
@@ -333,7 +311,7 @@ function PricingPage() {
           </div>
 
           {/* Pricing Grid */}
-          <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-6">
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
             {plans.map((plan) => {
               const currentPlan = isCurrentPlan(plan.tier);
               const isUpgrade = upgradeParam === plan.tier;
