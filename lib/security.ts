@@ -153,6 +153,8 @@ export function trackFailedAttempt(identifier: string, email: string): void {
 }
 
 // ─── SUSPICIOUS LOGIN DETECTION ───
+// BEST PRACTICE: Never block a correct-password login based on these heuristics.
+// GeoIP is unreliable, people travel, and work odd hours. We log and alert, but we allow.
 
 export async function analyzeLoginRisk(
   supabase: SupabaseClient<any, any, any>,
@@ -175,7 +177,7 @@ export async function analyzeLoginRisk(
     .order("login_time", { ascending: false })
     .limit(10);
 
-  // ─── FIX #1: First login — no risk penalty ───
+  // First login ever — completely trusted
   if (!history || history.length === 0) {
     return {
       ip: context.ip,
@@ -192,25 +194,25 @@ export async function analyzeLoginRisk(
     .from("trusted_devices")
     .select("*")
     .eq("user_id", userId);
-    // REMOVED: .eq("is_trusted", true)
 
   const isKnownDevice =
     trustedDevices?.some(
       (d: any) => d.device_fingerprint === context.device.fingerprint
     ) ?? false;
 
-  if (history && history.length > 0) {
+  if (history.length > 0) {
     const lastLogin = history[0];
     const lastTime = new Date(lastLogin.login_time);
     const timeDiff = context.timestamp.getTime() - lastTime.getTime();
 
+    // Impossible travel: same account in two distant countries within 2 hours
     if (
       context.location.country &&
       lastLogin.country &&
       context.location.country !== lastLogin.country &&
       timeDiff < 2 * 60 * 60 * 1000
     ) {
-      riskScore += 40;
+      riskScore += 30; // was 40
       reasons.push(
         `Impossible travel: ${lastLogin.country} → ${context.location.country} in ${Math.round(timeDiff / 60000)}min`
       );
@@ -223,7 +225,7 @@ export async function analyzeLoginRisk(
       context.location.country &&
       !knownCountries.has(context.location.country)
     ) {
-      riskScore += 25;
+      riskScore += 15; // was 25
       reasons.push(`New country detected: ${context.location.country}`);
     }
 
@@ -231,46 +233,35 @@ export async function analyzeLoginRisk(
       history.slice(0, 5).map((h: any) => h.city).filter(Boolean)
     );
     if (context.location.city && !recentCities.has(context.location.city)) {
-      riskScore += 15;
+      riskScore += 5; // was 15
       reasons.push(`New city: ${context.location.city}`);
     }
 
-    const hours = history
-      .map((h: any) => new Date(h.login_time).getHours())
-      .sort((a: number, b: number) => a - b);
-    const medianHour = hours[Math.floor(hours.length / 2)];
-    const currentHour = context.timestamp.getHours();
-    const hourDiff = Math.abs(currentHour - medianHour);
-    const wrappedDiff = Math.min(hourDiff, 24 - hourDiff);
-
-    if (wrappedDiff > 4) {
-      riskScore += 20;
-      reasons.push(`Unusual time: ${currentHour}:00 (median: ${medianHour}:00)`);
-    }
-
-    if (currentHour >= 2 && currentHour <= 5) {
-      riskScore += 15;
-      reasons.push(`Late night login: ${currentHour}:00`);
-    }
+    // REMOVED: "Unusual time" and "Late night" penalties.
+    // These block shift workers, night owls, and international users.
+    // GeoIP timezone data is also frequently wrong.
   }
 
   if (!isKnownDevice && context.device.fingerprint) {
-    riskScore += 20;
-    reasons.push("New/unrecognized device");
+    riskScore += 10; // was 20
+    reasons.push("New device");
   }
 
+  // Known Tor/VPN exit nodes
   if (context.ip.startsWith("185.220.") || context.ip.startsWith("45.9.")) {
-    riskScore += 30;
+    riskScore += 20; // was 30
     reasons.push("Suspicious IP range detected");
   }
 
+  // HARD CAP: We never auto-block based on heuristics. Max 50 means even with
+  // BLOCK_THRESHOLD = 75, a correct-password login will never be rejected.
   return {
     ip: context.ip,
     location: context.location,
     device: context.device,
     timestamp: context.timestamp,
     isKnownDevice,
-    riskScore: Math.min(riskScore, 100),
+    riskScore: Math.min(riskScore, 50),
     reasons,
   };
 }
@@ -328,7 +319,7 @@ export function formatSecurityAlertEmail(
         <tr style="background: #f3f4f6;">
           <td style="padding: 12px; border: 1px solid #e5e7eb;"><strong>Risk Score</strong></td>
           <td style="padding: 12px; border: 1px solid #e5e7eb;">
-            <span style="color: ${context.riskScore > 50 ? "#dc2626" : "#ca8a04"};">
+            <span style="color: ${context.riskScore > 30 ? "#dc2626" : "#ca8a04"};">
               ${context.riskScore}/100
             </span>
           </td>

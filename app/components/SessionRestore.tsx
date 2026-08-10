@@ -23,10 +23,12 @@ export function SessionRestore({ children }: { children: React.ReactNode }) {
             headers: { 'Cache-Control': 'no-cache' }
           });
 
-          if (validateRes.status === 403) {
-            const data = await validateRes.json();
-            if (data.reason === 'concurrent_login') {
-              console.warn('🚫 SessionRestore: Concurrent login detected, clearing local data');
+          if (!validateRes.ok) {
+            const data = await validateRes.json().catch(() => ({}));
+            
+            // Don't clear for concurrent login — we now allow multiple devices
+            if (validateRes.status === 401 || validateRes.status === 403) {
+              console.warn('🚫 SessionRestore: Session invalid, clearing local data');
               localStorage.removeItem('userData');
               document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
               document.cookie = "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";

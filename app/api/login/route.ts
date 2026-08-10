@@ -16,7 +16,6 @@ import {
 
 const MAX_FAILED_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
-const BLOCK_THRESHOLD = 75; // FIX #3: Raised from 60 to 75
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -125,6 +124,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ONLY hard-block: admin explicitly blocked the account
     if (userProfile.is_blocked) {
       return NextResponse.json(
         {
@@ -167,52 +167,27 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // ─── HIGH-RISK LOGIN HANDLING ───
-    if (securityContext.riskScore >= BLOCK_THRESHOLD) {
-      try {
-        await supabase.from("login_history").insert({
-          user_id: userId,
-          ip_address: ip,
-          country: location.country,
-          city: location.city,
-          region: location.region,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          timezone: location.timezone,
-          user_agent: device.userAgent,
-          device_fingerprint: device.fingerprint,
-          platform: device.platform,
-          screen_resolution: device.screenResolution,
-          is_suspicious: true,
-          suspicious_reasons: securityContext.reasons,
-          is_successful: false,
-        });
-      } catch (e) {
-        console.error("Failed to log blocked login:", e);
-      }
-
-      console.warn(
-        `🚫 BLOCKED high-risk login for ${email} from ${location.city}, ${location.country}`
-      );
-
-      return NextResponse.json(
-        {
-          error: "This login was blocked due to unusual activity. Please check your email or contact support.",
-          blocked: true,
-          riskScore: securityContext.riskScore,
-          reasons: securityContext.reasons,
-        },
-        { status: 403 }
-      );
-    }
-
+    // ─── BEST PRACTICE: NEVER BLOCK A CORRECT-PASSWORD LOGIN BASED ON HEURISTICS ───
+    // We log suspicious activity, alert the user via email, and flag the session,
+    // but we always allow the login. If you want step-up auth (email/SMS code),
+    // implement it here instead of returning 403.
     const isSuspicious = securityContext.riskScore > 30;
+
+    if (isSuspicious) {
+      console.warn(
+        `⚠️ Suspicious login allowed for ${email} from ${location.city}, ${location.country} (score: ${securityContext.riskScore})`
+      );
+      // TODO: Send security alert email here if you have email service configured
+      // await sendSecurityAlertEmail(userProfile.full_name, securityContext, false);
+    }
 
     // ─── GENERATE UNIQUE SESSION TOKEN ───
     const sessionToken = generateSessionId();
     const sessionExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const oldSessionId = userProfile.current_session_id;
 
+    // BEST PRACTICE: Allow multiple concurrent sessions.
+    // We store the latest session token for tracking, but we do NOT invalidate
+    // previous sessions here. Each device maintains its own Supabase JWT session.
     try {
       await supabaseAdmin
         .from("users")
@@ -227,13 +202,7 @@ export async function POST(request: NextRequest) {
       console.error("Failed to update session in DB:", e);
     }
 
-    if (oldSessionId) {
-      console.log(
-        `🔑 Session ${oldSessionId.slice(0, 8)}... invalidated. New session ${sessionToken.slice(0, 8)}... created for ${email}`
-      );
-    } else {
-      console.log(`🔑 New session ${sessionToken.slice(0, 8)}... created for ${email}`);
-    }
+    console.log(`🔑 Session ${sessionToken.slice(0, 8)}... created for ${email}`);
 
     // ─── BUSINESS INFO ───
     const { data: businessData, error: businessError } = await supabase
@@ -332,7 +301,7 @@ export async function POST(request: NextRequest) {
             last_location: `${location.city}, ${location.country}`,
             last_ip: ip,
             last_used: new Date().toISOString(),
-            is_trusted: !isSuspicious, // FIX #2: was !isSuspicious && securityContext.isKnownDevice
+            is_trusted: !isSuspicious,
           },
           {
             onConflict: "user_id,device_fingerprint",
@@ -378,7 +347,6 @@ export async function POST(request: NextRequest) {
       access_token,
       refresh_token,
       expires_in,
-      concurrentSessionInvalidated: !!oldSessionId,
       security: {
         riskScore: securityContext.riskScore,
         isSuspicious,

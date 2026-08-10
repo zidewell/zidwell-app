@@ -115,16 +115,18 @@ function DashboardPage() {
   }, [userTier]);
 
   // Format plan name for display
-  const formatPlanName = (plan: string) => {
-    if (!plan) return "";
-    const planMap: Record<string, string> = {
-      zidlite: "ZidLite",
-      growth: "Growth",
-      premium: "Premium",
-      elite: "Elite",
-    };
-    return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
+ const formatPlanName = (plan: string) => {
+  if (!plan) return "";
+  const planMap: Record<string, string> = {
+    free: "Free",
+    solopreneur: "Solopreneur",
+    sme: "SME",
+    enterprise: "Enterprise",
+    corporation: "Corporation",
   };
+  return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
+};
+
 
   // Get free tier limits
   const getFreeTierLimits = () => {

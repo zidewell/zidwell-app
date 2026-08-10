@@ -13,9 +13,8 @@ export async function GET(req: NextRequest) {
   try {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get("sb-access-token")?.value;
-    const sessionIdCookie = cookieStore.get("sb-session-id")?.value;
 
-    if (!accessToken || !sessionIdCookie) {
+    if (!accessToken) {
       return NextResponse.json(
         { valid: false, reason: "missing_session" },
         { status: 401 }
@@ -32,10 +31,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Check if session ID matches database
+    // Check if user is blocked by admin
     const { data: userData, error: dbError } = await supabase
       .from('users')
-      .select('current_session_id, current_session_expires_at, is_blocked')
+      .select('current_session_expires_at, is_blocked')
       .eq('id', user.id)
       .single();
 
@@ -61,14 +60,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // ─── CONCURRENT LOGIN CHECK ───
-    if (userData.current_session_id !== sessionIdCookie) {
-      console.warn(`🚫 Concurrent login detected for user ${user.email}. Expected: ${userData.current_session_id?.slice(0,8)}..., Got: ${sessionIdCookie.slice(0,8)}...`);
-      return NextResponse.json(
-        { valid: false, reason: "concurrent_login" },
-        { status: 403 }
-      );
-    }
+    // BEST PRACTICE: Removed concurrent login check.
+    // Modern users expect to be logged in on phone + laptop + tablet simultaneously.
+    // The Supabase JWT is the source of truth for session validity.
 
     return NextResponse.json({
       valid: true,

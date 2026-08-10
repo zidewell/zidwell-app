@@ -27,7 +27,6 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const logoutInProgress = useRef(false);
   const [isSessionValid, setIsSessionValid] = useState(true);
-  const concurrentAlertShown = useRef(false);
 
   const isPublicRoute = useCallback(() => {
     if (!pathname) return false;
@@ -64,10 +63,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       clearSession();
       await fetch('/api/logout', { method: 'POST' }).catch(console.error);
 
-      if (reason === 'concurrent_login' && !concurrentAlertShown.current) {
-        concurrentAlertShown.current = true;
-        alert('🔒 You were logged out because your account was accessed from another device or browser. If this was not you, please change your password immediately.');
-      } else if (reason.includes('suspicious') || reason.includes('blocked')) {
+      if (reason.includes('suspicious') || reason.includes('blocked')) {
         alert(`Security alert: ${reason}. Please login again.`);
       }
       
@@ -76,8 +72,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       console.error('Logout error:', error);
     } finally {
       setTimeout(() => { 
-        logoutInProgress.current = false; 
-        concurrentAlertShown.current = false;
+        logoutInProgress.current = false;
       }, 1000);
     }
   }, [userData, isPublicRoute, router, clearSession, loading]);
@@ -102,16 +97,16 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
-        if (response.status === 403 && errorData.reason === 'concurrent_login') {
-          setIsSessionValid(false);
-          await handleLogout('concurrent_login');
-          return;
-        }
 
         if (response.status === 401) {
           setIsSessionValid(false);
           await handleLogout('Session expired');
+          return;
+        }
+
+        if (response.status === 403) {
+          setIsSessionValid(false);
+          await handleLogout(errorData.reason || 'Session invalid');
           return;
         }
       }
@@ -120,7 +115,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       
       if (!data.valid) {
         setIsSessionValid(false);
-        await handleLogout(data.reason === 'concurrent_login' ? 'concurrent_login' : 'Session expired');
+        await handleLogout('Session expired');
         return;
       }
 
@@ -129,9 +124,10 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
         .find(row => row.startsWith('sb-session-risk='));
       const riskScore = riskCookie ? parseInt(riskCookie.split('=')[1]) : 0;
 
+      // BEST PRACTICE: Don't force logout on high risk score.
+      // We already allowed the login. Just log it.
       if (riskScore >= 60) {
-        await handleLogout('Suspicious activity detected on this session');
-        return;
+        console.warn('High risk session detected, but allowing continued use.');
       }
 
       setIsSessionValid(true);
