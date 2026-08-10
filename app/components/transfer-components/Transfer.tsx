@@ -274,7 +274,7 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     
     // Properly format amount with ₦ symbol
     const amountValue = Number(receiptData?.amount || 0);
-    const amountDisplay = `&#8358;${amountValue.toLocaleString("en-NG", {
+    const amountDisplay = `${amountValue.toLocaleString("en-NG", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;

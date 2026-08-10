@@ -236,7 +236,7 @@ async function sendWithdrawalEmail(
 }
 
 function generateTransferReceipt(data: any): string {
-  const amountDisplay = `&#8358;${Number(data.amount).toLocaleString("en-NG", { 
+  const amountDisplay = `${Number(data.amount).toLocaleString("en-NG", { 
     minimumFractionDigits: 2,
     maximumFractionDigits: 2 
   })}`;
@@ -338,7 +338,7 @@ function generateTransferReceipt(data: any): string {
     </div>
     <div class="amount">
       <div class="amount-label">Amount</div>
-      <div class="amount-value">${amountDisplay}</div>
+      <div class="amount-value">₦${amountDisplay}</div>
     </div>
     <div class="section-title">
       <div class="line"></div>
