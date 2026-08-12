@@ -4,8 +4,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, Newspaper, TrendingUp, Loader2 } from "lucide-react";
-import { Button } from "../../ui/button"; 
+import { ChevronRight, Newspaper, TrendingUp, Loader2, RefreshCw } from "lucide-react";
+import { Button } from "../ui/button";
 import { useBlog } from "@/app/context/BlogContext";
 
 interface BlogPost {
@@ -24,9 +24,18 @@ interface BlogPost {
 }
 
 export function BlogSection() {
-  const { posts, isLoading, isInitialized, refreshPosts } = useBlog();
+  const { 
+    posts, 
+    isLoading, 
+    isInitialized, 
+    refreshPosts,
+    forceRefresh,
+    error 
+  } = useBlog();
+  
   const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Transform posts from context
   useEffect(() => {
@@ -99,8 +108,14 @@ export function BlogSection() {
     setImageErrors((prev) => ({ ...prev, [postId]: true }));
   };
 
-  // Show simple loading state
-  if (isLoading && !isInitialized && recentPosts.length === 0) {
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await forceRefresh();
+    setIsRefreshing(false);
+  };
+
+  // Show loading state
+  if ((isLoading || !isInitialized) && recentPosts.length === 0) {
     return (
       <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-[var(--border-color)]">
         <div className="text-center mb-8 md:mb-12">
@@ -124,6 +139,44 @@ export function BlogSection() {
     );
   }
 
+  // Show error state
+  if (error && recentPosts.length === 0) {
+    return (
+      <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-[var(--border-color)]">
+        <div className="text-center mb-8 md:mb-12">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-100 rounded-full mb-4">
+            <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
+              Error
+            </span>
+          </div>
+          <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)]">
+            Failed to Load <span className="text-red-500">Posts</span>
+          </h3>
+          <p className="text-[var(--text-secondary)] text-sm md:text-base mt-2 max-w-2xl mx-auto">
+            {error}
+          </p>
+          <Button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="mt-4 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+          >
+            {isRefreshing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Retrying...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Try Again
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-[var(--border-color)]">
       <div className="text-center mb-8 md:mb-12">
@@ -140,6 +193,26 @@ export function BlogSection() {
         <p className="text-[var(--text-secondary)] text-sm md:text-base mt-2 max-w-2xl mx-auto">
           Discover expert insights, financial tips, and the latest updates from Zidwell
         </p>
+        {/* Refresh Button */}
+        <Button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          variant="ghost"
+          size="sm"
+          className="mt-4 text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)]"
+        >
+          {isRefreshing ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Refreshing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh Posts
+            </>
+          )}
+        </Button>
       </div>
 
       {recentPosts.length > 0 ? (
@@ -255,10 +328,21 @@ export function BlogSection() {
             <p className="text-[var(--text-secondary)] text-lg font-medium">No blog posts available yet</p>
             <p className="text-sm text-[var(--text-secondary)] mt-1">Check back soon for updates!</p>
             <Button
-              onClick={() => refreshPosts()}
+              onClick={handleRefresh}
+              disabled={isRefreshing}
               className="mt-4 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
             >
-              Refresh
+              {isRefreshing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </>
+              )}
             </Button>
           </div>
         </div>
