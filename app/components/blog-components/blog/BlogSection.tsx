@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ChevronRight, Newspaper, TrendingUp, Loader2, RefreshCw } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../../ui/button"; 
 import { useBlog } from "@/app/context/BlogContext";
 
 interface BlogPost {
