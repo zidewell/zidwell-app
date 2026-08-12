@@ -1,3 +1,4 @@
+"use client";
 import { useMemo, useState } from "react";
 import {
   PieChart,
@@ -12,7 +13,6 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  Legend,
 } from "recharts";
 import {
   startOfWeek,
@@ -41,9 +41,31 @@ const CHART_COLORS = [
   "var(--destructive)",
   "#06b6d4",
   "#eab308",
+  "#ec4899",
+  "#10b981",
+  "#6366f1",
+  "#f97316",
 ];
 
 type TimeFilter = "daily" | "weekly" | "monthly" | "yearly";
+
+// Group tiny slices into "Other" to prevent legend clutter
+function consolidateCategoryData(data: { name: string; value: number; category?: any }[]) {
+  if (data.length <= 8) return data;
+
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  const threshold = total * 0.03; // 3% threshold
+
+  const main = data.filter((d) => d.value >= threshold);
+  const small = data.filter((d) => d.value < threshold);
+
+  if (small.length > 0) {
+    const otherValue = small.reduce((sum, d) => sum + d.value, 0);
+    main.push({ name: "Other", value: otherValue, category: null });
+  }
+
+  return main;
+}
 
 export function InsightsCharts() {
   const {
@@ -53,6 +75,7 @@ export function InsightsCharts() {
     calculateSummary,
   } = useJournal();
   const [filter, setFilter] = useState<TimeFilter>("weekly");
+  const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
 
   const getDateRange = (filterType: TimeFilter) => {
     const today = new Date();
@@ -73,9 +96,13 @@ export function InsightsCharts() {
 
   const { start, end } = getDateRange(filter);
 
-  const categoryData = useMemo(() => {
+  const rawCategoryData = useMemo(() => {
     return getCategoryBreakdown(activeJournalType, start, end);
   }, [activeJournalType, start, end, getCategoryBreakdown]);
+
+  const categoryData = useMemo(() => {
+    return consolidateCategoryData(rawCategoryData);
+  }, [rawCategoryData]);
 
   const incomeVsExpenseData = useMemo(() => {
     const entries = getEntriesForPeriod(activeJournalType, start, end);
@@ -196,16 +223,32 @@ export function InsightsCharts() {
     return null;
   };
 
+  // Custom legend item renderer
+  const LegendItem = ({ color, name, value, percent }: any) => (
+    <div className="flex items-center gap-2 min-w-0">
+      <span
+        className="shrink-0 w-3 h-3 rounded-full"
+        style={{ backgroundColor: color }}
+      />
+      <span className="text-xs text-(--text-secondary) truncate">
+        {name}
+      </span>
+      <span className="text-xs font-medium text-(--text-primary) shrink-0">
+        {percent ? `${(percent * 100).toFixed(0)}%` : formatCurrency(value)}
+      </span>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Filter Tabs */}
-      <div className="flex gap-2 p-1 rounded-xl w-fit bg-(--bg-secondary)">
+      <div className="flex gap-2 p-1 rounded-xl w-fit bg-(--bg-secondary) overflow-x-auto max-w-full">
         {(["daily", "weekly", "monthly", "yearly"] as TimeFilter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={cn(
-              "px-4 py-2 rounded-lg font-medium text-sm capitalize transition-all",
+              "px-3 sm:px-4 py-2 rounded-lg font-medium text-sm capitalize transition-all whitespace-nowrap",
             )}
             style={{
               backgroundColor:
@@ -220,146 +263,183 @@ export function InsightsCharts() {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Expense Breakdown Pie Chart */}
-        <div className="p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
+        <div className="p-4 sm:p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
           <h3
-            className="text-lg mb-4 text-(--text-primary)"
+            className="text-base md:text-lg mb-4 text-(--text-primary)"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             Expense Breakdown
           </h3>
           {categoryData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={2}
-                  dataKey="value"
-                  label={(props) => {
-                    const name = props.name || "";
-                    const percent =
-                      typeof props.percent === "number" ? props.percent : 0;
-                    return `${name} ${(percent * 100).toFixed(0)}%`;
-                  }}
-                  labelLine={false}
-                >
-                  {categoryData.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS[index % CHART_COLORS.length]}
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              {/* Pie Chart */}
+              <div className="w-full sm:w-1/2" style={{ minHeight: 220 }}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius="45%"
+                      outerRadius="75%"
+                      paddingAngle={3}
+                      dataKey="value"
+                      onMouseEnter={(_, index) => setActivePieIndex(index)}
+                      onMouseLeave={() => setActivePieIndex(null)}
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={CHART_COLORS[index % CHART_COLORS.length]}
+                          stroke="var(--bg-primary)"
+                          strokeWidth={2}
+                          opacity={activePieIndex === null || activePieIndex === index ? 1 : 0.5}
+                          style={{ transition: "opacity 0.2s", cursor: "pointer" }}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Custom Legend Grid — No More Stacking */}
+              <div className="w-full sm:w-1/2 grid grid-cols-1 xs:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
+                {categoryData.map((entry, index) => {
+                  const total = categoryData.reduce((s, d) => s + d.value, 0);
+                  const percent = total > 0 ? entry.value / total : 0;
+                  return (
+                    <LegendItem
+                      key={entry.name}
+                      color={CHART_COLORS[index % CHART_COLORS.length]}
+                      name={entry.name}
+                      value={entry.value}
+                      percent={percent}
                     />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+                  );
+                })}
+              </div>
+            </div>
           ) : (
-            <div className="h-[250px] flex items-center justify-center text-(--text-secondary)">
+            <div className="h-[220px] flex items-center justify-center text-(--text-secondary) text-sm">
               No expense data for this period
             </div>
           )}
         </div>
 
         {/* Income vs Expenses Bar Chart */}
-        <div className="p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
+        <div className="p-4 sm:p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
           <h3
-            className="text-lg mb-4 text-(--text-primary)"
+            className="text-base md:text-lg mb-4 text-(--text-primary)"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             Income vs Expenses
           </h3>
           {incomeVsExpenseData.some((d) => d.income > 0 || d.expenses > 0) ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={incomeVsExpenseData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border-color)"
-                />
-                <XAxis
-                  dataKey="name"
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                />
-                <YAxis
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                  tickFormatter={formatCurrency}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Bar
-                  dataKey="income"
-                  name="Income"
-                  fill="var(--color-lemon-green)"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="expenses"
-                  name="Expenses"
-                  fill="var(--destructive)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="w-full" style={{ minHeight: 250 }}>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={incomeVsExpenseData} barCategoryGap="20%">
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--border-color)"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--text-secondary)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: "var(--border-color)" }}
+                  />
+                  <YAxis
+                    stroke="var(--text-secondary)"
+                    fontSize={11}
+                    tickFormatter={formatCurrency}
+                    tickLine={false}
+                    axisLine={{ stroke: "var(--border-color)" }}
+                    width={60}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar
+                    dataKey="income"
+                    name="Income"
+                    fill="var(--color-lemon-green)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={36}
+                  />
+                  <Bar
+                    dataKey="expenses"
+                    name="Expenses"
+                    fill="var(--destructive)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={36}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="h-[250px] flex items-center justify-center text-(--text-secondary)">
+            <div className="h-[260px] flex items-center justify-center text-(--text-secondary) text-sm">
               No data for this period
             </div>
           )}
         </div>
 
-        {/* Financial Trend Line Chart */}
-        <div className="p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg lg:col-span-2">
+        {/* Financial Trend Line Chart — Full Width */}
+        <div className="p-4 sm:p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg lg:col-span-2">
           <h3
-            className="text-lg mb-4 text-(--text-primary)"
+            className="text-base md:text-lg mb-4 text-(--text-primary)"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             Financial Trend (Year)
           </h3>
           {trendData.some((d) => d.balance !== 0) ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trendData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border-color)"
-                />
-                <XAxis
-                  dataKey="name"
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                />
-                <YAxis
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                  tickFormatter={formatCurrency}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="balance"
-                  name="Running Balance"
-                  stroke="var(--color-accent-yellow)"
-                  strokeWidth={3}
-                  dot={{ fill: "var(--color-accent-yellow)", strokeWidth: 2 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="net"
-                  name="Monthly Net"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="w-full" style={{ minHeight: 280 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={trendData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--border-color)"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--text-secondary)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={{ stroke: "var(--border-color)" }}
+                  />
+                  <YAxis
+                    stroke="var(--text-secondary)"
+                    fontSize={11}
+                    tickFormatter={formatCurrency}
+                    tickLine={false}
+                    axisLine={{ stroke: "var(--border-color)" }}
+                    width={60}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line
+                    type="monotone"
+                    dataKey="balance"
+                    name="Running Balance"
+                    stroke="var(--color-accent-yellow)"
+                    strokeWidth={3}
+                    dot={{ fill: "var(--color-accent-yellow)", strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="net"
+                    name="Monthly Net"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-(--text-secondary)">
+            <div className="h-[300px] flex items-center justify-center text-(--text-secondary) text-sm">
               Start logging entries to see your financial trend
             </div>
           )}

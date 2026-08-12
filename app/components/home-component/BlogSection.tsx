@@ -1,10 +1,12 @@
+// app/components/blog-components/BlogSection.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Sparkles, ChevronRight, Newspaper, TrendingUp } from "lucide-react";
+import { ChevronRight, Newspaper, TrendingUp } from "lucide-react";
 import { Button } from "../ui/button";
+import { useBlog } from "@/app/context/BlogContext";
 
 interface BlogPost {
   id: string;
@@ -21,89 +23,43 @@ interface BlogPost {
   categories: Array<{ id: string; name: string } | string>;
 }
 
-const CACHE_KEY = "zidwell_recent_posts_cta";
-const CACHE_DURATION = 5 * 60 * 1000;
-
 export function BlogSection() {
+  const { posts, isLoading, isInitialized, refreshPosts } = useBlog();
   const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
-  const [loading, setLoading] = useState(true);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
+  // Transform posts from context - update immediately when posts change
   useEffect(() => {
-    const fetchRecentPosts = async () => {
-      try {
-        const cachedData = localStorage.getItem(CACHE_KEY);
-        if (cachedData) {
-          try {
-            const { data, timestamp } = JSON.parse(cachedData);
-            const now = Date.now();
-            if (now - timestamp < CACHE_DURATION && data && data.length > 0) {
-              setRecentPosts(data);
-              setLoading(false);
-              fetchFreshPosts(true);
-              return;
-            }
-          } catch (e) {
-            console.warn("Error parsing cached data:", e);
-          }
-        }
-        await fetchFreshPosts(false);
-      } catch (error) {
-        console.error("Error fetching recent posts:", error);
-        setLoading(false);
-      }
-    };
-
-    const fetchFreshPosts = async (isBackground: boolean) => {
-      try {
-        if (!isBackground) setLoading(true);
-        const response = await fetch("/api/blog/posts?limit=6&published=true");
-        if (response.ok) {
-          const data = await response.json();
-          const posts = data.posts || [];
-          const transformedPosts = posts.map((post: any) => ({
-            ...post,
-            categories: Array.isArray(post.categories)
-              ? post.categories.map((cat: any) => {
-                  if (typeof cat === "string") {
-                    return { id: `cat-${cat}`, name: cat };
-                  }
-                  return cat;
-                })
-              : [],
-            featuredImage:
-              post.featured_image ||
-              post.featuredImage ||
-              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10",
-            createdAt: post.created_at || post.createdAt || new Date().toISOString(),
-            readTime: post.read_time || post.readTime || 5,
-            author: {
-              name: post.author?.name || post.author_name || "Unknown Author",
-              avatar: post.author?.avatar || post.author_avatar || null,
-            },
-          }));
-          setRecentPosts(transformedPosts);
-          try {
-            localStorage.setItem(
-              CACHE_KEY,
-              JSON.stringify({
-                data: transformedPosts,
-                timestamp: Date.now(),
-              })
-            );
-          } catch (e) {
-            console.warn("Error caching data:", e);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching fresh posts:", error);
-      } finally {
-        if (!isBackground) setLoading(false);
-      }
-    };
-
-    fetchRecentPosts();
-  }, []);
+    if (posts.length > 0) {
+      const published = posts.filter(post => post.is_published);
+      
+      const transformed = published.slice(0, 6).map((post: any) => ({
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        excerpt: post.excerpt || "",
+        featuredImage: post.featured_image || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10",
+        createdAt: post.created_at || new Date().toISOString(),
+        readTime: post.read_time || post.readTime || 5,
+        author: {
+          name: post.author?.name || post.author_name || "Unknown Author",
+          avatar: post.author?.avatar || post.author_avatar || null,
+        },
+        categories: Array.isArray(post.categories)
+          ? post.categories.map((cat: any) => {
+              if (typeof cat === "string") {
+                return { id: `cat-${cat}`, name: cat };
+              }
+              return cat;
+            })
+          : [],
+      }));
+      
+      setRecentPosts(transformed);
+    } else if (isInitialized && posts.length === 0) {
+      setRecentPosts([]);
+    }
+  }, [posts, isInitialized]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -143,6 +99,41 @@ export function BlogSection() {
     setImageErrors((prev) => ({ ...prev, [postId]: true }));
   };
 
+  // Show loading state while fetching
+  if (isLoading && !isInitialized && recentPosts.length === 0) {
+    return (
+      <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-[var(--border-color)]">
+        <div className="text-center mb-8 md:mb-12">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[var(--color-accent-yellow)]/10 rounded-full mb-4">
+            <Newspaper className="w-4 h-4 text-[var(--color-accent-yellow)]" />
+            <span className="text-xs font-semibold text-[var(--color-accent-yellow)] uppercase tracking-wider">
+              Latest Updates
+            </span>
+          </div>
+          <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)]">
+            Loading <span className="text-[var(--color-accent-yellow)]">Insights</span>...
+          </h3>
+          <p className="text-[var(--text-secondary)] text-sm md:text-base mt-2 max-w-2xl mx-auto">
+            Please wait while we load the latest articles
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-[var(--bg-primary)] rounded-lg overflow-hidden border border-[var(--border-color)] animate-pulse">
+              <div className="h-48 bg-[var(--bg-secondary)]" />
+              <div className="p-4">
+                <div className="h-4 bg-[var(--bg-secondary)] rounded w-1/4 mb-2" />
+                <div className="h-6 bg-[var(--bg-secondary)] rounded w-3/4 mb-2" />
+                <div className="h-4 bg-[var(--bg-secondary)] rounded w-full mb-1" />
+                <div className="h-4 bg-[var(--bg-secondary)] rounded w-2/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-[var(--border-color)]">
       <div className="text-center mb-8 md:mb-12">
@@ -161,24 +152,10 @@ export function BlogSection() {
         </p>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-[var(--bg-primary)] rounded-lg overflow-hidden border border-[var(--border-color)] animate-pulse">
-              <div className="h-48 bg-[var(--bg-secondary)]" />
-              <div className="p-4">
-                <div className="h-4 bg-[var(--bg-secondary)] rounded w-1/4 mb-2" />
-                <div className="h-6 bg-[var(--bg-secondary)] rounded w-3/4 mb-2" />
-                <div className="h-4 bg-[var(--bg-secondary)] rounded w-full mb-1" />
-                <div className="h-4 bg-[var(--bg-secondary)] rounded w-2/3" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : recentPosts.length > 0 ? (
+      {recentPosts.length > 0 ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {recentPosts.slice(0, 6).map((post) => {
+            {recentPosts.map((post) => {
               const imageUrl = getImageUrl(post.featuredImage);
               const hasError = imageErrors[post.id];
               const categoryName = post.categories && post.categories.length > 0
@@ -283,8 +260,17 @@ export function BlogSection() {
         </>
       ) : (
         <div className="text-center py-12 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-color)]">
-          <p className="text-[var(--text-secondary)]">No blog posts available yet.</p>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">Check back soon for updates!</p>
+          <div className="max-w-md mx-auto">
+            <Newspaper className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4 opacity-50" />
+            <p className="text-[var(--text-secondary)] text-lg font-medium">No blog posts available yet</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">Check back soon for updates!</p>
+            <Button
+              onClick={() => refreshPosts()}
+              className="mt-4 bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90 text-[var(--color-ink)]"
+            >
+              Refresh
+            </Button>
+          </div>
         </div>
       )}
     </div>

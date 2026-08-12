@@ -8,13 +8,11 @@ import BlogSidebar from "../components/blog-components/blog/BlogSideBar";
 import BlogCard from "../components/blog-components/blog/BlogCard";
 import AdPlaceholder from "../components/blog-components/blog/Adpaceholder";
 import { Button } from "../components/ui/button";
-import { Skeleton } from "../components/ui/skeleton";
 import { BlogPost as BlogPostType } from "../components/blog-components/blog/types/blog";
 
 const POSTS_PER_PAGE = 4;
 const INITIAL_POSTS_COUNT = 4;
 
-// Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number,
@@ -44,29 +42,6 @@ const BlogPage = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const hasInitializedRef = useRef(false);
-
-  // Add font links to head
-  useEffect(() => {
-    // Add Be Vietnam font
-    const beVietnamLink = document.createElement("link");
-    beVietnamLink.href =
-      "https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap";
-    beVietnamLink.rel = "stylesheet";
-    document.head.appendChild(beVietnamLink);
-
-    // Add Clash Display as Neue Machina alternative
-    const clashDisplayLink = document.createElement("link");
-    clashDisplayLink.href =
-      "https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap";
-    clashDisplayLink.rel = "stylesheet";
-    document.head.appendChild(clashDisplayLink);
-
-    return () => {
-      // Clean up if needed
-      document.head.removeChild(beVietnamLink);
-      document.head.removeChild(clashDisplayLink);
-    };
-  }, []);
 
   // Mark when client is ready
   useEffect(() => {
@@ -233,8 +208,6 @@ const BlogPage = () => {
   // Handle refresh - respects cooldown
   const handleRefresh = useCallback(() => {
     if (!isClient) return;
-
-    // Check if we can refresh (respects cooldown)
     refreshPosts();
     setDisplayedPosts([]);
     setPage(1);
@@ -243,7 +216,7 @@ const BlogPage = () => {
     setIsSearching(false);
   }, [isClient, refreshPosts]);
 
-  // Infinite scroll - only on client
+  // Infinite scroll
   useEffect(() => {
     if (!isClient || loadingMore || !hasMore || isSearching) return;
 
@@ -263,7 +236,7 @@ const BlogPage = () => {
   const featuredPost = displayedPosts.length > 0 ? displayedPosts[0] : null;
   const regularPosts = displayedPosts.slice(1);
 
-  // Calculate read time for posts (helper function)
+  // Calculate read time for posts
   const calculateReadTime = useCallback((content: string) => {
     const wordsPerMinute = 200;
     const wordCount = content.split(/\s+/).length;
@@ -297,73 +270,6 @@ const BlogPage = () => {
     return `${seconds}s`;
   };
 
-  // Loading skeleton - show during SSR and initial client load
-  if (isLoading || !isClient || !isInitialized) {
-    return (
-      <div className="min-h-screen bg-(--bg-primary)">
-        {/* Simple static header for SSR */}
-        <div className="border-b border-(--border-color)">
-          <div className="container mx-auto px-4 py-6">
-            <div className="flex justify-between items-center">
-              <div className="h-10 w-32 bg-(--bg-secondary) rounded animate-pulse" />
-              <div className="h-10 w-64 bg-(--bg-secondary) rounded animate-pulse" />
-            </div>
-          </div>
-        </div>
-
-        <main className="container mx-auto px-4 py-8">
-          <div className="grid lg:grid-cols-[1fr_320px] gap-12">
-            <div>
-              {/* Featured Post Skeleton */}
-              <div className="mb-12">
-                <div className="bg-(--bg-primary) rounded-lg overflow-hidden shadow-soft border border-(--border-color)">
-                  <Skeleton className="h-64 w-full bg-(--bg-secondary)" />
-                  <div className="p-6">
-                    <Skeleton className="h-8 w-3/4 mb-4 bg-(--bg-secondary)" />
-                    <Skeleton className="h-4 w-full mb-2 bg-(--bg-secondary)" />
-                    <Skeleton className="h-4 w-2/3 bg-(--bg-secondary)" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Ad Skeleton */}
-              <Skeleton className="h-32 w-full mb-8 bg-(--bg-secondary)" />
-
-              {/* Posts Grid Skeleton */}
-              <div className="grid md:grid-cols-2 gap-8">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i}>
-                    <div className="bg-(--bg-primary) rounded-lg overflow-hidden shadow-soft border border-(--border-color)">
-                      <Skeleton className="h-48 w-full bg-(--bg-secondary)" />
-                      <div className="p-4">
-                        <Skeleton className="h-6 w-3/4 mb-2 bg-(--bg-secondary)" />
-                        <Skeleton className="h-4 w-full mb-2 bg-(--bg-secondary)" />
-                        <Skeleton className="h-4 w-2/3 bg-(--bg-secondary)" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Sidebar Skeleton */}
-            <div className="hidden lg:block">
-              <div className="sticky top-24 space-y-8">
-                <div className="space-y-3">
-                  <Skeleton className="h-5 w-24 bg-(--bg-secondary)" />
-                  <Skeleton className="h-10 w-full bg-(--bg-secondary)" />
-                </div>
-                <Skeleton className="h-64 w-full bg-(--bg-secondary)" />
-                <Skeleton className="h-48 w-full bg-(--bg-secondary)" />
-                <Skeleton className="h-48 w-full bg-(--bg-secondary)" />
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-(--bg-primary)">
       <BlogHeader onSearch={handleSearch} />
@@ -391,7 +297,6 @@ const BlogPage = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Show cooldown status */}
                   {cooldownRemaining > 0 && (
                     <span className="text-xs text-gray-400">
                       ⏳ {formatCooldown(cooldownRemaining)}
@@ -456,7 +361,6 @@ const BlogPage = () => {
                               readTime: calculateReadTime(post.content || ""),
                             }}
                           />
-                          {/* Insert ad every 4 posts */}
                           {(index + 1) % 4 === 0 && (
                             <div className="mt-8">
                               <AdPlaceholder variant="inline" />
@@ -477,14 +381,15 @@ const BlogPage = () => {
                       className="text-xl font-semibold mb-4 text-(--text-primary)"
                       style={{ fontFamily: "'Clash Display', sans-serif" }}
                     >
-                      No articles published yet
+                      {isInitialized ? 'No articles published yet' : 'Loading posts...'}
                     </h3>
                     <p
                       className="text-(--text-secondary) mb-6"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
-                      Check back soon for new content or contact the
-                      administrator.
+                      {isInitialized 
+                        ? 'Check back soon for new content or contact the administrator.' 
+                        : 'Please wait while we load the articles.'}
                     </p>
                     <Button
                       onClick={handleRefresh}
@@ -512,7 +417,7 @@ const BlogPage = () => {
               </div>
             )}
 
-            {/* Load More Button (alternative to infinite scroll) */}
+            {/* Load More Button */}
             {hasMore &&
               !loadingMore &&
               !isSearching &&

@@ -46,19 +46,22 @@ interface WalletTransaction {
   merchant_tx_ref?: string;
   user_id: string;
   category?: string;
-  category_id?: string; 
+  category_id?: string;
+  net_amount?: number;
+  gross_amount?: number;
+  total_deduction?: number;
+  balance_before?: number;
+  balance_after?: number;
 }
 
 const API_BASE = '/api/journal';
 
-// INFLOW: Money you RECEIVE (Income)
 const INFLOW_TYPES = [
   'deposit', 'virtual_account_deposit', 'card_deposit', 
   'p2p_received', 'referral', 'referral_reward', 
   'refund', 'cashback', 'reversal', 'salary'
 ];
 
-// OUTFLOW: Money you DEDUCT/WITHDRAW (Expense)
 const OUTFLOW_TYPES = [
   'transfer', 'withdrawal', 'debit', 'airtime', 'data', 
   'electricity', 'cable', 'p2p_transfer', 'bill_payment', 
@@ -92,7 +95,7 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId
         requestOptions.body = JSON.stringify(bodyData);
       }
     } catch (e) {
-      // If body can't be parsed, leave as is
+      // leave as is
     }
   }
 
@@ -108,7 +111,7 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId
         const textError = await res.text();
         if (textError) errorMessage = textError;
       } catch {
-        // Ignore
+        // ignore
       }
     }
     throw new Error(errorMessage);
@@ -118,7 +121,7 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId
 }
 
 export function useJournalStore() {
-  const { userData } = useUserContextData();
+  const { userData, balance } = useUserContextData();
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [activeJournalType, setActiveJournalType] = useState<JournalType>('business');
@@ -132,7 +135,6 @@ export function useJournalStore() {
     setUpdateTrigger(prev => prev + 1);
   }, []);
 
-  // Helper: Determine if transaction is INFLOW or OUTFLOW
   const getWalletTransactionType = useCallback((transaction: WalletTransaction): 'income' | 'expense' => {
     const transactionType = transaction.type?.toLowerCase();
     
@@ -157,9 +159,7 @@ export function useJournalStore() {
     return 'expense';
   }, []);
 
-  // FIXED: Case-insensitive matching, bookkeeping defaults, no random fallbacks
   const getCategoryIdFromName = useCallback((categoryName: string, transactionType: string, isOutflow: boolean): string => {
-    // Priority 1: Match by exact category name in journal_categories
     if (categoryName && categoryName.trim()) {
       const matchedCategory = categories.find(
         c => c.name.toLowerCase() === categoryName.toLowerCase()
@@ -200,23 +200,18 @@ export function useJournalStore() {
       const otherExpense = categories.find(c => c.name.toLowerCase() === 'other expense');
       if (otherExpense) return otherExpense.id;
       
-      // FIXED: Don't fallback to a random expense category — return empty to prevent mislabeling
       return '';
     } else {
-      // FIXED: Bookkeeping rule — all inflows default to Sales Revenue
       const salesRevenue = categories.find(c => c.name.toLowerCase() === 'sales revenue');
       if (salesRevenue) return salesRevenue.id;
       
-      // Only if Sales Revenue doesn't exist, try Other Income
       const otherIncome = categories.find(c => c.name.toLowerCase() === 'other income');
       if (otherIncome) return otherIncome.id;
       
-      // FIXED: Don't fallback to a random income category
       return '';
     }
   }, [categories]);
 
-  // Fetch wallet transactions
   const fetchWalletTransactions = useCallback(async () => {
     if (!userId) return [];
     try {
@@ -409,7 +404,6 @@ export function useJournalStore() {
     }
   }, [userId, forceUpdate]);
 
-  // FIXED: Create unified entries — respects tx.category_id from backend trigger
   const unifiedEntries: UnifiedTransaction[] = useMemo(() => {
     const hiddenWalletEntries = JSON.parse(localStorage.getItem(`hidden_wallet_entries_${userId}`) || '[]');
     const walletCategoryOverrides = JSON.parse(localStorage.getItem(`wallet_category_overrides_${userId}`) || '{}');
@@ -422,12 +416,8 @@ export function useJournalStore() {
       .map(tx => {
         const txType = getWalletTransactionType(tx);
         const primaryDescription = tx.narration || tx.description || `${tx.type} transaction`;
-        const isOutflow = OUTFLOW_TYPES.includes(tx.type?.toLowerCase()) || tx.amount < 0;
+        const isOutflow = txType === 'expense';
         
-        // FIXED: Priority order for category resolution
-        // 1. User override from localStorage
-        // 2. category_id from transaction (set by backend trigger)
-        // 3. Derive from category name or transaction type
         let categoryId = walletCategoryOverrides[tx.id] || '';
         
         if (!categoryId && tx.category_id) {
@@ -439,7 +429,28 @@ export function useJournalStore() {
           categoryId = getCategoryIdFromName(transactionCategoryName, tx.type, isOutflow);
         }
         
-        const amount = Math.abs(tx.amount);
+        const txTypeLower = tx.type?.toLowerCase() || '';
+        const isInflow = INFLOW_TYPES.includes(txTypeLower);
+        
+        let amount: number;
+        if (isInflow) {
+          if (tx.net_amount != null) {
+            amount = tx.net_amount;
+          } else if (tx.gross_amount != null) {
+            amount = tx.gross_amount - (tx.fee || 0);
+          } else {
+            amount = Math.abs(tx.amount) - (tx.fee || 0);
+          }
+        } else if (isOutflow) {
+          if (tx.total_deduction != null) {
+            amount = tx.total_deduction;
+          } else {
+            amount = Math.abs(tx.amount) + (tx.fee || 0);
+          }
+        } else {
+          amount = Math.abs(tx.amount);
+        }
+
         const matchedCategory = categories.find(c => c.id === categoryId);
         
         return {
@@ -616,5 +627,6 @@ export function useJournalStore() {
     updateTrigger,
     unifiedEntries,
     walletTransactions,
+    walletBalance: balance ?? 0,
   };
 }
