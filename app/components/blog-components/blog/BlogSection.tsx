@@ -4,8 +4,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, Newspaper, TrendingUp } from "lucide-react";
-import { Button } from "../ui/button";
+import { ChevronRight, Newspaper, TrendingUp, Loader2 } from "lucide-react";
+import { Button } from "../../ui/button"; 
 import { useBlog } from "@/app/context/BlogContext";
 
 interface BlogPost {
@@ -28,7 +28,7 @@ export function BlogSection() {
   const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
-  // Transform posts from context - update immediately when posts change
+  // Transform posts from context
   useEffect(() => {
     if (posts.length > 0) {
       const published = posts.filter(post => post.is_published);
@@ -99,7 +99,7 @@ export function BlogSection() {
     setImageErrors((prev) => ({ ...prev, [postId]: true }));
   };
 
-  // Show loading state while fetching
+  // Show simple loading state
   if (isLoading && !isInitialized && recentPosts.length === 0) {
     return (
       <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-[var(--border-color)]">
@@ -117,18 +117,8 @@ export function BlogSection() {
             Please wait while we load the latest articles
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-[var(--bg-primary)] rounded-lg overflow-hidden border border-[var(--border-color)] animate-pulse">
-              <div className="h-48 bg-[var(--bg-secondary)]" />
-              <div className="p-4">
-                <div className="h-4 bg-[var(--bg-secondary)] rounded w-1/4 mb-2" />
-                <div className="h-6 bg-[var(--bg-secondary)] rounded w-3/4 mb-2" />
-                <div className="h-4 bg-[var(--bg-secondary)] rounded w-full mb-1" />
-                <div className="h-4 bg-[var(--bg-secondary)] rounded w-2/3" />
-              </div>
-            </div>
-          ))}
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-12 h-12 text-[var(--color-accent-yellow)] animate-spin" />
         </div>
       </div>
     );

@@ -8,6 +8,7 @@ import BlogSidebar from "../components/blog-components/blog/BlogSideBar";
 import BlogCard from "../components/blog-components/blog/BlogCard";
 import AdPlaceholder from "../components/blog-components/blog/Adpaceholder";
 import { Button } from "../components/ui/button";
+import { Loader2 } from "lucide-react";
 import { BlogPost as BlogPostType } from "../components/blog-components/blog/types/blog";
 
 const POSTS_PER_PAGE = 4;
@@ -24,14 +25,12 @@ function debounce<T extends (...args: any[]) => any>(
   };
 }
 
-const BlogPage = () => {
+export default function BlogPage() {
   const { 
     posts, 
     isLoading, 
     refreshPosts, 
-    isInitialized,
-    cooldownRemaining,
-    forceRefresh 
+    isInitialized 
   } = useBlog();
   
   const [displayedPosts, setDisplayedPosts] = useState<BlogPostType[]>([]);
@@ -205,7 +204,7 @@ const BlogPage = () => {
     }, 300);
   }, [page, loadingMore, hasMore, filteredPosts, isSearching, isClient]);
 
-  // Handle refresh - respects cooldown
+  // Handle refresh
   const handleRefresh = useCallback(() => {
     if (!isClient) return;
     refreshPosts();
@@ -259,16 +258,22 @@ const BlogPage = () => {
     }
   }, [isClient, isInitialized, publishedPosts]);
 
-  // Format cooldown time for display
-  const formatCooldown = (ms: number) => {
-    if (ms <= 0) return 'Ready';
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    if (minutes > 0) {
-      return `${minutes}m ${seconds}s`;
-    }
-    return `${seconds}s`;
-  };
+  // Show simple loading state
+  if (isLoading && !isInitialized && posts.length === 0) {
+    return (
+      <div className="min-h-screen bg-(--bg-primary)">
+        <BlogHeader onSearch={() => {}} />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex justify-center items-center min-h-[60vh]">
+            <div className="text-center">
+              <Loader2 className="w-16 h-16 text-[var(--color-accent-yellow)] animate-spin mx-auto mb-4" />
+              <p className="text-[var(--text-secondary)]">Loading articles...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-(--bg-primary)">
@@ -297,11 +302,6 @@ const BlogPage = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {cooldownRemaining > 0 && (
-                    <span className="text-xs text-gray-400">
-                      ⏳ {formatCooldown(cooldownRemaining)}
-                    </span>
-                  )}
                   <Button
                     variant="ghost"
                     onClick={() => handleSearch("")}
@@ -334,19 +334,8 @@ const BlogPage = () => {
 
             {/* Post Grid */}
             {isSearching ? (
-              <div className="grid md:grid-cols-2 gap-8 mt-12">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i}>
-                    <div className="bg-(--bg-primary) rounded-lg overflow-hidden shadow-soft border border-(--border-color) animate-pulse">
-                      <div className="h-48 bg-(--bg-secondary)" />
-                      <div className="p-4">
-                        <div className="h-6 bg-(--bg-secondary) rounded w-3/4 mb-2" />
-                        <div className="h-4 bg-(--bg-secondary) rounded w-full mb-2" />
-                        <div className="h-4 bg-(--bg-secondary) rounded w-2/3" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="w-8 h-8 text-[var(--color-accent-yellow)] animate-spin" />
               </div>
             ) : displayedPosts.length > 0 ? (
               <>
@@ -393,17 +382,10 @@ const BlogPage = () => {
                     </p>
                     <Button
                       onClick={handleRefresh}
-                      disabled={cooldownRemaining > 0}
-                      className={`${
-                        cooldownRemaining > 0
-                          ? 'bg-gray-400 cursor-not-allowed'
-                          : 'bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90'
-                      } text-(--color-ink)`}
+                      className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
                       style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
                     >
-                      {cooldownRemaining > 0 
-                        ? `Wait ${formatCooldown(cooldownRemaining)}` 
-                        : 'Refresh'}
+                      Refresh
                     </Button>
                   </div>
                 </div>
@@ -413,7 +395,7 @@ const BlogPage = () => {
             {/* Loading more indicator */}
             {loadingMore && (
               <div className="flex justify-center py-8">
-                <div className="w-8 h-8 border-2 border-(--color-accent-yellow) border-t-transparent rounded-full animate-spin" />
+                <Loader2 className="w-8 h-8 text-[var(--color-accent-yellow)] animate-spin" />
               </div>
             )}
 
@@ -483,6 +465,4 @@ const BlogPage = () => {
       </main>
     </div>
   );
-};
-
-export default BlogPage;
+}

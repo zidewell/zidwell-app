@@ -21,6 +21,7 @@ import {
   generateSoftwareAppSchema,
   generateLocalBusinessSchema,
 } from "@/lib/seo";
+import { BlogProvider } from "./context/BlogContext";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -209,6 +210,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ThemeWrapper>
             <UserProvider>
+                <BlogProvider>
               <SessionRestore>
                 <SessionWatcher>
                   <AuthChecker>
@@ -226,6 +228,7 @@ export default function RootLayout({
                   </AuthChecker>
                 </SessionWatcher>
               </SessionRestore>
+              </BlogProvider>
             </UserProvider>
           </ThemeWrapper>
         </ThemeProvider>

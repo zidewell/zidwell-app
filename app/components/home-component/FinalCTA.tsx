@@ -1,6 +1,6 @@
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
-import { BlogSection } from "./BlogSection";
+import { BlogSection } from "../blog-components/blog/BlogSection";
 import heroEntrepreneur from "@/assets/hero-entrepreneur.jpg";
 
 export function FinalCTA() {

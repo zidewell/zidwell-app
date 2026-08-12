@@ -2,7 +2,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
-import { usePathname } from 'next/navigation';
 
 export interface BlogPost {
   id: string;
@@ -44,8 +43,6 @@ interface BlogContextType {
   error: string | null;
   refreshPosts: () => Promise<void>;
   isInitialized: boolean;
-  cooldownRemaining: number;
-  forceRefresh: () => Promise<void>;
   getPostBySlug: (slug: string) => BlogPost | undefined;
   getRelatedPosts: (postId: string, limit?: number) => BlogPost[];
 }
@@ -64,127 +61,20 @@ interface BlogProviderProps {
   children: ReactNode;
 }
 
-// Global state to prevent multiple initializations
-let globalInitialized = false;
-let globalFetchPromise: Promise<void> | null = null;
-let globalLastFetchTime = 0;
-let globalCooldownInterval: NodeJS.Timeout | null = null;
-
-// Debug mode
-const DEBUG = process.env.NODE_ENV === 'development';
-const debugLog = (...args: any[]) => {
-  if (DEBUG) {
-    console.log('[BLOG CONTEXT]', new Date().toISOString(), ...args);
-  }
-};
-
 export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
-  const pathname = usePathname();
-  
   // State
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [recentPosts, setRecentPosts] = useState<BlogPost[]>([]);
   const [popularPosts, setPopularPosts] = useState<BlogPost[]>([]);
   const [categories, setCategories] = useState<BlogCategory[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // Start with loading true
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [cooldownRemaining, setCooldownRemaining] = useState(0);
   
   // Refs
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
   const isFetchingRef = useRef(false);
-  const hasInitializedRef = useRef(false);
-  
-  const CACHE_KEY = 'blog_cache_data';
-  const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-
-  debugLog('🔧 BlogProvider initializing');
-
-  // Load from localStorage
-  const loadFromCache = useCallback(() => {
-    try {
-      if (typeof window === 'undefined') return null;
-      const stored = localStorage.getItem(CACHE_KEY);
-      if (!stored) {
-        debugLog('No cache found');
-        return null;
-      }
-      
-      const parsed = JSON.parse(stored);
-      const isExpired = Date.now() - parsed.timestamp > COOLDOWN_MS;
-      
-      if (isExpired) {
-        debugLog('Cache expired');
-        localStorage.removeItem(CACHE_KEY);
-        return null;
-      }
-      
-      debugLog(`Cache found with ${parsed.data.allPosts?.length || 0} posts`);
-      return parsed.data;
-    } catch (error) {
-      console.error('Error loading cache:', error);
-      return null;
-    }
-  }, []);
-
-  // Save to localStorage
-  const saveToCache = useCallback((data: any) => {
-    try {
-      if (typeof window === 'undefined') return;
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        data,
-        timestamp: Date.now()
-      }));
-      debugLog('Cache saved');
-    } catch (error) {
-      console.warn('Failed to save cache:', error);
-    }
-  }, []);
-
-  // Check if we can fetch
-  const canFetch = useCallback(() => {
-    const stored = localStorage.getItem(CACHE_KEY);
-    if (!stored) return true;
-    
-    try {
-      const parsed = JSON.parse(stored);
-      return Date.now() - parsed.timestamp >= COOLDOWN_MS;
-    } catch {
-      return true;
-    }
-  }, []);
-
-  // Get remaining cooldown time
-  const getRemainingCooldown = useCallback(() => {
-    const stored = localStorage.getItem(CACHE_KEY);
-    if (!stored) return 0;
-    
-    try {
-      const parsed = JSON.parse(stored);
-      return Math.max(0, COOLDOWN_MS - (Date.now() - parsed.timestamp));
-    } catch {
-      return 0;
-    }
-  }, []);
-
-  // Load data from cache into state
-  const loadDataFromCache = useCallback(() => {
-    const cached = loadFromCache();
-    if (cached) {
-      debugLog('Loading data from cache');
-      setPosts(cached.allPosts || []);
-      setRecentPosts(cached.recentPosts || []);
-      setPopularPosts(cached.popularPosts || []);
-      setCategories(cached.categories || []);
-      setIsInitialized(true);
-      setIsLoading(false);
-      setCooldownRemaining(getRemainingCooldown());
-      return true;
-    }
-    return false;
-  }, [loadFromCache, getRemainingCooldown]);
 
   // Transform posts from API
   const transformPosts = useCallback((data: any): BlogPost[] => {
@@ -255,49 +145,13 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
       .slice(0, 10);
   }, []);
 
-  // Main fetch function - IMMEDIATE fetch
-  const fetchAllPosts = useCallback(async (skipCooldown: boolean = false) => {
-    debugLog('🔄 fetchAllPosts called, skipCooldown:', skipCooldown);
-    
-    // Check cooldown (skip if force refresh)
-    if (!skipCooldown && !canFetch()) {
-      const remaining = getRemainingCooldown();
-      debugLog(`⏳ Cooldown active: ${Math.ceil(remaining / 1000)}s remaining`);
-      const loaded = loadDataFromCache();
-      if (!loaded) {
-        // If no cache, force fetch anyway
-        debugLog('⚠️ No cache available, fetching despite cooldown');
-        return fetchAllPosts(true);
-      }
-      return;
-    }
-    
+  // Main fetch function - fetches fresh data every time
+  const fetchAllPosts = useCallback(async () => {
     // Prevent concurrent fetches
-    if (isFetchingRef.current) {
-      debugLog('⏳ Fetch already in progress, waiting...');
-      // Wait for the current fetch to complete
-      while (isFetchingRef.current) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      // Load from cache after fetch completes
-      loadDataFromCache();
+    if (isFetchingRef.current || !isMountedRef.current) {
       return;
     }
     
-    if (!isMountedRef.current) {
-      debugLog('⚠️ Component unmounted, skipping fetch');
-      return;
-    }
-    
-    // Check for global fetch
-    if (globalFetchPromise) {
-      debugLog('⏳ Waiting for existing global fetch...');
-      await globalFetchPromise;
-      loadDataFromCache();
-      return;
-    }
-    
-    debugLog('🔄 Fetching fresh blog data...');
     isFetchingRef.current = true;
     setIsLoading(true);
     setError(null);
@@ -310,122 +164,61 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     
-    const fetchPromise = (async () => {
-      try {
-        const [allResponse, recentResponse, popularResponse] = await Promise.all([
-          fetch('/api/blog/posts?limit=100&published=true', { signal: controller.signal }),
-          fetch('/api/blog/posts?limit=5&sort_by=created_at&sort_order=desc&published=true', { signal: controller.signal }),
-          fetch('/api/blog/posts?limit=5&sort_by=view_count&sort_order=desc&published=true', { signal: controller.signal })
-        ]);
+    try {
+      const [allResponse, recentResponse, popularResponse] = await Promise.all([
+        fetch('/api/blog/posts?limit=100&published=true', { signal: controller.signal }),
+        fetch('/api/blog/posts?limit=5&sort_by=created_at&sort_order=desc&published=true', { signal: controller.signal }),
+        fetch('/api/blog/posts?limit=5&sort_by=view_count&sort_order=desc&published=true', { signal: controller.signal })
+      ]);
 
-        const errors = [];
-        if (!allResponse.ok) errors.push('All posts');
-        if (!recentResponse.ok) errors.push('Recent posts');
-        if (!popularResponse.ok) errors.push('Popular posts');
-        
-        if (errors.length > 0) {
-          throw new Error(`Failed to fetch: ${errors.join(', ')}`);
-        }
-
-        const [allData, recentData, popularData] = await Promise.all([
-          allResponse.json(),
-          recentResponse.json(),
-          popularResponse.json()
-        ]);
-
-        const allPosts = transformPosts(allData);
-        const recent = transformPosts(recentData);
-        const popular = transformPosts(popularData);
-        const extractedCategories = extractCategories(allPosts);
-
-        const cacheData = {
-          allPosts,
-          recentPosts: recent,
-          popularPosts: popular,
-          categories: extractedCategories
-        };
-
-        saveToCache(cacheData);
-        globalLastFetchTime = Date.now();
-        
-        // Update state immediately
-        setPosts(allPosts);
-        setRecentPosts(recent);
-        setPopularPosts(popular);
-        setCategories(extractedCategories);
-        setIsInitialized(true);
-        setIsLoading(false);
-        setCooldownRemaining(COOLDOWN_MS);
-
-        debugLog(`✅ Fetched: ${allPosts.length} posts, ${recent.length} recent, ${popular.length} popular`);
-
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          debugLog('🛑 Fetch aborted');
-          return;
-        }
-        
-        console.error('❌ Error fetching blog posts:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch posts');
-        setIsLoading(false);
-        
-        // Try to load from cache on error
-        const cached = loadFromCache();
-        if (cached) {
-          debugLog('📦 Using cached data after error');
-          setPosts(cached.allPosts || []);
-          setRecentPosts(cached.recentPosts || []);
-          setPopularPosts(cached.popularPosts || []);
-          setCategories(cached.categories || []);
-          setIsInitialized(true);
-        }
-      } finally {
-        setIsLoading(false);
-        isFetchingRef.current = false;
-        globalFetchPromise = null;
-        if (abortControllerRef.current === controller) {
-          abortControllerRef.current = null;
-        }
+      const errors = [];
+      if (!allResponse.ok) errors.push('All posts');
+      if (!recentResponse.ok) errors.push('Recent posts');
+      if (!popularResponse.ok) errors.push('Popular posts');
+      
+      if (errors.length > 0) {
+        throw new Error(`Failed to fetch: ${errors.join(', ')}`);
       }
-    })();
-    
-    globalFetchPromise = fetchPromise;
-    await fetchPromise;
-    setCooldownRemaining(getRemainingCooldown());
-    
-  }, [canFetch, getRemainingCooldown, loadFromCache, loadDataFromCache, transformPosts, extractCategories, saveToCache]);
 
-  // Force refresh
-  const forceRefresh = useCallback(async () => {
-    debugLog('🔄 Force refresh');
-    localStorage.removeItem(CACHE_KEY);
-    globalLastFetchTime = 0;
-    globalFetchPromise = null;
-    
-    setPosts([]);
-    setRecentPosts([]);
-    setPopularPosts([]);
-    setCategories([]);
-    setIsInitialized(false);
-    setIsLoading(true);
-    
-    await fetchAllPosts(true);
-  }, [fetchAllPosts]);
+      const [allData, recentData, popularData] = await Promise.all([
+        allResponse.json(),
+        recentResponse.json(),
+        popularResponse.json()
+      ]);
 
-  // Refresh with cooldown
-  const refreshPosts = useCallback(async () => {
-    debugLog('🔄 Refresh triggered');
-    
-    if (!canFetch()) {
-      const remaining = getRemainingCooldown();
-      debugLog(`⏳ Cannot refresh. ${Math.ceil(remaining / 60000)} minutes remaining.`);
-      loadDataFromCache();
-      return;
+      const allPosts = transformPosts(allData);
+      const recent = transformPosts(recentData);
+      const popular = transformPosts(popularData);
+      const extractedCategories = extractCategories(allPosts);
+
+      // Update state immediately
+      setPosts(allPosts);
+      setRecentPosts(recent);
+      setPopularPosts(popular);
+      setCategories(extractedCategories);
+      setIsInitialized(true);
+      setIsLoading(false);
+
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+      
+      console.error('Error fetching blog posts:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch posts');
+      setIsLoading(false);
+    } finally {
+      isFetchingRef.current = false;
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     }
-    
-    localStorage.removeItem(CACHE_KEY);
+  }, [transformPosts, extractCategories]);
+
+  // Refresh posts
+  const refreshPosts = useCallback(async () => {
     await fetchAllPosts();
-  }, [canFetch, getRemainingCooldown, loadDataFromCache, fetchAllPosts]);
+  }, [fetchAllPosts]);
 
   // Get post by slug
   const getPostBySlug = useCallback((slug: string) => {
@@ -446,61 +239,18 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     return related.slice(0, limit);
   }, [posts]);
 
-  // Cooldown timer
+  // Initial load - fetch immediately on mount
   useEffect(() => {
-    if (globalCooldownInterval) {
-      clearInterval(globalCooldownInterval);
-    }
-
-    globalCooldownInterval = setInterval(() => {
-      const remaining = getRemainingCooldown();
-      setCooldownRemaining(remaining);
-      
-      if (remaining === 0 && globalCooldownInterval) {
-        clearInterval(globalCooldownInterval);
-        globalCooldownInterval = null;
-      }
-    }, 1000);
-
-    return () => {
-      if (globalCooldownInterval) {
-        clearInterval(globalCooldownInterval);
-        globalCooldownInterval = null;
-      }
-    };
-  }, [getRemainingCooldown]);
-
-  // ✅ IMMEDIATE INITIAL LOAD - Fetch right away
-  useEffect(() => {
-    debugLog('🚀 Initializing BlogProvider - IMMEDIATE FETCH');
     isMountedRef.current = true;
-    
-    // Try to load from cache first
-    const hasCache = loadDataFromCache();
-    
-    if (hasCache) {
-      debugLog('📦 Cache loaded, but still fetching fresh in background');
-      // Still fetch in background to update cache
-      if (!globalFetchPromise && !isFetchingRef.current) {
-        fetchAllPosts();
-      }
-    } else {
-      debugLog('📡 No cache, fetching immediately');
-      // Fetch immediately
-      fetchAllPosts();
-    }
-    
-    globalInitialized = true;
-    hasInitializedRef.current = true;
+    fetchAllPosts();
     
     return () => {
-      debugLog('🧹 BlogProvider unmounting');
       isMountedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, []); // Empty dependency array = run once on mount
+  }, []);
 
   const contextValue = {
     posts,
@@ -511,8 +261,6 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     error,
     refreshPosts,
     isInitialized,
-    cooldownRemaining,
-    forceRefresh,
     getPostBySlug,
     getRelatedPosts
   };
