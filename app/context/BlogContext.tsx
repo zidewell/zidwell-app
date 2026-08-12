@@ -42,6 +42,7 @@ interface BlogContextType {
   isLoading: boolean;
   error: string | null;
   refreshPosts: () => Promise<void>;
+  forceRefresh: () => Promise<void>;
   isInitialized: boolean;
   getPostBySlug: (slug: string) => BlogPost | undefined;
   getRelatedPosts: (postId: string, limit?: number) => BlogPost[];
@@ -61,6 +62,8 @@ interface BlogProviderProps {
   children: ReactNode;
 }
 
+const FETCH_TIMEOUT = 15000; // 15 seconds
+
 export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   // State
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -75,6 +78,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
   const isFetchingRef = useRef(false);
+  const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
   // Transform posts from API
   const transformPosts = useCallback((data: any): BlogPost[] => {
@@ -145,16 +149,29 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
       .slice(0, 10);
   }, []);
 
-  // Main fetch function - fetches fresh data every time
-  const fetchAllPosts = useCallback(async () => {
+  // Clear timeout
+  const clearFetchTimeout = useCallback(() => {
+    if (timeoutIdRef.current) {
+      clearTimeout(timeoutIdRef.current);
+      timeoutIdRef.current = null;
+    }
+  }, []);
+
+  // Main fetch function
+  const fetchAllPosts = useCallback(async (skipLoadingState: boolean = false) => {
     // Prevent concurrent fetches
     if (isFetchingRef.current || !isMountedRef.current) {
       return;
     }
     
     isFetchingRef.current = true;
-    setIsLoading(true);
+    if (!skipLoadingState) {
+      setIsLoading(true);
+    }
     setError(null);
+    
+    // Clear any existing timeout
+    clearFetchTimeout();
     
     // Cancel any ongoing fetch
     if (abortControllerRef.current) {
@@ -164,7 +181,24 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     
+    // Safety timeout
+    timeoutIdRef.current = setTimeout(() => {
+      if (isMountedRef.current && isFetchingRef.current) {
+        console.warn('⚠️ Fetch timeout - forcing stop');
+        setIsLoading(false);
+        setError('Request timed out. Please try again.');
+        setIsInitialized(true);
+        isFetchingRef.current = false;
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+        }
+      }
+    }, FETCH_TIMEOUT);
+    
     try {
+      console.log('🔍 Fetching blog posts...');
+      
       const [allResponse, recentResponse, popularResponse] = await Promise.all([
         fetch('/api/blog/posts?limit=100&published=true', { signal: controller.signal }),
         fetch('/api/blog/posts?limit=5&sort_by=created_at&sort_order=desc&published=true', { signal: controller.signal }),
@@ -172,9 +206,9 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
       ]);
 
       const errors = [];
-      if (!allResponse.ok) errors.push('All posts');
-      if (!recentResponse.ok) errors.push('Recent posts');
-      if (!popularResponse.ok) errors.push('Popular posts');
+      if (!allResponse.ok) errors.push(`All posts (${allResponse.status})`);
+      if (!recentResponse.ok) errors.push(`Recent posts (${recentResponse.status})`);
+      if (!popularResponse.ok) errors.push(`Popular posts (${popularResponse.status})`);
       
       if (errors.length > 0) {
         throw new Error(`Failed to fetch: ${errors.join(', ')}`);
@@ -191,34 +225,70 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
       const popular = transformPosts(popularData);
       const extractedCategories = extractCategories(allPosts);
 
-      // Update state immediately
+      console.log(`✅ Fetched ${allPosts.length} posts`);
+
+      // Update state
       setPosts(allPosts);
       setRecentPosts(recent);
       setPopularPosts(popular);
       setCategories(extractedCategories);
       setIsInitialized(true);
       setIsLoading(false);
+      
+      // Clear timeout on success
+      clearFetchTimeout();
 
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
+        console.log('🛑 Fetch aborted');
         return;
       }
       
-      console.error('Error fetching blog posts:', err);
+      console.error('❌ Error fetching blog posts:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch posts');
       setIsLoading(false);
+      setIsInitialized(true); // Still mark as initialized even on error
+      
+      // Clear timeout on error
+      clearFetchTimeout();
     } finally {
       isFetchingRef.current = false;
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
       }
     }
-  }, [transformPosts, extractCategories]);
+  }, [transformPosts, extractCategories, clearFetchTimeout]);
 
-  // Refresh posts
+  // Refresh posts (respects loading state)
   const refreshPosts = useCallback(async () => {
-    await fetchAllPosts();
+    console.log('🔄 Refreshing posts...');
+    await fetchAllPosts(false);
   }, [fetchAllPosts]);
+
+  // Force refresh (bypasses loading state)
+  const forceRefresh = useCallback(async () => {
+    console.log('⚡ Force refreshing posts...');
+    // Reset state
+    setPosts([]);
+    setRecentPosts([]);
+    setPopularPosts([]);
+    setCategories([]);
+    setIsInitialized(false);
+    setIsLoading(true);
+    setError(null);
+    
+    // Cancel any ongoing fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Clear timeout
+    clearFetchTimeout();
+    
+    // Fetch with loading state
+    await fetchAllPosts(false);
+  }, [fetchAllPosts, clearFetchTimeout]);
 
   // Get post by slug
   const getPostBySlug = useCallback((slug: string) => {
@@ -241,13 +311,19 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
 
   // Initial load - fetch immediately on mount
   useEffect(() => {
+    console.log('🚀 BlogProvider mounted, fetching posts...');
     isMountedRef.current = true;
-    fetchAllPosts();
+    
+    // Fetch posts immediately
+    fetchAllPosts(false);
     
     return () => {
+      console.log('🧹 BlogProvider unmounting');
       isMountedRef.current = false;
+      clearFetchTimeout();
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+        abortControllerRef.current = null;
       }
     };
   }, []);
@@ -260,6 +336,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     isLoading,
     error,
     refreshPosts,
+    forceRefresh,
     isInitialized,
     getPostBySlug,
     getRelatedPosts
