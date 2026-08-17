@@ -18,7 +18,7 @@ const CircleAction = ({ label, icon: Icon, variant = "neutral" }: CircleActionPr
   return (
     <button className="group flex flex-col items-center gap-3.5">
       <span
-        className={`grid aspect-square w-24 place-items-center rounded-full transition-all duration-300 ease-out group-hover:-translate-y-1.5 group-active:translate-y-0 group-active:scale-95 sm:w-28 ${styles}`}
+        className={`grid aspect-square w-20 md:w-24 place-items-center rounded-full transition-all duration-300 ease-out group-hover:-translate-y-1.5 group-active:translate-y-0 group-active:scale-95 sm:w-28 ${styles}`}
       >
         <Icon className="h-8 w-8" strokeWidth={1.4} />
       </span>

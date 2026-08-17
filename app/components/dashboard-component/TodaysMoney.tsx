@@ -68,10 +68,10 @@ const FILTER_OPTIONS = [
 
 // Loading Skeleton Component
 const LoadingSkeleton = () => (
-  <div className="space-y-10 animate-pulse">
-    <section className="grid gap-4 lg:grid-cols-3">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-[2px_2px_0px_var(--border-color)]">
+  <div className="space-y-6 animate-pulse">
+    <section className="grid gap-4 grid-cols-1 md:grid-cols-2">
+      {[1, 2].map((i) => (
+        <div key={i} className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-[2px_2px_0px_var(--border-color)] h-[110px]">
           <div className="h-3 w-24 bg-(--bg-secondary) rounded mb-2"></div>
           <div className="h-8 w-40 bg-(--bg-secondary) rounded"></div>
           <div className="h-3 w-32 bg-(--bg-secondary) rounded mt-2"></div>
@@ -110,9 +110,6 @@ const TodaysMoney = () => {
   });
   const fetchInProgress = useRef(false);
   const initialFetchDone = useRef(false);
-
-  const circumference = 2 * Math.PI * 52;
-  const healthScore = 82;
 
   // Calculate metrics from transactions with date filtering
   const calculateMetricsWithFilter = useCallback((transactions: any[], filterDays: number) => {
@@ -416,10 +413,10 @@ const TodaysMoney = () => {
 
   return (
     <div className="space-y-6">
-      {/* Balance Cards - Compact */}
-      <section className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {/* Balance Cards - Only 2 cards */}
+      <section className="grid gap-4 grid-cols-1 md:grid-cols-2">
         {/* Current Balance Card */}
-        <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-[2px_2px_0px_var(--border-color)] relative overflow-hidden">
+        <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-[2px_2px_0px_var(--border-color)] relative overflow-hidden h-[110px] flex flex-col justify-center">
           <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-(--color-accent-yellow)/20 blur-2xl" />
           <div className="relative z-10">
             <p className="text-xs font-medium text-(--text-secondary) flex items-center gap-1.5">
@@ -434,7 +431,7 @@ const TodaysMoney = () => {
         </div>
 
         {/* All-Time Balance Card */}
-        <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-[2px_2px_0px_var(--border-color)] relative overflow-hidden">
+        <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-[2px_2px_0px_var(--border-color)] relative overflow-hidden h-[110px] flex flex-col justify-center">
           <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#00B64F]/20 blur-2xl" />
           <div className="relative z-10">
             <p className="text-xs font-medium text-(--text-secondary) flex items-center gap-1.5">
@@ -449,26 +446,28 @@ const TodaysMoney = () => {
             </p>
           </div>
         </div>
+      </section>
 
-        {/* Quick Actions Card - Compact with smaller CircleActions */}
-        <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-[2px_2px_0px_var(--border-color)] flex flex-col">
-          <p className="text-xs font-medium text-(--text-secondary) mb-2 flex items-center gap-1.5">
+      {/* Quick Actions Row - Below balance cards */}
+      <section>
+        <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-[2px_2px_0px_var(--border-color)]">
+          <p className="text-xs font-medium text-(--text-secondary) mb-3 flex items-center gap-1.5">
             <LayoutGrid className="w-3.5 h-3.5" />
             Quick Actions
           </p>
-          <div className="flex flex-wrap justify-center gap-3 flex-1 items-center">
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
             <Link href="/dashboard/fund-account/transfer-page">
-              <CircleAction label="Send" icon={Send} variant="gold" />
+              <CircleAction label="Send Money" icon={Send} variant="gold" />
             </Link>
             <Link href="/dashboard/fund-account">
-              <CircleAction label="Add" icon={Plus} variant="green" />
+              <CircleAction label="Add Money" icon={Plus} variant="green" />
             </Link>
             <Link href="/dashboard/services/bookkeeping">
-              <CircleAction label="Book" icon={BookOpen} />
+              <CircleAction label="Bookkeeping" icon={BookOpen} />
             </Link>
-            <Link href="/dashboard/services">
-              <CircleAction label="More" icon={LayoutGrid} />
-            </Link>
+            {/* <Link href="/dashboard/services">
+              <CircleAction label="More Tools" icon={LayoutGrid} />
+            </Link> */}
           </div>
         </div>
       </section>
@@ -521,103 +520,102 @@ const TodaysMoney = () => {
         ))}
       </section>
 
-      {/* Tools + transactions */}
-      <section className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
-        <div>
-          <h2 className="mb-4 text-xl font-extrabold text-(--text-primary)">
-            More tools
+      {/* Tools Grid */}
+      <section>
+        <h2 className="mb-4 text-xl font-extrabold text-(--text-primary)">
+          More tools
+        </h2>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-3">
+          {tools.map((t) => (
+            <button
+              key={t.title}
+              onClick={() => handleToolClick(t.route)}
+              className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-3 shadow-[2px_2px_0px_var(--border-color)] flex flex-col items-center gap-2 transition-all duration-300 hover:shadow-[4px_4px_0px_var(--border-color)] hover:-translate-x-px hover:-translate-y-px group"
+            >
+              <t.icon
+                className="h-5 w-5 text-(--color-accent-yellow) group-hover:scale-110 transition-transform"
+                strokeWidth={1.4}
+              />
+              <span className="text-[10px] font-semibold text-(--text-primary) text-center leading-tight">
+                {t.title}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Recent Transactions */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-extrabold text-(--text-primary)">
+            Recent transactions
           </h2>
-          <div className="grid grid-cols-3 gap-3">
-            {tools.map((t) => (
-              <button
-                key={t.title}
-                onClick={() => handleToolClick(t.route)}
-                className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-3 shadow-[2px_2px_0px_var(--border-color)] flex flex-col items-center gap-2 transition-all duration-300 hover:shadow-[4px_4px_0px_var(--border-color)] hover:-translate-x-px hover:-translate-y-px group"
-              >
-                <t.icon
-                  className="h-5 w-5 text-(--color-accent-yellow) group-hover:scale-110 transition-transform"
-                  strokeWidth={1.4}
-                />
-                <span className="text-[10px] font-semibold text-(--text-primary) sm:text-xs">
-                  {t.title}
-                </span>
-              </button>
-            ))}
-          </div>
+          <Link
+            href="/dashboard/transactions"
+            className="flex items-center gap-0.5 text-xs font-medium text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 transition-colors group"
+          >
+            View All
+            <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-extrabold text-(--text-primary)">
-              Recent transactions
-            </h2>
-            <Link
-              href="/dashboard/transactions"
-              className="flex items-center gap-0.5 text-xs font-medium text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 transition-colors group"
-            >
-              View All
-              <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          </div>
-
-          <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md shadow-[2px_2px_0px_var(--border-color)] divide-y divide-(--border-color) overflow-hidden">
-            {!hasRealData ? (
-              <div className="text-center py-8 text-(--text-secondary)">
-                <p className="mb-1 text-sm">No transactions yet</p>
-                <p className="text-xs">Start using Zidwell to see your transactions here</p>
-              </div>
-            ) : (
-              finalTransactions.map((t, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-(--bg-secondary)"
+        <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md shadow-[2px_2px_0px_var(--border-color)] divide-y divide-(--border-color) overflow-hidden">
+          {!hasRealData ? (
+            <div className="text-center py-8 text-(--text-secondary)">
+              <p className="mb-1 text-sm">No transactions yet</p>
+              <p className="text-xs">Start using Zidwell to see your transactions here</p>
+            </div>
+          ) : (
+            finalTransactions.map((t, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-(--bg-secondary)"
+              >
+                <span
+                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
+                    t.incoming
+                      ? "bg-[#00B64F]/15 text-[#00B64F]"
+                      : "bg-(--color-accent-yellow)/15 text-(--color-accent-yellow)"
+                  }`}
                 >
-                  <span
-                    className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
-                      t.incoming
-                        ? "bg-[#00B64F]/15 text-[#00B64F]"
-                        : "bg-(--color-accent-yellow)/15 text-(--color-accent-yellow)"
-                    }`}
-                  >
-                    {t.incoming ? (
-                      <ArrowDownLeft className="h-4 w-4" strokeWidth={1.5} />
-                    ) : (
-                      <ArrowUpRight className="h-4 w-4" strokeWidth={1.5} />
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-(--text-primary)">
-                      {t.name}
+                  {t.incoming ? (
+                    <ArrowDownLeft className="h-4 w-4" strokeWidth={1.5} />
+                  ) : (
+                    <ArrowUpRight className="h-4 w-4" strokeWidth={1.5} />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-(--text-primary)">
+                    {t.name}
+                  </p>
+                  <p className="text-xs text-(--text-secondary)">{t.date}</p>
+                  {t.transaction?.reference && (
+                    <p className="text-[10px] text-(--text-secondary) mt-0.5">
+                      Ref: {t.transaction.reference.substring(0, 12)}...
                     </p>
-                    <p className="text-xs text-(--text-secondary)">{t.date}</p>
-                    {t.transaction?.reference && (
-                      <p className="text-[10px] text-(--text-secondary) mt-0.5">
-                        Ref: {t.transaction.reference.substring(0, 12)}...
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-bold ${t.color}`}>
-                      {t.amount}
-                    </p>
-                    {t.status && (
-                      <p
-                        className={`text-[10px] font-medium ${
-                          t.status === "Pending"
-                            ? "text-(--color-accent-yellow)"
-                            : t.status === "Completed"
-                            ? "text-[#00B64F]"
-                            : "text-(--text-secondary)"
-                        }`}
-                      >
-                        {t.status}
-                      </p>
-                    )}
-                  </div>
+                  )}
                 </div>
-              ))
-            )}
-          </div>
+                <div className="text-right">
+                  <p className={`text-sm font-bold ${t.color}`}>
+                    {t.amount}
+                  </p>
+                  {t.status && (
+                    <p
+                      className={`text-[10px] font-medium ${
+                        t.status === "Pending"
+                          ? "text-(--color-accent-yellow)"
+                          : t.status === "Completed"
+                          ? "text-[#00B64F]"
+                          : "text-(--text-secondary)"
+                      }`}
+                    >
+                      {t.status}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </div>
