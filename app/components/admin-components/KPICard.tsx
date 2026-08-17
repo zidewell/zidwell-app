@@ -1,55 +1,67 @@
 // app/components/admin-components/KPICard.tsx
-import { ReactNode } from "react";
+import { ReactNode } from 'react'
 
 interface KPICardProps {
-  title: string;
-  value: string | number;
-  growth?: ReactNode;
-  className?: string;
-  icon?: ReactNode;
-  subtitle?: string;
-  isLoading?: boolean;
+  title: string
+  value: string | number
+  growth?: ReactNode
+  className?: string
+  icon?: ReactNode
+  subtitle?: string
+  isLoading?: boolean
 }
 
 export default function KPICard({
   title,
   value,
   growth,
-  className = "",
+  className = '',
   icon,
   subtitle,
   isLoading = false,
 }: KPICardProps) {
   if (isLoading) {
     return (
-      <div className={`bg-[var(--bg-primary)] p-6 squircle-lg shadow-soft border border-[var(--border-color)] animate-pulse ${className}`}>
-        <div className="flex items-center justify-between mb-2">
-          <div className="h-4 bg-[var(--bg-secondary)] squircle-sm w-24"></div>
-          <div className="h-4 bg-[var(--bg-secondary)] squircle-sm w-8"></div>
+      <div className="bg-[var(--bg-card)] p-6 rounded-2xl border border-[var(--border)] animate-pulse">
+        <div className="flex items-center justify-between mb-3">
+          <div className="h-4 bg-[var(--bg-secondary)] rounded-lg w-24" />
+          <div className="h-8 w-8 bg-[var(--bg-secondary)] rounded-xl" />
         </div>
-        <div className="h-8 bg-[var(--bg-secondary)] squircle-sm w-3/4 mb-2"></div>
-        {subtitle && <div className="h-3 bg-[var(--bg-secondary)] squircle-sm w-full"></div>}
+        <div className="h-8 bg-[var(--bg-secondary)] rounded-lg w-3/4 mb-2" />
+        {subtitle && <div className="h-3 bg-[var(--bg-secondary)] rounded-lg w-full" />}
       </div>
-    );
+    )
   }
 
   return (
-    <div className={`bg-[var(--bg-primary)] p-6 squircle-lg shadow-soft border border-[var(--border-color)] relative hover:shadow-pop transition-shadow duration-200 ${className}`}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          {icon && <div className="shrink-0 text-[var(--text-secondary)]">{icon}</div>}
-          <div className="text-sm font-medium text-[var(--text-secondary)]">{title}</div>
+    <div className={`
+      group relative overflow-hidden bg-[var(--bg-card)] p-6 rounded-2xl border border-[var(--border)]
+      transition-all duration-300 hover:shadow-xl hover:-translate-y-1
+      ${className}
+    `}>
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-amber)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      
+      <div className="relative">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            {icon && <div className="text-[var(--text-muted)] group-hover:text-[var(--color-amber)] transition-colors duration-300">{icon}</div>}
+            <div className="text-sm font-medium text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors duration-300">
+              {title}
+            </div>
+          </div>
+          {growth && <div className="shrink-0">{growth}</div>}
         </div>
-        {growth && <div className="shrink-0">{growth}</div>}
-      </div>
-      <div className="mb-1">
-        <div className="text-2xl font-bold text-[var(--text-primary)] truncate font-[var(--font-space-grotesk)]">
-          {typeof value === "number" ? value.toLocaleString() : value}
+
+        <div className="mb-1">
+          <div className="text-2xl font-bold font-[var(--font-space-grotesk)] tracking-tight text-[var(--text-primary)] truncate">
+            {typeof value === 'number' ? value.toLocaleString() : value}
+          </div>
         </div>
+
+        {subtitle && (
+          <div className="text-xs text-[var(--text-muted)] mt-1 truncate">{subtitle}</div>
+        )}
       </div>
-      {subtitle && (
-        <div className="text-xs text-[var(--text-secondary)] mt-1 truncate">{subtitle}</div>
-      )}
     </div>
-  );
+  )
 }
