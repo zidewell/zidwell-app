@@ -25,6 +25,9 @@ import {
   TrendingDown,
   DollarSign,
   Calendar,
+  UserPlus,
+  UserCog,
+  Shield,
 } from "lucide-react";
 import CircleAction from "./CircleAction";
 import { useUserContextData } from "@/app/context/userData";
@@ -64,6 +67,14 @@ const FILTER_OPTIONS = [
   { label: "180D", value: 180 },
   { label: "365D", value: 365 },
   { label: "All", value: 0 },
+];
+
+// Team items
+const teamItems = [
+  { title: "Members", icon: Users, route: "/dashboard/team" },
+  { title: "Invitations", icon: UserPlus, route: "/dashboard/team/invitations" },
+  { title: "Roles", icon: UserCog, route: "/dashboard/team/roles" },
+  { title: "Permissions", icon: Shield, route: "/dashboard/team/permissions" },
 ];
 
 // Loading Skeleton Component
@@ -345,6 +356,10 @@ const TodaysMoney = () => {
     router.push(route);
   };
 
+  const handleTeamClick = (route: string) => {
+    router.push(route);
+  };
+
   const displayTransactions = recentTransactions.slice(0, 5).map((tx) => {
     const amountInfo = formatAmount(tx);
     return {
@@ -412,7 +427,7 @@ const TodaysMoney = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {/* Balance Cards - Only 2 cards */}
       <section className="grid gap-4 grid-cols-1 md:grid-cols-2">
         {/* Current Balance Card */}
@@ -465,9 +480,6 @@ const TodaysMoney = () => {
             <Link href="/dashboard/services/bookkeeping">
               <CircleAction label="Bookkeeping" icon={BookOpen} />
             </Link>
-            {/* <Link href="/dashboard/services">
-              <CircleAction label="More Tools" icon={LayoutGrid} />
-            </Link> */}
           </div>
         </div>
       </section>
@@ -518,6 +530,39 @@ const TodaysMoney = () => {
             </p>
           </div>
         ))}
+      </section>
+
+      {/* Team Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-extrabold text-(--text-primary)">
+            Team
+          </h2>
+          <Link
+            href="/dashboard/team"
+            className="flex items-center gap-0.5 text-xs font-medium text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 transition-colors group"
+          >
+            View All
+            <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {teamItems.map((item) => (
+            <button
+              key={item.title}
+              onClick={() => handleTeamClick(item.route)}
+              className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-4 shadow-[2px_2px_0px_var(--border-color)] flex flex-col items-center gap-2 transition-all duration-300 hover:shadow-[4px_4px_0px_var(--border-color)] hover:-translate-x-px hover:-translate-y-px group"
+            >
+              <item.icon
+                className="h-6 w-6 text-(--color-accent-yellow) group-hover:scale-110 transition-transform"
+                strokeWidth={1.4}
+              />
+              <span className="text-xs font-semibold text-(--text-primary) text-center">
+                {item.title}
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Tools Grid */}

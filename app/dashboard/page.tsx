@@ -7,13 +7,7 @@ import AmbientBackground from "../components/dashboard-component/AmbientBackgrou
 import TodaysMoney from "../components/dashboard-component/TodaysMoney";
 import FutureMoney from "../components/dashboard-component/FutureMoney";
 import MobileBottomNav from "../components/dashboard-component/MobileBottomNav";
-import BVNVerificationBadge from "../components/BVNVerificationBadge";
-import BalanceCard from "../components/Balance-card";
-import TransactionHistory from "../components/transaction-history";
-import { useSubscription } from "../hooks/useSubscripion";
 import { UpgradeBanner } from "../components/subscription-components/UpgradeBanner";
-import { SubscriptionModal } from "../components/dashboard-component/SubscriptionModal";
-import { CheckCircle, Loader2, X } from "lucide-react";
 import Loader from "../components/Loader";
 
 type Tab = "today" | "future";
@@ -29,7 +23,6 @@ const DashboardPage = () => {
   ];
 
   useEffect(() => {
-    // Simulate loading delay or wait for data to load
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 800);
@@ -54,8 +47,11 @@ const DashboardPage = () => {
         {/* Header */}
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
+        {/* Upgrade Banner - Sticky below header */}
+        <UpgradeBanner />
+
         {/* Main content area */}
-        <main className="flex-1 px-4 sm:px-6 pb-32 pt-6 md:px-8 lg:px-10 lg:pb-16">
+        <main className="flex-1 px-4 sm:px-6 pb-32 pt-4 md:px-8 lg:px-10 lg:pb-16">
           <h1 className="sr-only">Zidwell financial dashboard</h1>
 
           <div className="mb-10 flex flex-wrap items-center gap-6 sm:gap-8">
