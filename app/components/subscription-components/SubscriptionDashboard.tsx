@@ -28,10 +28,9 @@ export function SubscriptionDashboard() {
     isActive,
     getPlanLimits,
     isFree,
-    isSolopreneur,
     isSME,
     isEnterprise,
-    isCorporation,
+    isConsole,
   } = useSubscription();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -108,13 +107,11 @@ export function SubscriptionDashboard() {
     switch (tier) {
       case "free":
         return <Star className="w-5 h-5 text-gray-600" />;
-      case "solopreneur":
-        return <Zap className="w-5 h-5 text-blue-600" />;
       case "sme":
         return <Zap className="w-5 h-5 text-green-600" />;
       case "enterprise":
         return <Crown className="w-5 h-5 text-(--color-accent-yellow)" />;
-      case "corporation":
+      case "console":
         return <Sparkles className="w-5 h-5 text-purple-600" />;
       default:
         return null;
@@ -125,14 +122,12 @@ export function SubscriptionDashboard() {
     switch (tier) {
       case "free":
         return "Free";
-      case "solopreneur":
-        return "Solopreneur";
       case "sme":
         return "SME";
       case "enterprise":
         return "Enterprise";
-      case "corporation":
-        return "Corporation";
+      case "console":
+        return "console";
       default:
         return tier;
     }
@@ -166,7 +161,7 @@ export function SubscriptionDashboard() {
               </span>
             </div>
 
-            {subscription.expiresAt && !isFree && !isSolopreneur && (
+            {subscription.expiresAt && !isFree && (
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-4">
                 <Calendar className="w-4 h-4" />
                 <span>
@@ -177,12 +172,10 @@ export function SubscriptionDashboard() {
               </div>
             )}
 
-            {(isFree || isSolopreneur) && (
+            {(isFree) && (
               <div className="space-y-2">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {isFree
-                    ? "You're on the Free plan. Upgrade to access more features and higher limits."
-                    : "You're on the Solopreneur plan. Upgrade to SME or higher for unlimited features."}
+                  You're on the Free plan. Upgrade to access more features and higher limits.
                 </p>
 
                 <div className="space-y-2 mt-3">
@@ -412,10 +405,10 @@ export function SubscriptionDashboard() {
               </div>
             )}
 
-            {isCorporation && (
+            {isConsole && (
               <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
-                  Corporation Plan Benefits
+                  CONSOLE Plan Benefits
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -448,7 +441,7 @@ export function SubscriptionDashboard() {
             )}
           </div>
 
-          {!isFree && !isSolopreneur && subscription.status === "active" && (
+          {!isFree && subscription.status === "active" && (
             <div className="mt-4 md:mt-0 md:ml-6">
               {!showCancelConfirm ? (
                 <Button2
@@ -490,7 +483,6 @@ export function SubscriptionDashboard() {
 
       {/* Features List - Only for paid tiers */}
       {!isFree &&
-        !isSolopreneur &&
         subscription.features &&
         Object.keys(subscription.features).length > 0 && (
           <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
@@ -526,7 +518,7 @@ export function SubscriptionDashboard() {
         )}
 
       {/* Payment History - Placeholder */}
-      {!isFree && !isSolopreneur && (
+      {!isFree && (
         <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
           <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
             Payment History
@@ -540,15 +532,15 @@ export function SubscriptionDashboard() {
       )}
 
       {/* Upgrade Options */}
-      {!isCorporation && (
+      {!isConsole && (
         <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6">
           <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
             Upgrade Your Plan
           </h3>
           <div className="space-y-4">
-            {["solopreneur", "sme", "enterprise", "corporation"]
-              .filter((tier) => {
-                const tiers = ["free", "solopreneur", "sme", "enterprise", "corporation"];
+             {["starter", "sme", "enterprise", "console"]
+               .filter((tier) => {
+                 const tiers = ["free", "starter", "sme", "enterprise", "console"];
                 const currentIndex = tiers.indexOf(subscription.tier);
                 const targetIndex = tiers.indexOf(tier);
                 return targetIndex > currentIndex;

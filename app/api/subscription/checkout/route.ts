@@ -18,7 +18,7 @@ const generateOrderReference = (userId: string): string => {
 };
 
 // Valid tiers for checkout (paid plans only)
-const VALID_TIERS = ['solopreneur', 'sme', 'enterprise', 'corporation'];
+const VALID_TIERS = ['starter', 'sme', 'enterprise', 'console'];
 
 export async function POST(request: Request) {
   try {

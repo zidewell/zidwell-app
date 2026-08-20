@@ -21,10 +21,10 @@ const Page = () => {
   const { userData } = useUserContextData();
   const { 
     userTier, 
+    isStarter,
     isSME, 
     isEnterprise, 
-    isCorporation, 
-    isSolopreneur 
+    isConsole 
   } = useSubscription();
   const fetchStartedRef = useRef(false);
 
@@ -79,36 +79,36 @@ const Page = () => {
   const contractCount = contracts.length;
 
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "starter";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
+  const isConsoleUser = userTier === "console";
 
-  const hasUnlimitedContracts = isEnterpriseUser || isCorporationUser || isSMEUser;
+  const hasUnlimitedContracts = isEnterpriseUser || isConsoleUser;
 
   const contractLimit = useMemo(() => {
     if (hasUnlimitedContracts) return "unlimited";
     if (isSMEUser) return 1;
-    return 0; // free and solopreneur have 0 contracts
+    return 0; // free and starter have 0 contracts
   }, [userTier, hasUnlimitedContracts, isSMEUser]);
 
   const hasReachedLimit = useMemo(() => {
     if (hasUnlimitedContracts) return false;
     if (isSMEUser) return contractCount >= 1;
-    return contractCount >= 0; // free and solopreneur can't create contracts
+    return contractCount >= 0; // free and starter can't create contracts
   }, [userTier, hasUnlimitedContracts, isSMEUser, contractCount]);
 
   const remainingContracts = useMemo(() => {
     if (hasUnlimitedContracts) return "unlimited";
     if (isSMEUser) return Math.max(0, 1 - contractCount);
-    return 0;
+    return 0; // free and starter have 0
   }, [userTier, hasUnlimitedContracts, isSMEUser, contractCount]);
 
   const getTierInfo = () => {
-    if (isCorporationUser) return { icon: Sparkles, label: "Corporation" };
+    if (isConsoleUser) return { icon: Sparkles, label: "CONSOLE" };
     if (isEnterpriseUser) return { icon: Crown, label: "Enterprise" };
     if (isSMEUser) return { icon: Star, label: "SME" };
-    if (isSolopreneurUser) return { icon: Zap, label: "Solopreneur" };
+    if (isStarterUser) return { icon: Star, label: "STARTER" };
     return { icon: Star, label: "Free Trial" };
   };
 
@@ -116,7 +116,7 @@ const Page = () => {
   const TierIcon = tierInfo.icon;
 
   const getTierMessage = () => {
-    if (isCorporationUser) {
+    if (isConsoleUser) {
       return "You have unlimited contracts with priority support!";
     }
     if (isEnterpriseUser) {
@@ -125,8 +125,8 @@ const Page = () => {
     if (isSMEUser) {
       return "You have 1 contract included in your subscription.";
     }
-    if (isSolopreneurUser) {
-      return "Solopreneur plan does not include contracts. Upgrade to SME or higher.";
+    if (isStarterUser) {
+      return "STARTER plan does not include contracts. Upgrade to SME or higher.";
     }
     return "Free plan does not include contracts. Upgrade to SME or higher.";
   };
@@ -212,7 +212,7 @@ const Page = () => {
                 contracts={contracts}
                 loading={loading}
                 userTier={userTier}
-                isPremium={isEnterpriseUser || isCorporationUser}
+                isPremium={isEnterpriseUser || isConsoleUser}
                 hasReachedLimit={hasReachedLimit}
                 remainingContracts={remainingContracts}
                 onRefresh={() =>

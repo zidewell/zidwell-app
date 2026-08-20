@@ -74,7 +74,7 @@ const Hero = () => {
 
           {/* Subheading */}
           <p className="animate-fade-up-delay-2 text-lg md:text-xl text-gray-200 mb-6 text-balance max-w-3xl">
-            We give Freelancers, Solopreneurs, and SMEs access to business banking and bookkeeping tools to collect payments and keep their finances organized and ready for tax filing, bank loans, and investor opportunities.
+            We give Freelancers and SMEs access to business banking and bookkeeping tools to collect payments and keep their finances organized and ready for tax filing, bank loans, and investor opportunities.
           </p>
 
           {/* CTA Buttons */}

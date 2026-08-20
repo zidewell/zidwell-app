@@ -9,27 +9,13 @@ import Link from "next/link";
 
 interface SubscriptionPageGuardProps {
   children: React.ReactNode;
-  requiredTier: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
+  requiredTier: "free" | "starter" | "sme" | "enterprise" | "console";
   featureKey: string;
   title?: string;
   description?: string;
 }
 
 const tierConfig = {
-  solopreneur: {
-    icon: Briefcase,
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    price: "₦4,900/month",
-    yearlyPrice: "₦49,000/year",
-    features: [
-      "Up to 10 invoices",
-      "Unlimited receipts",
-      "Branded invoices",
-      "Better expense tracking",
-      "Basic financial insights",
-    ],
-  },
   sme: {
     icon: Building2,
     color: "text-(--color-accent-yellow)",
@@ -63,7 +49,7 @@ const tierConfig = {
       "Dedicated onboarding support",
     ],
   },
-  corporation: {
+  console: {
     icon: Sparkles,
     color: "text-purple-600",
     bg: "bg-purple-50",
@@ -123,10 +109,11 @@ export function SubscriptionPageGuard({
 
     // Get the display name for the tier
     const getTierDisplayName = (tier: string) => {
-      if (tier === "solopreneur") return "Solopreneur";
+      if (tier === "free") return "Free";
+      if (tier === "starter") return "STARTER";
       if (tier === "sme") return "SME";
       if (tier === "enterprise") return "Enterprise";
-      if (tier === "corporation") return "Corporation";
+      if (tier === "console") return "CONSOLE";
       return tier;
     };
 
@@ -179,11 +166,9 @@ export function SubscriptionPageGuard({
                   ${
                     requiredTier === "enterprise"
                       ? "bg-amber-600 text-white hover:bg-amber-700"
-                      : requiredTier === "corporation"
+                      : requiredTier === "console"
                         ? "bg-purple-600 text-white hover:bg-purple-700"
-                        : requiredTier === "sme"
-                          ? "bg-(--color-accent-yellow) text-gray-900 hover:bg-(--color-accent-yellow)/90"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-(--color-accent-yellow) text-gray-900 hover:bg-(--color-accent-yellow)/90"
                   }`}
               >
                 Upgrade to {getTierDisplayName(requiredTier)}

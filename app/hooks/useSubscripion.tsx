@@ -4,10 +4,10 @@ import { useCallback, useEffect } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import useSWR from 'swr';
 
-export type SubscriptionTier = 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+export type SubscriptionTier = 'free' | 'starter' | 'sme' | 'enterprise' | 'console';
 
 // Tier hierarchy for access control
-const TIER_HIERARCHY: SubscriptionTier[] = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
+const TIER_HIERARCHY: SubscriptionTier[] = ['free', 'starter', 'sme', 'enterprise', 'console'];
 
 // Fetcher function for SWR
 const fetcher = async (url: string) => {
@@ -106,18 +106,6 @@ export const useSubscription = () => {
         businessBankAccount: true,
         basicFinancialOverview: true,
       },
-      solopreneur: {
-        invoices: 10,
-        receipts: 'unlimited',
-        contracts: 0,
-        teamMembers: 0,
-        bankAccounts: 0,
-        manualBookkeeping: true,
-        autoBookkeeping: true,
-        brandedInvoices: true,
-        expenseTracking: true,
-        financialInsights: true,
-      },
       sme: {
         invoices: 'unlimited',
         receipts: 'unlimited',
@@ -145,7 +133,7 @@ export const useSubscription = () => {
         downloadableReports: true,
         dedicatedOnboarding: true,
       },
-      corporation: {
+      console: {
         invoices: 'unlimited',
         receipts: 'unlimited',
         contracts: 'unlimited',
@@ -170,13 +158,6 @@ export const useSubscription = () => {
     const currentTier = (cachedSubscription?.tier || subscription?.tier || 'free') as SubscriptionTier;
     
     const benefitsMap: Record<string, string[]> = {
-      free_to_solopreneur: [
-        "Up to 10 invoices (up from 5)",
-        "Unlimited receipts (up from 5)",
-        "Branded invoices",
-        "Better expense tracking",
-        "Basic financial insights",
-      ],
       free_to_sme: [
         "Upload bank statements (PDF/Excel/CSV)",
         "Connect up to 3 bank accounts",
@@ -196,36 +177,7 @@ export const useSubscription = () => {
         "10 contracts",
         "Dedicated onboarding support",
       ],
-      free_to_corporation: [
-        "Unlimited contracts",
-        "Department-based access",
-        "Connect unlimited bank accounts",
-        "Simple payroll system",
-        "Advanced financial reporting",
-        "Custom financial structure setup",
-        "Priority onboarding support",
-        "Dedicated account manager",
-      ],
-      solopreneur_to_sme: [
-        "Upload bank statements (PDF/Excel/CSV)",
-        "Connect up to 3 bank accounts",
-        "Unlimited invoices (up from 10)",
-        "Unlimited receipts",
-        "Vault for financial documents",
-        "Tax calculator",
-        "Financial statements (P&L, Cash Flow, Balance Sheet)",
-        "1 extra team member access",
-      ],
-      solopreneur_to_enterprise: [
-        "Multi-user access (full team)",
-        "Role-based permissions",
-        "Request & approval system",
-        "Connect 5 bank accounts",
-        "Downloadable financial reports",
-        "10 contracts",
-        "Dedicated onboarding support",
-      ],
-      solopreneur_to_corporation: [
+      free_to_console: [
         "Unlimited contracts",
         "Department-based access",
         "Connect unlimited bank accounts",
@@ -244,7 +196,7 @@ export const useSubscription = () => {
         "10 contracts (up from 1)",
         "Dedicated onboarding support",
       ],
-      sme_to_corporation: [
+      sme_to_console: [
         "Unlimited contracts (up from 1)",
         "Department-based access - HR, Finance, Operations, etc",
         "Connect unlimited bank accounts (up from 3)",
@@ -254,7 +206,7 @@ export const useSubscription = () => {
         "Priority onboarding support",
         "Dedicated account manager",
       ],
-      enterprise_to_corporation: [
+      enterprise_to_console: [
         "Unlimited contracts (up from 10)",
         "Department-based access - HR, Finance, Operations, etc",
         "Connect unlimited bank accounts (up from 5)",
@@ -284,43 +236,43 @@ export const useSubscription = () => {
 
   // Tier boolean flags
   const isFree = currentTier === 'free';
-  const isSolopreneur = currentTier === 'solopreneur';
+  const isStarter = currentTier === 'starter';
   const isSME = currentTier === 'sme';
   const isEnterprise = currentTier === 'enterprise';
-  const isCorporation = currentTier === 'corporation';
+  const isConsole = currentTier === 'console';
 
   // Check if user has unlimited access for various features
-  const hasUnlimitedInvoices = isSME || isEnterprise || isCorporation;
-  const hasUnlimitedReceipts = isSME || isEnterprise || isCorporation;
-  const hasUnlimitedContracts = isCorporation;
+  const hasUnlimitedInvoices = isStarter || isSME || isEnterprise || isConsole;
+  const hasUnlimitedReceipts = isStarter || isSME || isEnterprise || isConsole;
+  const hasUnlimitedContracts = isSME || isEnterprise || isConsole;
 
   // Feature access helpers
-  const canAccessTaxCalculator = isSME || isEnterprise || isCorporation;
-  const canAccessTaxSupport = isEnterprise || isCorporation;
-  const canAccessFullTaxFiling = isCorporation;
-  const canAddLawyerSignature = isEnterprise || isCorporation;
+  const canAccessTaxCalculator = isSME || isEnterprise || isConsole;
+  const canAccessTaxSupport = isEnterprise || isConsole;
+  const canAccessFullTaxFiling = isConsole;
+  const canAddLawyerSignature = isEnterprise || isConsole;
 
   // Get tier display name
   const getTierDisplayName = useCallback(() => {
-    if (isCorporation) return 'Corporation';
+    if (isConsole) return 'CONSOLE';
     if (isEnterprise) return 'Enterprise';
     if (isSME) return 'SME';
-    if (isSolopreneur) return 'Solopreneur';
+    if (isStarter) return 'STARTER';
     return 'Free';
-  }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
+  }, [isConsole, isEnterprise, isSME, isStarter]);
 
   // Get tier icon name (for use with lucide icons)
   const getTierIconName = useCallback(() => {
-    if (isCorporation) return 'Sparkles';
+    if (isConsole) return 'Sparkles';
     if (isEnterprise) return 'Crown';
     if (isSME) return 'Star';
-    if (isSolopreneur) return 'Zap';
+    if (isStarter) return 'Star';
     return 'Star';
-  }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
+  }, [isConsole, isEnterprise, isSME, isStarter]);
 
   // Get tier colors
   const getTierColors = useCallback(() => {
-    if (isCorporation) {
+    if (isConsole) {
       return {
         bg: 'bg-purple-100 dark:bg-purple-900/20',
         border: 'border-purple-200 dark:border-purple-800',
@@ -350,7 +302,7 @@ export const useSubscription = () => {
         icon: 'text-(--color-accent-yellow)',
       };
     }
-    if (isSolopreneur) {
+    if (isStarter) {
       return {
         bg: 'bg-blue-100 dark:bg-blue-900/20',
         border: 'border-blue-200 dark:border-blue-800',
@@ -368,7 +320,7 @@ export const useSubscription = () => {
       hover: 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
       icon: 'text-gray-600 dark:text-gray-400',
     };
-  }, [isCorporation, isEnterprise, isSME, isSolopreneur]);
+  }, [isConsole, isEnterprise, isSME, isStarter]);
 
   return {
     // Core subscription data
@@ -383,16 +335,15 @@ export const useSubscription = () => {
     
     // Tier boolean flags
     isFree,
-    isSolopreneur,
+    isStarter,
     isSME,
     isEnterprise,
-    isCorporation,
+    isConsole,
     
     // Legacy aliases for backward compatibility
-    isZidLite: isSolopreneur,
     isGrowth: isSME,
     isPremium: isEnterprise,
-    isElite: isCorporation,
+    isElite: isConsole,
     
     // Feature access helpers
     hasUnlimitedInvoices,

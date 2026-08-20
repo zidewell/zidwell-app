@@ -26,7 +26,7 @@ import Link from "next/link";
 type Props = {
   contracts: any[];
   loading: boolean;
-  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
+  userTier?: "free" | "starter" | "sme" | "enterprise" | "console";
   isPremium?: boolean;
   hasReachedLimit?: boolean;
   onRefresh?: () => void;
@@ -49,14 +49,14 @@ const ContractList: React.FC<Props> = ({
   // Get tier icon
   const getTierIcon = (tier: string) => {
     switch (tier) {
-      case "corporation":
+      case "console":
         return <Sparkles className="w-3 h-3" />;
       case "enterprise":
         return <Crown className="w-3 h-3" />;
       case "sme":
         return <Star className="w-3 h-3" />;
-      case "solopreneur":
-        return <Zap className="w-3 h-3" />;
+      case "starter":
+        return <Star className="w-3 h-3" />;
       default:
         return <Star className="w-3 h-3" />;
     }
@@ -64,14 +64,14 @@ const ContractList: React.FC<Props> = ({
 
   const getTierLabel = (tier: string) => {
     switch (tier) {
-      case "corporation":
-        return "Corporation";
+      case "console":
+        return "CONSOLE";
       case "enterprise":
         return "Enterprise";
       case "sme":
         return "SME";
-      case "solopreneur":
-        return "Solopreneur";
+      case "starter":
+        return "STARTER";
       default:
         return "Free";
     }

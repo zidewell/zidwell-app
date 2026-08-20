@@ -14,21 +14,16 @@ export const SUBSCRIPTION_FEATURES = {
     business_bank_account_nigeria: { value: 'true', limit: null },
     basic_financial_overview: { value: 'true', limit: null },
   },
-  solopreneur: {
-    invoices_total: { value: '10', limit: 10 },
+  starter: {
+    invoices_total: { value: 'unlimited', limit: null },
     receipts_total: { value: 'unlimited', limit: null },
     contracts_total: { value: '0', limit: 0 },
-    bookkeeping_trial_days: { value: '14', limit: 14 },
-    tax_calculator_trial_days: { value: '14', limit: 14 },
+    bookkeeping_access: { value: 'true', limit: null },
+    tax_calculator: { value: 'true', limit: null },
     transfer_fee: { value: '50', limit: null },
     support_type: { value: 'whatsapp', limit: null },
-    manual_bookkeeping: { value: 'true', limit: null },
-    auto_bookkeeping_nigeria: { value: 'true', limit: null },
-    payment_links_nigeria: { value: 'true', limit: null },
-    business_bank_account_nigeria: { value: 'true', limit: null },
-    branded_invoices: { value: 'true', limit: null },
-    expense_tracking: { value: 'true', limit: null },
-    basic_financial_insights: { value: 'true', limit: null },
+    vault: { value: 'true', limit: null },
+    team_members: { value: '1', limit: 1 },
   },
   sme: {
     invoices_total: { value: 'unlimited', limit: null },
@@ -43,6 +38,7 @@ export const SUBSCRIPTION_FEATURES = {
     vault: { value: 'true', limit: null },
     financial_statements: { value: 'true', limit: null },
     team_members: { value: '1', limit: 1 },
+    product_webpage: { value: 'true', limit: null },
   },
   enterprise: {
     invoices_total: { value: 'unlimited', limit: null },
@@ -58,8 +54,10 @@ export const SUBSCRIPTION_FEATURES = {
     connect_bank_accounts: { value: '5', limit: 5 },
     downloadable_reports: { value: 'true', limit: null },
     dedicated_onboarding: { value: 'true', limit: null },
+    product_webpage: { value: 'true', limit: null },
+    team_members: { value: '2', limit: 2 },
   },
-  corporation: {
+  console: {
     invoices_total: { value: 'unlimited', limit: null },
     receipts_total: { value: 'unlimited', limit: null },
     contracts_total: { value: 'unlimited', limit: null },
@@ -74,23 +72,27 @@ export const SUBSCRIPTION_FEATURES = {
     custom_financial_structure: { value: 'true', limit: null },
     priority_onboarding: { value: 'true', limit: null },
     dedicated_account_manager: { value: 'true', limit: null },
+    sub_accounts: { value: 'true', limit: null },
+    multi_users_signatories: { value: 'true', limit: null },
+    request_approval_workflow: { value: 'true', limit: null },
+    advanced_finance_dashboard: { value: 'true', limit: null },
   },
 };
 
-export const TIER_HIERARCHY = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
+export const TIER_HIERARCHY = ['free', 'starter', 'sme', 'enterprise', 'console'];
 
 export const TIER_DISPLAY_NAMES = {
-  free: 'Free',
-  solopreneur: 'Solopreneur',
+  free: 'FREE',
+  starter: 'STARTER',
   sme: 'SME',
-  enterprise: 'Enterprise',
-  corporation: 'Corporation',
+  enterprise: 'ENTERPRISE',
+  console: 'CONSOLE',
 };
 
 export const TIER_PRICING = {
-  free: { monthly: 0, yearly: 0 },
-  solopreneur: { monthly: 4900, yearly: 49000 },
-  sme: { monthly: 29900, yearly: 299000 },
-  enterprise: { monthly: 100000, yearly: 1000000 },
-  corporation: { monthly: 300000, yearly: 3000000 },
+  free: { monthly: 0, yearly: 0, threeMonth: 0 },
+  starter: { monthly: 9900, yearly: 99900, threeMonth: 29900 },
+  sme: { monthly: 19900, yearly: 199900, threeMonth: 59900 },
+  enterprise: { monthly: 59900, yearly: 599900, threeMonth: 179900 },
+  console: { monthly: 0, yearly: 0, threeMonth: 0 },
 };

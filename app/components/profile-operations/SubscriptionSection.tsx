@@ -5,7 +5,7 @@ import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 import { Crown, Zap, Sparkles, Star, Building2, Briefcase } from "lucide-react";
 
-type Tier = "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
+type Tier = "free" | "starter" | "sme" | "enterprise" | "console";
 
 interface SubscriptionSectionProps {
   currentTier?: Tier;
@@ -35,19 +35,21 @@ const tiers: {
     icon: Star,
   },
   {
-    id: "solopreneur",
-    name: "Solopreneur",
-    price: "₦4,900/mo",
-    yearlyPrice: "₦49,000/year (save ₦9,800)",
+    id: "starter",
+    name: "STARTER",
+    price: "₦9,900/mo",
+    yearlyPrice: "₦99,900/year (save ₦19,800)",
     features: [
       "Everything in Free, plus:",
-      "Up to 10 invoices - Global",
+      "Unlimited invoices - Global",
       "Unlimited receipts - Global",
-      "Branded invoices - Global",
-      "Better expense tracking - Global",
-      "Basic financial insights - Global",
+      "0 contracts - Global",
+      "Manual bookkeeping - Global",
+      "Auto bookkeeping - Global",
+      "Payment links - Global",
+      "Business bank account - Global",
     ],
-    icon: Briefcase,
+    icon: Star,
   },
   {
     id: "sme",
@@ -55,7 +57,7 @@ const tiers: {
     price: "₦29,900/mo",
     yearlyPrice: "₦299,000/year (save ₦59,800)",
     features: [
-      "Everything in Solopreneur, plus:",
+      "Everything in Free, plus:",
       "Upload bank statements (PDF/Excel/CSV) - Global",
       "Connect up to 3 bank accounts - Nigeria",
       "Auto-bookkeeping from connected bank accounts - Nigeria",
@@ -87,8 +89,8 @@ const tiers: {
     icon: Crown,
   },
   {
-    id: "corporation",
-    name: "Corporation",
+    id: "console",
+    name: "console",
     price: "₦300,000+",
     yearlyPrice: "₦3,000,000/year (save ₦600,000)",
     features: [
@@ -115,8 +117,7 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
     userTier, 
     isSME, 
     isEnterprise, 
-    isCorporation, 
-    isSolopreneur, 
+    isConsole, 
     isFree 
   } = useSubscription();
 
@@ -135,7 +136,7 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
     let borderColor = "";
 
     switch (tierId) {
-      case "corporation":
+      case "console":
         bgColor = "bg-purple-100 dark:bg-purple-900/20";
         textColor = "text-purple-600 dark:text-purple-400";
         borderColor = "border-purple-200 dark:border-purple-800";
@@ -150,7 +151,7 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
         textColor = "text-(--color-accent-yellow)";
         borderColor = "border-(--color-accent-yellow)/30";
         break;
-      case "solopreneur":
+      case "starter":
         bgColor = "bg-blue-100 dark:bg-blue-900/20";
         textColor = "text-blue-600 dark:text-blue-400";
         borderColor = "border-blue-200 dark:border-blue-800";
@@ -220,16 +221,6 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
 
           {currentTier === "free" && (
             <button
-              onClick={() => handleSubscribe("solopreneur")}
-              className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
-            >
-              <Briefcase className="w-4 h-4" />
-              Upgrade to Solopreneur
-            </button>
-          )}
-
-          {currentTier === "solopreneur" && (
-            <button
               onClick={() => handleSubscribe("sme")}
               className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
             >
@@ -250,15 +241,15 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
 
           {currentTier === "enterprise" && (
             <button
-              onClick={() => handleSubscribe("corporation")}
+              onClick={() => handleSubscribe("console")}
               className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
-              Upgrade to Corporation
+              Upgrade to CONSOLE
             </button>
           )}
 
-          {currentTier === "corporation" && (
+          {currentTier === "console" && (
             <div className="text-sm font-medium text-purple-600 dark:text-purple-400">
               🎉 You're on the highest plan!
             </div>
@@ -276,7 +267,7 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
           const tierInfo = getTierInfo(tier.id);
 
           // Determine if this is an upgrade or downgrade
-          const tierOrder = ["free", "solopreneur", "sme", "enterprise", "corporation"];
+          const tierOrder = ["free", "starter", "sme", "enterprise", "console"];
           const currentIndex = tierOrder.indexOf(currentTier);
           const tierIndex = tierOrder.indexOf(tier.id);
           const isUpgrade = tierIndex > currentIndex;

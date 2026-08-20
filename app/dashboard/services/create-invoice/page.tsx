@@ -28,10 +28,10 @@ export default function InvoicePage() {
   const { 
     subscription, 
     userTier, 
+    isStarter,
     isSME, 
     isEnterprise, 
-    isCorporation, 
-    isSolopreneur 
+    isConsole 
   } = useSubscription();
   const { userData } = useUserContextData();
   const [usage, setUsage] = useState<any>(null);
@@ -59,24 +59,24 @@ export default function InvoicePage() {
   }, [userData]);
 
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "starter";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
-  const hasUnlimitedInvoices = isSMEUser || isEnterpriseUser || isCorporationUser;
+  const isConsoleUser = userTier === "console";
+  const hasUnlimitedInvoices = isStarterUser || isSMEUser || isEnterpriseUser || isConsoleUser;
 
   const usedInvoices = usage?.invoices?.used || 0;
-  const limit = hasUnlimitedInvoices ? "unlimited" : isSolopreneurUser ? 10 : 5;
+  const limit = hasUnlimitedInvoices ? "unlimited" : 5;
   const remaining = usage?.invoices?.remaining || 0;
   const hasReachedLimit = !hasUnlimitedInvoices && remaining <= 0;
 
   const getTierInfo = () => {
-    if (isCorporationUser)
+    if (isConsoleUser)
       return {
         icon: Sparkles,
         color: "text-purple-600 dark:text-purple-400",
         bg: "bg-purple-100 dark:bg-purple-900/30",
-        label: "Corporation",
+        label: "CONSOLE",
       };
     if (isEnterpriseUser)
       return {
@@ -92,12 +92,12 @@ export default function InvoicePage() {
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
-        icon: Zap,
+        icon: Star,
         color: "text-blue-600 dark:text-blue-400",
-        bg: "bg-blue-100 dark:bg-blue-900/30",
-        label: "Solopreneur",
+        bg: "bg-blue-100 dark:bg-blue-900/20",
+        label: "STARTER",
       };
     return {
       icon: Star,
@@ -111,7 +111,7 @@ export default function InvoicePage() {
   const TierIcon = tierInfo.icon;
 
   const getTierMessage = () => {
-    if (isCorporationUser) {
+    if (isConsoleUser) {
       return "You have unlimited invoices with priority support!";
     }
     if (isEnterpriseUser) {
@@ -120,8 +120,8 @@ export default function InvoicePage() {
     if (isSMEUser) {
       return "You have unlimited invoices!";
     }
-    if (isSolopreneurUser) {
-      return `You have ${remaining} invoice${remaining !== 1 ? "s" : ""} remaining.`;
+    if (isStarterUser) {
+      return "You have unlimited invoices!";
     }
     return null;
   };

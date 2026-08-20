@@ -16,7 +16,7 @@ export function TeamControl() {
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-ink)] text-white dark:bg-white dark:text-[var(--color-ink)] px-3 py-1.5 text-xs font-medium">
               <Shield className="h-3.5 w-3.5 text-[var(--color-accent-yellow)]" /> Team & business control
             </span>
-            <h2 className="mt-5 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">For corporations, agencies and structured teams.</h2>
+            <h2 className="mt-5 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">For CONSOLEs, agencies and structured teams.</h2>
             <p className="mt-4 text-[var(--text-secondary)]">Give the right people the right access. Approve the right actions. Keep a clean record of everything that touches your money.</p>
           </div>
           <div className="lg:col-span-7 grid sm:grid-cols-2 gap-4">

@@ -28,7 +28,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">("monthly");
   const { userTier } = useSubscription();
 
-  if (userTier === "corporation") return null;
+  if (userTier === "console") return null;
 
   const handleViewPricing = () => {
     onClose();
@@ -38,15 +38,15 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   const getNextTier = () => {
     switch (userTier) {
       case "free":
-        return "solopreneur";
-      case "solopreneur":
+        return "starter";
+      case "starter":
         return "sme";
       case "sme":
         return "enterprise";
       case "enterprise":
-        return "corporation";
+        return "console";
       default:
-        return "solopreneur";
+        return "sme";
     }
   };
 
@@ -55,25 +55,91 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
       case "free":
         return {
           currentTier: "Free",
-          nextTier: "Solopreneur",
-          title: "Upgrade to Solopreneur",
-          description: "Get organized with better tools",
-          icon: <Zap className="h-6 w-6 text-white" />,
-          badge: "GET ORGANIZED",
-          primaryCta: "Go Solopreneur",
-          monthlyPrice: "₦4,900",
-          annualPrice: "₦49,000",
-          annualSavings: "save ₦9,800",
+          nextTier: "STARTER",
+          title: "Upgrade to STARTER",
+          description: "Unlock unlimited invoices & receipts",
+          icon: <Rocket className="h-6 w-6 text-white" />,
+          badge: "GO STARTER",
+          primaryCta: "Go STARTER",
+          monthlyPrice: "₦9,900",
+          annualPrice: "₦99,900",
+          annualSavings: "save ₦19,800",
           features: [
-            "10 Invoices • Unlimited Receipts",
-            "Branded Invoices",
-            "Better expense tracking",
-            "Basic financial insights",
+            "Unlimited invoices",
+            "Unlimited receipts",
+            "0 contracts",
+            "Basic support",
+            "Manual bookkeeping",
+            "Auto bookkeeping",
+            "Payment links",
+            "Business bank account",
           ],
         };
-      case "solopreneur":
+      case "starter":
         return {
-          currentTier: "Solopreneur",
+          currentTier: "STARTER",
+          nextTier: "SME",
+          title: "Upgrade to SME",
+          description: "Grow with clarity",
+          icon: <Rocket className="h-6 w-6 text-white" />,
+          badge: "GROW WITH CLARITY",
+          primaryCta: "Go SME",
+          monthlyPrice: "₦19,900",
+          annualPrice: "₦199,900",
+          annualSavings: "save ₦39,800",
+          features: [
+            "Tax tool",
+            "Product webpage",
+            "One Extra User",
+            "Switch between Accounts",
+            "Add-ons: Payroll, HMO, Tax Filing Support",
+          ],
+        };
+      case "sme":
+        return {
+          currentTier: "SME",
+          nextTier: "ENTERPRISE",
+          title: "Upgrade to ENTERPRISE",
+          description: "Control team operations",
+          icon: <Crown className="h-6 w-6 text-white" />,
+          badge: "CONTROL TEAM OPERATIONS",
+          primaryCta: "Go ENTERPRISE",
+          monthlyPrice: "₦59,900",
+          annualPrice: "₦599,900",
+          annualSavings: "save ₦119,800",
+          features: [
+            "Advanced Bookkeeping Tool",
+            "Connected bank accounts",
+            "Contract Tool",
+            "Upload bank statements",
+            "Downloadable financial statements",
+            "2 Extra Users",
+            "Add-ons: Payroll, HMO, Tax Filing Support",
+          ],
+        };
+      case "enterprise":
+        return {
+          currentTier: "ENTERPRISE",
+          nextTier: "CONSOLE",
+          title: "Upgrade to CONSOLE",
+          description: "Run a business with multiple outlets",
+          icon: <Gem className="h-6 w-6 text-white" />,
+          badge: "GO CONSOLE",
+          primaryCta: "Contact Sales",
+          monthlyPrice: "Custom",
+          annualPrice: "Custom",
+          annualSavings: "",
+          features: [
+            "Sub accounts for multiple outlets",
+            "Multi-users + signatories",
+            "Request and Approval workflow",
+            "Advanced finance dashboard",
+            "Plus every other tool on Zidwell",
+          ],
+        };
+      default:
+        return {
+          currentTier: "Free",
           nextTier: "SME",
           title: "Upgrade to SME",
           description: "Run your business properly",
@@ -91,69 +157,6 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             "Tax calculator included",
             "Financial statements (P&L, Cash Flow)",
             "1 extra team member",
-          ],
-        };
-      case "sme":
-        return {
-          currentTier: "SME",
-          nextTier: "Enterprise",
-          title: "Upgrade to Enterprise",
-          description: "Team business management",
-          icon: <Crown className="h-6 w-6 text-white" />,
-          badge: "GO ENTERPRISE",
-          primaryCta: "Upgrade to Enterprise",
-          monthlyPrice: "₦100,000",
-          annualPrice: "₦1,000,000",
-          annualSavings: "save ₦200,000",
-          features: [
-            "Multi-user access (full team)",
-            "Role-based permissions",
-            "Approvals for payments, invoices, receipts",
-            "Connect up to 5 bank accounts",
-            "Downloadable financial reports",
-            "10 contracts",
-            "Dedicated onboarding support",
-          ],
-        };
-      case "enterprise":
-        return {
-          currentTier: "Enterprise",
-          nextTier: "Corporation",
-          title: "Upgrade to Corporation",
-          description: "Full business finance system",
-          icon: <Gem className="h-6 w-6 text-white" />,
-          badge: "GO CORPORATION",
-          primaryCta: "Talk to Sales",
-          monthlyPrice: "₦300,000",
-          annualPrice: "₦3,000,000",
-          annualSavings: "save ₦600,000",
-          features: [
-            "Unlimited contracts",
-            "Department-based access",
-            "Connect unlimited bank accounts",
-            "Simple payroll system",
-            "Advanced financial reporting",
-            "Custom financial structure setup",
-            "Priority onboarding & dedicated account manager",
-          ],
-        };
-      default:
-        return {
-          currentTier: "Free",
-          nextTier: "Solopreneur",
-          title: "Upgrade to Solopreneur",
-          description: "Get organized with better tools",
-          icon: <Zap className="h-6 w-6 text-white" />,
-          badge: "GET ORGANIZED",
-          primaryCta: "Go Solopreneur",
-          monthlyPrice: "₦4,900",
-          annualPrice: "₦49,000",
-          annualSavings: "save ₦9,800",
-          features: [
-            "10 Invoices • Unlimited Receipts",
-            "Branded Invoices",
-            "Better expense tracking",
-            "Basic financial insights",
           ],
         };
     }

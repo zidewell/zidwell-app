@@ -79,7 +79,7 @@ interface ReceiptUsageInfo {
 }
 
 interface CreateReceiptProps {
-  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
+  userTier?: "free" | "starter" | "sme" | "enterprise" | "console";
   hasReachedLimit?: boolean;
 }
 
@@ -92,10 +92,10 @@ function CreateReceiptPage({
   // Get subscription data directly from hook
   const {
     userTier: subscriptionTier,
+    isStarter,
     isSME,
     isEnterprise,
-    isCorporation,
-    isSolopreneur,
+    isConsole,
     hasRequiredTier,
     getPlanLimits,
   } = useSubscription();
@@ -129,26 +129,25 @@ function CreateReceiptPage({
   const receiverPhoneRef = useRef<HTMLInputElement>(null);
 
   // Determine user tier
+  const isStarterUser = isStarter || effectiveUserTier === "starter";
   const isEnterpriseUser = isEnterprise || effectiveUserTier === "enterprise";
-  const isCorporationUser = isCorporation || effectiveUserTier === "corporation";
+  const isConsoleUser = isConsole || effectiveUserTier === "console";
   const isSMEUser = isSME || effectiveUserTier === "sme";
-  const isSolopreneurUser = isSolopreneur || effectiveUserTier === "solopreneur";
   const isFreeUser = effectiveUserTier === "free";
 
-  const hasUnlimitedReceipts = isSMEUser || isEnterpriseUser || isCorporationUser;
+  const hasUnlimitedReceipts = isStarterUser || isSMEUser || isEnterpriseUser || isConsoleUser;
 
   // Receipt limits
   const freeTierLimit = 5;
-  const solopreneurLimit = 10;
 
   // Get tier info
   const getTierInfo = () => {
-    if (isCorporationUser)
+    if (isConsoleUser)
       return {
         icon: Sparkles,
         color: "text-purple-600 dark:text-purple-400",
         bg: "bg-purple-100 dark:bg-purple-900/20",
-        label: "Corporation",
+        label: "CONSOLE",
       };
     if (isEnterpriseUser)
       return {
@@ -164,12 +163,12 @@ function CreateReceiptPage({
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
-        icon: Zap,
+        icon: Star,
         color: "text-blue-600 dark:text-blue-400",
         bg: "bg-blue-100 dark:bg-blue-900/20",
-        label: "Solopreneur",
+        label: "STARTER",
       };
     return {
       icon: Star,
@@ -185,8 +184,8 @@ function CreateReceiptPage({
   // Usage tracking
   const [receiptUsage, setReceiptUsage] = useState<ReceiptUsageInfo>({
     used: 0,
-    limit: hasUnlimitedReceipts ? "unlimited" : isSolopreneurUser ? solopreneurLimit : freeTierLimit,
-    remaining: hasUnlimitedReceipts ? "unlimited" : isSolopreneurUser ? solopreneurLimit : freeTierLimit,
+    limit: hasUnlimitedReceipts ? "unlimited" : freeTierLimit,
+    remaining: hasUnlimitedReceipts ? "unlimited" : freeTierLimit,
     hasAccess: true,
     isChecking: true,
     requiresUpgrade: false,
@@ -235,20 +234,20 @@ function CreateReceiptPage({
             used: data.receipts.used || 0,
             limit: hasUnlimitedReceipts
               ? "unlimited"
-              : data.receipts.limit || (isSolopreneurUser ? solopreneurLimit : freeTierLimit),
+              : data.receipts.limit || freeTierLimit,
             remaining: hasUnlimitedReceipts
               ? "unlimited"
               : data.receipts.remaining ||
                 Math.max(
                   0,
-                  (isSolopreneurUser ? solopreneurLimit : freeTierLimit) - (data.receipts.used || 0),
+                  freeTierLimit - (data.receipts.used || 0),
                 ),
             hasAccess: true,
             isChecking: false,
             requiresUpgrade:
               !hasUnlimitedReceipts &&
               (data.receipts.remaining <= 0 ||
-                (data.receipts.used || 0) >= (isSolopreneurUser ? solopreneurLimit : freeTierLimit)),
+                (data.receipts.used || 0) >= freeTierLimit),
           });
         }
       } catch (error) {
@@ -258,7 +257,7 @@ function CreateReceiptPage({
     };
 
     fetchUsage();
-  }, [userData?.id, hasUnlimitedReceipts, isSolopreneurUser]);
+  }, [userData?.id, hasUnlimitedReceipts]);
 
   // Check if user has free receipt access
   const hasFreeReceiptAccess = (): boolean => {
@@ -1413,17 +1412,15 @@ function CreateReceiptPage({
 
   // Get tier display name
   const getTierDisplayName = () => {
-    if (isCorporationUser) return "Corporation";
+    if (isConsoleUser) return "console";
     if (isEnterpriseUser) return "Enterprise";
     if (isSMEUser) return "SME";
-    if (isSolopreneurUser) return "Solopreneur";
     return "Free Trial";
   };
 
   // Get remaining text for badge
   const getRemainingText = (): string => {
     if (hasUnlimitedReceipts) return "UNLIMITED";
-    if (isSolopreneurUser) return "10 limit";
     if (typeof receiptUsage.remaining === "number" && receiptUsage.remaining > 0) {
       return `${receiptUsage.remaining} left`;
     }
@@ -1433,12 +1430,11 @@ function CreateReceiptPage({
   // Get remaining color for badge
   const getRemainingColor = (): string => {
     if (hasUnlimitedReceipts) {
-      if (isCorporationUser) return "bg-purple-600";
+      if (isConsoleUser) return "bg-purple-600";
       if (isEnterpriseUser) return "bg-amber-600";
       if (isSMEUser) return "bg-(--color-accent-yellow)";
       return "bg-purple-600";
     }
-    if (isSolopreneurUser) return "bg-blue-600";
     if (typeof receiptUsage.remaining === "number" && receiptUsage.remaining > 0) {
       return "bg-(--color-accent-yellow)";
     }
@@ -1447,7 +1443,7 @@ function CreateReceiptPage({
 
   return (
     <>
-      {/* Upgrade Prompt Modal - Only show for Free and Solopreneur tiers */}
+      {/* Upgrade Prompt Modal - Only show for Free tier */}
       {showUpgradePrompt && !hasUnlimitedReceipts && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[var(--bg-primary)] rounded-xl max-w-md w-full p-6 shadow-pop border border-[var(--border-color)] squircle-lg">
@@ -1458,9 +1454,7 @@ function CreateReceiptPage({
               Upgrade Required
             </h3>
             <p className="text-[var(--text-secondary)] text-center mb-6">
-              {isSolopreneurUser
-                ? "You've used all your Solopreneur receipts. Upgrade to SME or higher for unlimited receipts!"
-                : "You've used all your free receipts. Upgrade to SME or higher for unlimited receipts!"}
+              You've used all your free receipts. Upgrade to SME or higher for unlimited receipts!
             </p>
             <div className="flex gap-3">
               <Button
@@ -1508,14 +1502,14 @@ function CreateReceiptPage({
 
       <div className="min-h-screen">
         <div className="">
-          {/* Usage Warning Banner - Only show for Free and Solopreneur tiers */}
+          {/* Usage Warning Banner - Only show for Free tier */}
           {!hasUnlimitedReceipts && !receiptUsage.isChecking && (
             <div
               className={`mb-4 p-3 rounded-lg border max-w-3xl mx-auto squircle-md ${
                 receiptUsage.requiresUpgrade
                   ? "bg-red-50 border-red-200"
                   : typeof receiptUsage.remaining === "number" &&
-                      receiptUsage.remaining <= (isSolopreneurUser ? 3 : 2)
+                      receiptUsage.remaining <= 2
                     ? "bg-yellow-50 border-yellow-200"
                     : "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]"
               }`}
@@ -1526,7 +1520,7 @@ function CreateReceiptPage({
                     receiptUsage.requiresUpgrade
                       ? "text-red-500"
                       : typeof receiptUsage.remaining === "number" &&
-                          receiptUsage.remaining <= (isSolopreneurUser ? 3 : 2)
+                          receiptUsage.remaining <= 2
                         ? "text-yellow-500"
                         : "text-[var(--color-accent-yellow)]"
                   }`}
@@ -1537,21 +1531,19 @@ function CreateReceiptPage({
                       receiptUsage.requiresUpgrade
                         ? "text-red-700"
                         : typeof receiptUsage.remaining === "number" &&
-                            receiptUsage.remaining <= (isSolopreneurUser ? 3 : 2)
+                            receiptUsage.remaining <= 2
                           ? "text-yellow-700"
                           : "text-[var(--color-accent-yellow)]"
                     }`}
                   >
                     {receiptUsage.requiresUpgrade
-                      ? isSolopreneurUser
-                        ? "Solopreneur receipts exhausted - Upgrade required"
-                        : "Free receipts exhausted - Upgrade required"
+                      ? "Free receipts exhausted - Upgrade required"
                       : `${receiptUsage.remaining} receipt${receiptUsage.remaining !== 1 ? "s" : ""} remaining`}
                   </p>
                   <p className="text-sm text-[var(--text-secondary)] mt-1">
                     {receiptUsage.requiresUpgrade
                       ? "Upgrade to SME plan or higher for unlimited receipts."
-                      : `You have ${receiptUsage.remaining} ${isSolopreneurUser ? "Solopreneur" : "free"} ${receiptUsage.remaining === 1 ? "receipt" : "receipts"} left.`}
+                      : `You have ${receiptUsage.remaining} free ${receiptUsage.remaining === 1 ? "receipt" : "receipts"} left.`}
                   </p>
                 </div>
               </div>
@@ -2012,13 +2004,11 @@ function CreateReceiptPage({
                         <Crown className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
                         <div>
                           <h3 className="font-medium text-red-800">
-                            {isSolopreneurUser ? "Solopreneur" : "Free"} Receipts
+                            Free Receipts
                             Exhausted
                           </h3>
                           <p className="text-sm text-red-700 mt-1">
-                            {isSolopreneurUser
-                              ? "You've used all your Solopreneur receipts. Upgrade to SME plan for unlimited receipts."
-                              : "You've used all your free receipts. Upgrade to SME plan for unlimited receipts."}
+                            You've used all your free receipts. Upgrade to SME plan for unlimited receipts.
                           </p>
                           <div className="flex gap-3 mt-3">
                             <Link href="/pricing?upgrade=sme">

@@ -72,10 +72,10 @@ export async function POST(req: NextRequest) {
 
     // Check subscription status
     const isFree = userData.subscription_tier === "free";
-    const isZidLite = userData.subscription_tier === "zidlite";
-    const isGrowth = userData.subscription_tier === "growth";
-    const isPremium = userData.subscription_tier === "premium" || 
-                      userData.subscription_tier === "elite";
+    const isStarter = userData.subscription_tier === "starter";
+    const isGrowth = userData.subscription_tier === "sme";
+    const isPremium = userData.subscription_tier === "enterprise" || 
+                      userData.subscription_tier === "console";
 
     // ============ INVOICE CREATION ============
     if (isInvoiceCreation) {
@@ -107,44 +107,7 @@ export async function POST(req: NextRequest) {
             { 
               error: "You've used all your free lifetime invoices. Please upgrade to continue creating invoices.",
               requiresUpgrade: true,
-              requiredTier: "growth",
-              usedLifetime: lifetimeUsed,
-              limit: lifetimeLimit,
-            },
-            { status: 403 },
-          );
-        }
-      } 
-      
-      // ZidLite tier - 20 lifetime invoices
-      else if (isZidLite) {
-        const lifetimeUsed = userData.invoices_used_lifetime || 0;
-        const lifetimeLimit = 20;
-        
-        if (lifetimeUsed < lifetimeLimit) {
-          // ZidLite invoice (within limit)
-          await supabase
-            .from("users")
-            .update({
-              invoices_used_lifetime: lifetimeUsed + 1,
-            })
-            .eq("id", userId);
-
-          return NextResponse.json({
-            success: true,
-            message: "Invoice created successfully",
-            usedLifetime: lifetimeUsed + 1,
-            limit: lifetimeLimit,
-            remaining: lifetimeLimit - (lifetimeUsed + 1),
-            tier: 'zidlite',
-          });
-        } else {
-          // ZidLite user exhausted limit - upgrade required
-          return NextResponse.json(
-            { 
-              error: "You've used all your ZidLite invoices. Please upgrade to continue creating unlimited invoices.",
-              requiresUpgrade: true,
-              requiredTier: "growth",
+              requiredTier: "sme",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -154,7 +117,7 @@ export async function POST(req: NextRequest) {
       }
       
       // Paid tiers - unlimited invoices (just track count)
-      else if (isGrowth || isPremium) {
+      else if (isStarter || isGrowth || isPremium) {
         await supabase
           .from("users")
           .update({
@@ -201,42 +164,7 @@ export async function POST(req: NextRequest) {
             { 
               error: "You've used all your free lifetime receipts. Please upgrade to continue creating receipts.",
               requiresUpgrade: true,
-              requiredTier: "growth",
-              usedLifetime: lifetimeUsed,
-              limit: lifetimeLimit,
-            },
-            { status: 403 },
-          );
-        }
-      } 
-      
-      // ZidLite tier - 10 lifetime receipts
-      else if (isZidLite) {
-        const lifetimeUsed = userData.receipts_used_lifetime || 0;
-        const lifetimeLimit = 20;
-        
-        if (lifetimeUsed < lifetimeLimit) {
-          await supabase
-            .from("users")
-            .update({
-              receipts_used_lifetime: lifetimeUsed + 1,
-            })
-            .eq("id", userId);
-
-          return NextResponse.json({
-            success: true,
-            message: "Receipt created",
-            usedLifetime: lifetimeUsed + 1,
-            limit: lifetimeLimit,
-            remaining: lifetimeLimit - (lifetimeUsed + 1),
-            tier: 'zidlite',
-          });
-        } else {
-          return NextResponse.json(
-            { 
-              error: "You've used all your ZidLite receipts. Please upgrade to continue creating unlimited receipts.",
-              requiresUpgrade: true,
-              requiredTier: "growth",
+              requiredTier: "sme",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -246,7 +174,7 @@ export async function POST(req: NextRequest) {
       }
       
       // Paid tiers - unlimited receipts
-      else if (isGrowth || isPremium) {
+      else if (isStarter || isGrowth || isPremium) {
         await supabase
           .from("users")
           .update({
@@ -294,7 +222,7 @@ export async function POST(req: NextRequest) {
             { 
               error: "You've used your free lifetime contract. Please upgrade to continue creating contracts.",
               requiresUpgrade: true,
-              requiredTier: "growth",
+              requiredTier: "sme",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -303,46 +231,22 @@ export async function POST(req: NextRequest) {
         }
       } 
       
-      // ZidLite tier - 2 contracts
-      else if (isZidLite) {
-        const lifetimeUsed = userData.contracts_used_lifetime || 0;
-        const lifetimeLimit = 2;
-        
-        if (lifetimeUsed < lifetimeLimit) {
-          await supabase
-            .from("users")
-            .update({
-              contracts_used_lifetime: lifetimeUsed + 1,
-            })
-            .eq("id", userId);
-
-          return NextResponse.json({
-            success: true,
-            message: include_lawyer_signature ? "Contract with lawyer signature created" : "Contract created",
-            usedLifetime: lifetimeUsed + 1,
-            limit: lifetimeLimit,
-            remaining: lifetimeLimit - (lifetimeUsed + 1),
-            tier: 'zidlite',
-            lawyer_signature: include_lawyer_signature,
-          });
-        } else {
-          return NextResponse.json(
-            { 
-              error: "You've used all your ZidLite contracts. Please upgrade to continue creating more contracts.",
-              requiresUpgrade: true,
-              requiredTier: "growth",
-              usedLifetime: lifetimeUsed,
-              limit: lifetimeLimit,
-            },
-            { status: 403 },
-          );
-        }
+      // Starter tier - 0 contracts
+      else if (isStarter) {
+        return NextResponse.json(
+          { 
+            error: "Contracts require SME plan or higher. Please upgrade to create contracts.",
+            requiresUpgrade: true,
+            requiredTier: "sme",
+          },
+          { status: 403 },
+        );
       }
       
-      // Growth tier - 5 contracts
+      // Growth tier - 1 contract
       else if (isGrowth) {
         const lifetimeUsed = userData.contracts_used_lifetime || 0;
-        const lifetimeLimit = 5;
+        const lifetimeLimit = 1;
         
         if (lifetimeUsed < lifetimeLimit) {
           await supabase
@@ -358,16 +262,16 @@ export async function POST(req: NextRequest) {
             usedLifetime: lifetimeUsed + 1,
             limit: lifetimeLimit,
             remaining: lifetimeLimit - (lifetimeUsed + 1),
-            tier: 'growth',
+            tier: 'sme',
             lawyer_signature: include_lawyer_signature,
           });
         } else {
-          // Growth tier exhausted lifetime limit - upgrade to premium required
+          // Growth tier exhausted lifetime limit - upgrade to enterprise required
           return NextResponse.json(
             { 
-              error: "You've used all your included contracts. Please upgrade to Premium for unlimited contracts.",
+              error: "You've used all your included contracts. Please upgrade to Enterprise for unlimited contracts.",
               requiresUpgrade: true,
-              requiredTier: "premium",
+              requiredTier: "enterprise",
               usedLifetime: lifetimeUsed,
               limit: lifetimeLimit,
             },
@@ -376,7 +280,7 @@ export async function POST(req: NextRequest) {
         }
       } 
       
-      // Premium/Elite - unlimited contracts
+      // Enterprise/CONSOLE - unlimited contracts
       else if (isPremium) {
         await supabase
           .from("users")
@@ -434,8 +338,8 @@ export async function POST(req: NextRequest) {
       // No trial and not subscribed - offer trial or upgrade
       return NextResponse.json(
         {
-          error: "Bookkeeping requires Growth plan or higher",
-          requiredTier: "growth",
+          error: "Bookkeeping requires SME plan or higher",
+          requiredTier: "sme",
           upgradeRequired: true,
           canStartTrial: true,
           trialDays: 14,
@@ -456,8 +360,8 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         {
-          error: "Tax calculator requires Growth plan or higher",
-          requiredTier: "growth",
+          error: "Tax calculator requires SME plan or higher",
+          requiredTier: "sme",
           upgradeRequired: true,
         },
         { status: 403 },
@@ -476,8 +380,8 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         {
-          error: "Tax filing requires Premium plan or higher",
-          requiredTier: "premium",
+          error: "Tax filing requires Enterprise plan or higher",
+          requiredTier: "enterprise",
           upgradeRequired: true,
         },
         { status: 403 },

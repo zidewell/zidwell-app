@@ -15,14 +15,6 @@ const tierConfig = {
     darkColor: "dark:text-gray-300",
     label: TIER_DISPLAY_NAMES.free,
   },
-  solopreneur: {
-    icon: Zap,
-    color: "text-blue-600",
-    bg: "bg-blue-100",
-    darkBg: "dark:bg-blue-900/30",
-    darkColor: "dark:text-blue-300",
-    label: TIER_DISPLAY_NAMES.solopreneur,
-  },
   sme: {
     icon: Zap,
     color: "text-green-600",
@@ -39,13 +31,13 @@ const tierConfig = {
     darkColor: "dark:text-(--color-accent-yellow)",
     label: TIER_DISPLAY_NAMES.enterprise,
   },
-  corporation: {
+  console: {
     icon: Sparkles,
     color: "text-purple-600",
     bg: "bg-purple-100",
     darkBg: "dark:bg-purple-900/30",
     darkColor: "dark:text-purple-300",
-    label: TIER_DISPLAY_NAMES.corporation,
+    label: TIER_DISPLAY_NAMES.console,
   },
 };
 

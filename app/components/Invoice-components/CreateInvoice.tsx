@@ -115,39 +115,30 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   const {
     userTier,
     subscription,
+    isStarter,
     isSME,
     isEnterprise,
-    isCorporation,
-    isSolopreneur,
+    isConsole
   } = useSubscription();
   const [hasLoadedFromUrl, setHasLoadedFromUrl] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Determine user tier
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "starter";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
+  const isConsoleUser = userTier === "console";
   const hasUnlimitedInvoices =
-    isSMEUser || isEnterpriseUser || isCorporationUser;
+    isStarterUser || isSMEUser || isEnterpriseUser || isConsoleUser;
 
   // Invoice limits by tier
   const freeTierLimit = 5;
-  const solopreneurLimit = 10;
 
   const [invoiceUsage, setInvoiceUsage] = useState<InvoiceUsageInfo>({
     used: 0,
-    limit: hasUnlimitedInvoices
-      ? "unlimited"
-      : isSolopreneurUser
-        ? solopreneurLimit
-        : freeTierLimit,
-    remaining: hasUnlimitedInvoices
-      ? "unlimited"
-      : isSolopreneurUser
-        ? solopreneurLimit
-        : freeTierLimit,
+    limit: hasUnlimitedInvoices ? "unlimited" : freeTierLimit,
+    remaining: hasUnlimitedInvoices ? "unlimited" : freeTierLimit,
     hasAccess: true,
     isChecking: true,
     canCreate: true,
@@ -180,12 +171,12 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isCorporationUser)
+    if (isConsoleUser)
       return {
         icon: Sparkles,
         color: "text-purple-600 dark:text-purple-400",
         bg: "bg-purple-100 dark:bg-purple-900/30",
-        label: "Corporation",
+        label: "CONSOLE",
       };
     if (isEnterpriseUser)
       return {
@@ -201,13 +192,14 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         bg: "bg-(--color-accent-yellow)/10 dark:bg-(--color-accent-yellow)/20",
         label: "SME",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
-        icon: Zap,
+        icon: Star,
         color: "text-blue-600 dark:text-blue-400",
-        bg: "bg-blue-100 dark:bg-blue-900/30",
-        label: "Solopreneur",
+        bg: "bg-blue-100 dark:bg-blue-900/20",
+        label: "STARTER",
       };
+    
     return {
       icon: Star,
       color: "text-gray-600 dark:text-gray-400",
@@ -1093,7 +1085,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   const getRemainingText = (): string => {
     if (hasUnlimitedInvoices) return "UNLIMITED";
-    if (isSolopreneurUser) return "10 limit";
     if (
       typeof invoiceUsage.remaining === "number" &&
       invoiceUsage.remaining > 0
@@ -1105,7 +1096,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   const getRemainingColor = (): string => {
     if (hasUnlimitedInvoices) return "bg-purple-600";
-    if (isSolopreneurUser) return "bg-blue-600";
     if (
       typeof invoiceUsage.remaining === "number" &&
       invoiceUsage.remaining > 0
@@ -1162,9 +1152,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
               Invoice Limit Reached
             </h3>
             <p className="text-[var(--text-secondary)] text-center mb-6">
-              {isSolopreneurUser
-                ? "You've used all your Solopreneur invoices. Upgrade to continue creating unlimited invoices!"
-                : "You've used all your free invoices. Upgrade to continue creating unlimited invoices!"}
+              You've used all your free invoices. Upgrade to continue creating unlimited invoices!
             </p>
             <div className="flex gap-3">
               <Button
@@ -1303,7 +1291,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   <div
                     className={`mb-6 p-4 rounded-lg border ${
                       hasUnlimitedInvoices
-                        ? isCorporationUser
+                        ? isConsoleUser
                           ? "bg-purple-50 border-purple-200"
                           : isEnterpriseUser
                             ? "bg-amber-50 border-amber-200"
@@ -1315,7 +1303,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   >
                     <div className="flex items-start gap-3">
                       {hasUnlimitedInvoices ? (
-                        isCorporationUser ? (
+                        isConsoleUser ? (
                           <Sparkles className="w-5 h-5 text-purple-600 mt-0.5" />
                         ) : isEnterpriseUser ? (
                           <Crown className="w-5 h-5 text-amber-600 mt-0.5" />
@@ -1331,7 +1319,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                         <p
                           className={`font-medium ${
                             hasUnlimitedInvoices
-                              ? isCorporationUser
+                              ? isConsoleUser
                                 ? "text-purple-700"
                                 : isEnterpriseUser
                                   ? "text-amber-700"
@@ -1352,8 +1340,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             "You have unlimited invoices as part of your subscription."
                           ) : hasReachedLimit() ? (
                             <>
-                              You've used all {isSolopreneurUser ? "10" : "5"}{" "}
-                              free invoices.{" "}
+                              You've used all 5 free invoices.{" "}
                               <Button
                                 variant="link"
                                 className="p-0 h-auto text-[var(--color-accent-yellow)] font-semibold underline"
@@ -1754,3 +1741,4 @@ export default function CreateInvoiceWithSuspense() {
     </Suspense>
   );
 }
+

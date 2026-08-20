@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  subscription_tier?: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+  subscription_tier?: 'free' | 'starter' | 'sme' | 'enterprise' | 'console';
   subscription_expires_at?: string | null;
   is_subscription_active?: boolean;
 }
@@ -211,7 +211,7 @@ export async function requireAuth(req: NextRequest) {
 // Check if user has required subscription tier
 export async function hasRequiredTier(
   req: NextRequest,
-  requiredTier: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation'
+  requiredTier: 'free' | 'starter' | 'sme' | 'enterprise' | 'console'
 ): Promise<{ hasAccess: boolean; user: AuthenticatedUser | null; newTokens?: any; error?: string }> {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
   
@@ -223,7 +223,7 @@ export async function hasRequiredTier(
     };
   }
 
-  const tierHierarchy = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
+  const tierHierarchy = ['free','starter', 'sme', 'enterprise', 'console'];
   const userTierIndex = tierHierarchy.indexOf(user.subscription_tier || 'free');
   const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
 

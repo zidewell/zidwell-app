@@ -121,7 +121,7 @@ export function hasSufficientTier(
   user: UserDetails, 
   requiredTier: string
 ): boolean {
-  const tierHierarchy = ["free", "zidlite", "growth", "premium", "elite"];
+  const tierHierarchy = ["free", "starter", "sme", "enterprise", "console"];
   const userTierIndex = tierHierarchy.indexOf(user.subscription_tier || "free");
   const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
   

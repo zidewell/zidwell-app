@@ -12,7 +12,7 @@ export function Categories() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto text-center">
           <p className="text-sm font-medium text-[var(--color-lemon-green)]">Zidwell for every business</p>
-          <h2 className="mt-3 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">From freelancers to corporations.</h2>
+          <h2 className="mt-3 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">From freelancers to CONSOLEs.</h2>
           <p className="mt-4 text-[var(--text-secondary)]">Wherever you do business, and whatever you do — Zidwell organizes your financial records.</p>
         </div>
         <div className="mt-14 flex flex-wrap justify-center gap-3 sm:gap-4">

@@ -29,7 +29,7 @@ import { Badge } from "@/app/components/ui/badge";
 interface ContractGenProps {
   loading: boolean;
   contracts: any[];
-  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
+  userTier?: "free" | "starter" | "sme" | "enterprise" | "console";
   isPremium?: boolean;
   hasReachedLimit?: boolean;
   remainingContracts?: number | string;
@@ -52,32 +52,32 @@ export default function ContractGen({
 
   // Define tier variables based on userTier prop
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "starter";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
-  const hasUnlimitedContracts = isEnterpriseUser || isCorporationUser || isSMEUser;
+  const isConsoleUser = userTier === "console";
+  const hasUnlimitedContracts = isEnterpriseUser || isConsoleUser;
 
   const contractCount = contracts.length;
   
   // Contract limits by tier
   const freeTierLimit = 0;
-  const solopreneurLimit = 0;
+  const starterLimit = 0;
   const smeLimit = 1;
   const enterpriseLimit = 10;
-  // Corporation has unlimited
+  // CONSOLE has unlimited
 
   const reachedLimit = !hasUnlimitedContracts && contractCount >= 
-    (isSMEUser ? smeLimit : isEnterpriseUser ? enterpriseLimit : 0);
+    (isSMEUser ? smeLimit : isStarterUser ? starterLimit : isEnterpriseUser ? enterpriseLimit : freeTierLimit);
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isCorporationUser)
+    if (isConsoleUser)
       return {
         icon: Sparkles,
         color: "text-purple-600",
         bg: "bg-purple-100",
-        label: "Corporation",
+        label: "CONSOLE",
       };
     if (isEnterpriseUser)
       return {
@@ -93,12 +93,12 @@ export default function ContractGen({
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
-        icon: Zap,
+        icon: Star,
         color: "text-blue-600",
         bg: "bg-blue-100",
-        label: "Solopreneur",
+        label: "STARTER",
       };
     return {
       icon: Star,
@@ -159,7 +159,7 @@ export default function ContractGen({
 
   // Get tier message
   const getTierMessage = () => {
-    if (isCorporationUser) {
+    if (isConsoleUser) {
       return "You have unlimited contracts! Create as many as you need.";
     }
     if (isEnterpriseUser) {
@@ -167,9 +167,6 @@ export default function ContractGen({
     }
     if (isSMEUser) {
       return `You have ${getRemainingDisplay()} contract${getRemainingDisplay() !== 1 ? "s" : ""} remaining.`;
-    }
-    if (isSolopreneurUser) {
-      return "Solopreneur plan does not include contracts. Upgrade to SME or higher.";
     }
     return "Free plan does not include contracts. Upgrade to SME or higher.";
   };
@@ -190,7 +187,7 @@ export default function ContractGen({
               {isSMEUser
                 ? "You've used all your SME contracts. Upgrade to continue creating more contracts!"
                 : isEnterpriseUser
-                ? "You've used all your Enterprise contracts. Upgrade to Corporation for unlimited!"
+                ? "You've used all your Enterprise contracts. Upgrade to CONSOLE for unlimited!"
                 : "You don't have contracts in your current plan. Upgrade to SME or higher to create contracts!"}
             </p>
             <div className="flex gap-3">
@@ -262,8 +259,8 @@ export default function ContractGen({
         </Card>
       </div>
 
-      {/* Free and Solopreneur - No contracts available */}
-      {(isFree || isSolopreneurUser) && (
+      {/* Free - No contracts available */}
+      {isFree && (
         <Card className="border-2 border-gray-200 bg-gray-50">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -276,9 +273,7 @@ export default function ContractGen({
                     No Contracts Available
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {isFree
-                      ? "Free plan does not include contracts. Upgrade to SME or higher to create contracts."
-                      : "Solopreneur plan does not include contracts. Upgrade to SME or higher to create contracts."}
+                    Free plan does not include contracts. Upgrade to SME or higher to create contracts.
                   </p>
                 </div>
               </div>
@@ -312,7 +307,7 @@ export default function ContractGen({
                   <p className="text-sm text-(--color-accent-yellow)/80">
                     You have {getRemainingDisplay()} SME contract
                     {getRemainingDisplay() !== 1 ? "s" : ""} left. Upgrade to
-                    Enterprise for 10 contracts or Corporation for unlimited!
+                    Enterprise for 10 contracts or CONSOLE for unlimited!
                   </p>
                 </div>
               </div>
@@ -346,15 +341,15 @@ export default function ContractGen({
                   <p className="text-sm text-amber-600">
                     You have {getRemainingDisplay()} Enterprise contract
                     {getRemainingDisplay() !== 1 ? "s" : ""} left. Upgrade to
-                    Corporation for unlimited contracts!
+                    CONSOLE for unlimited contracts!
                   </p>
                 </div>
               </div>
 
-              <Link href="/pricing?upgrade=corporation" className="w-full md:w-auto">
+              <Link href="/pricing?upgrade=CONSOLE" className="w-full md:w-auto">
                 <Button className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white">
                   <ArrowUpCircle className="w-4 h-4 mr-1" />
-                  Upgrade to Corporation
+                  Upgrade to CONSOLE
                 </Button>
               </Link>
             </div>
@@ -362,8 +357,8 @@ export default function ContractGen({
         </Card>
       )}
 
-      {/* Corporation - Show unlimited banner */}
-      {isCorporationUser && (
+      {/* CONSOLE - Show unlimited banner */}
+      {isConsoleUser && (
         <Card className="border-2 border-purple-200 bg-purple-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -372,7 +367,7 @@ export default function ContractGen({
               </div>
               <div>
                 <h3 className="font-semibold text-purple-800">
-                  Corporation Unlimited
+                  CONSOLE Unlimited
                 </h3>
                 <p className="text-sm text-purple-600">
                   You have unlimited contracts! Create as many as you need.
@@ -441,7 +436,7 @@ export default function ContractGen({
         contracts={filteredContracts}
         loading={loading}
         userTier={userTier}
-        isPremium={isEnterpriseUser || isCorporationUser}
+        isPremium={isEnterpriseUser || isConsoleUser}
         hasReachedLimit={reachedLimit}
         onRefresh={onRefresh}
       />

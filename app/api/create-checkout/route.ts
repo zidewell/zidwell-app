@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     }
 
     // ✅ Updated valid tiers
-    const validTiers = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
+    const validTiers = ['free', 'starter', 'sme', 'enterprise', 'console'];
     if (!validTiers.includes(planTier)) {
       return NextResponse.json(
         { success: false, error: 'Invalid plan tier' },

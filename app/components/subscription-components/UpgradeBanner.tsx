@@ -40,7 +40,7 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
   }
 
   const handleUpgrade = () => {
-    router.push("/pricing?upgrade=solopreneur");
+    router.push("/pricing?upgrade=sme");
   };
 
   const handleDismiss = () => {
@@ -100,8 +100,8 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
                         </motion.span>
                       </h4>
                       <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                        Upgrade to Solopreneur to get 10 invoices, unlimited receipts, branded invoices, and better expense tracking.
-                      </p>
+                         Upgrade to SME to get unlimited invoices, unlimited receipts, and better tools.
+                       </p>
                     </div>
 
                     <motion.div
@@ -113,7 +113,7 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
                         size="sm"
                         className="bg-linear-to-r from-(--color-accent-yellow) to-[#1e5f43] hover:from-[#1e5f43] hover:to-(--color-accent-yellow) text-white h-8 sm:h-9 text-xs sm:text-sm whitespace-nowrap shadow-lg shadow-(--color-accent-yellow)/30 border border-(--color-accent-yellow)/50"
                       >
-                        Upgrade to Solopreneur
+                        Upgrade to SME
                         <Zap className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5" />
                       </Button>
                     </motion.div>

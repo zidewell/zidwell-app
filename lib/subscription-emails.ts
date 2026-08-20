@@ -18,10 +18,11 @@ const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 // Get plan display name (UPDATED with real plan names)
 const getPlanDisplayName = (tier: string): string => {
   const planNames: Record<string, string> = {
-    solopreneur: "Solopreneur",
+    free: "Free",
+    starter: "STARTER",
     sme: "SME",
     enterprise: "Enterprise",
-    corporation: "Corporation"
+    console: "CONSOLE"
   };
   return planNames[tier] || tier.charAt(0).toUpperCase() + tier.slice(1);
 };
@@ -29,12 +30,25 @@ const getPlanDisplayName = (tier: string): string => {
 // Get plan features for email (UPDATED with real plan names)
 const getPlanFeatures = (tier: string): string[] => {
   const features: Record<string, string[]> = {
-    solopreneur: [
-      '10 Invoices',
-      'Unlimited Receipts',
-      'Branded Invoices',
-      'Better expense tracking',
-      'Basic financial insights'
+    free: [
+      '5 invoices per month',
+      '5 receipts per month',
+      '0 contracts',
+      'Manual bookkeeping',
+      'Auto bookkeeping',
+      'Payment links',
+      'Business bank account',
+      'Basic financial overview'
+    ],
+    starter: [
+      'Unlimited invoices',
+      'Unlimited receipts',
+      '0 contracts',
+      'Manual bookkeeping',
+      'Auto bookkeeping',
+      'Payment links',
+      'Business bank account',
+      'Basic financial overview'
     ],
     sme: [
       'Unlimited Invoices & Receipts',
@@ -54,7 +68,7 @@ const getPlanFeatures = (tier: string): string[] => {
       '10 contracts',
       'Dedicated onboarding support'
     ],
-    corporation: [
+    console: [
       'Unlimited contracts',
       'Department-based access (HR, Finance, Ops…)',
       'Connect unlimited bank accounts',

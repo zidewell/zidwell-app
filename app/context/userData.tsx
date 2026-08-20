@@ -13,7 +13,7 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-export type SubscriptionTier = 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+export type SubscriptionTier = 'free' | 'starter' | 'sme' | 'enterprise' | 'console';
 
 export interface SupabaseUser {
   id: string;
@@ -224,17 +224,13 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   'invoices_5': 'free',
   'receipts_5': 'free',
   
-  // Solopreneur features
-  'invoices_10': 'solopreneur',
-  'unlimited_receipts': 'solopreneur',
-  'branded_invoices': 'solopreneur',
-  'expense_tracking': 'solopreneur',
-  'financial_insights': 'solopreneur',
+  // Starter features
+  'unlimited_invoices': 'starter',
+  'unlimited_receipts': 'starter',
   
   // SME features
   'bank_statement_upload': 'sme',
   'connect_3_bank_accounts': 'sme',
-  'unlimited_invoices': 'sme',
   'unlimited_receipts_sme': 'sme',
   'vault': 'sme',
   'tax_calculator': 'sme',
@@ -250,19 +246,19 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   'contracts_10': 'enterprise',
   'dedicated_onboarding': 'enterprise',
   
-  // Corporation features
-  'unlimited_contracts': 'corporation',
-  'department_access': 'corporation',
-  'unlimited_bank_accounts': 'corporation',
-  'payroll_system': 'corporation',
-  'advanced_reporting': 'corporation',
-  'custom_financial_structure': 'corporation',
-  'priority_onboarding': 'corporation',
-  'dedicated_account_manager': 'corporation',
+  // CONSOLE features
+  'unlimited_contracts': 'console',
+  'department_access': 'console',
+  'unlimited_bank_accounts': 'console',
+  'payroll_system': 'console',
+  'advanced_reporting': 'console',
+  'custom_financial_structure': 'console',
+  'priority_onboarding': 'console',
+  'dedicated_account_manager': 'console',
 };
 
 // Tier hierarchy (lowest to highest)
-const TIER_HIERARCHY: SubscriptionTier[] = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
+const TIER_HIERARCHY: SubscriptionTier[] = ['free', 'starter', 'sme', 'enterprise', 'console'];
 
 // Plan limits configuration
 const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
@@ -279,8 +275,8 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
     businessBankAccount: true,
     basicFinancialOverview: true,
   },
-  solopreneur: {
-    invoices: 10,
+  starter: {
+    invoices: 'unlimited',
     receipts: 'unlimited',
     contracts: 0,
     teamMembers: 0,
@@ -288,9 +284,9 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
     transferFee: 50,
     manualBookkeeping: true,
     autoBookkeeping: true,
-    brandedInvoices: true,
-    expenseTracking: true,
-    financialInsights: true,
+    paymentLinks: true,
+    businessBankAccount: true,
+    basicFinancialOverview: true,
   },
   sme: {
     invoices: 'unlimited',
@@ -321,7 +317,7 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
     downloadableReports: true,
     dedicatedOnboarding: true,
   },
-  corporation: {
+  console: {
     invoices: 'unlimited',
     receipts: 'unlimited',
     contracts: 'unlimited',
@@ -341,12 +337,17 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
 
 // Upgrade benefits mapping
 const UPGRADE_BENEFITS: Record<string, string[]> = {
-  free_to_solopreneur: [
-    "Up to 10 invoices (up from 5)",
-    "Unlimited receipts (up from 5)",
-    "Branded invoices",
-    "Better expense tracking",
-    "Basic financial insights",
+  free_to_starter: [
+    "Unlimited invoices",
+    "Unlimited receipts",
+  ],
+  starter_to_sme: [
+    "Upload bank statements (PDF/Excel/CSV)",
+    "Connect up to 3 bank accounts",
+    "Vault for financial documents",
+    "Tax calculator",
+    "Financial statements (P&L, Cash Flow, Balance Sheet)",
+    "1 extra team member access",
   ],
   free_to_sme: [
     "Upload bank statements (PDF/Excel/CSV)",
@@ -358,6 +359,15 @@ const UPGRADE_BENEFITS: Record<string, string[]> = {
     "Financial statements (P&L, Cash Flow, Balance Sheet)",
     "1 extra team member access",
   ],
+  starter_to_enterprise: [
+    "Multi-user access (full team)",
+    "Role-based permissions",
+    "Request & approval system",
+    "Connect 5 bank accounts",
+    "Downloadable financial reports",
+    "10 contracts",
+    "Dedicated onboarding support",
+  ],
   free_to_enterprise: [
     "Multi-user access (full team)",
     "Role-based permissions",
@@ -367,7 +377,7 @@ const UPGRADE_BENEFITS: Record<string, string[]> = {
     "10 contracts",
     "Dedicated onboarding support",
   ],
-  free_to_corporation: [
+  starter_to_console: [
     "Unlimited contracts",
     "Department-based access",
     "Connect unlimited bank accounts",
@@ -377,26 +387,7 @@ const UPGRADE_BENEFITS: Record<string, string[]> = {
     "Priority onboarding support",
     "Dedicated account manager",
   ],
-  solopreneur_to_sme: [
-    "Upload bank statements (PDF/Excel/CSV)",
-    "Connect up to 3 bank accounts",
-    "Unlimited invoices (up from 10)",
-    "Unlimited receipts",
-    "Vault for financial documents",
-    "Tax calculator",
-    "Financial statements (P&L, Cash Flow, Balance Sheet)",
-    "1 extra team member access",
-  ],
-  solopreneur_to_enterprise: [
-    "Multi-user access (full team)",
-    "Role-based permissions",
-    "Request & approval system",
-    "Connect 5 bank accounts",
-    "Downloadable financial reports",
-    "10 contracts",
-    "Dedicated onboarding support",
-  ],
-  solopreneur_to_corporation: [
+  free_to_console: [
     "Unlimited contracts",
     "Department-based access",
     "Connect unlimited bank accounts",
@@ -415,7 +406,7 @@ const UPGRADE_BENEFITS: Record<string, string[]> = {
     "10 contracts",
     "Dedicated onboarding support",
   ],
-  sme_to_corporation: [
+  sme_to_console: [
     "Unlimited contracts",
     "Department-based access - HR, Finance, Operations, etc",
     "Connect unlimited bank accounts (up from 3)",
@@ -425,7 +416,7 @@ const UPGRADE_BENEFITS: Record<string, string[]> = {
     "Priority onboarding support",
     "Dedicated account manager",
   ],
-  enterprise_to_corporation: [
+  enterprise_to_console: [
     "Unlimited contracts (up from 10)",
     "Department-based access - HR, Finance, Operations, etc",
     "Connect unlimited bank accounts (up from 5)",

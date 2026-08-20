@@ -28,30 +28,6 @@ const SUBSCRIPTION_FEATURES = {
     dedicatedSupport: false,
     accountManager: false,
   },
-  solopreneur: {
-    name: "Solopreneur",
-    price: 4900,
-    invoices: 10,
-    receipts: "unlimited",
-    contracts: 0,
-    teamMembers: 0,
-    bankAccounts: 0,
-    bookkeeping: true,
-    taxCalculator: false,
-    financialStatements: false,
-    brandedInvoices: true,
-    expenseTracking: true,
-    vault: false,
-    multiUser: false,
-    rolePermissions: false,
-    approvalSystem: false,
-    downloadableReports: false,
-    payrollSystem: false,
-    advancedReporting: false,
-    customStructure: false,
-    dedicatedSupport: false,
-    accountManager: false,
-  },
   sme: {
     name: "SME",
     price: 29900,
@@ -100,8 +76,8 @@ const SUBSCRIPTION_FEATURES = {
     dedicatedSupport: true,
     accountManager: false,
   },
-  corporation: {
-    name: "Corporation",
+  console: {
+    name: "console",
     price: 300000,
     invoices: "unlimited",
     receipts: "unlimited",
@@ -132,7 +108,7 @@ const supabase = createClient(
 );
 
 // Valid tiers for subscription
-const VALID_TIERS = ['solopreneur', 'sme', 'enterprise', 'corporation'];
+const VALID_TIERS = ['starter', 'sme', 'enterprise', 'console'];
 const ALL_TIERS = ['free', ...VALID_TIERS];
 
 export async function GET(req: NextRequest) {

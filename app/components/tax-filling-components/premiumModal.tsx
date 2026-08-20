@@ -6,12 +6,12 @@ import { useState } from "react";
 interface PremiumModalProps {
   open: boolean;
   onClose: () => void;
-  currentTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
+  currentTier?: "free" | "starter" | "sme" | "enterprise" | "console";
   feature?: string;
 }
 
 // Define a type for the tier details
-type TierType = "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
+type TierType = "free" | "starter" | "sme" | "enterprise" | "console";
 
 interface TierDetail {
   nextTier: TierType | null;
@@ -27,7 +27,7 @@ interface TierDetail {
 
 const tierDetails: Record<TierType, TierDetail> = {
   free: {
-    nextTier: "solopreneur",
+    nextTier: "starter",
     icon: Star,
     color: "gray",
     bgColor: "bg-gray-50 dark:bg-gray-800/50",
@@ -42,21 +42,24 @@ const tierDetails: Record<TierType, TierDetail> = {
       "Manual bookkeeping",
     ],
   },
-  solopreneur: {
+  starter: {
     nextTier: "sme",
-    icon: Zap,
+    icon: Star,
     color: "blue",
     bgColor: "bg-blue-50 dark:bg-blue-900/20",
     borderColor: "border-blue-200 dark:border-blue-800",
     textColor: "text-blue-600 dark:text-blue-400",
-    price: "₦4,900/month",
-    yearlyPrice: "₦49,000/year",
+    price: "₦9,900/month",
+    yearlyPrice: "₦99,900/year",
     features: [
-      "10 invoices total",
+      "Unlimited invoices",
       "Unlimited receipts",
       "0 contracts",
-      "Branded invoices",
-      "Basic financial insights",
+      "Basic support",
+      "Manual bookkeeping",
+      "Auto bookkeeping",
+      "Payment links",
+      "Business bank account",
     ],
   },
   sme: {
@@ -79,7 +82,7 @@ const tierDetails: Record<TierType, TierDetail> = {
     ],
   },
   enterprise: {
-    nextTier: "corporation",
+    nextTier: "console",
     icon: Crown,
     color: "amber",
     bgColor: "bg-amber-100 dark:bg-amber-900/20",
@@ -98,7 +101,7 @@ const tierDetails: Record<TierType, TierDetail> = {
       "Dedicated onboarding support",
     ],
   },
-  corporation: {
+  console: {
     nextTier: null,
     icon: Sparkles,
     color: "purple",
@@ -140,19 +143,16 @@ export function PremiumModal({
 
   const getUpgradeMessage = () => {
     if (currentTier === "free") {
-      return `Upgrade to Solopreneur to get more invoices and receipts, or go straight to SME for tax calculator access and unlimited features.`;
-    }
-    if (currentTier === "solopreneur") {
-      return `Upgrade to SME to unlock tax calculator, unlimited invoices, bank statement uploads, and more business tools.`;
+      return `Upgrade to SME to get unlimited invoices, tax calculator access, and more business tools.`;
     }
     if (currentTier === "sme") {
       return `Take your business to the next level with Enterprise. Get full tax filing support, financial statements, and team management.`;
     }
     if (currentTier === "enterprise") {
-      return `Go Corporation for comprehensive tax filing (VAT, PAYE, WHT), unlimited contracts, and dedicated account manager.`;
+      return `Go CONSOLE for comprehensive tax filing (VAT, PAYE, WHT), unlimited contracts, and dedicated account manager.`;
     }
-    if (currentTier === "corporation") {
-      return `You're on the Corporation plan. Contact us for custom enterprise solutions.`;
+    if (currentTier === "console") {
+      return `You're on the CONSOLE plan. Contact us for custom enterprise solutions.`;
     }
     return `Upgrade to access ${feature}`;
   };
@@ -168,10 +168,9 @@ export function PremiumModal({
   };
 
   const getYearlySavings = () => {
-    if (nextTier === "solopreneur") return "Save ₦9,800";
     if (nextTier === "sme") return "Save ₦59,800";
     if (nextTier === "enterprise") return "Save ₦200,000";
-    if (nextTier === "corporation") return "Save ₦600,000";
+    if (nextTier === "console") return "Save ₦600,000";
     return "";
   };
 
@@ -212,20 +211,18 @@ export function PremiumModal({
             <div>
               <p className="text-sm text-(--text-secondary)">Current Plan</p>
               <p className="text-lg font-bold text-(--text-primary) capitalize">
-                {currentTier === "solopreneur"
-                  ? "Solopreneur"
-                  : currentTier === "free"
-                    ? "Free Trial"
-                    : currentTier}
+                {currentTier === "free"
+                  ? "Free Trial"
+                  : currentTier}
               </p>
             </div>
-            {currentTier !== "corporation" && nextTierData && (
+            {currentTier !== "console" && nextTierData && (
               <div className="text-right">
                 <p className="text-sm text-(--text-secondary)">Upgrade to</p>
                 <p
                   className={`text-lg font-bold capitalize ${nextTierData.textColor}`}
                 >
-                  {nextTier === "solopreneur" ? "Solopreneur" : nextTier}
+                  {nextTier}
                 </p>
               </div>
             )}
@@ -255,7 +252,7 @@ export function PremiumModal({
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-(--text-primary) capitalize">
-                    {nextTier === "solopreneur" ? "Solopreneur" : nextTier} Plan
+                    {nextTier} Plan
                   </h3>
                   <p
                     className={`text-sm font-semibold ${nextTierData.textColor}`}
@@ -265,8 +262,8 @@ export function PremiumModal({
                 </div>
               </div>
 
-              {/* Billing Toggle - Only for non-Corporation plans */}
-              {nextTier !== "corporation" && nextTier !== "free" && (
+              {/* Billing Toggle - Only for non-CONSOLE plans */}
+              {nextTier !== "console" && nextTier !== "free" && (
                 <div className="flex items-center gap-2 mb-6">
                   <button
                     onClick={() => setSelectedBilling("monthly")}
@@ -306,7 +303,7 @@ export function PremiumModal({
               </ul>
 
               {/* Price Details */}
-              {nextTier !== "corporation" && (
+              {nextTier !== "console" && (
                 <div className="mb-6 p-4 bg-(--bg-secondary) rounded-lg">
                   <p className="text-sm text-(--text-secondary) mb-1">
                     {selectedBilling === "yearly"
@@ -335,7 +332,7 @@ export function PremiumModal({
                 >
                   Cancel
                 </button>
-                {nextTier === "corporation" ? (
+                {nextTier === "console" ? (
                   <Link href="/contact" className="flex-1">
                     <button className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2">
                       Contact Sales
@@ -348,32 +345,30 @@ export function PremiumModal({
                     className="flex-1"
                   >
                     <button
-                      className={`w-full px-4 py-3 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2
-                      ${
-                        nextTier === "solopreneur"
-                          ? "bg-blue-600 hover:bg-blue-700"
-                          : nextTier === "sme"
-                            ? "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
-                            : nextTier === "enterprise"
-                              ? "bg-amber-600 hover:bg-amber-700 text-white"
-                              : "bg-purple-600 hover:bg-purple-700"
-                      }`}
-                    >
-                      Upgrade to {nextTier === "solopreneur" ? "Solopreneur" : nextTier}
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
+                     className={`w-full px-4 py-3 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2
+                       ${
+                         nextTier === "sme"
+                           ? "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
+                           : nextTier === "enterprise"
+                             ? "bg-amber-600 hover:bg-amber-700 text-white"
+                             : "bg-purple-600 hover:bg-purple-700"
+                       }`}
+                     >
+                       Upgrade to {nextTier}
+                       <ArrowRight className="w-4 h-4" />
+                     </button>
                   </Link>
                 )}
               </div>
             </div>
           )}
 
-          {/* No Upgrade Path (Corporation) */}
-          {currentTier === "corporation" && (
+          {/* No Upgrade Path (CONSOLE) */}
+          {currentTier === "console" && (
             <div className="text-center py-8">
               <Sparkles className="w-16 h-16 text-purple-600 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-(--text-primary) mb-2">
-                You're on Corporation!
+                You're on CONSOLE!
               </h3>
               <p className="text-(--text-secondary) mb-6">
                 Contact our enterprise team for custom solutions and dedicated

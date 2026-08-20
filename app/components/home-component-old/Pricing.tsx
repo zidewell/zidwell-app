@@ -31,32 +31,6 @@ const plans = [
     amount: 0,
   },
   {
-    name: "ZidLite",
-    price: "₦4,900",
-    period: "/month",
-    yearlyPrice: "₦49,000/year (save ₦9,800)",
-    description:
-      "For businesses that want to test what finance automation looks like",
-    features: [
-      "Everything in Free, plus:",
-      "Transfers fee at N50",
-      "Bookkeeping free trial",
-      "Tax Calculator free trial",
-      "20 Invoices",
-      "20 Receipts",
-      "2 Contracts",
-      "WhatsApp Business Community",
-      "WhatsApp support",
-    ],
-    cta: "Go ZidLite",
-    highlight: false,
-    tier: "zidlite",
-    priceId: "price_zidlite_monthly",
-    yearlyPriceId: "price_zidlite_yearly",
-    amount: 4900,
-    yearlyAmount: 49000,
-  },
-  {
     name: "Growth",
     price: "₦9,900",
     period: "/month",
@@ -450,14 +424,8 @@ export default function Pricing() {
                       className={`text-3xl font-black ${plan.highlight ? "text-(--color-ink)" : "text-(--text-primary)"}`}
                     >
                       {selectedBilling === "yearly" && plan.yearlyPrice
-                        ? plan.tier === "zidlite"
-                          ? "₦49,000"
-                          : plan.tier === "growth"
-                            ? "₦99,000"
-                            : plan.tier === "premium"
-                              ? "₦499,000"
-                              : plan.price
-                        : plan.price}
+                          ? plan.price
+                          : plan.price}
                     </span>
                     <span
                       className={`text-sm ${plan.highlight ? "text-(--color-ink)/70" : "text-(--text-secondary)"}`}

@@ -2,7 +2,7 @@
 import { SubscriptionPageGuard } from "./SubscriptionGuard"; 
 
 interface WithSubscriptionProps {
-  requiredTier: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+  requiredTier: 'free' | 'starter' | 'sme' | 'enterprise' | 'console';
   featureKey: string;
   title?: string;
   description?: string;

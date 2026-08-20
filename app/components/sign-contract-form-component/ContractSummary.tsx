@@ -43,7 +43,7 @@ interface ContractSummaryProps {
   attachments?: AttachmentFile[];
   currentLawyerSignature?: boolean;
   contractDate?: string;
-  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
+  userTier?: "free" | "starter" | "sme" | "enterprise" | "console";
   contractCount?: number;
   hasUnlimitedContracts?: boolean;
 }
@@ -74,46 +74,46 @@ export default function ContractSummary({
   );
   const LAWYER_FEE = 10000;
 
-  // Determine user's contract limits with all 5 tiers
+  // Determine user's contract limits with all tiers
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "starter";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
-  const unlimited = hasUnlimitedContracts || isCorporationUser || isEnterpriseUser || isSMEUser;
+  const isConsoleUser = userTier === "console";
+  const unlimited = hasUnlimitedContracts || isConsoleUser || isEnterpriseUser;
 
   // Check if lawyer signature is available for this tier
-  // Only Enterprise and Corporation have lawyer signature
-  const canAddLawyerSignature = isEnterpriseUser || isCorporationUser;
+  // Only Enterprise and CONSOLE have lawyer signature
+  const canAddLawyerSignature = isEnterpriseUser || isConsoleUser;
 
   // Contract limits by tier
   const freeTierLimit = 0;
-  const solopreneurLimit = 0;
+  const starterLimit = 0;
   const smeLimit = 1;
   const enterpriseLimit = 10;
-  // Corporation has unlimited
+  // CONSOLE has unlimited
 
   // Get tier icon
   const getTierIcon = () => {
-    if (isCorporationUser) return <Sparkles className="w-4 h-4 text-purple-600" />;
+    if (isConsoleUser) return <Sparkles className="w-4 h-4 text-purple-600" />;
     if (isEnterpriseUser) return <Crown className="w-4 h-4 text-amber-600" />;
     if (isSMEUser) return <Star className="w-4 h-4 text-(--color-accent-yellow)" />;
-    if (isSolopreneurUser) return <Zap className="w-4 h-4 text-blue-600" />;
+    if (isStarterUser) return <Star className="w-4 h-4 text-blue-600" />;
     return <Star className="w-4 h-4 text-(--text-secondary)" />;
   };
 
   // Get tier display name
   const getTierDisplayName = () => {
-    if (isCorporationUser) return "Corporation";
+    if (isConsoleUser) return "CONSOLE";
     if (isEnterpriseUser) return "Enterprise";
     if (isSMEUser) return "SME";
-    if (isSolopreneurUser) return "Solopreneur";
+    if (isStarterUser) return "STARTER";
     return "Free Trial";
   };
 
   // Get tier colors
   const getTierColors = () => {
-    if (isCorporationUser)
+    if (isConsoleUser)
       return {
         bg: "bg-purple-50",
         border: "border-purple-200",
@@ -137,7 +137,7 @@ export default function ContractSummary({
         icon: "text-(--color-accent-yellow)",
         badge: "bg-(--color-accent-yellow)/10",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
         bg: "bg-blue-50",
         border: "border-blue-200",
@@ -159,7 +159,10 @@ export default function ContractSummary({
     if (unlimited) return "unlimited";
 
     // Properly handle all tier cases
-    if (isFree || isSolopreneurUser) {
+    if (isFree) {
+      return 0;
+    }
+    if (isStarterUser) {
       return 0;
     }
     if (isSMEUser) {
@@ -188,7 +191,7 @@ export default function ContractSummary({
   // Get limit display text
   const getLimitText = (): string => {
     if (unlimited) return "Unlimited";
-    if (isFree || isSolopreneurUser) return `${contractCount}/0`;
+    if (isFree) return `${contractCount}/0`;
     if (isSMEUser) return `${contractCount}/${smeLimit}`;
     if (isEnterpriseUser) return `${contractCount}/${enterpriseLimit}`;
     return `${contractCount}/0`;
@@ -274,16 +277,16 @@ export default function ContractSummary({
       border: "border-red-200",
       text: "text-red-700",
       icon: <span className="text-2xl">⚠️</span>,
-      title: isFree || isSolopreneurUser
+      title: isFree
         ? "No Contracts Available"
         : isSMEUser
         ? "SME Limit Reached"
         : "Enterprise Limit Reached",
-      message: isFree || isSolopreneurUser
+      message: isFree
         ? "Upgrade to SME or higher for contracts"
         : isSMEUser
         ? "Upgrade to Enterprise for more contracts"
-        : "Upgrade to Corporation for unlimited contracts",
+        : "Upgrade to CONSOLE for unlimited contracts",
       badge: "bg-red-100",
     };
   };
@@ -442,7 +445,7 @@ export default function ContractSummary({
                 )}
               </div>
 
-              {/* Lawyer Signature Option - Only show for Enterprise and Corporation */}
+              {/* Lawyer Signature Option - Only show for Enterprise and CONSOLE */}
               {canAddLawyerSignature && (
                 <div className="bg-(--bg-secondary) rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
@@ -472,22 +475,20 @@ export default function ContractSummary({
                 </div>
               )}
 
-              {/* Upgrade Message for Free, Solopreneur, and SME Users */}
+              {/* Upgrade Message for Free and SME Users */}
               {!canAddLawyerSignature && (
                 <div className={`${isSMEUser ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'} border rounded-lg p-4`}>
                   <div className="flex items-start gap-2">
                     <Sparkles className={`h-4 w-4 ${isSMEUser ? 'text-amber-600' : 'text-blue-600'} mt-0.5 shrink-0`} />
                     <div className="text-sm">
                       <p className={`font-medium ${isSMEUser ? 'text-amber-800' : 'text-blue-800'} mb-1`}>
-                        {isFree || isSolopreneurUser
+                        {isFree
                           ? "Upgrade to Access Lawyer Signatures"
                           : "Upgrade to Enterprise for Lawyer Signatures"}
                       </p>
                       <p className={isSMEUser ? 'text-amber-600' : 'text-blue-600'}>
                         {isFree
-                          ? "Upgrade to Enterprise or Corporation plans to add lawyer signatures to your contracts."
-                          : isSolopreneurUser
-                          ? "Upgrade to Enterprise or Corporation plans to add lawyer signatures to your contracts."
+                          ? "Upgrade to Enterprise or CONSOLE plans to add lawyer signatures to your contracts."
                           : "Upgrade to Enterprise or higher plans to add lawyer signatures to your contracts."}
                       </p>
                     </div>
@@ -592,11 +593,11 @@ export default function ContractSummary({
                       ? "Lawyer signature included"
                       : unlimited
                       ? "Unlimited contracts"
-                      : hasFreeContract()
-                      ? `Free contract (${remaining} remaining)`
-                      : isFree || isSolopreneurUser
-                      ? "No contracts available - upgrade required"
-                      : "Limit reached - upgrade required"}
+                       : hasFreeContract()
+                       ? `Free contract (${remaining} remaining)`
+                       : isFree
+                       ? "No contracts available - upgrade required"
+                       : "Limit reached - upgrade required"}
                   </span>
                 </div>
               </div>

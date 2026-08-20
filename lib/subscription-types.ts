@@ -1,90 +1,88 @@
 // app/lib/subscription/subscription-types.ts (UPDATED with real plan names)
 
 export interface SubscriptionPlan {
-  tier: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+  tier: 'free' | 'starter' | 'sme' | 'enterprise' | 'console';
   name: string;
   monthlyAmount: number;
   yearlyAmount: number;
+  threeMonthAmount: number;
   features: string[];
 }
 
 export const PLANS: SubscriptionPlan[] = [
   {
     tier: 'free',
-    name: 'Free',
+    name: 'FREE',
     monthlyAmount: 0,
     yearlyAmount: 0,
+    threeMonthAmount: 0,
     features: [
-      'Manual bookkeeping — Global',
-      'Auto-bookkeeping (Wallet users, Nigeria)',
-      'Payment Links & Sales pages (Nigeria)',
-      'Free business bank account (Nigeria)',
-      'Up to 5 invoices — Global',
-      'Up to 5 receipts — Global',
-      'Basic financial overview',
+      'Business bank account at 0.2% per transaction',
+      'Business account activation fee: N1000',
+      'Payment links and payment APIs',
+      'Available for Nigeria only',
     ],
   },
   {
-    tier: 'solopreneur',
-    name: 'Solopreneur',
-    monthlyAmount: 4900,
-    yearlyAmount: 49000,
+    tier: 'starter',
+    name: 'STARTER',
+    monthlyAmount: 9900,
+    yearlyAmount: 99900,
+    threeMonthAmount: 29900,
     features: [
       'Everything in Free, plus:',
-      'Up to 10 invoices',
-      'Unlimited receipts',
-      'Branded invoices',
-      'Better expense tracking',
-      'Basic financial insights',
+      'Business Plan Template',
+      'Bookkeeping Tool',
+      'Invoice Tool',
+      'Receipt Tool',
+      'Document Vault',
     ],
   },
   {
     tier: 'sme',
     name: 'SME',
-    monthlyAmount: 29900,
-    yearlyAmount: 299000,
+    monthlyAmount: 19900,
+    yearlyAmount: 199900,
+    threeMonthAmount: 59900,
     features: [
-      'Everything in Solopreneur, plus:',
-      'Upload bank statements (PDF / Excel / CSV)',
-      'Connect up to 3 bank accounts — Nigeria',
-      'Auto-bookkeeping from connected accounts — Nigeria',
-      'Unlimited invoices & receipts',
-      'Vault — store financial documents safely',
-      'Tax calculator',
-      'Financial statements (view): P&L · Cashflow · Balance Sheet',
-      '1 extra team member',
+      'Everything in Starter, plus:',
+      'Tax tool',
+      'Product webpage',
+      'One Extra User',
+      'Switch between Accounts',
+      'Add-ons (additional fee): Payroll, HMO, Tax Filing Support',
     ],
   },
   {
     tier: 'enterprise',
-    name: 'Enterprise',
-    monthlyAmount: 100000,
-    yearlyAmount: 1000000,
+    name: 'ENTERPRISE',
+    monthlyAmount: 59900,
+    yearlyAmount: 599900,
+    threeMonthAmount: 179900,
     features: [
       'Everything in SME, plus:',
-      'Multi-user access (full team)',
-      'Role-based permissions',
-      'Approvals for payments, invoices, receipts, transfers',
-      'Connect up to 5 bank accounts — Nigeria',
-      'Downloadable financial reports',
-      '10 contracts',
-      'Dedicated onboarding support',
+      'Advanced Bookkeeping Tool',
+      'Connected bank accounts',
+      'Contract Tool',
+      'Upload bank statements',
+      'Downloadable financial statements',
+      '2 Extra Users',
+      'Add-ons (additional fee): Payroll, HMO, Tax Filing Support',
     ],
   },
   {
-    tier: 'corporation',
-    name: 'Corporation',
-    monthlyAmount: 300000,
-    yearlyAmount: 3000000,
+    tier: 'console',
+    name: 'CONSOLE',
+    monthlyAmount: 0,
+    yearlyAmount: 0,
+    threeMonthAmount: 0,
     features: [
-      'Everything in Enterprise, plus:',
-      'Unlimited contracts',
-      'Department-based access (HR, Finance, Ops…)',
-      'Connect unlimited bank accounts — Nigeria',
-      'Simple payroll system',
-      'Advanced financial reporting',
-      'Custom financial structure setup',
-      'Priority onboarding & dedicated account manager',
+      'Custom Pricing',
+      'Sub accounts - create multiple accounts for people and outlets',
+      'Multi-users + signatories',
+      'Request and Approval workflow',
+      'Advanced finance dashboard',
+      'Plus every other tool on Zidwell',
     ],
   },
 ];
@@ -146,10 +144,10 @@ export const getPlanPrice = (tier: string, billingPeriod: 'monthly' | 'yearly'):
 
 // Helper to check if tier has unlimited invoices
 export const hasUnlimitedInvoices = (tier: string): boolean => {
-  return ['sme', 'enterprise', 'corporation'].includes(tier);
+  return ['starter', 'sme', 'enterprise', 'console'].includes(tier);
 };
 
 // Helper to check if tier has unlimited receipts
 export const hasUnlimitedReceipts = (tier: string): boolean => {
-  return ['solopreneur', 'sme', 'enterprise', 'corporation'].includes(tier);
+  return ['starter', 'sme', 'enterprise', 'console'].includes(tier);
 };

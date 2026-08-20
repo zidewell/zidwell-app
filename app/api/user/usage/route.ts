@@ -57,17 +57,17 @@ export async function GET(req: NextRequest) {
     
     // ✅ Updated tier types
     const isFree = tier === 'free';
-    const isSolopreneur = tier === 'solopreneur';
+    const isStarter = tier === 'starter';
     const isSME = tier === 'sme';
     const isEnterprise = tier === 'enterprise';
-    const isCorporation = tier === 'corporation';
-    const hasUnlimitedInvoices = isSME || isEnterprise || isCorporation;
+    const isConsole = tier === 'console';
+    const hasUnlimitedInvoices = isStarter || isSME || isEnterprise || isConsole;
 
     // Calculate invoice usage based on tier
     let invoiceData;
-    if (isFree || isSolopreneur) {
+    if (isFree) {
       const used = userData.invoices_used_lifetime || 0;
-      const limit = isFree ? 5 : 10; // Free: 5, Solopreneur: 10
+      const limit = 5;
       invoiceData = {
         used,
         limit,
@@ -90,28 +90,17 @@ export async function GET(req: NextRequest) {
 
     // Calculate receipt usage
     let receiptData;
-    if (isFree || isSolopreneur) {
+    if (isFree) {
       const used = userData.receipts_used_lifetime || 0;
-      const limit = isFree ? 5 : 'unlimited'; // Free: 5, Solopreneur: unlimited
-      if (limit === 'unlimited') {
-        receiptData = {
-          used,
-          limit: 'unlimited',
-          remaining: 'unlimited',
-          type: 'unlimited',
-          requiresUpgrade: false,
-          canCreate: true
-        };
-      } else {
-        receiptData = {
-          used,
-          limit,
-          remaining: Math.max(0, limit - used),
-          type: 'lifetime',
-          requiresUpgrade: used >= limit,
-          canCreate: used < limit
-        };
-      }
+      const limit = 5;
+      receiptData = {
+        used,
+        limit,
+        remaining: Math.max(0, limit - used),
+        type: 'lifetime',
+        requiresUpgrade: used >= limit,
+        canCreate: used < limit
+      };
     } else {
       receiptData = {
         used: userData.receipts_used_lifetime || 0,
@@ -136,14 +125,12 @@ export async function GET(req: NextRequest) {
         requiresUpgrade: true,
         canCreate: false
       };
-    } else if (isSolopreneur) {
-      const used = userData.contracts_used_lifetime || 0;
-      const limit = 0; // Solopreneur: 0 contracts
+    } else if (isStarter) {
       contractData = {
-        used,
-        limit,
-        remaining: Math.max(0, limit - used),
-        type: 'lifetime',
+        used: userData.contracts_used_lifetime || 0,
+        limit: 0, // Starter: 0 contracts
+        remaining: 0,
+        type: 'none',
         requiresUpgrade: true,
         canCreate: false
       };
@@ -211,11 +198,9 @@ export async function GET(req: NextRequest) {
       summary: {
         invoices: {
           used: userData.invoices_used_lifetime || 0,
-          limit: isFree ? 5 : isSolopreneur ? 10 : 'unlimited',
+          limit: isFree ? 5 : 'unlimited',
           remaining: isFree 
             ? Math.max(0, 5 - (userData.invoices_used_lifetime || 0))
-            : isSolopreneur
-            ? Math.max(0, 10 - (userData.invoices_used_lifetime || 0))
             : 'unlimited'
         }
       }

@@ -73,12 +73,9 @@ export const getRemainingInvoices = (
   tier: string,
   usedCount: number
 ): number | "unlimited" => {
-  // Updated tier names: sme, enterprise, corporation have unlimited
-  if (tier === "sme" || tier === "enterprise" || tier === "corporation") {
+  // Updated tier names: sme, enterprise, CONSOLE have unlimited
+  if (tier === "sme" || tier === "enterprise" || tier === "console") {
     return "unlimited";
-  }
-  if (tier === "solopreneur") {
-    return Math.max(0, 10 - usedCount);
   }
   // Free tier
   return Math.max(0, 5 - usedCount);
@@ -89,11 +86,8 @@ export const getRemainingReceipts = (
   tier: string,
   usedCount: number
 ): number | "unlimited" => {
-  if (tier === "sme" || tier === "enterprise" || tier === "corporation") {
+  if (tier === "sme" || tier === "enterprise" || tier === "console") {
     return "unlimited";
-  }
-  if (tier === "solopreneur") {
-    return "unlimited"; // Solopreneur has unlimited receipts
   }
   // Free tier
   return Math.max(0, 5 - usedCount);
@@ -104,7 +98,7 @@ export const getRemainingContracts = (
   tier: string,
   usedCount: number
 ): number | "unlimited" => {
-  if (tier === "corporation") {
+  if (tier === "console") {
     return "unlimited";
   }
   if (tier === "enterprise") {
@@ -113,19 +107,17 @@ export const getRemainingContracts = (
   if (tier === "sme") {
     return Math.max(0, 1 - usedCount);
   }
-  // Solopreneur and Free have no contracts
+  // Free tier has no contracts
   return 0;
 };
 
 // Get invoice limit based on tier (UPDATED with real plan names)
 export const getInvoiceLimit = (tier: string): number | "unlimited" => {
   switch (tier) {
-    case "corporation":
+    case "console":
     case "enterprise":
     case "sme":
       return "unlimited";
-    case "solopreneur":
-      return 10;
     case "free":
     default:
       return 5;
@@ -135,11 +127,9 @@ export const getInvoiceLimit = (tier: string): number | "unlimited" => {
 // Get receipt limit based on tier (UPDATED with real plan names)
 export const getReceiptLimit = (tier: string): number | "unlimited" => {
   switch (tier) {
-    case "corporation":
+    case "console":
     case "enterprise":
     case "sme":
-      return "unlimited";
-    case "solopreneur":
       return "unlimited";
     case "free":
     default:
@@ -150,13 +140,12 @@ export const getReceiptLimit = (tier: string): number | "unlimited" => {
 // Get contract limit based on tier (UPDATED with real plan names)
 export const getContractLimit = (tier: string): number | "unlimited" => {
   switch (tier) {
-    case "corporation":
+    case "console":
       return "unlimited";
     case "enterprise":
       return 10;
     case "sme":
       return 1;
-    case "solopreneur":
     case "free":
     default:
       return 0;
@@ -167,10 +156,9 @@ export const getContractLimit = (tier: string): number | "unlimited" => {
 export const getTierDisplayName = (tier: string): string => {
   const tierMap: Record<string, string> = {
     free: "Free",
-    solopreneur: "Solopreneur",
     sme: "SME",
     enterprise: "Enterprise",
-    corporation: "Corporation",
+    console: "console",
   };
   return tierMap[tier] || tier;
 };
@@ -179,12 +167,6 @@ export const getTierDisplayName = (tier: string): string => {
 export const isFeatureIncluded = (tier: string, feature: string): boolean => {
   const features: Record<string, string[]> = {
     free: ["manual_bookkeeping", "basic_financial_overview"],
-    solopreneur: [
-      "manual_bookkeeping",
-      "branded_invoices",
-      "expense_tracking",
-      "basic_financial_insights"
-    ],
     sme: [
       "bank_statement_upload",
       "vault",
@@ -199,7 +181,7 @@ export const isFeatureIncluded = (tier: string, feature: string): boolean => {
       "downloadable_reports",
       "dedicated_onboarding"
     ],
-    corporation: [
+    console: [
       "department_access",
       "payroll_system",
       "advanced_reporting",

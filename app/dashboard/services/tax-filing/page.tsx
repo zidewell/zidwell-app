@@ -5,7 +5,7 @@ import TaxCalculator from "@/app/components/tax-filling-components/TaxCalculator
 import { Button } from "@/app/components/ui/button";
 import { SubscriptionPageGuard } from "@/app/components/subscription-components/SubscriptionGuard";
 import { useSubscription } from "@/app/hooks/useSubscripion";
-import { ArrowLeft, Crown, Zap, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, Crown, Sparkles, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import Link from "next/link";
@@ -16,34 +16,34 @@ function TaxFilingPage() {
   const { 
     subscription, 
     userTier, 
+    isStarter,
     isSME, 
     isEnterprise, 
-    isCorporation, 
-    isSolopreneur 
+    isConsole 
   } = useSubscription();
 
   // Define tier variables
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "starter";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
+  const isConsoleUser = userTier === "console";
 
-  // Tax calculator access: SME, Enterprise, Corporation have access
-  const hasTaxCalculatorAccess = isSMEUser || isEnterpriseUser || isCorporationUser;
-  // Tax support: Enterprise and Corporation
-  const hasTaxSupport = isEnterpriseUser || isCorporationUser;
-  // Full tax filing: Corporation only
-  const hasFullTaxFiling = isCorporationUser;
+  // Tax calculator access: SME, Enterprise, CONSOLE have access
+  const hasTaxCalculatorAccess = isSMEUser || isEnterpriseUser || isConsoleUser;
+  // Tax support: Enterprise and CONSOLE
+  const hasTaxSupport = isEnterpriseUser || isConsoleUser;
+  // Full tax filing: CONSOLE only
+  const hasFullTaxFiling = isConsoleUser;
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isCorporationUser)
+    if (isConsoleUser)
       return {
         icon: Sparkles,
         color: "text-purple-600",
         bg: "bg-purple-100 dark:bg-purple-900/20",
-        label: "Corporation",
+        label: "CONSOLE",
       };
     if (isEnterpriseUser)
       return {
@@ -59,12 +59,12 @@ function TaxFilingPage() {
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
-        icon: Zap,
-        color: "text-blue-600",
+        icon: Star,
+        color: "text-blue-600 dark:text-blue-400",
         bg: "bg-blue-100 dark:bg-blue-900/20",
-        label: "Solopreneur",
+        label: "STARTER",
       };
     return {
       icon: Star,
@@ -135,7 +135,7 @@ function TaxFilingPage() {
               {/* Tax Calculator - Available to SME and above */}
               <TaxCalculator userTier={userTier} />
 
-              {/* Premium Features - Enterprise and Corporation */}
+              {/* Premium Features - Enterprise and CONSOLE */}
               {hasTaxSupport && (
                 <div className="mt-8 grid md:grid-cols-2 gap-6">
                   <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-6 shadow-soft hover:shadow-pop transition-all">
@@ -167,7 +167,7 @@ function TaxFilingPage() {
                 </div>
               )}
 
-              {/* Corporation Features - Only Corporation has full tax filing */}
+              {/* CONSOLE Features - Only CONSOLE has full tax filing */}
               {hasFullTaxFiling && (
                 <div className="mt-8 grid md:grid-cols-3 gap-6">
                   <div className="bg-(--bg-primary) border-2 border-purple-200 dark:border-purple-800 rounded-md p-6 shadow-soft hover:shadow-pop transition-all">
