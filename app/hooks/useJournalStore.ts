@@ -431,9 +431,22 @@ export function useJournalStore() {
         
         const txTypeLower = tx.type?.toLowerCase() || '';
         const isInflow = INFLOW_TYPES.includes(txTypeLower);
+        const isAirtimeOrData = ['airtime', 'data'].includes(txTypeLower);
         
         let amount: number;
-        if (isInflow) {
+        
+        // FIX: Handle airtime and data transactions specially
+        if (isAirtimeOrData) {
+          // For airtime/data, use the gross_amount or amount directly without deducting fee
+          // The gross_amount is the actual amount spent on airtime
+          if (tx.gross_amount != null && tx.gross_amount > 0) {
+            amount = Math.abs(tx.gross_amount);
+          } else if (tx.amount != null) {
+            amount = Math.abs(tx.amount);
+          } else {
+            amount = 0;
+          }
+        } else if (isInflow) {
           if (tx.net_amount != null) {
             amount = tx.net_amount;
           } else if (tx.gross_amount != null) {
@@ -442,14 +455,20 @@ export function useJournalStore() {
             amount = Math.abs(tx.amount) - (tx.fee || 0);
           }
         } else if (isOutflow) {
-          if (tx.total_deduction != null) {
+          // For other outflow transactions (not airtime/data)
+          if (tx.total_deduction != null && tx.total_deduction > 0) {
             amount = tx.total_deduction;
+          } else if (tx.gross_amount != null && tx.gross_amount > 0) {
+            amount = Math.abs(tx.gross_amount);
           } else {
-            amount = Math.abs(tx.amount) + (tx.fee || 0);
+            amount = Math.abs(tx.amount);
           }
         } else {
           amount = Math.abs(tx.amount);
         }
+
+        // Ensure amount is never negative
+        amount = Math.max(0, amount);
 
         const matchedCategory = categories.find(c => c.id === categoryId);
         

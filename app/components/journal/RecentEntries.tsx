@@ -407,7 +407,7 @@ export function RecentEntries({ onEdit, limit }: RecentEntriesProps) {
               onClick={handleLoadMore}
               disabled={isLoadingMore}
               className="px-6 sm:px-8 py-2 font-medium rounded-md transition-colors text-sm flex items-center gap-2 bg-(--bg-secondary) text-(--color-accent-yellow) border border-(--border-color) squircle-md hover:bg-(--bg-secondary)/80"
-            >
+            >0
               {isLoadingMore ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
