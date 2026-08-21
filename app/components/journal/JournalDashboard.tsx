@@ -19,6 +19,7 @@ import {
   Download,
   Settings,
   Plus,
+  Minus,
 } from "lucide-react";
 import Loader from "@/app/components/Loader";
 
@@ -34,6 +35,7 @@ export function JournalDashboard() {
   } = useJournal();
 
   const [showEntryForm, setShowEntryForm] = useState(false);
+  const [entryType, setEntryType] = useState<"income" | "expense">("income");
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [editEntry, setEditEntry] = useState<any>(null);
@@ -45,6 +47,16 @@ export function JournalDashboard() {
 
   const handleExport = async (dateRange: { from: string; to: string }) => {
     console.log("Exporting", dateRange);
+  };
+
+  const handleDownloadCSV = () => {
+    setShowExportModal(true);
+  };
+
+  const openEntryForm = (type: "income" | "expense") => {
+    setEntryType(type);
+    setEditEntry(null);
+    setShowEntryForm(true);
   };
 
   const formatCurrency = (value: number) => {
@@ -89,7 +101,6 @@ export function JournalDashboard() {
               {walletBalance < 0 ? "-" : ""}
               {formatCurrency(walletBalance)}
             </p>
-           
           </div>
           <div
             className="shrink-0 w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center"
@@ -145,34 +156,35 @@ export function JournalDashboard() {
       </div>
 
       {/* ACTION BUTTONS */}
-      <div className="flex flex-wrap gap-2 md:gap-3">
+      <section className="flex gap-4 flex-wrap">
         <Button
-          onClick={() => {
-            setEditEntry(null);
-            setShowEntryForm(true);
-          }}
-          className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md font-medium"
+          onClick={() => openEntryForm("income")}
+          className="flex-1 min-w-[160px] h-14 text-base font-semibold bg-green-600 hover:bg-green-700 text-white shadow-[var(--shadow-soft)]"
         >
-          <Plus className="w-4 h-4 mr-1.5" />
-          Add Entry
+          <Plus className="h-5 w-5 mr-2" /> Add Income
+        </Button>
+        <Button
+          onClick={() => openEntryForm("expense")}
+          className="flex-1 min-w-[160px] h-14 text-base font-semibold bg-red-600 hover:bg-red-700 text-white"
+        >
+          <Minus className="h-5 w-5 mr-2" /> Add Expense
+        </Button>
+        <Button 
+          onClick={handleDownloadCSV} 
+          variant="outline" 
+          className="h-14 font-semibold border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary) squircle-md"
+        >
+          <Download className="h-5 w-5 mr-2" /> Statement
         </Button>
         <Button
           variant="outline"
           onClick={() => setShowCategoryManager(true)}
-          className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary) squircle-md"
+          className="h-14 font-semibold border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary) squircle-md"
         >
-          <Settings className="w-4 h-4 mr-1.5" />
+          <Settings className="h-5 w-5 mr-2" />
           Categories
         </Button>
-        <Button
-          variant="outline"
-          onClick={() => setShowExportModal(true)}
-          className="border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary) squircle-md"
-        >
-          <Download className="w-4 h-4 mr-1.5" />
-          Export
-        </Button>
-      </div>
+      </section>
 
       {/* INSIGHTS CHARTS */}
       <div className="space-y-4">
@@ -206,6 +218,7 @@ export function JournalDashboard() {
         open={showEntryForm}
         onOpenChange={setShowEntryForm}
         editEntry={editEntry}
+        defaultType={entryType}
       />
       <CategoryManager
         open={showCategoryManager}
