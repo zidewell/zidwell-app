@@ -929,47 +929,54 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch transaction stats
   useEffect(() => {
-    const fetchTransactionStats = async () => {
-      if (!shouldFetchData || !userData?.id) return;
+  const fetchTransactionStats = async () => {
+    if (!shouldFetchData || !userData?.id) return;
 
-      const cacheKey = `transaction_stats_${userData.id}`;
-      const cached = notificationCache.get(cacheKey);
+    const cacheKey = `transaction_stats_${userData.id}`;
+    const cached = notificationCache.get(cacheKey);
+    
+    if (cached) {
+      setLifetimeBalance(cached.lifetimeBalance);
+      setTotalOutflow(cached.totalOutflow);
+      setTotalTransactions(cached.totalTransactions);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/total-inflow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: userData.id }),
+      });
+
+      const data = await res.json();
       
-      if (cached) {
-        setLifetimeBalance(cached.lifetimeBalance);
-        setTotalOutflow(cached.totalOutflow);
-        setTotalTransactions(cached.totalTransactions);
-        return;
-      }
-
-      try {
-        const res = await fetch("/api/total-inflow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: userData.id }),
-        });
-
-        const data = await res.json();
+      if (data.success) {
         const stats = {
-          lifetimeBalance: data.totalInflow || 0,
+          // LIFETIME BALANCE = TOTAL INFLOW (money that has come into the account)
+          lifetimeBalance: data.lifetimeBalance || data.totalInflow || 0,
           totalOutflow: data.totalOutflow || 0,
-          totalTransactions: data.totalTransactions || 0
+          totalTransactions: data.totalTransactions || 0,
+          totalInflow: data.totalInflow || 0,
+          netBalance: data.netBalance || 0,
         };
         
         setLifetimeBalance(stats.lifetimeBalance);
         setTotalOutflow(stats.totalOutflow);
         setTotalTransactions(stats.totalTransactions);
         notificationCache.set(cacheKey, stats, 5 * 60 * 1000);
-      } catch (error) {
-        console.error('❌ Error fetching transaction stats:', error);
+      } else {
+        console.error('❌ API returned error:', data.error);
       }
-    };
-
-    if (shouldFetchData && userData?.id) {
-      fetchTransactionStats();
+    } catch (error) {
+      console.error('❌ Error fetching transaction stats:', error);
     }
-  }, [userData?.id, shouldFetchData]);
+  };
 
+  if (shouldFetchData && userData?.id) {
+    fetchTransactionStats();
+  }
+}, [userData?.id, shouldFetchData]);
   // Fetch subscription on change
   useEffect(() => {
     if (shouldFetchData && userData?.id) {

@@ -56,17 +56,23 @@ interface WalletTransaction {
 
 const API_BASE = '/api/journal';
 
+// Complete inflow types
 const INFLOW_TYPES = [
-  'deposit', 'virtual_account_deposit', 'card_deposit', 
-  'p2p_received', 'referral', 'referral_reward', 
-  'refund', 'cashback', 'reversal', 'salary'
+  'card_deposit', 'credit', 'deposit', 'p2p_credit',
+  'p2p_received', 'referral', 'referral_reward',
+  'virtual_account_deposit', 'refund', 'cashback',
+  'reversal', 'salary', 'invoice_payment', 'bonus'
 ];
 
+// Complete outflow types
 const OUTFLOW_TYPES = [
-  'transfer', 'withdrawal', 'debit', 'airtime', 'data', 
-  'electricity', 'cable', 'p2p_transfer', 'bill_payment', 
-  'purchase', 'subscription', 'fee', 'charge', 'bill'
+  'airtime', 'contract', 'data', 'debit', 'p2p_transfer',
+  'transfer', 'withdrawal', 'electricity', 'cable',
+  'bill_payment', 'purchase', 'subscription', 'fee',
+  'charge', 'bill'
 ];
+
+const SUCCESS_STATUSES = ['success', 'successful', 'completed'];
 
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId: string) {
   const isMutation = options.method === 'POST' || options.method === 'PUT';
@@ -121,13 +127,15 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, userId
 }
 
 export function useJournalStore() {
-  const { userData, balance } = useUserContextData();
+  const { userData, balance: userBalance } = useUserContextData();
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [activeJournalType, setActiveJournalType] = useState<JournalType>('business');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updateTrigger, setUpdateTrigger] = useState(0);
+  const [realWalletBalance, setRealWalletBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   const userId = userData?.id;
 
@@ -135,12 +143,9 @@ export function useJournalStore() {
     setUpdateTrigger(prev => prev + 1);
   }, []);
 
+  // Determine if transaction is income or expense
   const getWalletTransactionType = useCallback((transaction: WalletTransaction): 'income' | 'expense' => {
     const transactionType = transaction.type?.toLowerCase();
-    
-    if (transactionType === 'bill_payment' || transactionType === 'bill') {
-      return 'expense';
-    }
     
     if (INFLOW_TYPES.includes(transactionType)) {
       return 'income';
@@ -157,6 +162,61 @@ export function useJournalStore() {
     }
     
     return 'expense';
+  }, []);
+
+  // Calculate the correct effective amount for a transaction
+  const getEffectiveAmount = useCallback((transaction: WalletTransaction): number => {
+    const txType = transaction.type?.toLowerCase() || '';
+    const status = transaction.status?.toLowerCase() || '';
+    const isSuccess = SUCCESS_STATUSES.includes(status);
+    const isInflow = INFLOW_TYPES.includes(txType);
+    const isOutflow = OUTFLOW_TYPES.includes(txType);
+
+    // Only count successful transactions
+    if (!isSuccess) {
+      // Special case: failed_refunded airtime is counted as inflow
+      if (txType === 'airtime' && status === 'failed_refunded') {
+        return Math.abs(transaction.amount || 0);
+      }
+      return 0;
+    }
+
+    // INFLOW transactions
+    if (isInflow) {
+      // Use net_amount if available
+      if (transaction.net_amount != null && transaction.net_amount > 0) {
+        return Math.abs(transaction.net_amount);
+      }
+      // Otherwise amount minus fee
+      return Math.max(0, Math.abs(transaction.amount || 0) - (transaction.fee || 0));
+    }
+
+    // OUTFLOW transactions
+    if (isOutflow) {
+      // FIX: For withdrawals, ONLY use the amount (fee is NOT deducted from wallet balance)
+      if (txType === 'withdrawal') {
+        return Math.abs(transaction.amount || 0);
+      }
+
+      // For airtime and data, use gross_amount if available
+      if (['airtime', 'data'].includes(txType)) {
+        if (transaction.gross_amount != null && transaction.gross_amount > 0) {
+          return Math.abs(transaction.gross_amount);
+        }
+        return Math.abs(transaction.amount || 0);
+      }
+
+      // For other outflows, use total_deduction if available
+      if (transaction.total_deduction != null && transaction.total_deduction > 0) {
+        return Math.abs(transaction.total_deduction);
+      }
+
+      // Fallback: amount + fee
+      return Math.abs(transaction.amount || 0) + (transaction.fee || 0);
+    }
+
+    // Unknown transaction type - fallback to amount
+    return Math.abs(transaction.amount || 0);
   }, []);
 
   const getCategoryIdFromName = useCallback((categoryName: string, transactionType: string, isOutflow: boolean): string => {
@@ -225,6 +285,30 @@ export function useJournalStore() {
     }
   }, [userId]);
 
+  // Fetch REAL wallet balance from /api/wallet-balance
+  const fetchRealWalletBalance = useCallback(async () => {
+    if (!userId) return null;
+    setBalanceLoading(true);
+    try {
+      const response = await fetch('/api/wallet-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      const data = await response.json();
+      if (data.success) {
+        console.log('💰 Real wallet balance fetched:', data.wallet_balance);
+        return data.wallet_balance || 0;
+      }
+      return null;
+    } catch (err) {
+      console.error("Error fetching real wallet balance:", err);
+      return null;
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [userId]);
+
   const loadData = useCallback(async () => {
     if (!userId) {
       setLoading(false);
@@ -245,6 +329,12 @@ export function useJournalStore() {
       const walletData = await fetchWalletTransactions();
       setWalletTransactions(walletData);
       
+      // Fetch REAL wallet balance from dedicated endpoint
+      const realBalance = await fetchRealWalletBalance();
+      if (realBalance !== null) {
+        setRealWalletBalance(realBalance);
+      }
+      
       forceUpdate();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -252,7 +342,7 @@ export function useJournalStore() {
     } finally {
       setLoading(false);
     }
-  }, [userId, forceUpdate, fetchWalletTransactions]);
+  }, [userId, forceUpdate, fetchWalletTransactions, fetchRealWalletBalance]);
 
   useEffect(() => {
     if (userId) {
@@ -260,6 +350,7 @@ export function useJournalStore() {
     } else {
       setWalletTransactions([]);
       setCategories(DEFAULT_CATEGORIES);
+      setRealWalletBalance(null);
       setLoading(false);
     }
   }, [userId, loadData]);
@@ -404,6 +495,7 @@ export function useJournalStore() {
     }
   }, [userId, forceUpdate]);
 
+  // Calculate unified entries with correct amount logic
   const unifiedEntries: UnifiedTransaction[] = useMemo(() => {
     const hiddenWalletEntries = JSON.parse(localStorage.getItem(`hidden_wallet_entries_${userId}`) || '[]');
     const walletCategoryOverrides = JSON.parse(localStorage.getItem(`wallet_category_overrides_${userId}`) || '{}');
@@ -411,13 +503,19 @@ export function useJournalStore() {
     const walletEntries: UnifiedTransaction[] = walletTransactions
       .filter(tx => {
         const walletId = `wallet_${tx.id}`;
-        return tx.status?.toLowerCase() === 'success' && !hiddenWalletEntries.includes(walletId);
+        const status = tx.status?.toLowerCase() || '';
+        // Include success transactions and failed_refunded airtime
+        const include = SUCCESS_STATUSES.includes(status) || 
+                       (tx.type?.toLowerCase() === 'airtime' && status === 'failed_refunded');
+        return include && !hiddenWalletEntries.includes(walletId);
       })
       .map(tx => {
         const txType = getWalletTransactionType(tx);
-        const primaryDescription = tx.narration || tx.description || `${tx.type} transaction`;
+        const isInflow = txType === 'income';
         const isOutflow = txType === 'expense';
+        const primaryDescription = tx.narration || tx.description || `${tx.type} transaction`;
         
+        // Determine category ID
         let categoryId = walletCategoryOverrides[tx.id] || '';
         
         if (!categoryId && tx.category_id) {
@@ -429,46 +527,9 @@ export function useJournalStore() {
           categoryId = getCategoryIdFromName(transactionCategoryName, tx.type, isOutflow);
         }
         
-        const txTypeLower = tx.type?.toLowerCase() || '';
-        const isInflow = INFLOW_TYPES.includes(txTypeLower);
-        const isAirtimeOrData = ['airtime', 'data'].includes(txTypeLower);
-        
-        let amount: number;
-        
-        // FIX: Handle airtime and data transactions specially
-        if (isAirtimeOrData) {
-          // For airtime/data, use the gross_amount or amount directly without deducting fee
-          // The gross_amount is the actual amount spent on airtime
-          if (tx.gross_amount != null && tx.gross_amount > 0) {
-            amount = Math.abs(tx.gross_amount);
-          } else if (tx.amount != null) {
-            amount = Math.abs(tx.amount);
-          } else {
-            amount = 0;
-          }
-        } else if (isInflow) {
-          if (tx.net_amount != null) {
-            amount = tx.net_amount;
-          } else if (tx.gross_amount != null) {
-            amount = tx.gross_amount - (tx.fee || 0);
-          } else {
-            amount = Math.abs(tx.amount) - (tx.fee || 0);
-          }
-        } else if (isOutflow) {
-          // For other outflow transactions (not airtime/data)
-          if (tx.total_deduction != null && tx.total_deduction > 0) {
-            amount = tx.total_deduction;
-          } else if (tx.gross_amount != null && tx.gross_amount > 0) {
-            amount = Math.abs(tx.gross_amount);
-          } else {
-            amount = Math.abs(tx.amount);
-          }
-        } else {
-          amount = Math.abs(tx.amount);
-        }
-
-        // Ensure amount is never negative
-        amount = Math.max(0, amount);
+        // Use the getEffectiveAmount function
+        const amount = getEffectiveAmount(tx);
+        const finalAmount = Math.max(0, amount);
 
         const matchedCategory = categories.find(c => c.id === categoryId);
         
@@ -476,9 +537,9 @@ export function useJournalStore() {
           id: `wallet_${tx.id}`,
           date: new Date(tx.created_at).toISOString(),
           type: txType,
-          amount: amount,
-          categoryId: categoryId,
-          categoryName: tx.category || matchedCategory?.name,
+          amount: finalAmount,
+          categoryId: categoryId || (isInflow ? 'income_other' : 'expense_other'),
+          categoryName: tx.category || matchedCategory?.name || (isInflow ? 'Other Income' : 'Other Expense'),
           note: primaryDescription,
           source: 'wallet',
           journalType: activeJournalType,
@@ -491,21 +552,32 @@ export function useJournalStore() {
       });
 
     console.log(`📊 Total entries from transactions: ${walletEntries.length}`);
+    console.log(`📊 Total Income: ${walletEntries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0)}`);
+    console.log(`📊 Total Expenses: ${walletEntries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0)}`);
     
     return walletEntries.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
-  }, [walletTransactions, activeJournalType, getWalletTransactionType, getCategoryIdFromName, userId, categories]);
+  }, [walletTransactions, activeJournalType, getWalletTransactionType, getEffectiveAmount, getCategoryIdFromName, userId, categories]);
+
+  // Calculate client-side balance for comparison
+  const clientBalance = useMemo(() => {
+    const totalInflow = unifiedEntries
+      .filter(e => e.type === 'income')
+      .reduce((sum, e) => sum + e.amount, 0);
+    
+    const totalOutflow = unifiedEntries
+      .filter(e => e.type === 'expense')
+      .reduce((sum, e) => sum + e.amount, 0);
+    
+    return totalInflow - totalOutflow;
+  }, [unifiedEntries]);
 
   const getFilteredEntries = useCallback((journalType: JournalType) => {
     return unifiedEntries.filter(entry => entry.journalType === journalType);
   }, [unifiedEntries]);
 
-  const getEntriesForPeriod = useCallback((
-    journalType: JournalType, 
-    startDate: Date, 
-    endDate: Date
-  ) => {
+  const getEntriesForPeriod = useCallback((journalType: JournalType, startDate: Date, endDate: Date) => {
     return unifiedEntries.filter(entry => {
       const entryDate = parseISO(entry.date);
       return entry.journalType === journalType &&
@@ -553,49 +625,29 @@ export function useJournalStore() {
 
   const getTodaySummary = useCallback((journalType: JournalType) => {
     const today = new Date();
-    const todayEntries = getEntriesForPeriod(
-      journalType,
-      startOfDay(today),
-      endOfDay(today)
-    );
+    const todayEntries = getEntriesForPeriod(journalType, startOfDay(today), endOfDay(today));
     return calculateSummary(todayEntries);
   }, [getEntriesForPeriod, calculateSummary]);
 
   const getWeekSummary = useCallback((journalType: JournalType) => {
     const today = new Date();
-    const weekEntries = getEntriesForPeriod(
-      journalType,
-      startOfWeek(today, { weekStartsOn: 1 }),
-      endOfWeek(today, { weekStartsOn: 1 })
-    );
+    const weekEntries = getEntriesForPeriod(journalType, startOfWeek(today, { weekStartsOn: 1 }), endOfWeek(today, { weekStartsOn: 1 }));
     return calculateSummary(weekEntries);
   }, [getEntriesForPeriod, calculateSummary]);
 
   const getMonthSummary = useCallback((journalType: JournalType) => {
     const today = new Date();
-    const monthEntries = getEntriesForPeriod(
-      journalType,
-      startOfMonth(today),
-      endOfMonth(today)
-    );
+    const monthEntries = getEntriesForPeriod(journalType, startOfMonth(today), endOfMonth(today));
     return calculateSummary(monthEntries);
   }, [getEntriesForPeriod, calculateSummary]);
 
   const getYearSummary = useCallback((journalType: JournalType) => {
     const today = new Date();
-    const yearEntries = getEntriesForPeriod(
-      journalType,
-      startOfYear(today),
-      endOfYear(today)
-    );
+    const yearEntries = getEntriesForPeriod(journalType, startOfYear(today), endOfYear(today));
     return calculateSummary(yearEntries);
   }, [getEntriesForPeriod, calculateSummary]);
 
-  const getCategoryBreakdown = useCallback((
-    journalType: JournalType,
-    startDate: Date,
-    endDate: Date
-  ) => {
+  const getCategoryBreakdown = useCallback((journalType: JournalType, startDate: Date, endDate: Date) => {
     const periodEntries = getEntriesForPeriod(journalType, startDate, endDate);
     const expenseEntries = periodEntries.filter(e => e.type === 'expense');
     
@@ -617,6 +669,24 @@ export function useJournalStore() {
     if (!userId) return;
     await loadData();
   }, [userId, loadData]);
+
+  // Calculate totals
+  const totalInflow = unifiedEntries
+    .filter(e => e.type === 'income')
+    .reduce((sum, e) => sum + e.amount, 0);
+  
+  const totalOutflow = unifiedEntries
+    .filter(e => e.type === 'expense')
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  // LIFETIME BALANCE = TOTAL INFLOW (all money that has come into the account)
+  const lifetimeBalance = totalInflow;
+
+  // NET BALANCE = TOTAL INFLOW - TOTAL OUTFLOW (what's left in the wallet)
+  const netBalance = totalInflow - totalOutflow;
+
+  // Use REAL wallet balance from the dedicated API (source of truth)
+  const walletBalance = realWalletBalance !== null ? realWalletBalance : userBalance ?? 0;
 
   return {
     entries: [],
@@ -646,6 +716,16 @@ export function useJournalStore() {
     updateTrigger,
     unifiedEntries,
     walletTransactions,
-    walletBalance: balance ?? 0,
+    balanceLoading,
+    
+    // BALANCE METRICS
+    lifetimeBalance: lifetimeBalance, // Total money that has come into the account (TOTAL INFLOW)
+    totalInflow: totalInflow,          // Total inflow from transactions
+    totalOutflow: totalOutflow,        // Total outflow from transactions
+    netBalance: netBalance,            // Total Inflow - Total Outflow
+    walletBalance: walletBalance,      // REAL balance from users table (source of truth)
+    currentBalance: walletBalance,     // Same as walletBalance
+    clientBalance: clientBalance,      // Client-calculated for comparison
+    isBalanced: Math.abs(clientBalance - walletBalance) < 0.01,
   };
 }

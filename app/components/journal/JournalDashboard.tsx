@@ -89,9 +89,7 @@ export function JournalDashboard() {
               {walletBalance < 0 ? "-" : ""}
               {formatCurrency(walletBalance)}
             </p>
-            <p className="text-xs md:text-sm mt-2 text-(--text-secondary)">
-              This is your actual wallet balance in real time.
-            </p>
+           
           </div>
           <div
             className="shrink-0 w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center"
