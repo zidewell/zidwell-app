@@ -20,8 +20,12 @@ import {
   Settings,
   Plus,
   Minus,
+  Calendar,
 } from "lucide-react";
 import Loader from "@/app/components/Loader";
+import { PeriodSummary } from "../journal/types";
+
+type TimeFilter = '7D' | '30D' | '60D' | '90D' | '180D' | 'All Time';
 
 export function JournalDashboard() {
   const {
@@ -30,6 +34,7 @@ export function JournalDashboard() {
     getTodaySummary,
     getWeekSummary,
     getMonthSummary,
+    getDaysSummary,
     walletBalance,
     loading,
   } = useJournal();
@@ -39,11 +44,29 @@ export function JournalDashboard() {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [editEntry, setEditEntry] = useState<any>(null);
+  const [selectedFilter, setSelectedFilter] = useState<TimeFilter>('30D');
 
   const allTime = getAllTimeSummary(activeJournalType);
   const today = getTodaySummary(activeJournalType);
   const week = getWeekSummary(activeJournalType);
   const month = getMonthSummary(activeJournalType);
+
+  // Get filtered summary based on selected time filter
+  const getFilteredSummary = (filter: TimeFilter): PeriodSummary => {
+    if (filter === 'All Time') {
+      return allTime;
+    }
+    const daysMap: Record<Exclude<TimeFilter, 'All Time'>, number> = {
+      '7D': 7,
+      '30D': 30,
+      '60D': 60,
+      '90D': 90,
+      '180D': 180,
+    };
+    return getDaysSummary(activeJournalType, daysMap[filter]);
+  };
+
+  const filteredSummary = getFilteredSummary(selectedFilter);
 
   const handleExport = async (dateRange: { from: string; to: string }) => {
     console.log("Exporting", dateRange);
@@ -78,18 +101,18 @@ export function JournalDashboard() {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8">
+    <div className="space-y-4 sm:space-y-6 md:space-y-8">
       <JournalHeader />
 
       {/* REAL WALLET BALANCE — Source of Truth */}
-      <div className="p-5 md:p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-4 sm:p-5 md:p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <p className="text-sm font-medium text-(--text-secondary)">
+            <p className="text-xs sm:text-sm font-medium text-(--text-secondary)">
               Current Wallet Balance
             </p>
             <p
-              className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight mt-1"
+              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight mt-1"
               style={{
                 color:
                   walletBalance >= 0
@@ -103,7 +126,7 @@ export function JournalDashboard() {
             </p>
           </div>
           <div
-            className="shrink-0 w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center"
+            className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center"
             style={{
               background:
                 walletBalance >= 0
@@ -115,81 +138,113 @@ export function JournalDashboard() {
                   : "var(--destructive)",
             }}
           >
-            <Wallet className="h-7 w-7 md:h-8 md:w-8" />
+            <Wallet className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
           </div>
         </div>
       </div>
 
-      {/* NET FLOW / P&L SUMMARY CARDS */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+      {/* PERIOD FILTERS */}
+      <div className="flex flex-col gap-2 sm:gap-3">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-(--text-secondary)" />
+          <span className="text-xs sm:text-sm font-medium text-(--text-secondary)">
+            Time Period:
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+          {(['7D', '30D', '60D', '90D', '180D', 'All Time'] as TimeFilter[]).map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setSelectedFilter(filter)}
+              className={`px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                selectedFilter === filter
+                  ? 'bg-(--color-accent-yellow) text-(--color-ink) shadow-md'
+                  : 'bg-(--bg-secondary) text-(--text-secondary) hover:bg-(--bg-tertiary) border border-(--border-color)'
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* SUMMARY CARDS - Single set that updates based on filter */}
+      <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <SummaryCard
-          title="Net Flow"
-          amount={allTime.net}
+          title={`Net Flow (${selectedFilter})`}
+          amount={filteredSummary.net}
           icon={BarChart3}
           variant="net"
         />
         <SummaryCard
-          title="Total Income"
-          amount={allTime.income}
+          title={`Income (${selectedFilter})`}
+          amount={filteredSummary.income}
           icon={TrendingUp}
           variant="income"
         />
         <SummaryCard
-          title="Total Expenses"
-          amount={allTime.expenses}
+          title={`Expenses (${selectedFilter})`}
+          amount={filteredSummary.expenses}
           icon={TrendingDown}
           variant="expense"
         />
         <SummaryCard
-          title="This Month"
-          amount={month.net}
+          title={`${selectedFilter === 'All Time' ? 'Total' : 'This Month'}`}
+          amount={selectedFilter === 'All Time' ? filteredSummary.net : month.net}
           icon={BarChart3}
           variant="net"
         />
       </div>
 
       {/* PERIOD PROGRESS INDICATORS */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
+      <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
         <ProgressIndicator label="Today" summary={today} />
         <ProgressIndicator label="This Week" summary={week} />
         <ProgressIndicator label="This Month" summary={month} />
       </div>
 
       {/* ACTION BUTTONS */}
-      <section className="flex gap-4 flex-wrap">
+      <section className="flex flex-wrap gap-2 sm:gap-3 md:gap-4">
         <Button
           onClick={() => openEntryForm("income")}
-          className="flex-1 min-w-[160px] h-14 text-base font-semibold bg-green-600 hover:bg-green-700 text-white shadow-[var(--shadow-soft)]"
+          className="flex-1 min-w-[120px] sm:min-w-[140px] md:min-w-[160px] h-11 sm:h-12 md:h-14 text-sm sm:text-base font-semibold bg-green-600 hover:bg-green-700 text-white shadow-[var(--shadow-soft)]"
         >
-          <Plus className="h-5 w-5 mr-2" /> Add Income
+          <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" /> 
+          <span className="hidden xs:inline">Add Income</span>
+          <span className="xs:hidden">Income</span>
         </Button>
         <Button
           onClick={() => openEntryForm("expense")}
-          className="flex-1 min-w-[160px] h-14 text-base font-semibold bg-red-600 hover:bg-red-700 text-white"
+          className="flex-1 min-w-[120px] sm:min-w-[140px] md:min-w-[160px] h-11 sm:h-12 md:h-14 text-sm sm:text-base font-semibold bg-red-600 hover:bg-red-700 text-white"
         >
-          <Minus className="h-5 w-5 mr-2" /> Add Expense
+          <Minus className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" /> 
+          <span className="hidden xs:inline">Add Expense</span>
+          <span className="xs:hidden">Expense</span>
         </Button>
         <Button 
           onClick={handleDownloadCSV} 
           variant="outline" 
-          className="h-14 font-semibold border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary) squircle-md"
+          className="flex-1 min-w-[100px] sm:min-w-[120px] h-11 sm:h-12 md:h-14 text-sm sm:text-base font-semibold border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary) squircle-md"
         >
-          <Download className="h-5 w-5 mr-2" /> Statement
+          <Download className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" /> 
+          <span className="hidden xs:inline">Statement</span>
+          <span className="xs:hidden">Export</span>
         </Button>
         <Button
           variant="outline"
           onClick={() => setShowCategoryManager(true)}
-          className="h-14 font-semibold border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary) squircle-md"
+          className="flex-1 min-w-[100px] sm:min-w-[120px] h-11 sm:h-12 md:h-14 text-sm sm:text-base font-semibold border-(--border-color) text-(--text-secondary) hover:bg-(--bg-secondary) squircle-md"
         >
-          <Settings className="h-5 w-5 mr-2" />
-          Categories
+          <Settings className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+          <span className="hidden xs:inline">Categories</span>
+          <span className="xs:hidden">Settings</span>
         </Button>
       </section>
 
       {/* INSIGHTS CHARTS */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         <h2
-          className="text-lg md:text-xl font-semibold text-(--text-primary)"
+          className="text-lg sm:text-xl md:text-2xl font-semibold text-(--text-primary)"
           style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
           Insights
@@ -198,9 +253,9 @@ export function JournalDashboard() {
       </div>
 
       {/* RECENT ENTRIES */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         <h2
-          className="text-lg md:text-xl font-semibold text-(--text-primary)"
+          className="text-lg sm:text-xl md:text-2xl font-semibold text-(--text-primary)"
           style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
           Recent Transactions

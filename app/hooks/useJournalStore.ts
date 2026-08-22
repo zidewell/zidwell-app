@@ -647,6 +647,34 @@ export function useJournalStore() {
     return calculateSummary(yearEntries);
   }, [getEntriesForPeriod, calculateSummary]);
 
+  // NEW: Get summary for a specific number of days
+  const getDaysSummary = useCallback((journalType: JournalType, days: number) => {
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - days);
+    startDate.setHours(0, 0, 0, 0);
+    
+    // Set end date to end of today
+    const endDate = new Date(today);
+    endDate.setHours(23, 59, 59, 999);
+    
+    const daysEntries = getEntriesForPeriod(journalType, startDate, endDate);
+    return calculateSummary(daysEntries);
+  }, [getEntriesForPeriod, calculateSummary]);
+
+  // NEW: Get summary for a custom date range
+  const getDateRangeSummary = useCallback((journalType: JournalType, startDate: Date, endDate: Date) => {
+    // Ensure start date is at beginning of day and end date at end of day
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    
+    const entries = getEntriesForPeriod(journalType, start, end);
+    return calculateSummary(entries);
+  }, [getEntriesForPeriod, calculateSummary]);
+
   const getCategoryBreakdown = useCallback((journalType: JournalType, startDate: Date, endDate: Date) => {
     const periodEntries = getEntriesForPeriod(journalType, startDate, endDate);
     const expenseEntries = periodEntries.filter(e => e.type === 'expense');
@@ -689,10 +717,23 @@ export function useJournalStore() {
   const walletBalance = realWalletBalance !== null ? realWalletBalance : userBalance ?? 0;
 
   return {
+    // Core data
     entries: [],
     categories,
     activeJournalType,
     setActiveJournalType,
+    loading,
+    error,
+    refetch,
+    userId,
+    updateTrigger,
+    
+    // Transaction data
+    unifiedEntries,
+    walletTransactions,
+    balanceLoading,
+    
+    // CRUD operations
     addEntry,
     updateEntry,
     deleteEntry,
@@ -700,8 +741,14 @@ export function useJournalStore() {
     addCategory,
     updateCategory,
     deleteCategory,
+    
+    // Filter and period functions
     getFilteredEntries,
     getEntriesForPeriod,
+    getDaysSummary,        // NEW: Get summary for X days
+    getDateRangeSummary,   // NEW: Get summary for custom date range
+    
+    // Summary functions
     getAllTimeSummary,
     getTodaySummary,
     getWeekSummary,
@@ -709,23 +756,15 @@ export function useJournalStore() {
     getYearSummary,
     getCategoryBreakdown,
     calculateSummary,
-    loading,
-    error,
-    refetch,
-    userId,
-    updateTrigger,
-    unifiedEntries,
-    walletTransactions,
-    balanceLoading,
     
-    // BALANCE METRICS
-    lifetimeBalance: lifetimeBalance, // Total money that has come into the account (TOTAL INFLOW)
-    totalInflow: totalInflow,          // Total inflow from transactions
-    totalOutflow: totalOutflow,        // Total outflow from transactions
-    netBalance: netBalance,            // Total Inflow - Total Outflow
-    walletBalance: walletBalance,      // REAL balance from users table (source of truth)
-    currentBalance: walletBalance,     // Same as walletBalance
-    clientBalance: clientBalance,      // Client-calculated for comparison
+    // Balance metrics
+    lifetimeBalance,      // Total money that has come into the account (TOTAL INFLOW)
+    totalInflow,          // Total inflow from transactions
+    totalOutflow,         // Total outflow from transactions
+    netBalance,           // Total Inflow - Total Outflow
+    walletBalance,        // REAL balance from users table (source of truth)
+    currentBalance: walletBalance, // Same as walletBalance
+    clientBalance,        // Client-calculated for comparison
     isBalanced: Math.abs(clientBalance - walletBalance) < 0.01,
   };
 }
