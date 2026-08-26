@@ -104,43 +104,62 @@ export function JournalDashboard() {
     <div className="space-y-4 sm:space-y-6 md:space-y-8">
       <JournalHeader />
 
-      {/* REAL WALLET BALANCE — Source of Truth */}
-      <div className="p-4 sm:p-5 md:p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          <div>
-            <p className="text-xs sm:text-sm font-medium text-(--text-secondary)">
-              Current Wallet Balance
-            </p>
-            <p
-              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight mt-1"
+      {/* WALLET BALANCE + SUMMARY CARDS in one row */}
+      <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 lg:grid-cols-3">
+        {/* Wallet Balance Card */}
+        <div className="p-4 sm:p-5 md:p-6 rounded-2xl border bg-(--bg-primary) border-(--border-color) shadow-soft squircle-lg">
+          <div className="flex flex-row sm:flex-row items-center justify-between gap-3 sm:gap-4">
+            <div className="flex-1">
+              <p className="text-xs sm:text-sm font-medium text-(--text-secondary)">
+                Current Balance
+              </p>
+              <p
+                className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold tracking-tight mt-1"
+                style={{
+                  color:
+                    walletBalance >= 0
+                      ? "var(--color-lemon-green)"
+                      : "var(--destructive)",
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                }}
+              >
+                {walletBalance < 0 ? "-" : ""}
+                {formatCurrency(walletBalance)}
+              </p>
+            </div>
+            <div
+              className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center"
               style={{
+                background:
+                  walletBalance >= 0
+                    ? "rgba(0, 182, 79, 0.1)"
+                    : "rgba(239, 68, 68, 0.1)",
                 color:
                   walletBalance >= 0
                     ? "var(--color-lemon-green)"
                     : "var(--destructive)",
-                fontFamily: "'Playfair Display', Georgia, serif",
               }}
             >
-              {walletBalance < 0 ? "-" : ""}
-              {formatCurrency(walletBalance)}
-            </p>
-          </div>
-          <div
-            className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center"
-            style={{
-              background:
-                walletBalance >= 0
-                  ? "rgba(0, 182, 79, 0.1)"
-                  : "rgba(239, 68, 68, 0.1)",
-              color:
-                walletBalance >= 0
-                  ? "var(--color-lemon-green)"
-                  : "var(--destructive)",
-            }}
-          >
-            <Wallet className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
+              <Wallet className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7" />
+            </div>
           </div>
         </div>
+
+        {/* Income Card */}
+        <SummaryCard
+          title={`Income (${selectedFilter})`}
+          amount={filteredSummary.income}
+          icon={TrendingUp}
+          variant="income"
+        />
+
+        {/* Expenses Card */}
+        <SummaryCard
+          title={`Expenses (${selectedFilter})`}
+          amount={filteredSummary.expenses}
+          icon={TrendingDown}
+          variant="expense"
+        />
       </div>
 
       {/* PERIOD FILTERS */}
@@ -166,34 +185,6 @@ export function JournalDashboard() {
             </button>
           ))}
         </div>
-      </div>
-
-      {/* SUMMARY CARDS - Single set that updates based on filter */}
-      <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
-        <SummaryCard
-          title={`Net Flow (${selectedFilter})`}
-          amount={filteredSummary.net}
-          icon={BarChart3}
-          variant="net"
-        />
-        <SummaryCard
-          title={`Income (${selectedFilter})`}
-          amount={filteredSummary.income}
-          icon={TrendingUp}
-          variant="income"
-        />
-        <SummaryCard
-          title={`Expenses (${selectedFilter})`}
-          amount={filteredSummary.expenses}
-          icon={TrendingDown}
-          variant="expense"
-        />
-        <SummaryCard
-          title={`${selectedFilter === 'All Time' ? 'Total' : 'This Month'}`}
-          amount={selectedFilter === 'All Time' ? filteredSummary.net : month.net}
-          icon={BarChart3}
-          variant="net"
-        />
       </div>
 
       {/* PERIOD PROGRESS INDICATORS */}
