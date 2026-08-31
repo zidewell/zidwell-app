@@ -89,7 +89,7 @@ const Footer = () => {
                   aria-label={social.label}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-8 h-8 sm:w-10 sm:h-10 bg-(--bg-primary) border border-(--border-color) flex items-center justify-center hover:bg-(--color-accent-yellow) hover:border-(--color-accent-yellow) transition-all duration-300 squircle-md hover:scale-105"
+                  className="w-8 h-8 sm:w-10 sm:h-10 bg-(--bg-primary) border border-(--border-color) flex items-center justify-center hover:bg-gold hover:border-gold transition-all duration-300 squircle-md hover:scale-105"
                 >
                   <social.icon className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-primary)" />
                 </a>
@@ -107,7 +107,7 @@ const Footer = () => {
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="text-xs sm:text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors"
+                    className="text-xs sm:text-sm text-(--text-secondary) hover:text-gold transition-colors"
                   >
                     {link.label}
                   </a>
@@ -126,7 +126,7 @@ const Footer = () => {
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="text-xs sm:text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors"
+                    className="text-xs sm:text-sm text-(--text-secondary) hover:text-gold transition-colors"
                   >
                     {link.label}
                   </a>

@@ -4,15 +4,29 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@theme inline {
+@theme {
+  /* New design system colors exposed to Tailwind utilities.
+     Each utility reads from a CSS variable that flips in `.dark`. */
+  --color-ink: var(--ink);
+  --color-white: var(--color-white);
+  --color-accent-yellow: var(--gold);
+  --color-lemon-green: var(--leaf);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-leaf: var(--leaf);
+  --color-gold: var(--gold);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-ring: var(--ring);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-inter: "Inter", sans-serif;
   --font-space-grotesk: "Space Grotesk", sans-serif;
   --font-be-vietnam: "Be Vietnam Pro", sans-serif;
-  
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -63,17 +77,30 @@
   --color-accent-yellow: #FDC020;
   --color-lemon-green: #00B64F;
 
+  /* New design system tokens */
+  --ink: #191919;
+  --background: #FFFFFF;
+  --surface: #F5F5F5;
+  --surface-2: #EBEBEB;
+  --border: #E5E5E5;
+  --muted-foreground: #666666;
+  --leaf: #00B64F;
+  --gold: #FDC020;
+
   /* Semantic mappings - Light mode */
-  --bg-primary: var(--color-white);
-  --bg-secondary: #F5F5F5;
-  --text-primary: var(--color-ink);
-  --text-secondary: #666666;
-  --border-color: #E5E5E5;
+  --bg-primary: var(--color-white);        /* #FFFFFF */
+  --bg-secondary: var(--color-surface);    /* #F5F5F5 */
+  --bg-tertiary: var(--color-surface-2);   /* #EBEBEB */
+  --text-primary: var(--color-ink);        /* #191919 */
+  --text-secondary: var(--color-muted-foreground);  /* #666666 */
+  --text-muted: var(--color-muted-foreground);
+  --border-color: var(--color-border);     /* #E5E5E5 */
   
   /* Shadows */
   --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-pop: 0 20px 35px -8px rgba(0, 0, 0, 0.15), 0 5px 12px -4px rgba(0, 0, 0, 0.1);
   --shadow-ink: 0 2px 4px rgba(25, 25, 25, 0.1);
+  --shadow-float: 0 10px 30px -12px rgba(0, 0, 0, 0.18);
 
   /* Primary color - Zidwell accent yellow converted to OKLCH */
   --primary: oklch(0.85 0.15 85);
@@ -112,16 +139,41 @@
   --popover: oklch(0.208 0.042 265.755);
   --popover-foreground: oklch(0.984 0.003 247.858);
 
-  /* Dark mode semantic mappings */
-  --bg-primary: var(--color-ink);
-  --bg-secondary: #2A2A2A;
-  --text-primary: var(--color-white);
-  --text-secondary: #A0A0A0;
-  --border-color: #333333;
+  /* New design system tokens (dark mode) - exposed to Tailwind utilities */
+  --color-ink: #FFFFFF;
+  --color-white: #FFFFFF;
+  --color-accent-yellow: #FDC020;
+  --color-lemon-green: #00B64F;
+  --color-background: #0F0F0F;   /* true dark background */
+  --color-surface: #1A1A1A;      /* elevated surface */
+  --color-surface-2: #242424;    /* higher elevation */
+  --color-leaf: #00B64F;
+  --color-gold: #FDC020;
+  --color-muted-foreground: #9CA3AF;
+
+  /* New design system tokens - Dark mode */
+  --ink: #FFFFFF;
+  --background: #0F0F0F;
+  --surface: #1A1A1A;
+  --surface-2: #242424;
+  --border: #2A2A2A;
+  --muted-foreground: #9CA3AF;
+  --leaf: #00B64F;
+  --gold: #FDC020;
+
+  /* Dark mode semantic mappings - standard modern dark theme */
+  --bg-primary: var(--color-background);     /* #0F0F0F - main bg */
+  --bg-secondary: var(--color-surface);      /* #1A1A1A - cards/sections */
+  --bg-tertiary: var(--color-surface-2);     /* #242424 - higher elevation */
+  --text-primary: var(--color-white);        /* #FFFFFF - primary text */
+  --text-secondary: var(--color-muted-foreground);  /* #9CA3AF - secondary text */
+  --text-muted: var(--color-muted-foreground);
+  --border-color: var(--border);             /* #2A2A2A - borders */
   
-  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.2);
-  --shadow-pop: 0 20px 35px -8px rgba(0, 0, 0, 0.3);
-  --shadow-ink: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-pop: 0 20px 35px -8px rgba(0, 0, 0, 0.4), 0 5px 12px -4px rgba(0, 0, 0, 0.3);
+  --shadow-ink: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-float: 0 10px 30px -12px rgba(0, 0, 0, 0.5);
 
   /* Primary color for dark mode - Zidwell accent yellow */
   --primary: oklch(0.85 0.15 85);
@@ -174,6 +226,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Squircle (G2) shapes */
+.squircle {
+  border-radius: 24px;
+}
 .squircle-sm {
   border-radius: 16px;
 }
@@ -437,6 +492,50 @@ body {
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+/* ============================================
+   NEW ZIDWELL DESIGN SYSTEM UTILITIES
+   ============================================ */
+
+/* Background colors */
+.bg-ink { background-color: var(--ink); }
+.bg-background { background-color: var(--background); }
+.bg-surface { background-color: var(--surface); }
+.bg-surface-2 { background-color: var(--surface-2); }
+.bg-leaf { background-color: var(--leaf); }
+.bg-gold { background-color: var(--gold); }
+
+/* Text colors */
+.text-ink { color: var(--ink); }
+.text-background { color: var(--background); }
+.text-leaf { color: var(--leaf); }
+.text-gold { color: var(--gold); }
+.text-muted-foreground { color: var(--muted-foreground); }
+
+/* Border colors */
+.border-border { border-color: var(--border); }
+
+/* Shadows */
+.shadow-float { box-shadow: var(--shadow-float); }
+.shadow-soft { box-shadow: var(--shadow-soft); }
+
+/* Typography */
+.font-display {
+  font-family: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
+}
+
+/* Grain background */
+.grain-bg {
+  position: relative;
+}
+.grain-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
 }
 
 

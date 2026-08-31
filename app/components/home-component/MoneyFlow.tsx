@@ -33,19 +33,21 @@ export function MoneyFlow() {
   const [item, setItem] = useState<ItemFilterKey>("inflow");
 
   const active = itemFilters.find((i) => i.key === item)!;
-  const toneText = active.tone === "leaf" ? "text-[var(--color-lemon-green)]" : active.tone === "gold" ? "text-[var(--color-accent-yellow)]" : "text-[var(--text-primary)]";
+  const toneText = active.tone === "leaf" ? "text-leaf" : active.tone === "gold" ? "text-gold" : "text-ink";
 
   return (
-    <div className="squircle-lg bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-float p-5 sm:p-8">
+    <div className="squircle-lg bg-background border border-border shadow-float p-5 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-medium text-[var(--text-primary)]">Money Flow</p>
-        <div className="inline-flex rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] p-1">
+        <p className="text-sm font-medium text-text-primary">Money Flow</p>
+        <div className="inline-flex rounded-full bg-surface border border-border p-1">
           {timeFilters.map((t) => (
             <button
               key={t}
               onClick={() => setTime(t)}
               className={`px-3 py-1.5 text-[11px] sm:text-xs font-medium rounded-full transition ${
-                time === t ? "bg-[var(--color-ink)] dark:bg-white text-white dark:text-[var(--color-ink)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                time === t
+                  ? "bg-ink text-background"
+                  : "text-text-secondary hover:text-text-primary"
               }`}
             >
               {t}
@@ -54,9 +56,9 @@ export function MoneyFlow() {
         </div>
       </div>
       <div className="mt-8 sm:mt-12 text-center">
-        <p className="text-xs uppercase tracking-widest text-[var(--text-secondary)]">{active.label} · {time}</p>
+        <p className="text-xs uppercase tracking-widest text-text-secondary">{active.label} · {time}</p>
         <p className={`mt-3 font-display text-5xl sm:text-7xl font-semibold tracking-tight ${toneText}`}>{active.value}</p>
-        <p className={`mt-3 text-sm font-medium ${active.up ? "text-[var(--color-lemon-green)]" : "text-[var(--text-secondary)]"}`}>
+        <p className={`mt-3 text-sm font-medium ${active.up ? "text-leaf" : "text-text-secondary"}`}>
           {active.up ? "▲" : "▾"} {active.pct} vs previous period
         </p>
       </div>
@@ -70,13 +72,13 @@ export function MoneyFlow() {
               onClick={() => setItem(f.key)}
               className={`squircle-sm border p-3 text-left transition ${
                 isActive
-                  ? "bg-[var(--color-ink)] dark:bg-white text-white dark:text-[var(--color-ink)] border-[var(--color-ink)] dark:border-white"
-                  : "bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--bg-secondary)]/80"
+                  ? "bg-ink text-background border-ink"
+                  : "bg-surface border-border hover:bg-surface/80"
               }`}
             >
-              <Icon className={`h-4 w-4 ${isActive ? "text-[var(--color-accent-yellow)]" : "text-[var(--text-secondary)]"}`} />
-              <p className={`mt-2 text-[11px] font-medium ${isActive ? "text-white/80 dark:text-[var(--color-ink)]/80" : "text-[var(--text-primary)]"}`}>{f.label}</p>
-              <p className={`text-[10px] ${isActive ? "text-white/60 dark:text-[var(--color-ink)]/60" : "text-[var(--text-secondary)]"}`}>{f.value}</p>
+              <Icon className={`h-4 w-4 ${isActive ? "text-gold" : "text-text-secondary"}`} />
+              <p className={`mt-2 text-[11px] font-medium ${isActive ? "text-background/80" : "text-text-primary"}`}>{f.label}</p>
+              <p className={`text-[10px] ${isActive ? "text-background/60" : "text-text-secondary"}`}>{f.value}</p>
             </button>
           );
         })}

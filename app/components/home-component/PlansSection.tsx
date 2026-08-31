@@ -250,16 +250,16 @@ export function PlansSection() {
     return (
       <>
         <style>{styles}</style>
-        <section className="py-24 sm:py-32 bg-[oklch(1_0_0)] dark:bg-[oklch(0.14_0_0)]">
+        <section className="py-24 sm:py-32 bg-background">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl mx-auto text-center mb-16">
-              <div className="h-8 w-24 bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] rounded-full mx-auto mb-4 animate-pulse" />
-              <div className="h-12 w-96 bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] rounded-lg mx-auto mb-4 animate-pulse" />
-              <div className="h-6 w-72 bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] rounded-lg mx-auto animate-pulse" />
+              <div className="h-8 w-24 bg-surface rounded-full mx-auto mb-4 animate-pulse" />
+              <div className="h-12 w-96 bg-surface rounded-lg mx-auto mb-4 animate-pulse" />
+              <div className="h-6 w-72 bg-surface rounded-lg mx-auto animate-pulse" />
             </div>
             <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-6">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-96 bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] rounded-[32px] animate-pulse" />
+                <div key={i} className="h-96 bg-surface rounded-[32px] animate-pulse" />
               ))}
             </div>
           </div>
@@ -271,11 +271,11 @@ export function PlansSection() {
   return (
     <>
       <style>{styles}</style>
-      <section className="py-24 sm:py-32 bg-[oklch(1_0_0)] dark:bg-[oklch(0.14_0_0)]">
+      <section className="py-24 sm:py-32 bg-background">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
           {/* Success Message */}
           {showSuccess && (
-            <div className="fixed top-4 right-4 z-50 bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)] px-6 py-3 rounded-xl shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)] animate-slideIn">
+            <div className="fixed top-4 right-4 z-50 bg-gold text-ink px-6 py-3 rounded-xl shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)] animate-slideIn">
               <p className="font-bold font-['Be_Vietnam_Pro',system-ui,sans-serif]">✓ Payment successful!</p>
               <p className="text-sm font-['Be_Vietnam_Pro',system-ui,sans-serif]">Your subscription has been activated.</p>
             </div>
@@ -283,7 +283,7 @@ export function PlansSection() {
 
           {/* Error Message */}
           {error && (
-            <div className="fixed top-4 right-4 z-50 bg-[oklch(0.6_0.22_27)] text-[oklch(1_0_0)] px-6 py-3 rounded-xl shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)] animate-slideIn">
+            <div className="fixed top-4 right-4 z-50 bg-destructive text-destructive-foreground px-6 py-3 rounded-xl shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)] animate-slideIn">
               <p className="font-bold font-['Be_Vietnam_Pro',system-ui,sans-serif]">✗ Error</p>
               <p className="text-sm font-['Be_Vietnam_Pro',system-ui,sans-serif]">{error}</p>
             </div>
@@ -291,21 +291,21 @@ export function PlansSection() {
 
           {/* Section Header */}
           <div className="max-w-2xl mx-auto text-center">
-            <p className="text-sm font-medium text-[oklch(0.66_0.18_148)] font-['Be_Vietnam_Pro',system-ui,sans-serif]">Pricing</p>
-            <h2 className="mt-3 font-['Space_Grotesk','Cy_Grotesk_Key',system-ui,sans-serif] text-4xl sm:text-5xl font-semibold tracking-tight text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)]">
+            <p className="text-sm font-medium text-leaf font-['Be_Vietnam_Pro',system-ui,sans-serif]">Pricing</p>
+            <h2 className="mt-3 font-['Space_Grotesk','Cy_Grotesk_Key',system-ui,sans-serif] text-4xl sm:text-5xl font-semibold tracking-tight text-text-primary">
               Simple. Scalable. Built for growth.
             </h2>
-            <p className="mt-4 text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] font-['Be_Vietnam_Pro',system-ui,sans-serif]">
+            <p className="mt-4 text-text-secondary font-['Be_Vietnam_Pro',system-ui,sans-serif]">
               Start free. Upgrade as your business — and your books — grow.
             </p>
 
             {/* Current Plan Display */}
             {subscription && subscription.tier && subscription.tier !== "free" && (
-              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[oklch(0.84_0.16_88)]/10 dark:bg-[oklch(0.84_0.16_88)]/20 rounded-full">
-                <span className="text-sm text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)] font-['Be_Vietnam_Pro',system-ui,sans-serif]">
+              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-gold/10 rounded-full">
+                <span className="text-sm text-text-primary font-['Be_Vietnam_Pro',system-ui,sans-serif]">
                   Current Plan:
                 </span>
-                <span className="text-sm font-semibold text-[oklch(0.84_0.16_88)] font-['Be_Vietnam_Pro',system-ui,sans-serif]">
+                <span className="text-sm font-semibold text-gold font-['Be_Vietnam_Pro',system-ui,sans-serif]">
                   {getTierDisplayName(subscription.tier)}
                 </span>
               </div>
@@ -313,14 +313,14 @@ export function PlansSection() {
 
             {/* Billing Toggle */}
             <div className="flex items-center justify-center mt-8">
-              <div className="bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] p-1 rounded-full border-2 border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%]">
+              <div className="bg-surface p-1 rounded-full border-2 border-border">
                 <button
                   onClick={() => setSelectedBilling("monthly")}
                   disabled={processingTier !== null}
                   className={`px-6 py-2 rounded-full text-sm font-medium transition-all font-['Be_Vietnam_Pro',system-ui,sans-serif] ${
                     selectedBilling === "monthly"
-                      ? "bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)]"
-                      : "text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)] hover:text-[oklch(0.17_0_0)]/80 dark:hover:text-[oklch(0.98_0_0)]/80"
+                      ? "bg-gold text-ink"
+                      : "text-text-primary hover:text-text-primary/80"
                   } disabled:opacity-50`}
                 >
                   Monthly
@@ -330,8 +330,8 @@ export function PlansSection() {
                   disabled={processingTier !== null}
                   className={`px-6 py-2 rounded-full text-sm font-medium transition-all font-['Be_Vietnam_Pro',system-ui,sans-serif] ${
                     selectedBilling === "yearly"
-                      ? "bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)]"
-                      : "text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)] hover:text-[oklch(0.17_0_0)]/80 dark:hover:text-[oklch(0.98_0_0)]/80"
+                      ? "bg-gold text-ink"
+                      : "text-text-primary hover:text-text-primary/80"
                   } disabled:opacity-50`}
                 >
                   Yearly <span className="text-xs ml-1">Save up to 20%</span>
@@ -367,37 +367,37 @@ export function PlansSection() {
                   key={plan.name}
                   className={`rounded-[32px] p-6 border shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(0,0,0,0.08)] flex flex-col transition-all duration-300 hover:-translate-y-1 ${
                     isFeatured
-                      ? "bg-[oklch(0.17_0_0)] dark:bg-[oklch(0.98_0_0)] border-[oklch(0.17_0_0)] dark:border-[oklch(0.98_0_0)] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)]"
-                      : "bg-[oklch(1_0_0)] dark:bg-[oklch(0.14_0_0)] border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%]"
+                      ? "bg-ink text-background border-ink shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)]"
+                      : "bg-background text-text-primary border-border"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className={`font-['Space_Grotesk','Cy_Grotesk_Key',system-ui,sans-serif] text-lg font-semibold ${
-                      isFeatured ? "text-[oklch(1_0_0)] dark:text-[oklch(0.17_0_0)]" : "text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)]"
+                      isFeatured ? "text-background" : "text-text-primary"
                     }`}>
                       {plan.name}
                     </p>
                     {isFeatured && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)] px-2.5 py-1 text-[10px] font-semibold font-['Be_Vietnam_Pro',system-ui,sans-serif]">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gold text-ink px-2.5 py-1 text-[10px] font-semibold font-['Be_Vietnam_Pro',system-ui,sans-serif]">
                         <Sparkles className="h-3 w-3" /> Most loved
                       </span>
                     )}
                   </div>
                   <p className={`text-xs mt-0.5 font-['Be_Vietnam_Pro',system-ui,sans-serif] ${
-                    isFeatured ? "text-[oklch(1_0_0)]/60 dark:text-[oklch(0.17_0_0)]/60" : "text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)]"
+                    isFeatured ? "text-background/60" : "text-text-secondary"
                   }`}>
                     {plan.tagline}
                   </p>
 
                   <div className="mt-4 flex items-baseline gap-1 flex-wrap">
                     <span className={`font-['Space_Grotesk','Cy_Grotesk_Key',system-ui,sans-serif] text-3xl font-semibold ${
-                      isFeatured ? "text-[oklch(1_0_0)] dark:text-[oklch(0.17_0_0)]" : "text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)]"
+                      isFeatured ? "text-background" : "text-text-primary"
                     }`}>
                       {getPriceDisplay()}
                     </span>
                     {getSuffixDisplay() && (
                       <span className={`text-sm font-['Be_Vietnam_Pro',system-ui,sans-serif] ${
-                        isFeatured ? "text-[oklch(1_0_0)]/60 dark:text-[oklch(0.17_0_0)]/60" : "text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)]"
+                        isFeatured ? "text-background/60" : "text-text-secondary"
                       }`}>
                         {getSuffixDisplay()}
                       </span>
@@ -405,20 +405,20 @@ export function PlansSection() {
                   </div>
                   {plan.altPrice && selectedBilling === "monthly" && (
                     <p className={`mt-0.5 text-xs font-['Be_Vietnam_Pro',system-ui,sans-serif] ${
-                      isFeatured ? "text-[oklch(1_0_0)]/50 dark:text-[oklch(0.17_0_0)]/50" : "text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)]"
+                      isFeatured ? "text-background/50" : "text-text-secondary"
                     }`}>
                       or {plan.altPrice}{plan.suffix}
                     </p>
                   )}
                   {selectedBilling === "yearly" && plan.yearlyPrice && (
                     <p className={`mt-0.5 text-xs font-['Be_Vietnam_Pro',system-ui,sans-serif] ${
-                      isFeatured ? "text-[oklch(1_0_0)]/50 dark:text-[oklch(0.17_0_0)]/50" : "text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)]"
+                      isFeatured ? "text-background/50" : "text-text-secondary"
                     }`}>
                       {plan.yearlyPrice}
                     </p>
                   )}
                   <p className={`mt-2 text-xs font-['Be_Vietnam_Pro',system-ui,sans-serif] ${
-                    isFeatured ? "text-[oklch(1_0_0)]/70 dark:text-[oklch(0.17_0_0)]/70" : "text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)]"
+                    isFeatured ? "text-background/70" : "text-text-secondary"
                   }`}>
                     {plan.note}
                   </p>
@@ -427,12 +427,12 @@ export function PlansSection() {
                     {plan.features.map((f) => (
                       <li key={f} className="flex items-start gap-2 text-sm font-['Be_Vietnam_Pro',system-ui,sans-serif]">
                         <Check className={`h-4 w-4 mt-0.5 shrink-0 ${
-                          isFeatured ? "text-[oklch(0.84_0.16_88)]" : "text-[oklch(0.66_0.18_148)]"
+                          isFeatured ? "text-gold" : "text-leaf"
                         }`} />
                         <span className={
                           isFeatured 
-                            ? "text-[oklch(1_0_0)]/90 dark:text-[oklch(0.17_0_0)]/90" 
-                            : "text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)]"
+                            ? "text-background/90" 
+                            : "text-text-primary"
                         }>{f}</span>
                       </li>
                     ))}
@@ -443,8 +443,8 @@ export function PlansSection() {
                     disabled={loading || isProcessing || currentPlan}
                     className={`mt-6 inline-flex items-center justify-center px-5 py-3 rounded-full text-sm font-semibold transition font-['Be_Vietnam_Pro',system-ui,sans-serif] ${
                       isFeatured
-                        ? "bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)] hover:opacity-90"
-                        : "bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] border border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%] hover:bg-[oklch(0.935_0_0)] dark:hover:bg-[oklch(0.22_0_0)] text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)]"
+                        ? "bg-gold text-ink hover:opacity-90"
+                        : "bg-surface border-border hover:bg-surface-2 text-text-primary"
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {isProcessing ? (
@@ -464,13 +464,13 @@ export function PlansSection() {
           </div>
 
           {/* Footer Info */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] font-['Be_Vietnam_Pro',system-ui,sans-serif]">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-text-secondary font-['Be_Vietnam_Pro',system-ui,sans-serif]">
             <span className="inline-flex items-center gap-1.5">
-              <Globe2 className="h-3.5 w-3.5 text-[oklch(0.66_0.18_148)]" />
+              <Globe2 className="h-3.5 w-3.5 text-leaf" />
               Available worldwide
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 text-[oklch(0.84_0.16_88)]" />
+              <MapPin className="h-3.5 w-3.5 text-gold" />
               Bank sync — Nigeria only
             </span>
             <span>· Cancel anytime</span>

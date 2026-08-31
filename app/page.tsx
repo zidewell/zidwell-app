@@ -8,18 +8,27 @@ import { BonusTools } from "./components/home-component/BonusTools";
 import { BuiltForReal } from "./components/home-component/BuiltForReal";
 import { Categories } from "./components/home-component/Categories";
 import { ConnectedAccounts } from "./components/home-component/ConnectedAccounts";
+import { ConsoleSection } from "./components/home-component/ConsoleSection";
+import { CoreTools } from "./components/home-component/CoreTools";
 import { DashboardSection } from "./components/home-component/DashboardSection";
+import { EveryBusiness } from "./components/home-component/EveryBusiness";
+import { FAQ } from "./components/home-component/FAQ";
 import { FinalCTA } from "./components/home-component/FinalCTA";
 import Footer from "./components/home-component/Footer";
 import { HealthSection } from "./components/home-component/HealthSection";
 import { Hero } from "./components/home-component/Hero";
-import { HowItWorks } from "./components/home-component/HowItWork";
+import { HowItWorks } from "./components/home-component/HowItWorksNew";
+import { Intro } from "./components/home-component/Intro";
 import { MoneyFlowSection } from "./components/home-component/MoneyFlowSection";
 import { Nav } from "./components/home-component/Nav";
 import { PlansSection } from "./components/home-component/PlansSection";
 import { SocialBar } from "./components/home-component/SocialBar";
 import { StatementsSection } from "./components/home-component/StatementsSection";
 import { TeamControl } from "./components/home-component/TeamControl";
+import { Testimonials } from "./components/home-component/Testimonials";
+import { TrustBar } from "./components/home-component/TrustBar";
+import { WhyZidwell } from "./components/home-component/WhyZidwell";
+import { Ziddy } from "./components/home-component/Ziddy";
 
 
  const metadata = {
@@ -96,8 +105,17 @@ function LandingContent() {
     const components = [
       { id: "nav", name: "Nav" },
       { id: "hero", name: "Hero" },
+      { id: "intro", name: "Intro" },
+      { id: "trustBar", name: "TrustBar" },
       { id: "socialBar", name: "SocialBar" },
       { id: "howItWorks", name: "HowItWorks" },
+      { id: "coreTools", name: "CoreTools" },
+      { id: "whyZidwell", name: "WhyZidwell" },
+      { id: "consoleSection", name: "ConsoleSection" },
+      { id: "everyBusiness", name: "EveryBusiness" },
+      { id: "testimonials", name: "Testimonials" },
+      { id: "faq", name: "FAQ" },
+      { id: "ziddy", name: "Ziddy" },
       { id: "connectedAccounts", name: "ConnectedAccounts" },
       { id: "moneyFlowSection", name: "MoneyFlowSection" },
       { id: "statementsSection", name: "StatementsSection" },
@@ -110,6 +128,7 @@ function LandingContent() {
       { id: "plansSection", name: "PlansSection" },
       { id: "aiSection", name: "AISection" },
       { id: "finalCTA", name: "FinalCTA" },
+      { id: "finalCTAVariant", name: "FinalCTANew" },
     ];
 
     return components.map((component) => ({
@@ -121,7 +140,7 @@ function LandingContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="min-h-screen bg-background text-foreground">
       {componentSettings.map((component) => (
         <div
           key={component.id}
@@ -131,8 +150,17 @@ function LandingContent() {
         >
           {component.id === "nav" && <Nav />}
           {component.id === "hero" && <Hero />}
+          {component.id === "intro" && <Intro />}
+          {component.id === "trustBar" && <TrustBar />}
           {component.id === "socialBar" && <SocialBar />}
           {component.id === "howItWorks" && <HowItWorks />}
+          {component.id === "coreTools" && <CoreTools />}
+          {component.id === "whyZidwell" && <WhyZidwell />}
+          {component.id === "consoleSection" && <ConsoleSection />}
+          {component.id === "everyBusiness" && <EveryBusiness />}
+          {component.id === "testimonials" && <Testimonials />}
+          {component.id === "faq" && <FAQ />}
+          {component.id === "ziddy" && <Ziddy />}
           {component.id === "connectedAccounts" && <ConnectedAccounts />}
           {component.id === "moneyFlowSection" && <MoneyFlowSection />}
           {component.id === "statementsSection" && <StatementsSection />}
@@ -145,6 +173,7 @@ function LandingContent() {
           {component.id === "plansSection" && <PlansSection />}
           {component.id === "aiSection" && <AISection />}
           {component.id === "finalCTA" && <FinalCTA />}
+          {/* {component.id === "finalCTAVariant" && <FinalCTAVariant />} */}
         </div>
       ))}
       <Footer />
@@ -156,8 +185,8 @@ export default function Landing() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Loader2 className="w-8 h-8 animate-spin text-gold" />
         </div>
       }
     >
