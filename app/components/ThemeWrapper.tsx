@@ -10,9 +10,5 @@ export function ThemeWrapper({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return null;
-  }
-
   return <>{children}</>;
 }

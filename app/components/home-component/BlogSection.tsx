@@ -232,8 +232,8 @@ export function BlogSection() {
                                 const initialsDiv = document.createElement("div");
                                 initialsDiv.className = "w-full h-full flex items-center justify-center";
                                 initialsDiv.style.backgroundColor = getAvatarColor(post.author?.name || "Unknown");
-                                const span = document.createElement("span");
-                                span.className = "text-white text-[8px] font-semibold";
+const span = document.createElement("span");
+                              span.className = "text-background text-[8px] font-semibold";
                                 span.textContent = getInitials(post.author?.name || "Unknown");
                                 initialsDiv.appendChild(span);
                                 parent.appendChild(initialsDiv);
@@ -245,7 +245,7 @@ export function BlogSection() {
                             className="w-full h-full flex items-center justify-center"
                             style={{ backgroundColor: getAvatarColor(post.author?.name || "Unknown") }}
                           >
-                            <span className="text-white text-[8px] font-semibold">
+                            <span className="text-background text-[8px] font-semibold">
                               {getInitials(post.author?.name || "Unknown")}
                             </span>
                           </div>
