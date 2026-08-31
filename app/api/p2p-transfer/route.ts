@@ -6,11 +6,7 @@ import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
-<<<<<<< HEAD
-import { generateTransferReceipt } from "@/lib/email-service";
-=======
 import { generateTransferReceipt, getLogoBase64, generatePdfBufferFromHtml } from "../webhook/helpers/email-helpers"; 
->>>>>>> 3026f668c10168aa88ab0584a9aa22cb8dab52de
 
 const baseUrl =
   process.env.NODE_ENV === "development"
@@ -72,22 +68,8 @@ async function sendP2PSuccessEmailNotification(
       html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Recipient:"}</strong> ${isInvoicePayment ? invoiceReference : receiverName}</p><p><strong>Reference:</strong> ${transactionRef}</p>${isInvoicePayment ? '' : '<p>📎 Please find your receipt attached to this email.</p>'}<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
     };
 
-<<<<<<< HEAD
-    // Attach receipt for successful transactions
+    // Attach receipt PDF for successful P2P transactions
     if (receiptHtml && transactionId) {
-      mailOptions.attachments = [
-        {
-          filename: `zidwell-receipt-${transactionId}.html`,
-          content: receiptHtml,
-          contentType: 'text/html',
-        }
-      ];
-    }
-
-    await transporter.sendMail(mailOptions);
-=======
-    if (receiptHtml && transactionId) {
-      console.log(`📎 Attempting to attach receipt for P2P transaction ${transactionId}`);
       try {
         const logo = getLogoBase64();
         let finalHtml = receiptHtml;
@@ -116,7 +98,6 @@ async function sendP2PSuccessEmailNotification(
 
     await transporter.sendMail(mailOptions);
     console.log(`✅ P2P success email sent to ${user.email}`);
->>>>>>> 3026f668c10168aa88ab0584a9aa22cb8dab52de
   } catch (emailError) {
     console.error("❌ Failed to send P2P success email:", emailError);
     logger.error("Failed to send P2P success email", emailError);
@@ -480,10 +461,7 @@ export async function POST(req: NextRequest) {
       ]);
     }
 
-<<<<<<< HEAD
     // Update sender transaction with full names and success status
-=======
->>>>>>> 3026f668c10168aa88ab0584a9aa22cb8dab52de
     await supabase
       .from("transactions")
       .update({
@@ -565,10 +543,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-<<<<<<< HEAD
     // Generate receipt HTML for sender email
-=======
->>>>>>> 3026f668c10168aa88ab0584a9aa22cb8dab52de
     const transactionIdForReceipt = transactionId || linkedTransactionId;
     const receiptHtml = generateTransferReceipt({
       transactionId: transactionIdForReceipt,
@@ -583,22 +558,6 @@ export async function POST(req: NextRequest) {
       fee: 0,
       type: "p2p"
     });
-<<<<<<< HEAD
-
-    // Send email notifications with receipt attachment
-    sendP2PSuccessEmailNotification(
-      userId,
-      receiverName,
-      amount,
-      linkedTransactionId,
-      narration,
-      invoicePaymentData?.isInvoicePayment || false,
-      invoicePaymentData?.invoice_reference,
-      receiptHtml,
-      transactionIdForReceipt
-    ).catch((err) => logger.error("Sender email failed", err));
-=======
->>>>>>> 3026f668c10168aa88ab0584a9aa22cb8dab52de
 
     // ✅ AWAIT emails before returning response
     await Promise.all([
@@ -624,8 +583,6 @@ export async function POST(req: NextRequest) {
         invoicePaymentData?.invoice_reference,
       ).catch((err) => logger.error("Receiver email failed", err)),
     ]);
-
- 
 
     const responseData = {
       message: "P2P transfer completed successfully.",
